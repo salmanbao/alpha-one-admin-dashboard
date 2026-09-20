@@ -105,7 +105,7 @@ export function DashboardGrid() {
                 return (
                   <div key={`${placement.widgetId}-${placement.x}-${placement.y}`} className={spanClass(span)}>
                     <ModuleErrorBoundary name={definition.title}>
-                      <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md">
+                      <Card className="card-hover-lift flex h-full flex-col overflow-hidden">
                         <CardHeader className="flex flex-row items-center justify-between gap-2 border-b bg-muted/20 px-4 py-2.5">
                           <h3 className="text-[13px] font-medium text-foreground">{definition.title}</h3>
                           <span

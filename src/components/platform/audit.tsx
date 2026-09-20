@@ -9,7 +9,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { Activity, ShieldAlert, ShieldCheck, ShieldQuestion, Filter, X, Bookmark, Save, Trash2, ChevronDown } from "lucide-react";
+import { Activity, ShieldAlert, ShieldCheck, ShieldQuestion, Filter, X, Bookmark, Save, Trash2, ChevronDown, Pencil } from "lucide-react";
 import type { AuditEntry } from "@/lib/platform/types";
 import { DataTable, type Column } from "./data-table";
 import { Badge } from "@/components/ui/badge";
@@ -70,7 +70,7 @@ export function AuditLogTable({ entries }: { entries: AuditEntry[] }) {
   const [moduleFilter, setModuleFilter] = useState<string>("all");
   const [actorFilter, setActorFilter] = useState<string>("");
   const [dateRange, setDateRange] = useState<string>("all");
-  const { views, saveView, deleteView, applyView } = useSavedViews("audit-log", user?.id ?? "anon");
+  const { views, saveView, deleteView, renameView, applyView } = useSavedViews("audit-log", user?.id ?? "anon");
 
   // Derive unique modules and actors for filter dropdowns
   const modules = useMemo(() => Array.from(new Set(entries.map((e) => e.module).filter(Boolean) as string[])), [entries]);
@@ -254,7 +254,18 @@ export function AuditLogTable({ entries }: { entries: AuditEntry[] }) {
                   {Object.values(v.filters).filter((x) => x && x !== "all").length} filters
                 </span>
                 <button
-                  className="ml-1 shrink-0 rounded p-0.5 hover:bg-destructive/10 hover:text-destructive"
+                  className="ml-1 shrink-0 rounded p-0.5 hover:bg-primary/10 hover:text-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newName = window.prompt("Rename view:", v.name);
+                    if (newName && newName.trim()) renameView(v.id, newName.trim());
+                  }}
+                  aria-label={`Rename view ${v.name}`}
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+                <button
+                  className="shrink-0 rounded p-0.5 hover:bg-destructive/10 hover:text-destructive"
                   onClick={(e) => { e.stopPropagation(); deleteView(v.id); }}
                   aria-label={`Delete view ${v.name}`}
                 >

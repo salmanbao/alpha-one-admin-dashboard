@@ -65,9 +65,13 @@ export function useSavedViews(scope: string, userId: string) {
     setViews((prev) => prev.filter((v) => v.id !== id));
   }, []);
 
+  const renameView = useCallback((id: string, name: string) => {
+    setViews((prev) => prev.map((v) => v.id === id ? { ...v, name } : v));
+  }, []);
+
   const applyView = useCallback((view: SavedView): Record<string, string> => {
     return { ...view.filters };
   }, []);
 
-  return { views, saveView, deleteView, applyView };
+  return { views, saveView, deleteView, renameView, applyView };
 }

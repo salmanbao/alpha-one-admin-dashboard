@@ -11,8 +11,11 @@
 import { useLiveData } from "@/lib/platform/live-data";
 import { useState, useEffect } from "react";
 import { Sparkline } from "@/components/platform/charts";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { PriceAlertManager, usePriceAlerts } from "@/components/platform/price-alerts";
 
 interface SymbolPrice {
   symbol: string;
@@ -56,8 +59,20 @@ export function LivePriceFeedWidget() {
     return () => cancelAnimationFrame(id);
   }, [live.tick]);
 
+  // Build current prices map for the alert system
+  const currentPrices: Record<string, number> = {};
+  for (const s of symbols) currentPrices[s.symbol] = s.price;
+  const { activeCount } = usePriceAlerts(currentPrices);
+  const [alertOpen, setAlertOpen] = useState(false);
+
   return (
     <div className="space-y-1.5">
+      <div className="flex justify-end -mt-1 mb-1">
+        <Button size="sm" variant="ghost" className="h-6 gap-1 text-[10px]" onClick={() => setAlertOpen(true)}>
+          <Bell className="h-3 w-3" /> Alerts
+          {activeCount > 0 ? <Badge variant="secondary" className="h-3.5 px-1 text-[8px]">{activeCount}</Badge> : null}
+        </Button>
+      </div>
       {symbols.map((s) => {
         const isUp = s.price >= s.prevPrice;
         const delta = s.price - s.prevPrice;
@@ -94,6 +109,7 @@ export function LivePriceFeedWidget() {
           </div>
         );
       })}
+      <PriceAlertManager open={alertOpen} onOpenChange={setAlertOpen} currentPrices={currentPrices} />
     </div>
   );
 }

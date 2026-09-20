@@ -60,7 +60,7 @@ export function Sidebar() {
     <aside className="hidden h-full w-60 shrink-0 flex-col border-r bg-sidebar md:flex">
       <SidebarHeader />
       <SidebarBrand tenantName={tenant.branding.name} tagline={tenant.branding.tagline} initials={tenant.branding.initials} primaryColor={tenant.branding.primaryColor} />
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
+      <nav className="scrollbar-thin flex-1 overflow-y-auto px-2 py-2">
         <ul className="space-y-0.5">
           {items.map((item) => (
             <SidebarItem key={item.id} item={item} t={t} />

@@ -93,7 +93,7 @@ export function LiveActivityFeedWidget() {
         </div>
       </div>
 
-      <div className="flex-1 space-y-2 overflow-y-auto" style={{ maxHeight: 280 }}>
+      <div className="scrollbar-thin flex-1 space-y-2 overflow-y-auto" style={{ maxHeight: 280 }}>
         {live.activityFeed.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 py-8 text-center">
             <Radio className="h-5 w-5 text-muted-foreground/40" />
