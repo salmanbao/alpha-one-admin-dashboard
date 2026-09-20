@@ -4,18 +4,37 @@
  * PFaaS Platform — Application Shell
  *
  * Spec section 9. Reusable shell that composes Sidebar + Topbar +
- * Breadcrumbs + Command Menu + Mobile Nav + page content area.
- * Independent of business modules.
+ * Breadcrumbs + Command Menu + Global Search + Mobile Nav + page
+ * content area. Independent of business modules.
  */
 
+import { useEffect } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { Breadcrumbs, MobileNav } from "./breadcrumbs";
 import { CommandMenu } from "./command-menu";
+import { GlobalSearchDialog } from "./global-search";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { commandOpen, setCommandOpen } = usePlatform();
+  const { setSearchOpen } = usePlatform();
+
+  // "/" opens global search when not typing in an input
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [setSearchOpen]);
+
   return (
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar />
@@ -35,12 +54,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="font-medium text-foreground">v1.0.0</span>
             </span>
             <span className="text-muted-foreground/70">
-              Modular dashboard · Dynamic navigation · Widget-based
+              Press <kbd className="rounded border bg-background px-1 text-[10px]">/</kbd> to search ·{" "}
+              <kbd className="rounded border bg-background px-1 text-[10px]">⌘K</kbd> for commands
             </span>
           </div>
         </footer>
       </div>
       <CommandMenu />
+      <GlobalSearchDialog />
     </div>
   );
 }

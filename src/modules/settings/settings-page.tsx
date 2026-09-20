@@ -4,7 +4,7 @@
  * Settings Page — modular settings with tabs.
  *
  * Spec section 43. Tabs: General, Branding, Terminology, Modules,
- * Roles, Notifications. The Modules tab is the demo centerpiece —
+ * Roles, Integrations, Notifications. The Modules tab is the demo centerpiece —
  * toggling modules updates tenant entitlements live, and the sidebar
  * + dashboard re-compose instantly (spec section 67 demonstration).
  */
@@ -32,6 +32,14 @@ import {
   Type,
   Check,
   RefreshCw,
+  Plug,
+  Zap,
+  CreditCard,
+  ShieldCheck,
+  Brain,
+  Mail,
+  Database,
+  Globe,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { TenantBranding } from "@/lib/platform/types";
@@ -51,6 +59,7 @@ export function SettingsPage() {
             <TabsTrigger value="terminology" className="gap-1"><Type className="h-3 w-3" /> Terminology</TabsTrigger>
             <TabsTrigger value="modules" className="gap-1"><Package className="h-3 w-3" /> Modules</TabsTrigger>
             <TabsTrigger value="roles" className="gap-1"><Users className="h-3 w-3" /> Roles</TabsTrigger>
+            <TabsTrigger value="integrations" className="gap-1"><Plug className="h-3 w-3" /> Integrations</TabsTrigger>
             <TabsTrigger value="notifications" className="gap-1"><Bell className="h-3 w-3" /> Notifications</TabsTrigger>
           </TabsList>
           <TabsContent value="general"><GeneralTab /></TabsContent>
@@ -58,6 +67,7 @@ export function SettingsPage() {
           <TabsContent value="terminology"><TerminologyTab /></TabsContent>
           <TabsContent value="modules"><ModulesTab /></TabsContent>
           <TabsContent value="roles"><RolesTab /></TabsContent>
+          <TabsContent value="integrations"><IntegrationsTab /></TabsContent>
           <TabsContent value="notifications"><NotificationsTab /></TabsContent>
         </Tabs>
       </PageContent>
@@ -355,5 +365,140 @@ function NotificationsTab() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Integrations Tab (spec §44). Pluggable integrations panel with
+ * provider status, configuration, health, sync status, last sync.
+ * Grouped by category: Trading Platform, Payments, KYC, Accounting, CRM,
+ * Notifications, Marketing. Never exposes secret credentials after save.
+ */
+function IntegrationsTab() {
+  const { tenant } = usePlatform();
+
+  const integrationCategories = [
+    {
+      name: "Trading Platform",
+      integrations: [
+        { id: "mt5", name: "MetaTrader 5", status: "connected", icon: Zap, lastSync: "2m ago", health: "healthy", description: "Live trading bridge for MT5 accounts" },
+        { id: "mt4", name: "MetaTrader 4", status: "available", icon: Zap, lastSync: null, health: null, description: "Legacy MT4 bridge (deprecated)" },
+        { id: "dxtrade", name: "DXTrade", status: "connected", icon: Globe, lastSync: "5m ago", health: "healthy", description: "DXTrade platform integration" },
+      ],
+    },
+    {
+      name: "Payments",
+      integrations: [
+        { id: "stripe", name: "Stripe", status: "connected", icon: CreditCard, lastSync: "1h ago", health: "healthy", description: "Card payments & payouts" },
+        { id: "wise", name: "Wise (TransferWise)", status: "connected", icon: CreditCard, lastSync: "3h ago", health: "degraded", description: "Bank transfer payouts" },
+        { id: "crypto", name: "Crypto Payments", status: "available", icon: CreditCard, lastSync: null, health: null, description: "USDT/BTC/ETH payout support" },
+        { id: "paypal", name: "PayPal", status: "disconnected", icon: CreditCard, lastSync: null, health: null, description: "PayPal payout integration" },
+      ],
+    },
+    {
+      name: "KYC / AML",
+      integrations: [
+        { id: "sumsub", name: "Sumsub", status: "connected", icon: ShieldCheck, lastSync: "12m ago", health: "healthy", description: "Automated KYC verification" },
+        { id: "onfido", name: "Onfido", status: "available", icon: ShieldCheck, lastSync: null, health: null, description: "Identity verification provider" },
+      ],
+    },
+    {
+      name: "Notifications",
+      integrations: [
+        { id: "sendgrid", name: "SendGrid", status: "connected", icon: Mail, lastSync: "8m ago", health: "healthy", description: "Email notification delivery" },
+        { id: "slack", name: "Slack", status: "connected", icon: Mail, lastSync: "15m ago", health: "healthy", description: "Critical alerts to Slack channels" },
+        { id: "twilio", name: "Twilio SMS", status: "available", icon: Mail, lastSync: null, health: null, description: "SMS alerts for high-priority events" },
+      ],
+    },
+    {
+      name: "AI & Analytics",
+      integrations: [
+        { id: "openai", name: "OpenAI", status: "connected", icon: Brain, lastSync: "5m ago", health: "healthy", description: "AI insights & chat assistant" },
+        { id: "segment", name: "Segment", status: "available", icon: Database, lastSync: null, health: null, description: "Customer data platform" },
+      ],
+    },
+  ];
+
+  const statusTone = (s: string) =>
+    s === "connected" ? "success" : s === "available" ? "info" : "muted";
+  const healthTone = (h: string | null) =>
+    h === "healthy" ? "success" : h === "degraded" ? "warning" : h === "down" ? "danger" : "muted";
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm font-medium">Integrations</span>
+              <p className="text-xs text-muted-foreground">External service providers and their status. Secret credentials are never shown after initial save.</p>
+            </div>
+            <Badge variant="secondary">
+              {integrationCategories.reduce((s, c) => s + c.integrations.filter((i) => i.status === "connected").length, 0)} connected
+            </Badge>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {integrationCategories.map((cat) => (
+        <Card key={cat.name}>
+          <CardHeader className="pb-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{cat.name}</span>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {cat.integrations.map((int) => {
+              const Icon = int.icon;
+              return (
+                <div key={int.id} className="flex items-center gap-3 rounded-md border p-3">
+                  <div className={`rounded-md p-2 ${int.status === "connected" ? "bg-emerald-100 dark:bg-emerald-950" : "bg-muted"}`}>
+                    <Icon className={`h-4 w-4 ${int.status === "connected" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-foreground">{int.name}</span>
+                      <Badge variant="outline" className={`text-[9px] ${int.status === "connected" ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400" : ""}`}>
+                        {int.status}
+                      </Badge>
+                      {int.health ? (
+                        <Badge variant="outline" className={`text-[9px] ${int.health === "healthy" ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400" : int.health === "degraded" ? "border-amber-500/40 text-amber-700 dark:text-amber-400" : "border-rose-500/40 text-rose-700 dark:text-rose-400"}`}>
+                          {int.health}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">{int.description}</p>
+                    {int.lastSync ? (
+                      <p className="text-[10px] text-muted-foreground/70">Last sync: {int.lastSync}</p>
+                    ) : null}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={int.status === "connected" ? "outline" : "default"}
+                    onClick={() => toast({
+                      title: int.status === "connected" ? "Configure integration" : "Connect integration",
+                      description: `${int.name} configuration dialog (demo).`,
+                    })}
+                  >
+                    {int.status === "connected" ? "Configure" : int.status === "available" ? "Connect" : "Reconnect"}
+                  </Button>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      ))}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Security Note</span>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground">
+            Per spec §44, the frontend never exposes secret credentials after initial save.
+            Configuration forms accept credentials once, store them server-side encrypted,
+            and subsequent views show only masked indicators (e.g. <code className="rounded bg-muted px-1">sk_••••••••••••4231</code>).
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

@@ -45,12 +45,12 @@ export function KycQueueWidget() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-slate-600" />
-          <span className="text-sm font-medium">Awaiting Review</span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <ShieldCheck className="h-4 w-4 shrink-0 text-slate-600 dark:text-slate-400" />
+          <span className="truncate text-sm font-medium">Awaiting Review</span>
         </div>
-        <Badge variant="secondary" className="text-xs">{queue.length} pending</Badge>
+        <Badge variant="secondary" className="shrink-0 text-xs">{queue.length} pending</Badge>
       </div>
       {queue.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
@@ -59,16 +59,14 @@ export function KycQueueWidget() {
       ) : (
         <div className="flex flex-col gap-2">
           {queue.map((r) => (
-            <div key={r.id} className="flex items-center justify-between rounded-lg border bg-card p-3">
-              <div className="flex items-center gap-3">
-                <div>
-                  <p className="text-sm font-medium text-foreground">{r.traderName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.documentType} · {r.country}
-                  </p>
-                </div>
+            <div key={r.id} className="flex items-center gap-2.5 rounded-md border bg-card p-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{r.traderName}</p>
+                <p className="truncate text-[10px] text-muted-foreground">
+                  {r.documentType} · {r.country}
+                </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 {r.riskLevel === "high" && (
                   <Badge variant="outline" className="border-transparent bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400">
                     High risk

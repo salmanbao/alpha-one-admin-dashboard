@@ -8,6 +8,10 @@
  * users can visually zone the dashboard. Widgets sit in a WidgetContainer
  * card with its own error boundary. Cards use a 12-column grid that
  * collapses to 2 columns on tablet and 1 on mobile.
+ *
+ * Spec §23: Dashboard Customization — Add/Remove Widgets dialog with
+ * reset layout. User can hide/show widgets and the dashboard re-composes
+ * instantly.
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
@@ -16,25 +20,33 @@ import { moduleRegistry } from "@/lib/platform/module-registry";
 import { ModuleErrorBoundary, WidgetSkeleton, EmptyState } from "@/components/platform/guards";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LayoutGrid, PackageOpen } from "lucide-react";
+import { LayoutGrid, PackageOpen, Settings2, Eye, EyeOff, RotateCcw, X } from "lucide-react";
 import { Suspense } from "react";
 import { DASHBOARD_COLS } from "@/lib/platform/dashboard-engine";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "@/hooks/use-toast";
 
-/* Map span (1-12) to responsive tailwind classes. We use a 12-col
- * grid on desktop, 2-col on tablet, 1-col on mobile. */
+/* Map span (1-12) to responsive tailwind classes. */
 function spanClass(span: number): string {
-  // desktop span (out of 12)
   const md = Math.min(Math.max(span, 4), 12);
-  // tablet: half-width unless very wide
   const sm = md >= 8 ? "sm:col-span-2" : "sm:col-span-1";
-  // mobile: always full
   return cn("col-span-1", sm, `lg:col-span-${md}`);
 }
 
 export function DashboardGrid() {
-  const { runtime } = usePlatform();
-  const layout = resolveDashboardLayout(runtime);
+  const { runtime, hiddenWidgets } = usePlatform();
+  const layout = resolveDashboardLayout(runtime, hiddenWidgets);
   const widgets = resolveWidgets(runtime, layout);
 
   if (widgets.length === 0) {
@@ -55,7 +67,6 @@ export function DashboardGrid() {
     arr.push(w);
     byModule.set(w.definition.module, arr);
   }
-  // Order sections by module registration order (matches sidebar order)
   const orderedSections = enabledModules
     .filter((m) => byModule.has(m.manifest.id))
     .map((m) => ({ module: m, items: byModule.get(m.manifest.id)! }));
@@ -149,5 +160,126 @@ export function EmptyDashboard() {
       description="Enable modules in Settings to see widgets here. The dashboard will re-compose instantly."
       icon={PackageOpen}
     />
+  );
+}
+
+/**
+ * Customize Dashboard dialog (spec §23). Shows all available widgets
+ * grouped by module with toggle switches. Hidden widgets are filtered
+ * out of the dashboard grid. Includes a Reset layout action.
+ */
+export function CustomizeDashboardDialog() {
+  const {
+    customizeOpen,
+    setCustomizeOpen,
+    runtime,
+    hiddenWidgets,
+    toggleWidget,
+    resetDashboard,
+  } = usePlatform();
+
+  const enabledModules = moduleRegistry.getEnabledModules(runtime);
+  const totalWidgets = enabledModules.reduce((s, m) => s + (m.widgets?.length ?? 0), 0);
+  const visibleCount = totalWidgets - hiddenWidgets.size;
+
+  const handleReset = () => {
+    resetDashboard();
+    toast({
+      title: "Dashboard reset",
+      description: "All widgets restored to default layout.",
+    });
+  };
+
+  return (
+    <Dialog open={customizeOpen} onOpenChange={setCustomizeOpen}>
+      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Settings2 className="h-4 w-4" />
+            Customize Dashboard
+          </DialogTitle>
+          <DialogDescription>
+            Toggle widgets to show or hide them on your dashboard. Changes apply instantly.
+            Showing {visibleCount} of {totalWidgets} widgets.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {enabledModules.map((mod) => {
+            const widgets = mod.widgets ?? [];
+            if (widgets.length === 0) return null;
+            const Icon = mod.manifest.icon;
+            const visibleInModule = widgets.filter((w) => !hiddenWidgets.has(w.id)).length;
+            return (
+              <div key={mod.manifest.id} className="rounded-lg border">
+                <div className="flex items-center gap-2.5 border-b bg-muted/30 px-3 py-2">
+                  <div
+                    className="flex h-6 w-6 items-center justify-center rounded"
+                    style={{ background: `${mod.manifest.accentColor}1a`, color: mod.manifest.accentColor }}
+                  >
+                    {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+                  </div>
+                  <span className="text-sm font-medium">{mod.manifest.name}</span>
+                  <Badge variant="outline" className="ml-auto text-[10px]">
+                    {visibleInModule}/{widgets.length} visible
+                  </Badge>
+                </div>
+                <div className="divide-y">
+                  {widgets.map((w) => {
+                    const hidden = hiddenWidgets.has(w.id);
+                    return (
+                      <div
+                        key={w.id}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 transition-colors",
+                          hidden && "bg-muted/20 opacity-60",
+                        )}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            {hidden ? (
+                              <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                            ) : (
+                              <Eye className="h-3.5 w-3.5 text-emerald-600" />
+                            )}
+                            <span className="truncate text-sm font-medium text-foreground">{w.title}</span>
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] uppercase tracking-wide"
+                              style={{ color: mod.manifest.accentColor, borderColor: `${mod.manifest.accentColor}40` }}
+                            >
+                              {w.category}
+                            </Badge>
+                          </div>
+                          {w.description ? (
+                            <p className="ml-6 truncate text-xs text-muted-foreground">{w.description}</p>
+                          ) : null}
+                        </div>
+                        <Switch
+                          checked={!hidden}
+                          onCheckedChange={() => toggleWidget(w.id)}
+                          aria-label={`Toggle ${w.title}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5">
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset layout
+          </Button>
+          <Button size="sm" onClick={() => setCustomizeOpen(false)} className="gap-1.5">
+            <X className="h-3.5 w-3.5" />
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

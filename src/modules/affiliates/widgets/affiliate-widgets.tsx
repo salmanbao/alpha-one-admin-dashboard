@@ -59,14 +59,14 @@ export function TopAffiliatesWidget() {
   return (
     <ul className="space-y-2">
       {aff.map((a, i) => (
-        <li key={a.id} className="flex items-center gap-3 rounded-md border bg-card p-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+        <li key={a.id} className="flex items-center gap-2.5 rounded-md border bg-card p-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-semibold text-violet-600 dark:bg-violet-950 dark:text-violet-400">
             {i + 1}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{a.name}</p>
+            <p className="truncate text-sm font-medium text-foreground">{a.name}</p>
             <div className="mt-1 flex items-center gap-2">
-              <div className="h-1.5 w-24 rounded-full bg-muted">
+              <div className="h-1.5 w-24 shrink-0 rounded-full bg-muted">
                 <div
                   className="h-1.5 rounded-full"
                   style={{
@@ -75,11 +75,11 @@ export function TopAffiliatesWidget() {
                   }}
                 />
               </div>
-              <span className="text-[10px] capitalize text-muted-foreground">{a.tier}</span>
+              <span className="shrink-0 text-[10px] capitalize text-muted-foreground">{a.tier}</span>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-sm font-semibold">{formatCurrency(a.commissionEarned, currency)}</p>
+          <div className="shrink-0 text-right">
+            <p className="text-sm font-semibold tabular-nums">{formatCurrency(a.commissionEarned, currency)}</p>
             <p className="text-[10px] text-muted-foreground">{a.conversions} conv</p>
           </div>
         </li>

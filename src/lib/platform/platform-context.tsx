@@ -72,6 +72,15 @@ interface PlatformContextValue {
   /* sidebar */
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (c: boolean) => void;
+  /* dashboard customization (spec §23) */
+  hiddenWidgets: Set<string>;
+  toggleWidget: (widgetId: string) => void;
+  resetDashboard: () => void;
+  customizeOpen: boolean;
+  setCustomizeOpen: (open: boolean) => void;
+  /* global search (spec §38) */
+  searchOpen: boolean;
+  setSearchOpen: (open: boolean) => void;
 }
 
 const PlatformContext = createContext<PlatformContextValue | null>(null);
@@ -143,6 +152,22 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>(seedNotifications);
   const [commandOpen, setCommandOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [hiddenWidgets, setHiddenWidgets] = useState<Set<string>>(new Set());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const toggleWidget = useCallback((widgetId: string) => {
+    setHiddenWidgets((prev) => {
+      const next = new Set(prev);
+      if (next.has(widgetId)) next.delete(widgetId);
+      else next.add(widgetId);
+      return next;
+    });
+  }, []);
+
+  const resetDashboard = useCallback(() => {
+    setHiddenWidgets(new Set());
+  }, []);
 
   // Apply branding + theme mode whenever they change
   useEffect(() => {
@@ -232,6 +257,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setCommandOpen,
     sidebarCollapsed,
     setSidebarCollapsed,
+    hiddenWidgets,
+    toggleWidget,
+    resetDashboard,
+    customizeOpen,
+    setCustomizeOpen,
+    searchOpen,
+    setSearchOpen,
   };
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>;

@@ -25,10 +25,16 @@ export interface ResolvedWidget {
  * Resolve the active dashboard layout. Priority (spec section 22):
  * User customization > Role layout > Tenant layout > Platform default.
  *
- * For demo, we synthesize layouts from runtime context.
+ * For demo, we synthesize layouts from runtime context. User-customized
+ * hidden widgets are excluded via the `hiddenWidgets` set.
  */
-export function resolveDashboardLayout(ctx: ModuleRuntimeContext): DashboardLayout {
-  const widgets = moduleRegistry.getWidgets(ctx);
+export function resolveDashboardLayout(
+  ctx: ModuleRuntimeContext,
+  hiddenWidgets?: Set<string>,
+): DashboardLayout {
+  const widgets = moduleRegistry.getWidgets(ctx).filter(
+    (w) => !hiddenWidgets?.has(w.id),
+  );
   const placements: DashboardWidgetPlacement[] = [];
 
   // Simple flow layout: 2 columns of equal width unless widget declares w=12

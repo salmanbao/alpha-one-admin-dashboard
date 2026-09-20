@@ -57,8 +57,8 @@ export function SupportOverviewWidget() {
 }
 
 const recentColumns: Column<SupportTicket>[] = [
-  { key: "subject", header: "Subject", cell: (t) => <span className="font-medium text-foreground">{t.subject}</span> },
-  { key: "traderName", header: "Trader", cell: (t) => <span className="text-muted-foreground">{t.traderName}</span> },
+  { key: "subject", header: "Subject", cell: (t) => <span className="block max-w-[220px] truncate font-medium text-foreground">{t.subject}</span> },
+  { key: "traderName", header: "Trader", cell: (t) => <span className="block max-w-[140px] truncate text-muted-foreground">{t.traderName}</span> },
   { key: "priority", header: "Priority", cell: (t) => <StatusBadge tone={ticketPriorityTone(t.priority)}>{t.priority}</StatusBadge> },
   { key: "status", header: "Status", cell: (t) => <StatusBadge tone={ticketStatusTone(t.status)}>{t.status}</StatusBadge> },
   { key: "messages", header: "Messages", cell: (t) => <span className="text-xs text-muted-foreground">{t.messages}</span>, sortValue: (t) => t.messages },
@@ -108,7 +108,7 @@ export function TicketPriorityWidget() {
   return (
     <div className="space-y-2">
       <DonutSeries data={buckets} height={180} />
-      <p className="text-xs text-muted-foreground">{formatCompact(total)} tickets across {buckets.filter((b) => b.value > 0).length} priorities</p>
+      <p className="truncate text-xs text-muted-foreground">{formatCompact(total)} tickets across {buckets.filter((b) => b.value > 0).length} priorities</p>
     </div>
   );
 }

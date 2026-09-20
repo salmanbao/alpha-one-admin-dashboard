@@ -69,7 +69,7 @@ export function AiInsightsWidget() {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <Brain className="h-4 w-4 text-violet-600" />
+        <Brain className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400" />
         <span className="text-sm font-medium">Latest AI insights</span>
       </div>
       {insights.length === 0 ? (
@@ -79,24 +79,24 @@ export function AiInsightsWidget() {
       ) : (
         <div className="flex flex-col gap-2">
           {insights.map((i) => (
-            <div key={i.id} className="flex items-start gap-3 rounded-lg border bg-card p-3">
-              <div className="mt-0.5">
+            <div key={i.id} className="flex items-start gap-2.5 rounded-lg border bg-card p-3">
+              <div className="mt-0.5 shrink-0">
                 {i.severity === "opportunity" ? (
-                  <TrendingUp className="h-4 w-4 text-emerald-600" />
+                  <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 ) : i.severity === "critical" ? (
-                  <AlertTriangle className="h-4 w-4 text-rose-600" />
+                  <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                 ) : i.severity === "warning" ? (
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 ) : (
-                  <Sparkles className="h-4 w-4 text-violet-600" />
+                  <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                 )}
               </div>
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-foreground">{i.title}</span>
+                  <span className="truncate text-sm font-medium text-foreground">{i.title}</span>
                   <StatusBadge tone={aiSeverityTone(i.severity)}>{i.severity}</StatusBadge>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{i.summary}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{i.summary}</p>
                 <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
                   <span>Confidence {Math.round(i.confidence * 100)}%</span>
                   <span>·</span>
@@ -129,7 +129,7 @@ export function AiConfidenceWidget() {
   return (
     <div className="space-y-2">
       <BarSeries data={data} xKey="date" yKey="value" color="#7c3aed" height={200} formatValue={(v) => `${v}%`} />
-      <p className="text-xs text-muted-foreground">{formatCompact(insights.length)} insights · avg {avgConfidence(insights)}%</p>
+      <p className="truncate text-xs text-muted-foreground">{formatCompact(insights.length)} insights · avg {avgConfidence(insights)}%</p>
     </div>
   );
 }

@@ -263,3 +263,166 @@ Task: QA via agent-browser + VLM, fix bugs, improve styling, add features
 3. **Add global search results page** (spec §38) — search across traders/accounts/challenges/etc
 4. **Add integration UI** (spec §44) — pluggable integrations panel with provider status
 5. **Improve mobile responsiveness** — verify all views on 375px viewport
+
+---
+Task ID: r2-2a
+Agent: widget-polisher-1
+Task: Polish Affiliates + Accounting + AI widget text clipping & density
+
+Work Log:
+- Read worklog.md to understand previous work and reference patterns in trading-overview-widget.tsx + risk-widgets.tsx (truncate + min-w-0 + shrink-0 + dark mode variants)
+- Read all three target widget files: affiliates (3 widgets), accounting (3 widgets), ai (3 widgets)
+- Polished `affiliates/widgets/affiliate-widgets.tsx` → `TopAffiliatesWidget` list items:
+  - gap-3 → gap-2.5 (consistent with risk OpenBreachesWidget)
+  - Added `shrink-0` to rank circle span
+  - Rank circle color: bg-muted text-muted-foreground → bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400 (matches accent color, dark mode variants)
+  - Added `shrink-0` to tier progress bar container + tier label
+  - Added `shrink-0` to right-aligned value column + `tabular-nums` for numeric alignment
+  - Added `text-foreground` to title for explicit dark-mode correctness
+- Inspected `accounting/widgets/accounting-widgets.tsx`: all 3 widgets are pure MetricCard grids + BarSeries/AreaSeries charts (no list items, no text cards, no colored backgrounds requiring dark variants). Already uses `gap-3` consistent with Trading overview's MetricCard grid. No changes needed.
+- Polished `ai/widgets/ai-widgets.tsx` → `AiInsightsWidget` insight cards + header:
+  - Header Brain icon: added `shrink-0` + `dark:text-violet-400`
+  - List items: gap-3 → gap-2.5
+  - Icon wrapper: added `shrink-0`
+  - Severity icons: added dark mode variants (emerald/rose/amber/violet all `dark:text-*-400`)
+  - Title container: `flex-1` → `min-w-0 flex-1`
+  - Title span: added `truncate` so long insight titles cleanly ellipsis
+  - Summary `<p>`: added `line-clamp-2` so summaries cap at 2 lines (cleaner density)
+- Polished `AiConfidenceWidget` footer caption: added `truncate` to the caption line
+- Ran `bun run lint` → 0 errors (clean output, no warnings)
+
+Stage Summary:
+- 2 of 3 widget files edited (affiliate-widgets.tsx, ai-widgets.tsx); accounting-widgets.tsx inspected and confirmed already clean (no list items / colored backgrounds to polish)
+- All changes are styling-only: no data logic, no manifest, no component structure changes
+- Pattern applied consistently: `truncate` + `min-w-0` on text containers, `shrink-0` on icons/badges/value columns, `dark:bg-*-950 dark:text-*-400` on colored icon backgrounds, `gap-2.5` for list item rows
+- Zero new lint errors introduced
+
+---
+Task ID: r2-2b
+Agent: widget-polisher-2
+Task: Polish Marketing + CRM + KYC + Support widget text clipping & density
+
+Work Log:
+- Read worklog.md to understand prior polish pass (qa-round-1) that applied `truncate` + `min-w-0` + `shrink-0` and dark-mode variants to Trading/Challenges/Risk/Payouts/Analytics widgets
+- Inspected reference widgets for the polished pattern:
+  - `trading-overview-widget.tsx` RecentActivityWidget — `truncate` on text, `min-w-0 flex-1` on text containers
+  - `risk-widgets.tsx` OpenBreachesWidget — `flex items-center gap-2.5 rounded-md border bg-card p-2`, `shrink-0` icon, `truncate` on title/subtitle, `dark:bg-rose-950 dark:text-rose-400` variants
+- Inspected `payout-widgets.tsx` PayoutQueueWidget — same `min-w-0 flex-1` + `truncate` pattern
+- Inspected shared primitives (`status.tsx`, `charts.tsx`, `data-table.tsx`, `table.tsx`) to understand what is already handled centrally (StatusBadge dark variants, DataTable `whitespace-nowrap` cells, DonutSeries legend rendering)
+- Grepped all 4 target files for `bg-(rose|amber|emerald|sky|teal|violet|purple|cyan|orange|red|green|yellow|pink|fuchsia)-\d+` and `text-(...)-\d+` patterns to find colored backgrounds/text missing dark variants
+
+Polish applied per file:
+
+1. `src/modules/kyc/widgets/kyc-widgets.tsx` — KycQueueWidget
+   - Header row: added `gap-2` between flex children, `min-w-0` on the icon+label wrapper, `shrink-0` on the ShieldCheck icon, `truncate` on the "Awaiting Review" label, `shrink-0` on the pending-count Badge
+   - Added `dark:text-slate-400` to the header ShieldCheck icon (was `text-slate-600` only)
+   - Queue list items: replaced `justify-between rounded-lg border bg-card p-3` with the polished `flex items-center gap-2.5 rounded-md border bg-card p-2` pattern
+   - Wrapped trader name + document/country in `min-w-0 flex-1` container, applied `truncate` to both lines (text-sm font-medium for name, text-[10px] for subtitle to match OpenBreachesWidget sizing)
+   - Wrapped badges in `shrink-0` flex container so they never get squeezed by long trader names
+   - Existing `bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400` on the High-risk Badge was already correct — left unchanged
+
+2. `src/modules/support/widgets/support-widgets.tsx` — RecentTicketsWidget + TicketPriorityWidget
+   - `recentColumns` subject cell: changed plain `<span className="font-medium text-foreground">` to `<span className="block max-w-[220px] truncate font-medium text-foreground">` — turns the inline span into a block, caps width, and ellipsifies long ticket subjects (e.g. "Cannot login to MT5 account")
+   - `recentColumns` traderName cell: same pattern with `max-w-[140px] truncate` to keep the column from forcing horizontal scroll on narrow widget widths
+   - TicketPriorityWidget summary line: added `truncate` defensively so the "{n} tickets across {m} priorities" line never pushes the chart card height when in a narrow column
+   - SupportOverviewWidget (MetricCard grid) and TicketPriorityWidget DonutSeries left unchanged — already match polished pattern (`gap-3` grid, StatusBadge handles its own dark variants)
+
+3. `src/modules/marketing/widgets/marketing-widgets.tsx` — verified, NO changes needed
+   - All 3 widgets (MarketingOverviewWidget, CampaignPerformanceWidget, ChannelBreakdownWidget) are pure wrappers around MetricCard grid / BarSeries / DonutSeries
+   - No list items, no inline text containers, no colored `bg-*`/`text-*` utility classes in this file
+   - Chart components (BarSeries/DonutSeries) already handle their own label rendering via recharts `minTickGap` and the legend `<span>` in charts.tsx
+   - MetricCard grid uses `gap-3` which matches the polished trading-overview-widget pattern
+   - CHANNEL_COLORS palette already uses pink/amber/violet/emerald/cyan — no blue/indigo
+
+4. `src/modules/crm/widgets/crm-widgets.tsx` — verified, NO changes needed
+   - Same as marketing: 2 widgets are pure MetricCard grid + BarSeries wrappers
+   - Pipeline stages are short tokens ("lead", "qualified", "opportunity", "customer", "churned") — no overflow risk on the bar chart axis
+   - BarSeries color `#0891b2` (cyan) — allowed, no blue/indigo
+
+Verification:
+- `cd /home/z/my-project && bun run lint 2>&1 | tail -10` → clean (`$ eslint .` with zero output, exit 0)
+- Did NOT touch widget data logic, manifests, page files, or component structure — only styling classes (truncate, min-w-0, shrink-0, gap-2.5, dark: variants, max-w on table cells)
+- Did NOT modify any other modules or shared components (charts.tsx, data-table.tsx, status.tsx left untouched)
+
+Stage Summary:
+- 2 of 4 widget files modified: `kyc-widgets.tsx` (KycQueueWidget — full truncate/min-w-0/shrink-0 polish + dark slate variant on header icon) and `support-widgets.tsx` (RecentTicketsWidget table cells truncated to max-w + TicketPriorityWidget summary truncated)
+- 2 of 4 widget files verified clean: `marketing-widgets.tsx` and `crm-widgets.tsx` are chart-only wrappers with no list items or text containers needing polish
+- Lint passes with zero errors after changes
+- All 4 widget files now consistent with the polished pattern established in trading/risk/payouts widgets (qa-round-1)
+
+---
+Task ID: qa-round-2
+Agent: lead-architect (webDevReview cron)
+Task: QA via agent-browser + VLM, polish subagent widgets, add dashboard customization + global search + integrations UI
+
+## Current Project Status Assessment
+- 14 modules registered, 40+ views, dynamic navigation, widget-based dashboards
+- Previous round fixed bootstrap timing bug, added MetricCard redesign, DashboardGrid module grouping, boot screen, activity ticker
+- This round focused on: subagent widget polish, dashboard customization (spec §23), global search (spec §38), integrations UI (spec §44), mobile verification
+
+## QA Findings (agent-browser + VLM)
+- Page loads 200, lint clean, no console errors
+- Charts verified via DOM: 54 paths, 11 areas, 72 bars (VLM had misread small charts as "empty")
+- AI Insights widget text confirmed readable via DOM (VLM misread screenshot)
+- Mobile responsive at 375px: sidebar collapses to hamburger, KPI cards stack, no overflow
+- VLM ratings: 8.75-9/10 (visual polish, layout, hierarchy, feature completeness)
+
+## Completed Modifications
+
+### 1. Subagent Widget Polish (parallel subagents)
+- **Affiliates** (TopAffiliatesWidget): gap-3→gap-2.5, rank circle dark mode variants, shrink-0 on fixed elements, tabular-nums
+- **AI** (AiInsightsWidget + AiConfidenceWidget): dark mode icon variants, min-w-0 + truncate on titles, line-clamp-2 on summaries
+- **KYC** (KycQueueWidget): polished list items with truncate + min-w-0 + shrink-0, dark mode icon variant
+- **Support** (RecentTicketsWidget): max-w truncation on subject + traderName cells
+- Accounting & Marketing & CRM widgets verified clean (pure MetricCard/chart wrappers, no polish needed)
+
+### 2. Dashboard Customization UI (spec §23)
+- Added `hiddenWidgets: Set<string>` + `toggleWidget` + `resetDashboard` + `customizeOpen` to platform context
+- Updated `resolveDashboardLayout(ctx, hiddenWidgets?)` to filter hidden widgets
+- Built `CustomizeDashboardDialog`: shows all widgets grouped by module with toggle switches, visible/total count per module, Reset layout button, Done button
+- Added "Customize" button to OverviewPage header
+- Verified: toggled off "Recent Trading Activity" → widget disappeared from dashboard instantly (16→15 widgets)
+
+### 3. Global Search (spec §38)
+- Added `searchOpen` + `setSearchOpen` to platform context
+- Built `GlobalSearchDialog`: searches across 8 entity types (Traders, Accounts, Challenges, Payouts, Affiliates, Transactions, Support Tickets, KYC Records)
+- Results grouped by category with counts, sorted by label-match relevance, capped at 30 results
+- Each result navigates to the entity's page on select
+- Topbar search button now opens global search (was command menu)
+- `/` keyboard shortcut opens search (when not typing in input)
+- Footer shows search hint: "Press / to search · ⌘K for commands"
+- Verified: searched "a" → found Challenges matching, grouped results
+
+### 4. Integrations UI (spec §44)
+- Added "Integrations" tab to Settings page (7th tab)
+- 5 integration categories: Trading Platform (MT5/MT4/DXTrade), Payments (Stripe/Wise/Crypto/PayPal), KYC/AML (Sumsub/Onfido), Notifications (SendGrid/Slack/Twilio), AI & Analytics (OpenAI/Segment)
+- Each integration shows: icon, name, status badge (connected/available/disconnected), health badge (healthy/degraded), description, last sync time, context-aware button (Connect/Configure/Reconnect)
+- Connected count summary in header
+- Security note card explaining credential masking per spec §44
+- Dark mode color variants for status/health badges
+
+### 5. Mobile Responsiveness Verification
+- Tested at 375px viewport: sidebar collapses to hamburger menu, KPI cards stack vertically, content readable, no overflow
+- Mobile nav sheet works via hamburger trigger
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, no console errors ✓
+- Dashboard customization: toggle widget → dashboard re-composes instantly ✓
+- Global search: "/" shortcut opens, searches 8 entity types, grouped results ✓
+- Integrations tab: 5 categories, status/health badges, context-aware buttons ✓
+- Mobile responsive: 375px viewport verified ✓
+- Subagent widgets polished: truncate, dark mode variants, consistent spacing ✓
+
+## Unresolved Issues / Risks
+- VLM noted "2 Issues" badge — this is the Next.js dev tools indicator, not a platform bug
+- No real backend — all data is mock; production would need API layer
+- Dashboard customization is session-only (not persisted to localStorage yet)
+- Global search doesn't have debouncing (acceptable for mock data sizes)
+
+## Priority Recommendations for Next Phase
+1. **Persist dashboard customization** to localStorage so hidden widgets survive reloads
+2. **Add bulk actions** to integrations (enable/disable multiple)
+3. **Add connection health trend** sparklines to integrations
+4. **Add dashboard layout presets** (e.g. "Risk-focused", "Finance-focused", "Minimal")
+5. **Add keyboard shortcuts help** overlay (? key)
+6. **Add export/report generation** feature (PDF/CSV export from analytics)

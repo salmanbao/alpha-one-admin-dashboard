@@ -1,9 +1,9 @@
 "use client";
 
 import { usePlatform } from "@/lib/platform/platform-context";
-import { DashboardGrid } from "@/components/platform/dashboard-grid";
+import { DashboardGrid, CustomizeDashboardDialog } from "@/components/platform/dashboard-grid";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
-import { LayoutDashboard, Sparkles, RefreshCw, Calendar, ShieldCheck, Users, Wallet, TrendingUp, Activity, AlertTriangle, Brain } from "lucide-react";
+import { LayoutDashboard, Sparkles, RefreshCw, Calendar, ShieldCheck, Users, Wallet, TrendingUp, Activity, AlertTriangle, Brain, Settings2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { moduleRegistry } from "@/lib/platform/module-registry";
@@ -24,7 +24,7 @@ import { useState, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 
 export function OverviewPage() {
-  const { runtime, tenant, user, navigate } = usePlatform();
+  const { runtime, tenant, user, navigate, setCustomizeOpen, hiddenWidgets } = usePlatform();
   const enabled = moduleRegistry.getEnabledModules(runtime);
   const [refreshing, setRefreshing] = useState(false);
   const [range, setRange] = useState<"7" | "30" | "90">("30");
@@ -67,6 +67,10 @@ export function OverviewPage() {
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
+            <Button size="sm" variant="outline" onClick={() => setCustomizeOpen(true)} className="gap-1.5">
+              <Settings2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Customize</span>
+            </Button>
           </div>
         }
       />
@@ -89,6 +93,7 @@ export function OverviewPage() {
 
         <DashboardGrid />
       </PageContent>
+      <CustomizeDashboardDialog />
     </Page>
   );
 }
