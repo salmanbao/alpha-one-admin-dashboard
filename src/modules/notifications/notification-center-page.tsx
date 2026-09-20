@@ -29,9 +29,12 @@ import {
   Wallet,
   Target,
   Settings as SettingsIcon,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const moduleIcon: Record<string, React.ComponentType<{ className?: string }>> = {
   payouts: Wallet,
@@ -48,6 +51,8 @@ export function NotificationCenterPage() {
   const { alerts, clearTriggered } = usePriceAlerts({});
 
   const [filter, setFilter] = useState<"all" | "unread" | "alerts" | "activity">("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
 
   const triggeredAlerts = alerts.filter((a) => a.triggered);
 
@@ -111,6 +116,41 @@ export function NotificationCenterPage() {
         icon={Bell}
         actions={
           <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant={selectMode ? "default" : "outline"}
+              onClick={() => { setSelectMode(!selectMode); setSelected(new Set()); }}
+              className="gap-1.5"
+            >
+              <CheckSquare className="h-3.5 w-3.5" /> {selectMode ? "Done" : "Select"}
+            </Button>
+            {selectMode && selected.size > 0 ? (
+              <>
+                <span className="flex items-center text-xs text-muted-foreground">{selected.size} selected</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    selected.forEach((id) => {
+                      const item = allItems.find((i) => i.id === id);
+                      if (item?.type === "notification") markRead(id);
+                    });
+                    setSelected(new Set());
+                  }}
+                  className="gap-1.5"
+                >
+                  <CheckCheck className="h-3.5 w-3.5" /> Mark read
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setSelected(new Set(filtered.map((i) => i.id))); }}
+                  className="gap-1.5"
+                >
+                  Select all
+                </Button>
+              </>
+            ) : null}
             <Button size="sm" variant="outline" onClick={markAllRead} className="gap-1.5">
               <CheckCheck className="h-3.5 w-3.5" /> Mark all read
             </Button>
@@ -173,17 +213,42 @@ export function NotificationCenterPage() {
                     item.severity === "critical" ? "bg-rose-500" :
                     item.severity === "warning" ? "bg-amber-500" :
                     item.severity === "success" ? "bg-emerald-500" : "bg-sky-500";
+                  const isSelected = selected.has(item.id);
                   return (
-                    <button
+                    <div
                       key={item.id}
                       onClick={() => {
-                        if (item.type === "notification") markRead(item.id);
+                        if (selectMode) {
+                          setSelected((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(item.id)) next.delete(item.id);
+                            else next.add(item.id);
+                            return next;
+                          });
+                        } else if (item.type === "notification") {
+                          markRead(item.id);
+                        }
                       }}
                       className={cn(
                         "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40",
-                        !item.read && "bg-primary/5"
+                        !item.read && "bg-primary/5",
+                        isSelected && "bg-primary/10 ring-1 ring-inset ring-primary/20",
                       )}
                     >
+                      {selectMode ? (
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => {
+                            setSelected((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(item.id)) next.delete(item.id);
+                              else next.add(item.id);
+                              return next;
+                            });
+                          }}
+                          className="mt-1"
+                        />
+                      ) : null}
                       <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
                         <Icon className="h-4 w-4 text-muted-foreground" />
                       </div>
@@ -202,7 +267,7 @@ export function NotificationCenterPage() {
                       <StatusBadge tone={item.severity === "critical" ? "danger" : item.severity === "warning" ? "warning" : item.severity === "success" ? "success" : "info"}>
                         {item.severity}
                       </StatusBadge>
-                    </button>
+                    </div>
                   );
                 })}
               </div>

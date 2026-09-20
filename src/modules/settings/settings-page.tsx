@@ -43,6 +43,7 @@ import {
   Target,
   Wallet,
   FileCheck,
+  Archive,
   Globe,
 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -80,7 +81,7 @@ export function SettingsPage() {
 }
 
 function GeneralTab() {
-  const { tenant, setTenant } = usePlatform();
+  const { tenant, setTenant, runtime } = usePlatform();
   const [name, setName] = useState(tenant.branding.name);
   const [tagline, setTagline] = useState(tenant.branding.tagline ?? "");
   const [currency, setCurrency] = useState(tenant.currency);
@@ -126,6 +127,17 @@ function GeneralTab() {
         </div>
         <div className="flex gap-2">
           <Button size="sm" onClick={save}><Check className="mr-1 h-4 w-4" /> Save changes</Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              const { exportAllAsZip } = await import("@/lib/platform/bulk-export");
+              exportAllAsZip(runtime);
+            }}
+            className="gap-1.5"
+          >
+            <Archive className="mr-1 h-4 w-4" /> Export all data (ZIP)
+          </Button>
         </div>
         <Separator />
         <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">

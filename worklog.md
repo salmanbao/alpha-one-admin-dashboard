@@ -1017,3 +1017,80 @@ Task: QA + notification center, what's new changelog, chart annotations
 4. **Add notification batch actions** — select multiple + mark read/delete
 5. **Add real-time WebSocket simulation** — true live updates instead of polling
 6. **Add chart zoom/pan** — interactive chart navigation
+
+---
+Task ID: qa-round-10
+Agent: lead-architect (webDevReview cron)
+Task: QA + bulk export (ZIP), notification batch actions, settings export button
+
+## Current Project Status Assessment
+- 14 modules registered, 40+ views, dynamic navigation, widget-based dashboards
+- Previous rounds: 9 rounds of improvements including bootstrap fix, module grouping, dashboard customization, global search, integrations UI, real-time data simulation, live activity feed, multi-currency conversion, onboarding wizard, price alerts, notification center, what's new changelog, chart annotations
+- Platform stable: page 200, lint clean, 0 console errors
+- This round: bulk export (ZIP archive), notification batch actions (select + mark read)
+
+## QA Findings
+- Page loads 200, lint clean, 0 console errors
+- Installed JSZip package for ZIP generation
+- VLM rating: 10/10 (settings export button), 9/10 (notification center)
+
+## Completed Modifications
+
+### 1. Bulk Export — ZIP Archive (spec §38, §26)
+- Created `bulk-export.ts` with:
+  - `collectAllData(ctx)` — collects all module data for the current tenant:
+    - Trading: traders, accounts, positions
+    - Challenges: challenges
+    - Risk: breaches
+    - Payouts: payouts
+    - Analytics: revenue series, trader growth
+    - Affiliates: affiliates, campaigns
+    - Accounting: transactions
+    - Marketing: campaigns
+    - CRM: contacts
+    - KYC: records
+    - Support: tickets
+    - AI: insights
+    - Audit log + tenant config (always included)
+  - `exportAllAsZip(ctx)` — dynamically imports JSZip, generates ZIP with:
+    - README.txt (tenant info, dataset list, export timestamp)
+    - One JSON file per dataset
+    - Filename: `pfaas-export-{tenant-slug}-{date}.zip`
+    - Toast: "X datasets (Y records) exported as ZIP"
+    - Fallback to CSV export if JSZip unavailable
+- Added "Export all data (ZIP)" button to Settings → General tab
+- **Verified**: clicked export → "8 datasets (256 records) exported as ZIP" toast → ZIP downloaded (93KB) → unzipped to 9 files (README + 8 JSON datasets) with real data ✓
+- **VLM rating: 10/10** for the settings export button
+
+### 2. Notification Batch Actions (spec §37)
+- Updated `NotificationCenterPage` with:
+  - **Select mode toggle**: "Select" button in header actions (toggles select mode)
+  - **Checkboxes**: appear next to each notification when in select mode
+  - **Selection state**: tracks selected IDs in a Set, highlights selected rows with `ring-1 ring-inset ring-primary/20`
+  - **Batch actions** (appear when items selected):
+    - "X selected" label
+    - "Mark read" button — marks all selected notifications as read
+    - "Select all" button — selects all filtered items
+  - Row click toggles selection in select mode; marks read in normal mode
+  - "Done" button exits select mode and clears selection
+- **Verified**: clicked Select → checkboxes appeared → clicked row → "1 selected" + "Mark read" button + checkbox checked ✓
+- **VLM rating: 9/10** for the notification center
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Bulk export: ZIP downloaded with 9 files (README + 8 JSON datasets, 256 records) ✓
+- Notification batch: Select mode, checkboxes, "X selected", Mark read, Select all ✓
+- VLM ratings: 10/10 (export button), 9/10 (notification center)
+
+## Unresolved Issues / Risks
+- JSZip is dynamically imported (keeps initial bundle small) — first export has slight delay
+- Notification batch "Delete" not implemented (only "Mark read") — acceptable for demo
+- ZIP export is client-side only (no server-side generation)
+
+## Priority Recommendations for Next Phase
+1. **Add dashboard widget drag-and-drop reordering** — rearrange widget positions
+2. **Add inline rename** (no prompt) — edit-in-place for saved views
+3. **Add real-time WebSocket simulation** — true live updates instead of polling
+4. **Add chart zoom/pan** — interactive chart navigation
+5. **Add notification delete** — batch delete selected notifications
+6. **Add export format options** — choose JSON/CSV/XLSX for bulk export
