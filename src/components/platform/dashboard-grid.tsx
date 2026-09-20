@@ -20,7 +20,7 @@ import { moduleRegistry } from "@/lib/platform/module-registry";
 import { ModuleErrorBoundary, WidgetSkeleton, EmptyState } from "@/components/platform/guards";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LayoutGrid, PackageOpen, Settings2, Eye, EyeOff, RotateCcw, X, ShieldAlert, Wallet, CandlestickChart, Minimize2 } from "lucide-react";
+import { LayoutGrid, PackageOpen, Settings2, Eye, EyeOff, RotateCcw, X, ShieldAlert, Wallet, CandlestickChart, Minimize2, Download, Upload } from "lucide-react";
 import { Suspense } from "react";
 import { DASHBOARD_COLS } from "@/lib/platform/dashboard-engine";
 import { cn } from "@/lib/utils";
@@ -67,8 +67,14 @@ export function DashboardGrid() {
     arr.push(w);
     byModule.set(w.definition.module, arr);
   }
+  // Deduplicate by module id (dependencies may cause the same module to appear twice)
+  const seenModuleIds = new Set<string>();
   const orderedSections = enabledModules
-    .filter((m) => byModule.has(m.manifest.id))
+    .filter((m) => {
+      if (seenModuleIds.has(m.manifest.id)) return false;
+      seenModuleIds.add(m.manifest.id);
+      return byModule.has(m.manifest.id);
+    })
     .map((m) => ({ module: m, items: byModule.get(m.manifest.id)! }));
 
   return (
@@ -317,7 +323,7 @@ export function CustomizeDashboardDialog() {
                     const hidden = hiddenWidgets.has(w.id);
                     return (
                       <div
-                        key={w.id}
+                        key={`${mod.manifest.id}-${w.id}`}
                         className={cn(
                           "flex items-center gap-3 px-3 py-2.5 transition-colors",
                           hidden && "bg-muted/20 opacity-60",
@@ -358,9 +364,66 @@ export function CustomizeDashboardDialog() {
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
+          {/* Layout sharing — export/import hidden widget config as JSON */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const config = { version: 1, hiddenWidgets: Array.from(hiddenWidgets) };
+              const json = JSON.stringify(config, null, 2);
+              const blob = new Blob([json], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `dashboard-layout-${new Date().toISOString().slice(0, 10)}.json`;
+              link.click();
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+              toast({ title: "Layout exported", description: `${hiddenWidgets.size} hidden widgets saved to JSON.` });
+            }}
+            className="gap-1.5"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const input = document.createElement("input");
+              input.type = "file";
+              input.accept = "application/json";
+              input.onchange = (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                  try {
+                    const config = JSON.parse(ev.target?.result as string);
+                    if (Array.isArray(config.hiddenWidgets)) {
+                      setHiddenWidgets(new Set(config.hiddenWidgets));
+                      toast({
+                        title: "Layout imported",
+                        description: `${config.hiddenWidgets.length} hidden widgets applied.`,
+                      });
+                    } else {
+                      toast({ title: "Invalid layout file", variant: "destructive" });
+                    }
+                  } catch {
+                    toast({ title: "Failed to parse JSON", variant: "destructive" });
+                  }
+                };
+                reader.readAsText(file);
+              };
+              input.click();
+            }}
+            className="gap-1.5"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Import
+          </Button>
           <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5">
             <RotateCcw className="h-3.5 w-3.5" />
-            Reset layout
+            Reset
           </Button>
           <Button size="sm" onClick={() => setCustomizeOpen(false)} className="gap-1.5">
             <X className="h-3.5 w-3.5" />

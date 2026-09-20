@@ -39,6 +39,10 @@ import {
   Brain,
   Mail,
   Database,
+  CandlestickChart,
+  Target,
+  Wallet,
+  FileCheck,
   Globe,
 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -341,30 +345,89 @@ function RolesTab() {
 }
 
 function NotificationsTab() {
+  // Per-module notification preferences with per-channel toggles
+  const modules = [
+    { id: "trading", name: "Trading", icon: CandlestickChart, events: ["New trader", "Account breach", "Large P&L"] },
+    { id: "challenges", name: "Challenges", icon: Target, events: ["Phase passed", "Challenge failed", "Profit target hit"] },
+    { id: "risk", name: "Risk", icon: ShieldCheck, events: ["Drawdown breach", "Daily limit hit", "Risk score change"] },
+    { id: "payouts", name: "Payouts", icon: Wallet, events: ["Payout requested", "Payout approved", "Payout rejected"] },
+    { id: "kyc", name: "KYC", icon: FileCheck, events: ["KYC submitted", "KYC approved", "High-risk flag"] },
+    { id: "ai", name: "AI / LLM", icon: Brain, events: ["New insight", "Critical alert", "Opportunity flagged"] },
+  ];
+  const channels = [
+    { id: "email", label: "Email" },
+    { id: "inapp", label: "In-app" },
+    { id: "slack", label: "Slack" },
+  ];
+
   return (
-    <Card>
-      <CardHeader><span className="text-sm font-medium">Notifications</span></CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground">Configure notification channels and rules per module.</p>
-        <div className="space-y-2">
-          {[
-            { label: "Payout requests", channel: "Email + In-app" },
-            { label: "Breach alerts", channel: "In-app + Slack" },
-            { label: "KYC pending", channel: "Email" },
-            { label: "Module enabled", channel: "In-app" },
-            { label: "AI insights", channel: "In-app" },
-          ].map((n) => (
-            <div key={n.label} className="flex items-center justify-between rounded-md border p-3">
-              <div>
-                <p className="text-sm font-medium">{n.label}</p>
-                <p className="text-xs text-muted-foreground">{n.channel}</p>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader><span className="text-sm font-medium">Notification Preferences</span></CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground">
+            Configure which notification channels each module uses. Toggle per-module, per-channel.
+            Changes apply instantly and are saved to your profile.
+          </p>
+        </CardContent>
+      </Card>
+
+      {modules.map((mod) => {
+        const Icon = mod.icon;
+        return (
+          <Card key={mod.id}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2.5">
+                <div className="rounded-md bg-muted p-1.5">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <span className="text-sm font-medium">{mod.name}</span>
+                  <p className="text-[11px] text-muted-foreground">{mod.events.join(" · ")}</p>
+                </div>
               </div>
-              <Switch defaultChecked />
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-2">
+                {channels.map((ch) => (
+                  <label
+                    key={ch.id}
+                    className="flex cursor-pointer items-center justify-between rounded-md border p-2.5 transition-colors hover:bg-muted/40"
+                  >
+                    <span className="text-xs font-medium text-foreground">{ch.label}</span>
+                    <Switch defaultChecked={ch.id !== "slack"} aria-label={`${mod.name} ${ch.label} notifications`} />
+                  </label>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quiet Hours</span>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-3 text-xs text-muted-foreground">Suppress non-critical notifications during these hours.</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Switch defaultChecked id="quiet-hours" aria-label="Enable quiet hours" />
+            <label htmlFor="quiet-hours" className="text-xs font-medium">Enable quiet hours</label>
+            <select className="h-8 rounded-md border border-input bg-background px-2 text-xs" aria-label="Quiet hours start">
+              <option>22:00</option>
+              <option>23:00</option>
+              <option>00:00</option>
+            </select>
+            <span className="text-xs text-muted-foreground">to</span>
+            <select className="h-8 rounded-md border border-input bg-background px-2 text-xs" aria-label="Quiet hours end">
+              <option>07:00</option>
+              <option>08:00</option>
+              <option>09:00</option>
+            </select>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

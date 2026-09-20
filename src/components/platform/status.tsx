@@ -21,9 +21,36 @@ const toneClass: Record<Tone, string> = {
   muted: "bg-muted text-muted-foreground",
 };
 
-export function StatusBadge({ tone = "default", children, className }: { tone?: Tone; children: React.ReactNode; className?: string }) {
+const toneLabel: Record<Tone, string> = {
+  default: "neutral status",
+  success: "success status",
+  warning: "warning status",
+  danger: "critical status",
+  info: "informational status",
+  muted: "muted status",
+};
+
+export function StatusBadge({
+  tone = "default",
+  children,
+  className,
+  label,
+}: {
+  tone?: Tone;
+  children: React.ReactNode;
+  className?: string;
+  /** Accessible label override; defaults to tone description + children */
+  label?: string;
+}) {
+  const ariaLabel = label ?? `${toneLabel[tone]}: ${typeof children === "string" ? children : ""}`.trim();
   return (
-    <Badge variant="outline" className={cn("border-transparent font-medium", toneClass[tone], className)}>
+    <Badge
+      variant="outline"
+      className={cn("border-transparent font-medium", toneClass[tone], className)}
+      role="status"
+      aria-label={ariaLabel}
+      title={ariaLabel}
+    >
       {children}
     </Badge>
   );

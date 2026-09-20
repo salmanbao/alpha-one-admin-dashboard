@@ -508,3 +508,98 @@ Task: QA via agent-browser, add localStorage persistence + dashboard presets + k
 4. **Add bulk integration actions** — enable/disable multiple integrations at once
 5. **Add notification preferences** per-module (email/in-app/slack toggles)
 6. **Add audit log filtering** by module/severity/actor with date range
+
+---
+Task ID: qa-round-4
+Agent: lead-architect (webDevReview cron)
+Task: QA + accessibility (ARIA), chart label rotation, audit log filtering, dashboard layout sharing, notification preferences, fix duplicate key bug
+
+## Current Project Status Assessment
+- 14 modules registered, 40+ views, dynamic navigation, widget-based dashboards
+- Previous rounds: bootstrap fix, MetricCard redesign, module grouping, boot screen, activity ticker, dashboard customization, global search, integrations UI, widget polish, localStorage persistence, presets, keyboard shortcuts, CSV export
+- Platform stable: page 200, lint clean
+- This round: accessibility ARIA labels, chart axis rotation, audit log filtering, dashboard layout sharing (export/import JSON), per-module notification preferences, fixed duplicate React key bug
+
+## QA Findings
+- Page loads 200, lint clean
+- Console had "duplicate key" React warning for "trading" — traced to summary KPI row using `key={s.moduleId}` where Trading had 2 KPIs (same moduleId)
+- Fixed: deduplicated module sections in DashboardGrid + used `${s.moduleId}-${idx}` for summary keys
+- After fix: 0 console errors (verified via clean reload)
+- ARIA labels verified via DOM: 5 status badges + 24 buy/sell/P&L role=img elements on positions page
+- VLM rating: 8.75/10 (visual polish, layout, hierarchy, feature completeness)
+
+## Completed Modifications
+
+### 1. Accessibility — ARIA Labels for Color-Only Indicators (spec §49)
+- **StatusBadge**: added `role="status"`, `aria-label` (tone description + children text), `title` attribute
+- **Buy/Sell indicators**: added `role="img"` + `aria-label="Position side: buy/sell"` on positions table
+- **P&L indicators**: added `role="img"` + `aria-label="Profit and loss: profit/loss of $X"` on traders + positions tables
+- **P&L % indicators**: added `role="img"` + `aria-label="P&L percentage: profit/loss of X percent"`
+- **Severity indicators** in audit log: added `role="img"` + `aria-label="Severity: info/warning/critical"`
+- Verified via DOM: 24 ARIA-labeled elements on positions page + 5 status badges
+
+### 2. Chart Axis Label Rotation (spec §28)
+- Updated `BarSeries` in charts.tsx to auto-detect long labels (> 6 chars) and rotate -35°
+- Uses `angle={-35}`, `textAnchor="end"`, `height={50}` for rotated; `angle={0}` for short labels
+- Prevents label truncation on AI confidence insight titles, cohort names, channel breakdowns
+- All other chart types (LineSeries, AreaSeries, DonutSeries) unaffected
+
+### 3. Audit Log Filtering (spec §40)
+- Rewrote `AuditLogTable` with filter bar:
+  - Severity dropdown (All / Info / Warning / Critical)
+  - Module dropdown (auto-populated from audit entries)
+  - Actor text input with datalist autocomplete
+  - Active filter count badge
+  - Clear button
+  - Entry count "X of Y entries"
+- Filters apply via `useMemo` on the entries array
+- Preserves existing DataTable search + sort + pagination
+
+### 4. Dashboard Layout Sharing (spec §23 — export/import JSON)
+- Added Export button to CustomizeDashboardDialog footer
+  - Generates JSON `{ version: 1, hiddenWidgets: [...] }`
+  - Triggers browser download as `dashboard-layout-YYYY-MM-DD.json`
+  - Toast: "Layout exported — N hidden widgets saved to JSON"
+- Added Import button
+  - Opens file picker for .json files
+  - Parses + validates `hiddenWidgets` array
+  - Applies via `setHiddenWidgets(new Set(...))`
+  - Toast: "Layout imported — N hidden widgets applied" or error toast
+- Verified: exported JSON file saved to Downloads, content valid
+
+### 5. Notification Preferences per Module (spec §37)
+- Rewrote NotificationsTab in Settings:
+  - 6 module cards (Trading, Challenges, Risk, Payouts, KYC, AI)
+  - Each card: module icon + name + event list + 3-channel grid (Email/In-app/Slack)
+  - Per-channel Switch toggles with ARIA labels
+  - Slack defaults to off, Email/In-app default on
+- Added Quiet Hours card: enable toggle + start/end time selectors
+- VLM rating: 9/10
+
+### 6. Bug Fix — Duplicate React Keys
+- Root cause: summary KPI row used `key={s.moduleId}` but Trading module has 2 KPIs (Active Traders + Total Equity), both with moduleId "trading"
+- Fix: changed to `key={`${s.moduleId}-${idx}`}` for unique keys
+- Also deduplicated module sections in DashboardGrid via `seenModuleIds` Set
+- Verified: 0 console errors after clean reload
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓ (duplicate key fixed)
+- ARIA labels: 5 status badges + 24 buy/sell/P&L role=img elements verified via DOM ✓
+- Chart rotation: BarSeries auto-rotates labels > 6 chars ✓
+- Audit log filtering: severity + module + actor filters, clear button, entry count ✓
+- Dashboard layout export: JSON file downloaded, valid structure ✓
+- Notification preferences: 6 module cards, 3 channels each, quiet hours ✓
+- VLM final: 8.75/10 (visual polish 8.5, layout 9, hierarchy 8.5, feature completeness 9)
+
+## Unresolved Issues / Risks
+- VLM continues to misread small chart screenshots as "empty" — DOM confirms charts have data (265+ SVG elements)
+- No real backend — all data is mock
+- Chart label rotation may need fine-tuning for specific chart heights
+
+## Priority Recommendations for Next Phase
+1. **Add date range picker** to audit log (currently has severity/module/actor but no date filter)
+2. **Add bulk export** — export all module data as a ZIP archive
+3. **Add dashboard widget reordering** — drag-and-drop widget positions (currently only show/hide)
+4. **Add real-time updates** — simulate live data changes with periodic polling
+5. **Add user profile avatar upload** + settings
+6. **Add multi-currency conversion** in analytics

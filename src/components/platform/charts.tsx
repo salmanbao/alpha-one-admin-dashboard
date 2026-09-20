@@ -138,7 +138,7 @@ export function AreaSeries({
   );
 }
 
-/* Bar chart — for comparisons */
+/* Bar chart — for comparisons. Auto-rotates long axis labels. */
 export function BarSeries({
   data,
   xKey,
@@ -155,11 +155,24 @@ export function BarSeries({
   formatValue?: (v: number) => string;
 }) {
   if (!data.length) return <ChartEmpty height={height} />;
+  // Rotate labels if any are longer than 6 chars
+  const maxLabelLen = Math.max(...data.map((d) => String(d[xKey] ?? "").length));
+  const shouldRotate = maxLabelLen > 6;
   return (
     <ChartFrame height={height}>
-      <BarChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+      <BarChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: shouldRotate ? 40 : 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-        <XAxis dataKey={xKey} tick={AXIS_STYLE} tickLine={false} axisLine={false} minTickGap={10} />
+        <XAxis
+          dataKey={xKey}
+          tick={AXIS_STYLE}
+          tickLine={false}
+          axisLine={false}
+          minTickGap={4}
+          angle={shouldRotate ? -35 : 0}
+          textAnchor={shouldRotate ? "end" : "middle"}
+          height={shouldRotate ? 50 : 30}
+          interval={0}
+        />
         <YAxis tick={AXIS_STYLE} tickLine={false} axisLine={false} width={40} tickFormatter={(v) => formatValue ? formatValue(Number(v)) : String(v)} />
         <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatValue ? formatValue(v) : v} cursor={{ fill: "var(--muted)" }} />
         <Bar dataKey={yKey} fill={color} radius={[4, 4, 0, 0]} />

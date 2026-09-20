@@ -94,7 +94,7 @@ export function TradersPage() {
     { key: "trades", header: "Trades", cell: (t) => t.trades, sortValue: (t) => t.trades, numeric: true },
     { key: "winRate", header: "Win %", cell: (t) => `${t.winRate}%`, sortValue: (t) => t.winRate, numeric: true },
     { key: "equity", header: "Equity", cell: (t) => formatCurrency(t.equity, currency), sortValue: (t) => t.equity, numeric: true },
-    { key: "pnl", header: "Total P&L", cell: (t) => <span className={t.totalPnl >= 0 ? "text-emerald-600" : "text-rose-600"}>{t.totalPnl >= 0 ? "+" : ""}{formatCurrency(t.totalPnl, currency)}</span>, sortValue: (t) => t.totalPnl, numeric: true },
+    { key: "pnl", header: "Total P&L", cell: (t) => <span className={t.totalPnl >= 0 ? "text-emerald-600" : "text-rose-600"} role="img" aria-label={`Total P&L: ${t.totalPnl >= 0 ? "profit" : "loss"} of ${formatCurrency(Math.abs(t.totalPnl), currency)}`}>{t.totalPnl >= 0 ? "+" : ""}{formatCurrency(t.totalPnl, currency)}</span>, sortValue: (t) => t.totalPnl, numeric: true },
   ];
 
   return (
@@ -161,12 +161,12 @@ export function PositionsPage() {
 
   const columns: Column<Position>[] = [
     { key: "symbol", header: "Symbol", cell: (p) => <span className="font-mono font-medium">{p.symbol}</span>, sortValue: (p) => p.symbol },
-    { key: "side", header: "Side", cell: (p) => <span className={p.side === "buy" ? "text-emerald-600" : "text-rose-600"}>{p.side.toUpperCase()}</span>, sortValue: (p) => p.side },
+    { key: "side", header: "Side", cell: (p) => <span className={p.side === "buy" ? "text-emerald-600" : "text-rose-600"} role="img" aria-label={`Position side: ${p.side}`}>{p.side.toUpperCase()}</span>, sortValue: (p) => p.side },
     { key: "volume", header: "Volume", cell: (p) => p.volume, sortValue: (p) => p.volume, numeric: true },
     { key: "entry", header: "Entry", cell: (p) => p.entryPrice, sortValue: (p) => p.entryPrice, numeric: true },
     { key: "current", header: "Current", cell: (p) => p.currentPrice, sortValue: (p) => p.currentPrice, numeric: true },
-    { key: "pnl", header: "P&L", cell: (p) => <span className={p.pnl >= 0 ? "text-emerald-600" : "text-rose-600"}>{p.pnl >= 0 ? "+" : ""}{formatCurrency(p.pnl, currency)}</span>, sortValue: (p) => p.pnl, numeric: true },
-    { key: "pnlPct", header: "P&L %", cell: (p) => <span className={p.pnl >= 0 ? "text-emerald-600" : "text-rose-600"}>{p.pnl >= 0 ? "+" : ""}{p.pnlPct}%</span>, sortValue: (p) => p.pnlPct, numeric: true },
+    { key: "pnl", header: "P&L", cell: (p) => <span className={p.pnl >= 0 ? "text-emerald-600" : "text-rose-600"} role="img" aria-label={`Profit and loss: ${p.pnl >= 0 ? "profit" : "loss"} of ${formatCurrency(Math.abs(p.pnl), currency)}`}>{p.pnl >= 0 ? "+" : ""}{formatCurrency(p.pnl, currency)}</span>, sortValue: (p) => p.pnl, numeric: true },
+    { key: "pnlPct", header: "P&L %", cell: (p) => <span className={p.pnl >= 0 ? "text-emerald-600" : "text-rose-600"} role="img" aria-label={`P&L percentage: ${p.pnl >= 0 ? "profit" : "loss"} of ${p.pnlPct} percent`}>{p.pnl >= 0 ? "+" : ""}{p.pnlPct}%</span>, sortValue: (p) => p.pnlPct, numeric: true },
     { key: "opened", header: "Opened", cell: (p) => <span className="text-xs text-muted-foreground">{new Date(p.openedAt).toLocaleString()}</span>, sortValue: (p) => p.openedAt },
   ];
 

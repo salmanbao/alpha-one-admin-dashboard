@@ -78,9 +78,9 @@ export function OverviewPage() {
         {/* Summary KPI row — one metric per enabled module */}
         {summary.length > 0 ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {summary.map((s) => (
+            {summary.map((s, idx) => (
               <button
-                key={s.moduleId}
+                key={`${s.moduleId}-${idx}`}
                 onClick={() => s.href && navigate(s.href)}
                 className="text-left"
                 title={`Go to ${s.moduleName}`}
