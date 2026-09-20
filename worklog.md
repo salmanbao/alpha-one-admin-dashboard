@@ -211,3 +211,55 @@ Agent: module-builder-support-ai
 Task: Build Support + AI modules
 Stage Summary: 8 files created, 0 lint errors. Support (3 pages, 3 widgets) + AI (4 pages, 3
 widgets, mock chat interface) following analytics pattern. Left wiring to lead.
+
+---
+Task ID: qa-round-1
+Agent: lead-architect (webDevReview cron)
+Task: QA via agent-browser + VLM, fix bugs, improve styling, add features
+
+## Current Project Status Assessment
+- 14 modules registered, 40+ views, dynamic navigation, widget-based dashboards
+- Lint passes cleanly, dev server returns 200
+- Architecture proves spec §67 demonstration (module enable/disable → sidebar re-composes)
+
+## Bugs Found & Fixed
+1. **CRITICAL: Bootstrap timing bug** — `bootstrapModules()` ran in `useEffect` (after first render), so the module registry was empty on initial paint → dashboard showed "No widgets available". **Fix**: moved `bootstrapModules()` to module import time (synchronous) in `providers.tsx` so registry is populated before any component renders.
+2. **`<cIcon />` casing warning** — sidebar used lowercase `cIcon` for dynamic JSX component. **Fix**: renamed to PascalCase `CIcon`.
+
+## Styling Improvements (Mandatory)
+1. **DashboardGrid rewrite**: widgets now grouped by module with section headers (icon + name + description + widget count badge), proper responsive 12-col grid (1-col mobile, 2-col tablet, 12-col desktop), consistent card heights via `flex h-full flex-col`, card hover shadow, category badge in card header.
+2. **MetricCard redesign**: left accent strip (tone-colored), icon in muted box (tone-colored), `text-2xl font-bold tabular-nums` values, ▲/▼ delta indicators, better contrast for secondary text.
+3. **DataTable improvements**: `numeric?: boolean` column flag → right-aligns headers + cells with `text-right tabular-nums`, compact row padding (`py-2.5`), uppercase tracking-wide headers. Applied `numeric: true` to Traders/Accounts/Positions tables.
+4. **Sidebar active state**: active nav items now use `bg-sidebar-primary text-sidebar-primary-foreground shadow-sm` with a left accent bar; hover states are subtler; icons have opacity transitions.
+5. **Widget text clipping fixes**: Recent Trading Activity, Challenge Progress, Open Breaches widgets now use `truncate` + `min-w-0` + `shrink-0` for clean ellipsis truncation.
+
+## New Features Added
+1. **Summary KPI Row** (OverviewPage): aggregates the single most important metric from each enabled module (Active Traders, Total Equity, Funded Traders, Open Breaches, Pending Payouts, Revenue 7d, Affiliate Revenue, Net Flow, KYC Pending, Open Tickets, AI Insights). Cards are clickable → navigate to the module's main page. Shows only for enabled modules.
+2. **Boot Screen** (spec §60): animated 12-step initialization sequence (Auth → User → Tenant → Config → Entitlements → Permissions → Theme → Module Registry → Enabled Modules → Navigation → Routes → Render) with progress bar and checkmark states. Shown on first load.
+3. **Activity Ticker** (topbar): auto-rotating live event strip (4s interval) with pulsing green dot, module-specific icons, tone-colored text, fade-in animation. Hidden on small screens.
+4. **Date range selector + Refresh**: OverviewPage header has 7d/30d/90d toggle + refresh button with spinning icon.
+5. **Widget category badges**: each widget card shows its category (METRIC, CHART, TABLE, FEED, etc.) in the module's accent color.
+
+## Verification Results (agent-browser + VLM)
+- Page loads 200 ✓, lint clean ✓, no console errors ✓
+- Boot screen shows initialization steps then transitions to dashboard ✓
+- Summary KPI row: 5 cards for Alpha, 9 for Beta (more modules) ✓
+- Module grouping: Trading/Challenges/Risk/Payouts sections with headers ✓
+- MetricCard: accent strip, large values, ▲/▼ deltas ✓
+- Activity ticker: pulsing dot, auto-rotating events ✓
+- Dark mode: high contrast, readable ✓
+- Numeric columns: right-aligned (verified via DOM: 32 cells with `text-right tabular-nums`) ✓
+- Text clipping: fixed with `truncate` ✓
+- VLM final rating: 8.5-9/10 (visual polish, layout, hierarchy, professionalism)
+
+## Unresolved Issues / Risks
+- Some chart-heavy widgets may look sparse at very narrow widths (acceptable for responsive)
+- Subagent-built modules (Affiliates, Accounting, Marketing, CRM, KYC, Support, AI) inherit the improved DataTable/Card styling automatically but haven't had individual widget polish passes
+- No real backend — all data is mock; production would need API layer
+
+## Priority Recommendations for Next Phase
+1. **Polish subagent module widgets** — apply same truncation/density fixes to widgets in affiliates/accounting/marketing/crm/kyc/support/ai
+2. **Add dashboard customization UI** (spec §23) — drag-to-reorder, add/remove widgets, save layout
+3. **Add global search results page** (spec §38) — search across traders/accounts/challenges/etc
+4. **Add integration UI** (spec §44) — pluggable integrations panel with provider status
+5. **Improve mobile responsiveness** — verify all views on 375px viewport

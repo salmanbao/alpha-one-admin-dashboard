@@ -136,15 +136,15 @@ export function OpenPositionsWidget() {
 export function RecentActivityWidget() {
   const { runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
-  const traders = getTenantTraders(tid).slice(0, 8);
+  const traders = getTenantTraders(tid).slice(0, 6);
   return (
-    <ol className="relative space-y-3 border-l pl-4">
+    <ol className="relative space-y-2.5 border-l pl-4">
       {traders.map((t, i) => {
-        const verbs = ["opened a position", "closed a trade", "deposited funds", "withdrew profit", "hit profit target"];
+        const verbs = ["opened a position", "closed a trade", "deposited funds", "withdrew profit", "hit profit target", "passed phase 1"];
         return (
           <li key={t.id} className="relative">
             <span className="absolute -left-[21px] top-1 h-2 w-2 rounded-full border-2 border-background" style={{ background: "var(--brand-primary)" }} />
-            <p className="text-sm text-foreground">
+            <p className="truncate text-sm text-foreground">
               <span className="font-medium">{t.name}</span> <span className="text-muted-foreground">{verbs[i % verbs.length]}</span>
             </p>
             <p className="text-[10px] text-muted-foreground">{i + 1}h ago</p>

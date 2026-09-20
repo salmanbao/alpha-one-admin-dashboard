@@ -30,6 +30,8 @@ export interface Column<T> {
   sortValue?: (row: T) => string | number;
   className?: string;
   width?: string;
+  /** Right-align numeric content */
+  numeric?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -126,10 +128,10 @@ export function DataTable<T>({
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               {columns.map((c) => (
-                <TableHead key={c.key} className={c.className} style={c.width ? { width: c.width } : undefined}>
+                <TableHead key={c.key} className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} h-9 px-3 text-xs uppercase tracking-wide`} style={c.width ? { width: c.width } : undefined}>
                   {c.sortValue ? (
                     <button
-                      className="inline-flex items-center gap-1 text-left font-medium text-muted-foreground hover:text-foreground"
+                      className={`inline-flex items-center gap-1 ${c.numeric ? "justify-end" : "text-left"} font-medium text-muted-foreground hover:text-foreground`}
                       onClick={() => toggleSort(c.key)}
                     >
                       {c.header}
@@ -151,7 +153,7 @@ export function DataTable<T>({
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   {columns.map((c) => (
-                    <TableCell key={c.key}>
+                    <TableCell key={c.key} className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} px-3 py-2.5 text-sm`}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
                   ))}
@@ -175,7 +177,7 @@ export function DataTable<T>({
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
                   {columns.map((c) => (
-                    <TableCell key={c.key} className={c.className}>
+                    <TableCell key={c.key} className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} px-3 py-2.5 text-sm`}>
                       {c.cell(row)}
                     </TableCell>
                   ))}

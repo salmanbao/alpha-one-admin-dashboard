@@ -136,22 +136,26 @@ function SidebarItem({
           <CollapsibleTrigger asChild>
             <button
               className={cn(
-                "group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
-                active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                "group flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-all",
+                active
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground",
               )}
             >
-              {Icon ? <Icon className="h-4 w-4" /> : null}
+              {Icon ? (
+                <Icon className={cn("h-4 w-4 shrink-0 transition-colors", active ? "opacity-100" : "opacity-70 group-hover:opacity-100")} />
+              ) : null}
               <span className="flex-1 text-left">{item.termKey ? t(item.termKey ?? "") : item.label}</span>
               {item.badge ? (
                 <Badge variant="secondary" className="h-4 px-1 text-[9px]">{item.badge}</Badge>
               ) : null}
-              <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-90")} />
+              <ChevronRight className={cn("h-3.5 w-3.5 opacity-50 transition-transform", open && "rotate-90", active && "opacity-100")} />
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent>
             <ul className="ml-4 mt-0.5 space-y-0.5 border-l pl-2">
               {item.children?.map((c) => {
-                const cIcon = c.icon;
+                const CIcon = c.icon;
                 const cActive = router.view === c.href;
                 return (
                   <li key={c.id}>
@@ -162,7 +166,7 @@ function SidebarItem({
                         cActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground",
                       )}
                     >
-                      {cIcon ? <cIcon className="h-3.5 w-3.5" /> : <span className="h-1 w-1 rounded-full bg-current opacity-60" />}
+                      {CIcon ? <CIcon className="h-3.5 w-3.5" /> : <span className="h-1 w-1 rounded-full bg-current opacity-60" />}
                       <span className="flex-1 text-left">{c.label}</span>
                       {c.badge ? (
                         <Badge variant="secondary" className="h-4 px-1 text-[9px]">{c.badge}</Badge>
@@ -183,14 +187,23 @@ function SidebarItem({
       <button
         onClick={() => item.effectiveHref && navigate(item.effectiveHref)}
         className={cn(
-          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
-          active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+          "group relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-all",
+          active
+            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
         )}
       >
-        {Icon ? <Icon className="h-4 w-4" /> : <span className="h-1.5 w-1.5 rounded-full bg-current opacity-50" />}
-        <span className="flex-1 text-left">{item.termKey ? t(item.termKey ?? "") : item.label}</span>
+        {active ? (
+          <span className="absolute inset-y-1 left-0 w-0.5 rounded-r-full bg-sidebar-primary-foreground" />
+        ) : null}
+        {Icon ? (
+          <Icon className={cn("h-4 w-4 shrink-0 transition-colors", active ? "opacity-100" : "opacity-70 group-hover:opacity-100")} />
+        ) : (
+          <span className="h-1.5 w-1.5 rounded-full bg-current opacity-50" />
+        )}
+        <span className="flex-1 truncate text-left">{item.termKey ? t(item.termKey ?? "") : item.label}</span>
         {item.badge ? (
-          <Badge variant="secondary" className="h-4 px-1 text-[9px]">{item.badge}</Badge>
+          <Badge variant={active ? "secondary" : "outline"} className="h-4 px-1 text-[9px]">{item.badge}</Badge>
         ) : null}
       </button>
     </li>

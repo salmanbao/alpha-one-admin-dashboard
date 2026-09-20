@@ -54,13 +54,13 @@ export function OpenBreachesWidget() {
   return (
     <ul className="space-y-2">
       {breaches.map((b) => (
-        <li key={b.id} className="flex items-center gap-3 rounded-md border bg-card p-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+        <li key={b.id} className="flex items-center gap-2.5 rounded-md border bg-card p-2">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
             <ShieldAlert className="h-3.5 w-3.5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground">{b.traderName}</p>
-            <p className="text-[10px] text-muted-foreground">{b.rule}</p>
+            <p className="truncate text-sm font-medium text-foreground">{b.traderName}</p>
+            <p className="truncate text-[10px] text-muted-foreground">{b.rule}</p>
           </div>
           <StatusBadge tone={breachSeverityTone(b.severity)}>{b.severity}</StatusBadge>
         </li>

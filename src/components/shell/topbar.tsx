@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { useUserSwitcher } from "@/lib/platform/platform-context";
 import { users } from "@/lib/platform/mock-data";
 import { StatusBadge } from "@/components/platform/status";
+import { ActivityTicker } from "@/components/shell/activity-ticker";
 
 export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
   const {
@@ -78,6 +79,9 @@ export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
           ⌘K
         </kbd>
       </button>
+
+      {/* Activity ticker — auto-rotating live events */}
+      <ActivityTicker />
 
       <div className="ml-auto flex items-center gap-1">
         {/* Tenant switcher */}

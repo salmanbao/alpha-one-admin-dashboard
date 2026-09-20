@@ -37,9 +37,9 @@ export function ChallengeProgressWidget() {
     <div className="space-y-3">
       {chs.map((c) => (
         <div key={c.id}>
-          <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="font-medium text-foreground">{c.traderName}</span>
-            <span className="text-muted-foreground">{c.progressPct}% · {c.daysLeft}d left</span>
+          <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+            <span className="min-w-0 truncate font-medium text-foreground">{c.traderName}</span>
+            <span className="shrink-0 text-muted-foreground">{c.progressPct}% · {c.daysLeft}d</span>
           </div>
           <Progress value={c.progressPct} className="h-2" />
         </div>

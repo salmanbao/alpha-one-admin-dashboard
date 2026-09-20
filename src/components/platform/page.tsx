@@ -110,34 +110,41 @@ export function MetricCard({
   icon?: React.ComponentType<{ className?: string }>;
   tone?: "default" | "positive" | "negative" | "warning";
 }) {
-  const toneClass =
-    tone === "positive"
-      ? "text-emerald-600"
-      : tone === "negative"
-      ? "text-rose-600"
-      : tone === "warning"
-      ? "text-amber-600"
-      : "text-foreground";
+  const toneColor =
+    tone === "positive" ? "#059669" : tone === "negative" ? "#e11d48" : tone === "warning" ? "#d97706" : "var(--brand-primary)";
+  const deltaClass = delta === undefined ? "" : delta >= 0 ? "text-emerald-600" : "text-rose-600";
   return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        {Icon ? <Icon className="h-4 w-4 text-muted-foreground" /> : null}
-      </div>
-      <div className={cn("mt-2 text-2xl font-semibold", toneClass)}>{value}</div>
-      {delta !== undefined ? (
-        <div className="mt-1 flex items-center gap-1 text-xs">
-          <span className={cn("font-medium", delta >= 0 ? "text-emerald-600" : "text-rose-600")}>
-            {delta >= 0 ? "+" : ""}
-            {delta}%
-          </span>
-          {deltaLabel ? (
-            <span className="text-muted-foreground">{deltaLabel}</span>
+    <div className="group relative overflow-hidden rounded-lg border bg-card p-4 transition-shadow hover:shadow-sm">
+      {/* Accent strip on the left */}
+      <span className="absolute inset-y-0 left-0 w-1" style={{ background: toneColor }} />
+      <div className="flex items-start justify-between pl-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+          <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground tabular-nums">
+            {value}
+          </p>
+          {delta !== undefined || deltaLabel ? (
+            <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
+              {delta !== undefined ? (
+                <span className={`inline-flex items-center gap-0.5 font-semibold ${deltaClass}`}>
+                  {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}%
+                </span>
+              ) : null}
+              {deltaLabel ? (
+                <span className="text-muted-foreground/80">{deltaLabel}</span>
+              ) : null}
+            </div>
           ) : null}
         </div>
-      ) : null}
+        {Icon ? (
+          <div className="ml-2 shrink-0 rounded-md bg-muted/50 p-1.5 transition-colors group-hover:bg-muted">
+            <Icon className="h-4 w-4 text-muted-foreground" style={{ color: toneColor }} />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
+
