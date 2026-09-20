@@ -764,3 +764,93 @@ Task: QA + fix data inconsistency, add multi-currency conversion, live equity cu
 4. **Add bulk export** — export all module data as ZIP archive
 5. **Add real-time price feed** widget — live symbol prices (EURUSD, BTC, etc.)
 6. **Add chart annotations** — mark events on the equity curve (breaches, payouts)
+
+---
+Task ID: qa-round-7
+Agent: lead-architect (webDevReview cron)
+Task: QA + saved views/filters, real-time price feed widget, animated numbers, live sidebar enrichment
+
+## Current Project Status Assessment
+- 14 modules registered, 40+ views, dynamic navigation, widget-based dashboards
+- Previous rounds: bootstrap fix, MetricCard redesign, module grouping, boot screen, activity ticker, dashboard customization, global search, integrations UI, widget polish, localStorage persistence, presets, keyboard shortcuts, CSV export, ARIA labels, chart rotation, audit filtering, layout sharing, notification preferences, duplicate key fix, real-time data simulation, live activity feed, audit date range, enhanced profile, data consistency fix, multi-currency conversion, live equity curve
+- Platform stable: page 200, lint clean, 0 console errors
+- This round: saved views/filters, real-time price feed, animated numbers, live sidebar enrichment
+
+## QA Findings
+- Page loads 200, lint clean, 0 console errors
+- Dev server had stopped (auto-run needed restart) — restarted with setsid+nohup
+- VLM rating: 9/10 (live sidebar with all widgets), 10/10 (audit filter bar with saved views)
+- Fixed 2 lint errors: setState-in-effect in saved-views.ts (used lazy useState initializer) + live-price-feed.ts (moved setState into requestAnimationFrame callback)
+
+## Completed Modifications
+
+### 1. Saved Views / Filters (spec §52, §23)
+- Created `saved-views.ts` with `useSavedViews(scope, userId)` hook:
+  - Persists filter combinations to localStorage keyed by `pfaas:savedViews:{scope}:{userId}`
+  - `saveView(name, filters)` — creates a SavedView with id, name, filters, createdAt
+  - `deleteView(id)` — removes by id
+  - `applyView(view)` — returns the filter map
+  - Max 20 saved views per scope
+  - Lazy `useState` initializer loads from localStorage (avoids setState-in-effect)
+- Integrated into AuditLogTable:
+  - "Save" button (disabled when no filters active) — prompts for name, saves current 4 filters
+  - "Views" dropdown — shows all saved views with filter count + delete button
+  - Clicking a saved view restores all 4 filter dimensions (severity, module, actor, dateRange)
+- **Verified**: saved "Critical Issues" view → appeared in Views dropdown with delete button ✓
+- **VLM rating: 10/10** for the audit filter bar
+
+### 2. Real-Time Price Feed Widget (spec §35)
+- Created `LivePriceFeedWidget` showing 6 trading symbols:
+  - EURUSD, GBPUSD, USDJPY, XAUUSD, BTCUSD, ETHUSD
+- Each symbol shows:
+  - Symbol code (monospace bold) + full name
+  - TrendingUp/TrendingDown icon (live tick > 0)
+  - Sparkline (20-point history, colored green/red)
+  - Current price (formatted with proper decimals)
+  - Delta % (green/red)
+- Prices update on each live-data tick (3.5s) with symbol-specific volatility
+- Crypto (BTC/ETH) has higher volatility than forex
+- Added to OverviewPage live sidebar as "Live Prices" card with pulsing LIVE badge
+- **Verified via VLM**: all 6 symbols visible with sparklines and delta indicators ✓
+
+### 3. Animated Number Component (spec §35 — loading/transition states)
+- Created `AnimatedNumber` component:
+  - Smoothly transitions between numeric values using requestAnimationFrame
+  - ease-out cubic interpolation over 400ms (configurable)
+  - `tabular-nums` for stable digit alignment
+  - `transition-colors` for smooth color changes
+- Used in OverviewPage live stats mini-panel:
+  - Active Traders, Open Positions, Pending Payouts, Open Breaches
+  - Numbers animate smoothly when live data updates tick in
+  - Open Breaches uses `className="text-rose-600"` for red emphasis
+
+### 4. Live Sidebar Enrichment
+- OverviewPage right sidebar now has 4 cards stacked:
+  1. **Live Activity** — activity feed with pulsing dot, pause/resume, clear
+  2. **Live Equity** — equity curve chart with delta badge, pulsing live indicator
+  3. **Live Prices** — 6-symbol price feed with sparklines and delta %
+  4. **Live Stats** — 2×2 grid of animated number cards
+- All cards use `shadow-sm` for depth, `border-b` dividers, consistent spacing
+- **VLM rating: 9/10** for the complete live sidebar
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Saved views: created "Critical Issues" view, persisted, restored from dropdown ✓
+- Live price feed: 6 symbols with sparklines, delta indicators, live updates ✓
+- Animated numbers: smooth transitions on live stats grid ✓
+- Live sidebar: 4 cards (activity, equity, prices, stats) all rendering ✓
+- VLM ratings: 9/10 (live sidebar), 10/10 (audit filter bar)
+
+## Unresolved Issues / Risks
+- Dev server auto-run stopped mid-session — needed manual restart (setsid+nohup)
+- Price feed is simulated (no real exchange API) — acceptable for demo
+- Saved views use window.prompt for naming (acceptable but not ideal UX)
+- Animated numbers use rAF (performant for the demo scale)
+
+## Priority Recommendations for Next Phase
+1. **Add dashboard widget drag-and-drop reordering** — rearrange widget positions
+2. **Add onboarding wizard** for new tenants — guided module setup
+3. **Add bulk export** — export all module data as ZIP archive
+4. **Add chart annotations** — mark events on the equity curve
+5. **Add saved view rename** — inline edit instead of delete+recreate
+6. **Add price alert** — notify when a symbol crosses a threshold

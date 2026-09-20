@@ -9,13 +9,23 @@
  */
 
 import { useState, useMemo } from "react";
-import { Activity, ShieldAlert, ShieldCheck, ShieldQuestion, Filter, X } from "lucide-react";
+import { Activity, ShieldAlert, ShieldCheck, ShieldQuestion, Filter, X, Bookmark, Save, Trash2, ChevronDown } from "lucide-react";
 import type { AuditEntry } from "@/lib/platform/types";
 import { DataTable, type Column } from "./data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useSavedViews } from "@/lib/platform/saved-views";
+import { usePlatform } from "@/lib/platform/platform-context";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function ActivityTimeline({ entries, max = 8 }: { entries: AuditEntry[]; max?: number }) {
   const list = entries.slice(0, max);
@@ -55,10 +65,12 @@ export function ActivityTimeline({ entries, max = 8 }: { entries: AuditEntry[]; 
 }
 
 export function AuditLogTable({ entries }: { entries: AuditEntry[] }) {
+  const { user } = usePlatform();
   const [severityFilter, setSeverityFilter] = useState<string>("all");
   const [moduleFilter, setModuleFilter] = useState<string>("all");
   const [actorFilter, setActorFilter] = useState<string>("");
   const [dateRange, setDateRange] = useState<string>("all");
+  const { views, saveView, deleteView, applyView } = useSavedViews("audit-log", user?.id ?? "anon");
 
   // Derive unique modules and actors for filter dropdowns
   const modules = useMemo(() => Array.from(new Set(entries.map((e) => e.module).filter(Boolean) as string[])), [entries]);
@@ -199,6 +211,59 @@ export function AuditLogTable({ entries }: { entries: AuditEntry[] }) {
             <X className="h-3 w-3" /> Clear
           </Button>
         ) : null}
+        {/* Save current view */}
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 gap-1 text-xs"
+          disabled={activeFilters === 0}
+          onClick={() => {
+            const name = window.prompt("Name this view:", `View ${views.length + 1}`);
+            if (!name) return;
+            saveView(name, { severity: severityFilter, module: moduleFilter, actor: actorFilter, dateRange });
+          }}
+        >
+          <Save className="h-3 w-3" /> Save
+        </Button>
+        {/* Load saved view */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" disabled={views.length === 0}>
+              <Bookmark className="h-3 w-3" /> Views
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="text-xs">Saved Views</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {views.map((v) => (
+              <DropdownMenuItem
+                key={v.id}
+                className="flex items-center gap-2"
+                onClick={() => {
+                  const f = applyView(v);
+                  setSeverityFilter(f.severity ?? "all");
+                  setModuleFilter(f.module ?? "all");
+                  setActorFilter(f.actor ?? "");
+                  setDateRange(f.dateRange ?? "all");
+                }}
+              >
+                <Bookmark className="h-3 w-3 shrink-0 text-muted-foreground" />
+                <span className="flex-1 truncate text-xs">{v.name}</span>
+                <span className="text-[9px] text-muted-foreground">
+                  {Object.values(v.filters).filter((x) => x && x !== "all").length} filters
+                </span>
+                <button
+                  className="ml-1 shrink-0 rounded p-0.5 hover:bg-destructive/10 hover:text-destructive"
+                  onClick={(e) => { e.stopPropagation(); deleteView(v.id); }}
+                  aria-label={`Delete view ${v.name}`}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <span className="ml-auto text-xs text-muted-foreground">
           {filtered.length} of {entries.length} entries
         </span>

@@ -5,6 +5,7 @@ import { DashboardGrid, CustomizeDashboardDialog } from "@/components/platform/d
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { LiveActivityFeedWidget } from "@/components/platform/live-activity-feed";
 import { LiveEquityCurveWidget } from "@/components/platform/live-equity-curve";
+import { LivePriceFeedWidget } from "@/components/platform/live-price-feed";
 import { useLiveData, syncLiveStats } from "@/lib/platform/live-data";
 import { LayoutDashboard, Sparkles, RefreshCw, Calendar, ShieldCheck, Users, Wallet, TrendingUp, Activity, AlertTriangle, Brain, Settings2, Radio } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ import {
   revenueSeries,
 } from "@/lib/platform/mock-data";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
+import { AnimatedNumber } from "@/components/platform/animated-number";
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 
@@ -138,23 +140,46 @@ export function OverviewPage() {
               </div>
               <LiveEquityCurveWidget />
             </div>
+            {/* Live price feed */}
+            <div className="mt-3 rounded-lg border bg-card p-4 shadow-sm">
+              <div className="mb-2 flex items-center gap-2 border-b pb-2">
+                <Activity className="h-4 w-4 text-violet-500" />
+                <span className="text-sm font-semibold text-foreground">Live Prices</span>
+                <Badge variant="outline" className="ml-auto gap-1 text-[9px]">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  </span>
+                  LIVE
+                </Badge>
+              </div>
+              <LivePriceFeedWidget />
+            </div>
             {/* Live stats mini-panel */}
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-lg border bg-card p-3">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active Traders</p>
-                <p className="text-lg font-bold tabular-nums text-foreground">{live.activeTraders}</p>
+                <p className="text-lg font-bold tabular-nums text-foreground">
+                  <AnimatedNumber value={live.activeTraders} />
+                </p>
               </div>
               <div className="rounded-lg border bg-card p-3">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Open Positions</p>
-                <p className="text-lg font-bold tabular-nums text-foreground">{live.openPositions}</p>
+                <p className="text-lg font-bold tabular-nums text-foreground">
+                  <AnimatedNumber value={live.openPositions} />
+                </p>
               </div>
               <div className="rounded-lg border bg-card p-3">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pending Payouts</p>
-                <p className="text-lg font-bold tabular-nums text-foreground">{live.pendingPayouts}</p>
+                <p className="text-lg font-bold tabular-nums text-foreground">
+                  <AnimatedNumber value={live.pendingPayouts} />
+                </p>
               </div>
               <div className="rounded-lg border bg-card p-3">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Open Breaches</p>
-                <p className="text-lg font-bold tabular-nums text-rose-600">{live.openBreaches}</p>
+                <p className="text-lg font-bold tabular-nums text-rose-600">
+                  <AnimatedNumber value={live.openBreaches} className="text-rose-600" />
+                </p>
               </div>
             </div>
           </aside>
