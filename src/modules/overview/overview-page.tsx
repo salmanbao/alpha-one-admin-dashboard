@@ -4,7 +4,8 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { DashboardGrid, CustomizeDashboardDialog } from "@/components/platform/dashboard-grid";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { LiveActivityFeedWidget } from "@/components/platform/live-activity-feed";
-import { useLiveData } from "@/lib/platform/live-data";
+import { LiveEquityCurveWidget } from "@/components/platform/live-equity-curve";
+import { useLiveData, syncLiveStats } from "@/lib/platform/live-data";
 import { LayoutDashboard, Sparkles, RefreshCw, Calendar, ShieldCheck, Users, Wallet, TrendingUp, Activity, AlertTriangle, Brain, Settings2, Radio } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { moduleRegistry } from "@/lib/platform/module-registry";
 import {
   getTenantTraders,
   getTenantAccounts,
+  getTenantPositions,
   getTenantBreaches,
   getTenantPayouts,
   getTenantAffiliates,
@@ -22,7 +24,7 @@ import {
   revenueSeries,
 } from "@/lib/platform/mock-data";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 
 export function OverviewPage() {
@@ -43,6 +45,21 @@ export function OverviewPage() {
   // Aggregate the single most important KPI from each enabled module
   const tid = tenant.id;
   const summary = buildSummary(tid, tenant.currency, enabled.map((m) => m.manifest.id));
+
+  // Sync live stats to actual tenant values so the live sidebar
+  // matches the KPI row (prevents data inconsistency).
+  useEffect(() => {
+    const traders = getTenantTraders(tid);
+    const positions = getTenantPositions(tid);
+    const payouts = getTenantPayouts(tid);
+    const breaches = getTenantBreaches(tid);
+    syncLiveStats({
+      activeTraders: traders.filter((t) => t.status === "active").length,
+      openPositions: positions.length,
+      pendingPayouts: payouts.filter((p) => p.status === "pending").length,
+      openBreaches: breaches.filter((b) => b.status === "open").length,
+    });
+  }, [tid]);
 
   return (
     <Page>
@@ -112,6 +129,14 @@ export function OverviewPage() {
                 </Badge>
               </div>
               <LiveActivityFeedWidget />
+            </div>
+            {/* Live equity curve */}
+            <div className="mt-3 rounded-lg border bg-card p-4 shadow-sm">
+              <div className="mb-2 flex items-center gap-2 border-b pb-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">Live Equity</span>
+              </div>
+              <LiveEquityCurveWidget />
             </div>
             {/* Live stats mini-panel */}
             <div className="mt-3 grid grid-cols-2 gap-2">

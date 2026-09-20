@@ -685,3 +685,82 @@ Task: QA + real-time live data simulation, audit date range filter, enhanced pro
 4. **Add real-time chart updates** — live-updating equity curve / revenue chart
 5. **Add onboarding wizard** for new tenants — guided module setup
 6. **Add saved views / filters** — persist filter combinations per user
+
+---
+Task ID: qa-round-6
+Agent: lead-architect (webDevReview cron)
+Task: QA + fix data inconsistency, add multi-currency conversion, live equity curve chart
+
+## Current Project Status Assessment
+- 14 modules registered, 40+ views, dynamic navigation, widget-based dashboards
+- Previous rounds: bootstrap fix, MetricCard redesign, module grouping, boot screen, activity ticker, dashboard customization, global search, integrations UI, widget polish, localStorage persistence, presets, keyboard shortcuts, CSV export, ARIA labels, chart rotation, audit filtering, layout sharing, notification preferences, duplicate key fix, real-time data simulation, live activity feed, audit date range, enhanced profile page
+- Platform stable: page 200, lint clean
+- This round: fix data inconsistency bug, multi-currency conversion, live equity curve chart
+
+## QA Findings
+- Page loads 200, lint clean
+- **BUG FOUND**: Data inconsistency — KPI row showed 16 active traders (from static mock data) but Live Activity sidebar showed 23 (from simulated live data starting at hardcoded 24)
+- **BUG FOUND**: `getTenantPositions is not defined` runtime error in OverviewPage — missing import caused ModuleErrorBoundary to catch and show "Something went wrong loading overview"
+- Both bugs fixed this round
+- VLM rating: 9/10 (live equity sidebar), 9/10 (currency converter)
+
+## Completed Modifications
+
+### 1. FIX: Data Inconsistency Between KPI Row and Live Sidebar
+- Changed `INITIAL` live data state to start at 0 for all stats (instead of hardcoded 24/18/3/7)
+- Added `syncLiveStats()` function that sets the live state to actual tenant values
+- OverviewPage calls `syncLiveStats()` in a `useEffect` on mount with real values from:
+  - `getTenantTraders(tid).filter(t => t.status === "active").length`
+  - `getTenantPositions(tid).length`
+  - `getTenantPayouts(tid).filter(p => p.status === "pending").length`
+  - `getTenantBreaches(tid).filter(b => b.status === "open").length`
+- Reduced live drift rate (stats only change 40% of ticks, small ±1 drift)
+- **Verified via VLM**: both KPI row and Live Activity sidebar now show 16 active traders
+
+### 2. FIX: Missing `getTenantPositions` Import
+- OverviewPage used `getTenantPositions(tid)` in the `syncLiveStats` useEffect but didn't import it
+- Added `getTenantPositions` to the mock-data import list
+- **Verified**: 0 console errors after fix (was 3+ "getTenantPositions is not defined" errors)
+
+### 3. Multi-Currency Conversion (spec §10, §51)
+- Created `currency.ts` with 10 currencies (USD, EUR, GBP, AED, JPY, AUD, CAD, CHF, SGD, BTC)
+- `convertCurrency(amount, from, to)` via USD as base
+- `formatConverted(amount, from, to)` with proper symbols/decimals
+- `getRateLabel(from, to)` → "1 GBP = $1.2658 USD"
+- Added currency selector dropdown to Analytics Overview page header (Coins icon)
+- Exchange rate banner appears when display currency ≠ tenant currency
+- KPI values + chart titles + tooltips all convert to selected currency
+- **Verified via VLM**: selected USD on Beta (GBP tenant) → banner "Converting from GBP → USD, 1 GBP = $1.2658 USD", KPIs in $368,317.72
+- **VLM rating: 9/10**
+
+### 4. Live Equity Curve Chart (spec §35 — real-time updates)
+- Created `LiveEquityCurveWidget` component:
+  - Seeds initial 10 points from tenant's total account equity
+  - Appends a new point on each live-data tick (3.5s interval)
+  - Maintains max 30 points (scrolling window)
+  - Shows current equity value + delta % badge (green/red)
+  - Pulsing "Live" indicator
+  - Area chart with color based on delta (green up / red down)
+  - "Loading equity data…" skeleton state
+- Added to OverviewPage live sidebar between activity feed and stats grid
+- **Verified via VLM**: 9/10 — chart visible with green area, live indicator, delta badge
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Data consistency: KPI row = Live sidebar = 16 active traders ✓
+- Currency converter: 10 currencies, exchange rate banner, KPI formatting ✓
+- Live equity curve: seeds from tenant equity, appends on tick, delta badge ✓
+- VLM ratings: 9/10 (live equity sidebar), 9/10 (currency converter)
+
+## Unresolved Issues / Risks
+- Exchange rates are static (not live API) — acceptable for demo
+- Live equity curve points are simulated around the base equity — no real trade feed
+- VLM continues to misread small chart screenshots — DOM verification confirms data
+
+## Priority Recommendations for Next Phase
+1. **Add dashboard widget drag-and-drop reordering** — rearrange widget positions
+2. **Add saved views / filters** — persist filter combinations per user
+3. **Add onboarding wizard** for new tenants — guided module setup
+4. **Add bulk export** — export all module data as ZIP archive
+5. **Add real-time price feed** widget — live symbol prices (EURUSD, BTC, etc.)
+6. **Add chart annotations** — mark events on the equity curve (breaches, payouts)

@@ -62,10 +62,12 @@ const INITIAL: LiveDataState = {
   tick: 0,
   equityPulse: 0,
   pnlFlash: 0,
-  activeTraders: 24,
-  openPositions: 18,
-  pendingPayouts: 3,
-  openBreaches: 7,
+  // These will be synced to the actual tenant's values when the
+  // OverviewPage mounts, so the live sidebar matches the KPI row.
+  activeTraders: 0,
+  openPositions: 0,
+  pendingPayouts: 0,
+  openBreaches: 0,
   activityFeed: [],
   isLive: true,
 };
@@ -104,9 +106,10 @@ function tick() {
     tick: liveState.tick + 1,
     equityPulse: liveState.equityPulse + rand(-1, 1.5),
     pnlFlash: rand(-250, 320),
-    activeTraders: Math.max(20, liveState.activeTraders + Math.round(rand(-1, 1.5))),
-    openPositions: Math.max(10, liveState.openPositions + Math.round(rand(-1, 1))),
-    pendingPayouts: Math.max(0, liveState.pendingPayouts + (Math.random() > 0.7 ? 1 : 0) - (Math.random() > 0.5 ? 1 : 0)),
+    // Slow drift around the synced base values — small changes only
+    activeTraders: Math.max(1, liveState.activeTraders + (Math.random() > 0.6 ? Math.round(rand(-1, 1)) : 0)),
+    openPositions: Math.max(0, liveState.openPositions + (Math.random() > 0.7 ? Math.round(rand(-1, 1)) : 0)),
+    pendingPayouts: Math.max(0, liveState.pendingPayouts + (Math.random() > 0.8 ? 1 : 0) - (Math.random() > 0.6 ? 1 : 0)),
     openBreaches: Math.max(0, liveState.openBreaches + (Math.random() > 0.8 ? 1 : 0) - (Math.random() > 0.6 ? 1 : 0)),
     activityFeed: newFeed,
   };
@@ -137,5 +140,25 @@ export function setLivePaused(paused: boolean) {
 
 export function clearActivityFeed() {
   liveState = { ...liveState, activityFeed: [] };
+  emit();
+}
+
+/**
+ * Sync the live stats to actual tenant values so the live sidebar
+ * matches the KPI row. Called once when the OverviewPage mounts.
+ */
+export function syncLiveStats(stats: {
+  activeTraders: number;
+  openPositions: number;
+  pendingPayouts: number;
+  openBreaches: number;
+}) {
+  liveState = {
+    ...liveState,
+    activeTraders: stats.activeTraders,
+    openPositions: stats.openPositions,
+    pendingPayouts: stats.pendingPayouts,
+    openBreaches: stats.openBreaches,
+  };
   emit();
 }
