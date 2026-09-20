@@ -3,7 +3,9 @@
 import { usePlatform } from "@/lib/platform/platform-context";
 import { DashboardGrid, CustomizeDashboardDialog } from "@/components/platform/dashboard-grid";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
-import { LayoutDashboard, Sparkles, RefreshCw, Calendar, ShieldCheck, Users, Wallet, TrendingUp, Activity, AlertTriangle, Brain, Settings2 } from "lucide-react";
+import { LiveActivityFeedWidget } from "@/components/platform/live-activity-feed";
+import { useLiveData } from "@/lib/platform/live-data";
+import { LayoutDashboard, Sparkles, RefreshCw, Calendar, ShieldCheck, Users, Wallet, TrendingUp, Activity, AlertTriangle, Brain, Settings2, Radio } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { moduleRegistry } from "@/lib/platform/module-registry";
@@ -26,6 +28,7 @@ import { toast } from "@/hooks/use-toast";
 export function OverviewPage() {
   const { runtime, tenant, user, navigate, setCustomizeOpen, hiddenWidgets } = usePlatform();
   const enabled = moduleRegistry.getEnabledModules(runtime);
+  const live = useLiveData();
   const [refreshing, setRefreshing] = useState(false);
   const [range, setRange] = useState<"7" | "30" | "90">("30");
 
@@ -91,7 +94,46 @@ export function OverviewPage() {
           </div>
         ) : null}
 
-        <DashboardGrid />
+        <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+          <div className="min-w-0">
+            <DashboardGrid />
+          </div>
+          <aside className="lg:sticky lg:top-20 lg:h-fit">
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <div className="mb-3 flex items-center gap-2 border-b pb-2">
+                <Radio className="h-4 w-4 text-emerald-500" />
+                <h2 className="text-sm font-semibold text-foreground">Live Activity</h2>
+                <Badge variant="outline" className="ml-auto gap-1 text-[9px]">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  </span>
+                  {live.isLive ? "LIVE" : "PAUSED"}
+                </Badge>
+              </div>
+              <LiveActivityFeedWidget />
+            </div>
+            {/* Live stats mini-panel */}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active Traders</p>
+                <p className="text-lg font-bold tabular-nums text-foreground">{live.activeTraders}</p>
+              </div>
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Open Positions</p>
+                <p className="text-lg font-bold tabular-nums text-foreground">{live.openPositions}</p>
+              </div>
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pending Payouts</p>
+                <p className="text-lg font-bold tabular-nums text-foreground">{live.pendingPayouts}</p>
+              </div>
+              <div className="rounded-lg border bg-card p-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Open Breaches</p>
+                <p className="text-lg font-bold tabular-nums text-rose-600">{live.openBreaches}</p>
+              </div>
+            </div>
+          </aside>
+        </div>
       </PageContent>
       <CustomizeDashboardDialog />
     </Page>

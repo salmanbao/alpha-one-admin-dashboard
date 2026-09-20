@@ -58,26 +58,38 @@ export function AuditLogTable({ entries }: { entries: AuditEntry[] }) {
   const [severityFilter, setSeverityFilter] = useState<string>("all");
   const [moduleFilter, setModuleFilter] = useState<string>("all");
   const [actorFilter, setActorFilter] = useState<string>("");
+  const [dateRange, setDateRange] = useState<string>("all");
 
   // Derive unique modules and actors for filter dropdowns
   const modules = useMemo(() => Array.from(new Set(entries.map((e) => e.module).filter(Boolean) as string[])), [entries]);
   const actors = useMemo(() => Array.from(new Set(entries.map((e) => e.actor))), [entries]);
 
   const filtered = useMemo(() => {
+    const now = Date.now();
+    const ranges: Record<string, number> = {
+      "24h": 24 * 60 * 60 * 1000,
+      "7d": 7 * 24 * 60 * 60 * 1000,
+      "30d": 30 * 24 * 60 * 60 * 1000,
+    };
     return entries.filter((e) => {
       if (severityFilter !== "all" && e.severity !== severityFilter) return false;
       if (moduleFilter !== "all" && e.module !== moduleFilter) return false;
       if (actorFilter && !e.actor.toLowerCase().includes(actorFilter.toLowerCase())) return false;
+      if (dateRange !== "all") {
+        const cutoff = now - (ranges[dateRange] ?? 0);
+        if (new Date(e.timestamp).getTime() < cutoff) return false;
+      }
       return true;
     });
-  }, [entries, severityFilter, moduleFilter, actorFilter]);
+  }, [entries, severityFilter, moduleFilter, actorFilter, dateRange]);
 
-  const activeFilters = (severityFilter !== "all" ? 1 : 0) + (moduleFilter !== "all" ? 1 : 0) + (actorFilter ? 1 : 0);
+  const activeFilters = (severityFilter !== "all" ? 1 : 0) + (moduleFilter !== "all" ? 1 : 0) + (actorFilter ? 1 : 0) + (dateRange !== "all" ? 1 : 0);
 
   const clearFilters = () => {
     setSeverityFilter("all");
     setModuleFilter("all");
     setActorFilter("");
+    setDateRange("all");
   };
 
   const columns: Column<AuditEntry>[] = [
@@ -171,6 +183,17 @@ export function AuditLogTable({ entries }: { entries: AuditEntry[] }) {
         <datalist id="audit-actors">
           {actors.map((a) => <option key={a} value={a} />)}
         </datalist>
+        <select
+          value={dateRange}
+          onChange={(e) => setDateRange(e.target.value)}
+          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          aria-label="Filter by date range"
+        >
+          <option value="all">All time</option>
+          <option value="24h">Last 24 hours</option>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+        </select>
         {activeFilters > 0 ? (
           <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs" onClick={clearFilters}>
             <X className="h-3 w-3" /> Clear

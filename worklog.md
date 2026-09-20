@@ -603,3 +603,85 @@ Task: QA + accessibility (ARIA), chart label rotation, audit log filtering, dash
 4. **Add real-time updates** — simulate live data changes with periodic polling
 5. **Add user profile avatar upload** + settings
 6. **Add multi-currency conversion** in analytics
+
+---
+Task ID: qa-round-5
+Agent: lead-architect (webDevReview cron)
+Task: QA + real-time live data simulation, audit date range filter, enhanced profile page with avatar upload
+
+## Current Project Status Assessment
+- 14 modules registered, 40+ views, dynamic navigation, widget-based dashboards
+- Previous rounds: bootstrap fix, MetricCard redesign, module grouping, boot screen, activity ticker, dashboard customization, global search, integrations UI, widget polish, localStorage persistence, presets, keyboard shortcuts, CSV export, ARIA labels, chart rotation, audit filtering, layout sharing, notification preferences, duplicate key fix
+- Platform stable: page 200, lint clean, 0 console errors
+- This round: real-time data simulation, live activity feed, audit date range filter, enhanced profile page
+
+## QA Findings
+- Page loads 200, lint clean, 0 console errors (verified after clean reload)
+- Recent Trading Activity widget has 6 items confirmed via DOM (VLM misreads screenshot)
+- Charts render correctly: 265+ SVG elements in DOM
+- VLM rating: 9/10 (live activity feed), 9/10 (profile page), 9/10 (audit filter bar)
+
+## Completed Modifications
+
+### 1. Real-Time Data Simulation (spec §35, §51)
+- Created `live-data.ts` with singleton live state + subscriber pattern
+- `useLiveData()` hook subscribes to a 3.5-second tick interval
+- Simulates: equityPulse, pnlFlash, activeTraders, openPositions, pendingPayouts, openBreaches, activityFeed
+- Activity feed generates random events from 10 action templates × 7 actors
+- `setLivePaused()` / `clearActivityFeed()` controls
+- Fixed lint error: removed synchronous `setState` inside `useEffect` (React Compiler complaint)
+
+### 2. Live Activity Feed Widget + Dashboard Sidebar
+- Created `LiveActivityFeedWidget` component:
+  - Pulsing green "LIVE" badge with animated ping
+  - Auto-appending activity items with fade-in animation
+  - Module-specific icons (Wallet, ShieldAlert, Brain, etc.)
+  - Tone-colored dots (info/success/warning/critical)
+  - Pause/Resume button + Clear button
+  - "Waiting for activity…" empty state
+- Added to OverviewPage as a sticky right sidebar (320px):
+  - Live Activity card with header + feed
+  - 2×2 live stats mini-panel (Active Traders, Open Positions, Pending Payouts, Open Breaches)
+  - Numbers update in real-time as the simulation ticks
+- Verified: 9 feed items after 8 seconds with real activity ("Sarah Chen resolved a breach", "AI Engine enabled Analytics module", "Priya Nair approved a payout")
+
+### 3. Audit Log Date Range Filter (spec §40)
+- Added `dateRange` state to AuditLogTable (all / 24h / 7d / 30d)
+- Date range dropdown in filter bar with 4 options
+- Filters entries by timestamp cutoff
+- `activeFilters` count includes date range
+- `clearFilters` resets date range
+- Filter bar now has: severity + module + actor + date range = 4 filter dimensions
+- VLM rating: 9/10
+
+### 4. Enhanced Profile Page (spec §11)
+- Complete rewrite of profile-page.tsx:
+  - **Avatar upload**: camera button overlay on avatar, file picker (image/*, 2MB limit), FileReader preview, toast feedback
+  - **Edit profile form**: display name + email inputs with labels
+  - **Profile header card**: large avatar, name, role badges, email, last active
+  - **Roles & permissions card**: role badges + permission pills (12 shown + "N more")
+  - **Tenant card**: brand initials, plan, currency, timezone, locale, modules count
+  - **Quick preferences**: 5 notification toggles (email, in-app, desktop, weekly digest, AI alerts)
+  - **Active sessions**: 3 mock sessions (Desktop/Mobile/Tablet) with browser, location, IP, last active, Revoke button
+- VLM rating: 9/10
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Live feed: 9 items after 8s with real activity text ✓
+- Live stats: 4 mini-cards updating in real-time ✓
+- Audit date range: 4 options (all/24h/7d/30d) in filter bar ✓
+- Profile: avatar upload, edit form, roles, tenant, preferences, sessions ✓
+- VLM ratings: 9/10 across all new features
+
+## Unresolved Issues / Risks
+- Live data is simulated (no real WebSocket backend) — acceptable for demo
+- Avatar upload is client-side only (no server persistence) — acceptable for demo
+- VLM continues to misread small chart screenshots — DOM verification confirms data present
+
+## Priority Recommendations for Next Phase
+1. **Add dashboard widget drag-and-drop reordering** — rearrange widget positions (currently only show/hide)
+2. **Add multi-currency conversion** in analytics with live exchange rates
+3. **Add bulk export** — export all module data as ZIP archive
+4. **Add real-time chart updates** — live-updating equity curve / revenue chart
+5. **Add onboarding wizard** for new tenants — guided module setup
+6. **Add saved views / filters** — persist filter combinations per user
