@@ -30,6 +30,7 @@ import {
   Users,
   Building2,
   Package,
+  Keyboard,
 } from "lucide-react";
 import type { CommandAction } from "@/lib/platform/types";
 
@@ -150,6 +151,18 @@ export function CommandMenu() {
         run: () => navigate("settings", { tab: "modules" }),
       });
     }
+    // keyboard shortcuts help
+    out.push({
+      id: "qa-shortcuts",
+      label: "Keyboard shortcuts",
+      group: "Quick actions",
+      icon: Keyboard,
+      shortcut: "?",
+      run: () => {
+        const open = (window as unknown as { __openShortcutsHelp?: () => void }).__openShortcutsHelp;
+        if (open) open();
+      },
+    });
     return out;
   })();
 

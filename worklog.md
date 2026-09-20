@@ -426,3 +426,85 @@ Task: QA via agent-browser + VLM, polish subagent widgets, add dashboard customi
 4. **Add dashboard layout presets** (e.g. "Risk-focused", "Finance-focused", "Minimal")
 5. **Add keyboard shortcuts help** overlay (? key)
 6. **Add export/report generation** feature (PDF/CSV export from analytics)
+
+---
+Task ID: qa-round-3
+Agent: lead-architect (webDevReview cron)
+Task: QA via agent-browser, add localStorage persistence + dashboard presets + keyboard shortcuts help + CSV export
+
+## Current Project Status Assessment
+- 14 modules registered, 40+ views, dynamic navigation, widget-based dashboards
+- Previous rounds: bootstrap fix, MetricCard redesign, module grouping, boot screen, activity ticker, dashboard customization, global search, integrations UI, subagent widget polish
+- Platform stable: page 200, lint clean, 265 SVG chart elements confirmed via DOM
+- This round: localStorage persistence, dashboard layout presets, keyboard shortcuts help, CSV export utility
+
+## QA Findings
+- Page loads 200, lint clean, no runtime errors
+- Charts verified via DOM: 265 SVG elements, 51 text labels, 16 chart surfaces (VLM misreads small screenshots)
+- "1 Issue" badge is Next.js dev tools indicator (dev-only, not a platform bug)
+- Console had stale "re-registering module" warnings — fixed by making register() silently idempotent
+- VLM rating: 8-9/10 (visual polish, layout, hierarchy, feature completeness)
+
+## Completed Modifications
+
+### 1. Persist Dashboard Customization to localStorage (spec §23)
+- `hiddenWidgets` state initialized from `localStorage.getItem("pfaas:hiddenWidgets")` on mount
+- `useEffect` persists changes to localStorage automatically
+- `setHiddenWidgets` exposed to context for preset application
+- **Verified**: toggled off "Recent Trading Activity" → reloaded page → widget still hidden (localStorage persisted `["recent-activity"]`)
+- **Verified**: Reset layout → localStorage cleared to `[]`
+
+### 2. Dashboard Layout Presets (spec §23 — Role/Tenant dashboard templates)
+- Added 5 presets to CustomizeDashboardDialog:
+  - **All widgets** (16 widgets) — show everything
+  - **Risk-focused** (6 widgets) — risk, breaches, positions, trading overview only
+  - **Finance-focused** (4 widgets) — payouts, accounting, revenue metrics
+  - **Trading-focused** (7 widgets) — traders, accounts, positions, performance, challenges
+  - **Minimal** (4 widgets) — only metric-category widgets (KPI overviews)
+- Each preset shows icon, name, and widget count
+- Active preset highlighted with `ring-1 ring-primary/20` + `border-primary`
+- Preset application toast: "Preset applied — X of Y widgets visible"
+- **Verified**: applied "Minimal" → dashboard reduced to only metric widgets; applied "Risk-focused" → only risk/trading widgets showed
+
+### 3. Keyboard Shortcuts Help Overlay (? key)
+- `KeyboardShortcutsHelp` component with Dialog overlay
+- Opens via `?` key (or `Shift+/`) when not typing in an input
+- 11 shortcuts grouped: Global (⌘K, /, ?, Esc), Navigation (G D/S/T/A/P/R), View (B)
+- Each shortcut shows icon, label, and styled `<kbd>` key indicator
+- Tips section with 3 usage tips (fuzzy search, tenant switching, global search)
+- Registered `window.__openShortcutsHelp` global so command menu can trigger it
+- Added "Keyboard shortcuts ?" command to the command menu's Quick actions group
+- **VLM rating: 9/10** — "highly polished, follows modern SaaS design standards (Linear/Vercel)"
+
+### 4. CSV Export Utility (spec §38 — analytics.export permission)
+- Created `export-utils.ts` with `exportToCsv<T>(rows, columns, filename)` function
+- RFC 4180 compliant: escapes commas, quotes, newlines; prepends UTF-8 BOM for Excel
+- Triggers browser download + shows toast: "Export ready — filename — N records exported"
+- Added "Export CSV" button to Analytics Overview page (gated by `analytics.export` permission)
+- Added "Export CSV" button to Accounting Transactions page
+- **Verified**: clicked Export CSV on Analytics page → "Export ready" toast appeared + browser download triggered
+
+### 5. Module Registry Cleanup
+- Removed `console.warn("re-registering module")` — made `register()` silently idempotent for HMR safety
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, no runtime errors ✓
+- localStorage persistence: hidden widget survived page reload ✓
+- Dashboard presets: 5 presets, active highlighting, instant apply ✓
+- Keyboard shortcuts: ? key opens dialog, command menu has shortcut command ✓
+- CSV export: Analytics + Accounting pages, toast + download triggered ✓
+- Charts render correctly: 265 SVG elements in DOM (VLM misreads screenshots) ✓
+
+## Unresolved Issues / Risks
+- VLM consistently misreads small chart screenshots as "empty" — verified via DOM that charts have data
+- No real backend — all data is mock
+- CSV export downloads to browser (not server filesystem) — expected behavior
+- The `?` shortcut requires no modifier keys held (intentional, avoids conflicts)
+
+## Priority Recommendations for Next Phase
+1. **Add ARIA labels** to color-only indicators (buy/sell, status badges) for accessibility
+2. **Add chart axis label rotation** for long category names (e.g., AI confidence insight titles)
+3. **Add dashboard layout sharing** — export/import hidden widget config as JSON
+4. **Add bulk integration actions** — enable/disable multiple integrations at once
+5. **Add notification preferences** per-module (email/in-app/slack toggles)
+6. **Add audit log filtering** by module/severity/actor with date range

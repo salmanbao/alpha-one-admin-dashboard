@@ -76,6 +76,7 @@ interface PlatformContextValue {
   hiddenWidgets: Set<string>;
   toggleWidget: (widgetId: string) => void;
   resetDashboard: () => void;
+  setHiddenWidgets: (widgets: Set<string>) => void;
   customizeOpen: boolean;
   setCustomizeOpen: (open: boolean) => void;
   /* global search (spec §38) */
@@ -152,9 +153,28 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>(seedNotifications);
   const [commandOpen, setCommandOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [hiddenWidgets, setHiddenWidgets] = useState<Set<string>>(new Set());
+  const [hiddenWidgets, setHiddenWidgets] = useState<Set<string>>(() => {
+    // Load persisted hidden widgets from localStorage (spec §23 — user customization)
+    if (typeof window === "undefined") return new Set();
+    try {
+      const stored = window.localStorage.getItem("pfaas:hiddenWidgets");
+      if (stored) {
+        const arr = JSON.parse(stored) as string[];
+        return new Set(arr);
+      }
+    } catch { /* ignore parse errors */ }
+    return new Set();
+  });
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Persist hidden widgets to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("pfaas:hiddenWidgets", JSON.stringify(Array.from(hiddenWidgets)));
+    } catch { /* ignore quota errors */ }
+  }, [hiddenWidgets]);
 
   const toggleWidget = useCallback((widgetId: string) => {
     setHiddenWidgets((prev) => {
@@ -260,6 +280,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     hiddenWidgets,
     toggleWidget,
     resetDashboard,
+    setHiddenWidgets,
     customizeOpen,
     setCustomizeOpen,
     searchOpen,

@@ -15,6 +15,7 @@ import { Topbar } from "./topbar";
 import { Breadcrumbs, MobileNav } from "./breadcrumbs";
 import { CommandMenu } from "./command-menu";
 import { GlobalSearchDialog } from "./global-search";
+import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { setSearchOpen } = usePlatform();
@@ -62,6 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       <CommandMenu />
       <GlobalSearchDialog />
+      <KeyboardShortcutsHelp />
     </div>
   );
 }

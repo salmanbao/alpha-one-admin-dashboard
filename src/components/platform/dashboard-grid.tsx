@@ -20,7 +20,7 @@ import { moduleRegistry } from "@/lib/platform/module-registry";
 import { ModuleErrorBoundary, WidgetSkeleton, EmptyState } from "@/components/platform/guards";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LayoutGrid, PackageOpen, Settings2, Eye, EyeOff, RotateCcw, X } from "lucide-react";
+import { LayoutGrid, PackageOpen, Settings2, Eye, EyeOff, RotateCcw, X, ShieldAlert, Wallet, CandlestickChart, Minimize2 } from "lucide-react";
 import { Suspense } from "react";
 import { DASHBOARD_COLS } from "@/lib/platform/dashboard-engine";
 import { cn } from "@/lib/utils";
@@ -176,11 +176,71 @@ export function CustomizeDashboardDialog() {
     hiddenWidgets,
     toggleWidget,
     resetDashboard,
+    setHiddenWidgets,
   } = usePlatform();
 
   const enabledModules = moduleRegistry.getEnabledModules(runtime);
-  const totalWidgets = enabledModules.reduce((s, m) => s + (m.widgets?.length ?? 0), 0);
+  const allWidgets = enabledModules.flatMap((m) => m.widgets ?? []);
+  const totalWidgets = allWidgets.length;
   const visibleCount = totalWidgets - hiddenWidgets.size;
+
+  // Dashboard layout presets (spec §23 — Role/Tenant dashboard templates)
+  // Each preset hides widgets NOT in its include list.
+  const presets = [
+    {
+      id: "all",
+      name: "All widgets",
+      description: "Show every available widget",
+      icon: LayoutGrid,
+      hidden: [] as string[],
+    },
+    {
+      id: "risk",
+      name: "Risk-focused",
+      description: "Risk, breaches, trading positions only",
+      icon: ShieldAlert,
+      hidden: allWidgets
+        .filter((w) => !["risk-overview", "risk-distribution", "breach-trend", "open-breaches", "open-positions", "trading-overview"].includes(w.id))
+        .map((w) => w.id),
+    },
+    {
+      id: "finance",
+      name: "Finance-focused",
+      description: "Payouts, accounting, revenue metrics",
+      icon: Wallet,
+      hidden: allWidgets
+        .filter((w) => !["payout-overview", "payout-queue", "payout-trend", "payout-method", "accounting-overview", "revenue-by-type", "transaction-flow", "analytics-overview", "revenue"].includes(w.id))
+        .map((w) => w.id),
+    },
+    {
+      id: "trading",
+      name: "Trading-focused",
+      description: "Traders, accounts, positions, performance",
+      icon: CandlestickChart,
+      hidden: allWidgets
+        .filter((w) => !["trading-overview", "account-balance", "trader-performance", "open-positions", "recent-activity", "challenge-overview", "challenge-progress"].includes(w.id))
+        .map((w) => w.id),
+    },
+    {
+      id: "minimal",
+      name: "Minimal",
+      description: "Only top-level KPI overview widgets",
+      icon: Minimize2,
+      hidden: allWidgets
+        .filter((w) => w.category !== "metric")
+        .map((w) => w.id),
+    },
+  ];
+
+  const applyPreset = (presetId: string) => {
+    const preset = presets.find((p) => p.id === presetId);
+    if (!preset) return;
+    setHiddenWidgets(new Set(preset.hidden));
+    toast({
+      title: "Preset applied",
+      description: `"${preset.name}" layout — ${totalWidgets - preset.hidden.length} of ${totalWidgets} widgets visible.`,
+    });
+  };
 
   const handleReset = () => {
     resetDashboard();
@@ -199,10 +259,38 @@ export function CustomizeDashboardDialog() {
             Customize Dashboard
           </DialogTitle>
           <DialogDescription>
-            Toggle widgets to show or hide them on your dashboard. Changes apply instantly.
+            Toggle widgets to show or hide them on your dashboard. Changes apply instantly and are saved to your browser.
             Showing {visibleCount} of {totalWidgets} widgets.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Layout presets — quick-switch dashboard templates (spec §23) */}
+        <div className="rounded-lg border bg-muted/20 p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Layout presets</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            {presets.map((p) => {
+              const PIcon = p.icon;
+              const activePreset = hiddenWidgets.size === p.hidden.size &&
+                p.hidden.every((id) => hiddenWidgets.has(id));
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => applyPreset(p.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-md border p-2.5 text-center transition-all hover:shadow-sm",
+                    activePreset
+                      ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                      : "border-border bg-card hover:border-primary/40",
+                  )}
+                >
+                  <PIcon className={cn("h-4 w-4", activePreset ? "text-primary" : "text-muted-foreground")} />
+                  <span className="text-[11px] font-medium text-foreground">{p.name}</span>
+                  <span className="text-[9px] text-muted-foreground">{totalWidgets - p.hidden.length} widgets</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="space-y-4 py-2">
           {enabledModules.map((mod) => {

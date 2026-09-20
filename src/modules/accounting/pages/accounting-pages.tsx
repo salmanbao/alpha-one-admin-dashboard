@@ -6,9 +6,10 @@ import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, formatCurrency } from "@/components/platform/status";
 import { BarSeries, AreaSeries } from "@/components/platform/charts";
-import { Calculator, Receipt, ArrowLeftRight, ArrowUpCircle, ArrowDownCircle, Percent, Wallet, CheckCircle2 } from "lucide-react";
+import { Calculator, Receipt, ArrowLeftRight, ArrowUpCircle, ArrowDownCircle, Percent, Wallet, CheckCircle2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
 
 function transactionStatusTone(status: string) {
   if (status === "reconciled") return "success" as const;
@@ -121,7 +122,30 @@ export function TransactionsPage() {
 
   return (
     <Page>
-      <PageHeader title="Transactions" description="All tenant financial transactions." icon={Receipt} />
+      <PageHeader
+        title="Transactions"
+        description="All tenant financial transactions."
+        icon={Receipt}
+        actions={
+          <Button size="sm" variant="outline" onClick={() => exportToCsv(
+            getTenantTransactions(tid),
+            [
+              { key: "reference", header: "Reference", value: (t) => t.reference },
+              { key: "type", header: "Type", value: (t) => t.type },
+              { key: "description", header: "Description", value: (t) => t.description },
+              { key: "amount", header: "Amount", value: (t) => t.amount },
+              { key: "currency", header: "Currency", value: (t) => t.currency },
+              { key: "category", header: "Category", value: (t) => t.category },
+              { key: "status", header: "Status", value: (t) => t.status },
+              { key: "date", header: "Date", value: (t) => t.date },
+              { key: "account", header: "Account", value: (t) => t.account },
+            ],
+            `transactions-${new Date().toISOString().slice(0, 10)}.csv`,
+          )}>
+            <Download className="mr-1 h-4 w-4" /> Export CSV
+          </Button>
+        }
+      />
       <PageContent>
         <DataTable
           columns={columns}

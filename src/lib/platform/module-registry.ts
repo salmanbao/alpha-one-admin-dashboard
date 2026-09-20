@@ -20,10 +20,7 @@ class ModuleRegistryImpl {
   private modules = new Map<string, FrontendModule>();
 
   register(mod: FrontendModule): void {
-    if (this.modules.has(mod.manifest.id)) {
-      // idempotent — allow re-registration in dev
-      console.warn(`[module-registry] re-registering module "${mod.manifest.id}"`);
-    }
+    // Idempotent — silently overwrite on re-registration (HMR safe)
     this.modules.set(mod.manifest.id, mod);
   }
 

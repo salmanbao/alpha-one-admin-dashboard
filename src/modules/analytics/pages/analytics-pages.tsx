@@ -9,6 +9,7 @@ import { BarChart3, TrendingUp, Users, DollarSign, Activity, Brain, Download } f
 import { Button } from "@/components/ui/button";
 import { PermissionGuard, FeatureGuard } from "@/components/platform/guards";
 import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { Badge } from "@/components/ui/badge";
 
 export function AnalyticsOverviewPage() {
@@ -25,8 +26,18 @@ export function AnalyticsOverviewPage() {
         icon={BarChart3}
         actions={
           <PermissionGuard permission="analytics.export">
-            <Button size="sm" variant="outline" onClick={() => toast({ title: "Export started", description: "Analytics report generating (demo)." })}>
-              <Download className="mr-1 h-4 w-4" /> Export
+            <Button size="sm" variant="outline" onClick={() => {
+              const rev = revenueSeries(tid);
+              exportToCsv(
+                rev,
+                [
+                  { key: "date", header: "Date", value: (r) => r.date },
+                  { key: "value", header: "Revenue", value: (r) => r.value },
+                ],
+                `analytics-revenue-${new Date().toISOString().slice(0, 10)}.csv`,
+              );
+            }}>
+              <Download className="mr-1 h-4 w-4" /> Export CSV
             </Button>
           </PermissionGuard>
         }
