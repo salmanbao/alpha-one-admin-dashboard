@@ -1,0 +1,2002 @@
+     1→# Frontend Architecture Specification Prompt
+     2→
+     3→## Prop Firm as a Service Platform
+     4→
+     5→You are the lead frontend architect and implementation engineer for a multi-tenant **Prop Firm as a Service (PFaaS)** platform.
+     6→
+     7→The platform provides white-label infrastructure to multiple prop firms. Each prop firm is a tenant. The platform must support:
+     8→
+     9→1. Super Admin Dashboard
+    10→2. Prop Firm Admin Dashboard
+    11→3. Trader/User Dashboard
+    12→4. Dynamic, configurable navigation
+    13→5. Plug-and-play business modules
+    14→6. Tenant-specific module availability
+    15→7. Tenant-specific dashboard layouts
+    16→8. Tenant-specific branding
+    17→9. Role-based access control
+    18→10. Feature-level permissions
+    19→11. Widget-based dashboards
+    20→12. Optional modules such as:
+    21→
+    22→* Analytics
+    23→* Advanced Analytics
+    24→* Accounting
+    25→* Affiliates
+    26→* Marketing
+    27→* CRM
+    28→* AI / LLM
+    29→* KYC / AML
+    30→* Notifications
+    31→* Support
+    32→
+    33→13. External integrations that may expose their own frontend capabilities
+    34→14. Multiple prop firms using different combinations of services without requiring separate frontend codebases
+    35→
+    36→The frontend must be designed as a **modular dashboard platform**, not as three independent hard-coded dashboards.
+    37→
+    38→---
+    39→
+    40→# 1. PRIMARY OBJECTIVE
+    41→
+    42→Build a frontend architecture where:
+    43→
+    44→```text
+    45→Tenant
+    46→   ↓
+    47→Tenant Configuration
+    48→   ↓
+    49→Tenant Entitlements
+    50→   ↓
+    51→Enabled Modules
+    52→   ↓
+    53→Features
+    54→   ↓
+    55→User Role / Permissions
+    56→   ↓
+    57→Navigation
+    58→   ↓
+    59→Routes
+    60→   ↓
+    61→Dashboard Widgets
+    62→   ↓
+    63→Rendered UI
+    64→```
+    65→
+    66→The UI must be dynamically composed from these inputs.
+    67→
+    68→A tenant should be able to have:
+    69→
+    70→```text
+    71→Trading
+    72→Challenges
+    73→Risk
+    74→Payouts
+    75→Analytics
+    76→```
+    77→
+    78→while another tenant can have:
+    79→
+    80→```text
+    81→Trading
+    82→Challenges
+    83→Risk
+    84→Payouts
+    85→Analytics
+    86→Accounting
+    87→Affiliates
+    88→Marketing
+    89→AI
+    90→```
+    91→
+    92→without creating separate frontend applications for each customer.
+    93→
+    94→The frontend architecture must therefore make **modules first-class citizens**.
+    95→
+    96→---
+    97→
+    98→# 2. CORE ARCHITECTURAL PRINCIPLE
+    99→
+   100→Do NOT build:
+   101→
+   102→```text
+   103→SuperAdminApp
+   104→PropFirmAdminApp
+   105→TraderApp
+   106→```
+   107→
+   108→as three completely independent applications containing duplicated business UI.
+   109→
+   110→Instead build:
+   111→
+   112→```text
+   113→Frontend Platform
+   114→│
+   115→├── Application Shell
+   116→├── Module Runtime
+   117→├── Module Registry
+   118→├── Permission Engine
+   119→├── Tenant Context
+   120→├── Feature Flag System
+   121→├── Theme Engine
+   122→├── Navigation Engine
+   123→├── Layout Engine
+   124→├── Widget Engine
+   125→├── Routing Engine
+   126→├── UI Component Library
+   127→└── API Client Layer
+   128→```
+   129→
+   130→Then expose role-specific experiences:
+   131→
+   132→```text
+   133→Super Admin Experience
+   134→Prop Firm Admin Experience
+   135→Trader Experience
+   136→```
+   137→
+   138→using the same platform foundations.
+   139→
+   140→---
+   141→
+   142→# 3. RECOMMENDED TECHNOLOGY
+   143→
+   144→Use:
+   145→
+   146→```text
+   147→Next.js
+   148→TypeScript
+   149→React
+   150→Tailwind CSS
+   151→shadcn/ui
+   152→React Query / TanStack Query
+   153→React Hook Form
+   154→Zod
+   155→```
+   156→
+   157→Use the existing project conventions if the repository already has a frontend stack.
+   158→
+   159→Do NOT introduce unnecessary technologies.
+   160→
+   161→Avoid:
+   162→
+   163→```text
+   164→Micro-frontends
+   165→Webpack Module Federation
+   166→GraphQL
+   167→Redux
+   168→Complex state-management frameworks
+   169→Multiple UI libraries
+   170→```
+   171→
+   172→unless there is a concrete existing requirement for them.
+   173→
+   174→Prefer:
+   175→
+   176→```text
+   177→React Server Components where appropriate
+   178→Client Components only when necessary
+   179→TanStack Query for server state
+   180→React Context for small cross-cutting client state
+   181→URL state for filters/search/pagination where appropriate
+   182→```
+   183→
+   184→---
+   185→
+   186→# 4. MONOREPO FRONTEND STRUCTURE
+   187→
+   188→Use a monorepo structure.
+   189→
+   190→Recommended:
+   191→
+   192→```text
+   193→frontend/
+   194→│
+   195→├── apps/
+   196→│   │
+   197→│   ├── super-admin/
+   198→│   │   ├── app/
+   199→│   │   ├── components/
+   200→│   │   ├── providers/
+   201→│   │   └── configuration/
+   202→│   │
+   203→│   ├── prop-admin/
+   204→│   │   ├── app/
+   205→│   │   ├── components/
+   206→│   │   ├── providers/
+   207→│   │   └── configuration/
+   208→│   │
+   209→│   └── trader/
+   210→│       ├── app/
+   211→│       ├── components/
+   212→│       ├── providers/
+   213→│       └── configuration/
+   214→│
+   215→├── packages/
+   216→│   │
+   217→│   ├── ui/
+   218→│   ├── dashboard-core/
+   219→│   ├── module-sdk/
+   220→│   ├── authorization/
+   221→│   ├── tenant/
+   222→│   ├── auth/
+   223→│   ├── api-client/
+   224→│   ├── configuration/
+   225→│   ├── theme/
+   226→│   ├── routing/
+   227→│   ├── tables/
+   228→│   ├── charts/
+   229→│   ├── forms/
+   230→│   ├── notifications/
+   231→│   └── utils/
+   232→│
+   233→└── modules/
+   234→    │
+   235→    ├── trading/
+   236→    ├── accounts/
+   237→    ├── challenges/
+   238→    ├── risk/
+   239→    ├── rules/
+   240→    ├── breaches/
+   241→    ├── payouts/
+   242→    ├── analytics/
+   243→    ├── advanced-analytics/
+   244→    ├── affiliates/
+   245→    ├── accounting/
+   246→    ├── marketing/
+   247→    ├── crm/
+   248→    ├── ai/
+   249→    ├── kyc/
+   250→    ├── support/
+   251→    └── notifications/
+   252→```
+   253→
+   254→The exact directory naming can be adapted to the repository.
+   255→
+   256→The architectural separation is more important than the exact naming.
+   257→
+   258→---
+   259→
+   260→# 5. APPLICATIONS
+   261→
+   262→There should be three frontend applications or three clearly separated application entry points:
+   263→
+   264→```text
+   265→apps/
+   266→├── super-admin/
+   267→├── prop-admin/
+   268→└── trader/
+   269→```
+   270→
+   271→They should all consume the same shared packages and modules.
+   272→
+   273→The applications should primarily define:
+   274→
+   275→```text
+   276→authentication entry
+   277→route entry points
+   278→application-level layout
+   279→experience-specific navigation defaults
+   280→experience-specific access rules
+   281→```
+   282→
+   283→They should NOT duplicate:
+   284→
+   285→```text
+   286→table components
+   287→charts
+   288→buttons
+   289→forms
+   290→module logic
+   291→permission logic
+   292→API abstractions
+   293→tenant handling
+   294→theme handling
+   295→dashboard engine
+   296→```
+   297→
+   298→---
+   299→
+   300→# 6. SUPER ADMIN APPLICATION
+   301→
+   302→Super Admin controls the PFaaS platform itself.
+   303→
+   304→It should have access to platform-level capabilities such as:
+   305→
+   306→```text
+   307→Overview
+   308→Tenants
+   309→Subscriptions
+   310→Service Catalog
+   311→Modules
+   312→Module Configuration
+   313→Global Integrations
+   314→Provider Management
+   315→Platform Users
+   316→Roles & Permissions
+   317→Global Feature Flags
+   318→Billing
+   319→Audit Logs
+   320→Platform Analytics
+   321→System Health
+   322→Platform Settings
+   323→```
+   324→
+   325→Recommended structure:
+   326→
+   327→```text
+   328→apps/super-admin/
+   329→│
+   330→├── app/
+   331→│   ├── (auth)/
+   332→│   └── (dashboard)/
+   333→│       ├── layout.tsx
+   334→│       ├── page.tsx
+   335→│       ├── tenants/
+   336→│       ├── modules/
+   337→│       ├── services/
+   338→│       ├── integrations/
+   339→│       ├── users/
+   340→│       ├── roles/
+   341→│       ├── billing/
+   342→│       ├── analytics/
+   343→│       ├── health/
+   344→│       └── settings/
+   345→```
+   346→
+   347→The Super Admin should also use the same module system.
+   348→
+   349→---
+   350→
+   351→# 7. PROP FIRM ADMIN APPLICATION
+   352→
+   353→The Prop Firm Admin controls an individual tenant.
+   354→
+   355→Typical modules:
+   356→
+   357→```text
+   358→Overview
+   359→Traders
+   360→Trading Accounts
+   361→Challenges
+   362→Rules
+   363→Risk
+   364→Breaches
+   365→Payouts
+   366→Affiliates
+   367→Marketing
+   368→Analytics
+   369→Accounting
+   370→AI
+   371→Support
+   372→Notifications
+   373→Settings
+   374→```
+   375→
+   376→But the sidebar must NOT hard-code all modules.
+   377→
+   378→Instead:
+   379→
+   380→```text
+   381→Tenant Entitlements
+   382→        ↓
+   383→Module Registry
+   384→        ↓
+   385→Permission Evaluation
+   386→        ↓
+   387→Navigation Registry
+   388→        ↓
+   389→Dynamic Sidebar
+   390→```
+   391→
+   392→For example, a tenant with no Accounting entitlement must not see:
+   393→
+   394→```text
+   395→Accounting
+   396→```
+   397→
+   398→A tenant with Accounting enabled but without:
+   399→
+   400→```text
+   401→accounting.read
+   402→```
+   403→
+   404→must also not see it.
+   405→
+   406→---
+   407→
+   408→# 8. TRADER APPLICATION
+   409→
+   410→The Trader application should use the same module concepts, but expose a trader-oriented experience.
+   411→
+   412→Example:
+   413→
+   414→```text
+   415→Overview
+   416→Challenges
+   417→Accounts
+   418→Trading
+   419→Positions
+   420→Orders
+   421→Performance
+   422→Rules
+   423→Risk
+   424→Payouts
+   425→Affiliate
+   426→AI Insights
+   427→Support
+   428→Profile
+   429→Settings
+   430→```
+   431→
+   432→This must also be dynamically filtered based on:
+   433→
+   434→```text
+   435→tenant
+   436→tenant modules
+   437→user role
+   438→user permissions
+   439→feature flags
+   440→account state
+   441→```
+   442→
+   443→Do not assume every trader has every feature.
+   444→
+   445→---
+   446→
+   447→# 9. APP SHELL
+   448→
+   449→Create a reusable Application Shell.
+   450→
+   451→Structure:
+   452→
+   453→```text
+   454→<AppShell>
+   455→    <Sidebar />
+   456→    <Topbar />
+   457→    <Breadcrumbs />
+   458→    <PageContainer>
+   459→        <Page />
+   460→    </PageContainer>
+   461→</AppShell>
+   462→```
+   463→
+   464→The shell should support:
+   465→
+   466→```text
+   467→Responsive sidebar
+   468→Collapsible sidebar
+   469→Mobile navigation
+   470→Breadcrumbs
+   471→Global search
+   472→Notifications
+   473→User menu
+   474→Tenant switcher where applicable
+   475→Theme switcher
+   476→Command menu
+   477→Page actions
+   478→Persistent navigation state
+   479→```
+   480→
+   481→The Shell should be independent of business modules.
+   482→
+   483→---
+   484→
+   485→# 10. TENANT CONTEXT
+   486→
+   487→Create a reusable Tenant Context.
+   488→
+   489→Example:
+   490→
+   491→```typescript
+   492→type TenantContext = {
+   493→  tenantId: string;
+   494→  slug: string;
+   495→  name: string;
+   496→
+   497→  branding: TenantBranding;
+   498→
+   499→  locale: string;
+   500→  timezone: string;
+   501→  currency: string;
+   502→
+   503→  enabledModules: string[];
+   504→  enabledFeatures: string[];
+   505→
+   506→  terminology: Record<string, string>;
+   507→};
+   508→```
+   509→
+   510→The frontend must retrieve and expose tenant context centrally.
+   511→
+   512→Example:
+   513→
+   514→```text
+   515→TenantProvider
+   516→      ↓
+   517→useTenant()
+   518→```
+   519→
+   520→Components should not repeatedly request tenant configuration independently.
+   521→
+   522→---
+   523→
+   524→# 11. AUTHENTICATION CONTEXT
+   525→
+   526→Create a reusable authentication layer.
+   527→
+   528→Example:
+   529→
+   530→```typescript
+   531→type AuthUser = {
+   532→  id: string;
+   533→  tenantId?: string;
+   534→
+   535→  name: string;
+   536→  email: string;
+   537→
+   538→  roles: string[];
+   539→  permissions: string[];
+   540→};
+   541→```
+   542→
+   543→Expose:
+   544→
+   545→```text
+   546→useAuth()
+   547→useCurrentUser()
+   548→useCurrentTenant()
+   549→```
+   550→
+   551→The exact implementation may depend on the authentication provider.
+   552→
+   553→Do not couple the dashboard architecture to a specific auth provider.
+   554→
+   555→---
+   556→
+   557→# 12. AUTHORIZATION MODEL
+   558→
+   559→Do not rely only on role names.
+   560→
+   561→Use explicit permissions.
+   562→
+   563→Examples:
+   564→
+   565→```text
+   566→trader.read
+   567→trader.update
+   568→
+   569→account.read
+   570→account.write
+   571→
+   572→challenge.read
+   573→challenge.create
+   574→challenge.update
+   575→challenge.delete
+   576→
+   577→risk.read
+   578→risk.configure
+   579→
+   580→payout.read
+   581→payout.approve
+   582→
+   583→analytics.read
+   584→analytics.advanced.read
+   585→analytics.export
+   586→
+   587→affiliate.read
+   588→affiliate.configure
+   589→
+   590→accounting.read
+   591→accounting.configure
+   592→
+   593→ai.read
+   594→ai.configure
+   595→```
+   596→
+   597→Create reusable authorization utilities:
+   598→
+   599→```typescript
+   600→can(permission)
+   601→hasRole(role)
+   602→hasAnyPermission(...)
+   603→hasAllPermissions(...)
+   604→```
+   605→
+   606→Example:
+   607→
+   608→```typescript
+   609→if (can("analytics.export")) {
+   610→  ...
+   611→}
+   612→```
+   613→
+   614→Avoid arbitrary role checks throughout the UI.
+   615→
+   616→Bad:
+   617→
+   618→```typescript
+   619→if (user.role === "admin") ...
+   620→```
+   621→
+   622→Prefer:
+   623→
+   624→```typescript
+   625→if (can("analytics.export")) ...
+   626→```
+   627→
+   628→Roles should map to permissions.
+   629→
+   630→---
+   631→
+   632→# 13. MODULE SYSTEM
+   633→
+   634→Implement a first-class module registry.
+   635→
+   636→Each module should have a manifest.
+   637→
+   638→Example:
+   639→
+   640→```typescript
+   641→type FrontendModuleManifest = {
+   642→  id: string;
+   643→  name: string;
+   644→  version: string;
+   645→
+   646→  description?: string;
+   647→
+   648→  dependencies?: string[];
+   649→
+   650→  capabilities?: string[];
+   651→
+   652→  permissions?: PermissionDefinition[];
+   653→
+   654→  navigation?: NavigationDefinition[];
+   655→
+   656→  routes?: RouteDefinition[];
+   657→
+   658→  widgets?: WidgetDefinition[];
+   659→
+   660→  settings?: SettingDefinition[];
+   661→
+   662→  supportedApplications?: (
+   663→    "super-admin" |
+   664→    "prop-admin" |
+   665→    "trader"
+   666→  )[];
+   667→};
+   668→```
+   669→
+   670→Example:
+   671→
+   672→```typescript
+   673→const analyticsModule: FrontendModuleManifest = {
+   674→  id: "analytics",
+   675→  name: "Analytics",
+   676→  version: "1.0.0",
+   677→
+   678→  dependencies: [
+   679→    "trading",
+   680→    "accounts"
+   681→  ],
+   682→
+   683→  permissions: [
+   684→    "analytics.read",
+   685→    "analytics.export"
+   686→  ],
+   687→
+   688→  supportedApplications: [
+   689→    "prop-admin",
+   690→    "super-admin"
+   691→  ]
+   692→};
+   693→```
+   694→
+   695→---
+   696→
+   697→# 14. MODULE DIRECTORY STRUCTURE
+   698→
+   699→Every module must be self-contained.
+   700→
+   701→Example:
+   702→
+   703→```text
+   704→modules/analytics/
+   705→│
+   706→├── manifest.ts
+   707→├── index.ts
+   708→│
+   709→├── routes/
+   710→│   ├── overview.ts
+   711→│   ├── traders.ts
+   712→│   ├── performance.ts
+   713→│   └── risk.ts
+   714→│
+   715→├── pages/
+   716→│   ├── AnalyticsOverviewPage.tsx
+   717→│   ├── TraderAnalyticsPage.tsx
+   718→│   ├── PerformancePage.tsx
+   719→│   └── RiskAnalyticsPage.tsx
+   720→│
+   721→├── components/
+   722→│   ├── AnalyticsFilters.tsx
+   723→│   ├── MetricCard.tsx
+   724→│   └── AnalyticsTable.tsx
+   725→│
+   726→├── widgets/
+   727→│   ├── RevenueWidget.tsx
+   728→│   ├── TraderGrowthWidget.tsx
+   729→│   ├── RiskDistributionWidget.tsx
+   730→│   └── BreachAnalysisWidget.tsx
+   731→│
+   732→├── api/
+   733→│   ├── analytics.api.ts
+   734→│   └── analytics.queries.ts
+   735→│
+   736→├── permissions.ts
+   737→├── navigation.ts
+   738→├── types.ts
+   739→└── utils.ts
+   740→```
+   741→
+   742→No module should spread business-specific frontend logic across unrelated global directories.
+   743→
+   744→---
+   745→
+   746→# 15. MODULE REGISTRY
+   747→
+   748→Create:
+   749→
+   750→```text
+   751→packages/module-sdk/
+   752→```
+   753→
+   754→with something conceptually like:
+   755→
+   756→```typescript
+   757→class ModuleRegistry {
+   758→  register(module: FrontendModuleManifest): void;
+   759→
+   760→  get(moduleId: string): FrontendModuleManifest | undefined;
+   761→
+   762→  getAll(): FrontendModuleManifest[];
+   763→
+   764→  getEnabledModules(context: ModuleRuntimeContext): FrontendModuleManifest[];
+   765→
+   766→  getNavigation(context: ModuleRuntimeContext): NavigationItem[];
+   767→
+   768→  getWidgets(context: ModuleRuntimeContext): WidgetDefinition[];
+   769→}
+   770→```
+   771→
+   772→The registry is the central source of module metadata.
+   773→
+   774→---
+   775→
+   776→# 16. MODULE RUNTIME
+   777→
+   778→Create a runtime layer responsible for determining:
+   779→
+   780→```text
+   781→Which modules exist?
+   782→Which modules are enabled?
+   783→Which modules are available to this application?
+   784→Which features are enabled?
+   785→Which permissions does the current user have?
+   786→Which routes should exist?
+   787→Which navigation items should appear?
+   788→Which widgets should render?
+   789→```
+   790→
+   791→Conceptually:
+   792→
+   793→```text
+   794→Module Runtime
+   795→│
+   796→├── Module Discovery
+   797→├── Module Availability
+   798→├── Dependency Validation
+   799→├── Entitlement Filtering
+   800→├── Permission Filtering
+   801→├── Feature Flag Filtering
+   802→└── Runtime Composition
+   803→```
+   804→
+   805→---
+   806→
+   807→# 17. NAVIGATION ENGINE
+   808→
+   809→The sidebar must be generated dynamically.
+   810→
+   811→Do NOT create one giant static sidebar file.
+   812→
+   813→Instead each module can register navigation:
+   814→
+   815→```typescript
+   816→const navigation = [
+   817→  {
+   818→    id: "analytics",
+   819→    label: "Analytics",
+   820→    href: "/analytics",
+   821→    icon: ChartIcon,
+   822→    permission: "analytics.read"
+   823→  }
+   824→];
+   825→```
+   826→
+   827→The navigation engine should combine:
+   828→
+   829→```text
+   830→Core Navigation
+   831→+
+   832→Module Navigation
+   833→+
+   834→Tenant Configuration
+   835→+
+   836→Permissions
+   837→+
+   838→Feature Flags
+   839→```
+   840→
+   841→Then generate the final sidebar.
+   842→
+   843→---
+   844→
+   845→# 18. NAVIGATION HIERARCHY
+   846→
+   847→Support hierarchical navigation.
+   848→
+   849→Example:
+   850→
+   851→```text
+   852→Analytics
+   853→├── Overview
+   854→├── Traders
+   855→├── Performance
+   856→├── Risk
+   857→└── Cohorts
+   858→```
+   859→
+   860→Each item should support:
+   861→
+   862→```typescript
+   863→type NavigationItem = {
+   864→  id: string;
+   865→  label: string;
+   866→  href?: string;
+   867→  icon?: React.ComponentType;
+   868→  children?: NavigationItem[];
+   869→
+   870→  permission?: string;
+   871→  permissions?: string[];
+   872→
+   873→  feature?: string;
+   874→  module?: string;
+   875→};
+   876→```
+   877→
+   878→---
+   879→
+   880→# 19. ROUTING
+   881→
+   882→Routes must be module-oriented.
+   883→
+   884→Example:
+   885→
+   886→```text
+   887→/analytics
+   888→/analytics/traders
+   889→/analytics/performance
+   890→/analytics/risk
+   891→
+   892→/accounting
+   893→/accounting/transactions
+   894→/accounting/reconciliation
+   895→
+   896→/affiliates
+   897→/affiliates/overview
+   898→/affiliates/campaigns
+   899→/affiliates/commissions
+   900→```
+   901→
+   902→The frontend should protect routes using:
+   903→
+   904→```text
+   905→Authentication
+   906→Tenant
+   907→Module entitlement
+   908→Feature flag
+   909→Permission
+   910→```
+   911→
+   912→A user must not be able to access an unavailable module simply by manually typing its URL.
+   913→
+   914→Example:
+   915→
+   916→```text
+   917→/analytics
+   918→```
+   919→
+   920→must not load when:
+   921→
+   922→```text
+   923→analytics
+   924→```
+   925→
+   926→is disabled for the tenant.
+   927→
+   928→---
+   929→
+   930→# 20. DASHBOARD ENGINE
+   931→
+   932→The main dashboard should be composed of widgets.
+   933→
+   934→Create:
+   935→
+   936→```text
+   937→packages/dashboard-core/
+   938→```
+   939→
+   940→with:
+   941→
+   942→```text
+   943→Dashboard
+   944→DashboardLayout
+   945→DashboardGrid
+   946→DashboardWidget
+   947→WidgetRegistry
+   948→WidgetResolver
+   949→WidgetContainer
+   950→WidgetSettings
+   951→```
+   952→
+   953→Widget definition:
+   954→
+   955→```typescript
+   956→type WidgetDefinition = {
+   957→  id: string;
+   958→  title: string;
+   959→
+   960→  module: string;
+   961→
+   962→  component: React.ComponentType<any>;
+   963→
+   964→  permissions?: string[];
+   965→
+   966→  feature?: string;
+   967→
+   968→  defaultSize: {
+   969→    width: number;
+   970→    height: number;
+   971→  };
+   972→};
+   973→```
+   974→
+   975→---
+   976→
+   977→# 21. WIDGET REGISTRY
+   978→
+   979→Widgets should register themselves through modules.
+   980→
+   981→Example:
+   982→
+   983→```text
+   984→Analytics
+   985→├── RevenueSummaryWidget
+   986→├── TraderGrowthWidget
+   987→├── RiskDistributionWidget
+   988→└── BreachTrendWidget
+   989→```
+   990→
+   991→The dashboard engine asks:
+   992→
+   993→```text
+   994→Which widgets are available?
+   995→```
+   996→
+   997→The system evaluates:
+   998→
+   999→```text
+  1000→tenant
+  1001→module
+  1002→permissions
+  1003→features
+  1004→application
+  1005→```
+  1006→
+  1007→and renders only eligible widgets.
+  1008→
+  1009→---
+  1010→
+  1011→# 22. DASHBOARD LAYOUT CONFIGURATION
+  1012→
+  1013→Do not hard-code widget positions.
+  1014→
+  1015→Represent layouts as configuration.
+  1016→
+  1017→Example:
+  1018→
+  1019→```typescript
+  1020→type DashboardLayout = {
+  1021→  id: string;
+  1022→  tenantId?: string;
+  1023→
+  1024→  widgets: DashboardWidgetPlacement[];
+  1025→};
+  1026→
+  1027→type DashboardWidgetPlacement = {
+  1028→  widgetId: string;
+  1029→
+  1030→  x: number;
+  1031→  y: number;
+  1032→
+  1033→  width: number;
+  1034→  height: number;
+  1035→
+  1036→  minWidth?: number;
+  1037→  minHeight?: number;
+  1038→};
+  1039→```
+  1040→
+  1041→Allow:
+  1042→
+  1043→```text
+  1044→Platform default layout
+  1045→       ↓
+  1046→Tenant layout
+  1047→       ↓
+  1048→Role-specific layout
+  1049→       ↓
+  1050→User custom layout
+  1051→```
+  1052→
+  1053→The exact priority must be clearly defined.
+  1054→
+  1055→Recommended:
+  1056→
+  1057→```text
+  1058→User customization
+  1059→    >
+  1060→Role layout
+  1061→    >
+  1062→Tenant layout
+  1063→    >
+  1064→Platform default
+  1065→```
+  1066→
+  1067→---
+  1068→
+  1069→# 23. DASHBOARD CUSTOMIZATION
+  1070→
+  1071→The Prop Firm Admin should eventually be able to customize its dashboard.
+  1072→
+  1073→Support:
+  1074→
+  1075→```text
+  1076→Add widget
+  1077→Remove widget
+  1078→Move widget
+  1079→Resize widget
+  1080→Reset layout
+  1081→Save layout
+  1082→```
+  1083→
+  1084→The system should prevent widgets from being added when the required:
+  1085→
+  1086→```text
+  1087→module
+  1088→feature
+  1089→permission
+  1090→```
+  1091→
+  1092→is unavailable.
+  1093→
+  1094→---
+  1095→
+  1096→# 24. WIDGET CATEGORIES
+  1097→
+  1098→Support different widget types:
+  1099→
+  1100→```text
+  1101→Metric
+  1102→Chart
+  1103→Table
+  1104→Activity Feed
+  1105→Progress
+  1106→Status
+  1107→Heatmap
+  1108→Leaderboard
+  1109→Map
+  1110→AI Insight
+  1111→Alert
+  1112→Quick Action
+  1113→```
+  1114→
+  1115→Example:
+  1116→
+  1117→```text
+  1118→RevenueSummaryWidget
+  1119→TraderPerformanceWidget
+  1120→PayoutQueueWidget
+  1121→BreachAlertWidget
+  1122→AffiliateRevenueWidget
+  1123→AIInsightWidget
+  1124→```
+  1125→
+  1126→---
+  1127→
+  1128→# 25. SHARED UI SYSTEM
+  1129→
+  1130→Build a centralized UI library.
+  1131→
+  1132→```text
+  1133→packages/ui/
+  1134→```
+  1135→
+  1136→Use shadcn/ui primitives where appropriate.
+  1137→
+  1138→The UI system should contain:
+  1139→
+  1140→```text
+  1141→Button
+  1142→Input
+  1143→Select
+  1144→Combobox
+  1145→Checkbox
+  1146→Radio
+  1147→Switch
+  1148→Tabs
+  1149→Dialog
+  1150→Drawer
+  1151→Sheet
+  1152→Popover
+  1153→Dropdown
+  1154→Tooltip
+  1155→Toast
+  1156→Alert
+  1157→Badge
+  1158→Card
+  1159→Table
+  1160→Pagination
+  1161→Command
+  1162→DatePicker
+  1163→DateRangePicker
+  1164→Skeleton
+  1165→EmptyState
+  1166→ErrorState
+  1167→LoadingState
+  1168→Breadcrumb
+  1169→Avatar
+  1170→DataTable
+  1171→```
+  1172→
+  1173→Do not duplicate these components inside individual modules.
+  1174→
+  1175→---
+  1176→
+  1177→# 26. DATA TABLE SYSTEM
+  1178→
+  1179→A prop firm platform will contain many tables.
+  1180→
+  1181→Create a reusable DataTable abstraction supporting:
+  1182→
+  1183→```text
+  1184→Sorting
+  1185→Filtering
+  1186→Pagination
+  1187→Column visibility
+  1188→Column ordering
+  1189→Search
+  1190→Date ranges
+  1191→Bulk actions
+  1192→Row actions
+  1193→Selection
+  1194→Export
+  1195→Loading
+  1196→Empty state
+  1197→Error state
+  1198→Responsive behavior
+  1199→URL state
+  1200→```
+  1201→
+  1202→Example tables:
+  1203→
+  1204→```text
+  1205→Traders
+  1206→Accounts
+  1207→Challenges
+  1208→Breaches
+  1209→Payouts
+  1210→Transactions
+  1211→Affiliates
+  1212→Commissions
+  1213→KYC records
+  1214→Audit logs
+  1215→```
+  1216→
+  1217→Do not build every table from scratch.
+  1218→
+  1219→---
+  1220→
+  1221→# 27. FORM SYSTEM
+  1222→
+  1223→Create a reusable form architecture:
+  1224→
+  1225→```text
+  1226→packages/forms/
+  1227→```
+  1228→
+  1229→Use:
+  1230→
+  1231→```text
+  1232→React Hook Form
+  1233→Zod
+  1234→```
+  1235→
+  1236→Support:
+  1237→
+  1238→```text
+  1239→Create forms
+  1240→Edit forms
+  1241→Multi-step forms
+  1242→Conditional fields
+  1243→Async validation
+  1244→Error handling
+  1245→Dirty state
+  1246→Unsaved changes
+  1247→Server errors
+  1248→```
+  1249→
+  1250→Examples:
+  1251→
+  1252→```text
+  1253→Create Challenge
+  1254→Configure Rules
+  1255→Configure Risk
+  1256→Configure Payout
+  1257→Create Affiliate Campaign
+  1258→Accounting Configuration
+  1259→Integration Configuration
+  1260→Tenant Settings
+  1261→```
+  1262→
+  1263→---
+  1264→
+  1265→# 28. CHART SYSTEM
+  1266→
+  1267→Create:
+  1268→
+  1269→```text
+  1270→packages/charts/
+  1271→```
+  1272→
+  1273→Provide reusable chart wrappers for:
+  1274→
+  1275→```text
+  1276→Line chart
+  1277→Area chart
+  1278→Bar chart
+  1279→Stacked bar
+  1280→Pie / donut
+  1281→Heatmap
+  1282→Scatter plot
+  1283→Performance chart
+  1284→Equity curve
+  1285→Drawdown chart
+  1286→Risk distribution
+  1287→```
+  1288→
+  1289→The chart package should handle:
+  1290→
+  1291→```text
+  1292→Loading
+  1293→Empty state
+  1294→Tooltip
+  1295→Legend
+  1296→Responsive sizing
+  1297→Date formatting
+  1298→Currency formatting
+  1299→```
+  1300→
+  1301→Modules should consume the chart primitives rather than implement their own charting framework.
+  1302→
+  1303→---
+  1304→
+  1305→# 29. THEME AND WHITE-LABELING
+  1306→
+  1307→The tenant must control branding.
+  1308→
+  1309→Create:
+  1310→
+  1311→```text
+  1312→packages/theme/
+  1313→```
+  1314→
+  1315→Support:
+  1316→
+  1317→```text
+  1318→Logo
+  1319→Favicon
+  1320→Primary color
+  1321→Secondary color
+  1322→Background
+  1323→Typography
+  1324→Border radius
+  1325→Dark mode
+  1326→Light mode
+  1327→Component tokens
+  1328→```
+  1329→
+  1330→Use design tokens instead of hard-coded colors.
+  1331→
+  1332→Example:
+  1333→
+  1334→```text
+  1335→--brand-primary
+  1336→--brand-secondary
+  1337→--brand-background
+  1338→--brand-surface
+  1339→--brand-text
+  1340→--brand-accent
+  1341→```
+  1342→
+  1343→Do not scatter tenant-specific colors throughout components.
+  1344→
+  1345→---
+  1346→
+  1347→# 30. TERMINOLOGY CUSTOMIZATION
+  1348→
+  1349→The white-label platform may allow tenant-specific terminology.
+  1350→
+  1351→For example:
+  1352→
+  1353→Platform:
+  1354→
+  1355→```text
+  1356→Challenge
+  1357→Trader
+  1358→Payout
+  1359→```
+  1360→
+  1361→Tenant:
+  1362→
+  1363→```text
+  1364→Evaluation
+  1365→Participant
+  1366→Withdrawal
+  1367→```
+  1368→
+  1369→Create a terminology resolver:
+  1370→
+  1371→```typescript
+  1372→t("challenge")
+  1373→t("trader")
+  1374→t("payout")
+  1375→```
+  1376→
+  1377→or an equivalent typed abstraction.
+  1378→
+  1379→Do not make every string configurable.
+  1380→
+  1381→Only business terminology that genuinely needs white-label customization should be configurable.
+  1382→
+  1383→---
+  1384→
+  1385→# 31. FEATURE FLAGS
+  1386→
+  1387→Create a feature flag layer separate from module entitlements.
+  1388→
+  1389→Example:
+  1390→
+  1391→```text
+  1392→Module:
+  1393→analytics
+  1394→
+  1395→Features:
+  1396→analytics.basic
+  1397→analytics.advanced
+  1398→analytics.cohorts
+  1399→analytics.ai
+  1400→```
+  1401→
+  1402→The evaluation should be:
+  1403→
+  1404→```text
+  1405→Module enabled?
+  1406→        ↓
+  1407→Feature enabled?
+  1408→        ↓
+  1409→User has permission?
+  1410→        ↓
+  1411→Render
+  1412→```
+  1413→
+  1414→Feature flags should not become a substitute for authorization.
+  1415→
+  1416→---
+  1417→
+  1418→# 32. MODULE ENTITLEMENT HANDLING
+  1419→
+  1420→The frontend needs a single abstraction such as:
+  1421→
+  1422→```typescript
+  1423→useModule("analytics")
+  1424→```
+  1425→
+  1426→or:
+  1427→
+  1428→```typescript
+  1429→hasModule("analytics")
+  1430→```
+  1431→
+  1432→Example:
+  1433→
+  1434→```tsx
+  1435→<ModuleGuard module="analytics">
+  1436→  <AnalyticsPage />
+  1437→</ModuleGuard>
+  1438→```
+  1439→
+  1440→Also support:
+  1441→
+  1442→```text
+  1443→FeatureGuard
+  1444→PermissionGuard
+  1445→```
+  1446→
+  1447→Example:
+  1448→
+  1449→```tsx
+  1450→<PermissionGuard permission="analytics.export">
+  1451→  <ExportButton />
+  1452→</PermissionGuard>
+  1453→```
+  1454→
+  1455→---
+  1456→
+  1457→# 33. DO NOT TRUST FRONTEND AUTHORIZATION
+  1458→
+  1459→Frontend guards are for UX.
+  1460→
+  1461→They are NOT a security boundary.
+  1462→
+  1463→The frontend architecture should assume the backend independently enforces:
+  1464→
+  1465→```text
+  1466→authentication
+  1467→authorization
+  1468→tenant isolation
+  1469→resource access
+  1470→```
+  1471→
+  1472→Do not implement security by hiding buttons.
+  1473→
+  1474→---
+  1475→
+  1476→# 34. ERROR BOUNDARIES
+  1477→
+  1478→Each module should have its own error boundary.
+  1479→
+  1480→Example:
+  1481→
+  1482→```text
+  1483→Analytics Module
+  1484→      ↓
+  1485→AnalyticsErrorBoundary
+  1486→```
+  1487→
+  1488→If Analytics crashes, the entire admin dashboard should not crash.
+  1489→
+  1490→The shell should remain operational.
+  1491→
+  1492→Display:
+  1493→
+  1494→```text
+  1495→Something went wrong loading Analytics.
+  1496→Retry
+  1497→```
+  1498→
+  1499→rather than blanking the entire application.
+  1500→
+  1501→---
+  1502→
+  1503→# 35. LOADING STATES
+  1504→
+  1505→Every module/page/widget should have proper loading states.
+  1506→
+  1507→Support:
+  1508→
+  1509→```text
+  1510→Skeleton
+  1511→Spinner only for small interactions
+  1512→Progress indicators for long-running tasks
+  1513→Optimistic UI where safe
+  1514→```
+  1515→
+  1516→Avoid entire-page blocking loaders whenever possible.
+  1517→
+  1518→---
+  1519→
+  1520→# 36. EMPTY STATES
+  1521→
+  1522→Every major module must define useful empty states.
+  1523→
+  1524→Example:
+  1525→
+  1526→```text
+  1527→No affiliates yet
+  1528→
+  1529→Create your first affiliate campaign to start tracking referrals.
+  1530→```
+  1531→
+  1532→Do not show empty tables without explanation.
+  1533→
+  1534→---
+  1535→
+  1536→# 37. NOTIFICATION SYSTEM
+  1537→
+  1538→Create a centralized notification system.
+  1539→
+  1540→Support:
+  1541→
+  1542→```text
+  1543→Toast notifications
+  1544→Persistent notifications
+  1545→Unread count
+  1546→Notification center
+  1547→Critical alerts
+  1548→System alerts
+  1549→Module alerts
+  1550→```
+  1551→
+  1552→The shell should own notification infrastructure.
+  1553→
+  1554→Individual modules can publish notifications.
+  1555→
+  1556→---
+  1557→
+  1558→# 38. GLOBAL SEARCH
+  1559→
+  1560→The admin platform should eventually support global search.
+  1561→
+  1562→Search entities such as:
+  1563→
+  1564→```text
+  1565→Trader
+  1566→Account
+  1567→Challenge
+  1568→Transaction
+  1569→Payout
+  1570→Affiliate
+  1571→Invoice
+  1572→KYC Record
+  1573→```
+  1574→
+  1575→The search UI should not be hard-coded to one module.
+  1576→
+  1577→Modules should optionally register searchable entities.
+  1578→
+  1579→Example:
+  1580→
+  1581→```typescript
+  1582→searchRegistry.register({
+  1583→  entity: "trader",
+  1584→  module: "trading"
+  1585→});
+  1586→```
+  1587→
+  1588→---
+  1589→
+  1590→# 39. COMMAND MENU
+  1591→
+  1592→Support a global command menu.
+  1593→
+  1594→Example:
+  1595→
+  1596→```text
+  1597→⌘K
+  1598→```
+  1599→
+  1600→Actions:
+  1601→
+  1602→```text
+  1603→Create challenge
+  1604→Search trader
+  1605→Open payouts
+  1606→Open analytics
+  1607→Create affiliate
+  1608→Go to settings
+  1609→Change tenant
+  1610→```
+  1611→
+  1612→Commands should also be module-driven.
+  1613→
+  1614→---
+  1615→
+  1616→# 40. AUDIT UI
+  1617→
+  1618→The frontend should provide reusable audit components.
+  1619→
+  1620→Examples:
+  1621→
+  1622→```text
+  1623→Activity Timeline
+  1624→Audit Log Table
+  1625→Entity Change History
+  1626→User Action History
+  1627→```
+  1628→
+  1629→These components should be reusable by:
+  1630→
+  1631→```text
+  1632→Trading
+  1633→Risk
+  1634→Payouts
+  1635→Accounting
+  1636→Affiliate
+  1637→Admin
+  1638→```
+  1639→
+  1640→---
+  1641→
+  1642→# 41. PAGE STRUCTURE
+  1643→
+  1644→Standardize page structure.
+  1645→
+  1646→Example:
+  1647→
+  1648→```tsx
+  1649→<Page>
+  1650→  <PageHeader />
+  1651→  <PageToolbar />
+  1652→  <PageContent />
+  1653→</Page>
+  1654→```
+  1655→
+  1656→Header:
+  1657→
+  1658→```text
+  1659→Title
+  1660→Description
+  1661→Breadcrumb
+  1662→Actions
+  1663→```
+  1664→
+  1665→Toolbar:
+  1666→
+  1667→```text
+  1668→Search
+  1669→Filters
+  1670→Date range
+  1671→Export
+  1672→Bulk actions
+  1673→```
+  1674→
+  1675→Content:
+  1676→
+  1677→```text
+  1678→Widgets
+  1679→Tables
+  1680→Forms
+  1681→Cards
+  1682→```
+  1683→
+  1684→Do not let every team invent its own page structure.
+  1685→
+  1686→---
+  1687→
+  1688→# 42. DETAIL PAGE PATTERN
+  1689→
+  1690→Standardize entity detail pages.
+  1691→
+  1692→Example:
+  1693→
+  1694→```text
+  1695→Trader
+  1696→│
+  1697→├── Overview
+  1698→├── Trading Accounts
+  1699→├── Trades
+  1700→├── Performance
+  1701→├── Risk
+  1702→├── Payouts
+  1703→├── KYC
+  1704→├── Affiliate
+  1705→└── Audit History
+  1706→```
+  1707→
+  1708→Use reusable:
+  1709→
+  1710→```text
+  1711→EntityHeader
+  1712→EntityTabs
+  1713→EntitySummary
+  1714→EntityTimeline
+  1715→EntityActivity
+  1716→EntityActions
+  1717→```
+  1718→
+  1719→---
+  1720→
+  1721→# 43. SETTINGS ARCHITECTURE
+  1722→
+  1723→Settings should also be modular.
+  1724→
+  1725→Example:
+  1726→
+  1727→```text
+  1728→Settings
+  1729→│
+  1730→├── General
+  1731→├── Branding
+  1732→├── Users
+  1733→├── Roles
+  1734→├── Notifications
+  1735→├── Trading
+  1736→├── Risk
+  1737→├── Challenges
+  1738→├── Payouts
+  1739→├── Analytics
+  1740→├── Affiliate
+  1741→├── Accounting
+  1742→├── Integrations
+  1743→└── Billing
+  1744→```
+  1745→
+  1746→Modules should be able to register their settings pages.
+  1747→
+  1748→Do not maintain one 5,000-line settings component.
+  1749→
+  1750→---
+  1751→
+  1752→# 44. INTEGRATION UI
+  1753→
+  1754→The frontend should support pluggable integrations.
+  1755→
+  1756→Example:
+  1757→
+  1758→```text
+  1759→Integrations
+  1760→│
+  1761→├── Trading Platform
+  1762→│   ├── MT5
+  1763→│   └── Other
+  1764→│
+  1765→├── Payments
+  1766→├── KYC
+  1767→├── Accounting
+  1768→├── CRM
+  1769→├── Notifications
+  1770→└── Marketing
+  1771→```
+  1772→
+  1773→An integration should expose:
+  1774→
+  1775→```text
+  1776→Provider
+  1777→Status
+  1778→Configuration
+  1779→Credentials
+  1780→Health
+  1781→Sync status
+  1782→Last synchronization
+  1783→Actions
+  1784→```
+  1785→
+  1786→The frontend must never expose secret credentials after initial save.
+  1787→
+  1788→---
+  1789→
+  1790→# 45. DESIGN THE MODULE SDK
+  1791→
+  1792→Create a simple contract for frontend modules.
+  1793→
+  1794→Example:
+  1795→
+  1796→```typescript
+  1797→export interface FrontendModule {
+  1798→  manifest: FrontendModuleManifest;
+  1799→
+  1800→  initialize?: () => Promise<void>;
+  1801→
+  1802→  navigation?: NavigationDefinition[];
+  1803→
+  1804→  routes?: RouteDefinition[];
+  1805→
+  1806→  widgets?: WidgetDefinition[];
+  1807→
+  1808→  settings?: SettingDefinition[];
+  1809→}
+  1810→```
+  1811→
+  1812→Module example:
+  1813→
+  1814→```typescript
+  1815→export const analyticsModule: FrontendModule = {
+  1816→  manifest,
+  1817→  navigation,
+  1818→  routes,
+  1819→  widgets,
+  1820→  settings
+  1821→};
+  1822→```
+  1823→
+  1824→Then:
+  1825→
+  1826→```typescript
+  1827→moduleRegistry.register(analyticsModule);
+  1828→```
+  1829→
+  1830→---
+  1831→
+  1832→# 46. MODULE DEPENDENCIES
+  1833→
+  1834→Modules may depend on other modules.
+  1835→
+  1836→Example:
+  1837→
+  1838→```text
+  1839→AI Analytics
+  1840→    ↓
+  1841→Advanced Analytics
+  1842→    ↓
+  1843→Analytics
+  1844→    ↓
+  1845→Trading
+  1846→```
+  1847→
+  1848→The frontend should understand dependency metadata.
+  1849→
+  1850→If:
+  1851→
+  1852→```text
+  1853→analytics
+  1854→```
+  1855→
+  1856→is unavailable, dependent frontend modules should not activate.
+  1857→
+  1858→---
+  1859→
+  1860→# 47. MODULE ENABLEMENT UX
+  1861→
+  1862→The Prop Firm Admin or Super Admin should eventually have a module management screen.
+  1863→
+  1864→Example:
+  1865→
+  1866→```text
+  1867→Service Catalog
+  1868→
+  1869→Analytics
+  1870→[Enabled]
+  1871→
+  1872→Accounting
+  1873→[Enabled]
+  1874→
+  1875→Affiliate
+  1876→[Disabled]
+  1877→
+  1878→AI
+  1879→[Configure]
+  1880→
+  1881→Marketing
+  1882→[Available]
+  1883→```
+  1884→
+  1885→The frontend must reflect changes without code changes.
+  1886→
+  1887→---
+  1888→
+  1889→# 48. RESPONSIVE DESIGN
+  1890→
+  1891→All dashboards must support:
+  1892→
+  1893→```text
+  1894→Desktop
+  1895→Laptop
+  1896→Tablet
+  1897→Mobile
+  1898→```
+  1899→
+  1900→Prioritize desktop for admin applications, but do not build a desktop-only architecture.
+  1901→
+  1902→Trader dashboard should be fully responsive.
+  1903→
+  1904→---
+  1905→
+  1906→# 49. ACCESSIBILITY
+  1907→
+  1908→Use semantic HTML and accessible components.
+  1909→
+  1910→Support:
+  1911→
+  1912→```text
+  1913→Keyboard navigation
+  1914→Focus management
+  1915→ARIA where needed
+  1916→Screen-reader labels
+  1917→Accessible dialogs
+  1918→Accessible tables
+  1919→Accessible forms
+  1920→```
+  1921→
+  1922→Do not sacrifice accessibility for visual effects.
+  1923→
+  1924→---
+  1925→
+  1926→# 50. PERFORMANCE
+  1927→
+  1928→The platform could eventually have dozens of modules.
+  1929→
+  1930→Therefore:
+  1931→
+  1932→```text
+  1933→Do not load every module eagerly.
+  1934→```
+  1935→
+  1936→Use lazy loading for module pages where appropriate.
+  1937→
+  1938→Conceptually:
+  1939→
+  1940→```text
+  1941→Core Shell
+  1942→     ↓
+  1943→Core modules
+  1944→     ↓
+  1945→Lazy-load optional modules
+  1946→```
+  1947→
+  1948→Examples:
+  1949→
+  1950→```text
+  1951→Accounting → lazy
+  1952→AI → lazy
+  1953→Advanced Analytics → lazy
+  1954→Marketing → lazy
+  1955→```
+  1956→
+  1957→Use route-level code splitting and dynamic imports where appropriate.
+  1958→
+  1959→Do not introduce a custom plugin loader unless necessary.
+  1960→
+  1961→---
+  1962→
+  1963→# 51. SERVER STATE
+  1964→
+  1965→Use TanStack Query for API/server state.
+  1966→
+  1967→Examples:
+  1968→
+  1969→```text
+  1970→useTradersQuery()
+  1971→useAccountsQuery()
+  1972→usePayoutsQuery()
+  1973→useAnalyticsQuery()
+  1974→useAffiliateQuery()
+  1975→```
+  1976→
+  1977→Separate:
+  1978→
+  1979→```text
+  1980→server state
+  1981→```
+  1982→
+  1983→from:
+  1984→
+  1985→```text
+  1986→client UI state
+  1987→```
+  1988→
+  1989→Do not put every API response into a global state store.
+  1990→
+  1991→---
+  1992→
+  1993→# 52. URL STATE
+  1994→
+  1995→Use URL query parameters for state that should survive refresh/share/navigation.
+  1996→
+  1997→Examples:
+  1998→
+  1999→```text
+  2000→?search=salman
+
+[showing lines 1-2000 of 3060; use offset=2001 with limit to continue reading]

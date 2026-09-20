@@ -1,0 +1,3059 @@
+# Frontend Architecture Specification Prompt
+
+## Prop Firm as a Service Platform
+
+You are the lead frontend architect and implementation engineer for a multi-tenant **Prop Firm as a Service (PFaaS)** platform.
+
+The platform provides white-label infrastructure to multiple prop firms. Each prop firm is a tenant. The platform must support:
+
+1. Super Admin Dashboard
+2. Prop Firm Admin Dashboard
+3. Trader/User Dashboard
+4. Dynamic, configurable navigation
+5. Plug-and-play business modules
+6. Tenant-specific module availability
+7. Tenant-specific dashboard layouts
+8. Tenant-specific branding
+9. Role-based access control
+10. Feature-level permissions
+11. Widget-based dashboards
+12. Optional modules such as:
+
+* Analytics
+* Advanced Analytics
+* Accounting
+* Affiliates
+* Marketing
+* CRM
+* AI / LLM
+* KYC / AML
+* Notifications
+* Support
+
+13. External integrations that may expose their own frontend capabilities
+14. Multiple prop firms using different combinations of services without requiring separate frontend codebases
+
+The frontend must be designed as a **modular dashboard platform**, not as three independent hard-coded dashboards.
+
+---
+
+# 1. PRIMARY OBJECTIVE
+
+Build a frontend architecture where:
+
+```text
+Tenant
+   ↓
+Tenant Configuration
+   ↓
+Tenant Entitlements
+   ↓
+Enabled Modules
+   ↓
+Features
+   ↓
+User Role / Permissions
+   ↓
+Navigation
+   ↓
+Routes
+   ↓
+Dashboard Widgets
+   ↓
+Rendered UI
+```
+
+The UI must be dynamically composed from these inputs.
+
+A tenant should be able to have:
+
+```text
+Trading
+Challenges
+Risk
+Payouts
+Analytics
+```
+
+while another tenant can have:
+
+```text
+Trading
+Challenges
+Risk
+Payouts
+Analytics
+Accounting
+Affiliates
+Marketing
+AI
+```
+
+without creating separate frontend applications for each customer.
+
+The frontend architecture must therefore make **modules first-class citizens**.
+
+---
+
+# 2. CORE ARCHITECTURAL PRINCIPLE
+
+Do NOT build:
+
+```text
+SuperAdminApp
+PropFirmAdminApp
+TraderApp
+```
+
+as three completely independent applications containing duplicated business UI.
+
+Instead build:
+
+```text
+Frontend Platform
+│
+├── Application Shell
+├── Module Runtime
+├── Module Registry
+├── Permission Engine
+├── Tenant Context
+├── Feature Flag System
+├── Theme Engine
+├── Navigation Engine
+├── Layout Engine
+├── Widget Engine
+├── Routing Engine
+├── UI Component Library
+└── API Client Layer
+```
+
+Then expose role-specific experiences:
+
+```text
+Super Admin Experience
+Prop Firm Admin Experience
+Trader Experience
+```
+
+using the same platform foundations.
+
+---
+
+# 3. RECOMMENDED TECHNOLOGY
+
+Use:
+
+```text
+Next.js
+TypeScript
+React
+Tailwind CSS
+shadcn/ui
+React Query / TanStack Query
+React Hook Form
+Zod
+```
+
+Use the existing project conventions if the repository already has a frontend stack.
+
+Do NOT introduce unnecessary technologies.
+
+Avoid:
+
+```text
+Micro-frontends
+Webpack Module Federation
+GraphQL
+Redux
+Complex state-management frameworks
+Multiple UI libraries
+```
+
+unless there is a concrete existing requirement for them.
+
+Prefer:
+
+```text
+React Server Components where appropriate
+Client Components only when necessary
+TanStack Query for server state
+React Context for small cross-cutting client state
+URL state for filters/search/pagination where appropriate
+```
+
+---
+
+# 4. MONOREPO FRONTEND STRUCTURE
+
+Use a monorepo structure.
+
+Recommended:
+
+```text
+frontend/
+│
+├── apps/
+│   │
+│   ├── super-admin/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── providers/
+│   │   └── configuration/
+│   │
+│   ├── prop-admin/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── providers/
+│   │   └── configuration/
+│   │
+│   └── trader/
+│       ├── app/
+│       ├── components/
+│       ├── providers/
+│       └── configuration/
+│
+├── packages/
+│   │
+│   ├── ui/
+│   ├── dashboard-core/
+│   ├── module-sdk/
+│   ├── authorization/
+│   ├── tenant/
+│   ├── auth/
+│   ├── api-client/
+│   ├── configuration/
+│   ├── theme/
+│   ├── routing/
+│   ├── tables/
+│   ├── charts/
+│   ├── forms/
+│   ├── notifications/
+│   └── utils/
+│
+└── modules/
+    │
+    ├── trading/
+    ├── accounts/
+    ├── challenges/
+    ├── risk/
+    ├── rules/
+    ├── breaches/
+    ├── payouts/
+    ├── analytics/
+    ├── advanced-analytics/
+    ├── affiliates/
+    ├── accounting/
+    ├── marketing/
+    ├── crm/
+    ├── ai/
+    ├── kyc/
+    ├── support/
+    └── notifications/
+```
+
+The exact directory naming can be adapted to the repository.
+
+The architectural separation is more important than the exact naming.
+
+---
+
+# 5. APPLICATIONS
+
+There should be three frontend applications or three clearly separated application entry points:
+
+```text
+apps/
+├── super-admin/
+├── prop-admin/
+└── trader/
+```
+
+They should all consume the same shared packages and modules.
+
+The applications should primarily define:
+
+```text
+authentication entry
+route entry points
+application-level layout
+experience-specific navigation defaults
+experience-specific access rules
+```
+
+They should NOT duplicate:
+
+```text
+table components
+charts
+buttons
+forms
+module logic
+permission logic
+API abstractions
+tenant handling
+theme handling
+dashboard engine
+```
+
+---
+
+# 6. SUPER ADMIN APPLICATION
+
+Super Admin controls the PFaaS platform itself.
+
+It should have access to platform-level capabilities such as:
+
+```text
+Overview
+Tenants
+Subscriptions
+Service Catalog
+Modules
+Module Configuration
+Global Integrations
+Provider Management
+Platform Users
+Roles & Permissions
+Global Feature Flags
+Billing
+Audit Logs
+Platform Analytics
+System Health
+Platform Settings
+```
+
+Recommended structure:
+
+```text
+apps/super-admin/
+│
+├── app/
+│   ├── (auth)/
+│   └── (dashboard)/
+│       ├── layout.tsx
+│       ├── page.tsx
+│       ├── tenants/
+│       ├── modules/
+│       ├── services/
+│       ├── integrations/
+│       ├── users/
+│       ├── roles/
+│       ├── billing/
+│       ├── analytics/
+│       ├── health/
+│       └── settings/
+```
+
+The Super Admin should also use the same module system.
+
+---
+
+# 7. PROP FIRM ADMIN APPLICATION
+
+The Prop Firm Admin controls an individual tenant.
+
+Typical modules:
+
+```text
+Overview
+Traders
+Trading Accounts
+Challenges
+Rules
+Risk
+Breaches
+Payouts
+Affiliates
+Marketing
+Analytics
+Accounting
+AI
+Support
+Notifications
+Settings
+```
+
+But the sidebar must NOT hard-code all modules.
+
+Instead:
+
+```text
+Tenant Entitlements
+        ↓
+Module Registry
+        ↓
+Permission Evaluation
+        ↓
+Navigation Registry
+        ↓
+Dynamic Sidebar
+```
+
+For example, a tenant with no Accounting entitlement must not see:
+
+```text
+Accounting
+```
+
+A tenant with Accounting enabled but without:
+
+```text
+accounting.read
+```
+
+must also not see it.
+
+---
+
+# 8. TRADER APPLICATION
+
+The Trader application should use the same module concepts, but expose a trader-oriented experience.
+
+Example:
+
+```text
+Overview
+Challenges
+Accounts
+Trading
+Positions
+Orders
+Performance
+Rules
+Risk
+Payouts
+Affiliate
+AI Insights
+Support
+Profile
+Settings
+```
+
+This must also be dynamically filtered based on:
+
+```text
+tenant
+tenant modules
+user role
+user permissions
+feature flags
+account state
+```
+
+Do not assume every trader has every feature.
+
+---
+
+# 9. APP SHELL
+
+Create a reusable Application Shell.
+
+Structure:
+
+```text
+<AppShell>
+    <Sidebar />
+    <Topbar />
+    <Breadcrumbs />
+    <PageContainer>
+        <Page />
+    </PageContainer>
+</AppShell>
+```
+
+The shell should support:
+
+```text
+Responsive sidebar
+Collapsible sidebar
+Mobile navigation
+Breadcrumbs
+Global search
+Notifications
+User menu
+Tenant switcher where applicable
+Theme switcher
+Command menu
+Page actions
+Persistent navigation state
+```
+
+The Shell should be independent of business modules.
+
+---
+
+# 10. TENANT CONTEXT
+
+Create a reusable Tenant Context.
+
+Example:
+
+```typescript
+type TenantContext = {
+  tenantId: string;
+  slug: string;
+  name: string;
+
+  branding: TenantBranding;
+
+  locale: string;
+  timezone: string;
+  currency: string;
+
+  enabledModules: string[];
+  enabledFeatures: string[];
+
+  terminology: Record<string, string>;
+};
+```
+
+The frontend must retrieve and expose tenant context centrally.
+
+Example:
+
+```text
+TenantProvider
+      ↓
+useTenant()
+```
+
+Components should not repeatedly request tenant configuration independently.
+
+---
+
+# 11. AUTHENTICATION CONTEXT
+
+Create a reusable authentication layer.
+
+Example:
+
+```typescript
+type AuthUser = {
+  id: string;
+  tenantId?: string;
+
+  name: string;
+  email: string;
+
+  roles: string[];
+  permissions: string[];
+};
+```
+
+Expose:
+
+```text
+useAuth()
+useCurrentUser()
+useCurrentTenant()
+```
+
+The exact implementation may depend on the authentication provider.
+
+Do not couple the dashboard architecture to a specific auth provider.
+
+---
+
+# 12. AUTHORIZATION MODEL
+
+Do not rely only on role names.
+
+Use explicit permissions.
+
+Examples:
+
+```text
+trader.read
+trader.update
+
+account.read
+account.write
+
+challenge.read
+challenge.create
+challenge.update
+challenge.delete
+
+risk.read
+risk.configure
+
+payout.read
+payout.approve
+
+analytics.read
+analytics.advanced.read
+analytics.export
+
+affiliate.read
+affiliate.configure
+
+accounting.read
+accounting.configure
+
+ai.read
+ai.configure
+```
+
+Create reusable authorization utilities:
+
+```typescript
+can(permission)
+hasRole(role)
+hasAnyPermission(...)
+hasAllPermissions(...)
+```
+
+Example:
+
+```typescript
+if (can("analytics.export")) {
+  ...
+}
+```
+
+Avoid arbitrary role checks throughout the UI.
+
+Bad:
+
+```typescript
+if (user.role === "admin") ...
+```
+
+Prefer:
+
+```typescript
+if (can("analytics.export")) ...
+```
+
+Roles should map to permissions.
+
+---
+
+# 13. MODULE SYSTEM
+
+Implement a first-class module registry.
+
+Each module should have a manifest.
+
+Example:
+
+```typescript
+type FrontendModuleManifest = {
+  id: string;
+  name: string;
+  version: string;
+
+  description?: string;
+
+  dependencies?: string[];
+
+  capabilities?: string[];
+
+  permissions?: PermissionDefinition[];
+
+  navigation?: NavigationDefinition[];
+
+  routes?: RouteDefinition[];
+
+  widgets?: WidgetDefinition[];
+
+  settings?: SettingDefinition[];
+
+  supportedApplications?: (
+    "super-admin" |
+    "prop-admin" |
+    "trader"
+  )[];
+};
+```
+
+Example:
+
+```typescript
+const analyticsModule: FrontendModuleManifest = {
+  id: "analytics",
+  name: "Analytics",
+  version: "1.0.0",
+
+  dependencies: [
+    "trading",
+    "accounts"
+  ],
+
+  permissions: [
+    "analytics.read",
+    "analytics.export"
+  ],
+
+  supportedApplications: [
+    "prop-admin",
+    "super-admin"
+  ]
+};
+```
+
+---
+
+# 14. MODULE DIRECTORY STRUCTURE
+
+Every module must be self-contained.
+
+Example:
+
+```text
+modules/analytics/
+│
+├── manifest.ts
+├── index.ts
+│
+├── routes/
+│   ├── overview.ts
+│   ├── traders.ts
+│   ├── performance.ts
+│   └── risk.ts
+│
+├── pages/
+│   ├── AnalyticsOverviewPage.tsx
+│   ├── TraderAnalyticsPage.tsx
+│   ├── PerformancePage.tsx
+│   └── RiskAnalyticsPage.tsx
+│
+├── components/
+│   ├── AnalyticsFilters.tsx
+│   ├── MetricCard.tsx
+│   └── AnalyticsTable.tsx
+│
+├── widgets/
+│   ├── RevenueWidget.tsx
+│   ├── TraderGrowthWidget.tsx
+│   ├── RiskDistributionWidget.tsx
+│   └── BreachAnalysisWidget.tsx
+│
+├── api/
+│   ├── analytics.api.ts
+│   └── analytics.queries.ts
+│
+├── permissions.ts
+├── navigation.ts
+├── types.ts
+└── utils.ts
+```
+
+No module should spread business-specific frontend logic across unrelated global directories.
+
+---
+
+# 15. MODULE REGISTRY
+
+Create:
+
+```text
+packages/module-sdk/
+```
+
+with something conceptually like:
+
+```typescript
+class ModuleRegistry {
+  register(module: FrontendModuleManifest): void;
+
+  get(moduleId: string): FrontendModuleManifest | undefined;
+
+  getAll(): FrontendModuleManifest[];
+
+  getEnabledModules(context: ModuleRuntimeContext): FrontendModuleManifest[];
+
+  getNavigation(context: ModuleRuntimeContext): NavigationItem[];
+
+  getWidgets(context: ModuleRuntimeContext): WidgetDefinition[];
+}
+```
+
+The registry is the central source of module metadata.
+
+---
+
+# 16. MODULE RUNTIME
+
+Create a runtime layer responsible for determining:
+
+```text
+Which modules exist?
+Which modules are enabled?
+Which modules are available to this application?
+Which features are enabled?
+Which permissions does the current user have?
+Which routes should exist?
+Which navigation items should appear?
+Which widgets should render?
+```
+
+Conceptually:
+
+```text
+Module Runtime
+│
+├── Module Discovery
+├── Module Availability
+├── Dependency Validation
+├── Entitlement Filtering
+├── Permission Filtering
+├── Feature Flag Filtering
+└── Runtime Composition
+```
+
+---
+
+# 17. NAVIGATION ENGINE
+
+The sidebar must be generated dynamically.
+
+Do NOT create one giant static sidebar file.
+
+Instead each module can register navigation:
+
+```typescript
+const navigation = [
+  {
+    id: "analytics",
+    label: "Analytics",
+    href: "/analytics",
+    icon: ChartIcon,
+    permission: "analytics.read"
+  }
+];
+```
+
+The navigation engine should combine:
+
+```text
+Core Navigation
++
+Module Navigation
++
+Tenant Configuration
++
+Permissions
++
+Feature Flags
+```
+
+Then generate the final sidebar.
+
+---
+
+# 18. NAVIGATION HIERARCHY
+
+Support hierarchical navigation.
+
+Example:
+
+```text
+Analytics
+├── Overview
+├── Traders
+├── Performance
+├── Risk
+└── Cohorts
+```
+
+Each item should support:
+
+```typescript
+type NavigationItem = {
+  id: string;
+  label: string;
+  href?: string;
+  icon?: React.ComponentType;
+  children?: NavigationItem[];
+
+  permission?: string;
+  permissions?: string[];
+
+  feature?: string;
+  module?: string;
+};
+```
+
+---
+
+# 19. ROUTING
+
+Routes must be module-oriented.
+
+Example:
+
+```text
+/analytics
+/analytics/traders
+/analytics/performance
+/analytics/risk
+
+/accounting
+/accounting/transactions
+/accounting/reconciliation
+
+/affiliates
+/affiliates/overview
+/affiliates/campaigns
+/affiliates/commissions
+```
+
+The frontend should protect routes using:
+
+```text
+Authentication
+Tenant
+Module entitlement
+Feature flag
+Permission
+```
+
+A user must not be able to access an unavailable module simply by manually typing its URL.
+
+Example:
+
+```text
+/analytics
+```
+
+must not load when:
+
+```text
+analytics
+```
+
+is disabled for the tenant.
+
+---
+
+# 20. DASHBOARD ENGINE
+
+The main dashboard should be composed of widgets.
+
+Create:
+
+```text
+packages/dashboard-core/
+```
+
+with:
+
+```text
+Dashboard
+DashboardLayout
+DashboardGrid
+DashboardWidget
+WidgetRegistry
+WidgetResolver
+WidgetContainer
+WidgetSettings
+```
+
+Widget definition:
+
+```typescript
+type WidgetDefinition = {
+  id: string;
+  title: string;
+
+  module: string;
+
+  component: React.ComponentType<any>;
+
+  permissions?: string[];
+
+  feature?: string;
+
+  defaultSize: {
+    width: number;
+    height: number;
+  };
+};
+```
+
+---
+
+# 21. WIDGET REGISTRY
+
+Widgets should register themselves through modules.
+
+Example:
+
+```text
+Analytics
+├── RevenueSummaryWidget
+├── TraderGrowthWidget
+├── RiskDistributionWidget
+└── BreachTrendWidget
+```
+
+The dashboard engine asks:
+
+```text
+Which widgets are available?
+```
+
+The system evaluates:
+
+```text
+tenant
+module
+permissions
+features
+application
+```
+
+and renders only eligible widgets.
+
+---
+
+# 22. DASHBOARD LAYOUT CONFIGURATION
+
+Do not hard-code widget positions.
+
+Represent layouts as configuration.
+
+Example:
+
+```typescript
+type DashboardLayout = {
+  id: string;
+  tenantId?: string;
+
+  widgets: DashboardWidgetPlacement[];
+};
+
+type DashboardWidgetPlacement = {
+  widgetId: string;
+
+  x: number;
+  y: number;
+
+  width: number;
+  height: number;
+
+  minWidth?: number;
+  minHeight?: number;
+};
+```
+
+Allow:
+
+```text
+Platform default layout
+       ↓
+Tenant layout
+       ↓
+Role-specific layout
+       ↓
+User custom layout
+```
+
+The exact priority must be clearly defined.
+
+Recommended:
+
+```text
+User customization
+    >
+Role layout
+    >
+Tenant layout
+    >
+Platform default
+```
+
+---
+
+# 23. DASHBOARD CUSTOMIZATION
+
+The Prop Firm Admin should eventually be able to customize its dashboard.
+
+Support:
+
+```text
+Add widget
+Remove widget
+Move widget
+Resize widget
+Reset layout
+Save layout
+```
+
+The system should prevent widgets from being added when the required:
+
+```text
+module
+feature
+permission
+```
+
+is unavailable.
+
+---
+
+# 24. WIDGET CATEGORIES
+
+Support different widget types:
+
+```text
+Metric
+Chart
+Table
+Activity Feed
+Progress
+Status
+Heatmap
+Leaderboard
+Map
+AI Insight
+Alert
+Quick Action
+```
+
+Example:
+
+```text
+RevenueSummaryWidget
+TraderPerformanceWidget
+PayoutQueueWidget
+BreachAlertWidget
+AffiliateRevenueWidget
+AIInsightWidget
+```
+
+---
+
+# 25. SHARED UI SYSTEM
+
+Build a centralized UI library.
+
+```text
+packages/ui/
+```
+
+Use shadcn/ui primitives where appropriate.
+
+The UI system should contain:
+
+```text
+Button
+Input
+Select
+Combobox
+Checkbox
+Radio
+Switch
+Tabs
+Dialog
+Drawer
+Sheet
+Popover
+Dropdown
+Tooltip
+Toast
+Alert
+Badge
+Card
+Table
+Pagination
+Command
+DatePicker
+DateRangePicker
+Skeleton
+EmptyState
+ErrorState
+LoadingState
+Breadcrumb
+Avatar
+DataTable
+```
+
+Do not duplicate these components inside individual modules.
+
+---
+
+# 26. DATA TABLE SYSTEM
+
+A prop firm platform will contain many tables.
+
+Create a reusable DataTable abstraction supporting:
+
+```text
+Sorting
+Filtering
+Pagination
+Column visibility
+Column ordering
+Search
+Date ranges
+Bulk actions
+Row actions
+Selection
+Export
+Loading
+Empty state
+Error state
+Responsive behavior
+URL state
+```
+
+Example tables:
+
+```text
+Traders
+Accounts
+Challenges
+Breaches
+Payouts
+Transactions
+Affiliates
+Commissions
+KYC records
+Audit logs
+```
+
+Do not build every table from scratch.
+
+---
+
+# 27. FORM SYSTEM
+
+Create a reusable form architecture:
+
+```text
+packages/forms/
+```
+
+Use:
+
+```text
+React Hook Form
+Zod
+```
+
+Support:
+
+```text
+Create forms
+Edit forms
+Multi-step forms
+Conditional fields
+Async validation
+Error handling
+Dirty state
+Unsaved changes
+Server errors
+```
+
+Examples:
+
+```text
+Create Challenge
+Configure Rules
+Configure Risk
+Configure Payout
+Create Affiliate Campaign
+Accounting Configuration
+Integration Configuration
+Tenant Settings
+```
+
+---
+
+# 28. CHART SYSTEM
+
+Create:
+
+```text
+packages/charts/
+```
+
+Provide reusable chart wrappers for:
+
+```text
+Line chart
+Area chart
+Bar chart
+Stacked bar
+Pie / donut
+Heatmap
+Scatter plot
+Performance chart
+Equity curve
+Drawdown chart
+Risk distribution
+```
+
+The chart package should handle:
+
+```text
+Loading
+Empty state
+Tooltip
+Legend
+Responsive sizing
+Date formatting
+Currency formatting
+```
+
+Modules should consume the chart primitives rather than implement their own charting framework.
+
+---
+
+# 29. THEME AND WHITE-LABELING
+
+The tenant must control branding.
+
+Create:
+
+```text
+packages/theme/
+```
+
+Support:
+
+```text
+Logo
+Favicon
+Primary color
+Secondary color
+Background
+Typography
+Border radius
+Dark mode
+Light mode
+Component tokens
+```
+
+Use design tokens instead of hard-coded colors.
+
+Example:
+
+```text
+--brand-primary
+--brand-secondary
+--brand-background
+--brand-surface
+--brand-text
+--brand-accent
+```
+
+Do not scatter tenant-specific colors throughout components.
+
+---
+
+# 30. TERMINOLOGY CUSTOMIZATION
+
+The white-label platform may allow tenant-specific terminology.
+
+For example:
+
+Platform:
+
+```text
+Challenge
+Trader
+Payout
+```
+
+Tenant:
+
+```text
+Evaluation
+Participant
+Withdrawal
+```
+
+Create a terminology resolver:
+
+```typescript
+t("challenge")
+t("trader")
+t("payout")
+```
+
+or an equivalent typed abstraction.
+
+Do not make every string configurable.
+
+Only business terminology that genuinely needs white-label customization should be configurable.
+
+---
+
+# 31. FEATURE FLAGS
+
+Create a feature flag layer separate from module entitlements.
+
+Example:
+
+```text
+Module:
+analytics
+
+Features:
+analytics.basic
+analytics.advanced
+analytics.cohorts
+analytics.ai
+```
+
+The evaluation should be:
+
+```text
+Module enabled?
+        ↓
+Feature enabled?
+        ↓
+User has permission?
+        ↓
+Render
+```
+
+Feature flags should not become a substitute for authorization.
+
+---
+
+# 32. MODULE ENTITLEMENT HANDLING
+
+The frontend needs a single abstraction such as:
+
+```typescript
+useModule("analytics")
+```
+
+or:
+
+```typescript
+hasModule("analytics")
+```
+
+Example:
+
+```tsx
+<ModuleGuard module="analytics">
+  <AnalyticsPage />
+</ModuleGuard>
+```
+
+Also support:
+
+```text
+FeatureGuard
+PermissionGuard
+```
+
+Example:
+
+```tsx
+<PermissionGuard permission="analytics.export">
+  <ExportButton />
+</PermissionGuard>
+```
+
+---
+
+# 33. DO NOT TRUST FRONTEND AUTHORIZATION
+
+Frontend guards are for UX.
+
+They are NOT a security boundary.
+
+The frontend architecture should assume the backend independently enforces:
+
+```text
+authentication
+authorization
+tenant isolation
+resource access
+```
+
+Do not implement security by hiding buttons.
+
+---
+
+# 34. ERROR BOUNDARIES
+
+Each module should have its own error boundary.
+
+Example:
+
+```text
+Analytics Module
+      ↓
+AnalyticsErrorBoundary
+```
+
+If Analytics crashes, the entire admin dashboard should not crash.
+
+The shell should remain operational.
+
+Display:
+
+```text
+Something went wrong loading Analytics.
+Retry
+```
+
+rather than blanking the entire application.
+
+---
+
+# 35. LOADING STATES
+
+Every module/page/widget should have proper loading states.
+
+Support:
+
+```text
+Skeleton
+Spinner only for small interactions
+Progress indicators for long-running tasks
+Optimistic UI where safe
+```
+
+Avoid entire-page blocking loaders whenever possible.
+
+---
+
+# 36. EMPTY STATES
+
+Every major module must define useful empty states.
+
+Example:
+
+```text
+No affiliates yet
+
+Create your first affiliate campaign to start tracking referrals.
+```
+
+Do not show empty tables without explanation.
+
+---
+
+# 37. NOTIFICATION SYSTEM
+
+Create a centralized notification system.
+
+Support:
+
+```text
+Toast notifications
+Persistent notifications
+Unread count
+Notification center
+Critical alerts
+System alerts
+Module alerts
+```
+
+The shell should own notification infrastructure.
+
+Individual modules can publish notifications.
+
+---
+
+# 38. GLOBAL SEARCH
+
+The admin platform should eventually support global search.
+
+Search entities such as:
+
+```text
+Trader
+Account
+Challenge
+Transaction
+Payout
+Affiliate
+Invoice
+KYC Record
+```
+
+The search UI should not be hard-coded to one module.
+
+Modules should optionally register searchable entities.
+
+Example:
+
+```typescript
+searchRegistry.register({
+  entity: "trader",
+  module: "trading"
+});
+```
+
+---
+
+# 39. COMMAND MENU
+
+Support a global command menu.
+
+Example:
+
+```text
+⌘K
+```
+
+Actions:
+
+```text
+Create challenge
+Search trader
+Open payouts
+Open analytics
+Create affiliate
+Go to settings
+Change tenant
+```
+
+Commands should also be module-driven.
+
+---
+
+# 40. AUDIT UI
+
+The frontend should provide reusable audit components.
+
+Examples:
+
+```text
+Activity Timeline
+Audit Log Table
+Entity Change History
+User Action History
+```
+
+These components should be reusable by:
+
+```text
+Trading
+Risk
+Payouts
+Accounting
+Affiliate
+Admin
+```
+
+---
+
+# 41. PAGE STRUCTURE
+
+Standardize page structure.
+
+Example:
+
+```tsx
+<Page>
+  <PageHeader />
+  <PageToolbar />
+  <PageContent />
+</Page>
+```
+
+Header:
+
+```text
+Title
+Description
+Breadcrumb
+Actions
+```
+
+Toolbar:
+
+```text
+Search
+Filters
+Date range
+Export
+Bulk actions
+```
+
+Content:
+
+```text
+Widgets
+Tables
+Forms
+Cards
+```
+
+Do not let every team invent its own page structure.
+
+---
+
+# 42. DETAIL PAGE PATTERN
+
+Standardize entity detail pages.
+
+Example:
+
+```text
+Trader
+│
+├── Overview
+├── Trading Accounts
+├── Trades
+├── Performance
+├── Risk
+├── Payouts
+├── KYC
+├── Affiliate
+└── Audit History
+```
+
+Use reusable:
+
+```text
+EntityHeader
+EntityTabs
+EntitySummary
+EntityTimeline
+EntityActivity
+EntityActions
+```
+
+---
+
+# 43. SETTINGS ARCHITECTURE
+
+Settings should also be modular.
+
+Example:
+
+```text
+Settings
+│
+├── General
+├── Branding
+├── Users
+├── Roles
+├── Notifications
+├── Trading
+├── Risk
+├── Challenges
+├── Payouts
+├── Analytics
+├── Affiliate
+├── Accounting
+├── Integrations
+└── Billing
+```
+
+Modules should be able to register their settings pages.
+
+Do not maintain one 5,000-line settings component.
+
+---
+
+# 44. INTEGRATION UI
+
+The frontend should support pluggable integrations.
+
+Example:
+
+```text
+Integrations
+│
+├── Trading Platform
+│   ├── MT5
+│   └── Other
+│
+├── Payments
+├── KYC
+├── Accounting
+├── CRM
+├── Notifications
+└── Marketing
+```
+
+An integration should expose:
+
+```text
+Provider
+Status
+Configuration
+Credentials
+Health
+Sync status
+Last synchronization
+Actions
+```
+
+The frontend must never expose secret credentials after initial save.
+
+---
+
+# 45. DESIGN THE MODULE SDK
+
+Create a simple contract for frontend modules.
+
+Example:
+
+```typescript
+export interface FrontendModule {
+  manifest: FrontendModuleManifest;
+
+  initialize?: () => Promise<void>;
+
+  navigation?: NavigationDefinition[];
+
+  routes?: RouteDefinition[];
+
+  widgets?: WidgetDefinition[];
+
+  settings?: SettingDefinition[];
+}
+```
+
+Module example:
+
+```typescript
+export const analyticsModule: FrontendModule = {
+  manifest,
+  navigation,
+  routes,
+  widgets,
+  settings
+};
+```
+
+Then:
+
+```typescript
+moduleRegistry.register(analyticsModule);
+```
+
+---
+
+# 46. MODULE DEPENDENCIES
+
+Modules may depend on other modules.
+
+Example:
+
+```text
+AI Analytics
+    ↓
+Advanced Analytics
+    ↓
+Analytics
+    ↓
+Trading
+```
+
+The frontend should understand dependency metadata.
+
+If:
+
+```text
+analytics
+```
+
+is unavailable, dependent frontend modules should not activate.
+
+---
+
+# 47. MODULE ENABLEMENT UX
+
+The Prop Firm Admin or Super Admin should eventually have a module management screen.
+
+Example:
+
+```text
+Service Catalog
+
+Analytics
+[Enabled]
+
+Accounting
+[Enabled]
+
+Affiliate
+[Disabled]
+
+AI
+[Configure]
+
+Marketing
+[Available]
+```
+
+The frontend must reflect changes without code changes.
+
+---
+
+# 48. RESPONSIVE DESIGN
+
+All dashboards must support:
+
+```text
+Desktop
+Laptop
+Tablet
+Mobile
+```
+
+Prioritize desktop for admin applications, but do not build a desktop-only architecture.
+
+Trader dashboard should be fully responsive.
+
+---
+
+# 49. ACCESSIBILITY
+
+Use semantic HTML and accessible components.
+
+Support:
+
+```text
+Keyboard navigation
+Focus management
+ARIA where needed
+Screen-reader labels
+Accessible dialogs
+Accessible tables
+Accessible forms
+```
+
+Do not sacrifice accessibility for visual effects.
+
+---
+
+# 50. PERFORMANCE
+
+The platform could eventually have dozens of modules.
+
+Therefore:
+
+```text
+Do not load every module eagerly.
+```
+
+Use lazy loading for module pages where appropriate.
+
+Conceptually:
+
+```text
+Core Shell
+     ↓
+Core modules
+     ↓
+Lazy-load optional modules
+```
+
+Examples:
+
+```text
+Accounting → lazy
+AI → lazy
+Advanced Analytics → lazy
+Marketing → lazy
+```
+
+Use route-level code splitting and dynamic imports where appropriate.
+
+Do not introduce a custom plugin loader unless necessary.
+
+---
+
+# 51. SERVER STATE
+
+Use TanStack Query for API/server state.
+
+Examples:
+
+```text
+useTradersQuery()
+useAccountsQuery()
+usePayoutsQuery()
+useAnalyticsQuery()
+useAffiliateQuery()
+```
+
+Separate:
+
+```text
+server state
+```
+
+from:
+
+```text
+client UI state
+```
+
+Do not put every API response into a global state store.
+
+---
+
+# 52. URL STATE
+
+Use URL query parameters for state that should survive refresh/share/navigation.
+
+Examples:
+
+```text
+?search=salman
+?status=breached
+?dateFrom=2026-08-01
+?dateTo=2026-08-31
+?page=3
+?sort=createdAt
+```
+
+This is especially important for admin tables.
+
+---
+
+# 53. API LAYER
+
+Create a typed API client abstraction.
+
+Example:
+
+```text
+packages/api-client/
+```
+
+Structure:
+
+```text
+api-client/
+├── client.ts
+├── errors.ts
+├── auth.ts
+├── tenant.ts
+├── trading.ts
+├── accounts.ts
+├── challenges.ts
+├── risk.ts
+├── payouts.ts
+├── analytics.ts
+├── affiliates.ts
+├── accounting.ts
+└── integrations.ts
+```
+
+Business modules should own their domain-specific API definitions where practical.
+
+---
+
+# 54. TYPES
+
+Do not create duplicated frontend domain types.
+
+Prefer a shared types package where appropriate:
+
+```text
+packages/types/
+```
+
+Example:
+
+```text
+Trader
+Account
+Challenge
+Position
+Order
+Rule
+Breach
+Payout
+Affiliate
+Transaction
+```
+
+Use strict TypeScript.
+
+Avoid:
+
+```typescript
+any
+```
+
+unless there is a genuine interoperability reason.
+
+---
+
+# 55. FRONTEND DOMAIN BOUNDARIES
+
+Modules should own their domain UI.
+
+Example:
+
+```text
+Trading
+├── trading pages
+├── trading widgets
+├── trading tables
+├── trading filters
+└── trading API hooks
+```
+
+Analytics should not import deeply into Trading internals.
+
+Prefer stable contracts.
+
+Bad:
+
+```text
+analytics → trading/internal/components/...
+```
+
+Good:
+
+```text
+analytics → shared domain types/API contracts
+```
+
+---
+
+# 56. SHARED VS MODULE-SPECIFIC COMPONENTS
+
+A component belongs in:
+
+```text
+packages/ui/
+```
+
+when it is generic.
+
+Examples:
+
+```text
+Button
+Dialog
+DataTable
+Card
+Tabs
+```
+
+A component belongs inside a module when it contains domain logic.
+
+Examples:
+
+```text
+BreachedAccountTable
+AffiliateCommissionCard
+TraderRiskScore
+PayoutApprovalPanel
+```
+
+Do not prematurely make every component global.
+
+---
+
+# 57. THEMING ARCHITECTURE
+
+Use a tokenized theme.
+
+Example:
+
+```text
+ThemeProvider
+    ↓
+CSS Variables
+    ↓
+shadcn/ui
+    ↓
+Application
+```
+
+Tenant theme should be applied at runtime.
+
+Example:
+
+```text
+Tenant A
+Primary = #...
+Radius = ...
+
+Tenant B
+Primary = #...
+Radius = ...
+```
+
+Avoid separate builds for each tenant.
+
+---
+
+# 58. MULTI-TENANT FRONTEND RULE
+
+Never use tenant-specific code branches like:
+
+```typescript
+if (tenantId === "funderblu") ...
+```
+
+This is prohibited architecturally except for temporary migration code that has an explicit removal plan.
+
+Tenant differences must be represented through:
+
+```text
+configuration
+entitlements
+features
+permissions
+branding
+policies
+```
+
+not hard-coded tenant IDs.
+
+---
+
+# 59. WHITE-LABEL DOMAIN HANDLING
+
+Support configuration for:
+
+```text
+app.propfirm.com
+admin.propfirm.com
+dashboard.propfirm.com
+```
+
+but keep domain-specific behavior configuration-driven.
+
+The frontend should determine:
+
+```text
+current tenant
+branding
+application type
+```
+
+from a central configuration/bootstrap mechanism.
+
+---
+
+# 60. APPLICATION CONTEXT
+
+At boot, initialize:
+
+```text
+Auth
+Tenant
+Configuration
+Entitlements
+Permissions
+Theme
+Modules
+Navigation
+```
+
+Recommended conceptual boot sequence:
+
+```text
+Application starts
+      ↓
+Load authentication
+      ↓
+Resolve user
+      ↓
+Resolve tenant
+      ↓
+Load tenant configuration
+      ↓
+Load entitlements
+      ↓
+Load permissions
+      ↓
+Initialize theme
+      ↓
+Initialize module registry
+      ↓
+Resolve enabled modules
+      ↓
+Build navigation
+      ↓
+Initialize routes
+      ↓
+Render dashboard
+```
+
+The application should show a proper loading/bootstrap screen during initialization.
+
+---
+
+# 61. FRONTEND CONTEXT OBJECT
+
+Create a central runtime context conceptually:
+
+```typescript
+type FrontendRuntimeContext = {
+  application:
+    | "super-admin"
+    | "prop-admin"
+    | "trader";
+
+  user: AuthUser;
+
+  tenant?: TenantContext;
+
+  permissions: string[];
+
+  enabledModules: string[];
+
+  enabledFeatures: string[];
+
+  theme: ThemeConfig;
+};
+```
+
+The module engine uses this context to decide what to render.
+
+---
+
+# 62. DO NOT BUILD A GENERIC CMS
+
+The goal is modularity, not building a completely arbitrary page builder.
+
+Do not create a system where admins can build any UI imaginable.
+
+Limit configuration to:
+
+```text
+Module enablement
+Navigation
+Widgets
+Layouts
+Features
+Permissions
+Branding
+Terminology
+Settings
+```
+
+Complex business workflows remain coded modules.
+
+This keeps the system maintainable.
+
+---
+
+# 63. TESTING REQUIREMENTS
+
+Frontend architecture must be testable.
+
+At minimum test:
+
+### Module Registry
+
+```text
+register module
+resolve module
+resolve dependencies
+filter unavailable modules
+```
+
+### Entitlements
+
+```text
+enabled module appears
+disabled module disappears
+```
+
+### Permissions
+
+```text
+authorized user sees component
+unauthorized user does not
+```
+
+### Navigation
+
+```text
+correct items appear for module + permission
+```
+
+### Routing
+
+```text
+unauthorized routes redirect/block
+```
+
+### Dashboard
+
+```text
+eligible widgets render
+ineligible widgets do not render
+```
+
+### Tenant customization
+
+```text
+branding applied
+terminology applied
+tenant layout applied
+```
+
+---
+
+# 64. STORYBOOK / COMPONENT DEVELOPMENT
+
+Use Storybook if the project already supports it or if component-library development benefits from it.
+
+Document reusable components such as:
+
+```text
+DataTable
+MetricCard
+DashboardWidget
+PageHeader
+EntityHeader
+Form
+Dialog
+EmptyState
+ErrorState
+```
+
+Do not require Storybook for every business page.
+
+---
+
+# 65. CODE QUALITY RULES
+
+Follow these rules:
+
+```text
+Strict TypeScript
+No unnecessary abstraction
+No giant components
+No duplicated shared UI
+No tenant ID conditionals
+No duplicated dashboard implementations
+No global state by default
+No business logic inside presentational components
+No API calls scattered through JSX
+No permission checks based solely on role name
+No hard-coded module navigation
+No hard-coded module visibility
+```
+
+Prefer:
+
+```text
+Small modules
+Small components
+Explicit contracts
+Typed configuration
+Composition
+Reuse where justified
+```
+
+---
+
+# 66. EXAMPLE MODULES TO IMPLEMENT FIRST
+
+Do not implement every module initially.
+
+Build these first to prove the architecture:
+
+```text
+1. Trading
+2. Challenges
+3. Risk
+4. Payouts
+5. Analytics
+```
+
+Then demonstrate:
+
+```text
+Tenant A:
+Trading
+Challenges
+Risk
+Payouts
+
+Tenant B:
+Trading
+Challenges
+Risk
+Payouts
+Analytics
+```
+
+The dashboards should dynamically adapt.
+
+After this works, implement:
+
+```text
+Affiliates
+Accounting
+Marketing
+AI
+CRM
+KYC
+Support
+```
+
+---
+
+# 67. DEMONSTRATION SCENARIO
+
+The finished frontend architecture must support the following scenario.
+
+Create:
+
+```text
+Tenant Alpha
+```
+
+Enable:
+
+```text
+Trading
+Challenges
+Risk
+Payouts
+```
+
+The Prop Admin sidebar becomes:
+
+```text
+Overview
+Traders
+Accounts
+Challenges
+Risk
+Breaches
+Payouts
+Settings
+```
+
+Now enable:
+
+```text
+Analytics
+```
+
+The system dynamically becomes:
+
+```text
+Overview
+Traders
+Accounts
+Challenges
+Risk
+Breaches
+Payouts
+Analytics
+Settings
+```
+
+Now enable:
+
+```text
+Affiliates
+```
+
+The system becomes:
+
+```text
+Overview
+Traders
+Accounts
+Challenges
+Risk
+Breaches
+Payouts
+Analytics
+Affiliates
+Settings
+```
+
+No tenant-specific code should have been written.
+
+---
+
+# 68. ROLE DEMONSTRATION
+
+Tenant Alpha has:
+
+```text
+Admin
+Risk Manager
+Finance Manager
+Marketing Manager
+Support Agent
+```
+
+Risk Manager:
+
+```text
+trader.read
+account.read
+risk.read
+risk.configure
+breach.read
+```
+
+Finance Manager:
+
+```text
+payout.read
+payout.approve
+accounting.read
+accounting.configure
+```
+
+Marketing Manager:
+
+```text
+affiliate.read
+affiliate.configure
+marketing.read
+marketing.configure
+```
+
+The same tenant dashboard should dynamically expose different capabilities to each user.
+
+---
+
+# 69. DASHBOARD TEMPLATE SYSTEM
+
+Eventually support:
+
+```text
+Platform Dashboard Template
+Tenant Dashboard Template
+Role Dashboard Template
+User Dashboard Layout
+```
+
+Example:
+
+```text
+Platform Default
+      ↓
+Prop Firm Admin Template
+      ↓
+Finance Role Template
+      ↓
+User Customization
+```
+
+Each layer should override only what it needs.
+
+Do not duplicate entire layouts.
+
+---
+
+# 70. FRONTEND MODULE MANIFEST EXAMPLE
+
+Use this as the architectural direction:
+
+```typescript
+export const affiliateModule: FrontendModule = {
+  manifest: {
+    id: "affiliates",
+    name: "Affiliates",
+    version: "1.0.0",
+
+    dependencies: [
+      "trading"
+    ],
+
+    capabilities: [
+      "affiliate.management",
+      "affiliate.commissions",
+      "affiliate.analytics"
+    ],
+
+    permissions: [
+      "affiliate.read",
+      "affiliate.create",
+      "affiliate.update",
+      "affiliate.configure"
+    ],
+
+    supportedApplications: [
+      "prop-admin",
+      "super-admin"
+    ]
+  },
+
+  navigation: [
+    {
+      id: "affiliate.overview",
+      label: "Affiliates",
+      href: "/affiliates",
+      permission: "affiliate.read"
+    }
+  ],
+
+  routes: [
+    {
+      path: "/affiliates",
+      component: AffiliateOverviewPage,
+      permission: "affiliate.read"
+    }
+  ],
+
+  widgets: [
+    affiliateRevenueWidget,
+    topAffiliatesWidget,
+    conversionRateWidget
+  ]
+};
+```
+
+Treat this as the standard module contract.
+
+---
+
+# 71. EXPECTED FINAL FRONTEND ARCHITECTURE
+
+The final architecture should conceptually look like:
+
+```text
+                         FRONTEND PLATFORM
+                                │
+          ┌─────────────────────┼─────────────────────┐
+          │                     │                     │
+     Super Admin          Prop Firm Admin          Trader
+          │                     │                     │
+          └─────────────────────┼─────────────────────┘
+                                │
+                         Application Shell
+                                │
+       ┌────────────────────────┼─────────────────────────┐
+       │                        │                         │
+ Tenant Context          Authorization             Configuration
+       │                        │                         │
+       └────────────────────────┼─────────────────────────┘
+                                │
+                         Module Runtime
+                                │
+                     ┌──────────┼───────────┐
+                     │          │           │
+                Entitlements Permissions  Features
+                     │          │           │
+                     └──────────┼───────────┘
+                                │
+                         Module Registry
+                                │
+       ┌──────────┬─────────────┼─────────────┬──────────┐
+       │          │             │             │          │
+    Trading   Challenges      Risk        Analytics   Accounting
+       │          │             │             │          │
+       └──────────┴─────────────┼─────────────┴──────────┘
+                                │
+                        Dashboard Engine
+                                │
+                    ┌───────────┼───────────┐
+                    │           │           │
+                 Widgets      Layouts     Navigation
+                    │           │           │
+                    └───────────┼───────────┘
+                                │
+                              UI
+```
+
+---
+
+# 72. IMPLEMENTATION ORDER
+
+Implement in this exact architectural sequence.
+
+## Phase 1
+
+```text
+Monorepo structure
+Shared UI
+TypeScript configuration
+App Shell
+```
+
+## Phase 2
+
+```text
+Authentication
+Tenant Context
+User Context
+Permission utilities
+```
+
+## Phase 3
+
+```text
+Module SDK
+Module Manifest
+Module Registry
+Module dependency resolution
+```
+
+## Phase 4
+
+```text
+Dynamic Navigation
+Dynamic Routing
+Module Guards
+Permission Guards
+Feature Guards
+```
+
+## Phase 5
+
+```text
+Dashboard Engine
+Widget Registry
+Dashboard Layout
+Widget placement
+```
+
+## Phase 6
+
+```text
+Theme Engine
+White-label branding
+Terminology
+```
+
+## Phase 7
+
+```text
+Trading
+Challenges
+Risk
+Payouts
+```
+
+## Phase 8
+
+```text
+Analytics
+```
+
+Analytics should be the first optional module used to prove plug-and-play behavior.
+
+## Phase 9
+
+```text
+Affiliates
+Accounting
+Marketing
+AI
+```
+
+---
+
+# 73. IMPORTANT IMPLEMENTATION CONSTRAINTS
+
+Do not over-engineer the first implementation.
+
+Build the minimum architecture capable of supporting:
+
+```text
+multiple tenants
+multiple applications
+multiple roles
+multiple modules
+module enable/disable
+permissions
+feature flags
+dynamic navigation
+dynamic dashboard widgets
+tenant branding
+```
+
+Do NOT prematurely implement:
+
+```text
+micro-frontends
+remote plugins
+runtime package installation
+visual page builders
+custom scripting
+dynamic arbitrary React components from backend JSON
+```
+
+Those can be future extensions if actual requirements appear.
+
+---
+
+# 74. ACCEPTANCE CRITERIA
+
+The frontend architecture is considered successful only when all of the following work:
+
+### Tenant isolation
+
+A user can only operate inside the tenant context they are authorized for.
+
+### Dynamic modules
+
+A disabled module produces no accessible navigation or route.
+
+### Permissions
+
+A user without permission cannot access protected UI or routes.
+
+### Dashboard composition
+
+Dashboard widgets can be added, removed, moved, and resized through configuration.
+
+### White labeling
+
+Tenant branding can be applied without a separate frontend build.
+
+### Module independence
+
+A module can own:
+
+```text
+pages
+components
+routes
+navigation
+widgets
+API hooks
+permissions
+```
+
+without spreading its business logic throughout the application.
+
+### Shared platform
+
+Super Admin, Prop Firm Admin, and Trader applications reuse:
+
+```text
+UI
+authorization
+theme
+tenant
+module registry
+dashboard infrastructure
+API patterns
+```
+
+### No tenant-specific hacks
+
+There should be no architecture such as:
+
+```typescript
+if (tenantId === "tenantA")
+```
+
+for standard product behavior.
+
+### Optional services
+
+Adding a new module such as:
+
+```text
+Accounting
+```
+
+should require registering the module and its capabilities, not rewriting the entire dashboard.
+
+---
+
+# 75. YOUR FIRST DELIVERABLE
+
+Before implementing business modules, produce the following frontend foundation:
+
+```text
+1. Final repository tree
+
+2. Application Shell
+
+3. Tenant Context
+
+4. Authentication Context
+
+5. Authorization utilities
+
+6. Module SDK
+
+7. Module Registry
+
+8. Module Manifest types
+
+9. Dynamic Navigation Engine
+
+10. Route Guard system
+
+11. Feature Flag system
+
+12. Entitlement handling
+
+13. Dashboard Engine
+
+14. Widget Registry
+
+15. Dashboard Layout types
+
+16. Theme Engine
+
+17. Shared UI package
+
+18. API client abstraction
+
+19. Example module
+
+20. Tests for the module system
+```
+
+Use **Analytics** as the first optional module because it provides a good test of:
+
+```text
+navigation
+widgets
+permissions
+feature flags
+module enablement
+dashboard composition
+```
+
+Do not start by building dozens of pages.
+
+First prove that the platform itself can dynamically compose the frontend.
+
+---
+
+# 76. ENGINEERING PHILOSOPHY
+
+The frontend should follow this rule:
+
+```text
+Core Platform
+    owns composition
+
+Modules
+    own domain functionality
+
+Configuration
+    controls variation
+
+Permissions
+    control access
+
+Tenant
+    controls customization
+
+Widgets
+    provide dashboard composition
+
+Shared UI
+    provides visual consistency
+```
+
+The frontend should feel like one coherent platform while internally behaving like a collection of independently developed business modules.
+
+The final result must be capable of evolving from:
+
+```text
+5 modules
+```
+
+to:
+
+```text
+20+ modules
+```
+
+without turning the frontend into a large collection of tenant-specific conditionals and duplicated dashboard implementations.

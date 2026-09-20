@@ -1,0 +1,359 @@
+"use client";
+
+/**
+ * Settings Page — modular settings with tabs.
+ *
+ * Spec section 43. Tabs: General, Branding, Terminology, Modules,
+ * Roles, Notifications. The Modules tab is the demo centerpiece —
+ * toggling modules updates tenant entitlements live, and the sidebar
+ * + dashboard re-compose instantly (spec section 67 demonstration).
+ */
+
+import { usePlatform } from "@/lib/platform/platform-context";
+import { Page, PageHeader, PageContent } from "@/components/platform/page";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "@/hooks/use-toast";
+import { moduleRegistry } from "@/lib/platform/module-registry";
+import { roles as allRoles } from "@/lib/platform/mock-data";
+import {
+  Settings as SettingsIcon,
+  Palette,
+  Users,
+  Package,
+  Bell,
+  Type,
+  Check,
+  RefreshCw,
+} from "lucide-react";
+import { useState, useEffect } from "react";
+import type { TenantBranding } from "@/lib/platform/types";
+
+export function SettingsPage() {
+  const { router, tenant, setTenant, runtime } = usePlatform();
+  const initialTab = (router.params.tab as string) || "general";
+
+  return (
+    <Page>
+      <PageHeader title="Settings" description={`Configure ${tenant.branding.name}.`} icon={SettingsIcon} />
+      <PageContent>
+        <Tabs defaultValue={initialTab} className="w-full">
+          <TabsList className="flex flex-wrap justify-start">
+            <TabsTrigger value="general" className="gap-1"><SettingsIcon className="h-3 w-3" /> General</TabsTrigger>
+            <TabsTrigger value="branding" className="gap-1"><Palette className="h-3 w-3" /> Branding</TabsTrigger>
+            <TabsTrigger value="terminology" className="gap-1"><Type className="h-3 w-3" /> Terminology</TabsTrigger>
+            <TabsTrigger value="modules" className="gap-1"><Package className="h-3 w-3" /> Modules</TabsTrigger>
+            <TabsTrigger value="roles" className="gap-1"><Users className="h-3 w-3" /> Roles</TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-1"><Bell className="h-3 w-3" /> Notifications</TabsTrigger>
+          </TabsList>
+          <TabsContent value="general"><GeneralTab /></TabsContent>
+          <TabsContent value="branding"><BrandingTab /></TabsContent>
+          <TabsContent value="terminology"><TerminologyTab /></TabsContent>
+          <TabsContent value="modules"><ModulesTab /></TabsContent>
+          <TabsContent value="roles"><RolesTab /></TabsContent>
+          <TabsContent value="notifications"><NotificationsTab /></TabsContent>
+        </Tabs>
+      </PageContent>
+    </Page>
+  );
+}
+
+function GeneralTab() {
+  const { tenant, setTenant } = usePlatform();
+  const [name, setName] = useState(tenant.branding.name);
+  const [tagline, setTagline] = useState(tenant.branding.tagline ?? "");
+  const [currency, setCurrency] = useState(tenant.currency);
+  const [timezone, setTimezone] = useState(tenant.timezone);
+
+  const save = () => {
+    setTenant({
+      ...tenant,
+      name,
+      branding: { ...tenant.branding, name, tagline },
+      currency,
+      timezone,
+    });
+    toast({ title: "Settings saved", description: "General settings updated." });
+  };
+
+  return (
+    <Card>
+      <CardHeader><span className="text-sm font-medium">General</span></CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="name">Tenant name</Label>
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="tagline">Tagline</Label>
+            <Input id="tagline" value={tagline} onChange={(e) => setTagline(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="currency">Currency</Label>
+            <select id="currency" value={currency} onChange={(e) => setCurrency(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+              <option value="USD">USD</option>
+              <option value="GBP">GBP</option>
+              <option value="EUR">EUR</option>
+              <option value="AED">AED</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="timezone">Timezone</Label>
+            <Input id="timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={save}><Check className="mr-1 h-4 w-4" /> Save changes</Button>
+        </div>
+        <Separator />
+        <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+          <div><p className="text-xs text-muted-foreground">Plan</p><p className="font-medium">{tenant.plan}</p></div>
+          <div><p className="text-xs text-muted-foreground">Status</p><p className="font-medium">{tenant.status}</p></div>
+          <div><p className="text-xs text-muted-foreground">Modules</p><p className="font-medium">{tenant.enabledModules.length}</p></div>
+          <div><p className="text-xs text-muted-foreground">Features</p><p className="font-medium">{tenant.enabledFeatures.length}</p></div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BrandingTab() {
+  const { tenant, setTenant } = usePlatform();
+  const [branding, setBranding] = useState<TenantBranding>(tenant.branding);
+  const presets = [
+    { name: "Teal", primary: "#0f766e", accent: "#14b8a6", surface: "#f0fdfa" },
+    { name: "Amber", primary: "#7c2d12", accent: "#ea580c", surface: "#fff7ed" },
+    { name: "Violet", primary: "#6d28d9", accent: "#8b5cf6", surface: "#f5f3ff" },
+    { name: "Rose", primary: "#be123c", accent: "#f43f5e", surface: "#fff1f2" },
+    { name: "Emerald", primary: "#047857", accent: "#10b981", surface: "#ecfdf5" },
+    { name: "Slate", primary: "#334155", accent: "#64748b", surface: "#f8fafc" },
+  ];
+
+  const save = () => {
+    setTenant({ ...tenant, branding });
+    toast({ title: "Branding applied", description: "Theme updated instantly — no rebuild required." });
+  };
+
+  return (
+    <Card>
+      <CardHeader><span className="text-sm font-medium">Branding & White-label</span></CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label className="mb-2 block text-xs">Color presets</Label>
+          <div className="flex flex-wrap gap-2">
+            {presets.map((p) => (
+              <button
+                key={p.name}
+                onClick={() => setBranding({ ...branding, primaryColor: p.primary, accentColor: p.accent, surfaceColor: p.surface })}
+                className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs hover:bg-muted"
+                style={{ borderColor: branding.primaryColor === p.primary ? p.primary : undefined }}
+              >
+                <span className="h-3 w-3 rounded-sm" style={{ background: p.primary }} />
+                <span className="h-3 w-3 rounded-sm" style={{ background: p.accent }} />
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Separator />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="primary">Primary color</Label>
+            <div className="flex gap-2">
+              <input type="color" value={branding.primaryColor} onChange={(e) => setBranding({ ...branding, primaryColor: e.target.value })} className="h-9 w-12 rounded-md border" />
+              <Input value={branding.primaryColor} onChange={(e) => setBranding({ ...branding, primaryColor: e.target.value })} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="accent">Accent color</Label>
+            <div className="flex gap-2">
+              <input type="color" value={branding.accentColor} onChange={(e) => setBranding({ ...branding, accentColor: e.target.value })} className="h-9 w-12 rounded-md border" />
+              <Input value={branding.accentColor} onChange={(e) => setBranding({ ...branding, accentColor: e.target.value })} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="radius">Border radius</Label>
+            <select id="radius" value={branding.radius} onChange={(e) => setBranding({ ...branding, radius: e.target.value })} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+              <option value="0.25rem">Sharp (0.25rem)</option>
+              <option value="0.5rem">Subtle (0.5rem)</option>
+              <option value="0.625rem">Default (0.625rem)</option>
+              <option value="0.75rem">Rounded (0.75rem)</option>
+              <option value="1rem">Pill (1rem)</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="initials">Initials</Label>
+            <Input id="initials" value={branding.initials} maxLength={3} onChange={(e) => setBranding({ ...branding, initials: e.target.value.toUpperCase() })} />
+          </div>
+        </div>
+        <div className="rounded-lg border p-4" style={{ background: branding.surfaceColor }}>
+          <p className="mb-2 text-xs font-medium text-muted-foreground">Live preview</p>
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-md text-sm font-bold text-white" style={{ background: branding.primaryColor }}>{branding.initials}</span>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: branding.primaryColor }}>{branding.name}</p>
+              <p className="text-xs text-muted-foreground">{branding.tagline}</p>
+            </div>
+            <Button size="sm" className="ml-auto text-white" style={{ background: branding.primaryColor }}>Brand button</Button>
+          </div>
+        </div>
+        <Button size="sm" onClick={save}><Check className="mr-1 h-4 w-4" /> Apply branding</Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TerminologyTab() {
+  const { tenant, setTenant } = usePlatform();
+  const [terms, setTerms] = useState<Record<string, string>>(tenant.terminology);
+  const keys = ["challenge", "trader", "payout", "account", "evaluation", "participant", "withdrawal", "disbursement"];
+
+  const save = () => {
+    setTenant({ ...tenant, terminology: terms });
+    toast({ title: "Terminology saved", description: "Custom terms applied across the platform." });
+  };
+
+  return (
+    <Card>
+      <CardHeader><span className="text-sm font-medium">Terminology</span></CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">Customize business terminology for this tenant. Only terms that need white-label customization are configurable.</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          {keys.map((k) => (
+            <div key={k} className="space-y-1.5">
+              <Label className="text-xs capitalize">{k}</Label>
+              <Input value={terms[k] ?? ""} placeholder={`Default: ${k.charAt(0).toUpperCase() + k.slice(1)}`} onChange={(e) => setTerms({ ...terms, [k]: e.target.value })} />
+            </div>
+          ))}
+        </div>
+        <Button size="sm" onClick={save}><Check className="mr-1 h-4 w-4" /> Save terminology</Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ModulesTab() {
+  const { tenant, setTenant, runtime, user } = usePlatform();
+  const allModules = moduleRegistry.getAll().filter((m) => {
+    // Only show modules that support the current application
+    if (!m.manifest.supportedApplications || m.manifest.supportedApplications.length === 0) return true;
+    return m.manifest.supportedApplications.includes(user.application);
+  });
+  const isPlatform = tenant.id === "platform";
+
+  const toggle = (moduleId: string) => {
+    const enabled = new Set(tenant.enabledModules);
+    if (enabled.has(moduleId)) enabled.delete(moduleId);
+    else enabled.add(moduleId);
+    setTenant({ ...tenant, enabledModules: Array.from(enabled) });
+    const mod = allModules.find((m) => m.manifest.id === moduleId);
+    toast({
+      title: enabled.has(moduleId) ? "Module enabled" : "Module disabled",
+      description: `${mod?.manifest.name} is now ${enabled.has(moduleId) ? "visible" : "hidden"} in navigation.`,
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Module Catalog</span>
+          <Badge variant="secondary">{tenant.enabledModules.length} enabled</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <p className="text-xs text-muted-foreground">Toggle modules to see the sidebar and dashboard re-compose live. This demonstrates the plug-and-play architecture (spec section 67).</p>
+        <Separator />
+        {allModules.map((m) => {
+          const enabled = isPlatform || tenant.enabledModules.includes(m.manifest.id);
+          const Icon = m.manifest.icon;
+          return (
+            <div key={m.manifest.id} className="flex items-center gap-3 rounded-md border p-3">
+              <div className="rounded-md p-2" style={{ background: `${m.manifest.accentColor}1a` }}>
+                {Icon ? <Icon className="h-4 w-4" style={{ color: m.manifest.accentColor }} /> : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">{m.manifest.name}</p>
+                  {m.manifest.optional ? <Badge variant="outline" className="text-[9px]">optional</Badge> : null}
+                  <Badge variant="outline" className="text-[9px]">{m.manifest.category}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">{m.manifest.description}</p>
+                {m.manifest.dependencies?.length ? (
+                  <p className="text-[10px] text-muted-foreground/70">Depends on: {m.manifest.dependencies.join(", ")}</p>
+                ) : null}
+              </div>
+              <Switch checked={enabled} onCheckedChange={() => toggle(m.manifest.id)} disabled={isPlatform} />
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RolesTab() {
+  const roles = allRoles.filter((r) => r.application === "prop-admin" || r.application === "super-admin");
+  return (
+    <Card>
+      <CardHeader><span className="text-sm font-medium">Roles & Permissions</span></CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">Roles map to explicit permissions. Visibility is controlled by permissions, not role names (spec section 12).</p>
+        <div className="space-y-2">
+          {roles.map((r) => (
+            <div key={r.id} className="rounded-md border p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: r.color }} />
+                <span className="text-sm font-medium">{r.name}</span>
+                <Badge variant="outline" className="text-[10px]">{r.application}</Badge>
+              </div>
+              <p className="mb-2 text-xs text-muted-foreground">{r.description}</p>
+              <div className="flex flex-wrap gap-1">
+                {r.permissions.slice(0, 15).map((p) => (
+                  <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>
+                ))}
+                {r.permissions.length > 15 ? <Badge variant="outline" className="text-[10px]">+{r.permissions.length - 15} more</Badge> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function NotificationsTab() {
+  return (
+    <Card>
+      <CardHeader><span className="text-sm font-medium">Notifications</span></CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">Configure notification channels and rules per module.</p>
+        <div className="space-y-2">
+          {[
+            { label: "Payout requests", channel: "Email + In-app" },
+            { label: "Breach alerts", channel: "In-app + Slack" },
+            { label: "KYC pending", channel: "Email" },
+            { label: "Module enabled", channel: "In-app" },
+            { label: "AI insights", channel: "In-app" },
+          ].map((n) => (
+            <div key={n.label} className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <p className="text-sm font-medium">{n.label}</p>
+                <p className="text-xs text-muted-foreground">{n.channel}</p>
+              </div>
+              <Switch defaultChecked />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
