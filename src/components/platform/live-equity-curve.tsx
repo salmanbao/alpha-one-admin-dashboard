@@ -88,12 +88,47 @@ export function LiveEquityCurveWidget() {
         </div>
       </div>
       {points.length > 1 ? (
-        <AreaSeries data={points} xKey="t" yKey="v" color={delta >= 0 ? "#16a34a" : "#dc2626"} height={120} formatValue={(v) => formatCurrency(v, currency)} />
+        <div className="relative">
+          <AreaSeries data={points} xKey="t" yKey="v" color={delta >= 0 ? "#16a34a" : "#dc2626"} height={120} formatValue={(v) => formatCurrency(v, currency)} />
+          {/* Event annotations — mark recent activity as colored dots on the chart */}
+          <div className="pointer-events-none absolute inset-0 flex items-end">
+            <div className="flex w-full justify-end pr-4 pb-6">
+              {live.activityFeed.slice(0, 3).map((item, i) => {
+                const dotColor =
+                  item.tone === "critical" ? "#dc2626" :
+                  item.tone === "warning" ? "#ea580c" :
+                  item.tone === "success" ? "#16a34a" : "#0ea5e9";
+                return (
+                  <div
+                    key={item.id}
+                    className="group relative mx-1"
+                    style={{ marginBottom: `${i * 8}px` }}
+                  >
+                    <span
+                      className="block h-2 w-2 rounded-full border border-background"
+                      style={{ background: dotColor }}
+                      title={`${item.actor} ${item.action}`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="flex h-[120px] items-center justify-center text-xs text-muted-foreground">
           <Activity className="mr-2 h-4 w-4 animate-pulse" /> Loading equity data…
         </div>
       )}
+      {/* Event legend */}
+      {live.activityFeed.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-muted-foreground">
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> critical</span>
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> warning</span>
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> success</span>
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> info</span>
+        </div>
+      ) : null}
     </div>
   );
 }

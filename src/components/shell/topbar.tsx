@@ -36,6 +36,7 @@ import { useUserSwitcher } from "@/lib/platform/platform-context";
 import { users } from "@/lib/platform/mock-data";
 import { StatusBadge } from "@/components/platform/status";
 import { ActivityTicker } from "@/components/shell/activity-ticker";
+import { WhatsNewButton } from "@/components/shell/whats-new";
 
 export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
   const {
@@ -161,6 +162,9 @@ export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* What's new */}
+        <WhatsNewButton />
+
         {/* Theme switcher */}
         <Button
           variant="ghost"
@@ -226,6 +230,12 @@ export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
                 ))
               )}
             </div>
+            <button
+              onClick={() => navigate("notifications")}
+              className="flex w-full items-center justify-center gap-1.5 border-t px-3 py-2 text-xs font-medium text-primary hover:bg-primary/5"
+            >
+              <Bell className="h-3 w-3" /> View all in Notification Center
+            </button>
           </DropdownMenuContent>
         </DropdownMenu>
 
