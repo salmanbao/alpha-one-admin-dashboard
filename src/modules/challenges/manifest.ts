@@ -2,7 +2,7 @@
  * Challenges Module — manifest, navigation, routes, widgets, settings.
  */
 
-import { Target, Trophy, Clock, AlertCircle, Flame } from "lucide-react";
+import { Target, Trophy, Clock, AlertCircle, Flame, Plus, Settings2, Layers, GitBranch } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { ChallengeOverviewWidget, ChallengeProgressWidget, ChallengePhasesWidget } from "./widgets/challenge-widgets";
 
@@ -18,6 +18,10 @@ const navigation: NavigationItem[] = [
       { id: "challenges.active", label: "Active", href: "challenges-active", icon: Flame, permission: "challenge.read" },
       { id: "challenges.passed", label: "Passed", href: "challenges-passed", icon: Trophy, permission: "challenge.read" },
       { id: "challenges.failed", label: "Failed", href: "challenges-failed", icon: AlertCircle, permission: "challenge.read" },
+      { id: "challenges.wizard", label: "Create Challenge", href: "challenge-wizard", icon: Plus, permission: "challenge.create" },
+      { id: "challenges.types", label: "Challenge Types", href: "challenge-types", icon: Layers, permission: "challenge.read" },
+      { id: "challenges.config", label: "Configuration", href: "challenge-config", icon: Settings2, permission: "challenge.update" },
+      { id: "challenges.phases", label: "Phase Management", href: "phase-management", icon: GitBranch, permission: "challenge.read" },
     ],
   },
 ];
@@ -27,6 +31,10 @@ const routes: RouteDefinition[] = [
   { path: "challenges-active", viewId: "challenges-active", label: "Active Challenges", permission: "challenge.read", module: "challenges" },
   { path: "challenges-passed", viewId: "challenges-passed", label: "Passed Challenges", permission: "challenge.read", module: "challenges" },
   { path: "challenges-failed", viewId: "challenges-failed", label: "Failed Challenges", permission: "challenge.read", module: "challenges" },
+  { path: "challenge-wizard", viewId: "challenge-wizard", label: "Create Challenge", permission: "challenge.create", module: "challenges" },
+  { path: "challenge-types", viewId: "challenge-types", label: "Challenge Types", permission: "challenge.read", module: "challenges" },
+  { path: "challenge-config", viewId: "challenge-config", label: "Challenge Configuration", permission: "challenge.update", module: "challenges" },
+  { path: "phase-management", viewId: "phase-management", label: "Phase Management", permission: "challenge.read", module: "challenges" },
 ];
 
 const widgets: WidgetDefinition[] = [

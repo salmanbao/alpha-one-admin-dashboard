@@ -1200,3 +1200,346 @@ export function getTenantAudit(tenantId: string): AuditEntry[] {
 export function getTenantPositions(tenantId: string): Position[] {
   return positions.filter((p) => p.tenantId === tenantId);
 }
+
+/* ------------------------------------------------------------------ */
+/* New types for missing flows                                        */
+/* ------------------------------------------------------------------ */
+
+export interface ChallengeType {
+  id: string;
+  name: string;
+  description: string;
+  phases: number;
+  icon: string;
+  hasFreeTrial: boolean;
+  isCompetition: boolean;
+  active: boolean;
+}
+
+export interface ChallengePhaseConfig {
+  id: string;
+  challengeTypeId: string;
+  phaseName: string;
+  phaseOrder: number;
+  accountSize: number;
+  profitTargetPct: number;
+  maxDrawdownPct: number;
+  dailyDrawdownPct: number;
+  minTradingDays: number;
+  maxDays: number;
+  profitSplit: number;
+  isFunded: boolean;
+}
+
+export interface Offer {
+  id: string;
+  name: string;
+  description: string;
+  couponCode: string;
+  discountPct: number;
+  startDate: string;
+  endDate: string;
+  status: "active" | "expired" | "scheduled";
+  targetCountries: string[];
+  targetSegments: string[];
+  matchingUsers: number;
+  createdAt: string;
+}
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  trigger: string;
+  variables: string[];
+  lastModified: string;
+}
+
+export interface CertificateTemplate {
+  id: string;
+  name: string;
+  description: string;
+  triggerEvent: string;
+  layout: string;
+  active: boolean;
+  lastModified: string;
+}
+
+export interface Banner {
+  id: string;
+  type: "marketing" | "announcement";
+  title: string;
+  content: string;
+  status: "active" | "inactive";
+  startDate: string;
+  endDate: string;
+  position: "top" | "sidebar" | "modal";
+}
+
+export interface TradingEventRule {
+  id: string;
+  type: "news" | "copy" | "inverse" | "weekend";
+  name: string;
+  description: string;
+  symbol: string;
+  severity: "warning" | "critical";
+  action: "flag" | "block" | "notify";
+  active: boolean;
+}
+
+export interface UserEvent {
+  id: string;
+  timestamp: string;
+  userEmail: string;
+  accountId: string;
+  eventType: "ACCOUNT_CREATED" | "KYC_COMPLETED" | "KYC_REJECTED" | "ORDER_CREATED" | "PAYOUT_REQUESTED" | "PAYOUT_COMPLETED" | "CHALLENGE_STARTED" | "CHALLENGE_PASSED" | "CHALLENGE_FAILED" | "BREACH_DETECTED" | "LOGIN" | "PASSWORD_CHANGED";
+  description: string;
+}
+
+export interface ChangeHistoryEntry {
+  id: string;
+  timestamp: string;
+  actor: string;
+  entityType: string;
+  entityId: string;
+  field: string;
+  oldValue: string;
+  newValue: string;
+  reason: string;
+}
+
+/* Seeded data for new types */
+
+export const challengeTypes: ChallengeType[] = [
+  { id: "ct-1", name: "Instant Funded", description: "Get funded immediately without evaluation phases.", phases: 1, icon: "Zap", hasFreeTrial: false, isCompetition: false, active: true },
+  { id: "ct-2", name: "1-Step Evaluation", description: "Single phase evaluation to prove trading ability.", phases: 1, icon: "Target", hasFreeTrial: false, isCompetition: false, active: true },
+  { id: "ct-3", name: "2-Step Evaluation", description: "Two-phase evaluation with verification step.", phases: 2, icon: "Layers", hasFreeTrial: false, isCompetition: false, active: true },
+  { id: "ct-4", name: "3-Step Evaluation", description: "Three-phase evaluation for advanced traders.", phases: 3, icon: "GitBranch", hasFreeTrial: false, isCompetition: false, active: true },
+  { id: "ct-5", name: "Free Trial", description: "No-cost evaluation to attract new traders.", phases: 1, icon: "Gift", hasFreeTrial: true, isCompetition: false, active: true },
+  { id: "ct-6", name: "Competition", description: "Leaderboard-based competition among traders.", phases: 1, icon: "Trophy", hasFreeTrial: false, isCompetition: true, active: true },
+];
+
+export const challengePhaseConfigs: ChallengePhaseConfig[] = [
+  { id: "pc-1", challengeTypeId: "ct-3", phaseName: "Phase 1", phaseOrder: 1, accountSize: 10000, profitTargetPct: 8, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 30, profitSplit: 0, isFunded: false },
+  { id: "pc-2", challengeTypeId: "ct-3", phaseName: "Phase 2", phaseOrder: 2, accountSize: 10000, profitTargetPct: 5, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 60, profitSplit: 0, isFunded: false },
+  { id: "pc-3", challengeTypeId: "ct-3", phaseName: "Funded", phaseOrder: 3, accountSize: 10000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 80, isFunded: true },
+  { id: "pc-4", challengeTypeId: "ct-2", phaseName: "Phase 1", phaseOrder: 1, accountSize: 25000, profitTargetPct: 8, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 3, maxDays: 30, profitSplit: 0, isFunded: false },
+  { id: "pc-5", challengeTypeId: "ct-2", phaseName: "Funded", phaseOrder: 2, accountSize: 25000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 80, isFunded: true },
+  { id: "pc-6", challengeTypeId: "ct-1", phaseName: "Funded", phaseOrder: 1, accountSize: 50000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 90, isFunded: true },
+];
+
+export const offers: Offer[] = [
+  { id: "off-1", name: "EXPO2026 BUNDLE DEAL", description: "Bundle 3 challenges at 40% off", couponCode: "EXPO2026", discountPct: 40, startDate: "2026-08-31", endDate: "2026-09-30", status: "active", targetCountries: ["US", "GB", "AE", "SG"], targetSegments: ["new_users", "no_purchase"], matchingUsers: 142, createdAt: daysAgo(15) },
+  { id: "off-2", name: "Summer Promo", description: "20% off all 2-step evaluations", couponCode: "SUMMER20", discountPct: 20, startDate: "2026-06-01", endDate: "2026-08-31", status: "expired", targetCountries: ["US", "CA"], targetSegments: ["all"], matchingUsers: 0, createdAt: daysAgo(90) },
+  { id: "off-3", name: "Black Friday Flash", description: "50% off everything for 48 hours", couponCode: "BF50", discountPct: 50, startDate: "2026-11-25", endDate: "2026-11-27", status: "scheduled", targetCountries: [], targetSegments: ["all"], matchingUsers: 0, createdAt: daysAgo(5) },
+];
+
+export const emailTemplates: EmailTemplate[] = [
+  { id: "et-1", name: "Challenge Purchased", subject: "Your {{challenge_name}} challenge is ready!", body: "Hi {{user_name}}, your {{challenge_name}} challenge has been activated...", trigger: "challenge.purchased", variables: ["user_name", "challenge_name", "account_login"], lastModified: daysAgo(30) },
+  { id: "et-2", name: "Challenge Passed", subject: "Congratulations! You passed Phase {{phase}}", body: "Hi {{user_name}}, you've successfully passed Phase {{phase}}...", trigger: "challenge.passed", variables: ["user_name", "phase", "next_steps"], lastModified: daysAgo(15) },
+  { id: "et-3", name: "Payout Approved", subject: "Your payout of {{amount}} has been approved", body: "Hi {{user_name}}, your withdrawal request of {{amount}} {{currency}} has been approved...", trigger: "payout.approved", variables: ["user_name", "amount", "currency", "method"], lastModified: daysAgo(7) },
+  { id: "et-4", name: "Breach Notification", subject: "Account breached: {{rule}}", body: "Hi {{user_name}}, your account has been breached due to {{rule}}...", trigger: "breach.detected", variables: ["user_name", "rule", "account_login"], lastModified: daysAgo(3) },
+  { id: "et-5", name: "KYC Approved", subject: "Your KYC verification is complete", body: "Hi {{user_name}}, your identity has been verified...", trigger: "kyc.approved", variables: ["user_name"], lastModified: daysAgo(20) },
+];
+
+export const certificateTemplates: CertificateTemplate[] = [
+  { id: "cert-1", name: "Challenge Passed Certificate", description: "Awarded when a trader passes a challenge phase", triggerEvent: "challenge.passed", layout: "standard", active: true, lastModified: daysAgo(45) },
+  { id: "cert-2", name: "Funded Trader Certificate", description: "Awarded when a trader reaches funded status", triggerEvent: "challenge.funded", layout: "premium", active: true, lastModified: daysAgo(30) },
+  { id: "cert-3", name: "Competition Winner", description: "Awarded to competition winners", triggerEvent: "competition.won", layout: "trophy", active: false, lastModified: daysAgo(60) },
+];
+
+export const banners: Banner[] = [
+  { id: "ban-1", type: "announcement", title: "Platform Maintenance", content: "Scheduled maintenance on Sunday 2-4 AM UTC. Trading may be briefly interrupted.", status: "active", startDate: daysAgo(2), endDate: daysAgo(-5), position: "top" },
+  { id: "ban-2", type: "marketing", title: "EXPO2026 Deal Live!", content: "Get 40% off all challenge bundles with code EXPO2026", status: "active", startDate: daysAgo(5), endDate: daysAgo(-30), position: "top" },
+  { id: "ban-3", type: "announcement", title: "FREEDOM Promotion", content: "Celebrate freedom with special pricing this week!", status: "inactive", startDate: daysAgo(40), endDate: daysAgo(10), position: "top" },
+  { id: "ban-4", type: "marketing", title: "New Challenge Type", content: "Try our new 3-Step Evaluation for advanced traders", status: "active", startDate: daysAgo(1), endDate: daysAgo(-60), position: "sidebar" },
+];
+
+export const tradingEventRules: TradingEventRule[] = [
+  { id: "te-1", type: "news", name: "NFP Release", description: "Block trading during Non-Farm Payrolls release", symbol: "All", severity: "critical", action: "block", active: true },
+  { id: "te-2", type: "news", name: "FOMC Statement", description: "Flag trades during FOMC press conference", symbol: "All", severity: "warning", action: "flag", active: true },
+  { id: "te-3", type: "copy", name: "Copy Trading Detection", description: "Detect synchronized trading across accounts", symbol: "All", severity: "critical", action: "block", active: true },
+  { id: "te-4", type: "inverse", name: "Inverse Trading Detection", description: "Detect hedging/inverse trading patterns", symbol: "All", severity: "warning", action: "flag", active: true },
+  { id: "te-5", type: "weekend", name: "Weekend Trading Block", description: "Block new positions on weekends for challenge accounts", symbol: "All", severity: "warning", action: "block", active: true },
+];
+
+export const userEvents: UserEvent[] = (() => {
+  const out: UserEvent[] = [];
+  const eventTypes: UserEvent["eventType"][] = ["ACCOUNT_CREATED", "KYC_COMPLETED", "ORDER_CREATED", "PAYOUT_REQUESTED", "PAYOUT_COMPLETED", "CHALLENGE_STARTED", "CHALLENGE_PASSED", "CHALLENGE_FAILED", "BREACH_DETECTED", "LOGIN"];
+  const descriptions: Record<string, string> = {
+    ACCOUNT_CREATED: "Account registered and initial setup completed",
+    KYC_COMPLETED: "Identity verification completed successfully",
+    ORDER_CREATED: "Challenge purchase order placed",
+    PAYOUT_REQUESTED: "Withdrawal request submitted",
+    PAYOUT_COMPLETED: "Payout sent to trader successfully",
+    CHALLENGE_STARTED: "Challenge evaluation began",
+    CHALLENGE_PASSED: "Challenge phase passed successfully",
+    CHALLENGE_FAILED: "Challenge failed - risk rule breached",
+    BREACH_DETECTED: "Risk rule violation detected",
+    LOGIN: "User logged in to platform",
+  };
+  for (let i = 0; i < 120; i++) {
+    const t = traders[i % traders.length];
+    const evt = eventTypes[i % eventTypes.length];
+    out.push({
+      id: `ue-${i}`,
+      timestamp: hoursAgo(i * 3),
+      userEmail: t.email,
+      accountId: `3333887${100 + i}`,
+      eventType: evt,
+      description: descriptions[evt],
+    });
+  }
+  return out;
+})();
+
+export const changeHistory: ChangeHistoryEntry[] = (() => {
+  const out: ChangeHistoryEntry[] = [];
+  const actors = ["Sarah Chen", "Marcus Webb", "Priya Nair", "System", "AI Engine"];
+  const changes = [
+    { entity: "Challenge", field: "profitTargetPct", old: "8%", new: "10%" },
+    { entity: "Challenge", field: "maxDrawdownPct", old: "10%", new: "8%" },
+    { entity: "Account", field: "status", old: "active", new: "suspended" },
+    { entity: "Payout", field: "status", old: "pending", new: "approved" },
+    { entity: "Risk Rule", field: "dailyLossLimit", old: "5%", new: "4%" },
+    { entity: "Offer", field: "discountPct", old: "20%", new: "40%" },
+    { entity: "Phase", field: "minTradingDays", old: "0", new: "3" },
+    { entity: "Email Template", field: "subject", old: "Old subject", new: "New subject" },
+  ];
+  for (let i = 0; i < 40; i++) {
+    const c = changes[i % changes.length];
+    out.push({
+      id: `ch-${i}`,
+      timestamp: hoursAgo(i * 6),
+      actor: actors[i % actors.length],
+      entityType: c.entity,
+      entityId: `${c.entity}-${1000 + i}`,
+      field: c.field,
+      oldValue: c.old,
+      newValue: c.new,
+      reason: i % 3 === 0 ? "Policy update" : i % 3 === 1 ? "Configuration change" : "Manual adjustment",
+    });
+  }
+  return out;
+})();
+
+/* New helper functions */
+
+export function getChallengeTypes(): ChallengeType[] {
+  return challengeTypes;
+}
+export function getChallengePhaseConfigs(challengeTypeId?: string): ChallengePhaseConfig[] {
+  return challengeTypeId ? challengePhaseConfigs.filter((p) => p.challengeTypeId === challengeTypeId) : challengePhaseConfigs;
+}
+export function getOffers(): Offer[] {
+  return offers;
+}
+export function getEmailTemplates(): EmailTemplate[] {
+  return emailTemplates;
+}
+export function getCertificateTemplates(): CertificateTemplate[] {
+  return certificateTemplates;
+}
+export function getBanners(type?: "marketing" | "announcement"): Banner[] {
+  return type ? banners.filter((b) => b.type === type) : banners;
+}
+export function getTradingEventRules(type?: string): TradingEventRule[] {
+  return type ? tradingEventRules.filter((r) => r.type === type) : tradingEventRules;
+}
+export function getUserEvents(limit = 100): UserEvent[] {
+  return userEvents.slice(0, limit);
+}
+export function getChangeHistory(entityType?: string, entityId?: string): ChangeHistoryEntry[] {
+  let result = changeHistory;
+  if (entityType) result = result.filter((c) => c.entityType === entityType);
+  if (entityId) result = result.filter((c) => c.entityId === entityId);
+  return result;
+}
+
+/* Firm statistics data */
+export function getFirmStatistics(tenantId: string) {
+  const traders = getTenantTraders(tenantId);
+  const payouts = getTenantPayouts(tenantId);
+  const challenges = getTenantChallenges(tenantId);
+  const totalRevenue = 40355.82;
+  const totalPayouts = payouts.reduce((s, p) => s + p.amount, 0) + 6808;
+  const challengesSold = 1140;
+  const netProfit = totalRevenue - totalPayouts;
+  const profitMargin = ((netProfit / totalRevenue) * 100).toFixed(1);
+  const avgChallengeValue = totalRevenue / challengesSold;
+  const payoutRatio = ((totalPayouts / totalRevenue) * 100).toFixed(1);
+  return {
+    totalRevenue,
+    totalPayouts,
+    netProfit,
+    profitMargin: parseFloat(profitMargin),
+    avgChallengeValue,
+    payoutRatio: parseFloat(payoutRatio),
+    challengesSold,
+    copyTradingEvents: 156352,
+    inverseTradingEvents: 131673,
+    newsTradingEvents: 5407,
+    totalAccounts: traders.length,
+    activeAccounts: traders.filter((t) => t.status === "active").length,
+    fundedAccounts: traders.filter((t) => t.challengePhase === "funded").length,
+    revenueSeries: Array.from({ length: 12 }, (_, i) => ({
+      date: new Date(2026, i, 1).toLocaleString("default", { month: "short" }),
+      revenue: Math.round(2000 + Math.sin(i / 2) * 1500 + i * 800),
+      payouts: Math.round(400 + Math.cos(i / 3) * 300 + i * 100),
+      net: Math.round(1600 + Math.sin(i / 2) * 1200 + i * 700),
+      challenges: Math.round(40 + Math.sin(i / 2) * 20 + i * 15),
+    })),
+  };
+}
+
+/* Daily highlights data */
+export function getDailyHighlights(tenantId: string) {
+  const hours = Array.from({ length: 24 }, (_, h) => `${h}:00`);
+  return {
+    dailyRevenue: 1092.16,
+    dailyPayouts: 52.50,
+    dailyNetRevenue: 1039.66,
+    avgOrderValue: 40.45,
+    latestHourRevenue: 36.77,
+    hourlyRevenue: hours.map((h, i) => ({ hour: h, value: Math.round(20 + Math.sin(i / 3) * 40 + Math.random() * 30) })),
+    hourlyOrders: hours.map((h, i) => ({ hour: h, value: Math.round(1 + Math.sin(i / 3) * 2 + Math.random()) })),
+    hourlyPayouts: hours.map((h, i) => ({ hour: h, value: Math.round(Math.random() * 5) })),
+    topCountries: [
+      { country: "United States", orders: 142, revenue: 5680 },
+      { country: "United Kingdom", orders: 89, revenue: 3560 },
+      { country: "UAE", orders: 67, revenue: 2680 },
+      { country: "Singapore", orders: 45, revenue: 1800 },
+      { country: "Germany", orders: 38, revenue: 1520 },
+    ],
+    topPSPs: [
+      { psp: "Crypto (USDT)", orders: 198, revenue: 7920 },
+      { psp: "Card (Stripe)", orders: 156, revenue: 6240 },
+      { psp: "Fiat (Bank)", orders: 67, revenue: 2680 },
+    ],
+    topPlatforms: [
+      { platform: "MetaTrader 5", accounts: 1240, pct: 87 },
+      { platform: "DXTrade", accounts: 186, pct: 13 },
+    ],
+    topCoupons: [
+      { code: "EXPO2026", redemptions: 42, savings: 1680 },
+      { code: "SUMMER20", redemptions: 28, savings: 560 },
+      { code: "WELCOME10", redemptions: 15, savings: 150 },
+    ],
+    purchasesByAccountSize: [
+      { size: "$5K", count: 45, revenue: 1800 },
+      { size: "$10K", count: 112, revenue: 4480 },
+      { size: "$25K", count: 89, revenue: 3560 },
+      { size: "$50K", count: 67, revenue: 2680 },
+      { size: "$100K", count: 34, revenue: 1360 },
+    ],
+    recentOrders: Array.from({ length: 8 }, (_, i) => ({
+      id: `ORD-${10000 + i}`,
+      customer: traders[i % traders.length]?.name ?? "Unknown",
+      challenge: ["2-Step Gen Z", "Instant Standard", "1-Step Turbo"][i % 3],
+      amount: Math.round(35 + Math.random() * 50),
+      psp: ["Crypto", "Card", "Fiat"][i % 3],
+      time: `${i + 1}h ago`,
+    })),
+  };
+}

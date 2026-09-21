@@ -11,6 +11,7 @@ import {
   Users,
   CreditCard,
   Activity,
+  UserPlus,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { TradingOverviewWidget } from "./widgets/trading-overview-widget";
@@ -31,6 +32,7 @@ const navigation: NavigationItem[] = [
       { id: "trading.traders", label: "Traders", href: "trading-traders", icon: Users, permission: "trader.read" },
       { id: "trading.accounts", label: "Accounts", href: "trading-accounts", icon: CreditCard, permission: "account.read" },
       { id: "trading.positions", label: "Open Positions", href: "trading-positions", icon: Activity, permission: "account.read" },
+      { id: "trading.add-account", label: "Add Account", href: "trading-add-account", icon: UserPlus, permission: "account.write" },
     ],
   },
 ];
@@ -41,6 +43,7 @@ const routes: RouteDefinition[] = [
   { path: "trading-accounts", viewId: "trading-accounts", label: "Accounts", permission: "account.read", module: "trading" },
   { path: "trading-positions", viewId: "trading-positions", label: "Open Positions", permission: "account.read", module: "trading" },
   { path: "trader-detail", viewId: "trader-detail", label: "Trader Detail", permission: "trader.read", module: "trading" },
+  { path: "trading-add-account", viewId: "trading-add-account", label: "Add Account", permission: "account.write", module: "trading" },
 ];
 
 const widgets: WidgetDefinition[] = [

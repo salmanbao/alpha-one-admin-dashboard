@@ -78,6 +78,25 @@ import { TenantsPage } from "@/modules/super-admin/super-admin-pages";
 import { ModuleCatalogPage } from "@/modules/super-admin/super-admin-pages";
 import { PlatformHealthPage } from "@/modules/super-admin/super-admin-pages";
 
+/* New flows — imported from subagent-built pages */
+import { FirmStatisticsPage } from "@/modules/analytics/pages/firm-statistics-page";
+import { DailyHighlightsPage } from "@/modules/analytics/pages/daily-highlights-page";
+import { RetentionAnalyticsPage } from "@/modules/analytics/pages/retention-analytics-page";
+import { ChallengeWizardPage } from "@/modules/challenges/pages/challenge-wizard-page";
+import { ChallengeConfigPage } from "@/modules/challenges/pages/challenge-config-page";
+import { PhaseManagementPage } from "@/modules/challenges/pages/phase-management-page";
+import { ChallengeTypesPage } from "@/modules/challenges/pages/challenge-types-page";
+import { AddAccountPage } from "@/modules/trading/pages/add-account-page";
+import { EnhancedTraderDetailPage } from "@/modules/trading/pages/enhanced-trader-detail-page";
+import { OfferManagementPage } from "@/modules/affiliates/pages/offer-management-page";
+import { EmailTemplatesPage } from "@/modules/settings/pages/email-templates-page";
+import { CertificateManagementPage } from "@/modules/settings/pages/certificate-management-page";
+import { BannerManagementPage } from "@/modules/settings/pages/banner-management-page";
+import { TradingEventsPage } from "@/modules/risk/pages/trading-events-page";
+import { RiskStatisticsPage } from "@/modules/risk/pages/risk-statistics-page";
+import { UserEventsPage } from "@/modules/audit/user-events-page";
+import { ChangeHistoryPage } from "@/modules/audit/change-history-page";
+
 export type ViewComponent = ComponentType<{ params: Record<string, string> }>;
 
 export const viewRegistry: Record<string, ViewComponent> = {
@@ -100,17 +119,24 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "trading-traders": TradersPage,
   "trading-accounts": AccountsPage,
   "trading-positions": PositionsPage,
-  "trader-detail": TraderDetailPage,
+  "trader-detail": EnhancedTraderDetailPage,
+  "trading-add-account": AddAccountPage,
 
   /* challenges */
   challenges: ChallengesOverviewPage,
   "challenges-active": ActiveChallengesPage,
   "challenges-passed": PassedChallengesPage,
   "challenges-failed": FailedChallengesPage,
+  "challenge-wizard": ChallengeWizardPage,
+  "challenge-config": ChallengeConfigPage,
+  "challenge-types": ChallengeTypesPage,
+  "phase-management": PhaseManagementPage,
 
   /* risk */
   risk: RiskOverviewPage,
   breaches: BreachesPage,
+  "risk-statistics": RiskStatisticsPage,
+  "trading-events": TradingEventsPage,
 
   /* payouts */
   payouts: PayoutsOverviewPage,
@@ -123,12 +149,16 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "analytics-performance": PerformanceAnalyticsPage,
   "analytics-risk": RiskAnalyticsPage,
   "analytics-advanced": AdvancedAnalyticsPage,
+  "analytics-firm-statistics": FirmStatisticsPage,
+  "analytics-daily-highlights": DailyHighlightsPage,
+  "analytics-retention": RetentionAnalyticsPage,
 
   /* affiliates */
   affiliates: AffiliatesOverviewPage,
   "affiliates-list": AffiliatesListPage,
   "affiliates-campaigns": AffiliateCampaignsPage,
   "affiliates-commissions": AffiliateCommissionsPage,
+  "offer-management": OfferManagementPage,
 
   /* accounting */
   accounting: AccountingOverviewPage,
@@ -160,6 +190,15 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "ai-insights": AiInsightsPage,
   "ai-assistant": AiAssistantPage,
   "ai-configure": AiConfigurePage,
+
+  /* audit — new flows */
+  "audit-user-events": UserEventsPage,
+  "audit-change-history": ChangeHistoryPage,
+
+  /* settings — new flows */
+  "email-templates": EmailTemplatesPage,
+  "certificate-management": CertificateManagementPage,
+  "banner-management": BannerManagementPage,
 };
 
 const dynamicViews = new Map<string, ViewComponent>();

@@ -5,7 +5,7 @@
  * depends on Trading. Manages affiliates, campaigns, and commissions.
  */
 
-import { Megaphone, Users, BarChart3, DollarSign, ListChecks } from "lucide-react";
+import { Megaphone, Users, BarChart3, DollarSign, ListChecks, Tag } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { AffiliateOverviewWidget, TopAffiliatesWidget, AffiliateRevenueWidget } from "./widgets/affiliate-widgets";
 
@@ -20,6 +20,7 @@ const navigation: NavigationItem[] = [
       { id: "affiliates.list", label: "Affiliates", href: "affiliates-list", icon: Users, permission: "affiliate.read" },
       { id: "affiliates.campaigns", label: "Campaigns", href: "affiliates-campaigns", icon: Megaphone, permission: "affiliate.read" },
       { id: "affiliates.commissions", label: "Commissions", href: "affiliates-commissions", icon: DollarSign, permission: "affiliate.read" },
+      { id: "affiliates.offers", label: "Offers", href: "offer-management", icon: Tag, permission: "affiliate.read" },
     ],
   },
 ];
@@ -29,6 +30,7 @@ const routes: RouteDefinition[] = [
   { path: "affiliates-list", viewId: "affiliates-list", label: "Affiliates List", permission: "affiliate.read", module: "affiliates" },
   { path: "affiliates-campaigns", viewId: "affiliates-campaigns", label: "Affiliate Campaigns", permission: "affiliate.read", module: "affiliates" },
   { path: "affiliates-commissions", viewId: "affiliates-commissions", label: "Affiliate Commissions", permission: "affiliate.read", module: "affiliates" },
+  { path: "offer-management", viewId: "offer-management", label: "Offer Management", permission: "affiliate.read", module: "affiliates" },
 ];
 
 const widgets: WidgetDefinition[] = [

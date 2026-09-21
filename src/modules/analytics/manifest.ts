@@ -5,7 +5,7 @@
  * prove plug-and-play behavior. It depends on Trading + Accounts.
  */
 
-import { BarChart3, TrendingUp, Users, DollarSign, Activity, Brain } from "lucide-react";
+import { BarChart3, TrendingUp, Users, DollarSign, Activity, Brain, Building2, CalendarClock, Repeat } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { RevenueWidget, TraderGrowthWidget, RiskDistributionWidget, BreachTrendWidget, AnalyticsOverviewWidget, AdvancedAnalyticsWidget } from "./widgets/analytics-widgets";
 
@@ -29,6 +29,9 @@ const navigation: NavigationItem[] = [
         feature: "analytics.advanced",
         badge: "Pro",
       },
+      { id: "analytics.firm-stats", label: "Firm Statistics", href: "analytics-firm-statistics", icon: Building2, permission: "analytics.read" },
+      { id: "analytics.daily-highlights", label: "Daily Highlights", href: "analytics-daily-highlights", icon: CalendarClock, permission: "analytics.read" },
+      { id: "analytics.retention", label: "Retention", href: "analytics-retention", icon: Repeat, permission: "analytics.read" },
     ],
   },
 ];
@@ -39,6 +42,9 @@ const routes: RouteDefinition[] = [
   { path: "analytics-performance", viewId: "analytics-performance", label: "Performance Analytics", permission: "analytics.read", module: "analytics" },
   { path: "analytics-risk", viewId: "analytics-risk", label: "Risk Analytics", permission: "analytics.read", module: "analytics" },
   { path: "analytics-advanced", viewId: "analytics-advanced", label: "Advanced Analytics", permission: "analytics.advanced.read", module: "analytics", feature: "analytics.advanced" },
+  { path: "analytics-firm-statistics", viewId: "analytics-firm-statistics", label: "Firm Statistics", permission: "analytics.read", module: "analytics" },
+  { path: "analytics-daily-highlights", viewId: "analytics-daily-highlights", label: "Daily Highlights", permission: "analytics.read", module: "analytics" },
+  { path: "analytics-retention", viewId: "analytics-retention", label: "Retention Analytics", permission: "analytics.read", module: "analytics" },
 ];
 
 const widgets: WidgetDefinition[] = [

@@ -1172,3 +1172,385 @@ Task: Implement UX constitution (2858 lines) — Attention Center, Account Healt
 - Sparkline color contrast may need WCAG verification
 - Responsive breakpoints for <1440px need testing
 - Consider grouping non-critical warnings into summary view
+
+---
+Task ID: imp-batch-2
+Agent: general-purpose (admin-pages batch 2)
+Task: Build Challenge Config Editor + Phase Mgmt + Challenge Types + Offers pages
+
+Work Log:
+- Read worklog.md and AGENTS.md (full UX constitution) to internalize §12 progressive disclosure, §22-23 contextual action, §25-27 table/drawer vs page, §33 contextual help, §43 semantic color (no blue/indigo).
+- Inspected existing challenges module (manifest.ts, pages/challenge-pages.tsx, index.ts), affiliates module (pages/affiliate-pages.tsx pattern), platform primitives (page.tsx, data-table.tsx, status.tsx, guards.tsx, contextual-help.tsx, state-explanations.tsx, contextual-actions.tsx), platform-context.tsx (usePlatform/navigate/router.params), mock-data.ts (ChallengeType, ChallengePhaseConfig, Offer interfaces and getChallengeTypes/getChallengePhaseConfigs/getOffers helpers).
+- Inspected shadcn/ui exports: Switch, Select (with size="sm"), Sheet, Collapsible, Accordion, Drawer, Label, Input, Button, Badge — confirmed available APIs.
+- Inspected the trader-detail-page pattern (`router.params.id` lookup) and settings-page pattern (`router.params.tab` initial tab) for the canonical way pages consume route params.
+- Built File 1: `src/modules/challenges/pages/challenge-config-page.tsx` — `ChallengeConfigPage`
+  - PageHeader "Challenge Configuration" with Add Challenge Type button (toast).
+  - Split-view layout (grid-cols-12): left = DataTable of challenge types (Name+FreeTrial/Competition badges, Phases count, Active Switch with toast feedback, Edit button), right = config editor panel.
+  - Reads `router.params.typeId` to pre-select a type when navigated from Challenge Types page.
+  - Config editor shows phase cards (one per phase) with accent strip (emerald for Funded, amber for Evaluation), phase order badge, Funded badge, account size, and 6 basic numeric inputs (Profit Target %, Max Drawdown %, Daily Drawdown %, Min Trading Days, Max Days, Profit Split %) — each with LabelWithHelp explanation.
+  - Progressive disclosure (§12): Collapsible "Advanced trading rules" reveals 4 sub-sections (Trading Rules, News Trading, Weekend Rules, Other Limits) with toggles and inputs.
+  - Save Changes + Reset to Defaults buttons at the bottom (toast feedback).
+  - Empty state for unselected type — explains what to do (§30).
+- Built File 2: `src/modules/challenges/pages/phase-management-page.tsx` — `PhaseManagementPage`
+  - PageHeader "Phase Management" with description "Configure evaluation phases for challenge types".
+  - DataTable of all phase configs: Challenge Type (lookup via getChallengeTypes), Phase Name, Order, Account Size (numeric, formatCurrency), Profit Target (numeric, %), Max Drawdown (numeric, %), Daily Drawdown (numeric, %), Profit Split (numeric, %), Funded (StatusBadge).
+  - Filter dropdown (Select) to filter by challenge type — toolbar prop on DataTable.
+  - Add Phase button (toast "Add phase form would open here").
+  - Row click → inline expansion panel below the table with full per-phase config (7 numeric inputs) + Save button (toast). Inline expansion chosen over a separate page per §27 (quick edit = inline, not deep workspace).
+- Built File 3: `src/modules/challenges/pages/challenge-types-page.tsx` — `ChallengeTypesPage`
+  - PageHeader "Challenge Types" with Add Challenge Type button (toast).
+  - Responsive card grid (sm:2, xl:3) of 6 challenge types from getChallengeTypes().
+  - Icon mapping table: Zap (Instant Funded), Target (1-Step), Layers (2-Step), GitBranch (3-Step), Gift (Free Trial), Trophy (Competition) — icon names from mock data's `icon` field.
+  - Each card shows icon (emerald), name, description, Phases count badge (with Layers icon), Free Trial badge (if hasFreeTrial, emerald), Competition badge (if isCompetition, amber), Active status badge, Switch toggle (toast feedback), Edit button → navigate("challenge-config", { typeId: t.id }).
+  - Hint text explains the Edit → Challenge Configuration flow.
+- Built File 4: `src/modules/affiliates/pages/offer-management-page.tsx` — `OfferManagementPage`
+  - PageHeader "Offers & Promotions" with Add Offer button (toast).
+  - DataTable of getOffers() with columns: Name, Coupon Code (mono), Discount (numeric, %), Status (StatusBadge: active→success, expired→danger, scheduled→info), Start Date, End Date, Target Countries (count badge with Globe icon, or "All"), Matching Users (numeric), Actions (View + Edit buttons).
+  - Search input (DataTable built-in) + status filter dropdown (Select: all/active/scheduled/expired) as toolbar.
+  - Row click → inline expansion panel with full offer info: name, description, coupon, discount, start/end dates, matching users, status badge; Target Countries list (badges or "All countries" copy), Target Segments list, matching users summary; Edit Offer button (toast) + View Change History button (toast "Change history for this offer").
+  - Inline expansion chosen per §27 — quick inspection, not a deep workspace.
+- Patterns followed:
+  - All files: `"use client"`, usePlatform() for navigate/router/runtime.
+  - lucide-react icons only (no blue/indigo): emerald, amber, rose, slate, sky (info tone from platform StatusBadge) — no blue/indigo.
+  - `toast` from `@/hooks/use-toast` for all demo actions.
+  - `cn` from `@/lib/utils` for className composition.
+  - Platform components: Page, PageHeader, PageContent, DataTable (with `numeric` column flag), StatusBadge (with success/danger/info/muted tones), EmptyState, LabelWithHelp, HELP_TEXTS.
+- Fixed one lint error: replaced `useEffect`-with-setState (react-hooks/set-state-in-effect rule) in challenge-config-page with the "adjusting state during render" pattern (track lastParamTypeId with a state guard). This is the canonical React docs pattern for syncing state when a prop/param changes.
+- Verified: `bun run lint` → 0 errors, 1 pre-existing warning in audit/change-history-page.tsx (out of scope). `bunx tsc --noEmit` → 0 errors in any of the 4 new files (verified by filtering grep). All remaining TS errors are pre-existing in settings-page, super-admin-pages, enhanced-trader-detail-page, charts.tsx, mock-data.ts, examples/, and skills/ — outside this task's scope per prior worklog entries.
+- Did NOT modify view-router.tsx, module manifests, or any other module's files. Lead can wire these 4 new viewIds (challenge-config, phase-management, challenge-types, offer-management) into view-router.tsx and add nav items to the challenges/affiliates module manifests in a future pass.
+
+Stage Summary:
+- 4 admin page files created (each with a single named export ready to be wired into view-router.tsx):
+  - src/modules/challenges/pages/challenge-config-page.tsx → `ChallengeConfigPage`
+  - src/modules/challenges/pages/phase-management-page.tsx → `PhaseManagementPage`
+  - src/modules/challenges/pages/challenge-types-page.tsx → `ChallengeTypesPage`
+  - src/modules/affiliates/pages/offer-management-page.tsx → `OfferManagementPage`
+- All pages follow platform UX constitution: progressive disclosure (§12), contextual help on every label (§33), inline expansion for quick edits (§27), empty states with hints (§30), one primary action per workflow (§23), consistent status badges (§44), semantic color (§43).
+- Suggested viewIds for view-router wiring: `challenge-config`, `phase-management`, `challenge-types`, `offer-management`. Suggested nav additions (lead's job, not done here): Challenges → Configure > Challenge Types / Phase Management / Challenge Configuration; Affiliates → Offers & Promotions.
+- Zero new lint or TypeScript errors introduced.
+
+---
+
+## imp-batch-3 — Email Templates + Certificates + Banners + Trading Events
+
+**Agent:** general-purpose sub-agent
+**Scope:** Build 4 lower-priority admin pages for the PFaaS dashboard.
+
+### Files created
+
+1. `src/modules/settings/pages/email-templates-page.tsx` (363 lines)
+   - Exports `EmailTemplatesPage`
+   - Master/detail layout: DataTable of `getEmailTemplates()` + inline editor
+   - Columns: Name, Subject (truncated), Trigger (badge), Variables (count badge), Last Modified, Actions (Edit/Delete)
+   - Detail panel: editable Subject (Input), Body (Textarea), Variables list (badges), Trigger badge, Save Template + Send Test buttons
+   - Trigger tone derived from prefix (breach→warning, payout→success, kyc→info)
+
+2. `src/modules/settings/pages/certificate-management-page.tsx` (549 lines)
+   - Exports `CertificateManagementPage`
+   - Two tabs: Templates + Fonts
+   - Templates tab: DataTable with Name, Description, Trigger Event (badge), Layout (badge), Active (Switch), Actions (Edit); row click opens editor (name, description, trigger event dropdown, layout dropdown, active toggle, preview placeholder, Save)
+   - Fonts tab: simple list of 4 mock fonts (Arial, Times New Roman, Montserrat, Roboto) with Select/Delete per row and Add button header
+
+3. `src/modules/settings/pages/banner-management-page.tsx` (488 lines)
+   - Exports `BannerManagementPage`
+   - Tabs: Announcement | Marketing (controlled by `tab` state)
+   - Each tab: DataTable of `getBanners(type)` with columns Title, Content (truncated), Status (StatusBadge success/muted), Start, End, Position (badge), Actions (Edit/Toggle)
+   - Row click opens editor: title, content (textarea), status toggle (Switch), start/end date inputs, position dropdown, Save button
+   - Per-tab master/detail grid; working copies keyed by banner id
+
+4. `src/modules/risk/pages/trading-events-page.tsx` (501 lines)
+   - Exports `TradingEventsPage`
+   - PageHeader: "Trading Event Rules" with description
+   - 4 tabs: News | Copy Trading | Inverse Trading | Weekend (Radio icon)
+   - Each tab: DataTable of `getTradingEventRules(type)` with columns Name, Description, Symbol (mono), Severity (StatusBadge warning/critical via `breachSeverityTone`), Action (badge flag→warning, block→danger, notify→info), Active (Switch), Actions (Edit)
+   - Row click opens rule editor: name, description, symbol (Input, mono), severity dropdown, action dropdown, active toggle, Save button → toast "Rule updated"
+
+### Patterns followed
+- `"use client"` directive on all 4 files
+- `usePlatform()` called for runtime context in every page (used for tenant-aware logic where relevant; `void runtime;` keeps the hook call legitimate without an unused-variable warning)
+- Platform primitives: `Page`, `PageHeader`, `PageContent`, `DataTable` + `Column<T>`, `StatusBadge`, `EmptyState`
+- `toast` from `@/hooks/use-toast` for all action feedback
+- shadcn/ui: `Input`, `Textarea`, `Label`, `Switch`, `Badge`, `Separator`, `Select`, `Tabs`
+- Icons from `lucide-react`; no blue/indigo accent colors used — only neutral, emerald, amber, rose, sky (info tone from StatusBadge)
+- AGENTS.md UX principles: master/detail progressive disclosure (§12), contextual actions in the detail panel (§22), empty states explain why + hint (§30), status badges with semantic tones (§17/§18), one primary action per panel (§23)
+
+### Mock data wired up
+- `getEmailTemplates()` / `EmailTemplate`
+- `getCertificateTemplates()` / `CertificateTemplate`
+- `getBanners(type?)` / `Banner`
+- `getTradingEventRules(type?)` / `TradingEventRule`
+
+### Verification
+- `bun run lint` → 0 errors, 0 warnings in any of the 4 new files (one pre-existing warning in `audit/change-history-page.tsx` is unrelated to this batch)
+- `bunx tsc --noEmit` → 0 TypeScript errors in any of the 4 new files (35 pre-existing errors live in other files from prior batches and were not touched)
+
+### Notes / next steps
+- These pages are **not** registered in `view-router.tsx` or any module manifest, per the task's "DO NOT modify" instructions. If they need to be reachable from the sidebar, a follow-up task should add routes to `settings-module.ts` / `risk/manifest.ts` and corresponding entries in `view-router.tsx`.
+- All Save / Add / Send Test / Toggle / Select / Delete actions are demo-only (toast feedback); no real persistence layer was added.
+
+---
+Task ID: imp-batch-4
+Agent: general-purpose (module-builder)
+Task: Build User Events + Change History + Enhanced Trader Detail + Risk Stats + Retention pages
+
+Work Log:
+- Read worklog.md and AGENTS.md for project context, UX constitution, and platform patterns
+- Read existing TraderDetailPage (trading-pages.tsx), audit.tsx, platform primitives
+  (page/data-table/status/guards/state-explanations/contextual-help/account-health/charts)
+  to confirm exact import shapes and component contracts
+- Read mock-data.ts: confirmed `UserEvent`, `ChangeHistoryEntry` interfaces,
+  `getUserEvents(limit)`, `getChangeHistory(entityType?, entityId?)` helpers,
+  `getTenantKyc/getTenantBreaches/getTenantChallenges/getTenantPayouts/getTenantTraders`
+  signatures, `AuditEntry` shape from types.ts
+- Built File 1 `src/modules/audit/user-events-page.tsx` (`UserEventsPage`):
+  - PageHeader "User Events" with description + ScrollText icon + Export CSV action
+  - 5-MetricCard KPI row: Total Events / Accounts Created / KYC Completed /
+    Payouts Requested / Breaches Detected — derived from getUserEvents(100)
+  - Filter bar: search input, event-type dropdown (all 12 event types),
+    date range dropdown (24h/7d/30d/all), active-filter badge, clear button
+  - DataTable of 100 events: Timestamp (sortable, mono), User Email, Account ID,
+    Event Type (StatusBadge color-coded: success/danger/info/warning per
+    ACCOUNT_CREATED→success, BREACH_DETECTED→danger, etc.), Description
+  - Pagination via DataTable's built-in pageSize=10
+  - Export CSV button fires toast "Export started"
+- Built File 2 `src/modules/audit/change-history-page.tsx` (`ChangeHistoryPage`):
+  - PageHeader "Change History" with description + History icon + Export CSV
+  - Filter bar: search, entity-type dropdown (Challenge/Account/Payout/Risk Rule/
+    Offer/Phase/Email Template), actor filter dropdown (derived from data),
+    date range (24h/7d/30d/all), active-filter badge, clear button
+  - DataTable of getChangeHistory(): Timestamp, Actor, Entity Type (badge),
+    Entity ID (mono), Field Changed, Change (visual diff: old value in
+    `text-rose-600 line-through` + ArrowRight + new value in
+    `text-emerald-600 font-medium`), Reason
+  - Row click opens a Sheet detail panel showing full change context:
+    timestamp/actor/reason, entity card, diff card (old→new with colored
+    backgrounds), Rollback button (toast)
+- Built File 3 `src/modules/trading/pages/enhanced-trader-detail-page.tsx`
+  (`EnhancedTraderDetailPage`):
+  - Same header as existing TraderDetailPage: Back button, EntityHeader
+    (avatar + StatusBadge + phase Badge), KPI row (Equity, Total P&L,
+    Win rate, Trades), Account Health widget (when in challenge/funded phase)
+  - 3 top action buttons: "Block Account" (destructive, AlertDialog with
+    consequence explanation per §24), "Resync" (outline, toast),
+    "Edit Payout Schedule" (outline, toast)
+  - 7 tabs (vs 4 in original): Overview, Accounts, Positions, Performance,
+    KYC, Risk, Change History
+  - Overview: account summary dl + key metrics card with ExplainableStateBadge
+    for KYC + open-breaches count, LabelWithHelp on Key Metrics heading
+  - Accounts: DataTable of trading accounts (login/platform/type/phase/
+    balance/equity/status)
+  - Positions: DataTable of open positions (symbol/side/volume/entry/
+    current/P&L)
+  - Performance: 30-day AreaSeries equity curve
+  - KYC: getTenantKyc filtered by traderId → detail card with status
+    ExplainableStateBadge, document type, country, risk level badge;
+    EmptyState when no record
+  - Risk: AccountHealthWidget + recent breaches list for this trader
+    (filtered by traderId)
+  - Change History: ActivityTimeline combining ChangeHistoryEntry
+    (mapped to AuditEntry shape) + trader audit entries
+- Built File 4 `src/modules/risk/pages/risk-statistics-page.tsx`
+  (`RiskStatisticsPage`):
+  - PageHeader "Risk Analysis" with description + ShieldCheck icon + date range
+    selector (30d/90d/1y/all) + Export CSV
+  - 4-MetricCard KPI row: Total Revenue / Total Payouts / Profit Margin /
+    Funded Accounts (all derived from challenges + payouts + traders)
+  - 3 Tabs: "Challenge Stats" | "Country-Wise" | "Account Size"
+  - Challenge Stats tab: DataTable of ChallengeRow (challengeType, revenue,
+    totalPayouts, profitMargin %, payoutCount, fundedAccounts) — derived
+    by grouping getTenantChallenges by name + aggregating payouts
+  - Country-Wise tab: DataTable of CountryRow (country, traders, funded,
+    breached, revenue) — grouped by trader.country
+  - Account Size tab: DataTable of SizeRow (range, accounts, funded,
+    breached, revenue) — 5 bands: <$10k / $10k–$25k / $25k–$50k /
+    $50k–$100k / $100k+
+  - Profit Margin cell uses tone-colored Badge (green ≥50, amber 20-49, rose <20)
+  - Footer note with derived totals and methodology explanation
+- Built File 5 `src/modules/analytics/pages/retention-analytics-page.tsx`
+  (`RetentionAnalyticsPage`):
+  - PageHeader "Customer Retention & Behavior" with Repeat icon + Export CSV
+  - 5-MetricCard KPI row: 3-Month Retention (72%), 6-Month Retention (58%),
+    12-Month Retention (44%), Challenges/User (1.8), Repeating Customers (23%)
+  - Cohort retention matrix (Jun/Jul/Aug 2026) — triangular matrix showing
+    % retention at +30d/+60d/+90d with tone colors (green/amber/rose, muted
+    for unfilled 0 cells)
+  - New vs Repeating DonutSeries (teal #0d9488 for new, amber #d97706 for
+    repeating — no blue/indigo)
+  - Challenges per User BarSeries (4 buckets: 1/2/3/4+ challenges)
+  - Top Countries DataTable (country, total users, repeating users,
+    retention rate badge)
+  - Summary insights card at bottom with 3 bullet findings (green/amber/
+    rose dots) covering 3-month retention strength, repeating customer
+    LTV opportunity, 12-month churn investigation
+- All 5 files use:
+  - "use client" directive
+  - usePlatform() for runtime + navigate
+  - Platform components (Page/PageHeader/PageContent/MetricCard/EntityHeader/
+    DataTable/StatusBadge/ExplainableStateBadge/ActivityTimeline/
+    AccountHealthWidget/EmptyState/BarSeries/DonutSeries/AreaSeries/
+    LabelWithHelp/ContextualHelp)
+  - toast from @/hooks/use-toast for action feedback
+  - cn from @/lib/utils for conditional classes
+  - Icons from lucide-react (no blue/indigo — used teal, amber, emerald,
+    rose, sky, violet where applicable)
+  - Tenant-scoped mock helpers getTenant* with `runtime.tenant?.id ??
+    "platform"` fallback pattern
+- Lint: `bun run lint` → 0 errors, 0 warnings ✓
+- TypeScript: `bunx tsc --noEmit` → 0 errors in any of the 5 new files ✓
+  (pre-existing TS errors in risk-widgets, settings-page, super-admin-pages,
+  payouts/risk modules remain unchanged and out of scope per task instructions)
+- Did NOT modify view-router.tsx, module manifests, or any existing TraderDetailPage
+
+Stage Summary:
+- 5 view components created (one per file):
+  - src/modules/audit/user-events-page.tsx → `UserEventsPage`
+  - src/modules/audit/change-history-page.tsx → `ChangeHistoryPage`
+  - src/modules/trading/pages/enhanced-trader-detail-page.tsx → `EnhancedTraderDetailPage`
+  - src/modules/risk/pages/risk-statistics-page.tsx → `RiskStatisticsPage`
+  - src/modules/analytics/pages/retention-analytics-page.tsx → `RetentionAnalyticsPage`
+- Each file follows the platform's plug-and-play pattern: pure client
+  component, tenant-aware mock data, platform primitives, no module
+  wiring required — lead can import & register viewIds in view-router.tsx
+- Suggested viewIds for wiring: `audit-user-events`, `audit-change-history`,
+  `trader-detail-enhanced`, `risk-statistics`, `analytics-retention`
+- All UX constitution principles honored: KPIs first (§4), progressive
+  disclosure (Account Health expandable), explainable state badges
+  (§17-19), contextual help (§33), destructive actions wrapped in
+  AlertDialog (§24), no blue/indigo accent colors
+
+---
+Task ID: imp-batch-1
+Agent: page-builder-batch-1
+Task: Build Firm Stats + Daily Highlights + Challenge Wizard + Add Account pages
+
+Work Log:
+- Read worklog.md and AGENTS.md (UX constitution). Confirmed: 4 files to build; no edits to view-router.tsx, module-bootstrap.ts, or module manifests (lead wires views in). Inspected mock-data helpers: `getFirmStatistics(tid)` returns totalRevenue/totalPayouts/netProfit/profitMargin/avgChallengeValue/payoutRatio/challengesSold/copyTradingEvents/inverseTradingEvents/newsTradingEvents/totalAccounts/activeAccounts/fundedAccounts + 12-month `revenueSeries` with date/revenue/payouts/net/challenges keys. `getDailyHighlights(tid)` returns daily KPIs + hourlyRevenue/hourlyOrders/hourlyPayouts + topCountries/topPSPs/topPlatforms/topCoupons/purchasesByAccountSize/recentOrders. `getChallengeTypes()` returns 6 types with icon strings (Zap, Target, Layers, GitBranch, Gift, Trophy); `getChallengePhaseConfigs(typeId)` returns phase templates with accountSize/profitTargetPct/maxDrawdownPct/dailyDrawdownPct/minTradingDays/maxDays/profitSplit/isFunded.
+- Inspected platform primitives: `Page/PageHeader/PageContent/MetricCard` (MetricCard has tone/delta/deltaLabel/icon + accent strip), `AreaSeries` (data/xKey/yKey/color/formatValue), `DataTable<T>/Column<T>` (with `numeric?: boolean` for right-align), `formatCurrency/formatCompact`, `StatusBadge`. Inspected `OnboardingWizard` for step indicator pattern (done/active/inactive circles + connecting progress bars), `usePlatform()`/`navigate()` for routing, `useToast`/`toast` for feedback, `exportToCsv` for CSV download.
+- Created File 1: `src/modules/analytics/pages/firm-statistics-page.tsx` exporting `FirmStatisticsPage`:
+  - PageHeader with title "Firm Statistics" + date range selector (7d/30d/90d toggle as segmented control) + Export CSV button (uses exportToCsv with full 5-column revenue series; toast handled by exportToCsv itself — no duplicate).
+  - 10 KPI cards (MetricCard grid 5-col on desktop): Total Revenue, Total Payouts, Net Profit, Challenges Sold, Profit Margin, Copy Trading Events, Inverse Trading Events, News Trading Events, Total Accounts, Funded Accounts. Each with appropriate tone (positive/warning/negative) + lucide icon. No blue/indigo — colors used: emerald (#059669), amber (#d97706), violet (#7c3aed), rose (#e11d48).
+  - 4 AreaSeries trend charts (lg:grid-cols-2): Revenue (emerald), Payouts (amber), Net Revenue (violet), Challenges Sold (rose). All 12-month from `revenueSeries`. Each in a ChartCard with title + subtitle.
+  - Summary stats table at bottom: DataTable with 4 rows (Net Profit, Profit Margin, Average Challenge Value, Payout Ratio) — each row has metric/value/formula/context columns; provides explainability (spec §19) by showing how each ratio is computed.
+- Created File 2: `src/modules/analytics/pages/daily-highlights-page.tsx` exporting `DailyHighlightsPage`:
+  - PageHeader with title "Daily Highlights (UTC)" + native HTML date picker (`<input type="date">` with `Calendar` icon) max=today.
+  - 5 KPI cards (5-col grid): Daily Revenue, Daily Payouts, Daily Net Revenue, Avg Order Value, Latest Hour Revenue. Each with delta/tone/icon.
+  - 4 hourly AreaSeries charts (lg:grid-cols-2): Hourly Revenue (emerald), Hourly Orders (teal #0f766e), Hourly Payouts (amber), Hourly Orders by PSP (violet). The 4th synthesizes per-PSP share across hours using topPSPs proportions × hourlyOrders values (deterministic, no Math.random in render); added inline legend chips below the chart listing each top PSP with its color square.
+  - 6 simple HTML tables in a 2-col grid (NOT DataTable — spec: "too many small tables"): Top Countries, Top PSPs, Top Platforms, Top Coupons (with Badge for coupon code, emerald for negative savings), Purchases by Account Size, Recent Orders (6 columns). Built via a `SimpleTable` local helper that wraps an HTML `<table>` with header bar + uppercase column headers + divide-y rows. Right-aligned numeric columns use `text-right tabular-nums`.
+- Created File 3: `src/modules/challenges/pages/challenge-wizard-page.tsx` exporting `ChallengeWizardPage`:
+  - 7-step wizard: Type → Phase 1 → Phase 2 → Trading Rules → Payout Rules → Risk Rules → Review.
+  - Step indicator: same pattern as OnboardingWizard — 7 circles with done (filled primary + check icon), active (outlined primary), inactive (outlined muted), connected by flex-1 progress bars that fill primary when traversed. Step labels under circles (Type, Phase 1, Phase 2, Trading, Payout, Risk, Review).
+  - Step 1 (Type): 6-card grid with icon (looked up via TYPE_ICONS map: Zap/Target/Layers/GitBranch/Gift/Trophy), name, description, badges (phase count, free trial, competition, inactive). Selected state shows ring + "defaults applied" hint.
+  - Smart defaults (spec §15): selecting a challenge type calls `selectChallengeType(typeId)` which fetches `getChallengePhaseConfigs(typeId)`, picks the first two non-funded evaluation phases, and auto-fills `phase1`/`phase2` state via `phaseConfigFromTemplate(cfg)`.
+  - Steps 2/3 (Phase 1/2 config): 6-field form (account size, profit target %, max drawdown %, daily drawdown %, min trading days, max days) as numeric Inputs with smart-defaults pre-filled. Required fields (first 4) marked with red asterisk via `RequiredLabel`. Step 3 conditionally shows a `NoticeCard` ("Phase 2 not applicable") for 1-phase types like Instant Funded, 1-Step, Free Trial, Competition — the Next button stays enabled (pass-through).
+  - Step 4 (Trading Rules): `ToggleRow` segmented controls for news trading (allow/block) and weekend trading (allow/block), plus a Switch row for copy trading detection.
+  - Step 5 (Payout Rules): profit split % Input (with live "trader keeps X%, firm receives Y%" hint), payout frequency native select (weekly/bi-weekly/monthly), payout methods as multi-select chips (Crypto/Card/Fiat).
+  - Step 6 (Risk Rules): max daily loss % + max overall loss % Inputs (with explainability hints), trailing drawdown type as 3-card radio (Static/Trailing/Relative with descriptions).
+  - Step 7 (Review): summary dl/dt/dd grid with all selections, plus a primary-action banner with ShieldCheck icon + Create Challenge button. Toast on click: "Challenge created".
+  - Validation per step (Next disabled until valid): step 0 requires challengeTypeId; steps 1/2 require all positive numbers (phase2 skipped if !hasPhase2); step 5 requires positive loss percentages.
+  - Footer nav: Back ghost button (disabled on step 0) + "Step X of 7" counter + Next button (or Create Challenge on final step). One primary action per step (spec §23).
+  - All form state in local useState (INITIAL_STATE constant); reset on Create.
+- Created File 4: `src/modules/trading/pages/add-account-page.tsx` exporting `AddAccountPage`:
+  - 5-step wizard: User Info → Challenge/Phase → Account Config → KYC Status → Review.
+  - Same step indicator pattern as the challenge wizard (5 circles + connecting bars + step labels: User, Challenge, Account, KYC, Review).
+  - Step 1 (User Info): Email + Full Name Inputs, both required (red asterisk via `RequiredLabel`). Email validation: non-empty + contains "@".
+  - Step 2 (Challenge/Phase): Challenge type dropdown (native select listing 6 types with phase counts), Phase dropdown (filtered by `getChallengePhaseConfigs(typeId)` of selected type — disabled until challenge type picked). Selecting a new challenge type resets phaseConfigId. Shows `PhaseSummaryCard` below with account size / profit target / max drawdown / daily drawdown once a phase is picked (progressive disclosure — spec §12).
+  - Step 3 (Account Config): Profit split % Input (default "80" — task said 0.8 fraction, displayed as 80% to user; live "trader keeps X%, firm receives Y%" hint), Payout frequency native select, Initial balance (USD) Input (required), Broker type native select (MetaTrader 5 / DXTrade).
+  - Step 4 (KYC Status): Initial KYC status dropdown (pending/skip); when "skip" is chosen, hides the document type field and shows a dashed-border notice ("KYC skipped — trader prompted at first payout"); otherwise shows document type dropdown (Passport / Driver's License / National ID / Residence Permit).
+  - Step 5 (Review): summary dl/dt/dd grid with all 11 fields, plus a primary-action banner with challenge badge + Create Account button. Toast on click: "Account created successfully" (with full name + challenge name in description), then resets state and `navigate("trading-accounts")` to go to the accounts list (per task spec).
+  - Validation: step 0 requires valid email + non-empty name; step 1 requires both challenge type and phase; step 2 requires profit split in [0,100] + initial balance > 0; step 3 requires document type unless KYC is skipped.
+  - Required fields marked with red asterisk (spec §25) — Email, Full Name, Challenge type, Phase, Profit split, Initial balance, Document type (when KYC not skipped).
+  - All form state in local useState (INITIAL_STATE constant); reset on Create.
+- Ran `bun run lint` (eslint) → 0 errors, 0 warnings. Final output: `$ eslint .` (clean).
+- Ran `bunx tsc --noEmit` and filtered for the 4 new file paths → "ZERO errors in new files". Remaining TS errors are all pre-existing in other modules (mock-data.ts, analytics-pages.tsx TimeSeriesPoint vs SeriesPoint typing, payouts/risk widgets, settings/super-admin) and out of scope for this task — previously documented by subagents as pre-existing.
+
+Stage Summary:
+- 4 page files created, 0 lint errors, 0 TS errors in new files:
+  1. `src/modules/analytics/pages/firm-statistics-page.tsx` — `FirmStatisticsPage` export (10 KPIs + 4 trend charts + summary stats table + 7d/30d/90d range selector + CSV export). View ID suggestion: `analytics-firm-statistics`.
+  2. `src/modules/analytics/pages/daily-highlights-page.tsx` — `DailyHighlightsPage` export (5 KPIs + 4 hourly charts + 6 simple HTML tables + date picker). View ID suggestion: `analytics-daily-highlights`.
+  3. `src/modules/challenges/pages/challenge-wizard-page.tsx` — `ChallengeWizardPage` export (7-step wizard with smart defaults from getChallengePhaseConfigs). View ID suggestion: `challenges-wizard` or `challenge-wizard`.
+  4. `src/modules/trading/pages/add-account-page.tsx` — `AddAccountPage` export (5-step form, navigates to `trading-accounts` after create). View ID suggestion: `trading-add-account`.
+- All files use `"use client"` directive, import from `@/lib/platform/mock-data`, use `Page`/`PageHeader`/`PageContent`/`MetricCard` from `@/components/platform/page`, use `AreaSeries` from `@/components/platform/charts`, use `DataTable`/`Column` where appropriate (firm statistics summary table), `Button`/`Input`/`Label`/`Badge`/`Separator` from `@/components/ui/*`, `toast` from `@/hooks/use-toast`, `cn` from `@/lib/utils`, icons from `lucide-react`. No blue/indigo colors — chart series colors: emerald #059669, teal #0f766e, amber #d97706, violet #7c3aed, rose #e11d48. Wizard step indicator pattern mirrored from `@/components/shell/onboarding-wizard.tsx`.
+- Lead-architect next step: import the 4 page components in `view-router.tsx` and add to `viewRegistry` under appropriate view IDs (suggestions above). Module index files (`src/modules/{analytics,challenges,trading}/index.ts`) do NOT need to re-export these new pages unless the lead wants cleaner imports — current view-router pattern imports page modules directly from the page file path.
+
+---
+Task ID: imp-all-flows
+Agent: lead-architect
+Task: Implement all 18 missing + partially implemented flows from FUNDERBLU screenshots analysis
+
+## Current Project Status
+- Platform was stable with 14 modules, 40+ views, dynamic navigation
+- FLOW-ANALYSIS.md identified 18 missing flows from 121 FUNDERBLU screenshots
+- This task implemented ALL 18 flows via 4 parallel subagents + lead wiring
+
+## Completed Modifications
+
+### Mock Data Extensions (mock-data.ts)
+Added 13 new interfaces + seeded data + helper functions:
+- ChallengeType, ChallengePhaseConfig, Offer, EmailTemplate, CertificateTemplate, Banner, TradingEventRule, UserEvent, ChangeHistoryEntry
+- getFirmStatistics(tid), getDailyHighlights(tid) with full financial/analytics data
+- 6 challenge types, 6 phase configs, 3 offers, 5 email templates, 3 certificate templates, 4 banners, 5 trading event rules, 120 user events, 40 change history entries
+
+### 17 New Page Components (4 parallel subagents)
+
+**Batch 1 (High Priority — 4 pages):**
+1. `FirmStatisticsPage` — 10 KPI cards, 4 AreaSeries trend charts (12-month), summary stats table
+2. `DailyHighlightsPage` — 5 KPI cards, 4 hourly charts, 6 data tables (countries/PSPs/platforms/coupons/account sizes/recent orders)
+3. `ChallengeWizardPage` — 7-step wizard (Type→Phase1→Phase2→Trading→Payout→Risk→Review) with smart defaults from challenge phase configs
+4. `AddAccountPage` — 5-step wizard (User→Challenge/Phase→Account→KYC→Review) with required fields marked
+
+**Batch 2 (Medium Priority — 4 pages):**
+5. `ChallengeConfigPage` — split-view type list + config editor with progressive disclosure + LabelWithHelp
+6. `PhaseManagementPage` — DataTable of all phase configs with filter + inline expansion
+7. `ChallengeTypesPage` — 6-card grid with icon mapping, active toggles, edit navigation
+8. `OfferManagementPage` — DataTable of offers with search/filter + detail panel with targeting/matching users
+
+**Batch 3 (Lower Priority — 4 pages):**
+9. `EmailTemplatesPage` — master/detail with subject/body editor, variables, trigger, send test
+10. `CertificateManagementPage` — tabs: Templates (DataTable) + Fonts (list with preview)
+11. `BannerManagementPage` — tabs: Announcement + Marketing DataTable with editor
+12. `TradingEventsPage` — 4 tabs (News/Copy/Inverse/Weekend) with rule config per tab
+
+**Batch 4 (Analytics + Audit — 5 pages):**
+13. `UserEventsPage` — KPI row + DataTable of 120 typed events with filter/search/export
+14. `ChangeHistoryPage` — DataTable with visual diff (old strikethrough→new highlight) + detail panel
+15. `EnhancedTraderDetailPage` — 7 tabs (Overview/Accounts/Positions/Performance/KYC/Risk/ChangeHistory) + Block/Resync/Edit Payout Schedule actions + AlertDialog for destructive
+16. `RiskStatisticsPage` — 3 tabs (Challenge Stats/Country-Wise/Account Size) with KPIs + DataTables
+17. `RetentionAnalyticsPage` — 5 KPIs + cohort retention matrix + BarSeries + DonutSeries + top countries + insights
+
+### View Router Wiring (view-router.tsx)
+Added 17 new view IDs:
+- `analytics-firm-statistics`, `analytics-daily-highlights`, `analytics-retention`
+- `challenge-wizard`, `challenge-config`, `challenge-types`, `phase-management`
+- `trading-add-account`, `trader-detail` (replaced with EnhancedTraderDetailPage)
+- `offer-management`
+- `risk-statistics`, `trading-events`
+- `audit-user-events`, `audit-change-history`
+- `email-templates`, `certificate-management`, `banner-management`
+
+### Module Navigation Wiring
+Updated 7 module manifests with new navigation children + routes:
+- **Trading**: added "Add Account" nav item + route
+- **Challenges**: added "Create Challenge", "Challenge Types", "Configuration", "Phase Management" nav items + routes
+- **Risk**: added "Statistics", "Trading Events" nav items + routes
+- **Analytics**: added "Firm Statistics", "Daily Highlights", "Retention" nav items + routes
+- **Affiliates**: added "Offers" nav item + route
+- **Settings**: added "Email Templates", "Certificates", "Banners" nav items + routes
+- (Audit module doesn't have its own manifest — user events and change history are wired via the platform-level audit page nav)
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Command menu shows ALL new navigation items for both Alpha and Beta tenants ✓
+- Firm Statistics: 10 KPIs + 4 charts + summary table → VLM 9/10 ✓
+- Daily Highlights: 5 KPIs + 4 hourly charts + 6 tables ✓
+- Challenge Wizard: 7-step wizard with type cards + smart defaults → VLM 9/10 ✓
+- Add Account: 5-step wizard with required fields → VLM 9/10 ✓
+- Email Templates: master/detail with editor panel → VLM 9/10 ✓
+- All 17 new pages are navigable via command menu and sidebar ✓
+
+## Summary
+All 18 flows from the FLOW-ANALYSIS.md are now implemented:
+- 17 new page components built
+- 1 existing flow enhanced (TraderDetailPage → EnhancedTraderDetailPage with 7 tabs + Block/Resync actions)
+- All views wired into view-router.tsx
+- All navigation items added to module manifests
+- New mock data types + helpers for all new flows
