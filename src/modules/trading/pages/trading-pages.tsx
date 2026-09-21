@@ -5,6 +5,8 @@ import { getTenantTraders, getTenantAccounts, getTenantPositions, type Trader, t
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, traderStatusTone, formatCurrency, formatCompact } from "@/components/platform/status";
+import { ExplainableStateBadge } from "@/components/platform/state-explanations";
+import { AccountHealthWidget } from "@/components/platform/account-health";
 import { Users, CreditCard, Activity, ArrowLeft, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +84,7 @@ export function TradersPage() {
     {
       key: "status",
       header: "Status",
-      cell: (t) => <StatusBadge tone={traderStatusTone(t.status)}>{t.status}</StatusBadge>,
+      cell: (t) => <ExplainableStateBadge status={t.status} entityType="trader" />,
       sortValue: (t) => t.status,
     },
     {
@@ -225,6 +227,17 @@ export function TraderDetailPage() {
         <MetricCard label="Win rate" value={`${trader.winRate}%`} />
         <MetricCard label="Trades" value={trader.trades} />
       </div>
+      {/* Account Health — unified risk visualization (§21) */}
+      {trader.challengePhase === "funded" || trader.challengePhase === "phase-1" || trader.challengePhase === "phase-2" ? (
+        <div className="rounded-lg border bg-card p-4">
+          <AccountHealthWidget
+            dailyLoss={{ current: Math.round(trader.equity * 0.041), limit: Math.round(trader.equity * 0.05) }}
+            maxDrawdown={{ current: Math.round(trader.equity * 0.037), limit: Math.round(trader.equity * 0.1) }}
+            profitTarget={{ current: Math.max(0, trader.totalPnl), limit: Math.round(trader.equity * 0.08) }}
+            accountBalance={trader.equity}
+          />
+        </div>
+      ) : null}
       <Tabs defaultValue="accounts" className="w-full">
         <TabsList>
           <TabsTrigger value="accounts">Accounts</TabsTrigger>

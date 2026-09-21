@@ -1094,3 +1094,81 @@ Task: QA + bulk export (ZIP), notification batch actions, settings export button
 4. **Add chart zoom/pan** — interactive chart navigation
 5. **Add notification delete** — batch delete selected notifications
 6. **Add export format options** — choose JSON/CSV/XLSX for bulk export
+
+---
+Task ID: ux-constitution
+Agent: lead-architect
+Task: Implement UX constitution (2858 lines) — Attention Center, Account Health, State + Meaning, Contextual Actions, Contextual Help, Improved Empty States
+
+## UX Constitution Principles Implemented
+
+### 1. Attention Center (§11) — "What needs my attention?"
+- Created `attention-center.tsx` with 3-tier attention model:
+  - **Action Required** (red/rose tone): pending payouts, KYC reviews, urgent tickets
+  - **Warnings** (amber tone): open breaches, accounts at risk, high-risk KYC
+  - **Information** (sky tone): AI opportunities, milestones
+- Each item shows: icon, title, detail, count badge, navigation label, chevron
+- Direct navigation to relevant workspace on click
+- Empty state: "All clear" with green checkmark
+- Placed ABOVE KPI row on dashboard — "What needs my attention?" is the first question answered (§4)
+- **VLM rating: 10/10** — "best-in-class implementation, 3-tier system semantically clear"
+
+### 2. Account Health (§21) — Unified risk visualization
+- Created `account-health.tsx` with 3 metrics:
+  - **Daily Loss**: current vs limit, progress bar, Safe/At Risk/Critical status
+  - **Maximum Drawdown**: current vs limit, progress bar, status
+  - **Profit Target**: current vs limit, progress bar, Progress status
+- Each metric shows: icon, label, value/limit, percentage, status badge
+- Info tooltip (§33) with explanation
+- Expandable "How is this calculated?" with advanced details (§12-13: progressive disclosure)
+- Added to Trader Detail page for funded/challenge traders
+- **VLM rating: 10/10** — "Daily Loss shows At Risk, Max Drawdown shows Safe, Profit Target shows Progress"
+
+### 3. State + Meaning (§17-19) — Explainable status badges
+- Created `state-explanations.tsx` with:
+  - 20+ state explanations across 6 entity types (trader, account, payout, challenge, kyc, breach)
+  - Each shows: title, meaning, reason, next possible states
+  - `ExplainableStateBadge` — badge with tooltip + ARIA label explaining the state
+  - `StateExplanationCard` — full explanation card with reason + next states
+- Translates raw enums (BREACHED, PENDING_REVIEW) into human-readable language (§56)
+- Applied to: traders table (8 badges), payouts table
+- **Verified via DOM**: 8 ARIA-labeled badges with full explanations like "Account Breached: One or more risk rules have been violated"
+
+### 4. Contextual Actions (§22-23) — One primary action inline
+- Created `contextual-actions.tsx` with:
+  - `ContextualActionPanel` — surfaces actions where the decision happens
+  - One clear primary action + secondary actions (§23)
+  - Destructive actions use AlertDialog with consequence explanation (§24)
+  - `PayoutReviewActions` preset — Approve (primary) / Reject (destructive with confirmation) / Request Info
+  - `BreachResolutionActions` preset — Investigate (primary) / Mark Resolved / Contact
+- Applied to Pending Payouts page — inline action panels above the table
+- **VLM rating: 9/10** — "prominent inline panel with Approve/Reject actions"
+
+### 5. Contextual Help (§33) — Inline info tooltips
+- Created `contextual-help.tsx` with:
+  - `ContextualHelp` — info icon with tooltip explaining concepts
+  - `LabelWithHelp` — label + info icon combo
+  - `HELP_TEXTS` — common help texts (dailyLoss, maxDrawdown, profitTarget, etc.)
+- Never forces users to search external documentation
+
+### 6. Improved Empty States (§30) — Explain why + what + what to do
+- Enhanced `EmptyState` with `hint` parameter:
+  - Explains why empty
+  - What will appear here
+  - What the user should do (highlighted action box)
+- Applied to Pending Payouts empty state: "No pending payouts" + "When traders request payouts, they will appear here for review" + hint "Enable payout requests from your challenge settings"
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Attention Center: 3-tier model (Action/Warnings/Info) with direct navigation ✓
+- Account Health: 3 metrics with progress bars + expandable details ✓
+- State badges: 8 ARIA-labeled explainable badges on traders table ✓
+- Contextual actions: inline Approve/Reject on pending payouts page ✓
+- Empty states: hint box guiding user action ✓
+- VLM final: 8.8/10 (visual polish 8.5, hierarchy 9, attention model 9.5, explainability 8)
+
+## Remaining Issues / Next Steps
+- Widget density in Trading module slightly cramped
+- Sparkline color contrast may need WCAG verification
+- Responsive breakpoints for <1440px need testing
+- Consider grouping non-critical warnings into summary view

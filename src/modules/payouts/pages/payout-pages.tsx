@@ -5,6 +5,9 @@ import { getTenantPayouts, type Payout } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, payoutStatusTone, formatCurrency } from "@/components/platform/status";
+import { ExplainableStateBadge } from "@/components/platform/state-explanations";
+import { PayoutReviewActions } from "@/components/platform/contextual-actions";
+import { EmptyState } from "@/components/platform/guards";
 import { Wallet, Banknote, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -24,7 +27,7 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
     {
       key: "status",
       header: "Status",
-      cell: (p) => <StatusBadge tone={payoutStatusTone(p.status)}>{p.status}</StatusBadge>,
+      cell: (p) => <ExplainableStateBadge status={p.status} entityType="payout" />,
       sortValue: (p) => p.status,
     },
     { key: "created", header: "Requested", cell: (p) => <span className="text-xs text-muted-foreground">{new Date(p.createdAt).toLocaleDateString()}</span>, sortValue: (p) => p.createdAt },
@@ -81,10 +84,35 @@ export function PayoutsOverviewPage() {
 }
 
 export function PendingPayoutsPage() {
+  const { runtime } = usePlatform();
+  const tid = runtime.tenant?.id ?? "platform";
+  const pendingPayouts = getTenantPayouts(tid).filter((p) => p.status === "pending");
+
   return (
     <Page>
       <PageHeader title="Pending Payouts" description="Awaiting approval." icon={Clock} />
       <PageContent>
+        {/* Contextual Action Panel — inline approve/reject with one primary action (§22-23) */}
+        {pendingPayouts.length > 0 ? (
+          <div className="space-y-2">
+            {pendingPayouts.map((p) => (
+              <PayoutReviewActions
+                key={p.id}
+                payoutId={p.reference}
+                traderName={p.traderName}
+                amount={p.amount}
+                currency={p.currency}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="No pending payouts"
+            description="When traders request payouts, they will appear here for review."
+            icon={Clock}
+            hint="Enable payout requests from your challenge settings"
+          />
+        )}
         <PayoutsTable filter={(p) => p.status === "pending"} />
       </PageContent>
     </Page>
