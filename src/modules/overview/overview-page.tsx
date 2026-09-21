@@ -3,6 +3,7 @@
 import { usePlatform } from "@/lib/platform/platform-context";
 import { DashboardGrid, CustomizeDashboardDialog } from "@/components/platform/dashboard-grid";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+import { AttentionCenter } from "@/components/platform/attention-center";
 import { LiveActivityFeedWidget } from "@/components/platform/live-activity-feed";
 import { LiveEquityCurveWidget } from "@/components/platform/live-equity-curve";
 import { LivePriceFeedWidget } from "@/components/platform/live-price-feed";
@@ -97,6 +98,10 @@ export function OverviewPage() {
         }
       />
       <PageContent>
+        {/* Attention Center — the dashboard is an Operating Center (§4, §11) */}
+        {/* "What needs my attention?" is the first question the dashboard answers */}
+        <AttentionCenter />
+
         {/* Summary KPI row — one metric per enabled module */}
         {summary.length > 0 ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">

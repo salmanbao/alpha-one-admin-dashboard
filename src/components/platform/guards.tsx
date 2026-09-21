@@ -121,16 +121,23 @@ export function LoadingState({ label = "Loading…" }: { label?: string }) {
   );
 }
 
+/**
+ * EmptyState (§30) — explains why empty, what will appear, what to do.
+ * Never shows just "No data." without context.
+ */
 export function EmptyState({
   title,
   description,
   icon: Icon = PackageX,
   action,
+  hint,
 }: {
   title: string;
   description?: string;
   icon?: React.ComponentType<{ className?: string }>;
   action?: ReactNode;
+  /** What the user should do — guides next action */
+  hint?: string;
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
@@ -141,6 +148,11 @@ export function EmptyState({
         <p className="font-medium text-foreground">{title}</p>
         {description ? (
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        ) : null}
+        {hint ? (
+          <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
+            <p className="text-xs font-medium text-primary">{hint}</p>
+          </div>
         ) : null}
       </div>
       {action}
