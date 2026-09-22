@@ -6,7 +6,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-nunito-sans);
+  --font-serif: var(--font-literata);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -33,6 +34,8 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -43,74 +46,130 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ═══════════════════════════════════════════════════════════════ */
+/* TERRA — ORGANIC DESIGN SYSTEM                                     */
+/* "Rooted Warmth" — Calm, grounded, and human                       */
+/* ═══════════════════════════════════════════════════════════════ */
+
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Core palette — earthy and desaturated */
+  --terra-green: #4a7c59;       /* Primary — Forest green */
+  --terra-green-dark: #3a6147;  /* Hover/active green */
+  --terra-green-light: #6b9b78; /* Light green */
+  --terra-cream: #faf6f0;       /* Background — Warm cream */
+  --terra-cream-warm: #f5efe6;  /* Slightly warmer cream for layering */
+  --terra-amber: #705c30;      /* Tertiary — Warm amber */
+  --terra-amber-light: #9c8350; /* Light amber */
+  --terra-ink: #2e3230;         /* Foreground — Warm dark (green undertone) */
+  --terra-ink-soft: #5a5f5c;    /* Secondary text — Warm gray (green undertone) */
+  --terra-ink-muted: #8a8f8c;   /* Muted text — Warm gray (green undertone) */
+  --terra-border: #e8e0d4;      /* Warm border — Low opacity warm line */
+  --terra-border-soft: #f0ebe2; /* Even softer warm border */
+  --terra-surface: #f5efe6;     /* Layered surface — warm cream tone */
+  --terra-surface-elevated: #fefcf8; /* Elevated surface — brighter cream */
+  --terra-shadow: rgba(46, 50, 48, 0.06); /* Very soft shadow */
+
+  /* Radius — large, soft, approachable */
+  --radius: 0.75rem; /* 12px — Terra standard */
+
+  /* Semantic mapping to Terra palette */
+  --background: var(--terra-cream);
+  --foreground: var(--terra-ink);
+  --card: var(--terra-surface-elevated);
+  --card-foreground: var(--terra-ink);
+  --popover: var(--terra-surface-elevated);
+  --popover-foreground: var(--terra-ink);
+  --primary: var(--terra-green);
+  --primary-foreground: #ffffff;
+  --secondary: var(--terra-cream-warm);
+  --secondary-foreground: var(--terra-ink);
+  --muted: var(--terra-cream-warm);
+  --muted-foreground: var(--terra-ink-muted);
+  --accent: var(--terra-amber);
+  --accent-foreground: #ffffff;
+  --tertiary: var(--terra-amber);
+  --tertiary-foreground: #ffffff;
+  --destructive: #b54848; /* Warm, desaturated red — not neon */
+  --border: var(--terra-border);
+  --input: var(--terra-border);
+  --ring: var(--terra-green);
+  --shadow-soft: 0 4px 20px var(--terra-shadow);
+
+  /* Chart palette — earthy, desaturated, no neon */
+  --chart-1: #4a7c59; /* Forest green */
+  --chart-2: #705c30; /* Warm amber */
+  --chart-3: #8a7560; /* Warm taupe */
+  --chart-4: #a39060; /* Golden brown */
+  --chart-5: #6b8f7a; /* Sage green */
+
+  /* Sidebar — warm cream, never sterile */
+  --sidebar: var(--terra-cream-warm);
+  --sidebar-foreground: var(--terra-ink);
+  --sidebar-primary: var(--terra-green);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--terra-cream);
+  --sidebar-accent-foreground: var(--terra-green);
+  --sidebar-border: var(--terra-border-soft);
+  --sidebar-ring: var(--terra-green);
 }
 
+/* ═══════════════════════════════════════════════════════════════ */
+/* DARK MODE — Warm dark, not pure black                             */
+/* ═══════════════════════════════════════════════════════════════ */
+
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --terra-cream: #1a1d1b;        /* Dark background with green undertone */
+  --terra-cream-warm: #232624;   /* Dark warm surface */
+  --terra-surface: #2a2d2b;      /* Dark layered surface */
+  --terra-surface-elevated: #2d3130; /* Dark elevated surface */
+  --terra-ink: #e8e3da;          /* Warm light text */
+  --terra-ink-soft: #b0aba2;     /* Warm secondary text */
+  --terra-ink-muted: #807c73;   /* Warm muted text */
+  --terra-border: #3a3d3b;       /* Dark warm border */
+  --terra-border-soft: #2e3130;  /* Dark softer border */
+  --terra-shadow: rgba(0, 0, 0, 0.2);
+
+  --background: var(--terra-cream);
+  --foreground: var(--terra-ink);
+  --card: var(--terra-surface-elevated);
+  --card-foreground: var(--terra-ink);
+  --popover: var(--terra-surface-elevated);
+  --popover-foreground: var(--terra-ink);
+  --primary: var(--terra-green-light);
+  --primary-foreground: #1a1d1b;
+  --secondary: var(--terra-cream-warm);
+  --secondary-foreground: var(--terra-ink);
+  --muted: var(--terra-cream-warm);
+  --muted-foreground: var(--terra-ink-muted);
+  --accent: var(--terra-amber-light);
+  --accent-foreground: #1a1d1b;
+  --tertiary: var(--terra-amber-light);
+  --tertiary-foreground: #1a1d1b;
+  --destructive: #c46868;
+  --border: var(--terra-border);
+  --input: var(--terra-border);
+  --ring: var(--terra-green-light);
+  --shadow-soft: 0 4px 20px var(--terra-shadow);
+
+  --chart-1: #6b9b78;
+  --chart-2: #9c8350;
+  --chart-3: #8a7560;
+  --chart-4: #b3a070;
+  --chart-5: #8baf9a;
+
+  --sidebar: var(--terra-cream-warm);
+  --sidebar-foreground: var(--terra-ink);
+  --sidebar-primary: var(--terra-green-light);
+  --sidebar-primary-foreground: #1a1d1b;
+  --sidebar-accent: var(--terra-surface);
+  --sidebar-accent-foreground: var(--terra-green-light);
+  --sidebar-border: var(--terra-border-soft);
+  --sidebar-ring: var(--terra-green-light);
 }
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* BASE STYLES                                                       */
+/* ═══════════════════════════════════════════════════════════════ */
 
 @layer base {
   * {
@@ -118,14 +177,49 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-nunito-sans), system-ui, sans-serif;
+    line-height: 1.65; /* Generous, comfortable reading */
+  }
+  /* Headlines use Literata serif */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-literata), Georgia, serif;
+    letter-spacing: -0.01em;
   }
 }
 
-/* Custom scrollbar — thin, themed, with hover */
+/* ═══════════════════════════════════════════════════════════════ */
+/* TERRA UTILITY CLASSES                                             */
+/* ═══════════════════════════════════════════════════════════════ */
+
+/* Soft shadow — Terra elevation standard */
+@layer utilities {
+  .shadow-terra {
+    box-shadow: var(--shadow-soft);
+  }
+  .shadow-terra-lg {
+    box-shadow: 0 8px 30px rgba(46, 50, 48, 0.08);
+  }
+  /* Tonal separation — layer warm cream tones instead of shadows */
+  .bg-terra-surface {
+    background-color: var(--terra-surface);
+  }
+  .bg-terra-elevated {
+    background-color: var(--terra-surface-elevated);
+  }
+  /* Warm border — low opacity, never harsh */
+  .border-terra {
+    border-color: var(--terra-border);
+  }
+  .border-terra-soft {
+    border-color: var(--terra-border-soft);
+  }
+}
+
+/* Custom scrollbar — warm, thin, themed */
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: var(--muted-foreground) transparent;
+    scrollbar-color: var(--terra-ink-muted) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
@@ -135,31 +229,32 @@
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: var(--muted-foreground);
+    background-color: var(--terra-ink-muted);
     border-radius: 3px;
-    opacity: 0.5;
+    opacity: 0.4;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: var(--primary);
+    background-color: var(--terra-green);
   }
 }
 
-/* Smooth focus ring for keyboard nav */
+/* Smooth focus ring — soft green, generous */
 *:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
-/* Card hover lift — used by dashboard widgets */
+/* Card hover lift — very soft, warm shadow */
 .card-hover-lift {
-  transition: transform 200ms ease, box-shadow 200ms ease;
+  transition: transform 250ms ease, box-shadow 250ms ease;
 }
 .card-hover-lift:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(46, 50, 48, 0.08);
 }
 
-/* Fade-in animation utility */
+/* Fade-in animation */
 .animate-in {
   animation-duration: 300ms;
   animation-fill-mode: both;
@@ -177,4 +272,22 @@
 @keyframes slideInFromLeft {
   from { opacity: 0; transform: translateX(-8px); }
   to { opacity: 1; transform: translateX(0); }
+}
+
+/* Terra input styling — cream background, soft green focus */
+input, textarea, select {
+  background-color: var(--terra-cream);
+  border-radius: var(--radius-sm);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--terra-green);
+  box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.12);
+  outline: none;
+}
+
+/* Terra button — large touch target, soft corners */
+button {
+  border-radius: var(--radius-sm);
+  transition: all 200ms ease;
 }

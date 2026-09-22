@@ -155,12 +155,12 @@ function BrandingTab() {
   const { tenant, setTenant } = usePlatform();
   const [branding, setBranding] = useState<TenantBranding>(tenant.branding);
   const presets = [
-    { name: "Teal", primary: "#0f766e", accent: "#14b8a6", surface: "#f0fdfa" },
-    { name: "Amber", primary: "#7c2d12", accent: "#ea580c", surface: "#fff7ed" },
-    { name: "Violet", primary: "#6d28d9", accent: "#8b5cf6", surface: "#f5f3ff" },
-    { name: "Rose", primary: "#be123c", accent: "#f43f5e", surface: "#fff1f2" },
-    { name: "Emerald", primary: "#047857", accent: "#10b981", surface: "#ecfdf5" },
-    { name: "Slate", primary: "#334155", accent: "#64748b", surface: "#f8fafc" },
+    { name: "Forest", primary: "#4a7c59", accent: "#705c30", surface: "#f5efe6" },
+    { name: "Sage", primary: "#5a7c4a", accent: "#8a6d30", surface: "#f5efe6" },
+    { name: "Deep Green", primary: "#4a6c59", accent: "#705c30", surface: "#f5efe6" },
+    { name: "Golden Brown", primary: "#705c30", accent: "#4a7c59", surface: "#f5efe6" },
+    { name: "Warm Taupe", primary: "#8a7560", accent: "#4a7c59", surface: "#f5efe6" },
+    { name: "Slate Green", primary: "#5a7060", accent: "#705c30", surface: "#f5efe6" },
   ];
 
   const save = () => {

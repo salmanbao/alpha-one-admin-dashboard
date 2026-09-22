@@ -1554,3 +1554,54 @@ All 18 flows from the FLOW-ANALYSIS.md are now implemented:
 - All views wired into view-router.tsx
 - All navigation items added to module manifests
 - New mock data types + helpers for all new flows
+
+---
+Task ID: terra-design
+Agent: lead-architect
+Task: Apply Terra — Organic Design system to the complete project
+
+## Design System: Terra — Organic Design
+**North Star:** "Rooted Warmth" — Calm, grounded, and human. Earthy tones, soft shapes, natural textures.
+
+## Completed Modifications
+
+### 1. globals.css — Complete Terra palette rewrite
+- **Colors:** Primary `#4a7c59` (forest green), Background `#faf6f0` (warm cream), Tertiary `#705c30` (warm amber)
+- **Warm neutrals:** All grays have yellow/green undertone (`--terra-ink: #2e3230`, `--terra-ink-soft: #5a5f5c`, `--terra-ink-muted: #8a8f8c`)
+- **Radius:** 0.75rem (12px) — large, soft, approachable
+- **Elevation:** Very soft shadow `0 4px 20px rgba(46, 50, 48, 0.06)` — tonal separation over shadows
+- **Borders:** `--terra-border: #e8e0d4` (warm, low opacity), `--terra-border-soft: #f0ebe2`
+- **Chart palette:** 5 earthy colors (forest green, warm amber, warm taupe, golden brown, sage green) — no neon
+- **Dark mode:** Warm dark `#1a1d1b` (green undertone, not pure black), warm light text `#e8e3da`
+- **Input styling:** Cream background, soft green focus ring with `box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.12)`
+- **Button styling:** `border-radius: var(--radius-sm)`, smooth transitions
+- **Body:** `line-height: 1.65` (generous, comfortable reading)
+- **Headlines:** `font-family: Literata` with `letter-spacing: -0.01em`
+- **New utility classes:** `.shadow-terra`, `.shadow-terra-lg`, `.bg-terra-surface`, `.bg-terra-elevated`, `.border-terra`, `.border-terra-soft`
+
+### 2. layout.tsx — Font loading
+- Replaced Geist Sans with **Literata** (serif headlines) + **Nunito Sans** (body/labels)
+- CSS variables: `--font-literata`, `--font-nunito-sans`
+- Kept Geist Mono for monospace (code/logs)
+
+### 3. Tenant branding — Terra palette
+- **Alpha Capital:** Forest green `#4a7c59` + warm amber `#705c30` + warm cream `#f5efe6`
+- **Beta Trading:** Sage green `#5a7c4a` + golden brown `#8a6d30` + warm cream
+- **Gamma Futures:** Deep green `#4a6c59` + warm amber `#705c30` + warm cream
+- **Platform:** Forest green `#4a7c59` + warm amber `#705c30` + warm cream `#faf6f0`
+
+### 4. Color presets — Terra earthy/desaturated
+- Settings → Branding tab presets: Forest, Sage, Deep Green, Golden Brown, Warm Taupe, Slate Green
+- Onboarding wizard presets: same 6 Terra presets
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- **Background:** rgb(250, 246, 240) = #faf6f0 (warm cream) ✓ (verified via DOM)
+- **Body font:** Nunito Sans ✓
+- **Line height:** 26.4px (1.65 ratio) ✓
+- **Headlines:** Literata serif on h1/h2/h3 ✓ (verified via DOM: "Literata, Literata Fallback...")
+- **Primary:** Forest green #4a7c59 ✓
+- **Dark mode:** Warm dark #1a1d1b (not pure black) ✓
+- **VLM rating: 9/10** — "textbook execution of Terra Organic Design system"
+- "balances complexity of financial data with calming, natural aesthetic"
+- "serif fonts + cream background + forest green = sophisticated, non-digital atmosphere"

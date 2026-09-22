@@ -60,12 +60,12 @@ const STEPS = [
 ];
 
 const COLOR_PRESETS = [
-  { name: "Teal", value: "#0f766e", accent: "#14b8a6" },
-  { name: "Amber", value: "#7c2d12", accent: "#ea580c" },
-  { name: "Violet", value: "#6d28d9", accent: "#8b5cf6" },
-  { name: "Rose", value: "#be123c", accent: "#f43f5e" },
-  { name: "Emerald", value: "#047857", accent: "#10b981" },
-  { name: "Slate", value: "#334155", accent: "#64748b" },
+  { name: "Forest", value: "#4a7c59", accent: "#705c30" },
+  { name: "Sage", value: "#5a7c4a", accent: "#8a6d30" },
+  { name: "Deep Green", value: "#4a6c59", accent: "#705c30" },
+  { name: "Golden Brown", value: "#705c30", accent: "#4a7c59" },
+  { name: "Warm Taupe", value: "#8a7560", accent: "#4a7c59" },
+  { name: "Slate Green", value: "#5a7060", accent: "#705c30" },
 ];
 
 export function OnboardingWizard() {

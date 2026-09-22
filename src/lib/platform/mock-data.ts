@@ -46,9 +46,9 @@ export const tenants: TenantContext[] = [
       name: "Alpha Capital",
       tagline: "Trade. Prove. Earn.",
       initials: "AC",
-      primaryColor: "#0f766e", // teal-700
-      accentColor: "#14b8a6",
-      surfaceColor: "#f0fdfa",
+      primaryColor: "#4a7c59", // Terra forest green
+      accentColor: "#705c30", // Terra warm amber
+      surfaceColor: "#f5efe6", // Terra warm cream
       radius: "0.75rem",
     },
     locale: "en-US",
@@ -74,9 +74,9 @@ export const tenants: TenantContext[] = [
       name: "Beta Trading",
       tagline: "Funded traders, faster.",
       initials: "BT",
-      primaryColor: "#7c2d12", // amber-900 (warm, non-blue)
-      accentColor: "#ea580c",
-      surfaceColor: "#fff7ed",
+      primaryColor: "#5a7c4a", // Terra sage green
+      accentColor: "#8a6d30", // Terra golden brown
+      surfaceColor: "#f5efe6",
       radius: "0.5rem",
     },
     locale: "en-GB",
@@ -118,9 +118,9 @@ export const tenants: TenantContext[] = [
       name: "Gamma Futures",
       tagline: "Quantitative prop trading.",
       initials: "GF",
-      primaryColor: "#6d28d9", // violet-600 (non-blue accent)
-      accentColor: "#8b5cf6",
-      surfaceColor: "#f5f3ff",
+      primaryColor: "#4a6c59", // Terra deep green
+      accentColor: "#705c30", // Terra warm amber
+      surfaceColor: "#f5efe6",
       radius: "0.625rem",
     },
     locale: "en-US",
@@ -164,9 +164,9 @@ export const platformTenant: TenantContext = {
     name: "PFaaS Platform",
     tagline: "White-label prop firm infrastructure.",
     initials: "PF",
-    primaryColor: "#0a0a0a",
-    accentColor: "#404040",
-    surfaceColor: "#fafafa",
+    primaryColor: "#4a7c59", // Terra forest green
+    accentColor: "#705c30", // Terra warm amber
+    surfaceColor: "#faf6f0", // Terra warm cream
     radius: "0.625rem",
   },
   locale: "en-US",
