@@ -3336,3 +3336,146 @@ Export: `PhaseDetailPage` → viewId: `phase-detail`
 - Command menu shows 70 options for Beta tenant (up from 69) ✓
 - New item verified: Challenges › Edit Challenge ✓
 - Phase detail accessible from challenge-edit Phases tab + General tab phases summary ✓
+
+---
+Task ID: img-batchH
+Agent: general-purpose
+Task: Build email template editor + cert designer + marketing integrations + banner enhancements (5 new settings pages)
+
+Work Log:
+- Read worklog.md, AGENTS.md, and existing settings pages (email-templates, certificate-management, banner-management, notification-edit, offer-edit) to confirm patterns: usePlatform()+router.params.id+navigate(), Page/PageHeader/PageContent/MetricCard, DataTable/Column, StatusBadge/EmptyState, LabelWithHelp, SectionCard helper, Collapsible for progressive disclosure, AlertDialog for destructive, toast from @/hooks/use-toast, cn from @/lib/utils.
+- Inspected mock-data.ts to confirm EmailTemplate, CertificateTemplate, and Banner interfaces (id/name/subject/body/trigger/variables/lastModified · id/name/description/triggerEvent/layout/active/lastModified · id/type/title/content/status/startDate/endDate/position) and the getEmailTemplates/getCertificateTemplates/getBanners helpers.
+- Built 5 new "use client" pages under src/modules/settings/pages/:
+
+  1. email-template-edit-page.tsx — Export EmailTemplateEditPage
+     - 2 tabs (Content / Recipients) using shadcn Tabs
+     - Content tab: Template Name dropdown (13 standard triggers), Subject input, Enabled Switch, custom WYSIWYG Rich Text Editor (contentEditable div + document.execCommand per task spec, no external library). Toolbar: Bold / Italic / Underline / Bullet list / Numbered list / Insert Link (window.prompt) / Insert Variable dropdown (inserts {{user_name}}...{{dashboard_url}} at caret via execCommand insertText→insertHTML fallback) / Source toggle button that swaps the contentEditable for a Textarea showing raw HTML. Editor area: min-h-[300px], cream bg #faf6f0, emerald focus ring.
+     - Recipients tab: CC/BCC Textareas ("Comma-separated email addresses"), Reply-To Input ("Email address for replies"), Routing Summary sidebar
+     - Action buttons: Send Test (toast "Test email sent to admin@example.com"), Save / Save and add another / Save and continue editing (resets form) / Delete (AlertDialog, navigates to email-templates)
+     - Live preview column: dangerouslySetInnerHTML renders body with status badges
+     - Key trick: contentEditable uses key={showSource?'src':'rt'} + dangerouslySetInnerHTML={{__html: value}} so toggling source↔rich text re-mounts cleanly without setState-in-effect (avoids react-hooks/set-state-in-effect lint error)
+
+  2. certificate-template-designer-page.tsx — Export CertificateTemplateDesignerPage
+     - Template Image file upload (accept image/*) with preview thumbnail
+     - Template Name input + Output Format dropdown (PNG/PDF/SVG) + Active Switch + Open Visual Designer button (toast "Visual designer would open in a new tab — full drag-and-drop layout editor")
+     - Certificate Fields table — editable rows with all 11 columns: Field Name, Value Template (font-mono), Text Case dropdown (uppercase/lowercase/title/none), Shorten Over number, Date Format dropdown (none/DD-MM-YYYY/MM-DD-YYYY/YYYY-MM-DD/Month DD, YYYY), Font dropdown (Montserrat-Bold/Arial/Times New Roman/Roboto/Georgia with proper font stacks), Font Size number, Font Color <input type="color"> + hex display, X position number, Y position number, Delete icon button
+     - Add Field button (appends new row), Save Template (primary, toast), Reset to Default (outline, restores default 4-field layout)
+     - Live Preview pane: aspect-[1.414/1] certificate with uploaded image as background OR cream gradient placeholder, fields overlaid at percentage-based X/Y positions with sample values (Sarah Chen, 2-Step Evaluation, today's date, $50,000), styled with chosen font/size/color + text-shadow for legibility over image. applyCase/truncate/formatSampleDate helpers transform template tokens for preview.
+     - 850×600 internal canvas math → percentage leftPct/topPct for responsive positioning
+
+  3. certificate-font-upload-page.tsx — Export CertificateFontUploadPage
+     - KPI row (MetricCard): Total Fonts, Active Fonts
+     - DataTable: Name (with Aa preview tile in font), Font File (truncated path or "(uploaded file)"), Font Path (font-mono, truncated), Last Modified (toLocaleString), Active (clickable badge toggle), Actions (Download icon → toast, Delete icon → AlertDialog)
+     - Upload New Font form: Name input (font-mono), Font File input (accept .ttf,.otf,.woff,.woff2), Font Path input (auto-fills from file name, override for system fonts), Preview (FontPreview component that injects @font-face with the file's data URL via FileReader.readAsDataURL + dynamically created <style> element scoped to the font name; falls back to monospace for seed fonts without dataUrl)
+     - Save Font button (toast, prepends new entry to fonts state), Reset button
+     - Empty state: "No fonts uploaded. Upload .ttf or .otf files to use in certificate templates."
+     - Pre-seeded with 3 deterministic system fonts (Montserrat-Bold, Roboto-Regular, PlayfairDisplay-Bold)
+
+  4. marketing-integrations-page.tsx — Export MarketingIntegrationsPage
+     - KPI row (4 MetricCards): Total Integrations, Connected (positive tone), Active (default tone), Event Logging (warning tone) — each with deltaLabel
+     - DataTable: Platform (icon + StatusBadge), Status (Connected/Disconnected), Active (Switch in cell), Event Logging (Switch in cell), Last Sync (toLocaleString), Actions (Configure button → opens inline edit panel, Disconnect icon → AlertDialog)
+     - Inline IntegrationEditPanel (revealed when row selected, key={id} for clean re-mount): Platform dropdown (Klaviyo/GA4/Meta Pixel/Discord Webhook/Slack Webhook/Mailchimp/HubSpot), Is Active Switch, Enable Event Logging Switch (LabelWithHelp), Collapsible "API Secret Key Format per Platform" help showing JSON examples for all 7 platforms, masked API Secret Key Input (type=password by default, Eye/EyeOff Show/Hide toggle button), Test Connection button (toast "Connection test successful"), Save Integration button (toast), Disconnect button (AlertDialog inline within panel)
+     - Empty state: "No marketing integrations configured. Add one to start tracking events."
+     - Add Integration button: creates draft row + selects it for editing
+     - Pre-seeded with 5 deterministic integrations (Klaviyo connected, GA4 connected, Meta disconnected, Discord connected inactive, Slack disconnected)
+
+  5. marketing-banner-edit-page.tsx — Export MarketingBannerEditPage
+     - Image File Upload (accept image/*) with preview thumbnail
+     - Title input + Content Textarea
+     - Display Settings section: Is Active Switch, Sort Order number input ("Controls the stacking order (higher = on top)"), Position dropdown (Top Bar/Sidebar/Modal/Floating — added Floating per task spec, not in existing banner-management-page.tsx which only has top/sidebar/modal)
+     - Destination section: Link Type dropdown (External URL/Internal Page/None) → External URL Input (shown when external) / Internal Page dropdown (Dashboard/Challenges/Payouts/Account/Pricing/Leaderboard/KYC/Support, shown when internal) / passive-announcement message when none
+     - Scheduling Collapsible (starts collapsed per spec): Start Date, End Date (disabled when "Runs indefinitely" checked), "Runs indefinitely" Checkbox
+     - Targeting Collapsible: Target Audience dropdown (All Users/Logged In/Funded Traders/New Users), Countries checkbox grid (10 countries, with selected badges + "visible worldwide" hint when empty)
+     - Action buttons: Save / Save and add another (resets form) / Save and continue editing / Delete (AlertDialog, navigates to banner-management)
+     - Live Preview column: top-bar-styled preview with forest green background (#4a7c59) or gradient overlay if image uploaded, Megaphone icon + title + content + CTA chip ("Learn more" or selected internal page), status/position/audience badges, selected countries chips, schedule summary
+
+- All 5 files follow established patterns: "use client", usePlatform() hook with router.params.id + navigate, Terra palette only (forest green #4a7c59, cream #faf6f0, emerald/amber/rose accents, NO blue/indigo), SectionCard helper, Collapsible for progressive disclosure (§12), one primary Save action (§13), AlertDialog for destructive (§25), toast feedback, LabelWithHelp for inline explainability (§33).
+- Did NOT modify view-router.tsx, module-bootstrap.ts, settings-module.ts, settings-page.tsx, or any module manifest. The 5 page components are exported but not yet wired into the view registry — lead architect can map the suggested viewIds below.
+- Ran `bun run lint` — 0 errors, 0 warnings. Ran `bunx tsc --noEmit` — 0 errors in any of the 5 new files (remaining TS errors are all pre-existing in account-kyc-statuses-page.tsx, which is out of scope).
+- Fixed lint issue during iteration: initial RichTextEditor used setState-in-effect (setInitialized within useEffect) which violated react-hooks/set-state-in-effect rule. Rewrote using key={showSource} + dangerouslySetInnerHTML on the contentEditable so toggling source↔rich-text re-mounts cleanly without imperative DOM sync in effects.
+
+Stage Summary:
+- 5 new files created in src/modules/settings/pages/:
+  • email-template-edit-page.tsx (EmailTemplateEditPage, ~750 lines, includes WYSIWYG editor)
+  • certificate-template-designer-page.tsx (CertificateTemplateDesignerPage, ~620 lines, includes field table + live preview)
+  • certificate-font-upload-page.tsx (CertificateFontUploadPage, ~440 lines, includes @font-face preview)
+  • marketing-integrations-page.tsx (MarketingIntegrationsPage, ~610 lines, includes inline edit panel)
+  • marketing-banner-edit-page.tsx (MarketingBannerEditPage, ~600 lines, includes scheduling + targeting accordions)
+- Suggested viewIds for view-router.tsx wiring:
+  • "email-template-edit" → EmailTemplateEditPage
+  • "certificate-template-designer" → CertificateTemplateDesignerPage
+  • "certificate-font-upload" → CertificateFontUploadPage
+  • "marketing-integrations" → MarketingIntegrationsPage
+  • "marketing-banner-edit" → MarketingBannerEditPage
+- All pages pre-fill from router.params.id when editing an existing entity; otherwise render empty "New X" forms. All form state is local useState — no mutations to mock data.
+- Lint: clean. TS: clean for new files. No blue/indigo accents anywhere — only forest green #4a7c59, cream #faf6f0, emerald/amber/rose, plus muted/sky (info) badge tone used sparingly for status pills (matches existing email-templates-page.tsx pattern).
+
+---
+Task ID: img-batch-7
+Agent: lead-architect
+Task: Analyze images 060-070 and implement 5 missing features
+
+## Analysis Summary
+Analyzed images 060-070 from FUNDERBLU screenshots. Found 5 missing features across email template editing, certificate design, font management, marketing integrations, and banner editing.
+
+## 5 New Pages Built & Wired
+
+### 1. Email Template Edit Page (2 tabs)
+File: `src/modules/settings/pages/email-template-edit-page.tsx`
+Export: `EmailTemplateEditPage` → viewId: `email-template-edit`
+- **Tab 1 — Content**: Template Name dropdown, Subject input, Enabled Switch, **WYSIWYG rich text editor** (contentEditable + document.execCommand) with Bold/Italic/Underline/Lists/Link/Source toggle/Variables dropdown, min-height 300px
+- **Tab 2 — Recipients**: CC textarea, BCC textarea, Reply-To input (with comma-separated helper text)
+- Action buttons: Save, Save and add another, Save and continue editing, Delete (AlertDialog), Send Test
+
+### 2. Certificate Template Designer Page
+File: `src/modules/settings/pages/certificate-template-designer-page.tsx`
+Export: `CertificateTemplateDesignerPage` → viewId: `certificate-template-designer`
+- **Template Image upload** with preview thumbnail
+- **Live Preview Pane** — mock certificate rendering with uploaded image as background + field overlays
+- **Output Format** dropdown (PNG, PDF, SVG)
+- **"Open Visual Designer"** button (toast)
+- **Certificate Fields Table** — 11 columns: Field Name, Value Template, Text Case (dropdown), Shorten Over (number), Date Format (dropdown), Font (dropdown), Font Size (number), **Font Color (input type="color")**, X Position, Y Position, Actions
+- **"Add Field"** button, **"Save Template"**, **"Reset to Default"**
+
+### 3. Certificate Font Upload Page
+File: `src/modules/settings/pages/certificate-font-upload-page.tsx`
+Export: `CertificateFontUploadPage` → viewId: `certificate-font-upload`
+- DataTable: Name, Font File (path), Font Path, Last Modified, Actions (Download, Delete)
+- Upload form: Name input, File input (.ttf/.otf/.woff/.woff2), Font Path input
+- **Live font preview** using FileReader data URL + injected @font-face
+- Empty state with CTA
+- KPI row: Total Fonts, Active Fonts
+
+### 4. Marketing Integrations Page
+File: `src/modules/settings/pages/marketing-integrations-page.tsx`
+Export: `MarketingIntegrationsPage` → viewId: `marketing-integrations`
+- DataTable: Platform badge, Status badge, Active Switch, Event Logging Switch, Last Sync, Actions
+- **Inline edit panel**: Platform dropdown (Klaviyo, GA4, Meta, Discord, Slack, Mailchimp, HubSpot), Is Active Switch, Enable Event Logging Switch
+- **Collapsible "API Secret Key Format per Platform"** help section showing JSON examples per provider
+- **Masked API Secret Key** input with Show/Hide toggle
+- Test Connection button, Save, Disconnect (AlertDialog)
+- Empty state, KPI row
+
+### 5. Marketing Banner Edit Page
+File: `src/modules/settings/pages/marketing-banner-edit-page.tsx`
+Export: `MarketingBannerEditPage` → viewId: `marketing-banner-edit`
+- **Image File Upload** with preview thumbnail
+- **Title** input
+- **Display Settings**: Is Active Switch, Sort Order (number), Position dropdown (Top Bar/Sidebar/Modal/Floating)
+- **Destination**: Link Type dropdown (External URL/Internal Page/None), External URL input, Internal Page dropdown
+- **Scheduling** (collapsible accordion): Start Date, End Date, "Runs indefinitely" checkbox
+- **Targeting** (collapsible): Target Audience dropdown, Countries checkbox list
+- Action buttons: Save, Save and add another, Save and continue editing, Delete (AlertDialog)
+- Live preview area showing banner as colored bar
+
+## View Router Wiring
+5 new view IDs registered in `view-router.tsx`
+
+## Module Navigation Wiring
+- **Settings manifest**: +3 nav children (Certificate Designer, Font Upload, Marketing Integrations) + 5 routes
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Command menu shows 73 options for Beta tenant (up from 70) ✓
+- New items verified: Settings › Certificate Designer, Settings › Font Upload, Settings › Marketing Integrations ✓
+- Email template edit + marketing banner edit accessible from parent pages (email-templates, banner-management) ✓

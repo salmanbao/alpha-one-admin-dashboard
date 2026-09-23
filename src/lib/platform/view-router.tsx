@@ -142,6 +142,13 @@ import { UtilitiesPage } from "@/modules/settings/pages/utilities-page";
 import { ChallengeEditPage } from "@/modules/challenges/pages/challenge-edit-page";
 import { PhaseDetailPage } from "@/modules/challenges/pages/phase-detail-page";
 
+/* Batch H: Email template editor + Certificate designer + Font upload + Marketing integrations + Banner edit */
+import { EmailTemplateEditPage } from "@/modules/settings/pages/email-template-edit-page";
+import { CertificateTemplateDesignerPage } from "@/modules/settings/pages/certificate-template-designer-page";
+import { CertificateFontUploadPage } from "@/modules/settings/pages/certificate-font-upload-page";
+import { MarketingIntegrationsPage } from "@/modules/settings/pages/marketing-integrations-page";
+import { MarketingBannerEditPage } from "@/modules/settings/pages/marketing-banner-edit-page";
+
 export type ViewComponent = ComponentType<{ params: Record<string, string> }>;
 
 export const viewRegistry: Record<string, ViewComponent> = {
@@ -281,6 +288,11 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "notifications-management": NotificationsManagementPage,
   "notification-edit": NotificationEditPage,
   "utilities": UtilitiesPage,
+  "email-template-edit": EmailTemplateEditPage,
+  "certificate-template-designer": CertificateTemplateDesignerPage,
+  "certificate-font-upload": CertificateFontUploadPage,
+  "marketing-integrations": MarketingIntegrationsPage,
+  "marketing-banner-edit": MarketingBannerEditPage,
 };
 
 const dynamicViews = new Map<string, ViewComponent>();

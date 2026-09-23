@@ -6,7 +6,7 @@
  * General, Branding, Terminology, Modules, Roles, Notifications.
  */
 
-import { Settings as SettingsIcon, Palette, Users, Package, Bell, Type, Mail, Award, Image, UsersRound, KeyRound, Wrench } from "lucide-react";
+import { Settings as SettingsIcon, Palette, Users, Package, Bell, Type, Mail, Award, Image, UsersRound, KeyRound, Wrench, Plug } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
 const navigation: NavigationItem[] = [
@@ -33,6 +33,9 @@ const navigation: NavigationItem[] = [
       { id: "settings.cert-issued", label: "Issued Certificates", href: "certificates-issued", icon: Award, permission: "settings.manage" },
       { id: "settings.notifications-mgmt", label: "Notifications Mgmt", href: "notifications-management", icon: Bell, permission: "settings.manage" },
       { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage" },
+      { id: "settings.cert-designer", label: "Certificate Designer", href: "certificate-template-designer", icon: Palette, permission: "settings.manage" },
+      { id: "settings.font-upload", label: "Font Upload", href: "certificate-font-upload", icon: Type, permission: "settings.manage" },
+      { id: "settings.mkt-integrations", label: "Marketing Integrations", href: "marketing-integrations", icon: Plug, permission: "settings.manage" },
     ],
   },
 ];
@@ -50,6 +53,11 @@ const routes: RouteDefinition[] = [
   { path: "notifications-management", viewId: "notifications-management", label: "Notifications Management", permission: "settings.manage", module: "settings" },
   { path: "notification-edit", viewId: "notification-edit", label: "Notification Edit", permission: "settings.manage", module: "settings" },
   { path: "utilities", viewId: "utilities", label: "Utilities", permission: "settings.manage", module: "settings" },
+  { path: "email-template-edit", viewId: "email-template-edit", label: "Email Template Edit", permission: "settings.manage", module: "settings" },
+  { path: "certificate-template-designer", viewId: "certificate-template-designer", label: "Certificate Template Designer", permission: "settings.manage", module: "settings" },
+  { path: "certificate-font-upload", viewId: "certificate-font-upload", label: "Certificate Font Upload", permission: "settings.manage", module: "settings" },
+  { path: "marketing-integrations", viewId: "marketing-integrations", label: "Marketing Integrations", permission: "settings.manage", module: "settings" },
+  { path: "marketing-banner-edit", viewId: "marketing-banner-edit", label: "Marketing Banner Edit", permission: "settings.manage", module: "settings" },
 ];
 
 export const settingsModule: FrontendModule = {
