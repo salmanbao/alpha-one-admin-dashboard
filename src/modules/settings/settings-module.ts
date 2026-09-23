@@ -6,7 +6,7 @@
  * General, Branding, Terminology, Modules, Roles, Notifications.
  */
 
-import { Settings as SettingsIcon, Palette, Users, Package, Bell, Type, Mail, Award, Image, UsersRound, KeyRound } from "lucide-react";
+import { Settings as SettingsIcon, Palette, Users, Package, Bell, Type, Mail, Award, Image, UsersRound, KeyRound, Wrench } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
 const navigation: NavigationItem[] = [
@@ -31,6 +31,8 @@ const navigation: NavigationItem[] = [
       { id: "settings.users", label: "User Management", href: "user-management", icon: UsersRound, permission: "settings.manage" },
       { id: "settings.tokens", label: "API Tokens", href: "token-management", icon: KeyRound, permission: "settings.manage" },
       { id: "settings.cert-issued", label: "Issued Certificates", href: "certificates-issued", icon: Award, permission: "settings.manage" },
+      { id: "settings.notifications-mgmt", label: "Notifications Mgmt", href: "notifications-management", icon: Bell, permission: "settings.manage" },
+      { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage" },
     ],
   },
 ];
@@ -45,6 +47,9 @@ const routes: RouteDefinition[] = [
   { path: "token-management", viewId: "token-management", label: "Token Management", permission: "settings.manage", module: "settings" },
   { path: "certificates-issued", viewId: "certificates-issued", label: "Issued Certificates", permission: "settings.manage", module: "settings" },
   { path: "certificate-detail", viewId: "certificate-detail", label: "Certificate Detail", permission: "settings.manage", module: "settings" },
+  { path: "notifications-management", viewId: "notifications-management", label: "Notifications Management", permission: "settings.manage", module: "settings" },
+  { path: "notification-edit", viewId: "notification-edit", label: "Notification Edit", permission: "settings.manage", module: "settings" },
+  { path: "utilities", viewId: "utilities", label: "Utilities", permission: "settings.manage", module: "settings" },
 ];
 
 export const settingsModule: FrontendModule = {

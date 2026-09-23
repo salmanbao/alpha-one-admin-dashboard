@@ -2935,3 +2935,189 @@ Analyzed images 012-027 from FUNDERBLU screenshots. Found 9 missing features acr
 - Command menu shows 67 options for Beta tenant ✓
 - New items verified: Risk › Group vs Payouts, Risk › Coupon vs Payouts, Risk › Label Analysis, Risk › Addon Revenue, Payouts › Withdrawals, Settings › Issued Certificates ✓
 - State explanations extended: certificate.valid/expired/revoked added to state-explanations.tsx ✓
+
+---
+
+## img-batchF — Missing admin screens (Offer edit, matching users, change history, notifications, utilities)
+
+**Agent:** general-purpose sub agent (img-batchF)
+**Scope:** 6 new admin pages discovered by analyzing reference screenshots
+of a prop firm admin (offer edit form, matching users, per-object history,
+scheduled notifications + edit, utilities management).
+
+### Files created
+
+1. `src/modules/affiliates/pages/offer-edit-page.tsx` — `OfferEditPage`
+   - Comprehensive create/edit form for an Offer
+   - Sections: Basic Information (title, description, image upload w/ preview,
+     display order, coupon code, discount %, start/end date, Is Popup
+     switch, Offer URL), Country Targeting (dual-list box w/ Add/Remove
+     all), Challenge Targeting (dual-list box), User Segment (collapsible
+     §12 — name, active toggle, six Tri-State logic selects for account
+     purchased / competition user / approved payout / fund accounts only /
+     has failed accounts / account size min-max)
+   - Action bar: Save (primary), Save & add another, Save & continue
+     editing, Delete (destructive AlertDialog with consequence copy)
+   - Top-of-page related-context nav links: View Matching Users, View
+     Change History (§27)
+   - Pre-fills from `getOffers()` when `router.params.id` resolves
+
+2. `src/modules/affiliates/pages/offer-matching-users-page.tsx` — `OfferMatchingUsersPage`
+   - Lists 3,633 deterministically-generated users matching the offer's
+     targeting (no `Math.random` — uses an id-hash seeded generator)
+   - DataTable: User Email, Country (badge), Account Status (badge), Has
+     Purchased (Yes/No), Funded (Yes/No); "View User" row action →
+     `trader-detail` view
+   - KPI row: Total Matches, Funded Matches, New Users, Existing Users
+   - Search by email, 100/page pagination across the full set
+   - Back to Offer button → `offer-edit` with the offer id
+
+3. `src/modules/affiliates/pages/offer-change-history-page.tsx` — `OfferChangeHistoryPage`
+   - Per-object audit trail (§28) — every change to a specific offer
+   - DataTable: Date/Time (sortable), User (email + role badge), Action
+     (Added / Changed Image / Modified Targeting / Updated Discount /
+     Activated / Deactivated), Description with Old → New value diff
+   - Search by user/field/description + filter by action type
+   - Export CSV (real Blob download via `URL.createObjectURL`)
+   - Mock generator produces 8–15 stable entries per offer id
+
+4. `src/modules/settings/pages/notifications-management-page.tsx` — `NotificationsManagementPage`
+   - List + management of scheduled/targeted notifications
+   - KPI row: Total Notifications, Active, Scheduled, Expired (lifecycle
+     state computed from start/end timestamps + active flag)
+   - DataTable: Title, Start Time, End Time, Is Active (inline Switch),
+     Priority (numeric sortable, color-coded), Target Audience (badge),
+     Actions (Edit / Delete via AlertDialog)
+   - Search + filter by lifecycle state; row click → `notification-edit`
+   - Exports `NOTIFICATIONS` + `ScheduledNotification` type so the edit
+     page can pre-fill from the same seed list
+   - Add Notification button → `notification-edit` view
+
+5. `src/modules/settings/pages/notification-edit-page.tsx` — `NotificationEditPage`
+   - Create/edit form for a scheduled notification
+   - Sections: Basic Information (title, content, Is Active, priority),
+     Time Settings (start date/time, end date/time), User Segment
+     (collapsible — same Tri-State shape as offer edit)
+   - Live preview card (right column, sticky on lg) renders the
+     notification as it will appear in the trader dashboard
+   - Action bar: Save / Save & add another / Save & continue editing /
+     Delete (destructive AlertDialog)
+   - Pre-fills from `NOTIFICATIONS` when `router.params.id` resolves
+
+6. `src/modules/settings/pages/utilities-page.tsx` — `UtilitiesPage`
+   - Management of utility links/cards surfaced in the trader dashboard
+   - KPI row: Total Utilities, Active, Inactive
+   - DataTable: Title, Description (truncated), Section (badge — Utility/
+     Help/Resource/External w/ distinct icons), Link URL (truncated,
+     clickable, opens new tab), Is Active (inline Switch), Display Order
+     (numeric sortable), Actions (Edit/Delete via AlertDialog)
+   - Search + filter by section; row click opens inline edit dialog
+   - Empty state: "No utilities yet. Add utility links to show helpful
+     resources in the trader dashboard." with primary CTA
+   - Inline create/edit form rendered in a Dialog (no separate page) —
+     Title, Description, Icon upload (with preview), Link URL, Section
+     dropdown, Is Active toggle, Display Order
+   - Save actions inside dialog: Save, Save and add another, Cancel
+
+### Suggested viewIds (to wire into view-router.tsx — NOT modified per task)
+
+| viewId                      | Component                         | Module     |
+|-----------------------------|-----------------------------------|------------|
+| `offer-edit`                | `OfferEditPage`                   | affiliates |
+| `offer-matching-users`      | `OfferMatchingUsersPage`          | affiliates |
+| `offer-change-history`      | `OfferChangeHistoryPage`           | affiliates |
+| `notifications`             | `NotificationsManagementPage`      | settings   |
+| `notification-edit`         | `NotificationEditPage`             | settings   |
+| `utilities`                 | `UtilitiesPage`                   | settings   |
+
+### Patterns followed
+- `"use client"` directive on every page
+- `usePlatform()` for `router`, `navigate`, `runtime`
+- Platform primitives: `Page`, `PageHeader`, `PageContent`, `MetricCard`,
+  `DataTable`/`Column`, `StatusBadge`, `EmptyState`, `LabelWithHelp`
+- shadcn/ui: `Dialog`, `AlertDialog`, `Input`, `Textarea`, `Label`,
+  `Switch`, `Button`, `Badge`, `Separator`, `Collapsible`, `Select`
+- `toast` from `@/hooks/use-toast`; `cn` from `@/lib/utils`
+- Terra palette only — forest green primary, emerald/amber/rose accents
+- No blue/indigo anywhere
+- Progressive disclosure §12: User Segment sections collapsible & start
+  collapsed on both offer and notification edit forms
+- One primary action per screen §13: Save is primary, secondary save
+  variants are outline, Delete is destructive
+- Destructive confirmation §13: Delete actions on offer/notification/
+  utility all wrapped in AlertDialog with consequence copy
+- Per-object audit trail §28: offer change history page surfaces every
+  change with before/after values
+- Related context §27: offer edit page surfaces View Matching Users +
+  View Change History inline at the top
+- Deterministic mock generators (no `Math.random`) so demo state stays
+  stable across reloads
+
+### Verification
+- `bun run lint` → clean (0 errors, 0 warnings)
+- `bunx tsc --noEmit` → no errors in any of the 6 new files
+  (pre-existing TS errors in `account-kyc-statuses-page.tsx` are
+  unrelated to this batch)
+
+---
+Task ID: img-batch-5
+Agent: lead-architect
+Task: Analyze images 028-037 and implement 6 missing features
+
+## Analysis Summary
+Analyzed images 028-037 from FUNDERBLU screenshots. Found 6 missing features across offer management, notifications management, and utilities management.
+
+## 6 New Pages Built & Wired
+
+### Offer Management Enhancement (3 pages)
+1. `OfferEditPage` → `offer-edit` — comprehensive offer create/edit form with:
+   - Basic info (title, description, image upload, display order, coupon code, discount, dates, is popup, URL)
+   - Country targeting dual-list box (Available ↔ Selected)
+   - Challenge targeting dual-list box
+   - User Segment section (collapsible): Any/Yes/No logic for Account purchased, Competition user, Has approved payout, Fund accounts only, Has failed accounts, Account size min/max
+   - 4 save variants (Save, Save & add another, Save & continue editing, Delete with AlertDialog)
+   - Navigation links to Matching Users + Change History
+
+2. `OfferMatchingUsersPage` → `offer-matching-users` — validates offer targeting:
+   - Total matching users count (3,633 mock, deterministic per offer ID)
+   - Paginated DataTable: User Email, Country, Account Status, Has Purchased, Funded
+   - "View User" links to trader-detail
+   - KPI row: Total Matches, Funded, New, Existing
+
+3. `OfferChangeHistoryPage` → `offer-change-history` — per-object audit trail:
+   - DataTable: Date/Time, User (email + role badge), Action (Added, Changed Image, Modified Targeting, etc.)
+   - Search + filter by action type
+   - CSV export
+
+### Notifications Management (2 pages)
+4. `NotificationsManagementPage` → `notifications-management` — list of scheduled/targeted notifications:
+   - DataTable: Title, Start/End Time, Is Active (inline Switch), Priority, Target Audience, Actions
+   - KPI row: Total, Active, Scheduled, Expired
+   - Row click → notification-edit
+
+5. `NotificationEditPage` → `notification-edit` — create/edit form:
+   - Basic info: Title, Content (textarea), Is Active, Priority
+   - Time settings: Start/End date + time pickers
+   - User Segment (collapsible): same logic as offer targeting
+   - Live preview card showing how notification will appear
+   - 4 save variants
+
+### Utilities Management (1 page)
+6. `UtilitiesPage` → `utilities` — management of utility links/cards:
+   - DataTable: Title, Description, Section badge, Link URL, Is Active toggle, Display Order, Actions
+   - Inline Dialog-based create/edit form (no separate page)
+   - Empty state with CTA
+   - KPI row: Total, Active, Inactive
+
+## View Router Wiring
+6 new view IDs registered in `view-router.tsx`
+
+## Module Navigation Wiring
+- **Affiliates manifest**: +1 nav child (Edit Offer) + 3 routes (offer-edit, offer-matching-users, offer-change-history)
+- **Settings manifest**: +2 nav children (Notifications Mgmt, Utilities) + 3 routes (notifications-management, notification-edit, utilities)
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Command menu shows 69 options for Beta tenant (up from 67) ✓
+- New items verified: Settings › Notifications Mgmt, Settings › Utilities ✓
+- Offer sub-pages (matching users, change history) accessible from within offer-edit page ✓

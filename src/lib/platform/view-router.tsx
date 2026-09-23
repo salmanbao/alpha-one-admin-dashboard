@@ -130,6 +130,14 @@ import { EnhancedWithdrawalsPage } from "@/modules/payouts/pages/enhanced-withdr
 import { CertificatesIssuedPage } from "@/modules/settings/pages/certificates-issued-page";
 import { CertificateDetailPage } from "@/modules/settings/pages/certificate-detail-page";
 
+/* Batch F: Offer edit + matching users + change history + Notifications mgmt + Utilities */
+import { OfferEditPage } from "@/modules/affiliates/pages/offer-edit-page";
+import { OfferMatchingUsersPage } from "@/modules/affiliates/pages/offer-matching-users-page";
+import { OfferChangeHistoryPage } from "@/modules/affiliates/pages/offer-change-history-page";
+import { NotificationsManagementPage } from "@/modules/settings/pages/notifications-management-page";
+import { NotificationEditPage } from "@/modules/settings/pages/notification-edit-page";
+import { UtilitiesPage } from "@/modules/settings/pages/utilities-page";
+
 export type ViewComponent = ComponentType<{ params: Record<string, string> }>;
 
 export const viewRegistry: Record<string, ViewComponent> = {
@@ -214,6 +222,9 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "affiliates-campaigns": AffiliateCampaignsPage,
   "affiliates-commissions": AffiliateCommissionsPage,
   "offer-management": OfferManagementPage,
+  "offer-edit": OfferEditPage,
+  "offer-matching-users": OfferMatchingUsersPage,
+  "offer-change-history": OfferChangeHistoryPage,
 
   /* accounting */
   accounting: AccountingOverviewPage,
@@ -261,6 +272,9 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "token-management": TokenManagementPage,
   "certificates-issued": CertificatesIssuedPage,
   "certificate-detail": CertificateDetailPage,
+  "notifications-management": NotificationsManagementPage,
+  "notification-edit": NotificationEditPage,
+  "utilities": UtilitiesPage,
 };
 
 const dynamicViews = new Map<string, ViewComponent>();

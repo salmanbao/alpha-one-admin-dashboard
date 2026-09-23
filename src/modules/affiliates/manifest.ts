@@ -5,7 +5,7 @@
  * depends on Trading. Manages affiliates, campaigns, and commissions.
  */
 
-import { Megaphone, Users, BarChart3, DollarSign, ListChecks, Tag } from "lucide-react";
+import { Megaphone, Users, BarChart3, DollarSign, ListChecks, Tag, Settings2 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { AffiliateOverviewWidget, TopAffiliatesWidget, AffiliateRevenueWidget } from "./widgets/affiliate-widgets";
 
@@ -21,6 +21,7 @@ const navigation: NavigationItem[] = [
       { id: "affiliates.campaigns", label: "Campaigns", href: "affiliates-campaigns", icon: Megaphone, permission: "affiliate.read" },
       { id: "affiliates.commissions", label: "Commissions", href: "affiliates-commissions", icon: DollarSign, permission: "affiliate.read" },
       { id: "affiliates.offers", label: "Offers", href: "offer-management", icon: Tag, permission: "affiliate.read" },
+      { id: "affiliates.offer-edit", label: "Edit Offer", href: "offer-edit", icon: Settings2, permission: "affiliate.configure" },
     ],
   },
 ];
@@ -31,6 +32,9 @@ const routes: RouteDefinition[] = [
   { path: "affiliates-campaigns", viewId: "affiliates-campaigns", label: "Affiliate Campaigns", permission: "affiliate.read", module: "affiliates" },
   { path: "affiliates-commissions", viewId: "affiliates-commissions", label: "Affiliate Commissions", permission: "affiliate.read", module: "affiliates" },
   { path: "offer-management", viewId: "offer-management", label: "Offer Management", permission: "affiliate.read", module: "affiliates" },
+  { path: "offer-edit", viewId: "offer-edit", label: "Offer Edit", permission: "affiliate.configure", module: "affiliates" },
+  { path: "offer-matching-users", viewId: "offer-matching-users", label: "Matching Users", permission: "affiliate.read", module: "affiliates" },
+  { path: "offer-change-history", viewId: "offer-change-history", label: "Offer Change History", permission: "affiliate.read", module: "affiliates" },
 ];
 
 const widgets: WidgetDefinition[] = [
