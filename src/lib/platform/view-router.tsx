@@ -156,6 +156,11 @@ import { InverseTradingEventsPage } from "@/modules/risk/pages/inverse-trading-e
 import { AccountIpAddressesPage } from "@/modules/risk/pages/account-ip-addresses-page";
 import { WeekendTradesPage } from "@/modules/risk/pages/weekend-trades-page";
 
+/* Batch J: Account configuration + events + version history */
+import { AccountConfigurationPage } from "@/modules/trading/pages/account-configuration-page";
+import { AccountEventsPage } from "@/modules/trading/pages/account-events-page";
+import { AccountVersionHistoryPage } from "@/modules/trading/pages/account-version-history-page";
+
 export type ViewComponent = ComponentType<{ params: Record<string, string> }>;
 
 export const viewRegistry: Record<string, ViewComponent> = {
@@ -188,6 +193,9 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "account-broker-details": AccountBrokerDetailsPage,
   "account-kyc-statuses": AccountKycStatusesPage,
   "account-related-accounts": AccountRelatedAccountsPage,
+  "account-configuration": AccountConfigurationPage,
+  "account-events": AccountEventsPage,
+  "account-version-history": AccountVersionHistoryPage,
   "closed-positions": ClosedPositionsPage,
 
   /* challenges */

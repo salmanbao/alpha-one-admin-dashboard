@@ -3718,3 +3718,298 @@ Export: `WeekendTradesPage` → viewId: `weekend-trades`
 - All 5 new items verified: Risk › Copy Trading Events, Risk › Copy Trading Analysis, Risk › Inverse Trading Events, Risk › Account IP Addresses, Risk › Weekend Trades ✓
 - All mock data deterministic (seeded random, no Math.random) ✓
 - Terra palette only (emerald/amber/rose for Long/Short/severity — no blue/indigo) ✓
+
+---
+Task ID: img-batchJ
+Agent: general-purpose (sub agent)
+Task: Build 3 missing trading-module pages — account configuration
+(events + version history + configuration) discovered from reference
+screenshots of the trader account detail page.
+
+Work Log:
+- Read worklog.md (3720 lines) + AGENTS.md UX constitution + existing
+  trading-module pages (enhanced-trader-detail-page.tsx,
+  account-broker-details-page.tsx, account-kyc-statuses-page.tsx,
+  closed-positions-page.tsx) to confirm established patterns:
+  usePlatform() with router.params.id + navigate(), Terra palette
+  only (#4a7c59 / cream #faf6f0 / emerald/amber/rose/violet,
+  NO blue/indigo), Collapsible for §12 progressive disclosure,
+  AlertDialog for §24-25 destructive actions, ExplainableStateBadge
+  for §17-19 explainable state, deterministic mock-data derivation
+  (no Math.random), toast feedback on every action.
+- Inspected platform primitives: Page/PageHeader/PageContent/MetricCard/
+  EntityHeader (page.tsx), DataTable/Column<T> (data-table.tsx),
+  StatusBadge/formatCurrency (status.tsx), AccountHealthWidget
+  (account-health.tsx), LabelWithHelp/ContextualHelp
+  (contextual-help.tsx), ExplainableStateBadge
+  (state-explanations.tsx), exportToCsv (export-utils.ts).
+- Inspected mock-data helpers getTenantAccounts(tid) + the
+  TradingAccount interface (login/traderName/platform/phase/balance/
+  equity/leverage/currency/status) — used as the seed for all 3
+  pages.
+
+Files created (3):
+
+1. `src/modules/trading/pages/account-configuration-page.tsx`
+   Export: `AccountConfigurationPage` → suggested viewId:
+   `account-configuration`
+   - Back-to-Account button (navigates to trader-detail with
+     account.traderId)
+   - PageHeader "Account Configuration" + EntityHeader (login,
+     trader name, platform, phase) + badges (type, status, source,
+     label)
+   - KPI row (5 MetricCards): Equity, Balance, P&L (colored green/red),
+     Drawdown %, Days Remaining (handles ∞ for no end date)
+   - Account Health Widget (AccountHealthWidget) at top showing daily
+     loss / max drawdown / profit target — same widget used on the
+     EnhancedTraderDetailPage risk tab
+   - 5 collapsible sections (SectionCard helper with Collapsible +
+     ChevronDown rotation):
+     • Section 1 — Account Configuration (starts expanded):
+       user email (read-only with Link2 icon), Phase text display,
+       start date (datetime-local input), end date (datetime-local
+       with amber warning "Leave empty for accounts without time
+       limits"), profit split (number 0-100), payout frequency
+       dropdown (Weekly/Bi-Weekly/Monthly/Quarterly), first
+       withdrawal delay input ("14 days"), Order dropdown (6
+       deterministic ORD-#### options), next withdrawal date
+       (datetime-local), source text display (Webhook/Manual),
+       account label dropdown (Paid/Giveaway/Third Party/Standard),
+       plus a footer link "open trader profile" linking to
+       trader-detail
+     • Section 2 — Balance & Drawdown Metrics (starts expanded,
+       read-only grid): initial balance, live balance, live equity,
+       profit/loss (colored), daily starting balance, daily drawdown
+       amount + % badge (rose), profit target, global drawdown
+       amount + % badge (rose), daily drawdown expiry (formatted
+       timestamp), drawdown locked Switch (rose when locked, with
+       explanatory text "When locked, the daily drawdown
+       calculation is frozen and will not reset.")
+     • Section 3 — Broker Details (starts collapsed): login
+       (read-only), broker type dropdown (MetaTrader5/
+       MetaTrader4/DXTrade/MatchTrader), MetaTrader trading account
+       text input, Match trader trading account text input,
+       "Sync Account" outline button (toast "Syncing with broker
+       platform..."), "Resend Credentials" outline button (toast
+       "Credentials resent to trader")
+     • Section 4 — Account Status Details (starts collapsed):
+       status with ExplainableStateBadge, status reason dropdown
+       (None/Manual Review/Policy Violation/Risk Concern/
+       Documentation Issue/Payment Failed), status finalised
+       timestamp (datetime-local) with helper "Backdate status
+       changes if needed", custom status reason textarea, copy
+       trading detected Switch (amber when flagged) with warning
+       text "Flag this account if copy trading patterns have been
+       detected", failed review reason textarea
+     • Section 5 — Extra Settings (starts collapsed): 5 labeled
+       Checkbox FlagRow cards — HIDE_ACCOUNT, PUBLIC_TRACK_RECORD,
+       PUBLIC_BALANCE, PUBLIC_TRADE_HISTORY, PUBLIC_LOTS — each with
+       its own description label
+   - Footer action bar: Save Changes (primary, toast "Account
+     configuration saved"), Save and continue editing (outline,
+     toast), Block Account (destructive, AlertDialog with the
+     exact consequence text from the spec: "The account will be
+     immediately blocked. The trader will lose all trading access.
+     This action is logged in the audit trail."), Reset Account
+     (outline, destructive toast "Account reset to initial state.
+     All progress lost.")
+   - Deterministic config derivation: `deriveAccountConfig(account)`
+     uses hashStr(account.id) to seed every value (profit split
+     60-80, payout frequency, drawdown amounts/percentages, end date
+     optional, status reason, all 5 visibility flags etc.) — stable
+     across reloads
+
+2. `src/modules/trading/pages/account-events-page.tsx`
+   Export: `AccountEventsPage` → suggested viewId: `account-events`
+   - PageHeader "Account Events" with breadcrumb back to trader
+   - KPI row (5 MetricCards): Total Events, Status Changes,
+     Phase Transitions, Payout Events, Breach Events (each tone
+     colored based on count)
+   - DataTable columns: Event Type (clickable button with
+     color-coded StatusBadge + lucide icon — see EVENT_META),
+     Description, Actor (System/AI Engine/Risk Engine get an
+     outline Badge, otherwise plain text), Created (timestamp)
+   - 9 event types fully mocked: ACCOUNT_CREATED, PHASE_UPGRADED,
+     PAYOUT_REQUESTED, PAYOUT_APPROVED, BREACH_DETECTED,
+     STATUS_CHANGED, KYC_COMPLETED, RULE_WARNING, DRAWDOWN_ALERT
+     — each with 2 description templates in DESCRIPTIONS map
+   - Mock data: `generateEvents(accountId, accountLogin)` always
+     starts with ACCOUNT_CREATED on day 0, then derives 14-22
+     follow-up events deterministically. Each event has an actor
+     from the ACTORS pool (Sarah Chen/Marcus Webb/Priya Nair/
+     System/AI Engine/Risk Engine). Payout amounts are
+     deterministically replaced inline to feel realistic.
+   - Filter bar: search (event type/description/actor), event type
+     dropdown, date range dropdown (24h/7d/30d/90d/180d), Clear
+     button. Active filter count badge. Result count text.
+   - Export CSV button in header → uses exportToCsv helper
+   - "Back to Account" button in header → trader-detail
+   - Row click → toast with the event label + description + ts
+   - Immutable-audit-trail note banner at the bottom
+
+3. `src/modules/trading/pages/account-version-history-page.tsx`
+   Export: `AccountVersionHistoryPage` → suggested viewId:
+   `account-version-history`
+   - PageHeader "Version History" with description "Complete audit
+     trail of all field changes with before/after values"
+   - KPI row (4 MetricCards): Total Versions, Unique Actors,
+     Fields Tracked, Latest Change date
+   - DataTable columns: expand chevron (32px), Object (full
+     account name), Date/Time (sortable), Comment, Changed By
+     (email-style name + role badge — Admin/Risk Officer/
+     Compliance=emerald/amber; Automated/AI=violet), Change
+     Reason, Changes (DiffCell), Revert-to-Version action button
+   - DiffCell renders each change as `field: oldValue → newValue`
+     with oldValue in strikethrough rose and newValue in emerald
+     green — the requested diff visual
+   - Mock data: `generateVersions(accountId, accountName)` builds
+     15-20 deterministic versions, one field change per version
+     (Profit Split, Payout Frequency, Status, Drawdown Limit,
+     Next Withdrawal Date, Phase, Account Label, KYC Status). The
+     8th version gets a 2-field update so multi-field diffs are
+     visible. Versions alternate direction (forward/reverse) so
+     both up-arrow and down-arrow diffs appear. Actors rotated
+     through 5 roles; change reasons rotated through 6 options.
+   - Filter bar: search (object/comment/field/value/actor), changed
+     field dropdown (derived from data), changed by dropdown
+     (derived from data), date range dropdown, Clear button.
+   - Expandable rows: clicking a row reveals ExpandedVersionDetail
+     panel with full version metadata (object, timestamp, changed
+     by + role badge, comment) + an "Affected fields" list of all
+     diff rows + reason text + a per-panel Revert-to-Version
+     button
+   - "Revert to Version" button per row (outline, toast "Version
+     revert would restore all fields to this timestamp")
+   - Export CSV button in header
+   - "Back to Account" button in header → trader-detail
+
+Patterns followed (all 3 files):
+- `"use client"` directive at the top
+- `usePlatform()` hook → `runtime.tenant?.id ?? "platform"` fallback
+- `router.params.id` → `getTenantAccounts(tid).find(a => a.id === ...)`
+- Local editable draft state via `useState` — no mutations to mock data
+- Terra palette only (forest green #4a7c59, cream, emerald/amber/rose/
+  violet for AI/Automated) — NO blue/indigo anywhere
+- shadcn/ui components: Button, Input, Textarea, Label, Switch, Badge,
+  Separator, Checkbox, Collapsible + CollapsibleTrigger/Content,
+  AlertDialog (+ all sub-parts)
+- lucide-react icons (Settings2, Wallet, TrendingUp, TrendingDown,
+  Percent, CalendarClock, ShieldCheck, Server, Lock, Link2, RefreshCw,
+  Send, Ban, RotateCcw, Save, ChevronDown, Activity, RotateCcw,
+  ShieldAlert, Trophy, FileCheck, Bell, AlertTriangle, CheckCircle2,
+  History, CircleUserRound, GitCommit, User, Clock, FileText, Filter,
+  X, Download, ArrowLeft, ChevronRight)
+- Progressive disclosure §12 — collapsible sections with start-expanded
+  defaults on the most-used sections
+- One primary action §13 — Save Changes is the only primary button on
+  the configuration page; secondary/tertiary actions get outline
+- Explainability §17-19 — ExplainableStateBadge for account status,
+  LabelWithHelp / ContextualHelp on every non-obvious field
+- Destructive confirmation §24-25 — Block Account wrapped in
+  AlertDialog with the exact consequence text from the spec
+- Auditable §61 — every action fires a toast naming the actor/action/
+  affected entity (toast descriptions include login id + trader email
+  for Sync/Resend, account id for Block/Reset)
+- Deterministic mock data — `hashStr()` for stable seeding across
+  reloads; no Math.random anywhere
+
+Did NOT modify (per task instructions):
+- view-router.tsx (lead wires the 3 new viewIds)
+- Any module manifest (lead wires 3 nav children + 3 routes into the
+  trading module manifest)
+- module-registry.ts / module-bootstrap.ts (no new module)
+- Any other trading/risk/settings page
+- AGENTS.md
+
+Verification:
+- `bunx eslint src/modules/trading/pages/account-configuration-page.tsx
+  src/modules/trading/pages/account-events-page.tsx
+  src/modules/trading/pages/account-version-history-page.tsx` → exit 0
+  (zero lint errors in any of the 3 new files)
+- `bunx tsc --noEmit` filtered to the 3 new files → zero TS errors
+  (remaining TS errors are all pre-existing in
+  `account-kyc-statuses-page.tsx` — KycProviderStatus interface
+  collision with the union literal type — out of scope per the
+  previous img-batchI subagent's notes)
+- `bun run lint` → exit 0 (full project lint clean)
+
+Stage Summary:
+- 3 self-contained trading-module pages shipped, fully matching the
+  established platform patterns (Page/PageHeader/PageContent/MetricCard
+  /DataTable/StatusBadge/ExplainableStateBadge/AccountHealthWidget/
+  LabelWithHelp/ContextualHelp/AlertDialog/Collapsible/toast/
+  exportToCsv).
+- Suggested viewIds for view-router.tsx wiring:
+  • `account-configuration` → AccountConfigurationPage
+  • `account-events`        → AccountEventsPage
+  • `account-version-history` → AccountVersionHistoryPage
+- All 3 pages are reachable from the existing trader-detail view (the
+  Back-to-Account button navigates back via `navigate("trader-detail",
+  { id: account.traderId })` — already wired in view-router.tsx).
+- Mock data is fully deterministic (hashStr-based seeding). Stable
+  across reloads. Stable across tenants because every page derives
+  from `getTenantAccounts(tid).find(a => a.id === router.params.id)`.
+- Lint: clean. TS: clean for new files. No blue/indigo accents.
+
+---
+Task ID: img-batch-9
+Agent: lead-architect
+Task: Analyze images 092-106 and implement 3 missing account detail sections
+
+## Analysis Summary
+Analyzed images 092-106 — all tabs from the reference admin's trader account detail page. Found 7 missing UI sections that our EnhancedTraderDetailPage doesn't have. Grouped them into 3 new page implementations.
+
+## 3 New Pages Built & Wired
+
+### 1. Account Configuration Page (5 collapsible sections)
+File: `src/modules/trading/pages/account-configuration-page.tsx`
+Export: `AccountConfigurationPage` → viewId: `account-configuration`
+
+**Section 1 — Account Configuration** (expanded): User email, Phase, Start/End date-time, Profit split, Payout frequency, First withdrawal delay, Order dropdown, Next withdrawal date, Source, Account label
+
+**Section 2 — Balance & Drawdown Metrics** (expanded, read-only grid): Initial balance, Live balance, Live equity, P&L (colored), Daily starting balance, Daily drawdown amount+%, Profit target, Global drawdown amount+%, Daily drawdown expiry timestamp, Drawdown locked Switch (rose when locked) with explanatory text
+
+**Section 3 — Broker Details** (collapsed): Login, Broker type dropdown (MT5/MT4/DXTrade/MatchTrader), MT5 account, Match trader account, Sync + Resend Credentials buttons
+
+**Section 4 — Account Status Details** (collapsed): Status with ExplainableStateBadge, Status reason dropdown, Status finalised timestamp, Custom status reason textarea, Copy trading detected Switch, Failed review reason textarea
+
+**Section 5 — Extra Settings** (collapsed): 5 privacy flag checkboxes — HIDE_ACCOUNT, PUBLIC_TRACK_RECORD, PUBLIC_BALANCE, PUBLIC_TRADE_HISTORY, PUBLIC_LOTS with descriptive labels
+
+**Footer**: Save Changes (primary), Save and continue editing, Block Account (destructive AlertDialog), Reset Account (outline)
+
+**Top**: KPI row (Equity, Balance, P&L, Drawdown %, Days Remaining) + AccountHealthWidget
+
+### 2. Account Events Page (immutable audit trail)
+File: `src/modules/trading/pages/account-events-page.tsx`
+Export: `AccountEventsPage` → viewId: `account-events`
+
+- KPI row: Total Events, Status Changes, Phase Transitions, Payout Events, Breach Events
+- DataTable: Event Type (badge with color coding + icon), Event Description (detailed), Created (timestamp)
+- 9 event types: ACCOUNT_CREATED, PHASE_UPGRADED, PAYOUT_REQUESTED, PAYOUT_APPROVED, BREACH_DETECTED, STATUS_CHANGED, KYC_COMPLETED, RULE_WARNING, DRAWDOWN_ALERT
+- Search + filter by event type + date range + Export CSV + Back to Account
+
+### 3. Account Version History Page (object versioning with diff)
+File: `src/modules/trading/pages/account-version-history-page.tsx`
+Export: `AccountVersionHistoryPage` → viewId: `account-version-history`
+
+- KPI row: Total Versions, Fields Changed, Unique Actors, Latest Change
+- DataTable: Object (full name), Date/Time (sortable), Comment, Changed By (email + role badge), Change Reason, Changes (diff view)
+- **Diff view**: `old_value → new_value` with old in strikethrough rose, new in emerald green
+- Expandable rows showing all affected fields per change
+- 15-20 deterministic mock entries covering: Profit Split, Payout Frequency, Status, Drawdown Limit, Next Withdrawal Date, Phase, Account Label, KYC Status
+- Search + filter by field + actor + date range
+- "Revert to Version" button per row (toast) + Export CSV + Back to Account
+
+## View Router Wiring
+3 new view IDs registered in `view-router.tsx`: `account-configuration`, `account-events`, `account-version-history`
+
+## Module Route Wiring
+- **Trading manifest**: +3 routes (account-configuration, account-events, account-version-history)
+- These are sub-pages accessed from the EnhancedTraderDetailPage (via tab navigation), not top-level sidebar items — so no nav children added, only routes
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Command menu shows 78 options for Beta tenant (unchanged — these are sub-pages, not sidebar items) ✓
+- All 3 routes registered in view-router → accessible via `navigate("account-configuration", { id: traderId })` from the EnhancedTraderDetailPage ✓
+- All mock data deterministic (hashStr-based seeds, no Math.random) ✓
+- Terra palette only (emerald/amber/rose — no blue/indigo) ✓
