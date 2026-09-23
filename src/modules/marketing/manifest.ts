@@ -5,7 +5,7 @@
  * spend, channel performance and ROI. Depends on Trading.
  */
 
-import { Megaphone, LayoutList, TrendingUp, Target } from "lucide-react";
+import { Megaphone, LayoutList, TrendingUp, Target, BarChart3 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import {
   MarketingOverviewWidget,
@@ -23,6 +23,7 @@ const navigation: NavigationItem[] = [
       { id: "marketing.overview", label: "Overview", href: "marketing", icon: Megaphone, permission: "marketing.read" },
       { id: "marketing.campaigns", label: "Campaigns", href: "marketing-campaigns", icon: LayoutList, permission: "marketing.read" },
       { id: "marketing.performance", label: "Performance", href: "marketing-performance", icon: TrendingUp, permission: "marketing.read" },
+      { id: "marketing.dashboard", label: "Dashboard", href: "marketing-dashboard", icon: BarChart3, permission: "marketing.read" },
     ],
   },
 ];

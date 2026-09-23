@@ -1999,4 +1999,4 @@
   1999→     `grid.setStatic()`)
   2000→
 
-[showing lines 1-2000 of 2151; use offset=2001 with limit to continue reading]
+[showing lines 1-2000 of 2655; use offset=2001 with limit to continue reading]

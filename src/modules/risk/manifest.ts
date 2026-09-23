@@ -3,7 +3,7 @@
  * Includes Breaches (spec section 7 — Breaches is a sub-area of Risk).
  */
 
-import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2 } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2, DollarSign } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { RiskOverviewWidget, RiskDistributionWidget, BreachTrendWidget, OpenBreachesWidget } from "./widgets/risk-widgets";
 
@@ -22,6 +22,10 @@ const navigation: NavigationItem[] = [
       { id: "risk.revenue-loss", label: "Revenue Loss", href: "risk-revenue-loss", icon: TrendingDown, permission: "risk.read" },
       { id: "risk.label-payouts", label: "Label vs Payouts", href: "risk-label-vs-payouts", icon: Tag, permission: "risk.read" },
       { id: "risk.highest-earners", label: "Highest Earners", href: "risk-highest-earners", icon: TrendingUp, permission: "risk.read" },
+      { id: "risk.group-payouts", label: "Group vs Payouts", href: "risk-group-vs-payouts", icon: BarChart3, permission: "risk.read" },
+      { id: "risk.coupon-payouts", label: "Coupon vs Payouts", href: "risk-coupon-vs-payouts", icon: Tag, permission: "risk.read" },
+      { id: "risk.label-analysis", label: "Label Analysis", href: "risk-account-label-analysis", icon: Activity, permission: "risk.read" },
+      { id: "risk.addon-revenue", label: "Addon Revenue", href: "risk-addon-revenue", icon: DollarSign, permission: "risk.read" },
     ],
   },
 ];
@@ -35,6 +39,10 @@ const routes: RouteDefinition[] = [
   { path: "risk-revenue-loss", viewId: "risk-revenue-loss", label: "Revenue Loss", permission: "risk.read", module: "risk" },
   { path: "risk-label-vs-payouts", viewId: "risk-label-vs-payouts", label: "Label vs Payouts", permission: "risk.read", module: "risk" },
   { path: "risk-highest-earners", viewId: "risk-highest-earners", label: "Highest Earners", permission: "risk.read", module: "risk" },
+  { path: "risk-group-vs-payouts", viewId: "risk-group-vs-payouts", label: "Group vs Payouts", permission: "risk.read", module: "risk" },
+  { path: "risk-coupon-vs-payouts", viewId: "risk-coupon-vs-payouts", label: "Coupon vs Payouts", permission: "risk.read", module: "risk" },
+  { path: "risk-account-label-analysis", viewId: "risk-account-label-analysis", label: "Account Label Analysis", permission: "risk.read", module: "risk" },
+  { path: "risk-addon-revenue", viewId: "risk-addon-revenue", label: "Addon Revenue", permission: "risk.read", module: "risk" },
 ];
 
 const widgets: WidgetDefinition[] = [

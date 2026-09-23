@@ -2,7 +2,7 @@
  * Payouts Module — manifest, navigation, routes, widgets, settings.
  */
 
-import { Wallet, Banknote, Clock, CheckCircle2, DollarSign } from "lucide-react";
+import { Wallet, Banknote, Clock, CheckCircle2, DollarSign, ListChecks } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { PayoutOverviewWidget, PayoutQueueWidget, PayoutTrendWidget, PayoutMethodWidget } from "./widgets/payout-widgets";
 
@@ -17,6 +17,7 @@ const navigation: NavigationItem[] = [
       { id: "payouts.overview", label: "Overview", href: "payouts", icon: Banknote, permission: "payout.read" },
       { id: "payouts.pending", label: "Pending Approval", href: "payouts-pending", icon: Clock, permission: "payout.approve" },
       { id: "payouts.history", label: "History", href: "payouts-history", icon: CheckCircle2, permission: "payout.read" },
+      { id: "payouts.withdrawals", label: "Withdrawals", href: "payouts-enhanced-withdrawals", icon: ListChecks, permission: "payout.read" },
     ],
   },
 ];
@@ -25,6 +26,7 @@ const routes: RouteDefinition[] = [
   { path: "payouts", viewId: "payouts", label: "Payouts Overview", permission: "payout.read", module: "payouts" },
   { path: "payouts-pending", viewId: "payouts-pending", label: "Pending Payouts", permission: "payout.approve", module: "payouts" },
   { path: "payouts-history", viewId: "payouts-history", label: "Payout History", permission: "payout.read", module: "payouts" },
+  { path: "payouts-enhanced-withdrawals", viewId: "payouts-enhanced-withdrawals", label: "Enhanced Withdrawals", permission: "payout.read", module: "payouts" },
 ];
 
 const widgets: WidgetDefinition[] = [

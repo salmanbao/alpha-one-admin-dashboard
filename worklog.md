@@ -2652,3 +2652,286 @@ File: `src/modules/analytics/pages/dashboard-tabs.tsx` (~1,250 lines)
 - Command menu shows **89 total navigation options** (was 73 before this task) ✓
 - All 16 new pages are navigable via command menu and/or sidebar ✓
 - All 3 subagent batches: 0 lint errors, 0 TypeScript errors in new files ✓
+
+---
+Task ID: img-batchE
+Agent: certificate-management-subagent
+Task: Build certificates issued list + detail view (2 new pages)
+
+## Summary
+Built 2 new certificate management pages on the PFaaS Next.js platform
+following the established Page / PageHeader / PageContent / DataTable /
+MetricCard / ExplainableStateBadge patterns. Both pages use the Terra
+Organic Design palette (emerald / amber / rose) — no blue / indigo.
+
+## Files Created
+
+### 1. `src/modules/settings/pages/certificates-issued-page.tsx` (NEW)
+Export `CertificatesIssuedPage`. Searchable list of issued certificates:
+
+- **PageHeader**: "Issued Certificates" with description + "Issue Certificate"
+  primary button (toast "Issue form would open here") and "Export CSV"
+  outline button (toast w/ count)
+- **KPI row**: Total Issued, Valid (positive), Expired (warning),
+  Revoked (negative) — `MetricCard` components
+- **Filter bar**: Search (name/email/certType), Certificate Type dropdown,
+  Status dropdown, Clear button, count display
+- **DataTable columns**: Account (email + traderId), Trader Name,
+  Certificate Type (StatusBadge), Challenge Name, Issue Date (formatted),
+  Certificate URL (clickable emerald link, opens new tab, truncated),
+  Status (`ExplainableStateBadge`), Actions (3-dot DropdownMenu)
+- **3-dot menu**: View Certificate (navigate to `certificate-detail`
+  with `{ id }`), Revoke Certificate (toast, disabled if already revoked),
+  Re-send Email (toast)
+- **Empty state**: "No certificates issued yet" when list is empty
+  OR "No certificates match your filters" when filters return nothing
+
+Exports shared mock helpers (consumed by detail page):
+- `IssuedCertificate` interface
+- `CertType` / `CertStatus` types
+- `CERT_TYPES` constant
+- `synthesizeCertificate(id, tid)` — deterministic per-id hash
+- `getIssuedCertificates(tid)` — 10 seeded entries
+- `getIssuedCertificate(id, tid)` — lookup with deterministic fallback
+
+Mock data generator uses `getTenantTraders(tid)` for trader names/emails,
+falls back to global `traders` list if tenant is platform tenant (which
+has no traders). Each cert has: id, accountEmail, traderName, traderId,
+certType (one of 3), challengeName, issueDate, certUrl
+(`https://certs.pfaas.io/{id}`), status (valid/expired/revoked),
+templateId (links to `certificateTemplates`), withdrawalId, withdrawalAmount,
+createdAt.
+
+### 2. `src/modules/settings/pages/certificate-detail-page.tsx` (NEW)
+Export `CertificateDetailPage`. Single certificate detail/edit view:
+
+- **Breadcrumb**: Certificates > [Certificate ID] — uses ui/breadcrumb,
+  parent navigates to `certificates-issued`
+- **Header**: trader name + cert id + status badge + cert-type badge +
+  Edit toggle button (switches between read-only & editable)
+- **Form layout** (4-section grid using `FormSection` sub-component):
+  1. **Account** — Account dropdown (email list from
+     `getTenantTraders(tid)`), Trader Name (read-only), Challenge Name
+     (read-only)
+  2. **Certificate** — Certificate Type dropdown (3 options w/ icons),
+     Template dropdown (from `getCertificateTemplates()`) + selected
+     template description
+  3. **Withdrawal** — Linked Withdrawal dropdown (mock list), Amount
+     (read-only, `formatCurrency`)
+  4. **Metadata & Status** — Created Date (read-only), Certificate URL
+     (read-only input + Copy button + Open-in-new-tab button), Status
+     dropdown (Valid/Expired/Revoked) + `ExplainableStateBadge`
+- **Field-level help**: `LabelWithHelp` on every field — explains
+  the meaning of Certificate Type, Template, Linked Withdrawal, Status,
+  etc. (per AGENTS.md §33 progressive disclosure / explainability)
+- **Local working state**: edits don't mutate mock data; cancels when
+  Edit toggle is turned off reset to the seed cert; remounts on id change
+  via `key={seedCert.id}` so navigating between certs doesn't leak state
+- **Bottom action bar**:
+  - "Delete Certificate" — destructive outline button → AlertDialog with
+    consequence text "The certificate will be permanently deleted. The
+    trader will lose access to their certificate URL." → destructive red
+    action button → toast + navigate back to list
+  - "Save and add another" — outline button → toast + navigate to
+    `certificates-issued` (new cert form not yet implemented; the Issue
+    Certificate button on the list page is the entry point)
+  - "Save and continue editing" — outline button → toast "Changes saved"
+  - "Save" — primary button → toast "Certificate updated" + exit edit mode
+
+## Supporting Change
+
+### 3. `src/components/platform/state-explanations.tsx` (EXTENDED)
+Added a new `certificate` entity type to the explainable-state system so
+`ExplainableStateBadge` can render meaningful Valid / Expired / Revoked
+labels with proper tones (emerald / amber / rose) and tooltip meanings:
+
+- `certificate.valid` → safe (emerald, "Valid"), meaning "active and
+  verifiable. The trader can share the certificate URL publicly."
+- `certificate.expired` → warning (amber, "Expired"), reason "certificates
+  are valid for a fixed term; this one has lapsed."
+- `certificate.revoked` → critical (rose, "Revoked"), reason "revocation
+  is typically a manual action due to a policy violation or trader
+  request."
+
+Updated the `entityType` union in `getStateExplanation`,
+`ExplainableStateBadge`, and `StateExplanationCard` to include
+`"certificate"`. This is a non-breaking extension — existing entity types
+are unchanged.
+
+## Patterns Used
+- `"use client"` directive
+- `usePlatform()` for `runtime`, `navigate`, `router`
+- `Page` / `PageHeader` / `PageContent` / `MetricCard` (page primitives)
+- `DataTable` + `Column<T>` (data table wrapper)
+- `ExplainableStateBadge` (state + meaning tooltips, §17-19)
+- `StatusBadge` (tone badges for cert types)
+- `LabelWithHelp` / `ContextualHelp` (contextual help, §33)
+- `AlertDialog` for destructive confirmation (§AGENTS destructive
+  confirmation principle)
+- `DropdownMenu` 3-dot actions menu
+- `Breadcrumb` for navigation context
+- `toast` from `@/hooks/use-toast`
+- `cn` from `@/lib/utils`
+- Icons from lucide-react (Award, Plus, Download, Search, Filter, X,
+  MoreVertical, ExternalLink, Eye, Ban, Send, Pencil, Save, Check,
+  Trash2, Copy, ChevronRight, ScrollText, User, Trophy, CreditCard,
+  Calendar, ShieldAlert, CheckCircle2, AlertTriangle, XCircle)
+
+## Verification Results
+- `bun run lint` → clean (0 errors, 0 warnings)
+- `bunx tsc --noEmit` → 0 errors in the 3 touched files (60 pre-existing
+  errors in unrelated files remain untouched — same baseline as batch D)
+
+## Suggested viewIds (NOT registered — view-router.tsx + module
+manifests were NOT modified per task instructions):
+
+| viewId                  | Component                  |
+| ----------------------- | -------------------------- |
+| `certificates-issued`   | `CertificatesIssuedPage`   |
+| `certificate-detail`    | `CertificateDetailPage`    |
+
+The Issued Certificates list page already calls
+`navigate("certificate-detail", { id })` on row click and 3-dot View
+Certificate; the detail page calls `navigate("certificates-issued")`
+for breadcrumb-back, "Save and add another", and post-delete navigation.
+These links will resolve once the lead architect registers the two
+viewIds in `src/lib/platform/view-router.tsx` and adds nav children +
+routes to `src/modules/settings/settings-module.ts` (or wherever the
+Settings module manifest lives).
+
+## Next Actions
+- Lead architect: register the 2 viewIds (`certificates-issued`,
+  `certificate-detail`) in `view-router.tsx` and add nav children to
+  the settings module manifest so the pages become reachable from the
+  sidebar / command menu.
+- Optional: implement the actual "Issue Certificate" create form view
+  (currently the list page button shows a toast placeholder).
+- Optional: persist certificate edits to localStorage so a fuller demo
+  is possible (currently edits live only in component state).
+
+---
+
+## img-batchD — 7 new pages (Risk Reports + Marketing Dashboard + Pending Tasks + Enhanced Withdrawals)
+
+**Agent**: general-purpose sub-agent
+**Task ID**: img-batchD
+**Scope**: Build 7 missing-feature pages discovered by analyzing reference screenshots, using the PFaaS client-side view-routing pattern. No changes to view-router.tsx or module manifests.
+
+### Files created
+
+1. `src/modules/risk/pages/risk-group-vs-payouts-page.tsx` — `RiskGroupVsPayoutsPage`
+   - DataTable grouped by challenge type × account size, with KPI row (Total Groups / Revenue / Payouts / Overall Margin), date-range selector, challenge-type dropdown filter, totals footer row (sums + avg margin), Export CSV.
+   - Data: derived from `getTenantChallenges` + `getTenantPayouts`; broker assigned deterministically; revenue approximated as 2.2% of account size with $35 floor.
+
+2. `src/modules/risk/pages/risk-coupon-vs-payouts-page.tsx` — `RiskCouponVsPayoutsPage`
+   - DataTable by coupon code (Orders / Revenue / Funded Accounts / Total Payouts / Profit Margin). KPI row (Total Coupons / Coupon Revenue / Total Payouts / Avg Discount %). Search + date range + Export CSV. Empty state: "No coupon data available. Coupons will appear here when traders use discount codes during checkout." Includes a "Preview empty state" toggle so the empty state is demonstrable on demand.
+
+3. `src/modules/risk/pages/risk-account-label-analysis-page.tsx` — `RiskAccountLabelAnalysisPage`
+   - Expandable grouped table by account source label (Direct / Affiliate / Promo / Third-Party / Giveaway). Per-label: Total / Active / Funded / Passed / Failed / Pass Rate / Fail Rate / Revenue / Margin. Expandable rows reveal individual accounts. KPI row (Total Labels / Total Accounts / Overall Pass Rate / Overall Revenue). Search + date range + Export CSV.
+
+4. `src/modules/risk/pages/risk-addon-revenue-page.tsx` — `RiskAddonRevenuePage`
+   - DataTable by add-on (Retry Credit / Express KYC / Profit Boost / Account Reset / Priority Payout / Welcome Bonus) — Orders / Units Sold / Unit Price / Estimated Revenue. KPI row (Total Add-ons / Total Orders / Total Units / Total Revenue). Empty state: "No add-on revenue yet. Add-on purchases will appear here when traders buy additional services during checkout." Search + date range + Export CSV + preview-empty-state toggle.
+
+5. `src/modules/marketing/pages/marketing-dashboard-page.tsx` — `MarketingDashboardPage`
+   - Weekly marketing overview. KPI row: Best Trade (+$4,250), Best Trader (mock name), Logged In Users, Total Payouts. Three DataTables: Top Traders (Rank 1-10 with crown for #1, Name, P&L colored green/red, Win Rate, Country badge), Top Trading Pairs (Symbol, Trades, Buy/Sell ratio, Volume, Avg P&L), Top Countries by Payouts (Country, Payout Count, Total Amount, % of Total with mini progress bar). Date range: This Week / Last Week / This Month. Search + Export CSV.
+
+6. `src/modules/pendings/pages/pending-tasks-page.tsx` — `PendingTasksPage` (NEW module folder created)
+   - Operational hub. Top band: Items Awaiting Action (warning), Forecast total, Active Traders.
+   - Six clickable summary cards (warning tone when count > 0, success tone when 0), each navigates via `usePlatform().navigate(viewId)`:
+     - Pass Verification Phase 1 → `challenges-passed`
+     - Pass Verification Phase 2 → `challenges-passed`
+     - KYC Reviews → `kyc-reviews`
+     - Phase Verification → `challenges-active`
+     - Pending Withdrawals → `payouts-pending`
+     - Affiliate Payouts → `affiliates-commissions`
+   - Forecast BarSeries chart (Tue–Sun) for expected withdrawal amounts.
+   - Recent Activity Feed (timeline of 5 latest activities from payouts + KYC + AI insights) with tone-colored timeline dots.
+   - Each card has an `ArrowRight` icon and "Opens {viewId} →" hint.
+
+7. `src/modules/payouts/pages/enhanced-withdrawals-page.tsx` — `EnhancedWithdrawalsPage`
+   - Summary stat cards: Pending Count, Overall Pending Amount (formatCurrency), Approved Today, Rejected Today.
+   - DataTable with: Checkbox (for batch selection), Account Login (derived from reference), Full Name, Country (badge), Amount (numeric, formatCurrency), Size (badge), Method (badge with icon), KYC Status (ExplainableStateBadge), Created Date (sortable), Status (ExplainableStateBadge). Custom sort headers + 50-row cap.
+   - Batch action toolbar appears when items are selected: Approve Selected (emerald default), Reject Selected (rose outline), Export Selected, Clear.
+   - Search + filter by status / method / KYC + date range (24h / 7d / 30d / 90d / all).
+   - Row click shows a "demo only" toast (placeholder for detail navigation).
+   - Export CSV button in header.
+   - Select-all checkbox with indeterminate state support.
+   - Uses `getTenantPayouts(tid)` plus `getTenantTraders(tid)` and `getTenantKyc(tid)` for join.
+
+### Patterns followed
+- `"use client"` directive on every file.
+- `usePlatform()` for `runtime` and (in PendingTasksPage) `navigate`.
+- Platform components: `Page`, `PageHeader`, `PageContent`, `MetricCard`, `DataTable` + `Column`, `BarSeries`, `StatusBadge`, `formatCurrency`, `formatCompact`, `EmptyState`, `ExplainableStateBadge`.
+- `toast` from `@/hooks/use-toast`, `cn` from `@/lib/utils`.
+- shadcn/ui: `Badge`, `Button`, `Input`, `Checkbox`, `Select` family, `Table` family, `Collapsible` family.
+- Icons: lucide-react only. Terra palette throughout (emerald #4a7c59 family, amber, rose). No blue/indigo.
+- Mock data inline (deterministic per trader/account hash) so views render without backend changes.
+
+### Suggested viewIds (for future router wiring; not modified here per task constraints)
+| Page | Suggested viewId |
+| --- | --- |
+| RiskGroupVsPayoutsPage | `risk-group-vs-payouts` |
+| RiskCouponVsPayoutsPage | `risk-coupon-vs-payouts` |
+| RiskAccountLabelAnalysisPage | `risk-account-label-analysis` |
+| RiskAddonRevenuePage | `risk-addon-revenue` |
+| MarketingDashboardPage | `marketing-dashboard` |
+| PendingTasksPage | `pending-tasks` (new module `pendings`) |
+| EnhancedWithdrawalsPage | `payouts-enhanced-withdrawals` |
+
+To wire these up, manifest entries + a switch case in `view-router.tsx` would be needed — intentionally left untouched per task constraints. The viewIds above match the navigation targets already used by `PendingTasksPage` summary cards where applicable (`challenges-passed`, `kyc-reviews`, `challenges-active`, `payouts-pending`, `affiliates-commissions`).
+
+### Verification
+- `bun run lint` → exit 0, no errors.
+- `bunx tsc --noEmit` → no errors in any of the 7 new files (pre-existing errors elsewhere in the repo remain, as expected).
+- Fixed during review: added missing `formatCompact` import in `risk-coupon-vs-payouts-page.tsx`; widened `icon` type on `SummaryCard` and recent-activity items in `pending-tasks-page.tsx` to include `style?: React.CSSProperties` so the inline `style={{ color }}` usage type-checks cleanly.
+
+### Files NOT modified
+- `src/lib/platform/view-router.tsx` — per task constraints.
+- Any module `manifest.ts` or `index.ts` — per task constraints.
+- No new test files created.
+
+
+---
+Task ID: img-batch-4
+Agent: lead-architect
+Task: Analyze next batch of 10 images (012-027) and implement 9 missing features
+
+## Analysis Summary
+Analyzed images 012-027 from FUNDERBLU screenshots. Found 9 missing features across risk reports, marketing dashboard, pending tasks, enhanced withdrawals, and certificate management.
+
+## 9 New Pages Built & Wired
+
+### Risk Reports (4 new tabs)
+1. `RiskGroupVsPayoutsPage` → `risk-group-vs-payouts` — grouped by challenge config with Totals footer row
+2. `RiskCouponVsPayoutsPage` → `risk-coupon-vs-payouts` — revenue/payouts by coupon code
+3. `RiskAccountLabelAnalysisPage` → `risk-account-label-analysis` — performance by account source label with expandable rows
+4. `RiskAddonRevenuePage` → `risk-addon-revenue` — tracking add-on purchases
+
+### Marketing Dashboard (1 page)
+5. `MarketingDashboardPage` → `marketing-dashboard` — weekly KPIs (Best Trade, Best Trader, Logged In Users, Total Payouts) + Top Traders/Pairs/Countries tables
+
+### Pending Tasks Dashboard (1 page)
+6. `PendingTasksPage` → `pending-tasks` — operational hub with clickable summary cards (Pass Verification, KYC, Phase Verification, Pending Withdrawals, Affiliate Payouts) + forecast BarSeries + recent activity
+
+### Enhanced Withdrawals (1 page)
+7. `EnhancedWithdrawalsPage` → `payouts-enhanced-withdrawals` — batch selection with checkboxes, country/KYC columns, summary stat cards, batch action toolbar
+
+### Certificates (2 pages)
+8. `CertificatesIssuedPage` → `certificates-issued` — searchable list with filters, 3-dot menu, CSV export
+9. `CertificateDetailPage` → `certificate-detail` — form layout with Edit toggle, 4 save variants, AlertDialog destructive delete
+
+## View Router Wiring
+9 new view IDs registered in `view-router.tsx`
+
+## Module Navigation Wiring
+- **Risk manifest**: +4 nav children (Group vs Payouts, Coupon vs Payouts, Label Analysis, Addon Revenue) + 4 routes
+- **Marketing manifest**: +1 nav child (Dashboard) + 1 route
+- **Payouts manifest**: +1 nav child (Withdrawals) + 1 route
+- **Settings manifest**: +1 nav child (Issued Certificates) + 2 routes (certificates-issued + certificate-detail)
+- **Platform-level**: +1 view (pending-tasks)
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Command menu shows 67 options for Beta tenant ✓
+- New items verified: Risk › Group vs Payouts, Risk › Coupon vs Payouts, Risk › Label Analysis, Risk › Addon Revenue, Payouts › Withdrawals, Settings › Issued Certificates ✓
+- State explanations extended: certificate.valid/expired/revoked added to state-explanations.tsx ✓

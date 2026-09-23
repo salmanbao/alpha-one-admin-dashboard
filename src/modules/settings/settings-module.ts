@@ -30,6 +30,7 @@ const navigation: NavigationItem[] = [
       { id: "settings.banners", label: "Banners", href: "banner-management", icon: Image, permission: "settings.manage" },
       { id: "settings.users", label: "User Management", href: "user-management", icon: UsersRound, permission: "settings.manage" },
       { id: "settings.tokens", label: "API Tokens", href: "token-management", icon: KeyRound, permission: "settings.manage" },
+      { id: "settings.cert-issued", label: "Issued Certificates", href: "certificates-issued", icon: Award, permission: "settings.manage" },
     ],
   },
 ];
@@ -42,6 +43,8 @@ const routes: RouteDefinition[] = [
   { path: "user-management", viewId: "user-management", label: "User Management", permission: "settings.manage", module: "settings" },
   { path: "group-management", viewId: "group-management", label: "Group Management", permission: "settings.manage", module: "settings" },
   { path: "token-management", viewId: "token-management", label: "Token Management", permission: "settings.manage", module: "settings" },
+  { path: "certificates-issued", viewId: "certificates-issued", label: "Issued Certificates", permission: "settings.manage", module: "settings" },
+  { path: "certificate-detail", viewId: "certificate-detail", label: "Certificate Detail", permission: "settings.manage", module: "settings" },
 ];
 
 export const settingsModule: FrontendModule = {

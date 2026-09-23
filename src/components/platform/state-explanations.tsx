@@ -223,12 +223,37 @@ const STATE_EXPLANATIONS: Record<string, StateExplanation> = {
     reason: "Daily Loss limit reached.",
     tone: "warning",
   },
+
+  // Certificate states (issued certificates awarded to traders)
+  "certificate.valid": {
+    code: "valid",
+    title: "Valid",
+    meaning: "The certificate is active and verifiable. The trader can share the certificate URL publicly.",
+    nextStates: ["Expired", "Revoked"],
+    tone: "safe",
+  },
+  "certificate.expired": {
+    code: "expired",
+    title: "Expired",
+    meaning: "The certificate has passed its validity period and is no longer verifiable.",
+    reason: "Certificates are valid for a fixed term; this one has lapsed.",
+    nextStates: ["Re-issued"],
+    tone: "warning",
+  },
+  "certificate.revoked": {
+    code: "revoked",
+    title: "Revoked",
+    meaning: "The certificate has been revoked by an admin and is no longer verifiable.",
+    reason: "Revocation is typically a manual action due to a policy violation or trader request.",
+    nextStates: ["Re-issued"],
+    tone: "critical",
+  },
 };
 
 /**
  * Get the StateExplanation for a given status code and entity type.
  */
-export function getStateExplanation(status: string, entityType: "trader" | "account" | "payout" | "challenge" | "kyc" | "breach"): StateExplanation {
+export function getStateExplanation(status: string, entityType: "trader" | "account" | "payout" | "challenge" | "kyc" | "breach" | "certificate"): StateExplanation {
   const key = `${entityType}.${status}`;
   return STATE_EXPLANATIONS[key] ?? {
     code: status,
@@ -249,7 +274,7 @@ export function ExplainableStateBadge({
   detail,
 }: {
   status: string;
-  entityType: "trader" | "account" | "payout" | "challenge" | "kyc" | "breach";
+  entityType: "trader" | "account" | "payout" | "challenge" | "kyc" | "breach" | "certificate";
   showTooltip?: boolean;
   detail?: string;
 }) {
@@ -286,7 +311,7 @@ export function StateExplanationCard({
   action,
 }: {
   status: string;
-  entityType: "trader" | "account" | "payout" | "challenge" | "kyc" | "breach";
+  entityType: "trader" | "account" | "payout" | "challenge" | "kyc" | "breach" | "certificate";
   detail?: string;
   action?: React.ReactNode;
 }) {

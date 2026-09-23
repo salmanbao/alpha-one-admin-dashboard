@@ -117,6 +117,19 @@ import { AccountKycStatusesPage } from "@/modules/trading/pages/account-kyc-stat
 import { AccountRelatedAccountsPage } from "@/modules/trading/pages/account-related-accounts-page";
 import { ClosedPositionsPage } from "@/modules/trading/pages/closed-positions-page";
 
+/* Batch D: Risk report tabs + Marketing dashboard + Pending tasks + Enhanced withdrawals */
+import { RiskGroupVsPayoutsPage } from "@/modules/risk/pages/risk-group-vs-payouts-page";
+import { RiskCouponVsPayoutsPage } from "@/modules/risk/pages/risk-coupon-vs-payouts-page";
+import { RiskAccountLabelAnalysisPage } from "@/modules/risk/pages/risk-account-label-analysis-page";
+import { RiskAddonRevenuePage } from "@/modules/risk/pages/risk-addon-revenue-page";
+import { MarketingDashboardPage } from "@/modules/marketing/pages/marketing-dashboard-page";
+import { PendingTasksPage } from "@/modules/pendings/pages/pending-tasks-page";
+import { EnhancedWithdrawalsPage } from "@/modules/payouts/pages/enhanced-withdrawals-page";
+
+/* Batch E: Certificates issued + detail */
+import { CertificatesIssuedPage } from "@/modules/settings/pages/certificates-issued-page";
+import { CertificateDetailPage } from "@/modules/settings/pages/certificate-detail-page";
+
 export type ViewComponent = ComponentType<{ params: Record<string, string> }>;
 
 export const viewRegistry: Record<string, ViewComponent> = {
@@ -127,6 +140,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   notifications: NotificationsPage,
   help: HelpPage,
   settings: SettingsPage,
+  "pending-tasks": PendingTasksPage,
 
   /* super-admin */
   "super-overview": SuperAdminOverviewPage,
@@ -169,11 +183,16 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "risk-revenue-loss": RiskRevenueLossPage,
   "risk-label-vs-payouts": RiskLabelVsPayoutsPage,
   "risk-highest-earners": RiskHighestEarnersPage,
+  "risk-group-vs-payouts": RiskGroupVsPayoutsPage,
+  "risk-coupon-vs-payouts": RiskCouponVsPayoutsPage,
+  "risk-account-label-analysis": RiskAccountLabelAnalysisPage,
+  "risk-addon-revenue": RiskAddonRevenuePage,
 
   /* payouts */
   payouts: PayoutsOverviewPage,
   "payouts-pending": PendingPayoutsPage,
   "payouts-history": PayoutHistoryPage,
+  "payouts-enhanced-withdrawals": EnhancedWithdrawalsPage,
 
   /* analytics */
   analytics: AnalyticsOverviewPage,
@@ -205,6 +224,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   marketing: MarketingOverviewPage,
   "marketing-campaigns": MarketingCampaignsPage,
   "marketing-performance": MarketingPerformancePage,
+  "marketing-dashboard": MarketingDashboardPage,
 
   /* crm */
   crm: CrmOverviewPage,
@@ -239,6 +259,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "user-management": UserManagementPage,
   "group-management": GroupManagementPage,
   "token-management": TokenManagementPage,
+  "certificates-issued": CertificatesIssuedPage,
+  "certificate-detail": CertificateDetailPage,
 };
 
 const dynamicViews = new Map<string, ViewComponent>();
