@@ -77,6 +77,7 @@ import { SuperAdminOverviewPage, TenantsPage, ModuleCatalogPage, PlatformHealthP
 import { TenantDetailPage } from "@/modules/super-admin/tenant-detail-page";
 import { CreateTenantPage } from "@/modules/super-admin/create-tenant-page";
 import { TenantLifecyclePage } from "@/modules/super-admin/tenant-lifecycle-page";
+import { DashboardManagerPage } from "@/modules/super-admin/dashboard-manager-page";
 
 /* New flows — imported from subagent-built pages */
 import { FirmStatisticsPage } from "@/modules/analytics/pages/firm-statistics-page";
@@ -116,6 +117,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "tenant-detail": TenantDetailPage,
   "create-tenant": CreateTenantPage,
   "tenant-lifecycle": TenantLifecyclePage,
+  "dashboard-manager": DashboardManagerPage,
 
   /* trading */
   trading: TradingOverviewPage,

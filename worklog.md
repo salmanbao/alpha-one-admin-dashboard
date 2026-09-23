@@ -1974,3 +1974,177 @@ File: `src/components/shell/topbar.tsx`
 - VLM confirmed: "super-admin platform dashboard" with all Platform section items visible ✓
 - Tenant switcher correctly switches to super-admin user when selecting "Platform (Super Admin)" ✓
 - All 7 tenant lifecycle stages now have dedicated UI (create, detail/configure, module management, user management, billing, suspend/reactivate/terminate, lifecycle pipeline) ✓
+
+---
+
+## Dashboard Manager — Per-Tenant + Per-Role Layout Editor (Task: dashboard-manager)
+
+**Date:** $(date)
+**Owner:** Sub-agent (general-purpose)
+
+### Goal
+Give platform super-admin a dedicated tool to manage GridStack widget layouts
+across every white-label prop firm tenant + role combination (prop-admin roles
+AND trader roles), independent of the regular tenant dashboard.
+
+### Files Created
+1. **`src/modules/super-admin/dashboard-manager-page.tsx`** (~650 lines)
+   - Exported `DashboardManagerPage` component
+   - 280px sidebar + main editor split layout
+   - Sidebar cards: Tenant selector, Role selector, Widget Library (search +
+     module/category filters), Layout Actions (lock toggle, reset)
+   - Main area: mode indicator bar + GridStack editor + Terra-themed inline CSS
+   - EmptyState when tenant has no widgets available for the role
+   - Preview/Edit toggle (toggles GridStack staticGrid at runtime via
+     `grid.setStatic()`)
+
+### Files Modified
+2. **`src/modules/super-admin/super-admin-module.ts`**
+   - Added `LayoutDashboard` to lucide-react import
+   - Added nav child: `super.dashboard-manager` → `dashboard-manager`
+   - Added route: `dashboard-manager` viewId
+
+3. **`src/lib/platform/view-router.tsx`**
+   - Imported `DashboardManagerPage`
+   - Registered in `viewRegistry`: `"dashboard-manager": DashboardManagerPage`
+
+### Key Implementation Details
+
+**Runtime context synthesis**
+- `buildContext(tenant, role, baseUser)` constructs a `ModuleRuntimeContext`
+  for the selected tenant+role combination (preview user with the role's
+  permissions, application, and tenant's enabledModules/features).
+- This drives `moduleRegistry.getWidgets(ctx)` and
+  `resolveDashboardLayout(ctx)` to determine the widget universe and
+  default auto-layout for that combination.
+
+**Per-tenant+role storage** (separate namespace from regular dashboard)
+- Layout: `pfaas:dashboardLayout:{tenantId}:{roleId}` (GridStack node array)
+- Lock: `pfaas:dashboardLock:{tenantId}:{roleId}` (boolean flag)
+- Falls back to `resolveDashboardLayout()` auto-flow when no saved layout
+
+**GridStack lifecycle**
+- Dynamic `import("gridstack")` to keep initial bundle lean
+- Pre-builds DOM with `gs-*` attributes, lets GridStack auto-detect children
+- Mounts React widgets into each `.grid-stack-item-content` via `createRoot`
+- Tracks React roots in a `Map<string, Root>` for clean unmount
+- Listens to `change`/`dragstop`/`resizestop`/`added`/`removed` to auto-persist
+- Destroys + rebuilds on `ctx` / `previewMode` / `layoutNonce` change
+
+**Add/Remove widget flow**
+- Add: creates DOM element with `gs-id` + `gs-w`/`gs-h`, calls
+  `grid.addWidget(el, { id, x:0, y:maxY, w, h, autoPosition:false })`,
+  then renders the React widget into the new content div
+- Remove: unmounts React root, then `grid.removeWidget(el, true)`
+- Sidebar `placedIds` Set tracks which widgets are currently in the grid
+  (synced from `grid.save()` on every change event)
+
+**Lock semantics**
+- Lock toggle writes a per-tenant+role boolean to localStorage
+- (Enforcement in the tenant dashboard itself is reserved for a follow-up;
+  this tool sets the flag.)
+
+### Patterns Followed
+- `"use client"` directive
+- `usePlatform()` for `availableTenants` + `user`
+- `moduleRegistry.getWidgets()` / `.getAll()` / `.get()`
+- `resolveDashboardLayout()` / `resolveWidgets()` from dashboard-engine
+- Terra design system (forest green #4a7c59, warm cream, 12px radius,
+  soft shadows, no blue/indigo)
+- UX Constitution: progressive disclosure (sidebar reveals filters + actions
+  as needed), one primary action per surface (Save), explainability (helper
+  footer, mode indicator, lock description), generous spacing, large touch
+  targets, soft corners
+- Did NOT modify `gridstack-dashboard.tsx` — separate tool, separate
+  localStorage namespace
+
+### Verification
+- `bun run lint` → clean (0 errors, 0 warnings)
+- `bunx tsc --noEmit` → 0 errors in any modified file (pre-existing errors in
+  unrelated analytics/widgets files remain untouched)
+- Page accessible via super-admin sidebar → Dashboard Manager
+- Tenant + Role selectors filter to non-platform tenants and non-super-admin
+  roles (prop-admin / trader scopes only)
+
+### Next Actions (deferred)
+- Enforcement of `pfaas:dashboardLock:{tenantId}:{roleId}` flag in the
+  regular `gridstack-dashboard.tsx` so tenants actually see the lock
+- Optional: persist layouts to a server-side store (currently localStorage
+  only, suitable for demo)
+
+---
+Task ID: dashboard-manager
+Agent: lead-architect
+Task: Build complete Dashboard Manager for platform admin to manage widget layouts across all white-label tenant dashboards
+
+## Analysis Summary
+Before this task, the super-admin could only edit THEIR OWN dashboard via GridStack. There was no UI to:
+- Manage a specific tenant's dashboard layout
+- Configure widgets per-tenant or per-role
+- Browse all available widgets
+- Lock/unlock tenant layouts
+- Preview tenant dashboards
+- Differentiate layouts for prop-admin vs trader roles
+
+## Completed Modifications
+
+### 1. Dashboard Manager Page
+File: `src/modules/super-admin/dashboard-manager-page.tsx` (~650 lines)
+
+**Layout:** 280px sidebar + main GridStack editor area
+
+**Sidebar:**
+- **Tenant selector** — dropdown of all tenants (excluding platform pseudo-tenant)
+- **Role selector** — dropdown of roles filtered by `application === "prop-admin"` or `"trader"`, with Admin/Trader badges
+- **Widget Library** — searchable, filterable list of ALL widgets from ALL modules. Each widget shows: title, module badge, category badge, default size. "Add"/"Remove" buttons per widget.
+- **Layout Actions** — Lock/Unlock toggle, Reset to defaults
+
+**Main area:**
+- **Mode indicator bar** — shows edit/preview mode + placed widget count + lock badge
+- **GridStack editor** — drag/resize/add/remove widgets
+- **Preview mode** — read-only grid showing what the tenant sees
+- **Save Layout** button — persists to `pfaas:dashboardLayout:{tenantId}:{roleId}`
+- **Reset** button — clears saved layout, falls back to auto-layout
+
+**GridStack lifecycle:**
+- Dynamic `import("gridstack")`
+- Pre-builds DOM with `gs-*` attributes → auto-detection by `GridStack.init()`
+- Renders React widgets via `createRoot` into each `.grid-stack-item-content`
+- Tracks roots in `Map<string, Root>` for clean unmount
+- Auto-persists on `change`/`dragstop`/`resizestop`/`added`/`removed` events
+- Rebuilds on tenant/role/previewMode change
+
+**Runtime context synthesis:**
+- Builds a `ModuleRuntimeContext` for the selected tenant+role to drive `moduleRegistry.getWidgets(ctx)` and `resolveDashboardLayout(ctx)`
+
+### 2. Lock Enforcement in Regular Dashboard
+File: `src/components/platform/gridstack-dashboard.tsx` (updated)
+
+**Lock check:**
+- `isLayoutLocked` reads from `pfaas:dashboardLock:{tenantId}:{roleId}` in localStorage
+- `canEdit = isSuperAdmin && !isLayoutLocked` — super-admin can't edit if locked
+- GridStack init uses `canEdit` for `staticGrid`, `disableResize`, `disableDrag`
+- `toggleEditMode` checks `canEdit` before allowing toggle
+- Layout control bar only shows for `canEdit` users
+
+**Layout loading priority:**
+1. Dashboard Manager layout (`pfaas:dashboardLayout:{tenantId}:{roleId}`) — per-tenant+role
+2. Regular grid layout (`pfaas:gridLayout:{tenantId}`) — per-tenant (fallback)
+3. Auto-layout from `resolveDashboardLayout` — default
+
+### 3. Navigation Wiring
+- **super-admin-module.ts**: added "Dashboard Manager" nav child + route (viewId: `dashboard-manager`)
+- **view-router.tsx**: added `DashboardManagerPage` import + registry entry
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Super-admin sidebar shows "Dashboard Manager" in Platform section ✓
+- Dashboard Manager renders with:
+  - Tenant selector (Alpha Capital) ✓
+  - Role selector (Prop Firm Admin) ✓
+  - Widget library with Add/Remove buttons ✓
+  - GridStack editor with "Edit mode" instruction ✓
+  - Save Layout, Preview, Reset, Lock toggle buttons ✓
+- VLM rating: 9/10 ✓
+- Lock enforcement: `canEdit` replaces `isSuperAdmin` in gridstack-dashboard ✓
+- Layout loading: Dashboard Manager layout key checked first ✓

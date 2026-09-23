@@ -88,6 +88,19 @@ export function DashboardGrid() {
   const { runtime, hiddenWidgets } = usePlatform();
   const isSuperAdmin = runtime.user.application === "super-admin";
   const tenantId = runtime.tenant?.id ?? "platform";
+  const roleId = runtime.user.roles[0] ?? "anon";
+
+  // Check if this tenant+role's layout is locked by platform admin
+  const isLayoutLocked = (() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(`pfaas:dashboardLock:${tenantId}:${roleId}`) === "true";
+    } catch { return false; }
+  })();
+
+  // Super-admin can always edit UNLESS the layout is explicitly locked
+  // Non-super-admin can NEVER edit (read-only)
+  const canEdit = isSuperAdmin && !isLayoutLocked;
 
   // Compute resolved widgets (with hidden filter)
   const layout = resolveDashboardLayout(runtime, hiddenWidgets);
@@ -100,7 +113,22 @@ export function DashboardGrid() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Build initial GridStack nodes from resolved widgets or saved layout
+  // Use the per-tenant+role layout key if a Dashboard Manager layout exists,
+  // otherwise fall back to the per-tenant grid layout key.
   const buildNodes = useCallback((): GridStackNode[] => {
+    // Try Dashboard Manager layout first (per-tenant+role)
+    const dmSaved = (() => {
+      if (typeof window === "undefined") return null;
+      try {
+        const stored = window.localStorage.getItem(`pfaas:dashboardLayout:${tenantId}:${roleId}`);
+        return stored ? JSON.parse(stored) : null;
+      } catch { return null; }
+    })();
+    if (dmSaved && dmSaved.length > 0) {
+      const visibleIds = new Set(widgets.map((w) => w.definition.id));
+      return dmSaved.filter((n: GridStackNode) => visibleIds.has(n.id));
+    }
+    // Fall back to per-tenant grid layout
     const saved = loadLayout(tenantId);
     if (saved && saved.length > 0) {
       // Use saved layout — filter out hidden widgets
@@ -154,9 +182,9 @@ export function DashboardGrid() {
         column: 12,
         cellHeight: 80,
         margin: 12,
-        staticGrid: !isSuperAdmin,
-        disableResize: !isSuperAdmin,
-        disableDrag: !isSuperAdmin,
+        staticGrid: !canEdit,
+        disableResize: !canEdit,
+        disableDrag: !canEdit,
         animate: true,
         float: false,
       });
@@ -213,11 +241,11 @@ export function DashboardGrid() {
       }
       gridInstanceRef.current = null;
     };
-  }, [tenantId, isSuperAdmin, widgets.length]);
+  }, [tenantId, canEdit, widgets.length]);
 
   // Toggle edit mode (super-admin only)
   const toggleEditMode = () => {
-    if (!isSuperAdmin) return;
+    if (!canEdit) return;
     const next = !editMode;
     setEditMode(next);
     if (gridInstanceRef.current) {
@@ -268,7 +296,7 @@ export function DashboardGrid() {
   return (
     <div className="space-y-4">
       {/* Layout control bar — only visible to super-admin */}
-      {isSuperAdmin ? (
+      {canEdit ? (
         <div className="flex items-center gap-2 rounded-lg border border-terra bg-terra-surface/40 px-4 py-2.5">
           {editMode ? (
             <Unlock className="h-4 w-4 text-tertiary" />
