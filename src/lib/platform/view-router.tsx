@@ -167,6 +167,10 @@ import { OrderDetailPage } from "@/modules/trading/pages/order-detail-page";
 import { SocialMediaLinksPage } from "@/modules/settings/pages/social-media-links-page";
 import { DeviceActivitiesPage } from "@/modules/settings/pages/device-activities-page";
 
+/* Batch L: Token detail + Enhanced user events */
+import { TokenDetailPage } from "@/modules/settings/pages/token-detail-page";
+import { EnhancedUserEventsPage } from "@/modules/audit/enhanced-user-events-page";
+
 export type ViewComponent = ComponentType<{ params: Record<string, string> }>;
 
 export const viewRegistry: Record<string, ViewComponent> = {
@@ -323,6 +327,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "marketing-banner-edit": MarketingBannerEditPage,
   "social-media-links": SocialMediaLinksPage,
   "device-activities": DeviceActivitiesPage,
+  "token-detail": TokenDetailPage,
+  "audit-user-events-enhanced": EnhancedUserEventsPage,
 };
 
 const dynamicViews = new Map<string, ViewComponent>();

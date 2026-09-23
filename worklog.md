@@ -4126,3 +4126,171 @@ Export: `DeviceActivitiesPage` → viewId: `device-activities`
 
 ## COMPLETE IMAGE ANALYSIS SUMMARY
 All 121 images from the FUNDERBLU Admin screenshots have now been analyzed across 10 batches. The platform has grown from ~40 views to 80+ views, covering every flow visible in the reference screenshots.
+
+---
+
+## img-batchL — Token Detail Page + Enhanced User Events Page
+
+**Date:** 2025 — final missing-features batch from the 121-screenshot audit.
+
+### Files created (NEW only — no existing files modified)
+
+1. **`src/modules/settings/pages/token-detail-page.tsx`** (952 lines)
+   - Export: `TokenDetailPage`
+   - Single API token view + edit form. Reached from Token Management list
+     (click-through on a token row) or directly via `router.params.id`,
+     where the id parameter IS the token hash itself (e.g.
+     `ffc261a8fba610812e2bc0c93a6137d90afda52b`).
+   - **Breadcrumb:** `Tokens > [Token ID]` (monospace truncated hash).
+   - **Header:** title + monospace key preview + Active/Revoked StatusBadge
+     + outline "History" button (toast: "Token usage history would show IP
+     addresses and timestamps").
+   - **Form fields** (4 FormSection cards — progressive disclosure §12):
+     - Identification: Key (read-only Input, monospace, with Show/Hide
+       toggle and Copy button), User (Select from auth users + tenant
+       traders with "MoreVertical" 3-dot menu button → toast "User profile
+       would open here").
+     - Capabilities & Lifetime: Expiration Date (datetime-local),
+       Scopes (8-option multi-select checkbox list: read:trades,
+       write:trades, read:accounts, write:accounts, read:payouts,
+       approve:payouts, read:analytics, admin:all — default read:trades
+       checked, with active-scope Badge chips).
+     - Access Control: IP Whitelist (Textarea, monospace), Is Active
+       (Switch toggle in bordered panel).
+     - Audit Metadata: Last Used, Created, Created By (read-only
+       ReadOnlyField with icon + ContextualHelp tooltip).
+   - **Token Usage Stats card** below the form (§24 Metric category): 4
+     MetricCards — Total API Calls, Last 24h Calls, Last IP Used, Most
+     Called Endpoint.
+   - **Footer actions** (one primary §13): "Delete Token" (destructive
+     AlertDialog on the left with the spec's exact consequence text:
+     "The token will be permanently revoked. Any API integrations using
+     this token will immediately stop working. This action cannot be
+     undone."), then "Regenerate Key", "Save and add another", "Save and
+     continue editing", "Save" on the right.
+   - All field labels use `LabelWithHelp` (§33 ContextualHelp) for inline
+     explanations.
+   - Deterministic mock data via `hashSeed(id)` — no Math.random.
+   - Terra palette — emerald/amber/rose accents, no blue/indigo.
+
+2. **`src/modules/audit/enhanced-user-events-page.tsx`** (959 lines)
+   - Export: `EnhancedUserEventsPage`. NEW file — original
+     `audit/user-events-page.tsx` untouched.
+   - **KPI row (7 metrics per spec):** Total Events, Account Created, KYC
+     Completed, Breaches Detected (incl. Floating PnL + Daily Drawdown),
+     Payout Events, Target Profit Reached, Drawdown Breached.
+   - **DataTable columns:**
+     - User (email → clickable link to `trader-detail` with `id=traderId`).
+     - Account (formatted `[Phase Type] Challenge Name - Account ID` —
+       multi-line cell, clickable link to trader-detail).
+     - Event Type (StatusBadge with color coding for all 16 types incl.
+       new risk events FLOATING_PNL_BREACHED, DAILY_DRAWDOWN_BREACHED,
+       TARGET_PROFIT_REACHED, PHASE_UPGRADED).
+     - Event Description (rich text with metric snapshots — equity,
+       balance, open PnL, positions, daily limit / current / used %,
+       target / current / progress %, account upgrade chain).
+     - IP Address (monospace).
+     - Source (StatusBadge — System/Admin/User/API).
+     - Created (timestamp).
+   - **Advanced Filter Panel** (Collapsible, starts collapsed): Event Type
+     multi-select (16 checkboxes with active-scope chips), Date Range
+     dropdown (24h/7d/30d/All), User text input, Account ID text input,
+     Source dropdown, Apply + Clear buttons, live result count "X of Y
+     events match".
+   - **Export CSV** button + instant search bar + pagination 100/page.
+   - **168 deterministic mock events** covering every event type (16
+     types × ≥8 reps each) using index-seeded generation (`hashStr`,
+     `ipFor`, `accountIdFor`, etc.) — no Math.random.
+   - Re-exports `EVENT_LABELS`, `ALL_EVENT_TYPES`, `eventTone`,
+     `sourceTone`, `buildEnhancedEvents` + types for any future detail
+     drawer.
+   - Terra palette — emerald/amber/rose/sky accents, no blue/indigo.
+
+### Patterns followed
+- `"use client"` directive ✓
+- `usePlatform()` from `@/lib/platform/platform-context` ✓
+- Platform components: Page, PageHeader, PageContent, MetricCard,
+  DataTable, Column, StatusBadge, formatCompact, LabelWithHelp/
+  ContextualHelp ✓
+- shadcn/ui: Input, Textarea, Label, Switch, Button, Badge, Separator,
+  Checkbox, Collapsible, AlertDialog, Select ✓
+- lucide-react icons (no blue/indigo) ✓
+- `toast` from `@/hooks/use-toast`, `cn` from `@/lib/utils` ✓
+- AGENTS.md UX principles: progressive disclosure (§12), one primary
+  action (§13), contextual help (§33), explainable state (§17-19),
+  destructive AlertDialog confirmation (§24), collapsible advanced
+  filters (§27) ✓
+- Deterministic mock data (hashStr / index seeds — no Math.random) ✓
+- Existing files NOT modified (per task constraints) ✓
+- view-router.tsx NOT modified (per task constraints) ✓
+
+### Verifying
+`bun run lint` → exit 0 (no errors, no warnings on the new files).
+`bunx tsc --noEmit --skipLibCheck` → zero errors on the new files (only
+pre-existing errors in the codebase remain).
+
+### Suggested viewIds (NOT registered — view-router.tsx is out of scope)
+- `token-detail` → `TokenDetailPage` (settings module). Route from
+  `token-management` row click via `navigate("token-detail", { id: token.keyFull })`.
+- `audit-user-events-enhanced` → `EnhancedUserEventsPage` (audit module).
+
+To wire these in, the next agent adds two lines to `view-router.tsx`:
+```ts
+import { TokenDetailPage } from "@/modules/settings/pages/token-detail-page";
+import { EnhancedUserEventsPage } from "@/modules/audit/enhanced-user-events-page";
+// in viewRegistry:
+"token-detail": TokenDetailPage,
+"audit-user-events-enhanced": EnhancedUserEventsPage,
+```
+
+
+---
+Task ID: img-batch-final
+Agent: lead-architect
+Task: Analyze final 4 images (125-129) — all 121 images now fully analyzed
+
+## Analysis Summary
+Analyzed the last 4 images (125, 126, 128, 129) — Token list, Token detail/edit, User events list, User event detail. Found 3 missing features.
+
+## 2 New Pages Built & Wired
+
+### 1. Token Detail/Edit Page (952 lines)
+File: `src/modules/settings/pages/token-detail-page.tsx`
+Export: `TokenDetailPage` → viewId: `token-detail`
+- Breadcrumb: "Tokens > [Token ID]" (monospace truncated hash)
+- Header: History button (outline, toast)
+- **4 form sections** (progressive disclosure):
+  1. **Identification**: Key (read-only, monospace, Show/Copy buttons), User dropdown with 3-dot menu
+  2. **Capabilities & Lifetime**: Expiration date-time input, 8-option Scopes multi-select (Read Trades, Write Trades, Read Accounts, Write Accounts, Read Payouts, Approve Payouts, Read Analytics, Admin Access)
+  3. **Access Control**: IP Whitelist textarea (comma-separated), Is Active Switch
+  4. **Audit Metadata**: Last Used, Created, Created By (read-only)
+- **Token Usage Stats** card: Total API Calls (14,892), 24h Calls, Last IP, Most Called Endpoint
+- Footer: Delete Token (AlertDialog), Regenerate Key, Save and add another, Save and continue editing, Save
+
+### 2. Enhanced User Events Page (959 lines)
+File: `src/modules/audit/enhanced-user-events-page.tsx`
+Export: `EnhancedUserEventsPage` → viewId: `audit-user-events-enhanced`
+- **KPI row** (7): Total Events, Account Created, KYC Completed, Breaches Detected, Payout Events, Target Profit Reached, Drawdown Breached
+- **DataTable** with 7 columns: User (email link), Account ([Phase Type] Challenge - Account ID link), Event Type (16 types with color-coded badges), Event Description (rich text with metric snapshots), IP Address, Source (System/Admin/User/API badge), Created (timestamp)
+- **16 event types** including new risk-specific: FLOATING_PNL_BREACHED, DAILY_DRAWDOWN_BREACHED, TARGET_PROFIT_REACHED, PHASE_UPGRADED
+- **Rich descriptions with metric snapshots**:
+  - "Floating PnL breached: 333385879 Equity: $4,891.17; Balance: $4,946.17; Open PnL: -$55.00"
+  - "Daily Drawdown breached: 333385879 Daily limit: $250.00; Current: $312.50; Used: 125%"
+  - "Target Profit reached: 333387710 Target: $800.00; Current: $824.50; Progress: 103%"
+- **Advanced Filter Panel** (expandable): 16-checkbox event type multi-select, date range, user, account ID, source dropdown, Apply/Clear buttons with live result count
+- Export CSV + search + pagination (100/page)
+- 168 deterministic mock events covering all 16 types
+
+## View Router Wiring
+2 new view IDs: `token-detail`, `audit-user-events-enhanced`
+
+## Module Route Wiring
+- **Settings manifest**: +1 route (token-detail)
+- Token detail accessible from token-management page via row navigation
+- Enhanced user events accessible as alternate view
+
+## FINAL VERIFICATION
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Command menu shows 80 options for Beta tenant ✓
+- ALL 121 IMAGES FULLY ANALYZED across 11 batches ✓
+- Total platform: 80+ views, 14 modules, Terra Organic Design, GridStack dashboard, UX Constitution compliance
