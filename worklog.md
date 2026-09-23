@@ -1672,3 +1672,305 @@ File: `src/components/platform/gridstack-dashboard.tsx`
 - Module section headers visible: Trading, Challenges, Risk Management, Payouts ✓
 - Widget content rendered: KPI metrics, charts, tables, activity feeds ✓
 - VLM rating: 9/10 — "responsive grid with diverse content, admin control bar, clear section headers"
+
+---
+Task ID: tenant-lifecycle
+Agent: general-purpose (sub agent)
+Task: Build comprehensive tenant lifecycle management UI for Super Admin
+
+## Scope
+Built 4 files implementing the tenant lifecycle surface for the Super Admin
+application: a tenant detail workspace, a create-tenant wizard, a lifecycle
+pipeline view, and updated Tenants page to navigate into the new flows.
+All files follow the Terra Organic Design system (forest green / cream /
+Literata / Nunito Sans) and AGENTS.md UX principles (progressive disclosure,
+one primary action per surface, explainability, destructive confirmations
+with explicit consequences).
+
+## Files Created / Modified
+
+### 1. `src/lib/platform/types.ts` (modified)
+- Extended `TenantContext.status` to include `"terminated"`:
+  `status: "active" | "trial" | "suspended" | "invited" | "terminated";`
+- Additive change; existing tone-mapping helpers fall through to `"muted"`
+  for the new value, so existing pages keep working.
+
+### 2. `src/modules/super-admin/tenant-detail-page.tsx` (new — 1159 lines)
+Exported: `TenantDetailPage`. Reads `router.params.id` from `usePlatform()`,
+looks up the tenant from `availableTenants`, shows an `EmptyState` if not
+found.
+
+**Header** — `EntityHeader` with brand-color initials avatar, name, plan
+badge, status badge (using extended tone mapping), and three contextual
+actions:
+- "Edit Configuration" (outline)
+- "Suspend" (outline + AlertDialog; reversibility explicitly stated)
+- "Reactivate" (shown only when suspended)
+- "Terminate" (destructive AlertDialog with the full consequence text from
+  the task: "All trader data, accounts, payouts, and audit logs for this
+  tenant will be permanently archived. The tenant will lose all platform
+  access immediately.")
+
+Status changes call `setTenant(updated)` for context persistence + a
+`pushNotification` + a toast.
+
+**KPI row** — 6 MetricCards: Traders, Active Accounts, MRR (plan-based:
+starter=$890, growth=$1900, scale=$4900, enterprise=custom→4900), Open
+Breaches, Pending Payouts, KYC Pending.
+
+**Tabs (7)**:
+1. **Overview** — tenant summary dl (id/slug/plan/status/currency/timezone/
+   locale/created/last active/application) + module adoption list (each
+   module with enabled ✓ / disabled dot) + Progress bar showing adoption
+   ratio.
+2. **Modules** — KEY feature. Grid of all modules from
+   `moduleRegistry.getAll()`, each card showing icon, name, category badge,
+   description, version, supportedApplications badges, and a `Switch`. The
+   header shows count "X of Y modules enabled" + Progress bar. Toggling a
+   switch updates the local tenant copy AND calls `setTenant` so the
+   global context reflects the change, plus a toast describing what just
+   happened ("Module enabled/disabled — X is now accessible/hidden for
+   {tenant}.").
+3. **Users** — `DataTable` of `users.filter(u => u.tenantId === tenantId)`
+   with columns name (initials avatar), role badges, application badge,
+   last active. Per-row "Edit role" (ghost + toast) and "Remove"
+   (destructive ghost + toast). "Invite user" button (toast).
+4. **Billing** — subscription card (plan, monthly cost, billing cycle,
+   next billing date, payment method mock, status) + "Change plan"
+   DropdownMenu (all 4 plans with prices) + "Generate invoice" button
+   (toast). Spending summary card (this month / YTD / all-time). Billing
+   history `DataTable` with 6 deterministic invoices (date, amount,
+   status badge).
+5. **Activity** — `ActivityTimeline` from `@/components/platform/audit`
+   using `getTenantAudit(tid).slice(0, 12)`.
+6. **Configuration** — form to edit: name, tagline, currency (Select),
+   timezone, locale, primary color (color picker + 6 Terra presets),
+   accent color, border radius (Select), initials. Live preview pane with
+   brand-color avatar + tagline + primary/accent buttons. "Save changes"
+   calls `setTenant({...tenant, ...updatedFields})` + toast.
+7. **Risk** — risk summary card (open breaches, critical, accounts at
+   risk) + composite risk score with Progress + tone badge + "Quick
+   actions" card (open risk workspace, view open breaches, export risk
+   report — all toasts).
+
+### 3. `src/modules/super-admin/create-tenant-page.tsx` (new — 913 lines)
+Exported: `CreateTenantPage`. 5-step wizard mirroring
+`ChallengeWizardPage`'s step indicator pattern (done/active/inactive
+circles + connecting bars).
+
+**Steps**:
+1. **Basics** — tenant name (auto-generates slug + initials on change),
+   slug (editable, slugified), tagline, plan (Select with prices),
+   currency (Select), timezone (Select).
+2. **Branding** — 6 Terra color presets, primary/accent color pickers,
+   border radius (Select), initials (auto from name, editable), optional
+   logo URL. Live preview pane with avatar + tagline + brand buttons.
+3. **Modules** — grid of all modules with `Checkbox` toggles. Core modules
+   (trading, challenges, risk, payouts, settings) pre-selected via
+   `CORE_MODULE_IDS`. Header shows count "X of Y selected".
+4. **Admin User** — admin name + admin email (validated with regex). Card
+   explaining what happens next (tenant provisioned in trial status, admin
+   invited, redirect to detail page).
+5. **Review** — summary grid of 4 review cards (Basics, Branding,
+   Administrator, Modules selected). Single primary action "Create tenant".
+
+**Create action**:
+- Builds a new `TenantContext` with `id: tenant-${slug}-${random}`,
+  `application: "prop-admin"`, `status: "trial"`, current ISO timestamp.
+- Calls `setTenant(newTenant)` so the global context persists the new
+  tenant.
+- Fires `pushNotification` + toast "Tenant created — {name} is ready for
+  onboarding".
+- Navigates to `tenant-detail` with `{ id }` so the user lands on the new
+  tenant's workspace.
+
+**Validation**: per-step `stepValid()` gates the Next button. Required
+fields marked with red asterisk. Email format validated with regex.
+
+### 4. `src/modules/super-admin/tenant-lifecycle-page.tsx` (new — 477 lines)
+Exported: `TenantLifecyclePage`. Shows the lifecycle as a horizontal
+pipeline:
+
+```
+Invited → Trial → Active → Suspended → Terminated
+```
+
+Each stage is a clickable card showing:
+- Lucide icon (Mail/Clock/CheckCircle2/Pause/Ban) in stage-color tint
+- Stage label + count (large tabular number)
+- Description text
+- Up to 4 tenant names with brand-color dots (+N more overflow)
+- Color-coded border when selected
+
+Clicking a stage card filters the table below by that stage. Arrow icons
+connect the stages horizontally on `lg` breakpoints.
+
+**KPI row** — 5 MetricCards, one per stage, with appropriate tone
+(positive/negative/warning/default).
+
+**Table** — `DataTable` of all tenants with columns: name (with brand
+avatar), lifecycle stage (color-coded badge with stage icon), plan, modules,
+created date, row actions. Rows are clickable → navigate to
+`tenant-detail`. Row actions adapt to current status:
+- Active/Trial → Suspend (amber AlertDialog) + Terminate (destructive
+  AlertDialog)
+- Suspended → Reactivate (emerald ghost button) + Terminate
+- Terminated → no destructive actions
+
+All destructive actions use `AlertDialog` with explicit consequence text.
+`e.stopPropagation()` prevents row click from firing when an action is
+clicked.
+
+A "How lifecycle works" help card at the bottom explains each stage.
+
+Header includes a Select filter that mirrors the pipeline filter (so users
+can filter without clicking the pipeline).
+
+### 5. `src/modules/super-admin/super-admin-pages.tsx` (modified)
+- Added top-of-file re-exports for the three new pages:
+  ```ts
+  export { TenantDetailPage } from "./tenant-detail-page";
+  export { CreateTenantPage } from "./create-tenant-page";
+  export { TenantLifecyclePage } from "./tenant-lifecycle-page";
+  ```
+- Updated `TenantsPage`:
+  - Header actions: "Lifecycle" outline button → `navigate("tenant-lifecycle")`,
+    "Create tenant" primary button → `navigate("create-tenant")` (replaces
+    the old "Invite tenant" toast button).
+  - Added `useState` + `useMemo` for a `stageFilter` state ("all" +
+    5 lifecycle stages).
+  - Added a `Select` filter in the DataTable toolbar to filter by stage.
+  - Made rows clickable: `onRowClick={(t) => navigate("tenant-detail", { id: t.id })}`
+  - The "View" button still navigates to `tenant-detail` (with
+    `e.stopPropagation()` so it doesn't double-fire).
+- Extended `tenantStatusTone` to map `terminated → "muted"` and
+  `invited → "info"` (previously fell through to "warning").
+- Fixed the pre-existing `TenantContext` import to come from
+  `@/lib/platform/types` instead of `mock-data` (the latter doesn't
+  re-export it). Same fix for the `ModuleCatalogPage` icon `style` prop
+  (moved color to the parent div + removed `style` from the Icon).
+
+### 6. `src/modules/super-admin/index.ts` (modified)
+- Added re-exports for `TenantDetailPage`, `CreateTenantPage`,
+  `TenantLifecyclePage` so the view router (or whoever wires views) can
+  import them from a single source via `@/modules/super-admin`.
+
+## Patterns Applied
+- `"use client"` directive on all new files.
+- `usePlatform()` for `router`, `navigate`, `setTenant`,
+  `pushNotification`, `availableTenants`.
+- Platform primitives: `Page`, `PageHeader`, `PageContent`, `EntityHeader`,
+  `MetricCard`, `DataTable`/`Column`, `StatusBadge`, `formatCurrency`,
+  `ActivityTimeline`, `EmptyState`, `LabelWithHelp`.
+- shadcn/ui: `Button`, `Badge`, `Card`, `Input`, `Label`, `Switch`,
+  `Separator`, `Progress`, `Tabs`, `Select`, `DropdownMenu`,
+  `AlertDialog`, `Checkbox`.
+- `cn` from `@/lib/utils`.
+- `toast` from `@/hooks/use-toast`.
+- Lucide icons throughout (NO blue/indigo — Terra palette only: emerald,
+  amber, rose, slate for status tones; brand greens/browns for accents).
+- AGENTS.md UX principles: one primary action per surface, progressive
+  disclosure via tabs, explainability via `LabelWithHelp` + `StatusBadge`
+  tones + `EmptyState` hints, destructive actions always wrapped in
+  AlertDialog with explicit consequence text.
+- Color on parent div + `currentColor` on icons (avoids the pre-existing
+  TS error pattern of passing `style` to `ComponentType<{ className?: string }>`).
+
+## View IDs Used (for lead-architect wiring)
+- `tenant-detail` (params: `{ id }`)
+- `create-tenant` (no params)
+- `tenant-lifecycle` (no params)
+- `tenant-config` (params: `{ id }`) — used in TenantDetailPage's
+  "Edit Configuration" button as a forward-reference; can be wired to the
+  same `TenantDetailPage` with a `tab=configuration` param or to a
+  dedicated config page if one is built later.
+
+## Verification Results
+- `bun run lint` → exit code 0, zero warnings, zero errors ✓
+- `bunx tsc --noEmit` → zero errors in any of the 4 new/modified files
+  (remaining TS errors in the codebase are pre-existing in
+  `mock-data.ts`, `analytics-pages.tsx`, `settings-page.tsx`, etc. and
+  unrelated to this task).
+- No `view-router.tsx` or `module-bootstrap.ts` modifications made (lead
+  will wire the new view IDs into `viewRegistry`).
+
+## Next Actions for Lead
+1. Add to `view-router.tsx` `viewRegistry`:
+   ```ts
+   "tenant-detail": TenantDetailPage,
+   "create-tenant": CreateTenantPage,
+   "tenant-lifecycle": TenantLifecyclePage,
+   ```
+   (or import via `@/modules/super-admin`).
+2. Optionally add nav items to `super-admin-module.ts` for "Tenant
+   Lifecycle" under the Platform nav group.
+3. Wire the `tenant-config` view id (used by TenantDetailPage's
+   "Edit Configuration" button) — either alias to `tenant-detail` with
+   a `tab=configuration` param, or build a dedicated config page.
+
+
+---
+Task ID: tenant-lifecycle-mgmt
+Agent: lead-architect
+Task: Build complete tenant lifecycle management UI/UX for platform admin
+
+## Analysis Summary
+Before this task, the platform admin could only SEE tenants in a list with a "View" button that impersonated. No create, configure, suspend, terminate, module management, user management, or billing existed.
+
+## Completed Modifications
+
+### 1. Tenant Detail Page (7-tab workspace)
+File: `src/modules/super-admin/tenant-detail-page.tsx` (1159 lines)
+- **Header**: EntityHeader with logo, name, plan badge, status badge + action buttons (Edit Config, Suspend/Reactivate, Terminate with AlertDialog + consequence explanation)
+- **KPI Row**: Total Traders, Active Accounts, Revenue, Open Breaches, Pending Payouts, KYC Pending
+- **7 Tabs**:
+  1. **Overview** — tenant summary card + module adoption progress bars
+  2. **Modules** — KEY FEATURE: grid of all modules with toggle switches to enable/disable per tenant. Updates `tenant.enabledModules` via `setTenant()` live with toast. Shows "X of Y modules enabled"
+  3. **Users** — DataTable of tenant users (name, email, role, application, last active) + Invite User button
+  4. **Billing** — subscription card (plan, cost, billing cycle, next billing date, payment method) + Change Plan dropdown + Generate Invoice + billing history table
+  5. **Activity** — ActivityTimeline using `getTenantAudit(tid)`
+  6. **Configuration** — form to edit: name, tagline, currency, timezone, locale, primary color picker, accent color, border radius, initials. Save calls `setTenant()` + toast
+  7. **Risk** — tenant risk summary: open breaches, critical breaches, accounts at risk, risk score
+
+### 2. Create Tenant Wizard (5-step)
+File: `src/modules/super-admin/create-tenant-page.tsx` (913 lines)
+- Step 1: Basics (name, auto-slug, tagline, plan dropdown, currency, timezone)
+- Step 2: Branding (6 Terra color presets, accent color, border radius, auto-initials)
+- Step 3: Modules (grid of all modules with checkboxes, core modules pre-selected)
+- Step 4: Admin User (email, name — first tenant admin)
+- Step 5: Review (summary card + Create button → creates TenantContext, navigates to detail)
+- Step indicator, Back/Next, required fields with asterisks
+
+### 3. Tenant Lifecycle Pipeline
+File: `src/modules/super-admin/tenant-lifecycle-page.tsx` (477 lines)
+- Horizontal pipeline: **Invited → Trial → Active → Suspended → Terminated**
+- Each stage: color-coded card with count + tenant names list
+- Click stage → filters the table below
+- DataTable with row-level Suspend/Reactivate/Terminate actions (context-aware based on current status)
+- 5 KPI metric cards at top
+
+### 4. Updated Tenants List
+File: `src/modules/super-admin/super-admin-pages.tsx` (updated)
+- "View" button → `navigate("tenant-detail", { id: t.id })` (was impersonation toast)
+- "Invite tenant" button → `navigate("create-tenant")` (was toast)
+- New "Lifecycle" button → `navigate("tenant-lifecycle")`
+- Stage filter dropdown in toolbar
+- Rows clickable → navigate to tenant detail
+
+### 5. Tenant Switcher Fix
+File: `src/components/shell/topbar.tsx`
+- Fixed: switching to "Platform (Super Admin)" pseudo-tenant now correctly finds Alex Morgan (super-admin user)
+- Match logic: `t.id === "platform" ? users.find(u => u.application === "super-admin") : users.find(u => u.tenantId === t.id && u.application === user.application)`
+
+### 6. View Router + Navigation Wiring
+- `view-router.tsx`: added 3 new view IDs (`tenant-detail`, `create-tenant`, `tenant-lifecycle`)
+- `super-admin-module.ts`: added 3 new nav children (Create Tenant, Lifecycle, + tenant-detail route) + 3 new routes
+- `super-admin-pages.tsx`: added re-exports for 3 new pages
+- `super-admin/index.ts`: already had re-exports added by subagent
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Super-admin sidebar shows: Overview, Tenants, Create Tenant, Lifecycle, Service Catalog, System Health ✓
+- VLM confirmed: "super-admin platform dashboard" with all Platform section items visible ✓
+- Tenant switcher correctly switches to super-admin user when selecting "Platform (Super Admin)" ✓
+- All 7 tenant lifecycle stages now have dedicated UI (create, detail/configure, module management, user management, billing, suspend/reactivate/terminate, lifecycle pipeline) ✓

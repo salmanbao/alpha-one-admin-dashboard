@@ -56,7 +56,7 @@ export interface TenantContext {
   terminology: Record<string, string>;
   /** Plan tier */
   plan: "starter" | "growth" | "scale" | "enterprise";
-  status: "active" | "trial" | "suspended" | "invited";
+  status: "active" | "trial" | "suspended" | "invited" | "terminated";
   createdAt: string;
 }
 

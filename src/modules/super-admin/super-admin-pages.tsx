@@ -7,6 +7,13 @@
  * Only visible when the current user's application is super-admin.
  */
 
+// Re-export the new lifecycle / detail / create pages so the view router
+// can wire them up via a single import source.
+export { TenantDetailPage } from "./tenant-detail-page";
+export { CreateTenantPage } from "./create-tenant-page";
+export { TenantLifecyclePage } from "./tenant-lifecycle-page";
+
+import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -16,8 +23,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { tenants as allTenants, type TenantContext } from "@/lib/platform/mock-data";
+import { tenants as allTenants } from "@/lib/platform/mock-data";
+import type { TenantContext } from "@/lib/platform/types";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import {
   Building2,
@@ -34,10 +49,21 @@ import {
   Database,
   Globe,
   Zap,
+  Plus,
 } from "lucide-react";
 
 const tenantStatusTone = (s: string) =>
-  s === "active" ? "success" : s === "trial" ? "info" : s === "suspended" ? "danger" : "warning";
+  s === "active"
+    ? "success"
+    : s === "trial"
+      ? "info"
+      : s === "suspended"
+        ? "danger"
+        : s === "terminated"
+          ? "muted"
+          : s === "invited"
+            ? "info"
+            : "warning";
 
 export function SuperAdminOverviewPage() {
   const { setTenant, setUser, navigate } = usePlatform();
@@ -98,8 +124,14 @@ export function SuperAdminOverviewPage() {
 }
 
 export function TenantsPage() {
-  const { setTenant, setUser, availableTenants } = usePlatform();
+  const { setTenant, setUser, availableTenants, navigate } = usePlatform();
   const tenants = availableTenants.filter((t) => t.id !== "platform");
+  const [stageFilter, setStageFilter] = useState<string>("all");
+
+  const visibleTenants = useMemo(() => {
+    if (stageFilter === "all") return tenants;
+    return tenants.filter((t) => t.status === stageFilter);
+  }, [tenants, stageFilter]);
 
   const columns: Column<TenantContext>[] = [
     {
@@ -126,10 +158,14 @@ export function TenantsPage() {
       key: "actions",
       header: "",
       cell: (t) => (
-        <Button size="sm" variant="outline" onClick={() => {
-          setTenant(t);
-          toast({ title: "Impersonating tenant", description: `Now viewing ${t.name}` });
-        }}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate("tenant-detail", { id: t.id });
+          }}
+        >
           View
         </Button>
       ),
@@ -138,9 +174,51 @@ export function TenantsPage() {
 
   return (
     <Page>
-      <PageHeader title="Tenants" description={`${tenants.length} tenants on the platform.`} icon={Building2} actions={<Button size="sm" onClick={() => toast({ title: "Invite tenant", description: "Invitation form (demo)." })}><Building2 className="mr-1 h-4 w-4" /> Invite tenant</Button>} />
+      <PageHeader
+        title="Tenants"
+        description={`${tenants.length} tenants on the platform.`}
+        icon={Building2}
+        actions={
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate("tenant-lifecycle")}
+            >
+              <Activity className="mr-1 h-4 w-4" /> Lifecycle
+            </Button>
+            <Button size="sm" onClick={() => navigate("create-tenant")}>
+              <Plus className="mr-1 h-4 w-4" /> Create tenant
+            </Button>
+          </>
+        }
+      />
       <PageContent>
-        <DataTable columns={columns} data={tenants} rowKey={(t) => t.id} searchableText={(t) => `${t.name} ${t.plan} ${t.status}`} searchPlaceholder="Search tenants…" />
+        <DataTable
+          columns={columns}
+          data={visibleTenants}
+          rowKey={(t) => t.id}
+          onRowClick={(t) => navigate("tenant-detail", { id: t.id })}
+          searchableText={(t) => `${t.name} ${t.plan} ${t.status}`}
+          searchPlaceholder="Search tenants…"
+          toolbar={
+            <Select value={stageFilter} onValueChange={setStageFilter}>
+              <SelectTrigger className="h-8 w-[180px] text-xs">
+                <SelectValue placeholder="Filter by stage" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All stages</SelectItem>
+                <SelectItem value="invited">Invited</SelectItem>
+                <SelectItem value="trial">Trial</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
+                <SelectItem value="terminated">Terminated</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+          emptyTitle="No tenants match"
+          emptyDescription="Try a different stage filter or search term."
+        />
       </PageContent>
     </Page>
   );
@@ -160,8 +238,8 @@ export function ModuleCatalogPage() {
               <Card key={m.manifest.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-start gap-3">
-                    <div className="rounded-md p-2" style={{ background: `${m.manifest.accentColor}1a` }}>
-                      {Icon ? <Icon className="h-5 w-5" style={{ color: m.manifest.accentColor }} /> : null}
+                    <div className="rounded-md p-2" style={{ background: `${m.manifest.accentColor}1a`, color: m.manifest.accentColor }}>
+                      {Icon ? <Icon className="h-5 w-5" /> : null}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">

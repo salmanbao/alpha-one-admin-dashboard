@@ -73,10 +73,10 @@ import { AuditPage } from "@/modules/audit/audit-page";
 import { NotificationsPage } from "@/modules/notifications/notifications-page";
 import { HelpPage } from "@/modules/help/help-page";
 import { SettingsPage } from "@/modules/settings/settings-page";
-import { SuperAdminOverviewPage } from "@/modules/super-admin/super-admin-pages";
-import { TenantsPage } from "@/modules/super-admin/super-admin-pages";
-import { ModuleCatalogPage } from "@/modules/super-admin/super-admin-pages";
-import { PlatformHealthPage } from "@/modules/super-admin/super-admin-pages";
+import { SuperAdminOverviewPage, TenantsPage, ModuleCatalogPage, PlatformHealthPage } from "@/modules/super-admin/super-admin-pages";
+import { TenantDetailPage } from "@/modules/super-admin/tenant-detail-page";
+import { CreateTenantPage } from "@/modules/super-admin/create-tenant-page";
+import { TenantLifecyclePage } from "@/modules/super-admin/tenant-lifecycle-page";
 
 /* New flows — imported from subagent-built pages */
 import { FirmStatisticsPage } from "@/modules/analytics/pages/firm-statistics-page";
@@ -113,6 +113,9 @@ export const viewRegistry: Record<string, ViewComponent> = {
   tenants: TenantsPage,
   "module-catalog": ModuleCatalogPage,
   "platform-health": PlatformHealthPage,
+  "tenant-detail": TenantDetailPage,
+  "create-tenant": CreateTenantPage,
+  "tenant-lifecycle": TenantLifecyclePage,
 
   /* trading */
   trading: TradingOverviewPage,

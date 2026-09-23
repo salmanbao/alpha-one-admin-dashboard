@@ -4,4 +4,7 @@ export {
   TenantsPage,
   ModuleCatalogPage,
   PlatformHealthPage,
+  TenantDetailPage,
+  CreateTenantPage,
+  TenantLifecyclePage,
 } from "./super-admin-pages";

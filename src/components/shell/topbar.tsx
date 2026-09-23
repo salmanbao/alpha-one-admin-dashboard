@@ -110,9 +110,10 @@ export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
                 onClick={() => {
                   setTenant(t);
                   // also switch user to a matching one if possible
-                  const match = users.find(
-                    (u) => u.tenantId === t.id && u.application === user.application,
-                  );
+                  // For platform pseudo-tenant, find super-admin users
+                  const match = t.id === "platform"
+                    ? users.find((u) => u.application === "super-admin")
+                    : users.find((u) => u.tenantId === t.id && u.application === user.application);
                   if (match) switchUser(match);
                 }}
                 className="gap-2"
