@@ -2,7 +2,7 @@
  * Challenges Module — manifest, navigation, routes, widgets, settings.
  */
 
-import { Target, Trophy, Clock, AlertCircle, Flame, Plus, Settings2, Layers, GitBranch } from "lucide-react";
+import { Target, Trophy, Clock, AlertCircle, Flame, Plus, Settings2, Layers, GitBranch, Edit3 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { ChallengeOverviewWidget, ChallengeProgressWidget, ChallengePhasesWidget } from "./widgets/challenge-widgets";
 
@@ -22,6 +22,7 @@ const navigation: NavigationItem[] = [
       { id: "challenges.types", label: "Challenge Types", href: "challenge-types", icon: Layers, permission: "challenge.read" },
       { id: "challenges.config", label: "Configuration", href: "challenge-config", icon: Settings2, permission: "challenge.update" },
       { id: "challenges.phases", label: "Phase Management", href: "phase-management", icon: GitBranch, permission: "challenge.read" },
+      { id: "challenges.edit", label: "Edit Challenge", href: "challenge-edit", icon: Edit3, permission: "challenge.update" },
     ],
   },
 ];
@@ -35,6 +36,8 @@ const routes: RouteDefinition[] = [
   { path: "challenge-types", viewId: "challenge-types", label: "Challenge Types", permission: "challenge.read", module: "challenges" },
   { path: "challenge-config", viewId: "challenge-config", label: "Challenge Configuration", permission: "challenge.update", module: "challenges" },
   { path: "phase-management", viewId: "phase-management", label: "Phase Management", permission: "challenge.read", module: "challenges" },
+  { path: "challenge-edit", viewId: "challenge-edit", label: "Edit Challenge", permission: "challenge.update", module: "challenges" },
+  { path: "phase-detail", viewId: "phase-detail", label: "Phase Detail", permission: "challenge.read", module: "challenges" },
 ];
 
 const widgets: WidgetDefinition[] = [

@@ -138,6 +138,10 @@ import { NotificationsManagementPage } from "@/modules/settings/pages/notificati
 import { NotificationEditPage } from "@/modules/settings/pages/notification-edit-page";
 import { UtilitiesPage } from "@/modules/settings/pages/utilities-page";
 
+/* Batch G: Challenge edit + Phase detail */
+import { ChallengeEditPage } from "@/modules/challenges/pages/challenge-edit-page";
+import { PhaseDetailPage } from "@/modules/challenges/pages/phase-detail-page";
+
 export type ViewComponent = ComponentType<{ params: Record<string, string> }>;
 
 export const viewRegistry: Record<string, ViewComponent> = {
@@ -181,6 +185,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "challenge-config": ChallengeConfigPage,
   "challenge-types": ChallengeTypesPage,
   "phase-management": PhaseManagementPage,
+  "challenge-edit": ChallengeEditPage,
+  "phase-detail": PhaseDetailPage,
 
   /* risk */
   risk: RiskOverviewPage,

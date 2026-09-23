@@ -3121,3 +3121,218 @@ Analyzed images 028-037 from FUNDERBLU screenshots. Found 6 missing features acr
 - Command menu shows 69 options for Beta tenant (up from 67) ✓
 - New items verified: Settings › Notifications Mgmt, Settings › Utilities ✓
 - Offer sub-pages (matching users, change history) accessible from within offer-edit page ✓
+
+---
+
+## img-batchG — Challenge edit + phase detail pages
+
+**Agent:** general-purpose sub agent (img-batchG)
+**Scope:** 2 new comprehensive pages — enhanced challenge configuration
+editor (5 tabs) and phase detail/editor (3 tabs). Discovered by analyzing
+reference screenshots of a prop firm admin.
+
+### Files created
+
+1. `src/modules/challenges/pages/challenge-edit-page.tsx` — `ChallengeEditPage`
+   - 5-tab comprehensive editor for a single challenge type, pre-filled from
+     `getChallengeTypes()` indexed by `router.params.id` (the demo's
+     navigation convention — mock IDs are unstable strings, indices are
+     stable for routing). Falls back to actual mock id or index 0.
+   - **Tab 1 — General**: Basic Info (title, description, challenge type
+     dropdown, steps count), Configuration Toggles (swap mode toggle group
+     Normal/Swap Free, archived Switch, news trading Switch, free trial
+     Switch, competition Switch, auto upgrade on KYC Switch, KYC timing
+     dropdown, pay-later Checkbox), Drawdown Configuration (static/trailing
+     toggle group with ContextualHelp explaining the difference), Phases
+     Summary DataTable at bottom with Edit Phase buttons → `phase-detail`.
+   - **Tab 2 — Phases**: Full phase configuration table (Phase Name, Step,
+     Account Size, Profit Target, Max/Daily Drawdown, Min/Max Days,
+     Leverage, Trading-day Threshold, Auto Pass, Actions). Row click →
+     `phase-detail`. "Add Phase" button (toast).
+   - **Tab 3 — Payout Rules**: Profit split (input, %), Partial payout
+     (Switch), Payout frequency (dropdown Weekly/Bi-Weekly/Monthly/
+     Quarterly), Minimum payout (toggle group Absolute $/Percentage % +
+     value input), Maximum payout (same pattern), Collapsible accordion
+     "When do payout changes take effect?" (starts collapsed), Save
+     Payout Rules button (toast).
+   - **Tab 4 — Checkout**: Amber info banner "This challenge is linked to
+     an external checkout system (WooCommerce). Configure the product
+     mapping below." Product ID input, Activation fee (number, currency
+     suffix), Price (number, currency suffix), Currency dropdown,
+     Save Checkout Config button (toast) + Test Checkout outline button
+     (toast "Checkout test successful — product linked").
+   - **Tab 5 — Review**: Visual horizontal phase flow diagram (Phase 1 →
+     Phase 2 → Phase 3 → Funded) with colored borders (amber / teal /
+     violet / emerald — substituted teal for sky to honor the
+     no-blue/indigo rule; legend at the bottom). Each card shows phase
+     name, profit target, max drawdown, leverage. Configuration Summary
+     key-value list (20 rows). Save All Changes primary button (toast
+     "Challenge configuration saved") + Publish Challenge outline button
+     (toast "Challenge published — now available for purchase").
+   - Top-of-page context strip surfaces Challenge phase count, free trial /
+     competition badges, plus quick links to Phase Management + Challenge
+     Types.
+
+2. `src/modules/challenges/pages/phase-detail-page.tsx` — `PhaseDetailPage`
+   - 3-tab editor for a single phase, pre-filled from
+     `getChallengePhaseConfigs()` indexed by `router.params.id` (same
+     navigation convention as challenge-edit).
+   - **Tab 1 — General**: Phase metadata (title, step number, leverage
+     string input e.g. "1:100", live status Switch, scaling plan Switch),
+     Risk Rules grid (target profit %, daily drawdown %, max drawdown %,
+     min trading days, max days / time limit, trading-day threshold in
+     lots), Auto pass Checkbox. Save Changes primary button (toast
+     "Phase configuration saved") + Reset to Defaults outline button (toast).
+   - **Tab 2 — Trading Platform IDs**: Informational banner explaining the
+     mapping semantics ("when a trader enters this phase, the system will
+     create a trading account in the specified group"), MT5 Group ID
+     input (e.g. `funderblu\phase1`, monospace), MT4 Group ID input
+     (optional, legacy), DXTrade Group ID input (optional), Bridge status
+     badge (Connected/Disconnected), Last sync read-only timestamp,
+     Save Platform IDs button (toast) + Sync Now outline button (toast
+     "Syncing with broker platform..."), Phases Summary DataTable showing
+     all phases' group IDs for comparison (challenge, phase, MT5, MT4,
+     DXTrade, bridge status).
+   - **Tab 3 — Change History**: Per-object audit trail (§28). DataTable
+     columns: Date/Time (sortable, monospace), User (with "Automated"
+     badge for System/AI Engine), Field Changed, Old Value
+     (strikethrough red/rose), New Value (green/emerald), Reason.
+     Search input (searches user/field/values/reason) + filter by field
+     Select dropdown. Export CSV button (real Blob download via
+     `URL.createObjectURL`, no Math.random). Back to Challenge button.
+     Mock generator produces 8–10 deterministic entries per phase,
+     seeded by phase index — stable across reloads.
+   - Top-of-page context strip surfaces challenge name, phase step,
+     Funded badge, key risk params.
+
+### Suggested viewIds (to wire into view-router.tsx — NOT modified per task)
+
+| viewId            | Component           | Module      |
+|-------------------|---------------------|-------------|
+| `challenge-edit`  | `ChallengeEditPage` | challenges  |
+| `phase-detail`    | `PhaseDetailPage`   | challenges  |
+
+Navigation wiring (when registered in view-router.tsx + challenges
+manifest) would add 2 nav children under the Challenges parent
+(Edit Challenge, Phase Detail) and 2 routes. Each challenge type's
+Edit button on the Challenge Types catalog and Edit Phase button on
+the Phase Management table would call
+`navigate("challenge-edit", { id: String(index) })` /
+`navigate("phase-detail", { id: String(index) })`.
+
+### Patterns followed
+- `"use client"` directive on every page
+- `usePlatform()` for `router`, `navigate`, `runtime` (currency)
+- Platform primitives: `Page`, `PageHeader`, `PageContent`, `DataTable`/
+  `Column`, `StatusBadge`, `LabelWithHelp`, `ContextualHelp` (via
+  `HELP_TEXTS` and inline `help` props)
+- shadcn/ui: `Tabs`, `Input`, `Textarea`, `Label`, `Switch`, `Button`,
+  `Badge`, `Separator`, `Checkbox`, `ToggleGroup`/`ToggleGroupItem`,
+  `Accordion`, `Select`
+- `toast` from `@/hooks/use-toast`; `cn` from `@/lib/utils`
+- Terra palette only — forest green primary (#4a7c59), warm cream surface
+  (#faf6f0 / #f5efe6), amber (#d97706) / emerald (#059669) / rose
+  (#e11d48) / violet (#7c3aed) / teal (#0d9488) accents
+- **No blue/indigo anywhere** — for the phase flow diagram in the Review
+  tab, the task asked for amber/sky/violet/emerald; "sky" was substituted
+  with teal (#0d9488) to honor the no-blue/indigo platform rule while
+  keeping the visual distinction between phases
+- Progressive disclosure §12: payout-when-changes-take-effect info is in
+  a collapsed Accordion by default; all SectionCards explain their purpose
+  in their description text
+- One primary action per screen §13: each tab has exactly one primary
+  button (Save) — secondary actions (Cancel, Reset, Test Checkout, Sync
+  Now, View All Phases, Publish Challenge, Export CSV) are outline
+- Explainability §33: every field label that needs explanation uses
+  `LabelWithHelp` with inline tooltip text
+- Related context §27: challenge edit page surfaces Phase Management +
+  Challenge Types quick links at the top; phase detail page surfaces
+  Back to Phase Management (page-level) + Back to Challenge (history tab)
+- Per-object audit trail §28: phase-detail history tab surfaces every
+  change with before/after values, strikethrough red old + green new
+- Deterministic mock generators — `resolveChallengeType` /
+  `resolvePhase` / `generatePlatformIds` / `generateChangeHistory` are
+  all id-index-seeded (no `Math.random`) so demo state stays stable
+  across reloads
+
+### Verification
+- `bun run lint` → clean (0 errors, 0 warnings)
+- `bunx tsc --noEmit` → 0 errors in either new file
+  (pre-existing TS errors in `account-kyc-statuses-page.tsx` /
+  `analytics` charts / `TimeSeriesPoint` are unrelated to this batch)
+
+
+---
+Task ID: img-batch-6
+Agent: lead-architect
+Task: Analyze images 040-057 and implement 2 comprehensive challenge/phase pages
+
+## Analysis Summary
+Analyzed images 040-057 — all Create Challenge wizard steps + Challenge edit + Phase edit views. Found 10 missing features that are form fields and configuration options missing from existing challenge/phase management.
+
+## 2 New Pages Built & Wired
+
+### 1. Challenge Edit Page (5 tabs — 1571 lines)
+File: `src/modules/challenges/pages/challenge-edit-page.tsx`
+Export: `ChallengeEditPage` → viewId: `challenge-edit`
+
+**Tab 1 — General:**
+- Basic info: Title, Description, Challenge Type dropdown, Steps count
+- 8 configuration toggles: Swap mode (Normal/Swap Free toggle group), Archived, News trading enabled, Is free trial, Is competition, Auto upgrade on KYC, KYC timing dropdown (Before/After/Both), Pay-later checkbox
+- Drawdown configuration: Static/Trailing toggle group with ContextualHelp
+- Phases summary DataTable with per-row "Edit Phase" → navigates to phase-detail
+
+**Tab 2 — Phases:**
+- Full 10-column phase table: Phase Name, Step, Account Size, Profit Target, Max Drawdown, Daily Drawdown, Min Trading Days, Leverage, Trading-day Threshold, Auto Pass, Actions
+- Row click → phase-detail
+
+**Tab 3 — Payout Rules:**
+- Profit split input, Partial payout Switch
+- Payout frequency dropdown
+- Min/Max payout each with $/% toggle group + value input
+- Collapsible informational accordion about when changes take effect
+
+**Tab 4 — Checkout:**
+- WooCommerce info banner
+- Product ID, Activation fee, Price, Currency dropdown
+- Save + Test Checkout buttons (toast)
+
+**Tab 5 — Review:**
+- Phase Flow Diagram: horizontal cards (Phase 1 → Phase 2 → Phase 3 → Live Account) with colored borders (amber → teal → violet → emerald) and arrows
+- 20-row configuration summary (key-value pairs)
+- Save All Changes (primary) + Publish Challenge (outline) buttons
+
+### 2. Phase Detail Page (3 tabs — 1111 lines)
+File: `src/modules/challenges/pages/phase-detail-page.tsx`
+Export: `PhaseDetailPage` → viewId: `phase-detail`
+
+**Tab 1 — General:**
+- Phase metadata: Title, Step number, Leverage, Live status Switch, Scaling plan Switch
+- Risk rules: Target profit %, Daily drawdown %, Max drawdown %, Min trading days, Max days, Trading-day threshold, Auto pass checkbox
+- Save + Reset to Defaults buttons
+
+**Tab 2 — Trading Platform IDs:**
+- Informational banner explaining broker group mapping
+- MT5 Group ID, MT4 Group ID, DXTrade Group ID inputs
+- Bridge status badge, Last sync timestamp
+- Save + Sync Now buttons
+- Phases summary table showing all phases' group IDs
+
+**Tab 3 — Change History:**
+- Per-object audit trail DataTable: Date/Time, User (with "Automated" badge), Field Changed, Old Value (strikethrough rose), New Value (green emerald), Reason
+- Search + filter by field type
+- CSV export via Blob/URL.createObjectURL
+- 8-10 deterministic entries seeded by phase index
+- "Back to Challenge" button
+
+## View Router Wiring
+2 new view IDs registered: `challenge-edit`, `phase-detail`
+
+## Module Navigation Wiring
+- **Challenges manifest**: +1 nav child (Edit Challenge) + 2 routes (challenge-edit, phase-detail)
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Command menu shows 70 options for Beta tenant (up from 69) ✓
+- New item verified: Challenges › Edit Challenge ✓
+- Phase detail accessible from challenge-edit Phases tab + General tab phases summary ✓
