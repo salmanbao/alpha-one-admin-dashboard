@@ -3479,3 +3479,242 @@ Export: `MarketingBannerEditPage` → viewId: `marketing-banner-edit`
 - Command menu shows 73 options for Beta tenant (up from 70) ✓
 - New items verified: Settings › Certificate Designer, Settings › Font Upload, Settings › Marketing Integrations ✓
 - Email template edit + marketing banner edit accessible from parent pages (email-templates, banner-management) ✓
+
+---
+Task ID: img-batchI
+Agent: general-purpose (sub agent)
+Task: Build 5 missing risk-module pages — copy trading events + analysis,
+inverse trading events, account IP addresses, weekend trades (matching
+reference screenshots of prop firm admin risk-analysis tools)
+
+Work Log:
+- Read worklog.md (3482 lines), AGENTS.md UX constitution, view-router.tsx
+  (to confirm viewId naming pattern + ensure I don't touch it).
+- Inspected platform primitives: `Page`/`PageHeader`/`PageContent`/
+  `MetricCard` (page.tsx), `DataTable` + `Column<T>` (data-table.tsx),
+  `StatusBadge` + tone helpers + `formatCurrency` (status.tsx),
+  `EmptyState`/`LoadingState` (guards.tsx), `ExplainableStateBadge`
+  (state-explanations.tsx), `exportToCsv` (export-utils.ts).
+- Inspected platform-context.tsx → `usePlatform()` returns
+  `{ runtime, navigate, router }` (used `runtime.tenant?.id ?? "platform"`
+  fallback like the existing analytics/risk modules).
+- Inspected mock-data helpers `getTenantAccounts(tid)`, `getTenantPositions(tid)`,
+  `getTenantTraders(tid)` and the underlying interfaces (Trader,
+  TradingAccount, Position).
+- Inspected existing risk pages for pattern continuity:
+  `trading-events-page.tsx` (rule config editor), `risk-unprofitable-countries-page.tsx`
+  (KPI + filter bar + DataTable + CSV export), `closed-positions-page.tsx`
+  (inline row expansion + deterministic mock-data derivation + AlertDialog-less
+  toast pattern), `account-kyc-statuses-page.tsx` (dropdown actions + KPI roll-up
+  from providers).
+
+Files created (5):
+1. `src/modules/risk/pages/copy-trading-events-page.tsx`
+   Export: `CopyTradingEventsPage` → suggested viewId: `copy-trading-events`
+   - KPI row: Total Events, Active, Expired, Accounts Flagged
+   - Filter bar: search (symbol/account), symbol dropdown, date range, Clear
+   - DataTable (with header-row select-all + per-row Checkbox):
+     Position 1 (Long/Short badge + Symbol + Account ID), Position 2,
+     Open Δ, Close Δ, Account 1 (link → trader-detail), Account 2 (link →
+     trader-detail), Expired (Switch)
+   - Bulk "Expire selected" action bar appears when rows are checked
+   - "Add Copy Trading Event" inline form panel (progressive disclosure §12):
+     Position 1 dropdown (all open positions, labelled "Long EURUSD #login"),
+     Position 2 dropdown, Reasons textarea, Expired Switch, Save / Save and
+     continue editing / Cancel buttons (each toast on action)
+   - Row click → toast "Viewing copy trading event detail"
+   - Empty state when no pairs can be derived
+   - Mock data: `buildCopyEvents(tid)` pairs `getTenantPositions` sequentially
+     and derives a deterministic open/close delta from a fixed cycle
+     `[2,5,11,23,47,91,137,213]`; expired state is `idx % 4 === 3`.
+
+2. `src/modules/risk/pages/copy-trading-analysis-page.tsx`
+   Export: `CopyTradingAnalysisPage` → suggested viewId: `copy-trading-analysis`
+   - PageHeader: "Copy Trading Analysis" — "Detect synchronized trading patterns between accounts"
+   - Detection Form: Account Login 1 (input), Account Login 2 (input),
+     Date Range (Select: Today / Last 7 days / Last 30 days / Custom),
+     Analyze button (primary)
+   - EmptyState before analysis: "Enter two account logins and click Analyze..."
+   - After Analyze: side-by-side Account 1 / Account 2 panels (Login, Trader
+     Name, Open Positions count, Total P&L, position list with Symbol /
+     Direction badge / Open Time / Close Time / P&L)
+   - MatchAnalysisPanel below: Correlation %, Matching Positions (e.g. 12/14),
+     Time Delta Avg, Verdict (color-coded: danger=likely / success=unlikely /
+     warning=borderline) with a contextual description string
+   - Mock data: `summarizeAccount(login, …)` uses real account if found,
+     otherwise synthesizes 4-8 deterministic positions seeded from
+     `hashStr(login)`. `analyze(a,b)` returns correlation = base ratio + small
+     bias from `hashStr("${a.login}-${b.login}")` (range 0-17) so the demo
+     feels realistic. `timeDeltaAvgSec = 1 + hashStr % 30`.
+
+3. `src/modules/risk/pages/inverse-trading-events-page.tsx`
+   Export: `InverseTradingEventsPage` → suggested viewId: `inverse-trading-events`
+   - KPI row: Total Events, Active, Expired, Accounts Flagged
+   - Filter bar + DataTable with selection (same pattern as copy-trading-events)
+     but the position columns are Buy Position (Long badge + Symbol + #login)
+     and Sell Position (Short badge + Symbol + #login). Time deltas use
+     cycle `[3,7,13,19,29,41,53,67]`. Expired is `idx % 5 === 4`.
+   - Inline "Add Inverse Trading Event" form: Buy Position dropdown (filtered
+     to longs only — shows "No long positions available" placeholder if
+     empty), Sell Position dropdown (filtered to shorts), Save / Cancel.
+
+4. `src/modules/risk/pages/account-ip-addresses-page.tsx`
+   Export: `AccountIpAddressesPage` → suggested viewId: `account-ip-addresses`
+   - Collapsible "IP Address Filter Guide" banner (starts expanded, ChevronDown
+     rotates when open) explaining the default-most-recent-IP-per-account
+     semantics + Proxy/Hosting/Mobile signal meaning
+   - KPI row: Total IPs, Unique Accounts, Proxy IPs, Hosting IPs, Mobile IPs
+   - Filter bar: search (account/IP/city/country), country dropdown, proxy
+     state dropdown (All / Proxy:Yes / Proxy:No / Proxy:Unknown)
+   - DataTable: Account (link → trader-detail), Status badge, Phase badge,
+     Challenge, IP Address, City, Country badge, Is Proxy badge, Is Hosting
+     badge, Is Mobile badge, Created date
+   - "Add IP Address" inline form (11 fields): Account dropdown (from
+     `getTenantAccounts(tid)` — shows "{login} — {traderName}"), IP Address
+     (input), City, Country, Latitude (number input), Longitude (number
+     input), Is Proxy / Is Hosting / Is Mobile (each a tri-state Select:
+     Unknown / Yes / No), Save / Cancel
+   - Mock data: `buildIpRecords(tid)` walks tenant accounts and assigns
+     deterministic IPv4 (`192.168.${(idx*7+11)%200}.${(idx*13+23)%255}` for
+     regular, `203.0.x.x` for every 5th to simulate hosting), city/country
+     from a `COUNTRY_INFO` lookup keyed by trader country code, lat/lng
+     derived from `hashStr(acct.id)`.
+
+5. `src/modules/risk/pages/weekend-trades-page.tsx`
+   Export: `WeekendTradesPage` → suggested viewId: `weekend-trades`
+   - Informational amber banner: "This view shows trades opened or closed
+     during weekend/market-closed hours..."
+   - KPI row: Total Weekend Trades, Long Trades, Short Trades, Total Profit,
+     Total Loss, Closed Trades
+   - Dense DataTable (11 cols): Account (link → trader-detail), Direction
+     (LONG green badge / SHORT red badge), Symbol, Volume, Profit (colored),
+     Open Time (weekday-prefixed), Close Volume, Close Time, State (CLOSED
+     badge), RR Ratio (1:N format), Hold Time (duration formatter)
+   - Filter bar: search, symbol, direction, state, date range, Clear
+   - Row click → inline detail panel (`WeekendTradeDetail`) showing full
+     metadata grid: Account, UID, Direction, State, Symbol, Volume, Open
+     Time, Open Price, Close Time, Close Price, Open Order, Close Order,
+     Commission, Swap, SL, TP, RR Ratio, Hold Time. Editable Close Reason
+     Select (TP/SL/Manual/System). Buttons: Delete Weekend Trade
+     (destructive, AlertDialog with consequence message "This trade record
+     will be permanently deleted from the weekend monitoring system. ..."),
+     Back, Save Changes (toast), Next
+   - Mock data: `buildWeekendTrades(tid)` reuses the BASE_SYMBOLS +
+     seededRandom pattern from `closed-positions-page.tsx` and forces the
+     open time onto a Saturday at 11-14 UTC via `saturdayAtNoon(weeksAgo)`;
+     hold time is 2-24 hours deterministic.
+
+Patterns followed:
+- Every file has `"use client"`, `usePlatform()` for runtime/navigate,
+  `toast` from `@/hooks/use-toast`, `cn` from `@/lib/utils`, platform
+  components `Page/PageHeader/PageContent/MetricCard/DataTable/EmptyState`,
+  shadcn/ui `Button/Input/Textarea/Label/Switch/Badge/Separator/Checkbox/
+  Collapsible/Select/AlertDialog`.
+- Icons from `lucide-react`. No blue/indigo — only Terra palette (emerald
+  #4a7c59, amber, rose, slate, violet for AI is allowed but not used here).
+- Deterministic mock data: every generator uses index-based cycles or
+  `seededRandom(seed)`/`hashStr(s)` helpers — no `Math.random()`.
+- Inline-form pattern: progressive disclosure (§12) — form panel toggled by
+  the "Add ..." button and lives above the filter bar so the operator
+  doesn't lose context. Save / Cancel / Save and continue editing toasts
+  fire on every action.
+- Row-click on DataTable shows inline detail panel (weekend-trades) or
+  fires a "Viewing ... detail" toast (copy/inverse/ip pages).
+- Tri-state badges (Proxy / Hosting / Mobile) use StatusBadge tones
+  (success/unknown-muted/warning).
+
+Did NOT modify:
+- `view-router.tsx` (lead wires the 5 new viewIds)
+- Any module `manifest.ts` (lead wires the 5 nav children + 5 routes into
+  the risk module manifest)
+- `module-registry.ts` / `module-bootstrap.ts` (no new module)
+- Any existing risk/trading pages or mock-data.ts
+
+Verification:
+- `bun run lint` → exit 0 (zero errors)
+- `bunx eslint src/modules/risk/pages/{copy-trading-events-page,copy-trading-analysis-page,inverse-trading-events-page,account-ip-addresses-page,weekend-trades-page}.tsx` → exit 0
+- `bunx tsc --noEmit` filtered to the 5 new files → no matches (clean);
+  remaining project-wide TS errors are all pre-existing in
+  `account-kyc-statuses-page.tsx` (KycProviderStatus interface collision)
+  and unrelated to this task.
+
+Stage Summary:
+- 5 self-contained risk-module pages shipped. Each follows the established
+  analytics/risk module pattern (manifest/widgets/pages), uses the Terra
+  palette only (no blue/indigo), and ships deterministic mock data so the
+  demo is stable across reloads.
+- Suggested viewIds for the lead to wire into view-router.tsx:
+  `copy-trading-events`, `copy-trading-analysis`, `inverse-trading-events`,
+  `account-ip-addresses`, `weekend-trades`.
+- Suggested risk-module nav children + routes (lead to add to risk manifest):
+  each page maps 1:1 to a nav href + route. Recommend grouping them under
+  a new "Trading Surveillance" parent (or extending the existing "Risk"
+  parent with these 5 children at orders 80-84).
+- All 5 pages use the `trader-detail` viewId for account-link navigation
+  (already wired), so no additional route is needed for cross-page links.
+
+---
+Task ID: img-batch-8
+Agent: lead-architect
+Task: Analyze images 078-089 and implement 5 missing risk/trading surveillance features
+
+## Analysis Summary
+Analyzed images 078-089 from FUNDERBLU screenshots. Found 5 missing features across trading event detection, IP address tracking, and weekend trade monitoring.
+
+## 5 New Pages Built & Wired
+
+### 1. Copy Trading Events Page
+File: `src/modules/risk/pages/copy-trading-events-page.tsx`
+Export: `CopyTradingEventsPage` → viewId: `copy-trading-events`
+- KPI row: Total Events, Active, Expired, Accounts Flagged
+- DataTable: Checkbox, Position 1 (Long/Short badge + Symbol + ID), Position 2, Open Time Delta, Close Time Delta, Account 1/2 (clickable links), Expired Switch
+- Inline "Add Copy Trading Event" form panel with Position 1/2 dropdowns, Reasons textarea, Expired toggle
+- Search + filter + Export CSV
+
+### 2. Copy Trading Analysis Page (Detection Tool)
+File: `src/modules/risk/pages/copy-trading-analysis-page.tsx`
+Export: `CopyTradingAnalysisPage` → viewId: `copy-trading-analysis`
+- Detection form: Account Login 1, Account Login 2, Date Range dropdown, Analyze button
+- Side-by-side results panels: Account 1/2 details with Login, Trader, Position count, P&L, Position list
+- Match Analysis: Correlation %, Matching Positions, Time Delta Avg, Verdict badge (warning/success)
+- Empty state before analysis
+
+### 3. Inverse Trading Events Page
+File: `src/modules/risk/pages/inverse-trading-events-page.tsx`
+Export: `InverseTradingEventsPage` → viewId: `inverse-trading-events`
+- KPI row: Total Events, Active, Expired, Accounts Flagged
+- DataTable: Checkbox, Buy Position (Long + Symbol + ID), Sell Position (Short + Symbol + ID), Open/Close Time Delta, Account links, Expired Switch
+- Inline "Add Inverse Trading Event" form with Buy/Sell position dropdowns
+- Search + filter + Export CSV
+
+### 4. Account IP Addresses Page
+File: `src/modules/risk/pages/account-ip-addresses-page.tsx`
+Export: `AccountIpAddressesPage` → viewId: `account-ip-addresses`
+- Collapsible "IP Address Filter Guide" info banner (starts expanded)
+- DataTable: Account, Status, Phase, Challenge, IP Address, City, Country, Is Proxy/Hosting/Mobile badges, Created
+- Inline "Add IP Address" form: Account dropdown, IP, City, Country, Lat/Lng, Is Proxy/Hosting/Mobile dropdowns (Unknown/Yes/No)
+- KPI row: Total IPs, Unique Accounts, Proxy IPs, Hosting IPs, Mobile IPs
+- Search + filter + Export CSV
+
+### 5. Weekend Trades Page (List + Detail)
+File: `src/modules/risk/pages/weekend-trades-page.tsx`
+Export: `WeekendTradesPage` → viewId: `weekend-trades`
+- Informational banner about weekend/market-closed hour violations
+- KPI row: Total Weekend Trades, Long, Short, Total Profit, Total Loss, Closed
+- Dense DataTable: Account, Direction (LONG green / SHORT red), Symbol, Volume, Profit (colored), Open Time, Close Volume, Close Time, State (CLOSED), RR Ratio, Hold Time
+- Row click → inline detail panel with full trade metadata grid: Account, UID, Direction, State, Symbol, Volume, Open/Close times & prices, Order IDs, Close Reason dropdown, Commission, Swap, SL, TP, Profit
+- "Delete Weekend Trade" button (destructive AlertDialog), "Save Changes" button
+- Search + filter by symbol/direction/state + date range + Export CSV
+
+## View Router Wiring
+5 new view IDs registered in `view-router.tsx`
+
+## Module Navigation Wiring
+- **Risk manifest**: +5 nav children (Copy Trading Events, Copy Trading Analysis, Inverse Trading Events, Account IP Addresses, Weekend Trades) + 5 routes
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Command menu shows 78 options for Beta tenant (up from 73) ✓
+- All 5 new items verified: Risk › Copy Trading Events, Risk › Copy Trading Analysis, Risk › Inverse Trading Events, Risk › Account IP Addresses, Risk › Weekend Trades ✓
+- All mock data deterministic (seeded random, no Math.random) ✓
+- Terra palette only (emerald/amber/rose for Long/Short/severity — no blue/indigo) ✓

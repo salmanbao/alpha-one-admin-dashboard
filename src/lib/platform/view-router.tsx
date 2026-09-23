@@ -149,6 +149,13 @@ import { CertificateFontUploadPage } from "@/modules/settings/pages/certificate-
 import { MarketingIntegrationsPage } from "@/modules/settings/pages/marketing-integrations-page";
 import { MarketingBannerEditPage } from "@/modules/settings/pages/marketing-banner-edit-page";
 
+/* Batch I: Trading event details + IP addresses + Weekend trades */
+import { CopyTradingEventsPage } from "@/modules/risk/pages/copy-trading-events-page";
+import { CopyTradingAnalysisPage } from "@/modules/risk/pages/copy-trading-analysis-page";
+import { InverseTradingEventsPage } from "@/modules/risk/pages/inverse-trading-events-page";
+import { AccountIpAddressesPage } from "@/modules/risk/pages/account-ip-addresses-page";
+import { WeekendTradesPage } from "@/modules/risk/pages/weekend-trades-page";
+
 export type ViewComponent = ComponentType<{ params: Record<string, string> }>;
 
 export const viewRegistry: Record<string, ViewComponent> = {
@@ -200,6 +207,11 @@ export const viewRegistry: Record<string, ViewComponent> = {
   breaches: BreachesPage,
   "risk-statistics": RiskStatisticsPage,
   "trading-events": TradingEventsPage,
+  "copy-trading-events": CopyTradingEventsPage,
+  "copy-trading-analysis": CopyTradingAnalysisPage,
+  "inverse-trading-events": InverseTradingEventsPage,
+  "account-ip-addresses": AccountIpAddressesPage,
+  "weekend-trades": WeekendTradesPage,
   "risk-unprofitable-countries": RiskUnprofitableCountriesPage,
   "risk-revenue-loss": RiskRevenueLossPage,
   "risk-label-vs-payouts": RiskLabelVsPayoutsPage,

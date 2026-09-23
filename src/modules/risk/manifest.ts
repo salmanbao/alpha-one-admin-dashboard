@@ -3,7 +3,7 @@
  * Includes Breaches (spec section 7 — Breaches is a sub-area of Risk).
  */
 
-import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2, DollarSign } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2, DollarSign, Copy, ArrowLeftRight, MapPin, CalendarClock } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { RiskOverviewWidget, RiskDistributionWidget, BreachTrendWidget, OpenBreachesWidget } from "./widgets/risk-widgets";
 
@@ -26,6 +26,11 @@ const navigation: NavigationItem[] = [
       { id: "risk.coupon-payouts", label: "Coupon vs Payouts", href: "risk-coupon-vs-payouts", icon: Tag, permission: "risk.read" },
       { id: "risk.label-analysis", label: "Label Analysis", href: "risk-account-label-analysis", icon: Activity, permission: "risk.read" },
       { id: "risk.addon-revenue", label: "Addon Revenue", href: "risk-addon-revenue", icon: DollarSign, permission: "risk.read" },
+      { id: "risk.copy-events", label: "Copy Trading Events", href: "copy-trading-events", icon: Copy, permission: "risk.read" },
+      { id: "risk.copy-analysis", label: "Copy Trading Analysis", href: "copy-trading-analysis", icon: BarChart3, permission: "risk.read" },
+      { id: "risk.inverse-events", label: "Inverse Trading Events", href: "inverse-trading-events", icon: ArrowLeftRight, permission: "risk.read" },
+      { id: "risk.ip-addresses", label: "Account IP Addresses", href: "account-ip-addresses", icon: MapPin, permission: "risk.read" },
+      { id: "risk.weekend-trades", label: "Weekend Trades", href: "weekend-trades", icon: CalendarClock, permission: "risk.read" },
     ],
   },
 ];
@@ -43,6 +48,11 @@ const routes: RouteDefinition[] = [
   { path: "risk-coupon-vs-payouts", viewId: "risk-coupon-vs-payouts", label: "Coupon vs Payouts", permission: "risk.read", module: "risk" },
   { path: "risk-account-label-analysis", viewId: "risk-account-label-analysis", label: "Account Label Analysis", permission: "risk.read", module: "risk" },
   { path: "risk-addon-revenue", viewId: "risk-addon-revenue", label: "Addon Revenue", permission: "risk.read", module: "risk" },
+  { path: "copy-trading-events", viewId: "copy-trading-events", label: "Copy Trading Events", permission: "risk.read", module: "risk" },
+  { path: "copy-trading-analysis", viewId: "copy-trading-analysis", label: "Copy Trading Analysis", permission: "risk.read", module: "risk" },
+  { path: "inverse-trading-events", viewId: "inverse-trading-events", label: "Inverse Trading Events", permission: "risk.read", module: "risk" },
+  { path: "account-ip-addresses", viewId: "account-ip-addresses", label: "Account IP Addresses", permission: "risk.read", module: "risk" },
+  { path: "weekend-trades", viewId: "weekend-trades", label: "Weekend Trades", permission: "risk.read", module: "risk" },
 ];
 
 const widgets: WidgetDefinition[] = [
