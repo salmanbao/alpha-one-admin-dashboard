@@ -9,7 +9,9 @@
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver } from "@/lib/platform/terminology";
 import { getTenantCampaigns, type MarketingCampaign } from "@/lib/platform/mock-data";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency, formatCompact, campaignStatusTone, StatusBadge } from "@/components/platform/status";
@@ -21,13 +23,14 @@ import { toast } from "@/hooks/use-toast";
 const CHANNEL_COLORS: Record<string, string> = {
   email: "#db2777",
   social: "#f59e0b",
-  "paid-ads": "#8b5cf6",
+  "paid-ads": "#db2777", // pink — Terra-allowed; replaces violet (#8b5cf6).
   content: "#059669",
   affiliate: "#0891b2",
 };
 
 export function MarketingOverviewPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   const campaigns = getTenantCampaigns(tid);
@@ -50,17 +53,36 @@ export function MarketingOverviewPage() {
 
   const perfData = campaigns.slice(0, 6).map((c) => ({ name: c.name, revenue: c.revenue }));
 
+  const handleExport = () => {
+    exportToCsv(
+      campaigns,
+      [
+        { key: "name", header: "Campaign", value: (c) => c.name },
+        { key: "channel", header: "Channel", value: (c) => c.channel },
+        { key: "status", header: "Status", value: (c) => c.status },
+        { key: "budget", header: "Budget", value: (c) => c.budget },
+        { key: "spend", header: "Spend", value: (c) => c.spend },
+        { key: "impressions", header: "Impressions", value: (c) => c.impressions },
+        { key: "clicks", header: "Clicks", value: (c) => c.clicks },
+        { key: "conversions", header: "Conversions", value: (c) => c.conversions },
+        { key: "revenue", header: "Revenue", value: (c) => c.revenue },
+        { key: "roi", header: "ROI %", value: (c) => c.spend > 0 ? Math.round(((c.revenue - c.spend) / c.spend) * 100) : 0 },
+      ],
+      `marketing-overview-${Date.now()}.csv`,
+    );
+  };
+
   return (
     <Page>
       <PageHeader
         title="Marketing"
-        description="Campaigns, spend, and channel performance."
+        description={`Campaigns, spend, and channel performance for this ${term("trader").toLowerCase()} tenant.`}
         icon={Megaphone}
         actions={
           <Button
             size="sm"
             variant="outline"
-            onClick={() => toast({ title: "Export started", description: "Marketing report generating (demo)." })}
+            onClick={handleExport}
           >
             <Download className="mr-1 h-4 w-4" /> Export
           </Button>
@@ -90,7 +112,8 @@ export function MarketingOverviewPage() {
 }
 
 export function MarketingCampaignsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   const campaigns = getTenantCampaigns(tid);
@@ -128,7 +151,7 @@ export function MarketingCampaignsPage() {
 
   return (
     <Page>
-      <PageHeader title="Campaigns" description="All marketing campaigns for this tenant." icon={LayoutList} />
+      <PageHeader title="Campaigns" description={`All marketing campaigns for this ${term("trader").toLowerCase()} tenant.`} icon={LayoutList} />
       <PageContent>
         <div className="rounded-lg border bg-card p-4">
           <p className="mb-3 text-sm font-medium">Campaigns ({campaigns.length})</p>
@@ -148,7 +171,8 @@ export function MarketingCampaignsPage() {
 }
 
 export function MarketingPerformancePage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   const campaigns = getTenantCampaigns(tid);
@@ -171,7 +195,7 @@ export function MarketingPerformancePage() {
 
   return (
     <Page>
-      <PageHeader title="Performance" description="Marketing performance by channel." icon={TrendingUp} />
+      <PageHeader title="Performance" description={`Marketing performance by channel for this ${term("trader").toLowerCase()} tenant.`} icon={TrendingUp} />
       <PageContent>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-lg border bg-card p-4">

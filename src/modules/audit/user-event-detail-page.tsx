@@ -116,6 +116,18 @@ export function UserEventDetailPage() {
 
   const exportEvent = () => {
     if (!event) return;
+    const blob = new Blob([JSON.stringify(event, null, 2)], {
+      type: "application/json;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `user-event-${event.id}.json`;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast({
       title: "Event exported",
       description: `Event ${event.id} exported as JSON.`,

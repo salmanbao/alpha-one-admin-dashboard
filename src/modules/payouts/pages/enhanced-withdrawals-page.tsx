@@ -28,6 +28,7 @@ import {
   getTenantTraders,
   type Payout,
 } from "@/lib/platform/mock-data";
+import { exportToCsv, type ExportColumn } from "@/lib/platform/export-utils";
 import {
   Page,
   PageHeader,
@@ -308,16 +309,38 @@ export function EnhancedWithdrawalsPage() {
     setSelected(new Set());
   };
   const batchExport = () => {
-    toast({
-      title: "Export started",
-      description: `Exporting ${selected.size} selected withdrawals as CSV.`,
-    });
+    if (selectedPayouts.length === 0) {
+      toast({
+        title: "Nothing to export",
+        description: "Select one or more withdrawals to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const cols: ExportColumn<Payout>[] = [
+      { key: "reference", header: "Reference", value: (p) => p.reference },
+      { key: "login", header: "Account Login", value: (p) => loginForPayout(p) },
+      { key: "traderName", header: "Full Name", value: (p) => p.traderName },
+      { key: "amount", header: "Amount", value: (p) => p.amount },
+      { key: "currency", header: "Currency", value: (p) => p.currency },
+      { key: "method", header: "Method", value: (p) => p.method },
+      { key: "status", header: "Status", value: (p) => p.status },
+      { key: "createdAt", header: "Created", value: (p) => p.createdAt },
+    ];
+    exportToCsv(selectedPayouts, cols, `withdrawals-selected-${Date.now()}.csv`);
   };
   const exportAll = () => {
-    toast({
-      title: "Export started",
-      description: `Exporting ${sorted.length} withdrawals as CSV.`,
-    });
+    const cols: ExportColumn<Payout>[] = [
+      { key: "reference", header: "Reference", value: (p) => p.reference },
+      { key: "login", header: "Account Login", value: (p) => loginForPayout(p) },
+      { key: "traderName", header: "Full Name", value: (p) => p.traderName },
+      { key: "amount", header: "Amount", value: (p) => p.amount },
+      { key: "currency", header: "Currency", value: (p) => p.currency },
+      { key: "method", header: "Method", value: (p) => p.method },
+      { key: "status", header: "Status", value: (p) => p.status },
+      { key: "createdAt", header: "Created", value: (p) => p.createdAt },
+    ];
+    exportToCsv(sorted, cols, `withdrawals-${Date.now()}.csv`);
   };
 
   const onRowClick = (p: Payout) => {

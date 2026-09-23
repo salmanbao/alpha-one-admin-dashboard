@@ -61,7 +61,7 @@ function formatDate(iso: string): string {
 /* Inline detail panel                                                 */
 /* ------------------------------------------------------------------ */
 
-function OfferDetailPanel({ offer }: { offer: Offer }) {
+function OfferDetailPanel({ offer, onEdit, onChangeHistory }: { offer: Offer; onEdit: (o: Offer) => void; onChangeHistory: (o: Offer) => void }) {
   return (
     <div className="border-t bg-muted/20 p-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -132,15 +132,13 @@ function OfferDetailPanel({ offer }: { offer: Offer }) {
         <Button
           size="sm"
           variant="outline"
-          onClick={() =>
-            toast({ title: "View change history", description: `Change history for ${offer.name} would open here.` })
-          }
+          onClick={() => onChangeHistory(offer)}
         >
           <History className="mr-1 h-3.5 w-3.5" /> View Change History
         </Button>
         <Button
           size="sm"
-          onClick={() => toast({ title: "Edit offer", description: `Editing ${offer.name}.` })}
+          onClick={() => onEdit(offer)}
         >
           <Pencil className="mr-1 h-3.5 w-3.5" /> Edit Offer
         </Button>
@@ -175,9 +173,17 @@ function DetailRow({
 /* ------------------------------------------------------------------ */
 
 export function OfferManagementPage() {
+  const { navigate } = usePlatform();
   const offers = getOffers();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Wire the orphan buttons to real navigation targets — fixes the prior
+  // bug where Edit / View Change History fired toast-only and left the
+  // OfferEditPage / OfferChangeHistoryPage orphaned from the table.
+  const handleEdit = (o: Offer) => navigate("offer-edit", { id: o.id });
+  const handleViewChangeHistory = (o: Offer) =>
+    navigate("offer-change-history", { id: o.id });
 
   const filtered = useMemo(
     () => (statusFilter === "all" ? offers : offers.filter((o) => o.status === statusFilter)),
@@ -264,7 +270,7 @@ export function OfferManagementPage() {
             variant="ghost"
             onClick={(e) => {
               e.stopPropagation();
-              toast({ title: "Edit offer", description: `Editing ${o.name}.` });
+              handleEdit(o);
             }}
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -334,7 +340,13 @@ export function OfferManagementPage() {
               {(() => {
                 const o = filtered.find((x) => x.id === expandedId);
                 if (!o) return null;
-                return <OfferDetailPanel offer={o} />;
+                return (
+                  <OfferDetailPanel
+                    offer={o}
+                    onEdit={handleEdit}
+                    onChangeHistory={handleViewChangeHistory}
+                  />
+                );
               })()}
             </div>
           ) : (

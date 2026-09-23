@@ -81,7 +81,7 @@ export const analyticsModule: FrontendModule = {
       { id: "analytics.export", label: "Export analytics" },
     ],
     icon: BarChart3,
-    accentColor: "#7c3aed",
+    accentColor: "#0d9488", // Terra-allowed teal — replaces violet (#7c3aed).
   },
   navigation,
   routes,

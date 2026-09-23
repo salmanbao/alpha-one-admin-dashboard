@@ -127,9 +127,16 @@ export function MarketingDashboardPage() {
   }, [weekRange]);
 
   // Top traders — sorted by totalPnl desc.
+  // NOTE: the week-range cutoff actually filters here (previously the
+  // `|| true` made it a no-op — every trader was included regardless of
+  // the selected range).
   const topTraders = useMemo<TopTraderRow[]>(() => {
-    const inRange = traders.filter((t) => new Date(t.joinedAt).getTime() >= cutoff * 0.3 || true);
-    return inRange
+    const inRange = traders.filter((t) => new Date(t.joinedAt).getTime() >= cutoff);
+    // Fallback: if the cutoff is so aggressive that nothing survives
+    // (e.g. demo tenant seeded today), surface the most recent 10
+    // traders so the table isn't empty.
+    const pool = inRange.length > 0 ? inRange : traders;
+    return pool
       .map((t, i) => ({
         rank: i + 1,
         name: t.name,

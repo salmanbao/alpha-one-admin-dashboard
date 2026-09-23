@@ -1,0 +1,973 @@
+   600→   600→          emptyTitle="No phases configured"
+   601→   601→          emptyDescription="Add phases in the Phases tab to define evaluation steps."
+   602→   602→        />
+   603→   603→      </SectionCard>
+   604→   604→    </div>
+   605→   605→  );
+   606→   606→}
+   607→   607→
+   608→   608→/* ------------------------------------------------------------------ */
+   609→   609→/* TAB 2 — Phases                                                       */
+   610→   610→/* ------------------------------------------------------------------ */
+   611→   611→
+   612→   612→function PhasesTab({
+   613→   613→  phases,
+   614→   614→  navigate,
+   615→   615→  currency,
+   616→   616→}: {
+   617→   617→  phases: ChallengePhaseConfig[];
+   618→   618→  navigate: (view: string, params?: Record<string, string>) => void;
+   619→   619→  currency: string;
+   620→   620→}) {
+   621→   621→  const allPhases = getChallengePhaseConfigs();
+   622→   622→
+   623→   623→  const columns: Column<ChallengePhaseConfig>[] = [
+   624→   624→    {
+   625→   625→      key: "phaseName",
+   626→   626→      header: "Phase Name",
+   627→   627→      cell: (p) => (
+   628→   628→        <div className="flex items-center gap-1.5">
+   629→   629→          <Badge variant="outline" className="text-[10px] tabular-nums">
+   630→   630→            {p.phaseOrder}
+   631→   631→          </Badge>
+   632→   632→          <span className="font-medium text-foreground">{p.phaseName}</span>
+   633→   633→        </div>
+   634→   634→      ),
+   635→   635→      sortValue: (p) => p.phaseOrder,
+   636→   636→    },
+   637→   637→    {
+   638→   638→      key: "phaseOrder",
+   639→   639→      header: "Step",
+   640→   640→      cell: (p) => <span className="tabular-nums">{p.phaseOrder}</span>,
+   641→   641→      sortValue: (p) => p.phaseOrder,
+   642→   642→      numeric: true,
+   643→   643→      width: "70px",
+   644→   644→    },
+   645→   645→    {
+   646→   646→      key: "accountSize",
+   647→   647→      header: "Account Size",
+   648→   648→      cell: (p) => formatCurrency(p.accountSize, currency),
+   649→   649→      sortValue: (p) => p.accountSize,
+   650→   650→      numeric: true,
+   651→   651→    },
+   652→   652→    {
+   653→   653→      key: "profitTargetPct",
+   654→   654→      header: "Profit Target",
+   655→   655→      cell: (p) => (p.profitTargetPct === 0 ? "—" : `${p.profitTargetPct}%`),
+   656→   656→      sortValue: (p) => p.profitTargetPct,
+   657→   657→      numeric: true,
+   658→   658→    },
+   659→   659→    {
+   660→   660→      key: "maxDrawdownPct",
+   661→   661→      header: "Max Drawdown",
+   662→   662→      cell: (p) => `${p.maxDrawdownPct}%`,
+   663→   663→      sortValue: (p) => p.maxDrawdownPct,
+   664→   664→      numeric: true,
+   665→   665→    },
+   666→   666→    {
+   667→   667→      key: "dailyDrawdownPct",
+   668→   668→      header: "Daily Drawdown",
+   669→   669→      cell: (p) => `${p.dailyDrawdownPct}%`,
+   670→   670→      sortValue: (p) => p.dailyDrawdownPct,
+   671→   671→      numeric: true,
+   672→   672→    },
+   673→   673→    {
+   674→   674→      key: "minTradingDays",
+   675→   675→      header: "Min Days",
+   676→   676→      cell: (p) => (p.minTradingDays === 0 ? "—" : String(p.minTradingDays)),
+   677→   677→      sortValue: (p) => p.minTradingDays,
+   678→   678→      numeric: true,
+   679→   679→    },
+   680→   680→    {
+   681→   681→      key: "maxDays",
+   682→   682→      header: "Max Days",
+   683→   683→      cell: (p) => (p.maxDays === 0 ? "∞" : String(p.maxDays)),
+   684→   684→      sortValue: (p) => p.maxDays,
+   685→   685→      numeric: true,
+   686→   686→    },
+   687→   687→    {
+   688→   688→      key: "leverage",
+   689→   689→      header: "Leverage",
+   690→   690→      cell: () => <span className="tabular-nums">1:100</span>,
+   691→   691→    },
+   692→   692→    {
+   693→   693→      key: "threshold",
+   694→   694→      header: "Trading-day Threshold",
+   695→   695→      cell: () => <span className="tabular-nums">0 lots</span>,
+   696→   696→    },
+   697→   697→    {
+   698→   698→      key: "autoPass",
+   699→   699→      header: "Auto Pass",
+   700→   700→      cell: (p) =>
+   701→   701→        p.profitTargetPct === 0 ? (
+   702→   702→          <StatusBadge tone="muted">N/A</StatusBadge>
+   703→   703→        ) : (
+   704→   704→          <StatusBadge tone="success">On</StatusBadge>
+   705→   705→        ),
+   706→   706→      sortValue: (p) => (p.profitTargetPct === 0 ? 0 : 1),
+   707→   707→    },
+   708→   708→    {
+   709→   709→      key: "actions",
+   710→   710→      header: "Actions",
+   711→   711→      cell: (p) => {
+   712→   712→        const idx = allPhases.findIndex((x) => x.id === p.id);
+   713→   713→        return (
+   714→   714→          <Button
+   715→   715→            size="sm"
+   716→   716→            variant="ghost"
+   717→   717→            onClick={(e) => {
+   718→   718→              e.stopPropagation();
+   719→   719→              navigate("phase-detail", { id: String(idx) });
+   720→   720→            }}
+   721→   721→          >
+   722→   722→            <PencilLine className="mr-1 h-3.5 w-3.5" /> Edit
+   723→   723→          </Button>
+   724→   724→        );
+   725→   725→      },
+   726→   726→      width: "110px",
+   727→   727→    },
+   728→   728→  ];
+   729→   729→
+   730→   730→  return (
+   731→   731→    <div className="flex flex-col gap-3">
+   732→   732→      <div className="flex items-center justify-between gap-3">
+   733→   733→        <div>
+   734→   734→          <h2 className="text-sm font-semibold text-foreground">
+   735→   735→            Phase Configuration
+   736→   736→          </h2>
+   737→   737→          <p className="mt-0.5 text-xs text-muted-foreground">
+   738→   738→            Click any row to open the phase detail editor. Configure risk
+   739→   739→            limits, trading-day thresholds, and broker group mappings per phase.
+   740→   740→          </p>
+   741→   741→        </div>
+   742→   742→        <Button
+   743→   743→          size="sm"
+   744→   744→          onClick={() =>
+   745→   745→            toast({
+   746→   746→              title: "Add Phase",
+   747→   747→              description: "The new phase form would open here.",
+   748→   748→            })
+   749→   749→          }
+   750→   750→        >
+   751→   751→          <Plus className="mr-1 h-4 w-4" /> Add Phase
+   752→   752→        </Button>
+   753→   753→      </div>
+   754→   754→      <DataTable
+   755→   755→        columns={columns}
+   756→   756→        data={phases}
+   757→   757→        rowKey={(p) => p.id}
+   758→   758→        onRowClick={(p) => {
+   759→   759→          const idx = allPhases.findIndex((x) => x.id === p.id);
+   760→   760→          navigate("phase-detail", { id: String(idx) });
+   761→   761→        }}
+   762→   762→        pageSize={10}
+   763→   763→        emptyTitle="No phases configured"
+   764→   764→        emptyDescription="Add a phase to begin defining the evaluation flow."
+   765→   765→      />
+   766→   766→    </div>
+   767→   767→  );
+   768→   768→}
+   769→   769→
+   770→   770→/* ------------------------------------------------------------------ */
+   771→   771→/* TAB 3 — Payout Rules                                                 */
+   772→   772→/* ------------------------------------------------------------------ */
+   773→   773→
+   774→   774→function PayoutTab({
+   775→   775→  payout,
+   776→   776→  setPayout,
+   777→   777→}: {
+   778→   778→  payout: PayoutDraft;
+   779→   779→  setPayout: (next: PayoutDraft) => void;
+   780→   780→}) {
+   781→   781→  const setField = <K extends keyof PayoutDraft>(
+   782→   782→    key: K,
+   783→   783→    value: PayoutDraft[K],
+   784→   784→  ) => setPayout({ ...payout, [key]: value });
+   785→   785→
+   786→   786→  return (
+   787→   787→    <div className="flex flex-col gap-4">
+   788→   788→      <SectionCard
+   789→   789→        title="Profit Split"
+   790→   790→        description="Percentage of profits the trader keeps. Remainder goes to the prop firm."
+   791→   791→        icon={DollarSign}
+   792→   792→      >
+   793→   793→        <div className="grid gap-4 md:grid-cols-2">
+   794→   794→          <FieldRow
+   795→   795→            label="Profit Split"
+   796→   796→            htmlFor="ce-profit-split"
+   797→   797→            help="Default is 80/20 in the trader's favor. Higher splits attract experienced traders but reduce firm margin."
+   798→   798→          >
+   799→   799→            <div className="flex items-center gap-1">
+   800→   800→              <Input
+   801→   801→                id="ce-profit-split"
+   802→   802→                type="number"
+   803→   803→                min={0}
+   804→   804→                max={100}
+   805→   805→                value={String(payout.profitSplit)}
+   806→   806→                onChange={(e) =>
+   807→   807→                  setField("profitSplit", Number(e.target.value) || 0)
+   808→   808→                }
+   809→   809→                className="tabular-nums"
+   810→   810→              />
+   811→   811→              <span className="text-xs text-muted-foreground">%</span>
+   812→   812→            </div>
+   813→   813→          </FieldRow>
+   814→   814→          <FieldRow
+   815→   815→            label="Payout Frequency"
+   816→   816→            help="How often traders may request a payout from their funded account."
+   817→   817→          >
+   818→   818→            <Select
+   819→   819→              value={payout.payoutFrequency}
+   820→   820→              onValueChange={(v) =>
+   821→   821→                setField("payoutFrequency", v as PayoutFrequency)
+   822→   822→              }
+   823→   823→            >
+   824→   824→              <SelectTrigger className="w-full">
+   825→   825→                <SelectValue />
+   826→   826→              </SelectTrigger>
+   827→   827→              <SelectContent>
+   828→   828→                {PAYOUT_FREQUENCIES.map((f) => (
+   829→   829→                  <SelectItem key={f.value} value={f.value}>
+   830→   830→                    {f.label}
+   831→   831→                  </SelectItem>
+   832→   832→                ))}
+   833→   833→              </SelectContent>
+   834→   834→            </Select>
+   835→   835→          </FieldRow>
+   836→   836→        </div>
+   837→   837→        <div className="mt-3">
+   838→   838→          <ToggleRow
+   839→   839→            label="Partial Payout"
+   840→   840→            description="Allow traders to withdraw a portion of their available balance rather than the full amount."
+   841→   841→            checked={payout.partialPayout}
+   842→   842→            onChange={(v) => setField("partialPayout", v)}
+   843→   843→          />
+   844→   844→        </div>
+   845→   845→      </SectionCard>
+   846→   846→
+   847→   847→      <SectionCard
+   848→   848→        title="Payout Limits"
+   849→   849→        description="Floor and ceiling applied to each withdrawal request."
+   850→   850→        icon={DollarSign}
+   851→   851→      >
+   852→   852→        <div className="grid gap-4 md:grid-cols-2">
+   853→   853→          {/* Minimum payout */}
+   854→   854→          <div className="flex flex-col gap-3 rounded-md border bg-background p-3">
+   855→   855→            <FieldRow
+   856→   856→              label="Minimum Payout Type"
+   857→   857→              help="Choose whether the minimum is a fixed dollar amount or a percentage of the available balance."
+   858→   858→            >
+   859→   859→              <ToggleGroup
+   860→   860→                type="single"
+   861→   861→                value={payout.minPayoutType}
+   862→   862→                onValueChange={(v: string) => {
+   863→   863→                  if (v) setField("minPayoutType", v as PayoutValueType);
+   864→   864→                }}
+   865→   865→                variant="outline"
+   866→   866→                className="w-full"
+   867→   867→              >
+   868→   868→                <ToggleGroupItem value="absolute" className="flex-1 text-xs">
+   869→   869→                  Absolute $
+   870→   870→                </ToggleGroupItem>
+   871→   871→                <ToggleGroupItem value="percentage" className="flex-1 text-xs">
+   872→   872→                  Percentage %
+   873→   873→                </ToggleGroupItem>
+   874→   874→              </ToggleGroup>
+   875→   875→            </FieldRow>
+   876→   876→            <FieldRow
+   877→   877→              label="Minimum Payout Value"
+   878→   878→              htmlFor="ce-payout-min"
+   879→   879→            >
+   880→   880→              <div className="flex items-center gap-1">
+   881→   881→                <Input
+   882→   882→                  id="ce-payout-min"
+   883→   883→                  type="number"
+   884→   884→                  min={0}
+   885→   885→                  value={String(payout.minPayoutValue)}
+   886→   886→                  onChange={(e) =>
+   887→   887→                    setField("minPayoutValue", Number(e.target.value) || 0)
+   888→   888→                  }
+   889→   889→                  className="tabular-nums"
+   890→   890→                />
+   891→   891→                <span className="text-xs text-muted-foreground">
+   892→   892→                  {payout.minPayoutType === "absolute" ? "USD" : "%"}
+   893→   893→                </span>
+   894→   894→              </div>
+   895→   895→            </FieldRow>
+   896→   896→          </div>
+   897→   897→
+   898→   898→          {/* Maximum payout */}
+   899→   899→          <div className="flex flex-col gap-3 rounded-md border bg-background p-3">
+   900→   900→            <FieldRow
+   901→   901→              label="Maximum Payout Type"
+   902→   902→              help="Choose whether the maximum is a fixed dollar amount or a percentage of the available balance."
+   903→   903→            >
+   904→   904→              <ToggleGroup
+   905→   905→                type="single"
+   906→   906→                value={payout.maxPayoutType}
+   907→   907→                onValueChange={(v: string) => {
+   908→   908→                  if (v) setField("maxPayoutType", v as PayoutValueType);
+   909→   909→                }}
+   910→   910→                variant="outline"
+   911→   911→                className="w-full"
+   912→   912→              >
+   913→   913→                <ToggleGroupItem value="absolute" className="flex-1 text-xs">
+   914→   914→                  Absolute $
+   915→   915→                </ToggleGroupItem>
+   916→   916→                <ToggleGroupItem value="percentage" className="flex-1 text-xs">
+   917→   917→                  Percentage %
+   918→   918→                </ToggleGroupItem>
+   919→   919→              </ToggleGroup>
+   920→   920→            </FieldRow>
+   921→   921→            <FieldRow
+   922→   922→              label="Maximum Payout Value"
+   923→   923→              htmlFor="ce-payout-max"
+   924→   924→            >
+   925→   925→              <div className="flex items-center gap-1">
+   926→   926→                <Input
+   927→   927→                  id="ce-payout-max"
+   928→   928→                  type="number"
+   929→   929→                  min={0}
+   930→   930→                  value={String(payout.maxPayoutValue)}
+   931→   931→                  onChange={(e) =>
+   932→   932→                    setField("maxPayoutValue", Number(e.target.value) || 0)
+   933→   933→                  }
+   934→   934→                  className="tabular-nums"
+   935→   935→                />
+   936→   936→                <span className="text-xs text-muted-foreground">
+   937→   937→                  {payout.maxPayoutType === "absolute" ? "USD" : "%"}
+   938→   938→                </span>
+   939→   939→              </div>
+   940→   940→            </FieldRow>
+   941→   941→          </div>
+   942→   942→        </div>
+   943→   943→      </SectionCard>
+   944→   944→
+   945→   945→      <Accordion type="single" collapsible>
+   946→   946→        <AccordionItem
+   947→   947→          value="payout-effect"
+   948→   948→          className="rounded-md border bg-muted/20 px-4"
+   949→   949→        >
+   950→   950→          <AccordionTrigger className="text-sm font-medium text-foreground">
+   951→   951→            When do payout changes take effect?
+   952→   952→          </AccordionTrigger>
+   953→   953→          <AccordionContent className="text-sm text-muted-foreground">
+   954→   954→            <p>
+   955→   955→              Changes to payout rules apply only to <strong>new</strong> payout
+   956→   956→              requests submitted after the change is saved. Pending and in-flight
+   957→   957→              requests continue under the rules in effect at the time of their
+   958→   958→              submission.
+   959→   959→            </p>
+   960→   960→            <p className="mt-2">
+   961→   961→              Profit-split changes do not retroactively affect already-earned
+   962→   962→              trader balances. Min/max limits affect the validation gate at the
+   963→   963→              moment a request is submitted.
+   964→   964→            </p>
+   965→   965→          </AccordionContent>
+   966→   966→        </AccordionItem>
+   967→   967→      </Accordion>
+   968→   968→
+   969→   969→      <div className="flex items-center justify-end gap-2">
+   970→   970→        <Button
+   971→   971→          variant="outline"
+   972→   972→          size="sm"
+   973→   973→          onClick={() =>
+   974→   974→            toast({
+   975→   975→              title: "Reverted",
+   976→   976→              description: "Payout rules reverted to last saved values.",
+   977→   977→            })
+   978→   978→          }
+   979→   979→        >
+   980→   980→          <RotateCcw className="mr-1 h-3.5 w-3.5" /> Cancel
+   981→   981→        </Button>
+   982→   982→        <Button
+   983→   983→          size="sm"
+   984→   984→          onClick={() =>
+   985→   985→            toast({
+   986→   986→              title: "Payout rules saved",
+   987→   987→              description: `Profit split ${payout.profitSplit}% · ${PAYOUT_FREQUENCIES.find((f) => f.value === payout.payoutFrequency)?.label} payout frequency.`,
+   988→   988→            })
+   989→   989→          }
+   990→   990→        >
+   991→   991→          <Save className="mr-1 h-3.5 w-3.5" /> Save Payout Rules
+   992→   992→        </Button>
+   993→   993→      </div>
+   994→   994→    </div>
+   995→   995→  );
+   996→   996→}
+   997→   997→
+   998→   998→/* ------------------------------------------------------------------ */
+   999→   999→/* TAB 4 — Checkout                                                     */
+  1000→  1000→/* ------------------------------------------------------------------ */
+  1001→  1001→
+  1002→  1002→function CheckoutTab({
+  1003→  1003→  checkout,
+  1004→  1004→  setCheckout,
+  1005→  1005→}: {
+  1006→  1006→  checkout: CheckoutDraft;
+  1007→  1007→  setCheckout: (next: CheckoutDraft) => void;
+  1008→  1008→}) {
+  1009→  1009→  const setField = <K extends keyof CheckoutDraft>(
+  1010→  1010→    key: K,
+  1011→  1011→    value: CheckoutDraft[K],
+  1012→  1012→  ) => setCheckout({ ...checkout, [key]: value });
+  1013→  1013→
+  1014→  1014→  return (
+  1015→  1015→    <div className="flex flex-col gap-4">
+  1016→  1016→      <div className="flex items-start gap-3 rounded-md border border-amber-500/30 bg-amber-50/50 px-3 py-2.5 text-sm dark:bg-amber-950/20">
+  1017→  1017→        <ShoppingBag className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
+  1018→  1018→        <div>
+  1019→  1019→          <p className="font-medium text-foreground">
+  1020→  1020→            This challenge is linked to an external checkout system (WooCommerce).
+  1021→  1021→          </p>
+  1022→  1022→          <p className="mt-0.5 text-xs text-muted-foreground">
+  1023→  1023→            Configure the product mapping below. Price and currency are pushed
+  1024→  1024→            to WooCommerce on save; activation fee is collected by the platform.
+  1025→  1025→          </p>
+  1026→  1026→        </div>
+  1027→  1027→      </div>
+  1028→  1028→
+  1029→  1029→      <SectionCard
+  1030→  1030→        title="WooCommerce Product Mapping"
+  1031→  1031→        description="Links this challenge to a single WooCommerce product for purchase."
+  1032→  1032→        icon={ShoppingBag}
+  1033→  1033→      >
+  1034→  1034→        <div className="grid gap-4 md:grid-cols-2">
+  1035→  1035→          <FieldRow
+  1036→  1036→            label="Product ID"
+  1037→  1037→            htmlFor="ce-product-id"
+  1038→  1038→            help="The WooCommerce product post ID. Found in the WooCommerce admin under Products → All Products."
+  1039→  1039→          >
+  1040→  1040→            <Input
+  1041→  1041→              id="ce-product-id"
+  1042→  1042→              value={checkout.productId}
+  1043→  1043→              onChange={(e) => setField("productId", e.target.value)}
+  1044→  1044→              placeholder="e.g. wc-chl-29481"
+  1045→  1045→            />
+  1046→  1046→          </FieldRow>
+  1047→  1047→          <FieldRow
+  1048→  1048→            label="Currency"
+  1049→  1049→            help="Currency used for both activation fee and price. Traders see prices in this currency."
+  1050→  1050→          >
+  1051→  1051→            <Select
+  1052→  1052→              value={checkout.currency}
+  1053→  1053→              onValueChange={(v) => setField("currency", v)}
+  1054→  1054→            >
+  1055→  1055→              <SelectTrigger className="w-full">
+  1056→  1056→                <SelectValue />
+  1057→  1057→              </SelectTrigger>
+  1058→  1058→              <SelectContent>
+  1059→  1059→                {CURRENCIES.map((c) => (
+  1060→  1060→                  <SelectItem key={c} value={c}>
+  1061→  1061→                    {c}
+  1062→  1062→                  </SelectItem>
+  1063→  1063→                ))}
+  1064→  1064→              </SelectContent>
+  1065→  1065→            </Select>
+  1066→  1066→          </FieldRow>
+  1067→  1067→          <FieldRow
+  1068→  1068→            label="Activation Fee"
+  1069→  1069→            htmlFor="ce-activation-fee"
+  1070→  1070→            help="One-time fee charged by the platform when the challenge is purchased. Collected separately from the product price."
+  1071→  1071→          >
+  1072→  1072→            <div className="flex items-center gap-1">
+  1073→  1073→              <Input
+  1074→  1074→                id="ce-activation-fee"
+  1075→  1075→                type="number"
+  1076→  1076→                min={0}
+  1077→  1077→                step="0.01"
+  1078→  1078→                value={String(checkout.activationFee)}
+  1079→  1079→                onChange={(e) =>
+  1080→  1080→                  setField("activationFee", Number(e.target.value) || 0)
+  1081→  1081→                }
+  1082→  1082→                className="tabular-nums"
+  1083→  1083→              />
+  1084→  1084→              <span className="text-xs text-muted-foreground">
+  1085→  1085→                {checkout.currency}
+  1086→  1086→              </span>
+  1087→  1087→            </div>
+  1088→  1088→          </FieldRow>
+  1089→  1089→          <FieldRow
+  1090→  1090→            label="Price"
+  1091→  1091→            htmlFor="ce-price"
+  1092→  1092→            help="Challenge purchase price pushed to WooCommerce. Excludes the activation fee."
+  1093→  1093→          >
+  1094→  1094→            <div className="flex items-center gap-1">
+  1095→  1095→              <Input
+  1096→  1096→                id="ce-price"
+  1097→  1097→                type="number"
+  1098→  1098→                min={0}
+  1099→  1099→                step="0.01"
+  1100→  1100→                value={String(checkout.price)}
+  1101→  1101→                onChange={(e) => setField("price", Number(e.target.value) || 0)}
+  1102→  1102→                className="tabular-nums"
+  1103→  1103→              />
+  1104→  1104→              <span className="text-xs text-muted-foreground">
+  1105→  1105→                {checkout.currency}
+  1106→  1106→              </span>
+  1107→  1107→            </div>
+  1108→  1108→          </FieldRow>
+  1109→  1109→        </div>
+  1110→  1110→      </SectionCard>
+  1111→  1111→
+  1112→  1112→      <div className="flex flex-wrap items-center justify-end gap-2">
+  1113→  1113→        <Button
+  1114→  1114→          variant="outline"
+  1115→  1115→          size="sm"
+  1116→  1116→          onClick={() =>
+  1117→  1117→            toast({
+  1118→  1118→              title: "Checkout test successful",
+  1119→  1119→              description: `Product ${checkout.productId} linked and reachable.`,
+  1120→  1120→            })
+  1121→  1121→          }
+  1122→  1122→        >
+  1123→  1123→          <Radio className="mr-1 h-3.5 w-3.5" /> Test Checkout
+  1124→  1124→        </Button>
+  1125→  1125→        <Button
+  1126→  1126→          size="sm"
+  1127→  1127→          onClick={() =>
+  1128→  1128→            toast({
+  1129→  1129→              title: "Checkout config saved",
+  1130→  1130→              description: `WooCommerce product ${checkout.productId} · ${checkout.currency} ${checkout.price} + ${checkout.currency} ${checkout.activationFee} activation fee.`,
+  1131→  1131→            })
+  1132→  1132→          }
+  1133→  1133→        >
+  1134→  1134→          <Save className="mr-1 h-3.5 w-3.5" /> Save Checkout Config
+  1135→  1135→        </Button>
+  1136→  1136→      </div>
+  1137→  1137→    </div>
+  1138→  1138→  );
+  1139→  1139→}
+  1140→  1140→
+  1141→  1141→/* ------------------------------------------------------------------ */
+  1142→  1142→/* TAB 5 — Review                                                       */
+  1143→  1143→/* ------------------------------------------------------------------ */
+  1144→  1144→
+  1145→  1145→function PhaseFlowCard({
+  1146→  1146→  label,
+  1147→  1147→  phaseName,
+  1148→  1148→  profitTarget,
+  1149→  1149→  maxDrawdown,
+  1150→  1150→  leverage,
+  1151→  1151→  accent,
+  1152→  1152→  isLast,
+  1153→  1153→}: {
+  1154→  1154→  label: string;
+  1155→  1155→  phaseName: string;
+  1156→  1156→  profitTarget: string;
+  1157→  1157→  maxDrawdown: string;
+  1158→  1158→  leverage: string;
+  1159→  1159→  accent: string;
+  1160→  1160→  isLast?: boolean;
+  1161→  1161→}) {
+  1162→  1162→  return (
+  1163→  1163→    <div className="flex items-center gap-3">
+  1164→  1164→      <div
+  1165→  1165→        className="flex w-48 flex-col gap-1.5 rounded-md border-2 bg-card p-3"
+  1166→  1166→        style={{ borderColor: accent }}
+  1167→  1167→      >
+  1168→  1168→        <div className="flex items-center justify-between gap-2">
+  1169→  1169→          <span
+  1170→  1170→            className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white"
+  1171→  1171→            style={{ background: accent }}
+  1172→  1172→          >
+  1173→  1173→            {label}
+  1174→  1174→          </span>
+  1175→  1175→        </div>
+  1176→  1176→        <p className="text-sm font-semibold text-foreground">{phaseName}</p>
+  1177→  1177→        <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+  1178→  1178→          <span>
+  1179→  1179→            Profit Target:{" "}
+  1180→  1180→            <span className="font-medium text-foreground">{profitTarget}</span>
+  1181→  1181→          </span>
+  1182→  1182→          <span>
+  1183→  1183→            Max Drawdown:{" "}
+  1184→  1184→            <span className="font-medium text-foreground">{maxDrawdown}</span>
+  1185→  1185→          </span>
+  1186→  1186→          <span>
+  1187→  1187→            Leverage:{" "}
+  1188→  1188→            <span className="font-medium text-foreground">{leverage}</span>
+  1189→  1189→          </span>
+  1190→  1190→        </div>
+  1191→  1191→      </div>
+  1192→  1192→      {!isLast ? (
+  1193→  1193→        <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+  1194→  1194→      ) : null}
+  1195→  1195→    </div>
+  1196→  1196→  );
+  1197→  1197→}
+  1198→  1198→
+  1199→  1199→function ReviewTab({
+  1200→  1200→  type,
+  1201→  1201→  draft,
+  1202→  1202→  payout,
+  1203→  1203→  checkout,
+  1204→  1204→  phases,
+  1205→  1205→  navigate,
+  1206→  1206→}: {
+  1207→  1207→  type: ChallengeType;
+  1208→  1208→  draft: ChallengeDraft;
+  1209→  1209→  payout: PayoutDraft;
+  1210→  1210→  checkout: CheckoutDraft;
+  1211→  1211→  phases: ChallengePhaseConfig[];
+  1212→  1212→  navigate: (view: string, params?: Record<string, string>) => void;
+  1213→  1213→}) {
+  1214→  1214→  // Build the flow cards: each evaluation phase + a final funded card
+  1215→  1215→  const flowCards: Array<{
+  1216→  1216→    label: string;
+  1217→  1217→    name: string;
+  1218→  1218→    profitTarget: string;
+  1219→  1219→    maxDrawdown: string;
+  1220→  1220→    leverage: string;
+  1221→  1221→    accent: string;
+  1222→  1222→  }> = phases.map((p, i) => {
+  1223→  1223→    const accents = Object.values(PHASE_FLOW_COLORS);
+  1224→  1224→    return {
+  1225→  1225→      label: p.isFunded ? "Funded" : `Phase ${i + 1}`,
+  1226→  1226→      name: p.phaseName,
+  1227→  1227→      profitTarget: p.profitTargetPct === 0 ? "—" : `${p.profitTargetPct}%`,
+  1228→  1228→      maxDrawdown: `${p.maxDrawdownPct}%`,
+  1229→  1229→      leverage: "1:100",
+  1230→  1230→      accent: p.isFunded
+  1231→  1231→        ? PHASE_FLOW_COLORS.emerald
+  1232→  1232→        : accents[i % accents.length],
+  1233→  1233→    };
+  1234→  1234→  });
+  1235→  1235→  // If there is no funded phase in the list, append a synthetic Funded card
+  1236→  1236→  if (!phases.some((p) => p.isFunded)) {
+  1237→  1237→    flowCards.push({
+  1238→  1238→      label: "Funded",
+  1239→  1239→      name: "Live Account",
+  1240→  1240→      profitTarget: "—",
+  1241→  1241→      maxDrawdown: "10%",
+  1242→  1242→      leverage: "1:100",
+  1243→  1243→      accent: PHASE_FLOW_COLORS.emerald,
+  1244→  1244→    });
+  1245→  1245→  }
+  1246→  1246→
+  1247→  1247→  const summaryRows: Array<{ label: string; value: string }> = [
+  1248→  1248→    { label: "Title", value: draft.title || "—" },
+  1249→  1249→    { label: "Challenge Type", value: type.name },
+  1250→  1250→    { label: "Steps Count", value: String(draft.stepsCount) },
+  1251→  1251→    { label: "Swap Mode", value: draft.swapMode === "swap_free" ? "Swap Free" : "Normal" },
+  1252→  1252→    { label: "Archived", value: draft.archived ? "Yes" : "No" },
+  1253→  1253→    { label: "News Trading", value: draft.newsTrading ? "Enabled" : "Disabled" },
+  1254→  1254→    { label: "Free Trial", value: draft.isFreeTrial ? "Yes" : "No" },
+  1255→  1255→    { label: "Competition", value: draft.isCompetition ? "Yes" : "No" },
+  1256→  1256→    { label: "Auto Upgrade on KYC", value: draft.autoUpgradeKyc ? "Yes" : "No" },
+  1257→  1257→    { label: "KYC Timing", value: draft.kycTiming === "before" ? "Before purchase" : draft.kycTiming === "after" ? "After purchase" : "Before and after payout" },
+  1258→  1258→    { label: "Pay-later", value: draft.payLater ? "Enabled" : "Disabled" },
+  1259→  1259→    { label: "Max Drawdown Type", value: draft.maxDrawdownType === "trailing" ? "Trailing" : "Static" },
+  1260→  1260→    { label: "Profit Split", value: `${payout.profitSplit}%` },
+  1261→  1261→    { label: "Payout Frequency", value: PAYOUT_FREQUENCIES.find((f) => f.value === payout.payoutFrequency)?.label ?? "—" },
+  1262→  1262→    { label: "Partial Payout", value: payout.partialPayout ? "Allowed" : "Full only" },
+  1263→  1263→    { label: "Min Payout", value: payout.minPayoutType === "absolute" ? `${checkout.currency} ${payout.minPayoutValue}` : `${payout.minPayoutValue}%` },
+  1264→  1264→    { label: "Max Payout", value: payout.maxPayoutType === "absolute" ? `${checkout.currency} ${payout.maxPayoutValue}` : `${payout.maxPayoutValue}%` },
+  1265→  1265→    { label: "WooCommerce Product", value: checkout.productId || "—" },
+  1266→  1266→    { label: "Price", value: `${checkout.currency} ${checkout.price}` },
+  1267→  1267→    { label: "Activation Fee", value: `${checkout.currency} ${checkout.activationFee}` },
+  1268→  1268→  ];
+  1269→  1269→
+  1270→  1270→  return (
+  1271→  1271→    <div className="flex flex-col gap-4">
+  1272→  1272→      <SectionCard
+  1273→  1273→        title="Phase Flow Diagram"
+  1274→  1274→        description="Visual sequence of phases the trader progresses through to reach a funded account."
+  1275→  1275→        icon={Layers}
+  1276→  1276→      >
+  1277→  1277→        <div className="flex flex-wrap items-center gap-3 overflow-x-auto pb-2">
+  1278→  1278→          {flowCards.map((c, i) => (
+  1279→  1279→            <PhaseFlowCard
+  1280→  1280→              key={`${c.label}-${i}`}
+  1281→  1281→              label={c.label}
+  1282→  1282→              phaseName={c.name}
+  1283→  1283→              profitTarget={c.profitTarget}
+  1284→  1284→              maxDrawdown={c.maxDrawdown}
+  1285→  1285→              leverage={c.leverage}
+  1286→  1286→              accent={c.accent}
+  1287→  1287→              isLast={i === flowCards.length - 1}
+  1288→  1288→            />
+  1289→  1289→          ))}
+  1290→  1290→        </div>
+  1291→  1291→        <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+  1292→  1292→          {Object.entries(PHASE_FLOW_COLORS).map(([k, v]) => (
+  1293→  1293→            <span key={k} className="flex items-center gap-1.5">
+  1294→  1294→              <span
+  1295→  1295→                className="inline-block h-2 w-2 rounded-sm"
+  1296→  1296→                style={{ background: v }}
+  1297→  1297→              />
+  1298→  1298→              {PHASE_FLOW_LABEL[k as keyof typeof PHASE_FLOW_COLORS]}
+  1299→  1299→            </span>
+  1300→  1300→          ))}
+  1301→  1301→        </div>
+  1302→  1302→      </SectionCard>
+  1303→  1303→
+  1304→  1304→      <SectionCard
+  1305→  1305→        title="Configuration Summary"
+  1306→  1306→        description="All configured settings for this challenge, ready to publish."
+  1307→  1307→        icon={CheckCircle2}
+  1308→  1308→      >
+  1309→  1309→        <dl className="grid gap-x-6 gap-y-2 md:grid-cols-2">
+  1310→  1310→          {summaryRows.map((row) => (
+  1311→  1311→            <div
+  1312→  1312→              key={row.label}
+  1313→  1313→              className="flex items-start justify-between gap-4 border-b border-dashed border-border py-1.5 last:border-0"
+  1314→  1314→            >
+  1315→  1315→              <dt className="text-xs text-muted-foreground">{row.label}</dt>
+  1316→  1316→              <dd className="text-right text-sm font-medium text-foreground">
+  1317→  1317→                {row.value}
+  1318→  1318→              </dd>
+  1319→  1319→            </div>
+  1320→  1320→          ))}
+  1321→  1321→        </dl>
+  1322→  1322→      </SectionCard>
+  1323→  1323→
+  1324→  1324→      <div className="flex flex-wrap items-center justify-end gap-2 rounded-lg border bg-muted/20 p-3">
+  1325→  1325→        <Button
+  1326→  1326→          variant="outline"
+  1327→  1327→          size="sm"
+  1328→  1328→          onClick={() => navigate("phase-management")}
+  1329→  1329→        >
+  1330→  1330→          <Layers className="mr-1 h-3.5 w-3.5" /> View All Phases
+  1331→  1331→        </Button>
+  1332→  1332→        <Button
+  1333→  1333→          size="sm"
+  1334→  1334→          onClick={() =>
+  1335→  1335→            toast({
+  1336→  1336→              title: "Challenge configuration saved",
+  1337→  1337→              description: `${draft.title || type.name} configuration has been saved.`,
+  1338→  1338→            })
+  1339→  1339→          }
+  1340→  1340→        >
+  1341→  1341→          <Save className="mr-1 h-3.5 w-3.5" /> Save All Changes
+  1342→  1342→        </Button>
+  1343→  1343→        <Button
+  1344→  1344→          variant="outline"
+  1345→  1345→          size="sm"
+  1346→  1346→          onClick={() =>
+  1347→  1347→            toast({
+  1348→  1348→              title: "Challenge published",
+  1349→  1349→              description: `${draft.title || type.name} is now available for purchase.`,
+  1350→  1350→            })
+  1351→  1351→          }
+  1352→  1352→        >
+  1353→  1353→          <Send className="mr-1 h-3.5 w-3.5" /> Publish Challenge
+  1354→  1354→        </Button>
+  1355→  1355→      </div>
+  1356→  1356→    </div>
+  1357→  1357→  );
+  1358→  1358→}
+  1359→  1359→
+  1360→  1360→/* ------------------------------------------------------------------ */
+  1361→  1361→/* Page                                                                 */
+  1362→  1362→/* ------------------------------------------------------------------ */
+  1363→  1363→
+  1364→  1364→export function ChallengeEditPage() {
+  1365→  1365→  const { router, navigate, runtime } = usePlatform();
+  1366→  1366→  const currency = runtime.tenant?.currency ?? "USD";
+  1367→  1367→
+  1368→  1368→  const { type, index } = useMemo(
+  1369→  1369→    () => resolveChallengeType(router.params.id),
+  1370→  1370→    [router.params.id],
+  1371→  1371→  );
+  1372→  1372→
+  1373→  1373→  // Phase list for this challenge type
+  1374→  1374→  const phases = useMemo(
+  1375→  1375→    () => getChallengePhaseConfigs(type.id),
+  1376→  1376→    [type.id],
+  1377→  1377→  );
+  1378→  1378→
+  1379→  1379→  /* ---------- Draft state (seeded from type) ---------- */
+  1380→  1380→  const [draft, setDraft] = useState<ChallengeDraft>(() => ({
+  1381→  1381→    title: type.name,
+  1382→  1382→    description: type.description,
+  1383→  1383→    challengeTypeId: type.id,
+  1384→  1384→    stepsCount: type.phases,
+  1385→  1385→    swapMode: "normal",
+  1386→  1386→    archived: !type.active,
+  1387→  1387→    newsTrading: false,
+  1388→  1388→    isFreeTrial: type.hasFreeTrial,
+  1389→  1389→    isCompetition: type.isCompetition,
+  1390→  1390→    autoUpgradeKyc: false,
+  1391→  1391→    kycTiming: "before",
+  1392→  1392→    payLater: false,
+  1393→  1393→    maxDrawdownType: "static",
+  1394→  1394→  }));
+  1395→  1395→  const [payout, setPayout] = useState<PayoutDraft>(() => ({
+  1396→  1396→    profitSplit: phases.find((p) => p.isFunded)?.profitSplit ?? 80,
+  1397→  1397→    partialPayout: true,
+  1398→  1398→    payoutFrequency: "biweekly",
+  1399→  1399→    minPayoutType: "absolute",
+  1400→  1400→    minPayoutValue: 100,
+  1401→  1401→    maxPayoutType: "percentage",
+  1402→  1402→    maxPayoutValue: 90,
+  1403→  1403→  }));
+  1404→  1404→  const [checkout, setCheckout] = useState<CheckoutDraft>(() => ({
+  1405→  1405→    // Deterministic mock per challenge id — no Math.random
+  1406→  1406→    productId: `wc-chl-${(index + 1) * 29481}`,
+  1407→  1407→    activationFee: 35,
+  1408→  1408→    price: 89 + index * 10,
+  1409→  1409→    currency,
+  1410→  1410→  }));
+  1411→  1411→  const [tab, setTab] = useState<string>("general");
+  1412→  1412→
+  1413→  1413→  // Re-seed when the underlying type changes (user navigates to a different id)
+  1414→  1414→  const [lastTypeId, setLastTypeId] = useState<string>(type.id);
+  1415→  1415→  if (type.id !== lastTypeId) {
+  1416→  1416→    setLastTypeId(type.id);
+  1417→  1417→    setDraft({
+  1418→  1418→      title: type.name,
+  1419→  1419→      description: type.description,
+  1420→  1420→      challengeTypeId: type.id,
+  1421→  1421→      stepsCount: type.phases,
+  1422→  1422→      swapMode: "normal",
+  1423→  1423→      archived: !type.active,
+  1424→  1424→      newsTrading: false,
+  1425→  1425→      isFreeTrial: type.hasFreeTrial,
+  1426→  1426→      isCompetition: type.isCompetition,
+  1427→  1427→      autoUpgradeKyc: false,
+  1428→  1428→      kycTiming: "before",
+  1429→  1429→      payLater: false,
+  1430→  1430→      maxDrawdownType: "static",
+  1431→  1431→    });
+  1432→  1432→    setPayout({
+  1433→  1433→      profitSplit: phases.find((p) => p.isFunded)?.profitSplit ?? 80,
+  1434→  1434→      partialPayout: true,
+  1435→  1435→      payoutFrequency: "biweekly",
+  1436→  1436→      minPayoutType: "absolute",
+  1437→  1437→      minPayoutValue: 100,
+  1438→  1438→      maxPayoutType: "percentage",
+  1439→  1439→      maxPayoutValue: 90,
+  1440→  1440→    });
+  1441→  1441→    setCheckout({
+  1442→  1442→      productId: `wc-chl-${(index + 1) * 29481}`,
+  1443→  1443→      activationFee: 35,
+  1444→  1444→      price: 89 + index * 10,
+  1445→  1445→      currency,
+  1446→  1446→    });
+  1447→  1447→  }
+  1448→  1448→
+  1449→  1449→  // Currency follows the tenant — adjust state during render (React docs
+  1450→  1450→  // "you might not need an effect") to avoid setState-in-effect cascades.
+  1451→  1451→  const [lastCurrency, setLastCurrency] = useState<string>(currency);
+  1452→  1452→  if (currency !== lastCurrency) {
+  1453→  1453→    setLastCurrency(currency);
+  1454→  1454→    setCheckout((c) => (c.currency === currency ? c : { ...c, currency }));
+  1455→  1455→  }
+  1456→  1456→
+  1457→  1457→  return (
+  1458→  1458→    <Page>
+  1459→  1459→      <PageHeader
+  1460→  1460→        title={`Edit Challenge — ${type.name}`}
+  1461→  1461→        description={`Challenge type ${index + 1} of ${getChallengeTypes().length}. Configure phase parameters, payout rules, checkout integration, then review before publishing.`}
+  1462→  1462→        icon={Settings2}
+  1463→  1463→        actions={
+  1464→  1464→          <Button
+  1465→  1465→            size="sm"
+  1466→  1466→            variant="outline"
+  1467→  1467→            onClick={() => navigate("challenge-config")}
+  1468→  1468→          >
+  1469→  1469→            <ChevronLeft className="mr-1 h-4 w-4" /> Back to Configuration
+  1470→  1470→          </Button>
+  1471→  1471→        }
+  1472→  1472→      />
+  1473→  1473→
+  1474→  1474→      <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+  1475→  1475→        <Target className="h-3.5 w-3.5 text-primary" />
+  1476→  1476→        <span className="font-medium text-foreground">{type.name}</span>
+  1477→  1477→        <span>·</span>
+  1478→  1478→        <span>{phases.length} phase{phases.length === 1 ? "" : "s"}</span>
+  1479→  1479→        <span>·</span>
+  1480→  1480→        <span>{type.phases} step{type.phases === 1 ? "" : "s"}</span>
+  1481→  1481→        {type.hasFreeTrial ? (
+  1482→  1482→          <>
+  1483→  1483→            <span>·</span>
+  1484→  1484→            <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 text-[10px] dark:text-emerald-400">
+  1485→  1485→              Free Trial
+  1486→  1486→            </Badge>
+  1487→  1487→          </>
+  1488→  1488→        ) : null}
+  1489→  1489→        {type.isCompetition ? (
+  1490→  1490→          <>
+  1491→  1491→            <span>·</span>
+  1492→  1492→            <Badge variant="outline" className="border-amber-500/40 text-amber-700 text-[10px] dark:text-amber-400">
+  1493→  1493→              Competition
+  1494→  1494→            </Badge>
+  1495→  1495→          </>
+  1496→  1496→        ) : null}
+  1497→  1497→        <Separator orientation="vertical" className="mx-1 h-4" />
+  1498→  1498→        <Button
+  1499→  1499→          size="sm"
+  1500→  1500→          variant="ghost"
+  1501→  1501→          className="h-7 px-2 text-xs"
+  1502→  1502→          onClick={() => navigate("phase-management")}
+  1503→  1503→        >
+  1504→  1504→          <Layers className="mr-1 h-3.5 w-3.5" /> Phase Management
+  1505→  1505→        </Button>
+  1506→  1506→        <Button
+  1507→  1507→          size="sm"
+  1508→  1508→          variant="ghost"
+  1509→  1509→          className="h-7 px-2 text-xs"
+  1510→  1510→          onClick={() => navigate("challenge-types")}
+  1511→  1511→        >
+  1512→  1512→          <FileText className="mr-1 h-3.5 w-3.5" /> Challenge Types
+  1513→  1513→        </Button>
+  1514→  1514→      </div>
+  1515→  1515→
+  1516→  1516→      <PageContent>
+  1517→  1517→        <Tabs value={tab} onValueChange={setTab}>
+  1518→  1518→          <TabsList className="w-fit">
+  1519→  1519→            <TabsTrigger value="general" className="text-xs">
+  1520→  1520→              <Settings2 className="h-3.5 w-3.5" /> General
+  1521→  1521→            </TabsTrigger>
+  1522→  1522→            <TabsTrigger value="phases" className="text-xs">
+  1523→  1523→              <Layers className="h-3.5 w-3.5" /> Phases
+  1524→  1524→            </TabsTrigger>
+  1525→  1525→            <TabsTrigger value="payout" className="text-xs">
+  1526→  1526→              <DollarSign className="h-3.5 w-3.5" /> Payout Rules
+  1527→  1527→            </TabsTrigger>
+  1528→  1528→            <TabsTrigger value="checkout" className="text-xs">
+  1529→  1529→              <ShoppingBag className="h-3.5 w-3.5" /> Checkout
+  1530→  1530→            </TabsTrigger>
+  1531→  1531→            <TabsTrigger value="review" className="text-xs">
+  1532→  1532→              <CheckCircle2 className="h-3.5 w-3.5" /> Review
+  1533→  1533→            </TabsTrigger>
+  1534→  1534→          </TabsList>
+  1535→  1535→          <TabsContent value="general" className="mt-4">
+  1536→  1536→            <GeneralTab
+  1537→  1537→              type={type}
+  1538→  1538→              draft={draft}
+  1539→  1539→              setDraft={setDraft}
+  1540→  1540→              phases={phases}
+  1541→  1541→              navigate={navigate}
+  1542→  1542→            />
+  1543→  1543→          </TabsContent>
+  1544→  1544→          <TabsContent value="phases" className="mt-4">
+  1545→  1545→            <PhasesTab
+  1546→  1546→              phases={phases}
+  1547→  1547→              navigate={navigate}
+  1548→  1548→              currency={currency}
+  1549→  1549→            />
+  1550→  1550→          </TabsContent>
+  1551→  1551→          <TabsContent value="payout" className="mt-4">
+  1552→  1552→            <PayoutTab payout={payout} setPayout={setPayout} />
+  1553→  1553→          </TabsContent>
+  1554→  1554→          <TabsContent value="checkout" className="mt-4">
+  1555→  1555→            <CheckoutTab checkout={checkout} setCheckout={setCheckout} />
+  1556→  1556→          </TabsContent>
+  1557→  1557→          <TabsContent value="review" className="mt-4">
+  1558→  1558→            <ReviewTab
+  1559→  1559→              type={type}
+  1560→  1560→              draft={draft}
+  1561→  1561→              payout={payout}
+  1562→  1562→              checkout={checkout}
+  1563→  1563→              phases={phases}
+  1564→  1564→              navigate={navigate}
+  1565→  1565→            />
+  1566→  1566→          </TabsContent>
+  1567→  1567→        </Tabs>
+  1568→  1568→      </PageContent>
+  1569→  1569→    </Page>
+  1570→  1570→  );
+  1571→  1571→}
+  1572→  1572→

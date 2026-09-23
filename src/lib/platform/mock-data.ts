@@ -19,6 +19,30 @@ import type {
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Module augmentation — extend AuditEntry with an optional `tenantId`
+ * field without modifying the canonical interface in types.ts. This lets
+ * us scope audit log entries (and the user-events / change-history cousins
+ * defined locally below) per-tenant in a multi-tenant SaaS shell.
+ */
+declare module "./types" {
+  interface AuditEntry {
+    tenantId?: string;
+  }
+}
+
+/**
+ * Deterministic small-string hash — used in place of `Math.random()` so
+ * mock data is stable across reloads (e.g. tenant scoping, default toggles).
+ */
+export function hashStr(s: string): number {
+  let h = 7;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return h;
+}
+
 const now = new Date();
 const iso = (d: Date) => d.toISOString();
 const daysAgo = (n: number) => {
@@ -1070,6 +1094,9 @@ export const auditLog: AuditEntry[] = (() => {
     ["Resolved breach", "breach"],
     ["Approved KYC", "kyc"],
   ] as const;
+  // Per-tenant seeded entries (20 per tenant). The outer loop binding
+  // `tid` is now stored on each AuditEntry so `getTenantAudit(tid)` can
+  // actually filter — previously every tenant saw the same 60 entries.
   for (const tid of ["tenant-alpha", "tenant-beta", "tenant-gamma"]) {
     for (let i = 0; i < 20; i++) {
       const [action, entity] = actions[i % actions.length];
@@ -1083,8 +1110,25 @@ export const auditLog: AuditEntry[] = (() => {
         summary: `${action} on ${entity}`,
         severity: i % 6 === 0 ? "critical" : i % 3 === 0 ? "warning" : "info",
         module: entity,
+        tenantId: tid,
       });
     }
+  }
+  // Platform-scoped entries (visible to super-admin only).
+  for (let i = 0; i < 12; i++) {
+    const [action, entity] = actions[i % actions.length];
+    out.push({
+      id: `aud-platform-${i}`,
+      timestamp: hoursAgo(i * 7),
+      actor: actors[(i + 1) % actors.length],
+      action,
+      entity,
+      entityId: `${entity}-platform-${1000 + i}`,
+      summary: `${action} (platform-wide)`,
+      severity: i % 5 === 0 ? "critical" : i % 4 === 0 ? "warning" : "info",
+      module: entity,
+      tenantId: "platform",
+    });
   }
   return out;
 })();
@@ -1194,8 +1238,17 @@ export function getTenantTickets(tenantId: string): SupportTicket[] {
 export function getTenantAiInsights(tenantId: string): AiInsight[] {
   return aiInsights.filter((a) => a.tenantId === tenantId || a.tenantId === "platform");
 }
+export function getPlatformAudit(): AuditEntry[] {
+  // Cross-tenant view for super-admin (every seeded entry).
+  return auditLog;
+}
 export function getTenantAudit(tenantId: string): AuditEntry[] {
-  return auditLog.filter((a) => a.module !== undefined).slice(0, 60);
+  // Platform tenant sees the full cross-tenant stream; a regular tenant
+  // only sees its own entries plus any unscoped (`tenantId === undefined`)
+  // legacy entries. Previously this returned the same 60 entries for every
+  // tenant because the `tid` argument was ignored.
+  if (tenantId === "platform") return auditLog;
+  return auditLog.filter((a) => a.tenantId === tenantId || a.tenantId === undefined);
 }
 export function getTenantPositions(tenantId: string): Position[] {
   return positions.filter((p) => p.tenantId === tenantId);
@@ -1295,6 +1348,8 @@ export interface UserEvent {
   accountId: string;
   eventType: "ACCOUNT_CREATED" | "KYC_COMPLETED" | "KYC_REJECTED" | "ORDER_CREATED" | "PAYOUT_REQUESTED" | "PAYOUT_COMPLETED" | "CHALLENGE_STARTED" | "CHALLENGE_PASSED" | "CHALLENGE_FAILED" | "BREACH_DETECTED" | "LOGIN" | "PASSWORD_CHANGED";
   description: string;
+  /** Tenant scoping — derived deterministically from the trader the event is bound to. */
+  tenantId?: string;
 }
 
 export interface ChangeHistoryEntry {
@@ -1307,6 +1362,8 @@ export interface ChangeHistoryEntry {
   oldValue: string;
   newValue: string;
   reason: string;
+  /** Tenant scoping — derived deterministically from `id` via `hashStr`. */
+  tenantId?: string;
 }
 
 /* Seeded data for new types */
@@ -1389,6 +1446,9 @@ export const userEvents: UserEvent[] = (() => {
       accountId: `3333887${100 + i}`,
       eventType: evt,
       description: descriptions[evt],
+      // Bind each event to the same tenant as its trader so user-events
+      // can be filtered per-tenant by the audit module's helper.
+      tenantId: t.tenantId,
     });
   }
   return out;
@@ -1409,8 +1469,13 @@ export const changeHistory: ChangeHistoryEntry[] = (() => {
   ];
   for (let i = 0; i < 40; i++) {
     const c = changes[i % changes.length];
+    const id = `ch-${i}`;
+    // Deterministically assign this change-history entry to one of the
+    // 3 tenants (or "platform" for super-admin) using `hashStr`.
+    const h = hashStr(id) % 4;
+    const tid = h === 0 ? "tenant-alpha" : h === 1 ? "tenant-beta" : h === 2 ? "tenant-gamma" : "platform";
     out.push({
-      id: `ch-${i}`,
+      id,
       timestamp: hoursAgo(i * 6),
       actor: actors[i % actors.length],
       entityType: c.entity,
@@ -1419,6 +1484,7 @@ export const changeHistory: ChangeHistoryEntry[] = (() => {
       oldValue: c.old,
       newValue: c.new,
       reason: i % 3 === 0 ? "Policy update" : i % 3 === 1 ? "Configuration change" : "Manual adjustment",
+      tenantId: tid,
     });
   }
   return out;
@@ -1450,8 +1516,28 @@ export function getTradingEventRules(type?: string): TradingEventRule[] {
 export function getUserEvents(limit = 100): UserEvent[] {
   return userEvents.slice(0, limit);
 }
+export function getTenantUserEvents(tenantId: string, limit = 100): UserEvent[] {
+  // Platform tenant sees the full cross-tenant stream; a regular tenant
+  // only sees its own events plus any unscoped legacy entries.
+  const filtered =
+    tenantId === "platform"
+      ? userEvents
+      : userEvents.filter((e) => e.tenantId === tenantId || e.tenantId === undefined);
+  return filtered.slice(0, limit);
+}
 export function getChangeHistory(entityType?: string, entityId?: string): ChangeHistoryEntry[] {
   let result = changeHistory;
+  if (entityType) result = result.filter((c) => c.entityType === entityType);
+  if (entityId) result = result.filter((c) => c.entityId === entityId);
+  return result;
+}
+export function getTenantChangeHistory(tenantId: string, entityType?: string, entityId?: string): ChangeHistoryEntry[] {
+  // Platform tenant sees the full cross-tenant stream; a regular tenant
+  // only sees its own changes plus any unscoped legacy entries.
+  let result =
+    tenantId === "platform"
+      ? changeHistory
+      : changeHistory.filter((c) => c.tenantId === tenantId || c.tenantId === undefined);
   if (entityType) result = result.filter((c) => c.entityType === entityType);
   if (entityId) result = result.filter((c) => c.entityId === entityId);
   return result;
@@ -1498,13 +1584,26 @@ export function getDailyHighlights(tenantId: string) {
   const hours = Array.from({ length: 24 }, (_, h) => `${h}:00`);
   return {
     dailyRevenue: 1092.16,
-    dailyPayouts: 52.50,
+    dailyPayouts: 52.5,
     dailyNetRevenue: 1039.66,
     avgOrderValue: 40.45,
     latestHourRevenue: 36.77,
-    hourlyRevenue: hours.map((h, i) => ({ hour: h, value: Math.round(20 + Math.sin(i / 3) * 40 + Math.random() * 30) })),
-    hourlyOrders: hours.map((h, i) => ({ hour: h, value: Math.round(1 + Math.sin(i / 3) * 2 + Math.random()) })),
-    hourlyPayouts: hours.map((h, i) => ({ hour: h, value: Math.round(Math.random() * 5) })),
+    // Hourly revenue/orders/payouts use deterministic sine curves (no
+    // Math.random) — stable across reloads, mirrors `payoutSeries` and
+    // `breachTrend` patterns. `tenantId` is intentionally consumed so the
+    // values differ slightly per tenant without losing determinism.
+    hourlyRevenue: hours.map((h, i) => ({
+      hour: h,
+      value: Math.round(20 + Math.sin(i / 3) * 40 + (hashStr(`${tenantId}-rev-${i}`) % 30)),
+    })),
+    hourlyOrders: hours.map((h, i) => ({
+      hour: h,
+      value: Math.round(1 + Math.sin(i / 3) * 2 + ((hashStr(`${tenantId}-ord-${i}`) % 10) / 10)),
+    })),
+    hourlyPayouts: hours.map((h, i) => ({
+      hour: h,
+      value: Math.round((hashStr(`${tenantId}-pay-${i}`) % 50) / 10),
+    })),
     topCountries: [
       { country: "United States", orders: 142, revenue: 5680 },
       { country: "United Kingdom", orders: 89, revenue: 3560 },
@@ -1533,11 +1632,13 @@ export function getDailyHighlights(tenantId: string) {
       { size: "$50K", count: 67, revenue: 2680 },
       { size: "$100K", count: 34, revenue: 1360 },
     ],
+    // Recent orders use deterministic `hashStr` for the amount in place of
+    // Math.random — keeps the demo table stable across reloads.
     recentOrders: Array.from({ length: 8 }, (_, i) => ({
       id: `ORD-${10000 + i}`,
       customer: traders[i % traders.length]?.name ?? "Unknown",
       challenge: ["2-Step Gen Z", "Instant Standard", "1-Step Turbo"][i % 3],
-      amount: Math.round(35 + Math.random() * 50),
+      amount: 35 + (hashStr(`${tenantId}-ord-amount-${i}`) % 50),
       psp: ["Crypto", "Card", "Fiat"][i % 3],
       time: `${i + 1}h ago`,
     })),

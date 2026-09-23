@@ -1,0 +1,202 @@
+  5430→### KYC — PRESENT
+  5431→- Manifest: id `kyc`, v1.0.0, category `compliance`, optional `true`, deps `["trading"]`, apps `[prop-admin, super-admin]`, accentColor `#475569` (slate — Terra-allowed), 2 perms (`kyc.read`, `kyc.approve`), 3 nav children at order 75 (Overview/Reviews/Risk), 3 routes, 2 widgets, 1 settings entry (DEAD LINK — `settings-kyc` not in view-router registry).
+  5432→- Overview (`kyc-pages.tsx:KycOverviewPage`): 5 MetricCards (Pending/In-Review/Approved/Rejected/High Risk) + recent submissions DataTable (6 rows). Uses `getTenantKyc(tid)`. Export button (toast-only).
+  5433→- Reviews (`KycReviewsPage`): full DataTable, 8 cols (Trader/Document/Country/Status/Risk/Submitted/Reviewed/Actions). Inline Approve/Reject gated by `PermissionGuard permission="kyc.approve"`. Toast feedback.
+  5434→- Risk (`KycRiskPage`): DonutSeries (low/med/high) + high-risk records DataTable.
+  5435→- Widgets: `KycOverviewWidget` (5 KPI MetricCards), `KycQueueWidget` (top-5 pending list w/ StatusBadge + high-risk badge).
+  5436→- Attention Center has 2 KYC entries (reviews needed + high-risk profiles) ✓. Global Search indexes KYC Records ✓. State-explanations has 5 KYC states ✓. Audit log seeded with `Approved KYC` entries ✓.
+  5437→
+  5438→### KYC — MISSING / THIN (effort)
+  5439→- Approval/rejection rate metrics on Overview (data exists; not computed) — **S**
+  5440→- Avg processing time metric on Overview (has `submittedAt`+`reviewedAt`; not computed) — **S**
+  5441→- By-provider breakdown on Overview (KYC module has no provider concept; per-provider data lives in `trading/pages/account-kyc-statuses-page.tsx`) — **M** (or **L** if consolidating provider mgmt into KYC module)
+  5442→- "Provider" + "Reviewer" columns on Reviews queue (data model missing `provider`, `reviewedBy`) — **S**
+  5443→- Risk scoring by country / document type / age / completeness (current Risk page only shows low/med/high distribution) — **M**
+  5444→- KYC Providers config / status / fallback management screen (Sumsub/Onfido/Veriff/Identity) — **L**
+  5445→- Document management — upload / view / verify (no `documents[]` array on KycRecord; no UI) — **L**
+  5446→- "Request additional docs" action (only Approve/Reject exist) — **S**
+  5447→- Use ContextualActionPanel pattern (build `KycReviewActions` in `contextual-actions.tsx`; mirror PayoutReviewActions) — **S** (§22-23, §37)
+  5448→- AlertDialog friction on Reject (currently plain `Button variant="ghost"`) — **S** (§24)
+  5449→- Bulk KYC actions (bulk approve/reject/assign reviewer; DataTable has no selection) — **M**
+  5450→- KYC audit trail per applicant (general audit log exists, no per-applicant timeline drawer) — **M**
+  5451→- AML/sanctions screening (no mock data, no UI, no flag on KycRecord) — **L**
+  5452→- PEP screening — **L**
+  5453→- KYC re-verification schedule (annual; no `expiresAt`/`reverifyAt` field; `kyc.expired` state exists but no scheduling UI) — **M**
+  5454→- Risk score explanation/breakdown (shows "high" without WHY — no sub-components) — **M** (§19, §20)
+  5455→- Use `ExplainableStateBadge` instead of plain `StatusBadge` (inconsistent with trading's account-kyc-statuses which does) — **S** (§17-19)
+  5456→- Apply `term()` to page headers (hardcoded "KYC / AML") — **S** (§54-55)
+  5457→- Build `settings-kyc` page or remove dead-link settings entry — **S**
+  5458→
+  5459→### SUPPORT — PRESENT
+  5460→- Manifest: id `support`, v1.0.0, category `core`, optional `true`, deps `["trading"]`, apps `[prop-admin, super-admin, trader]` (NOTE: trader included but all 3 pages are admin-facing — see UX gaps), accentColor `#c2410c` (orange — Terra-allowed), 2 perms (`support.read`, `support.configure`), 3 nav children at order 80, 3 routes, 3 widgets, 1 settings entry (DEAD LINK).
+  5461→- Overview (`support-pages.tsx:SupportOverviewPage`): 4 MetricCards (Open/Urgent/Avg Response/Resolved Today) + recent tickets DataTable (6 rows) + Priority distribution DonutSeries + New Ticket button (toast).
+  5462→- Tickets (`SupportTicketsPage`): full DataTable, 8 cols (Subject/Trader/Category/Priority/Status/Assignee/Created/Messages). `onRowClick` fires toast only — no detail drawer.
+  5463→- Knowledge (`SupportKnowledgePage`): 6 hardcoded FAQ Cards in responsive grid (const `faqItems` array at lines 150-193). No CRUD.
+  5464→- Widgets: `SupportOverviewWidget` (4 KPI MetricCards), `RecentTicketsWidget` (DataTable 6 rows), `TicketPriorityWidget` (DonutSeries).
+  5465→- Attention Center has 1 entry (urgent tickets) ✓. Global Search indexes Support Tickets ✓. Uses `relativeTime` helper (§29 pattern ✓). `avgResponseHours` helper computes real SLA-like metric from `createdAt`+`lastReplyAt`.
+  5466→
+  5467→### SUPPORT — MISSING / THIN (effort)
+  5468→- Satisfaction (CSAT) score metric on Overview (spec #1; no `csat` field, no survey mechanism) — **M**
+  5469→- By-category breakdown on Overview (spec #1; only Priority donut shown) — **S**
+  5470→- SLA timer / SLA breach indicator on Tickets list (spec #2; data exists but no "Due in Xh"/"Breached" badge) — **M**
+  5471→- SLA management policy config (per-priority targets, breach dashboard) — **L**
+  5472→- Ticket detail workspace — conversation thread / internal notes / attachments / escalation (spec #3; `onRowClick` only toasts) — **L** (§28)
+  5473→- Knowledge Base CRUD (spec #4; only 6 hardcoded FAQ items, no backend, no admin UI) — **L**
+  5474→- Knowledge Base — categories / search / public/private toggle — **M**
+  5475→- Live chat / chat widget (spec #5) — **L**
+  5476→- Ticket assignment & workload dashboard (e.g. "Sarah: 12 open, Marcus: 8") — **M**
+  5477→- Canned responses / macros (spec #8) — **M**
+  5478→- CSAT surveys post-resolution (spec #9) — **M**
+  5479→- Escalation rules (spec #10) — **M**
+  5480→- Auto-routing / auto-tagging rule engine (spec #11) — **L**
+  5481→- Support analytics dashboard (spec #12; current Overview has 4 KPIs + 1 donut — needs trend charts, agent leaderboard) — **M**
+  5482→- Bulk ticket actions (bulk assign/close/priority; DataTable has no selection) — **M**
+  5483→- Filter chips on Tickets list (only search; no status/priority/category/assignee/date filters) — **S** (mirror `enhanced-withdrawals-page` pattern)
+  5484→- Empty state on Tickets list (no `emptyTitle`/`emptyDescription` — §30 violation; KYC + Support Overview have proper ones) — **S**
+  5485→- Last Reply column not shown on Tickets list (`lastReplyAt` field exists but `messages` count shown instead) — **S**
+  5486→- Apply `term()` to page headers (hardcoded "Support") — **S**
+  5487→- Build `settings-support` page or remove dead-link settings entry — **S**
+  5488→- Trader-facing support portal (manifest declares `trader` app but all pages are admin-only; §5 violation) — **L**
+  5489→
+  5490→### AI — PRESENT
+  5491→- Manifest: id `ai`, v1.0.0, category `ai`, optional `true`, deps `["trading", "analytics"]`, apps `[prop-admin, super-admin]`, accentColor `#7c3aed` (violet — explicitly allowed, NOT blue/indigo), 2 perms (`ai.read`, `ai.configure`), 4 nav children at order 85 (Overview/Insights/Assistant/Configure), 4 routes, 3 widgets, 1 settings entry (DEAD LINK). Capabilities declared: `ai.insights`, `ai.assistant`, `ai.predictions`, `ai.anomaly` (last 2 unused).
+  5492→- Overview (`ai-pages.tsx:AiOverviewPage`): 4 MetricCards (Active Insights/Avg Confidence/Opportunities/Critical Alerts) + insights feed list + BarSeries "Confidence by insight".
+  5493→- Insights (`AiInsightsPage`): full grid of insight Cards w/ severity icon, confidence progress bar, Dismiss button (toast).
+  5494→- Assistant (`AiAssistantPage`): mock chat UI w/ `seedChat` (5 hardcoded messages), input box, Send button, Enter-to-send, toast feedback on send, ScrollArea, "demo mode" disclaimer, Avatars for user/assistant.
+  5495→- Configure (`AiConfigurePage`): 3 feature toggles (Insights/Predictions/Anomaly Detection) + Model selection (GPT-4o mini/GPT-4o/Claude 3.5 Sonnet/Llama 3.1 70B/Mistral Large) + Save button (toast). Includes "Tip" callout about cost-vs-capability.
+  5496→- Widgets: `AiOverviewWidget` (4 KPI MetricCards), `AiInsightsWidget` (top-4 insights list), `AiConfidenceWidget` (BarSeries).
+  5497→- Attention Center has 1 entry (AI opportunities detected) ✓. mock-data has `AiInsight` interface (id/tenantId/module/title/summary/detail/severity/confidence/generatedAt) + 3 seed insights + `getTenantAiInsights` helper.
+  5498→
+  5499→### AI — MISSING / THIN (effort)
+  5500→- Usage metrics (spec #1: calls/day, accuracy %, model status; only `active/avg confidence/opportunities/critical` shown) — **M**
+  5501→- AI Cost tracking (spec #1, #5; no `aiCost` data, no per-model cost-per-call, no monthly spend chart, no budget alerts) — **M**
+  5502→- AI Model fine-tuning config (spec #6; no dataset upload, no training config, no eval metrics) — **L**
+  5503→- AI Feedback loop — thumbs up/down, corrections (spec #7) — **M**
+  5504→- AI Audit log (spec #8; general audit log exists but no AI-specific log of prompts/responses/model invocations) — **M**
+  5505→- AI Use cases / applications gallery — predetermined templates (spec #9) — **M**
+  5506→- AI Predictive analytics — churn risk / payout fraud risk / trader success probability (spec #10; Predictions toggle exists but no predictions UI) — **L**
+  5507→- AI Anomaly detection — unusual trading patterns (spec #11; Anomaly toggle exists, capability declared but unused) — **M**
+  5508→- AI Conversation history persistence (`seedChat` in `useState`; resets on reload/navigate; no "Previous conversations" sidebar; spec #12) — **M**
+  5509→- AI Assistant context awareness + action suggestions (spec #3; seedChat demonstrates context but real send → only toast; no "Apply recommendation" buttons) — **M**
+  5510→- Insights — filter by severity/module/confidence (full grid renders flat) — **S**
+  5511→- Insights — "Dismiss" only toasts; no state mutation, no dismissed-list, no audit trail — **S**
+  5512→- Insights — no drill to underlying entity ("Payout spike detected" should link to payouts filtered to last 7d) — **M**
+  5513→- Insights — only "Dismiss" action; no "Apply"/"Investigate"/"Create ticket from insight" — **S** (§23 One Primary Action violation)
+  5514→- Configure — feature toggles all flat (no Advanced section for temperature/top-p/max tokens/system-prompt overrides) — **M** (§12-13 Progressive Disclosure)
+  5515→- Configure — no API key management UI (spec #4) — **M**
+  5516→- Configure — no prompts management UI (spec #4: `prompts`) — **M**
+  5517→- Configure — no training data management UI (spec #4: `training data`) — **M**
+  5518→- Configure — `ai.configure` permission declared but Save button not gated (route is gated by `ai.read` only) — **S**
+  5519→- AI insights not indexed in Global Search (KYC records + Support tickets ARE indexed) — **S**
+  5520→- Apply `term()` to page headers (hardcoded "AI / LLM") — **S**
+  5521→- Build `settings-ai` page or remove dead-link settings entry — **S**
+  5522→- Mock data: only 3 AI insights total — extremely thin. Tenant-alpha has 0 insights even if AI module enabled. `getTenantAiInsights` "platform" fallback (mock-data.ts line 1195) is dead code — no platform-level insights seeded — **S**
+  5523→
+  5524→### CROSS-TENANT GAPS
+  5525→- **Per-provider KYC data is fake per-tenant**: `account-kyc-statuses-page.tsx:deriveProviderKyc` deterministically derives provider statuses from the KycRecord id (lines 66-94 of that file). Not real per-tenant provider config. Two tenants with the same KycRecord id pattern get the same provider matrix. No "Tenant Alpha uses Sumsub primary, Onfido fallback" config exists.
+  5526→- **AI insights are not tenant-scoped**: Only 3 hardcoded insights total. `getTenantAiInsights(tid)` includes a `tenantId === "platform"` fallback but no platform-tenant AI insights are seeded → dead code.
+  5527→- **Support tickets seeded only for tenant-alpha/beta/gamma** (mock-data.ts line 1002) — platform tenant has 0 tickets.
+  5528→- **All 3 modules' settings entries are DEAD LINKS** (`settings-kyc`, `settings-support`, `settings-ai` declared in manifests but no pages in view-router.tsx). Same pattern as marketing/crm/affiliates/accounting flagged in prior worklog entries.
+  5529→- **No multi-tenant module config**: Super-admin can't see per-tenant KYC provider, per-tenant SLA targets, per-tenant AI model selection.
+  5530→- **Cross-module AI suggestions not deep-linkable**: AI insight "KYC backlog growing" (ai-3, tenant-gamma) has no "Open KYC queue" action. Attention Center navigates to `ai-insights` but insight cards themselves are dead-end.
+  5531→- **No shared Compliance Workspace** unifying KYC + AML + PEP + sanctions + audit trail.
+  5532→- **Super-admin KYC Provider row** (super-admin-pages.tsx line 287) shows "KYC Provider | operational | 310ms" globally but no drill to per-tenant provider config.
+  5533→
+  5534→### UX GAPS (AGENTS § references)
+  5535→- §22-23 Contextual Actions: KYC Reviews uses raw inline Approve/Reject buttons; no `KycReviewActions` component in `contextual-actions.tsx` (only Payout + Breach exist). Inconsistent with Payouts/Breaches which use the ContextualActionPanel pattern.
+  5536→- §24 Destructive Actions: KYC Reject + AI Dismiss are plain buttons without AlertDialog friction. Compare: Payouts reject uses AlertDialog with consequence text.
+  5537→- §17-19 Explainability + State-First: KYC status uses plain `StatusBadge`; trading's account-kyc-statuses uses `ExplainableStateBadge`. AI severity uses StatusBadge; AI insight has a `detail` field (partial credit ✓). Risk level badge shows "high" without breakdown of contributing factors.
+  5538→- §20 Rule Engine UX: KYC Risk score has no human-readable explanation layer (no "How is this calculated?" expansion).
+  5539→- §25-26 Tables: Support Tickets list has 8 cols with no filter chips (only search), no bulk select, no row drill (click → toast).
+  5540→- §27 Drawer vs Page: No detail drawer for KYC record, Ticket, or AI conversation.
+  5541→- §28 Entity Workspaces: No KYC record workspace, no Ticket detail workspace, no AI conversation workspace. KYC Review is flat table; Ticket is flat table; AI Assistant is single chat (no "previous conversations" sidebar).
+  5542→- §29 Activity Timelines: No per-applicant KYC timeline, no per-ticket conversation timeline (only created/replied cols), no AI conversation history timeline.
+  5543→- §30 Empty States: SupportTicketsPage DataTable has no `emptyTitle`/`emptyDescription`. KYC + Support Overview have proper ones.
+  5544→- §33 Help: No `LabelWithHelp` on Risk or Approval metrics in KYC. No contextual help on AI Confidence metric.
+  5545→- §11 Attention Center: KYC + Support + AI all have entries ✓ — present.
+  5546→- §35 Search: Global search indexes KYC records + Support tickets ✓. AI insights NOT indexed.
+  5547→- §16 Templates: No KYC verification templates / Support response macros / AI prompt templates. Spec calls for AI Use cases gallery.
+  5548→- §12-13 Progressive Disclosure: AI Configure exposes all toggles flat; no "Advanced" section for model params.
+  5549→- §54-§55 Terminology: None of the 3 modules apply `term()` to page headers. Hardcoded "KYC / AML", "Support", "AI / LLM", "Knowledge Base", "AI Configuration".
+  5550→- §32 Error States: No module-level error boundary in any of the 3 modules.
+  5551→- §31 Loading States: No skeletons. All pages render synchronously from mock data. (Acceptable for demo; gap for real integration.)
+  5552→- §23 One Primary Action: AI Insights has only "Dismiss" — no primary action ("Apply"/"Investigate").
+  5553→- §5 User-Centered Dashboards: Support manifest declares `trader` app (line 48) but ALL 3 pages are admin-facing. No trader-facing support portal. Trader can't see own tickets, browse KB, or start live chat.
+  5554→
+  5555→### TOP PRIORITY ACTIONS (ordered, with effort)
+  5556→1. **KYC — Build KYC Providers management screen in KYC module** (consolidate from `trading/account-kyc-statuses`; surface provider config/status/fallback per tenant; aligns with FUNDERBLU spec #11 + FLOW-ANALYSIS missing flows) — **L**
+  5557→2. **Support — Build Ticket Detail workspace** (conversation thread + internal notes + attachments + escalation actions + SLA countdown + canned response selector; replaces toast-only `onRowClick`) — **L** (§28)
+  5558→3. **Support — Build SLA management** (per-priority SLA targets, SLA badge on ticket list with countdown/breached state, SLA breach dashboard) — **L**
+  5559→4. **AI — Wire AI Assistant to real LLM + persist conversation history** (replace `seedChat`; add "Previous conversations" sidebar; spec #3 + #12) — **M**
+  5560→5. **KYC — Add AML/sanctions + PEP screening screens** (separate "Screening" tab in KYC module; surface hits with explainable badges) — **L** (spec #9, #10)
+  5561→6. **AI — Add Cost tracking + Usage metrics + Model status to AI Overview** (calls/day, accuracy %, monthly spend, budget alerts, operational status) — **M** (spec #1, #5)
+  5562→7. **Support — Build Knowledge Base CRUD** (replace 6 hardcoded FAQ items with articles list, categories, search, public/private toggle, edit/create article page) — **L** (spec #4)
+  5563→8. **AI — Add AI Feedback loop + AI Audit log** (thumbs up/down on each insight + assistant message; AI audit log page showing prompt/response/model/timestamp) — **M** (spec #7, #8)
+  5564→9. **Support — Add filter chips + bulk actions to Tickets list** (mirror `enhanced-withdrawals-page` filter bar; bulk assign/close/priority) — **M** (§25-26)
+  5565→10. **KYC — Switch to ContextualActionPanel pattern + add "Request additional docs" third action + AlertDialog friction on Reject** (build `KycReviewActions` in `contextual-actions.tsx`; mirror PayoutReviewActions) — **S** (§22-24, §37)
+  5566→11. **AI — Add AI Predictive analytics page + Anomaly detection page** (churn risk / payout fraud risk / trader success probability / unusual trading patterns) — **L** (spec #10, #11)
+  5567→12. **KYC — Add Risk breakdown by country / document type / age / completeness** (current Risk page only shows low/med/high donut) — **M** (spec #3)
+  5568→13. **KYC — Add Approval rate / Rejection rate / Avg processing time / By-provider metrics to Overview** (data already exists; just compute and render) — **S**
+  5569→14. **AI — Add Insights filter (severity/module/confidence) + "Apply recommendation" action on each insight** (currently only Dismiss) — **S** (§23)
+  5570→15. **KYC — Add KYC re-verification schedule (annual) + `expiresAt` field on KycRecord + overdue re-verification queue** — **M** (spec #11)
+  5571→16. **Build settings-kyc / settings-support / settings-ai pages OR remove dead-link settings entries from manifests** — **S** each (×3) — same pattern as marketing/crm/affiliates/accounting already flagged
+  5572→17. **Apply terminology (`term()`) to page headers in all 3 modules** — **S** each (×3) (§54-55)
+  5573→18. **Support — Build CSAT survey mechanism** (post-resolution survey widget + CSAT KPI on Overview + CSAT trend chart) — **M** (spec #9)
+  5574→19. **Support — Build Live chat widget** (trader-side chat + admin-side queue) — **L** (spec #5)
+  5575→20. **AI — Add Use cases gallery + Prompts management + API keys + Training data tabs to Configure page** — **M** each (spec #4, #9)
+  5576→
+  5577→### Code Changes
+  5578→None — analysis-only task. No files modified.
+  5579→
+  5580→### Stage Summary
+  5581→Deep read-only analysis of KYC + Support + AI modules. Total ~1497 LOC across 12 files. 3 manifest settings entries are DEAD LINKS (same pattern as 4 other modules previously flagged). KYC module is thinnest (3 pages, only Approve/Reject inline buttons, no provider/AML/PEP/document mgmt). Support module has no ticket detail drawer (only toast on row click), no SLA badge, no KB CRUD, no CSAT, no live chat. AI module's `ai.predictions` + `ai.anomaly` capabilities are declared but unused; `getTenantAiInsights` has a "platform" fallback that is dead code; `seedChat` is hardcoded and lost on reload. All 3 modules lack terminology application, module-level error boundaries, and use plain StatusBadge instead of ExplainableStateBadge where applicable. 20 ordered priority actions documented; lead can dispatch follow-up tasks for items 1-3 (each effort L) and items 10/13/14/16/17 (each effort S) in parallel.
+  5582→
+  5583→---
+  5584→
+  5585→## Task ID: analysis-settings-super-shell
+  5586→**Agent:** Explore (deep module analysis)
+  5587→**Task:** Deep analysis of Settings + Super-Admin + Audit + Shell components — identify gaps vs. FUNDERBLU spec + AGENTS UX constitution.
+  5588→
+  5589→### Files Inspected
+  5590→- `src/modules/settings/` — `settings-module.ts` (86 LOC, manifest), `settings-page.tsx` (580 LOC, 7 tabs), `index.ts`, `pages/*.tsx` (19 files, 11,053 LOC)
+  5591→  - `user-management-page.tsx` (454 LOC), `group-management-page.tsx` (417 LOC), `token-management-page.tsx` (335 LOC), `token-detail-page.tsx` (952 LOC), `email-templates-page.tsx` (363 LOC), `email-template-edit-page.tsx` (753 LOC), `certificate-management-page.tsx` (549 LOC), `certificate-template-designer-page.tsx` (779 LOC), `certificate-font-upload-page.tsx` (566 LOC), `certificates-issued-page.tsx` (597 LOC), `certificate-detail-page.tsx` (751 LOC), `banner-management-page.tsx` (488 LOC), `marketing-banner-edit-page.tsx` (837 LOC), `notifications-management-page.tsx` (494 LOC), `notification-edit-page.tsx` (627 LOC), `utilities-page.tsx` (778 LOC), `social-media-links-page.tsx` (762 LOC), `device-activities-page.tsx` (689 LOC), `marketing-integrations-page.tsx` (782 LOC)
+  5592→- `src/modules/super-admin/` — `super-admin-module.ts` (61 LOC, manifest), `super-admin-pages.tsx` (324 LOC, 4 pages: Overview/Tenants/ModuleCatalog/PlatformHealth), `tenant-detail-page.tsx` (1,157 LOC, 7 tabs), `create-tenant-page.tsx` (912 LOC, 5-step wizard), `tenant-lifecycle-page.tsx` (476 LOC), `dashboard-manager-page.tsx` (1,103 LOC, GridStack drag-drop)
+  5593→- `src/modules/audit/` — `audit-page.tsx` (21 LOC, thin wrapper), `user-events-page.tsx` (249 LOC), `enhanced-user-events-page.tsx` (959 LOC), `user-event-detail-page.tsx` (325 LOC), `change-history-page.tsx` (305 LOC). **NOTE: NO `audit-module.ts` manifest exists — audit has no FrontendModule registration, no permissions, no nav entries, no settings entries.**
+  5594→- `src/components/shell/` — `app-shell.tsx` (71 LOC), `sidebar.tsx` (242 LOC), `topbar.tsx` (294 LOC), `breadcrumbs.tsx` (161 LOC), `command-menu.tsx` (243 LOC), `global-search.tsx` (247 LOC), `boot-screen.tsx` (85 LOC), `activity-ticker.tsx` (54 LOC), `keyboard-shortcuts-help.tsx` (121 LOC), `onboarding-wizard.tsx` (409 LOC), `whats-new.tsx` (228 LOC)
+  5595→- `src/components/platform/` cross-cutting skim: `attention-center.tsx`, `audit.tsx` (AuditLogTable + ActivityTimeline + EntityChangeHistory), `contextual-actions.tsx` (PayoutReviewActions + BreachResolutionActions only — no KYC/User/Tenant variants), `guards.tsx` (PermissionGuard/ModuleGuard/FeatureGuard/ModuleErrorBoundary), `state-explanations.tsx`, `page.tsx`, `data-table.tsx`, `dashboard-router.tsx` (renders fallback "View X not found" for unknown viewIds)
+  5596→- `src/lib/platform/view-router.tsx` (342 LOC, 100+ viewId entries), `module-bootstrap.ts` (registers 14 modules — super-admin, settings, trading, challenges, risk, payouts, analytics, affiliates, accounting, marketing, crm, kyc, support, ai). **Audit module NOT registered.**
+  5597→- `src/lib/platform/mock-data.ts` (1,546 LOC, auditLog + userEvents + changeHistory seeded)
+  5598→- Context: `worklog.md` last ~300 lines, `AGENTS.md` §3-§87, `FLOW-ANALYSIS.md` (18 missing flows; Settings is listed as "PARTIALLY IMPLEMENTED — needs challenge type mgmt, phase mgmt, email template mgmt, certificate mgmt, utility mgmt").
+  5599→
+  5600→### SETTINGS — PRESENT
+  5601→- **Manifest** (`settings-module.ts`): id `settings`, v1.0.0, category `core`, apps `[prop-admin, super-admin]`, 3 perms (`settings.manage`, `users.manage`, `audit.read`), accentColor `#404040` (Terra-allowed). 19 sidebar children all wired to real viewIds. 20 routes declared (one orphan route: `group-management` has no sidebar child pointing to it — only `settings.users` etc. exist; `group-management` is reachable only via direct navigate from elsewhere). **All settings nav links are LIVE (no dead links — unlike marketing/crm/affiliates/accounting/kyc/support/ai flagged previously).**
+  5602→- **Settings Overview** (`settings-page.tsx`): 7 tabs (General / Branding / Terminology / Modules / Roles / Integrations / Notifications). Modules tab is the demo centerpiece — toggling modules updates tenant entitlements live (sidebar+dashboard re-compose instantly per §67). Branding tab has 6 color presets + primary/accent/surface/radius/initials + **live preview pane**. Terminology tab exposes 8 editable keys (`challenge`/`trader`/`payout`/`account`/`evaluation`/`participant`/`withdrawal`/`disbursement`). Integrations tab has 5 categories × 3-4 providers each (Trading Platform: MT5/MT4/DXTrade; Payments: Stripe/Wise/Crypto/PayPal; KYC/AML: Sumsub/Onfido; Notifications: SendGrid/Slack/Twilio; AI&Analytics: OpenAI/Segment) with status/health/last-sync + masked-credential note (§44). General tab exposes Export-All-ZIP (real `exportAllAsZip` via JSZip dynamic import).
+  5603→- **User Management** (`user-management-page.tsx`): full DataTable with 8 cols (User/KYC/2FA/Revenue/Accounts/Status/LastActive/Actions), 4 KPI cards (Total/Verified KYC/2FA/Suspended), search + status filter + KYC filter + clear, pagination. Combines `authUsers` + `getTenantTraders` for unified admin+trader view. 2FA badge derived deterministically. Per-row Edit/View actions (toast-only).
+  5604→- **Group Management** (`group-management-page.tsx`): master/detail 2-pane (group list + members table) with 5 deterministic groups (Platform Admins / Prop Firm Admins / VIP Traders / New Traders / Risk Watch) + KPI row + bulk-select checkboxes + Add Group/Export/Add Member toast actions. Member table shows Avatar/Email/Type(staff/trader)/Status.
+  5605→- **Token Management** (`token-management-page.tsx` + `token-detail-page.tsx`): list page with 4 KPIs + search + DataTable (Key/User/Scope/Created/LastUsed/Status + Copy/Revoke actions). Detail page (952 LOC) has read-only Key + editable User/Expiration/Scopes/IP-Whitelist/IsActive + "Token Usage Stats" card (total calls / 24h calls / last IP / most-called endpoint) + Save variants (Save / Save & add another / Save & continue editing) + Regenerate Key + AlertDialog-gated Delete. Uses `LabelWithHelp` (§33). Breadcrumb: Token Management > [token hash].
+  5606→- **Email Templates** (`email-templates-page.tsx` + `email-template-edit-page.tsx`): master/detail list with 5 templates + Detail Panel (Subject/Body/Variables + Send Test + Save). Edit page (753 LOC) has 2-tab editor: Content (WYSIWYG rich-text contentEditable with Bold/Italic/Underline/Bullet/Numbered/Link/Source-toggle + Variables dropdown inserting `{{user_name}}` etc. at caret) + Recipients (CC/BCC/Reply-To) + Save variants + AlertDialog delete. Send Test fires a toast.
+  5607→- **Certificate Management** — 5 files covering the full lifecycle:
+  5608→  - `certificate-management-page.tsx`: Templates tab (DataTable + master/detail editor with Name/Description/TriggerEvent/Layout/Active toggle + placeholder preview) + Fonts tab (4 mock fonts with Select/Delete).
+  5609→  - `certificate-template-designer-page.tsx` (779 LOC): visual designer with image upload + live preview pane overlaying field text at X/Y positions + editable fields table (FieldName/ValueTemplate/TextCase/ShortenOver/DateFormat/Font/FontSize/FontColor/X/Y) + Add Field + Save/Reset.
+  5610→  - `certificate-font-upload-page.tsx` (566 LOC): font management with @font-face live preview via data URL, DataTable with Download/Delete.
+  5611→  - `certificates-issued-page.tsx` (597 LOC): searchable list with KPIs + filters (Type/Status) + DataTable + 3-dot menu → View Certificate (links to certificate-detail). Uses `ExplainableStateBadge` (§17-19 ✓).
+  5612→  - `certificate-detail-page.tsx` (751 LOC): single issued-cert view + Edit toggle unlocking editable fields + Save variants + AlertDialog delete.
+  5613→- **Banner Management** (`banner-management-page.tsx` + `marketing-banner-edit-page.tsx`): tabs (Announcement/Marketing) + DataTable + inline editor (Title/Content/Status/Start-End/Position). Edit page (837 LOC) has image upload + preview + Display Settings (Active/SortOrder/Position) + Destination (ExternalURL/InternalPage/None) + collapsible Scheduling + collapsible Targeting (Audience/Countries) + live preview + Save variants + AlertDialog delete.
+  5614→- **Notifications Management** (`notifications-management-page.tsx` + `notification-edit-page.tsx`): list with 4 KPIs + DataTable + inline Switch (AlertDialog-gated for destructive) + filter + search. Edit page has Basic Info + Time Settings + collapsible User Segment targeting (same shape as Offer edit) + Preview area + Save variants.
+  5615→- **Marketing Integrations** (`marketing-integrations-page.tsx`): 7 platforms (Klaviyo/GA4/MetaPixel/Discord/Slack/Mailchimp/HubSpot) with KPIs + DataTable + inline edit panel (Platform/IsActive/EnableEventLogging + collapsible "API Secret Key Format per Platform" help with JSON examples + masked key input with Show/Hide + Test Connection + Save + AlertDialog Disconnect). Uses `LabelWithHelp` (§33 ✓).
+  5616→- **Social Media Links** (`social-media-links-page.tsx`): 8 platforms (Twitter/X/Instagram/Telegram/Discord/YouTube/TikTok/LinkedIn/Facebook) with KPIs + filter bar + inline Add Link form + DataTable (Platform badge with icon / Handle / CustomURL / Account / Created / Edit-Delete actions) + **real `exportToCsv`** (not toast-only) + AlertDialog for delete.
+  5617→- **Device Activities** (`device-activities-page.tsx`): 690 LOC, login device history with KPIs (Total/UniqueIPs/Mobile/Desktop/MostActiveCountry) + collapsible info banner + filter bar (search + source/device-type/platform + date range) + DataTable (Source/DeviceID/IP/DeviceType/Platform/Country/FirstSeen/LastSeen/LoginCount + Actions) + **real `exportToCsv`** + AlertDialog for revoke.
+  5618→- **Utilities** (`utilities-page.tsx`): 778 LOC, utility link management with KPIs + DataTable + search + filter by section + **inline Dialog create/edit form** (Title/Description/Section/LinkURL/IconURL/IsActive/DisplayOrder) + AlertDialog delete. 4 sections (Utility/Help/Resource/External).
+  5619→- **Localization** — partial: General tab exposes Currency (USD/GBP/EUR/AED) + Timezone (free text). `tenant.locale` is read-only (only visible on tenant-detail Overview).
+  5620→- **White-label branding + live preview** — ✓ Branding tab (§16 Templates pattern, §33 Help, §41 visual hierarchy ✓).
+  5621→- **Backup** — ✓ partial: General tab "Export all data (ZIP)" uses real `exportAllAsZip` (JSZip dynamic import + README.txt + multi-CSV).
+  5622→
+  5623→### SETTINGS — MISSING / THIN (effort S/M/L)
+  5624→- **Plan/billing management** — Tenant plan is read-only in General tab; no plan-change/upgrade UI; no invoice list; no billing contact; no payment-method management. **M** (FUNDERBLU spec §43; FLOW-ANALYSIS partial).
+  5625→- **2FA settings** — `user-management-page` shows 2FA badge (on/off) but no admin enforcement (e.g. "Require 2FA for all admins" toggle, per-user 2FA reset, backup codes). No 2FA setup screen for the current user. **M** (spec §43).
+  5626→- **Webhook configuration** — Marketing integrations has webhook-platform connections (Discord/Slack) but no admin webhook config (no outbound webhook URL + secret + event selection + retry policy + delivery log). **M** (spec §43).
+  5627→- **Audit log settings** — No settings page for retention policy, severity thresholds, export schedule, PII redaction rules. **S** (spec §43; tied to audit module gap below).
+  5628→- **Restore (backup counterpart)** — `exportAllAsZip` exists in `bulk-export.ts` (199 LOC), but no `importFromZip` / restore flow. **L** (spec §43).
+  5629→- **Localization — language selector** — `tenant.locale` is set in mock-data but never editable; only currency + timezone are exposed. No language picker (en-US/en-GB/ar-AE/etc.). **S**.
+
+[showing lines 5430-5629 of 6452; use offset=5630 with limit to continue reading]

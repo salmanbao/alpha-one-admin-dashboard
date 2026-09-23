@@ -78,6 +78,7 @@ import { TenantDetailPage } from "@/modules/super-admin/tenant-detail-page";
 import { CreateTenantPage } from "@/modules/super-admin/create-tenant-page";
 import { TenantLifecyclePage } from "@/modules/super-admin/tenant-lifecycle-page";
 import { DashboardManagerPage } from "@/modules/super-admin/dashboard-manager-page";
+import { PlatformAuditPage } from "@/modules/super-admin/platform-audit-page";
 
 /* New flows — imported from subagent-built pages */
 import { FirmStatisticsPage } from "@/modules/analytics/pages/firm-statistics-page";
@@ -160,6 +161,7 @@ import { WeekendTradesPage } from "@/modules/risk/pages/weekend-trades-page";
 import { AccountConfigurationPage } from "@/modules/trading/pages/account-configuration-page";
 import { AccountEventsPage } from "@/modules/trading/pages/account-events-page";
 import { AccountVersionHistoryPage } from "@/modules/trading/pages/account-version-history-page";
+import { AccountWorkspacePage } from "@/modules/trading/pages/account-workspace-page";
 
 /* Batch K: Closed position detail + Order detail + Social media + Device activities */
 import { ClosedPositionDetailPage } from "@/modules/trading/pages/closed-position-detail-page";
@@ -192,6 +194,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "create-tenant": CreateTenantPage,
   "tenant-lifecycle": TenantLifecyclePage,
   "dashboard-manager": DashboardManagerPage,
+  "platform-audit": PlatformAuditPage,
 
   /* trading */
   trading: TradingOverviewPage,
@@ -206,6 +209,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "account-configuration": AccountConfigurationPage,
   "account-events": AccountEventsPage,
   "account-version-history": AccountVersionHistoryPage,
+  "account-workspace": AccountWorkspacePage,
   "closed-positions": ClosedPositionsPage,
   "closed-position-detail": ClosedPositionDetailPage,
   "order-detail": OrderDetailPage,

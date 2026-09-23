@@ -1,6 +1,7 @@
 "use client";
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { revenueSeries, traderGrowthSeries, riskDistribution, breachTrend, getTenantTraders } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
@@ -16,7 +17,8 @@ import { useState } from "react";
 import { Coins } from "lucide-react";
 
 export function AnalyticsOverviewPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const tenantCurrency = runtime.tenant?.currency ?? "USD";
   const [displayCurrency, setDisplayCurrency] = useState(tenantCurrency);
@@ -31,7 +33,7 @@ export function AnalyticsOverviewPage() {
     <Page>
       <PageHeader
         title="Analytics"
-        description="Business intelligence across the tenant."
+        description={`Business intelligence across this ${term("trader").toLowerCase()} tenant.`}
         icon={BarChart3}
         actions={
           <div className="flex items-center gap-2">
@@ -82,7 +84,7 @@ export function AnalyticsOverviewPage() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Revenue (30d)" value={fmt(totalRev)} delta={8} icon={DollarSign} tone="positive" />
           <MetricCard label="Avg Daily Rev" value={fmt(totalRev / 30)} delta={4} icon={TrendingUp} tone="positive" />
-          <MetricCard label="Trader Growth" value="+18%" delta={18} icon={Users} tone="positive" />
+          <MetricCard label={`${term("trader")} Growth`} value="+18%" delta={18} icon={Users} tone="positive" />
           <MetricCard label="Breaches (30d)" value={breachTrend(tid).reduce((s, b) => s + b.value, 0)} delta={-12} icon={Activity} tone="positive" />
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
@@ -91,7 +93,7 @@ export function AnalyticsOverviewPage() {
             <AreaSeries data={rev} xKey="date" yKey="value" formatValue={(v) => fmt(v)} />
           </div>
           <div className="rounded-lg border bg-card p-4">
-            <p className="mb-2 text-sm font-medium">Trader growth</p>
+            <p className="mb-2 text-sm font-medium">{`${term("trader")} growth`}</p>
             <AreaSeries data={traderGrowthSeries(tid)} xKey="date" yKey="value" color="#0ea5e9" />
           </div>
           <div className="rounded-lg border bg-card p-4">
@@ -109,22 +111,23 @@ export function AnalyticsOverviewPage() {
 }
 
 export function TraderAnalyticsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const traders = getTenantTraders(tid);
   const currency = runtime.tenant?.currency ?? "USD";
   return (
     <Page>
-      <PageHeader title="Trader Analytics" description="Cohort and performance analysis." icon={Users} />
+      <PageHeader title={`${term("trader")} Analytics`} description={`Cohort and performance analysis for this ${term("trader").toLowerCase()} tenant.`} icon={Users} />
       <PageContent>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MetricCard label="Total Traders" value={traders.length} icon={Users} />
+          <MetricCard label={`Total ${plural(term("trader"))}`} value={traders.length} icon={Users} />
           <MetricCard label="Active" value={traders.filter((t) => t.status === "active").length} icon={Users} tone="positive" />
           <MetricCard label="Funded" value={traders.filter((t) => t.challengePhase === "funded").length} icon={TrendingUp} tone="positive" />
           <MetricCard label="Avg Win Rate" value={`${Math.round(traders.reduce((s, t) => s + t.winRate, 0) / traders.length)}%`} icon={Activity} />
         </div>
         <div className="rounded-lg border bg-card p-4">
-          <p className="mb-2 text-sm font-medium">Trader growth (30d)</p>
+          <p className="mb-2 text-sm font-medium">{`${term("trader")} growth (30d)`}</p>
           <AreaSeries data={traderGrowthSeries(tid)} xKey="date" yKey="value" color="#0ea5e9" />
         </div>
       </PageContent>
@@ -133,11 +136,12 @@ export function TraderAnalyticsPage() {
 }
 
 export function PerformanceAnalyticsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   return (
     <Page>
-      <PageHeader title="Performance Analytics" description="Trading performance metrics." icon={TrendingUp} />
+      <PageHeader title="Performance Analytics" description={`Trading performance metrics across all ${plural(term("trader")).toLowerCase()}.`} icon={TrendingUp} />
       <PageContent>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-lg border bg-card p-4">
@@ -155,11 +159,12 @@ export function PerformanceAnalyticsPage() {
 }
 
 export function RiskAnalyticsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   return (
     <Page>
-      <PageHeader title="Risk Analytics" description="Risk distribution and breach trends." icon={Activity} />
+      <PageHeader title="Risk Analytics" description={`Risk distribution and breach trends across all ${plural(term("trader")).toLowerCase()}.`} icon={Activity} />
       <PageContent>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-lg border bg-card p-4">
@@ -177,10 +182,12 @@ export function RiskAnalyticsPage() {
 }
 
 export function AdvancedAnalyticsPage() {
+  const { tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   return (
     <FeatureGuard feature="analytics.advanced" fallback={<div className="p-6 text-center text-muted-foreground">Advanced analytics requires the <Badge variant="secondary">analytics.advanced</Badge> feature flag.</div>}>
       <Page>
-        <PageHeader title="Advanced Analytics" description="Cohort retention and predictive insights." icon={Brain} actions={<Badge variant="secondary">Pro feature</Badge>} />
+        <PageHeader title="Advanced Analytics" description={`Cohort retention and predictive insights across ${plural(term("trader")).toLowerCase()} and ${plural(term("challenge")).toLowerCase()}.`} icon={Brain} actions={<Badge variant="secondary">Pro feature</Badge>} />
         <PageContent>
           <div className="rounded-lg border bg-card p-4">
             <p className="mb-2 text-sm font-medium">Cohort retention</p>

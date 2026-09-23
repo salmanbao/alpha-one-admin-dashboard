@@ -1,0 +1,253 @@
+     1→     1→  4559→
+     2→     2→  4560→## CHALLENGES — PRESENT (working, with notes)
+     3→     3→  4561→1. **Manifest** — 9 nav children, 10 routes, 3 widgets, `termKey: "challenge"` on parent nav (terminology-aware sidebar). Permissions (challenge.read/create/update/delete) properly declared. Module accentColor forest green.
+     4→     4→  4562→2. **Challenges Overview** (`challenge-pages.tsx:ChallengesOverviewPage`) — 4 KPIs (Active, Passed, Avg Progress, Total), embedded ChallengeTable, currency applied. Notes: KPI deltas missing (§9 violation). No Failed KPI (data exists). No pass-rate KPI. No by-type breakdown. No attention center (§11). Widget hardcodes `failed = 0` (challenge-widgets.tsx:19) misleading.
+     5→     5→  4563→3. **Active / Passed / Failed lists** — Single ChallengeTable with filter prop. Columns: Trader, Challenge, Phase, Account Size, Profit Target, Current Profit, Progress bar, Days Left, Status. Sortable + searchable. Notes: No onRowClick (no drill to anything). No drawdown-status column. No failure-reason column on Failed. No certificate/payout-eligibility on Passed. No retry button on Failed. No CSV export.
+     6→     6→  4564→4. **Challenge Wizard** (`challenge-wizard-page.tsx`) — 7-step (Type → Phase 1 → Phase 2 conditional → Trading Rules → Payout Rules → Risk Rules → Review). Step indicator with done/active/inactive circles. Smart defaults via `getChallengePhaseConfigs(typeId)`. Phase 2 skipped for 1-step types. Review shows summary + Create Challenge button (toast + reset). Notes: no Save-as-Draft, no template picker beyond type dropdown, no platform-ID step, no checkout/woocommerce mapping step (challenge-edit has it; wizard doesn't), no Save-and-continue-editing after create.
+     7→     7→  4565→5. **Challenge Config** (`challenge-config-page.tsx`) — Split-view master-detail. Left: DataTable of types with Active Switch + Edit button. Right: ConfigEditor with PhaseConfigCard per phase, 6 basic fields + Advanced collapsible (Trading/News/Weekend/Other Limits — 11 toggles/inputs). LabelWithHelp on every field (§33 ✓). Save/Reset buttons. EmptyState when nothing selected. URL param `typeId` accepted (pre-select from challenge-types). Notes: **BUG — `Math.random() > 0.4` on line 216 for default toggle states — non-deterministic, breaks stable demo.** No consistency rule. No news-holding rules. No phase add/reorder.
+     8→     8→  4566→6. **Challenge Edit** (`challenge-edit-page.tsx`, 1571 lines) — 5-tab editor (General / Phases / Payout Rules / Checkout / Review). SectionCard + FieldRow + ToggleRow primitives. LabelWithHelp everywhere. Phases tab → row click → phase-detail. Review tab has phase flow diagram (Terra-tinted) + summary + Save All + Publish. Notes: no Duplicate button, no Archive button (only an "Archived" toggle on General), no Version history/selector, no Save-and-add-another, no destructive-archive AlertDialog (§24), Publish only fires toast.
+     9→     9→  4567→7. **Challenge Types catalog** (`challenge-types-page.tsx`) — Card grid of 6 types with icon, description, phase count, free-trial/competition badges, active toggle, Edit button → challenge-config with `typeId`. Notes: "Add Challenge Type" is a toast placeholder (line 141). No template library. No delete. No search/filter on the grid.
+    10→    10→  4568→8. **Phase Management** (`phase-management-page.tsx`) — DataTable of all phase configs with challenge-type filter dropdown. Row click expands inline PhaseDetailPanel (7 numeric fields + Save). EmptyState messages present (§30 ✓). Notes: "Add Phase" is toast placeholder (line 219). No phase reordering. No phase-type filter. No funded-only/evaluation-only filter. Inline editor is numeric-only — no trading/weekend/news rules (those live on phase-detail General tab, disconnected).
+    11→    11→  4569→9. **Phase Detail** (`phase-detail-page.tsx`, 1111 lines) — 3-tab editor: General (Metadata + Risk Rules + Trading Day Threshold + Auto-Pass + Leverage + Live/Scaling toggles), Trading Platform IDs (MT5/MT4/DXTrade group mapping + bridge status + Resync), Change History (per-object audit DataTable with strikethrough old/new values, search, field filter, real `exportToCsv`). Deterministic mock change history per phase. Audit trail (§61 ✓). Notes: General tab has limited rules (no news/weekend/consistency — those are on challenge-config AdvancedSection, disconnected from phase-detail).
+    12→    12→  4570→10. **3 widgets** (`challenge-widgets.tsx`) — ChallengeOverviewWidget (4 KPIs with `makeTermResolver` applied ✓), ChallengeProgressWidget (5 traders with progress bars), ChallengePhasesWidget (DonutSeries: Phase 1 / Phase 2 / Funded / Failed).
+    13→    13→  4571→
+    14→    14→  4572→## CHALLENGES — MISSING / THIN
+    15→    15→  4573→- **Per-trader challenge progress timeline** — task #11 — No trader-level view of journey (started P1 on X → passed P1 on Y → started P2 on Z → breached on W). Risk module's enhanced-trader-detail has no "Challenge Journey" tab. — High value for support/risk. — Effort: M.
+    16→    16→  4574→- **Challenge comparison view (side-by-side)** — task #12 — No way to diff 2 challenge types side-by-side (targets, drawdown, payout splits). Operators open 2 browser tabs. — Effort: M.
+    17→    17→  4575→- **Bulk challenge assignment to traders** — task #13 — No "Assign Challenge to 50 Traders" bulk op. 1-by-1 via Add Account wizard only. — Effort: L (reusable BulkActionBar pattern).
+    18→    18→  4576→- **Challenges Overview — Failed + Pass Rate + Funnel KPIs + by-type breakdown** — Currently 4 cards (Active/Passed/Avg Progress/Total). Spec #1 calls for active/passed/failed/pass rate/by-type breakdown/attention center. Widget hardcodes `failed = 0`. — Effort: S.
+    19→    19→  4577→- **Failed Challenges list — no failure reason column / Retry button** — task #4 — Just `status === "failed"` filter. Mock data has no `failureReason` field. No retry modal. — Effort: M (extend mock + retry AlertDialog §24).
+    20→    20→  4578→- **Passed Challenges list — no payout eligibility / certificate link** — task #3 — No "eligible for payout" indicator. No "View Certificate" link (no certificate system exists — Flow analysis #13). — Effort: L (cert module first) or S (eligibility indicator only).
+    21→    21→  4579→- **Active Challenges list — no drawdown status / Account Health card** (§21) — task #2 — Has Progress column but not "Daily DD 41%/5%", "Max DD 6.8%/10%" (AGENTS.md §21 Account Health pattern). — Effort: S (compute from currentProfit + challenge limits).
+    22→    22→  4580→- **Challenge list row click → no drill** — DataTable in challenge-pages.tsx has no onRowClick. Can't drill to challenge workspace (which doesn't exist) or trader-detail. — Effort: S (one-line onRowClick) or L (build Challenge Workspace §28).
+    23→    23→  4581→- **Challenge Config — `Math.random()` in production** (line 216) — `defaultChecked={r.label === "Require Stop-Loss" ? false : Math.random() > 0.4}` — Non-deterministic. Reload re-randomizes. Violates platform's deterministic-mock invariant. — Effort: S (replace with hash).
+    24→    24→  4582→- **Challenge Config — no consistency rule** (task #6 lists it) — Profit Target/Max DD/Daily DD/Min Days/Max Days/Profit Split present. News/Weekend/EA toggles present. No Consistency Rule (e.g. "no single trade > 40% of total profit"). — Effort: S.
+    25→    25→  4583→- **Challenge Config — no news-holding rules** (task #6 lists it) — Has "News Trading" + "Block NFP/FOMC" + "News Window min" but no "must close positions before news" or "cannot hold through high-impact news" rules. — Effort: S.
+    26→    26→  4584→- **Phase Detail — phase gate criteria + completion stats** (task #10) — General tab has rules but no Gate Criteria tab (X% reached profit target, Y% hit min trading days, Z% breached). No completion stats. — Effort: M.
+    27→    27→  4585→- **Phase Detail — phase transitions** (task #9) — No "Phase 1 → Phase 2 transition rules" (auto-pass? manual review? KYC required?). Phase management only edits static rules. — Effort: M.
+    28→    28→  4586→- **Phase Management — Add Phase is a toast placeholder** (line 219) — No actual add-phase form. — Effort: M.
+    29→    29→  4587→- **Challenge Types catalog — Add is a toast placeholder** (line 141) — No new-type form. No template library. — Effort: M.
+    30→    30→  4588→- **No bulk actions anywhere in Challenges module** — DataTables don't expose selection. Spec §26 calls for "Bulk assign to traders" / "Bulk archive". — Effort: L.
+    31→    31→  4589→- **No URL-persisted filters on Challenges lists** — Active/Passed/Failed tables use `searchableText` only. No `?status=&q=&sort=` URL state. — Effort: M.
+    32→    32→  4590→- **No empty states on ChallengeTable** — DataTable without `emptyTitle`/`emptyDescription`. New tenant with 0 challenges → generic "No data" (§30 violation). — Effort: S.
+    33→    33→  4591→- **No Attention Center on Challenges Overview** (§11) — Component exists at `@/components/platform/attention-center.tsx`. Should surface "12 challenges near max DD", "5 phase-2 accounts waiting payout eligibility". — Effort: S.
+    34→    34→  4592→- **No Sparklines on KPIs** — Spec #1 calls for "mini-charts". Sparkline component exists. — Effort: S.
+    35→    35→  4593→- **No loading skeletons** — All synchronous mock. Backend wiring will flash empty. — Effort: M.
+    36→    36→  4594→- **No error boundaries** — Single widget failure crashes Overview. — Effort: M.
+    37→    37→  4595→- **No terminology applied to Challenges page headers** — `makeTermResolver` only used in `challenge-widgets.tsx`. Page headers hardcode "Challenges" / "Active Challenges". Tenant Alpha terminology says challenge = "Evaluation". Sidebar shows "Evaluations" but page header says "Challenges" (§54/§55 violation). — Effort: M.
+    38→    38→  4596→- **No certificate module** — Flow analysis #13 confirms no certificate system. Passed Challenges list can't link to certificate. — Effort: L.
+    39→    39→  4597→- **Wizard lacks Save-as-Draft** — `createChallenge` immediately resets state. No way to resume. — Effort: M.
+    40→    40→  4598→- **No phase flow diagram on Phase Management** — challenge-edit ReviewTab has it. Phase Management is just a table. Operators managing phases don't see the visual flow. — Effort: S (reuse ReviewTab diagram component).
+    41→    41→  4599→- **Challenge Edit — no Duplicate / no Archive action button** (only Archived toggle on General) — Flow analysis #10 calls for "edit existing challenges" with duplicate/archive/version. — Effort: M.
+    42→    42→  4600→
+    43→    43→  4601→## RISK — PRESENT
+    44→    44→  4602→1. **Manifest** — 16 nav children, 17 routes, 4 widgets, 1 settings entry. Permissions (risk.read / risk.configure / breach.read). Module accentColor `#b91c1c` (red — correct for risk). supportedApplications all 3. Good navigation grouping.
+    45→    45→  4603→2. **Risk Overview** (`risk-pages.tsx:RiskOverviewPage`) — 4 KPIs (Open Breaches, Critical, Resolved 30d, Platform Risk Score "72/100"). Embedded BreachesTable. "Configure rules" action (toast). Notes: No "at-risk accounts count" distinct from breaches. No "total exposure" KPI ($ at risk). No "top breaches" hero. No ATR/concentration map. No attention center (§11). Risk Score "72/100" hardcoded — no breakdown. No deltas (§9). No breach trend chart on page (BreachTrendWidget exists but isn't on the page).
+    46→    46→  4604→3. **Breaches list** (`risk-pages.tsx:BreachesPage` + `BreachesTable`) — DataTable with 7 columns: Trader, Type, Rule, Severity, Status, Triggered, Resolve action. Search + sort. Notes: No type filter (daily-drawdown / max-drawdown / profit-target-miss / time-limit). No severity filter. No status filter. No date range. No trader drill. No CSV export. No bulk Resolve. Breach type list incomplete (no trailing-drawdown / margin-call).
+    47→    47→  4605→4. **Risk Statistics** (`risk-statistics-page.tsx`) — 3-tab (Challenge Stats / Country-Wise / Account Size). Date range selector (all/30d/90d/1y). KPI row (Total Revenue, Total Payouts, Profit Margin, Funded Accounts). CSV export button (toast-only — doesn't call real `exportToCsv`). Notes: revenue approximated (`accountSize * 0.02`, `trader * 200`). No "by time" trend. No "by rule" lens. No drill from row to filtered breaches. Uses raw `<select>` for date range (accessibility inconsistency with shadcn Select used elsewhere).
+    48→    48→  4606→5. **Trading Events** (`trading-events-page.tsx`) — 4-tab rules CRUD: News / Copy / Inverse / Weekend. Each tab: master-detail with DataTable + RuleEditor (name, description, symbol, severity, action, active, Save). EmptyState when nothing selected (§30 ✓). Notes: This is rule CONFIGURATION, not detected events (events are on copy-trading-events / inverse-trading-events / weekend-trades pages). No "Add Rule" button (only Edit on existing rows). No bulk enable/disable. No CSV export.
+    49→    49→  4607→6. **Copy Trading Analysis** (`copy-trading-analysis-page.tsx`) — 2-account comparison: enter 2 logins + date range → Analyze → side-by-side account panels (positions table) + Match Analysis (Correlation %, Matching Positions, Time Delta Avg, Verdict). EmptyState before analysis (§30 ✓). Deterministic mock. Notes: Only 2-account manual comparison. No "scan all accounts for copy-trading clusters" (task #5 calls for correlation matrix). No saved searches. No drill to per-position diff.
+    50→    50→  4608→7. **Copy Trading Events** (`copy-trading-events-page.tsx`) — KPI row + filter bar (search + symbol + date range + CSV) + DataTable (Position 1, Position 2, Open Δ, Close Δ, Account 1, Account 2, Expired toggle, Created) + checkbox selection + inline add-event form (Position 1 dropdown, Position 2 dropdown, reasons, expired toggle, Save / Save & continue). Account login buttons navigate to trader-detail ✓. Real `exportToCsv` ✓. Notes: No "Mark as reviewed" / "Dismiss as false positive" status. No bulk dismiss.
+    51→    51→  4609→8. **Inverse Trading Events** (`inverse-trading-events-page.tsx`) — Same structure for inverse (long/short) pairs. KPI row + filters + DataTable + inline add form. CSV export. Notes: Same false-positive dismissal gap.
+    52→    52→  4610→9. **Account IP Addresses** (`account-ip-addresses-page.tsx`) — Collapsible guide banner + KPI row (Total IPs / Unique Accounts / Proxy / Hosting / Mobile) + filter bar (search + country + proxy state) + DataTable (Account, Status, Phase, Challenge, IP, City, Country, Is Proxy/Hosting/Mobile, Created) + inline add form (Account dropdown, IP, City, Country, Lat/Lng, Tri-state proxy/hosting/mobile). Real CSV export ✓. Account login navigates to trader-detail ✓. Notes: No "shared IP across multiple accounts" reverse view (task #7 — the key risk signal). Lat/lng fields present but no map visualization. No bulk allowlist.
+    53→    53→  4611→10. **Weekend Trades** (`weekend-trades-page.tsx`) — KPI row + filter bar (search + symbol + direction + state + date range) + DataTable (Account, Direction, Symbol, Volume, Profit, Open Time, Close Volume, Close Time, State, RR Ratio, Hold Time) + inline detail panel (open/close prices, order IDs, commission, swap, SL/TP, close-reason dropdown) + Delete (AlertDialog with consequence text §24 ✓) + Save. Real CSV export ✓. Notes: No bulk delete. No "block this trader from future weekend trades" action.
+    54→    54→  4612→11. **Risk Reports (8 pages)** — Each well-built with KPIs + filters + DataTable + CSV export (mostly real `exportToCsv`). Empty states where appropriate (§30 ✓). Date range selectors. Common gaps: most use raw `<select>` for date range (accessibility inconsistency). Revenue figures are approximations. No drill from row to underlying accounts. No cross-link to trader-detail from row.
+    55→    55→  4613→12. **4 widgets** (`risk-widgets.tsx`) — RiskOverviewWidget (4 KPIs), RiskDistributionWidget (DonutSeries), BreachTrendWidget (AreaSeries 30d), OpenBreachesWidget (top 5 with empty state "All clear" §30 ✓). Notes: hardcoded "72/100" Risk Score.
+    56→    56→  4614→
+    57→    57→  4615→## RISK — MISSING / THIN
+    58→    58→  4616→- **Risk Overview — at-risk accounts count** (§9 actionable KPI example) — Currently shows Open Breaches + Critical + Resolved + Risk Score. No "X accounts within 10% of max DD" with sub-breakdown "12 within 10% / 7 within 5% / 5 critical" (AGENTS.md §9 explicit example). — Effort: S.
+    59→    59→  4617→- **Risk Overview — total exposure** — task #1 — No "$X total at-risk exposure" KPI. — Effort: S.
+    60→    60→  4618→- **Risk Overview — top breaches hero** — task #1 — Recent Breaches table exists but isn't "top by severity" sorted. No "Top 5 critical breaches" hero card. — Effort: S.
+    61→    61→  4619→- **Risk Overview — ATR / concentration map** — task #1 — No visualization of where risk is concentrated (by challenge type / country / symbol). Risk Statistics has tables but no chart on Overview. — Effort: M.
+    62→    62→  4620→- **Risk Overview — attention center** (§11) — Component exists, not used. No "12 accounts near breach / 3 unresolved copy-trading events / 5 weekend trades pending review" panel. — Effort: S.
+    63→    63→  4621→- **Risk Overview — breach trend chart on page** — BreachTrendWidget exists, isn't on the Overview page. — Effort: S.
+    64→    64→  4622→- **Breaches list — no type/severity/status/date filters** — task #2 — Only search. Can't filter "daily-drawdown breaches from last 7 days, severity=critical, status=open". — Effort: S (toolbar prop).
+    65→    65→  4623→- **Breaches list — no drill to trader** — task #2 — Click does nothing. No link from Trader column to trader-detail. — Effort: S.
+    66→    66→  4624→- **Breaches list — incomplete breach types** — Mock data has `daily-drawdown | max-drawdown | profit-target-miss | time-limit`. Task #2 calls for `daily dd / max dd / trailing dd / margin call`. No "trailing-drawdown" or "margin-call". — Effort: M (extend mock + filter UI).
+    67→    67→  4625→- **Breaches list — no CSV export** — All other risk pages have CSV. Breaches (most operational page) doesn't. — Effort: S.
+    68→    68→  4626→- **Breaches list — no bulk Resolve / bulk Dismiss** — 1-by-1 only. — Effort: M.
+    69→    69→  4627→- **Risk Statistics — no "by rule" lens** (task #3) — Pass rate by rule (which rule has highest breach rate). Currently has challenge/country/size. — Effort: M.
+    70→    70→  4628→- **Risk Statistics — no "by time" trend** (task #3) — Pass rate over time (12-month line). Only static tables. — Effort: M.
+    71→    71→  4629→- **Risk Statistics — no drill from row to filtered breaches** — Clicking a challenge type row should filter Breaches to that challenge's breaches. — Effort: M (URL state cross-page).
+    72→    72→  4630→- **Copy Trading Detection — no correlation matrix** (task #5) — Only 2-account manual. No "scan all accounts → matrix of N×N correlation". IP-sharing view is on separate page. — Effort: L.
+    73→    73→  4631→- **Copy Trading / Inverse Trading Events — no false-positive dismissal** — Each event is active or expired only. No "reviewed & dismissed" state. — Effort: S each.
+    74→    74→  4632→- **Account IP Addresses — no "shared IP across accounts" view** (task #7) — Records are per-account. No reverse view "IP 192.168.1.1 → 3 accounts". Multi-account-same-IP (key risk signal) not surfaced. — Effort: M.
+    75→    75→  4633→- **Account IP Addresses — no map** — Lat/lng fields present, no map. — Effort: M.
+    76→    76→  4634→- **Real-time risk alerts** (task #10) — No alert/feed system. Notification Center exists platform-wide but no risk-specific feed. No "live breach alerts" ticker. — Effort: L.
+    77→    77→  4635→- **Risk scoring per account** (task #11) — "Platform Risk Score 72/100" is platform-wide single number. No per-account composite score (drawdown usage %, breach history, copy-trading flags, IP risk, weekend trades, news violations). — Effort: L.
+    78→    78→  4636→- **Risk rule configuration per challenge/phase** (task #12) — Risk rules configured on challenge-config and phase-detail (within Challenges module). Risk module only has Trading Events rules. No way to say "for the 2-Step Pro challenge Phase 2, max DD = 8% and daily DD = 4%" from Risk module. No cross-link from Risk to phase-detail. — Effort: M.
+    79→    79→  4637→- **No bulk actions anywhere in Risk module** — DataTables don't expose selection. copy-trading-events has selection checkboxes but bulk action bar isn't implemented. — Effort: L.
+    80→    80→  4638→- **No URL-persisted filters on Risk pages** — All filters use local useState. Refresh loses context. — Effort: M.
+    81→    81→  4639→- **No loading skeletons** — Same as Challenges. — Effort: M.
+    82→    82→  4640→- **No error boundaries** — Same. — Effort: M.
+    83→    83→  4641→- **No terminology applied to Risk module** — `makeTermResolver` not imported in any risk page. Headers hardcode "Risk Management", "Breaches", "Risk Analysis". — Effort: M.
+    84→    84→  4642→- **Risk Statistics CSV export is toast-only** — `exportCsv(rows)` shows toast but doesn't call `exportToCsv`. (compare with copy-trading-events which uses real helper). — Effort: S.
+    85→    85→  4643→- **No drill from report row to filtered list** — Clicking "Country = India" on Unprofitable Countries should jump to Traders filtered to India. — Effort: M.
+    86→    86→  4644→- **No "Mark as Reviewed" workflow on detection events** — Copy/inverse/weekend detected but no review/acknowledge workflow. — Effort: M.
+    87→    87→  4645→- **No platform-level "Risk Reports" overview page** — 8 report pages exist, no index/landing. Operators navigate sidebar alphabetically. — Effort: S.
+    88→    88→  4646→- **Trading Events page (rules) — no "Add Rule" button** — Only Edit on existing rows. — Effort: S.
+    89→    89→  4647→
+    90→    90→  4648→## CROSS-TENANT GAPS
+    91→    91→  4649→- **Terminology not applied** — Both modules' page headers hardcode labels. Sidebar adapts ("Evaluations" for tenant-alpha) but page headers don't. Violates §54/§55.
+    92→    92→  4650→- **Currency correctly applied** — Both modules use `runtime.tenant?.currency` (verified across all risk pages and most challenge pages). Good.
+    93→    93→  4651→- **Branding palette partially applied** — Risk accentColor `#b91c1c` (red ✓). Challenges accentColor `#15803d` (forest green ✓). But tenant-specific `primaryColor`/`accentColor`/`surfaceColor`/`radius` from `tenant.branding` not consistently used. E.g. tenant-gamma `radius: 0.625rem` should subtly change card rounding; not applied.
+    94→    94→  4652→- **Tenant plan gating not visible** — Alpha `growth`, Beta `scale`, Gamma `enterprise`. Neither module checks `runtime.tenant.plan`. Copy Trading Analysis (Beta+ feature?) / Risk Reports (Enterprise only?) — no gating.
+    95→    95→  4653→- **Locale not used** — All date formatting uses `toLocaleString()` without explicit locale. Beta `en-GB` with Europe/London tz shows browser-default formatting.
+    96→    96→  4654→- **Tenant modules not gated** — Alpha `enabledModules` is `["trading", "challenges", "risk", "payouts", "settings"]`. Alpha `enabledFeatures` is `["challenges.two-phase", "risk.daily-drawdown"]` — no `risk.config` or `risk.scoring`. Risk module manifest declares capabilities `["risk.scoring", "risk.breaches", "risk.config"]` but UI doesn't check `enabledFeatures`. Trading Events rules CRUD on Alpha should arguably be hidden.
+    97→    97→  4655→- **Risk Score is platform-wide hardcoded "72/100"** — Not tenant-aware. Should be computed per-tenant.
+    98→    98→  4656→- **No tenant-specific mock data variation** — Same breaches/challenges across all 3 tenants (filtered by tenantId but patterns identical).
+    99→    99→  4657→
+   100→   100→  4658→## UX GAPS
+   101→   101→  4659→
+   102→   102→  4660→### Empty states (§30)
+   103→   103→  4661→- **ChallengeTable**: DataTable without `emptyTitle`/`emptyDescription`. New tenant with 0 challenges → generic "No data".
+   104→   104→  4662→- **BreachesTable**: same issue.
+   105→   105→  4663→- **Phase Management**: emptyTitle/emptyDescription present ✓.
+   106→   106→  4664→- **Challenge Config**: EmptyState present ✓.
+   107→   107→  4665→- **Trading Events**: EmptyState present ✓.
+   108→   108→  4666→- **Copy Trading Analysis**: EmptyState present ✓.
+   109→   109→  4667→- **Copy/Inverse Trading Events**: EmptyState present ✓.
+   110→   110→  4668→- **Weekend Trades**: implicit (DataTable default).
+   111→   111→  4669→- **Risk Statistics**: no empty state on tables (assumes data always exists).
+   112→   112→  4670→- **8 Risk Report pages**: most have EmptyState ✓ (addon-revenue, coupon-vs-payouts, etc.).
+   113→   113→  4671→
+   114→   114→  4672→### Loading states (§31)
+   115→   115→  4673→- ZERO loading skeletons anywhere in either module. All synchronous mock. When backend wires up, every page will flash empty.
+   116→   116→  4674→
+   117→   117→  4675→### Error states (§32)
+   118→   118→  4676→- No page-level or widget-level error boundaries in either module. If one widget throws, the whole Overview errors. No "X couldn't be loaded. [Retry]" fallback.
+   119→   119→  4677→
+   120→   120→  4678→### Accessibility (§48)
+   121→   121→  4679→- **risk-statistics-page.tsx:244-253** — uses raw `<select>` for date range. Inconsistent with rest of platform (shadcn Select). Less accessible (no keyboard nav improvements, no ARIA combobox).
+   122→   122→  4680→- **challenge-pages.tsx** — P&L span has color but no `role="img"` + `aria-label` (compare with Trading module's PositionsPage which has both).
+   123→   123→  4681→- **Phase Management** — status cells use `<Badge>` not `role="img"` with aria-label.
+   124→   124→  4682→- **DataTable checkboxes** on copy-trading-events have `aria-label` ✓.
+   125→   125→  4683→- **Switch toggles** have `aria-label` ✓ across both modules.
+   126→   126→  4684→- **P&L spans** on risk-statistics country/size tables: no ARIA labels.
+   127→   127→  4685→- **Phase flow diagram** on challenge-edit ReviewTab: visual-only, no alt-text or aria-description.
+   128→   128→  4686→
+   129→   129→  4687→### Filter combinations (§26)
+   130→   130→  4688→- **Strong**: copy-trading-events (3 filters), inverse-trading-events (3), account-ip-addresses (3), weekend-trades (5), risk-statistics (date range + 3 tabs).
+   131→   131→  4689→- **Thin**: Challenges Overview/Active/Passed/Failed tables (search only).
+   132→   132→  4690→- **Thin**: Breaches list (search only).
+   133→   133→  4691→- **Thin**: Phase Management (1 type filter + search).
+   134→   134→  4692→- **Thin**: Challenge Types catalog (no search/filter).
+   135→   135→  4693→
+   136→   136→  4694→### Cross-references / navigation
+   137→   137→  4695→- **Challenge list → trader-detail**: NO LINK (no onRowClick).
+   138→   138→  4696→- **Challenge list → challenge-edit**: NO LINK.
+   139→   139→  4697→- **Challenge types → challenge-config**: ✓ (Edit button with typeId param).
+   140→   140→  4698→- **Challenge-edit → phase-detail**: ✓ (Edit Phase button per row).
+   141→   141→  4699→- **Phase-detail → challenge-edit**: ✓ (Back button).
+   142→   142→  4700→- **Risk Overview → breaches**: NO LINK (just embedded table, no "View all breaches" CTA).
+   143→   143→  4701→- **Breaches list → trader-detail**: NO LINK.
+   144→   144→  4702→- **Copy trading events → trader-detail**: ✓.
+   145→   145→  4703→- **Inverse trading events → trader-detail**: ✓.
+   146→   146→  4704→- **Account IP addresses → trader-detail**: ✓.
+   147→   147→  4705→- **Risk Statistics row → filtered breaches/traders**: NO LINK.
+   148→   148→  4706→- **Risk Reports (8 pages) row → underlying accounts**: NO LINK.
+   149→   149→  4707→- **Risk Overview widget → breaches page**: NO LINK.
+   150→   150→  4708→- **Phase-detail change history row → user/actor detail**: NO LINK.
+   151→   151→  4709→
+   152→   152→  4710→### Bulk actions (§26)
+   153→   153→  4711→- ZERO bulk actions across both modules. Spec calls for: Bulk Resolve on Breaches, Bulk Dismiss on copy/inverse trading events, Bulk delete on weekend trades, Bulk assign challenge to traders, Bulk export selected (only CSV-export-all exists).
+   154→   154→  4712→
+   155→   155→  4713→### Export/print
+   156→   156→  4714→- **CSV export (real `exportToCsv`)**: copy-trading-events ✓, inverse-trading-events ✓, account-ip-addresses ✓, weekend-trades ✓, phase-detail change history ✓.
+   157→   157→  4715→- **CSV export (toast only, fake)**: risk-statistics ✗ (and likely risk-revenue-loss / risk-label-vs-payouts / risk-group-vs-payouts / risk-coupon-vs-payouts / risk-highest-earners / risk-account-label-analysis / risk-addon-revenue / risk-unprofitable-countries — spot-checked 1).
+   158→   158→  4716→- **No CSV export**: Challenges Overview/Active/Passed/Failed, Breaches list, Phase Management, Challenge Types, Trading Events rules, Challenge Config, Challenge Edit, Phase Detail General.
+   159→   159→  4717→
+   160→   160→  4718→### Visual hierarchy (§41)
+   161→   161→  4719→- **Risk Overview KPI "Platform Risk Score 72/100"**: no delta, no breakdown, no "what does 72 mean" (§9 violation).
+   162→   162→  4720→- **Challenge Overview KPI "Total"**: redundant with Active+Passed+Failed; conveys no extra info.
+   163→   163→  4721→- **Challenge Config PhaseConfigCard**: 6 basic fields all equal weight; could group Risk (Profit Target, Max DD, Daily DD) vs Time (Min/Max Days) vs Payout (Profit Split).
+   164→   164→  4722→- **Risk Statistics KPI row + 3-tab table below**: good hierarchy.
+   165→   165→  4723→- **Phase-detail page header**: long subtitle with multiple "·" separators — borderline density.
+   166→   166→  4724→
+   167→   167→  4725→### Animation (§68)
+   168→   168→  4726→- No unnecessary animations in either module. Appropriate.
+   169→   169→  4727→- Step indicator on Wizard uses `transition-all` (subtle).
+   170→   170→  4728→- No fake real-time indicators (§67 ✓).
+   171→   171→  4729→
+   172→   172→  4730→### Help / Education (§33)
+   173→   173→  4731→- **Strong**: challenge-config, challenge-edit, phase-detail all use LabelWithHelp extensively with real explanations.
+   174→   174→  4732→- **Strong**: challenge-edit's "Drawdown Configuration" section explains Static vs Trailing with prose.
+   175→   175→  4733→- **Weak**: risk-pages.tsx has zero contextual help. Risk Score "72/100" has no explanation. Breaches list "Type" column shows raw enum values (`daily-drawdown`) with no tooltip — violates §18 (state + meaning).
+   176→   176→  4734→- **Weak**: Challenge Overview KPI cards have no help tooltips.
+   177→   177→  4735→- **Weak**: copy-trading-analysis verdict "Likely Copy Trading" has explanation text ✓ but correlation formula isn't explained.
+   178→   178→  4736→
+   179→   179→  4737→### Destructive actions (§24)
+   180→   180→  4738→- **Strong**: weekend-trades Delete uses AlertDialog with consequence text ✓.
+   181→   181→  4739→- **Weak**: challenge-edit Publish only fires a toast (no confirmation). Publish is semi-destructive (irreversible visibility change).
+   182→   182→  4740→- **Weak**: Breaches Resolve uses plain Button + toast (no AlertDialog, no consequence text).
+   183→   183→  4741→- **Weak**: Challenge types Active toggle (no confirmation for disable, which hides from catalog).
+   184→   184→  4742→- **Weak**: Trading Events rule Active toggle (no confirmation).
+   185→   185→  4743→
+   186→   186→  4744→### First-time experience (§34)
+   187→   187→  4745→- **No onboarding** on Challenges Overview for a new tenant with 0 challenges. Should say "Welcome — create your first challenge type to begin" with CTA to the wizard.
+   188→   188→  4746→- **No onboarding** on Risk Overview for a new tenant with 0 breaches. Should say "No breaches yet — configure your risk rules to start monitoring".
+   189→   189→  4747→- **No first-time tooltip** on the Wizard step 1 explaining what each challenge type means.
+   190→   190→  4748→
+   191→   191→  4749→## TOP PRIORITY ACTIONS (ordered)
+   192→   192→  4750→
+   193→   193→  4751→1. **HIGHEST** — Add filters to Breaches list (type / severity / status / date range) + drill-to-trader link + CSV export. Breaches page is the single most-operational page in Risk module and currently has only search. Add `toolbar` prop with 4 Select dropdowns. Make Trader column a `<button>` navigating to `trader-detail`. Wire real `exportToCsv`. — Effort: S.
+   194→   194→  4752→
+   195→   195→  4753→2. **HIGHEST** — Fix `Math.random()` in `challenge-config-page.tsx:216` (AdvancedSection toggle defaults). Replace with deterministic hash. Breaks stable demo across every reload. — Effort: S.
+   196→   196→  4754→
+   197→   197→  4755→3. **HIGH** — Add row click navigation on Challenges list → trader-detail (or build a Challenge Workspace per §28). No way to drill from a challenge row to anything currently. — Effort: S (one-line onRowClick) or L (full workspace).
+   198→   198→  4756→
+   199→   199→  4757→4. **HIGH** — Add Attention Center to both Risk Overview and Challenges Overview (§11). Component exists. Surface "X accounts near max DD", "Y unresolved copy-trading events", "Z payout-eligible passed challenges". — Effort: S each.
+   200→   200→  4758→
+   201→   201→  4759→5. **HIGH** — Wire `makeTermResolver` to all Challenges and Risk page headers + column headers + toasts. Sidebar adapts but page headers don't. — Effort: M.
+   202→   202→  4760→
+   203→   203→  4761→6. **HIGH** — Add "Failed" KPI + Pass Rate KPI + funnel chart to Challenges Overview. Currently shows Active/Passed/Avg Progress/Total — spec calls for failed count and pass rate and by-type breakdown. — Effort: S.
+   204→   204→  4762→
+   205→   205→  4763→7. **HIGH** — Add Account Health card (§21) to Active Challenges list. Each row should show "Daily DD 41%/5%", "Max DD 6.8%/10%", "Profit Target 72%". — Effort: M.
+   206→   206→  4764→
+   207→   207→  4765→8. **HIGH** — Add failure-reason column + Retry button to Failed Challenges list. — Effort: M (extend mock + retry modal).
+   208→   208→  4766→
+   209→   209→  4767→9. **HIGH** — Add "shared IP across accounts" reverse view to Account IP Addresses page. Key risk signal (multi-account same IP) currently not surfaced. — Effort: M.
+   210→   210→  4768→
+   211→   211→  4769→10. **HIGH** — Add drill-to-trader from Breaches list + drill-to-filtered-breaches from Risk Statistics rows. — Effort: M.
+   212→   212→  4770→
+   213→   213→  4771→11. **MEDIUM** — Add bulk actions pattern (BulkActionBar) to Breaches list (bulk Resolve), copy/inverse trading events (bulk Dismiss), weekend trades (bulk Delete). — Effort: L.
+   214→   214→  4772→
+   215→   215→  4773→12. **MEDIUM** — Add URL-persisted filters to all multi-filter pages (Breaches, copy-trading-events, inverse-trading-events, weekend-trades, account-ip-addresses, Challenges list, Phase Management). Use query params for search/filter/sort/tab. — Effort: M.
+   216→   216→  4774→
+   217→   217→  4775→13. **MEDIUM** — Add loading skeletons to every page (matching page layout — KPI grid skeleton + DataTable header skeleton). Pre-build for backend wiring. — Effort: M.
+   218→   218→  4776→
+   219→   219→  4777→14. **MEDIUM** — Add page-level ErrorBoundary to each Risk and Challenges page with "X couldn't be loaded. [Retry]" fallback. — Effort: M.
+   220→   220→  4778→
+   221→   221→  4779→15. **MEDIUM** — Add "by rule" + "by time" tabs to Risk Statistics. Currently has challenge/country/size; missing rule/time lenses. — Effort: M.
+   222→   222→  4780→
+   223→   223→  4781→16. **MEDIUM** — Add real CSV export to the 8 Risk Report pages (currently toast-only on most). Use `exportToCsv` helper like copy-trading-events. — Effort: S.
+   224→   224→  4782→
+   225→   225→  4783→17. **MEDIUM** — Add EmptyState to ChallengeTable + BreachesTable (new tenant / 0 data). — Effort: S.
+   226→   226→  4784→
+   227→   227→  4785→18. **MEDIUM** — Add per-trader Challenge Journey timeline tab to enhanced-trader-detail-page. — Effort: M.
+   228→   228→  4786→
+   229→   229→  4787→19. **MEDIUM** — Add AlertDialog confirmation to Breaches Resolve, Challenge-types Active toggle, Trading Events rule Active toggle, Challenge-edit Publish (§24 friction proportional to consequence). — Effort: S each.
+   230→   230→  4788→
+   231→   231→  4789→20. **MEDIUM** — Add consistency rule + news-holding rules to Challenge Config AdvancedSection. — Effort: S.
+   232→   232→  4790→
+   233→   233→  4791→21. **MEDIUM** — Add phase gate criteria + completion stats tab to Phase Detail. — Effort: M.
+   234→   234→  4792→
+   235→   235→  4793→22. **MEDIUM** — Add phase transition rules tab to Phase Detail (auto-pass on profit target? manual review? KYC gating?). — Effort: M.
+   236→   236→  4794→
+   237→   237→  4795→23. **LOW** — Add challenge comparison view (side-by-side diff of 2 types). — Effort: M.
+   238→   238→  4796→
+   239→   239→  4797→24. **LOW** — Add bulk challenge assignment to traders. — Effort: L.
+   240→   240→  4798→
+   241→   241→  4799→25. **LOW** — Add real-time risk alerts feed (Notification Center integration with risk-specific feed). — Effort: L.
+   242→   242→  4800→
+   243→   243→  4801→26. **LOW** — Add per-account risk score (composite). — Effort: L.
+   244→   244→  4802→
+   245→   245→  4803→27. **LOW** — Add risk rule configuration per challenge/phase cross-link from Risk module. — Effort: M.
+   246→   246→  4804→
+   247→   247→  4805→28. **LOW** — Add map visualization to Account IP Addresses (lat/lng present but unused). — Effort: M.
+   248→   248→  4806→
+   249→   249→  4807→29. **LOW** — Add certificate module so Passed Challenges can link to certificates. — Effort: L.
+   250→   250→  4808→
+   251→   251→  4809→30. **LOW** — Replace raw `<select>` on risk-statistics-page (line 244) with shadcn Select for accessibility consistency. — Effort: S.
+   252→   252→
+   253→   253→[showing lines 4559-4809 of 4810; use offset=4810 with limit to continue reading]

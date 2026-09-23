@@ -1,0 +1,252 @@
+/home/z/my-project/src/modules/risk/pages/weekend-trades-page.tsx:32:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/risk/pages/weekend-trades-page.tsx:656:          <EmptyState
+/home/z/my-project/src/modules/risk/pages/copy-trading-events-page.tsx:31:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/risk/pages/copy-trading-events-page.tsx:700:          <EmptyState
+/home/z/my-project/src/modules/risk/pages/copy-trading-analysis-page.tsx:31:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/risk/pages/copy-trading-analysis-page.tsx:328:          <EmptyState
+/home/z/my-project/src/modules/risk/pages/risk-coupon-vs-payouts-page.tsx:34:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/risk/pages/risk-coupon-vs-payouts-page.tsx:105:  const [showEmptyState, setShowEmptyState] = useState(false);
+/home/z/my-project/src/modules/risk/pages/risk-coupon-vs-payouts-page.tsx:324:            onClick={() => setShowEmptyState((v) => !v)}
+/home/z/my-project/src/modules/risk/pages/risk-coupon-vs-payouts-page.tsx:327:            {showEmptyState ? "Show data" : "Preview empty state"}
+/home/z/my-project/src/modules/risk/pages/risk-coupon-vs-payouts-page.tsx:332:        {showEmptyState ? (
+/home/z/my-project/src/modules/risk/pages/risk-coupon-vs-payouts-page.tsx:333:          <EmptyState
+/home/z/my-project/src/modules/settings/pages/marketing-banner-edit-page.tsx:33:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/settings/pages/marketing-banner-edit-page.tsx:323:                  <LabelWithHelp help="Shown as the banner's background or hero image. Recommended size 1200×200px for top bar, 600×800 for sidebar.">
+/home/z/my-project/src/modules/settings/pages/marketing-banner-edit-page.tsx:325:                  </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/marketing-banner-edit-page.tsx:421:                  <LabelWithHelp help="Controls the stacking order — higher numbers appear on top when multiple banners are visible at once.">
+/home/z/my-project/src/modules/settings/pages/marketing-banner-edit-page.tsx:423:                  </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/marketing-banner-edit-page.tsx:648:                      <LabelWithHelp help="Restrict visibility to traders from these countries. Empty selection applies worldwide.">
+/home/z/my-project/src/modules/settings/pages/marketing-banner-edit-page.tsx:650:                      </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/certificate-font-upload-page.tsx:28:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/settings/pages/certificate-font-upload-page.tsx:513:              <EmptyState
+/home/z/my-project/src/modules/settings/pages/email-templates-page.tsx:22:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/settings/pages/email-templates-page.tsx:247:              <EmptyState
+/home/z/my-project/src/modules/settings/pages/marketing-integrations-page.tsx:29:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/settings/pages/marketing-integrations-page.tsx:30:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/settings/pages/marketing-integrations-page.tsx:469:              <EmptyState
+/home/z/my-project/src/modules/settings/pages/marketing-integrations-page.tsx:510:              <EmptyState
+/home/z/my-project/src/modules/settings/pages/marketing-integrations-page.tsx:626:        <LabelWithHelp help="Select the marketing platform. The API secret key format changes per platform.">
+/home/z/my-project/src/modules/settings/pages/marketing-integrations-page.tsx:628:        </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/marketing-integrations-page.tsx:667:          <LabelWithHelp help="When enabled, the platform keeps a record of every event (purchase, payout, breach, etc.) for audit and replay.">
+/home/z/my-project/src/modules/settings/pages/marketing-integrations-page.tsx:669:          </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/marketing-integrations-page.tsx:714:        <LabelWithHelp help="Paste the API secret key in the format shown above. Stored masked; click the eye to reveal.">
+/home/z/my-project/src/modules/settings/pages/marketing-integrations-page.tsx:716:        </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/banner-management-page.tsx:19:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/settings/pages/banner-management-page.tsx:335:          <EmptyState
+/home/z/my-project/src/modules/settings/pages/certificate-template-designer-page.tsx:34:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/settings/pages/certificate-template-designer-page.tsx:634:                  <LabelWithHelp help="File format produced when this certificate is downloaded or emailed to a trader.">
+/home/z/my-project/src/modules/settings/pages/certificate-template-designer-page.tsx:636:                  </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/social-media-links-page.tsx:37:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/settings/pages/social-media-links-page.tsx:589:            <EmptyState
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:74:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:451:            <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:456:            </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:496:            <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:501:            </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:534:            <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:539:            </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:576:            <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:581:            </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:622:            <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:627:            </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:659:            <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:664:            </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:740:      <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/certificate-detail-page.tsx:745:      </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/email-template-edit-page.tsx:33:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/settings/pages/email-template-edit-page.tsx:500:                      <LabelWithHelp help="Select the trigger event this template responds to. Each event corresponds to a standard email type.">
+/home/z/my-project/src/modules/settings/pages/email-template-edit-page.tsx:502:                      </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/utilities-page.tsx:27:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/settings/pages/utilities-page.tsx:697:            <EmptyState
+/home/z/my-project/src/modules/settings/pages/notifications-management-page.tsx:27:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/settings/pages/notifications-management-page.tsx:450:            <EmptyState
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:26: * Uses ContextualHelp / LabelWithHelp (§33) for inline field explanations.
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:41:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:612:              <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:617:              </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:665:            <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:670:            </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:715:            <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:720:            </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:745:            <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:750:            </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:811:            <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:816:            </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:940:      <LabelWithHelp
+/home/z/my-project/src/modules/settings/pages/token-detail-page.tsx:945:      </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/certificate-management-page.tsx:23:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/settings/pages/certificate-management-page.tsx:271:                  <EmptyState
+/home/z/my-project/src/modules/settings/pages/notification-edit-page.tsx:30:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/settings/pages/notification-edit-page.tsx:308:                    <LabelWithHelp help="Higher numbers appear first in the trader dashboard. Range 1–10.">
+/home/z/my-project/src/modules/settings/pages/notification-edit-page.tsx:310:                    </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/notification-edit-page.tsx:449:                      <LabelWithHelp help="Minimum account size in USD the trader must hold to qualify. Blank = no minimum.">
+/home/z/my-project/src/modules/settings/pages/notification-edit-page.tsx:451:                      </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/notification-edit-page.tsx:461:                      <LabelWithHelp help="Maximum account size in USD the trader may hold to qualify. Blank = no maximum.">
+/home/z/my-project/src/modules/settings/pages/notification-edit-page.tsx:463:                      </LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/notification-edit-page.tsx:612:      <LabelWithHelp help={help}>{label}</LabelWithHelp>
+/home/z/my-project/src/modules/settings/pages/device-activities-page.tsx:40:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/settings/pages/device-activities-page.tsx:669:            <EmptyState
+/home/z/my-project/src/modules/risk/pages/trading-events-page.tsx:23:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/risk/pages/trading-events-page.tsx:341:            <EmptyState
+/home/z/my-project/src/modules/audit/enhanced-user-events-page.tsx:37:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/audit/enhanced-user-events-page.tsx:745:                  <LabelWithHelp
+/home/z/my-project/src/modules/audit/enhanced-user-events-page.tsx:750:                  </LabelWithHelp>
+/home/z/my-project/src/modules/audit/enhanced-user-events-page.tsx:804:                  <LabelWithHelp
+/home/z/my-project/src/modules/audit/enhanced-user-events-page.tsx:809:                  </LabelWithHelp>
+/home/z/my-project/src/modules/audit/enhanced-user-events-page.tsx:825:                  <LabelWithHelp
+/home/z/my-project/src/modules/audit/enhanced-user-events-page.tsx:830:                  </LabelWithHelp>
+/home/z/my-project/src/modules/audit/enhanced-user-events-page.tsx:841:                  <LabelWithHelp
+/home/z/my-project/src/modules/audit/enhanced-user-events-page.tsx:846:                  </LabelWithHelp>
+/home/z/my-project/src/modules/audit/enhanced-user-events-page.tsx:857:                  <LabelWithHelp
+/home/z/my-project/src/modules/audit/enhanced-user-events-page.tsx:862:                  </LabelWithHelp>
+/home/z/my-project/src/modules/affiliates/pages/offer-change-history-page.tsx:28:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/affiliates/pages/offer-change-history-page.tsx:240:          <EmptyState
+/home/z/my-project/src/modules/affiliates/pages/offer-matching-users-page.tsx:28:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/affiliates/pages/offer-matching-users-page.tsx:245:          <EmptyState
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:29:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:441:              <LabelWithHelp help="Number used to sort offers when several are visible at once. Lower numbers appear first.">
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:443:              </LabelWithHelp>
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:465:              <LabelWithHelp help="Shown as the offer banner image. Recommended size 1200×400px. JPG/PNG up to 2MB.">
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:467:              </LabelWithHelp>
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:514:              <LabelWithHelp help="Unique code traders enter at checkout. Codes are case-insensitive.">
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:516:              </LabelWithHelp>
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:526:              <LabelWithHelp help="Percentage discount applied when the coupon is redeemed. 0–100.">
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:528:              </LabelWithHelp>
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:572:              <LabelWithHelp help="Optional landing page URL for the offer. Leave blank to use the default offer popup.">
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:574:              </LabelWithHelp>
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:722:                    <LabelWithHelp help="Minimum account size in USD the trader must hold to qualify. Blank = no minimum.">
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:724:                    </LabelWithHelp>
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:734:                    <LabelWithHelp help="Maximum account size in USD the trader may hold to qualify. Blank = no maximum.">
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:736:                    </LabelWithHelp>
+/home/z/my-project/src/modules/affiliates/pages/offer-edit-page.tsx:848:      <LabelWithHelp help={help}>{label}</LabelWithHelp>
+/home/z/my-project/src/modules/risk/pages/risk-addon-revenue-page.tsx:28:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/risk/pages/risk-addon-revenue-page.tsx:100:  const [showEmptyState, setShowEmptyState] = useState(false);
+/home/z/my-project/src/modules/risk/pages/risk-addon-revenue-page.tsx:272:            onClick={() => setShowEmptyState((v) => !v)}
+/home/z/my-project/src/modules/risk/pages/risk-addon-revenue-page.tsx:275:            {showEmptyState ? "Show data" : "Preview empty state"}
+/home/z/my-project/src/modules/risk/pages/risk-addon-revenue-page.tsx:280:        {showEmptyState ? (
+/home/z/my-project/src/modules/risk/pages/risk-addon-revenue-page.tsx:281:          <EmptyState
+/home/z/my-project/src/modules/payouts/pages/payout-pages.tsx:10:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/payouts/pages/payout-pages.tsx:109:          <EmptyState
+/home/z/my-project/src/modules/payouts/manifest.ts:13:    termKey: "payout",
+/home/z/my-project/src/modules/risk/pages/inverse-trading-events-page.tsx:31:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/risk/pages/inverse-trading-events-page.tsx:672:          <EmptyState
+/home/z/my-project/src/modules/super-admin/tenant-detail-page.tsx:42:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/super-admin/tenant-detail-page.tsx:43:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/super-admin/tenant-detail-page.tsx:176:        <EmptyState
+/home/z/my-project/src/modules/super-admin/tenant-detail-page.tsx:429:          <LabelWithHelp help="Modules currently enabled for this tenant. Use the Modules tab to toggle entitlements.">
+/home/z/my-project/src/modules/super-admin/tenant-detail-page.tsx:431:          </LabelWithHelp>
+/home/z/my-project/src/modules/super-admin/tenant-detail-page.tsx:498:            <LabelWithHelp help="Toggle modules to control which features this tenant can access. Disabled modules disappear from the tenant's sidebar and dashboard instantly.">
+/home/z/my-project/src/modules/super-admin/tenant-detail-page.tsx:500:            </LabelWithHelp>
+/home/z/my-project/src/modules/super-admin/tenant-detail-page.tsx:1090:              <LabelWithHelp help="Composite risk score based on open breaches, critical violations, and accounts at risk. Lower is better.">
+/home/z/my-project/src/modules/super-admin/tenant-detail-page.tsx:1092:              </LabelWithHelp>
+/home/z/my-project/src/modules/super-admin/dashboard-manager-page.tsx:44:import { EmptyState, ModuleErrorBoundary } from "@/components/platform/guards";
+/home/z/my-project/src/modules/super-admin/dashboard-manager-page.tsx:698:        <EmptyState
+/home/z/my-project/src/modules/super-admin/dashboard-manager-page.tsx:1033:            <EmptyState
+/home/z/my-project/src/modules/challenges/pages/phase-management-page.tsx:22:import { LabelWithHelp, HELP_TEXTS } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/challenges/pages/phase-management-page.tsx:85:              <LabelWithHelp help={f.help}>{f.label}</LabelWithHelp>
+/home/z/my-project/src/modules/challenges/pages/phase-detail-page.tsx:31:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/challenges/pages/phase-detail-page.tsx:247:        {help ? <LabelWithHelp help={help}>{label}</LabelWithHelp> : label}
+/home/z/my-project/src/modules/challenges/pages/challenge-config-page.tsx:23:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/challenges/pages/challenge-config-page.tsx:25:  LabelWithHelp,
+/home/z/my-project/src/modules/challenges/pages/challenge-config-page.tsx:120:              <LabelWithHelp help={f.help}>{f.label}</LabelWithHelp>
+/home/z/my-project/src/modules/challenges/pages/challenge-config-page.tsx:212:            <LabelWithHelp help={r.help}>
+/home/z/my-project/src/modules/challenges/pages/challenge-config-page.tsx:214:            </LabelWithHelp>
+/home/z/my-project/src/modules/challenges/pages/challenge-config-page.tsx:249:        <EmptyState
+/home/z/my-project/src/modules/challenges/pages/challenge-config-page.tsx:417:              <EmptyState
+/home/z/my-project/src/modules/challenges/pages/challenge-edit-page.tsx:35:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/challenges/pages/challenge-edit-page.tsx:231:        {help ? <LabelWithHelp help={help}>{label}</LabelWithHelp> : label}
+/home/z/my-project/src/modules/challenges/manifest.ts:13:    termKey: "challenge",
+/home/z/my-project/src/modules/challenges/widgets/challenge-widgets.tsx:10:import { makeTermResolver } from "@/lib/platform/terminology";
+/home/z/my-project/src/modules/challenges/widgets/challenge-widgets.tsx:14:  const t = makeTermResolver(tenant);
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:38:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:39:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:680:            <LabelWithHelp
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:685:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:696:            <LabelWithHelp
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:701:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:723:            <LabelWithHelp
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:728:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:773:            <LabelWithHelp
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:778:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:799:            <LabelWithHelp
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:804:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:816:            <LabelWithHelp
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:821:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:835:            <LabelWithHelp
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:840:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:869:      <EmptyState
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:942:      <EmptyState
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:1053:      <LabelWithHelp
+/home/z/my-project/src/modules/trading/pages/order-detail-page.tsx:1058:      </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/enhanced-trader-detail-page.tsx:51:import { EmptyState } from "@/components/platform/guards";
+/home/z/my-project/src/modules/trading/pages/enhanced-trader-detail-page.tsx:53:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/trading/pages/enhanced-trader-detail-page.tsx:302:                <LabelWithHelp help="Open positions, KYC status, and any active breaches for this trader.">
+/home/z/my-project/src/modules/trading/pages/enhanced-trader-detail-page.tsx:304:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/enhanced-trader-detail-page.tsx:403:              <EmptyState
+/home/z/my-project/src/modules/trading/pages/enhanced-trader-detail-page.tsx:461:              <EmptyState
+/home/z/my-project/src/modules/trading/pages/enhanced-trader-detail-page.tsx:484:      <EmptyState
+/home/z/my-project/src/modules/trading/pages/enhanced-trader-detail-page.tsx:518:      <EmptyState
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:32:import { LabelWithHelp, ContextualHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:538:                <LabelWithHelp help="Trader's email on file. To change it, edit the trader record, not the account.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:540:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:549:                <LabelWithHelp help="When the account became active. Reset to re-open trading windows.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:551:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:566:                <LabelWithHelp help="Account expiry. Leave empty for accounts without time limits (e.g. Funded accounts).">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:568:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:586:                <LabelWithHelp help="Trader's share of profits. The remainder goes to the prop firm. Range 0-100.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:588:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:615:                <LabelWithHelp help="Delay before the first withdrawal can be requested. Expressed as a duration like '14 days'.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:617:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:629:                <LabelWithHelp help="The order that triggered the account creation. Linked back to billing.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:631:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:647:                <LabelWithHelp help="Date the next payout will be eligible to process.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:649:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:737:                <LabelWithHelp help="Timestamp when the daily drawdown window resets.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:739:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:746:                <LabelWithHelp help="When locked, the daily drawdown calculation is frozen and will not reset at midnight server time.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:748:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:799:                <LabelWithHelp help="The MetaTrader trading account reference linked to this account.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:801:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:812:                <LabelWithHelp help="The MatchTrader trading account reference linked to this account.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:814:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:860:                <LabelWithHelp help="Backdate status changes if needed. Audit trail will show actual vs finalised timestamp.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:862:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:877:                <LabelWithHelp help="Free-form reason recorded against the status. Visible to other admins.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:879:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:892:                <LabelWithHelp help="Toggle on when copy-trading patterns have been detected by the risk engine. Triggers a manual review.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:894:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:920:                <LabelWithHelp help="Reason captured when the risk team fails the account during manual review.">
+/home/z/my-project/src/modules/trading/pages/account-configuration-page.tsx:922:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:31:  LabelWithHelp,
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:303:            <LabelWithHelp help="Credentials issued by the broker platform. The investor password grants read-only trade viewing; the main password grants full trading access.">
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:305:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:311:                <LabelWithHelp help="The main trading password. Required to place orders, modify positions and close trades.">
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:313:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:320:                <LabelWithHelp help="Broker server hostname the trading terminal connects to. Different servers may serve different regions.">
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:322:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:329:                <LabelWithHelp help="Read-only password allowing investors or auditors to view trades without being able to modify them.">
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:331:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:343:            <LabelWithHelp help="Broker-side configuration applied to this account on the trading platform.">
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:345:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:366:                <LabelWithHelp help="Leverage applied to the account. Higher leverage amplifies both profits and losses, and is bounded by the challenge risk rules.">
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:368:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:382:                <LabelWithHelp help="Account group assigned by the broker. Groups determine swap rates, spreads and symbol visibility.">
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:384:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:413:            <LabelWithHelp help="Bridge state tracks whether the internal platform record matches the broker-side trading account. A disconnected bridge means live equity and positions may be stale.">
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:415:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:420:                <LabelWithHelp help="Indicates whether the platform trading account has been successfully matched to the broker-side login.">
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:422:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:438:                <LabelWithHelp help="Connection state of the bridge that relays trade and account updates between the broker and this platform.">
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:440:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:461:                <LabelWithHelp help="Timestamp of the most recent successful sync between the broker and the platform.">
+/home/z/my-project/src/modules/trading/pages/account-broker-details-page.tsx:463:                </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/closed-position-detail-page.tsx:67:import { LabelWithHelp } from "@/components/platform/contextual-help";
+/home/z/my-project/src/modules/trading/pages/closed-position-detail-page.tsx:537:            <LabelWithHelp
+/home/z/my-project/src/modules/trading/pages/closed-position-detail-page.tsx:542:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/closed-position-detail-page.tsx:564:            <LabelWithHelp
+/home/z/my-project/src/modules/trading/pages/closed-position-detail-page.tsx:569:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/closed-position-detail-page.tsx:587:            <LabelWithHelp
+/home/z/my-project/src/modules/trading/pages/closed-position-detail-page.tsx:592:            </LabelWithHelp>
+/home/z/my-project/src/modules/trading/pages/closed-position-detail-page.tsx:761:              <LabelWithHelp
+
+[Showing results with pagination = limit: 250]

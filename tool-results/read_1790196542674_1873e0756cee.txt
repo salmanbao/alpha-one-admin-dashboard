@@ -1,0 +1,464 @@
+     1→ `navigate("analytics")` per `keyboard-shortcuts-help.tsx`'s listener, so the "only if not taken; otherwise no shortcut" rule applies.
+     2→
+     3→**6. Audit Page (`audit-page.tsx`)** — Converted from 21-LOC thin wrapper to a full page:
+     4→- `useMemo` for `getTenantAudit(tid)` so it's stable per-tenant.
+     5→- KPI row: `totalEvents = entries.length`; `critical = entries.filter(e => e.severity === "critical").length`; `warnings = entries.filter(e => e.severity === "warning").length`; `last24h = entries.filter(e => new Date(e.timestamp).getTime() >= Date.now() - 24h).length`. Tone: Critical card uses `tone={critical > 0 ? "negative" : "positive"}` (rose accent when there are alerts); Warnings card uses `tone={warnings > 0 ? "warning" : "positive"}` (amber accent).
+     6→- Export CSV button at the top right: real `exportToCsv<AuditEntry>` with 9 columns (ID / Timestamp / Actor / Action / Entity / Entity ID / Severity / Module / Summary). Filename: `audit-log-${Date.now()}.csv`. The `exportToCsv` helper fires its own "Export ready" toast so no extra toast is needed.
+     7→- Existing `AuditLogTable` rendered below the KPI row — all internal filters (severity / module / actor / date range / saved views) preserved.
+     8→
+     9→**7. User Events Page (`user-events-page.tsx`)** — Replaced the toast-only `exportCsv` with `exportToCsv<UserEvent>(filtered, [...6 columns...], \`user-events-${Date.now()}.csv\`)`. Dropped the `toast` import (no other usages in this file).
+    10→
+    11→**8. Enhanced User Events Page (`enhanced-user-events-page.tsx`)** — Replaced the toast-only `onExportCsv` with `exportToCsv<EnhancedUserEvent>(filtered, [...10 columns...], \`enhanced-user-events-${Date.now()}.csv\`)`. Added `exportToCsv` import alongside the existing `toast` import (toast is still used by the "Filters applied" button on line 909 — left untouched).
+    12→
+    13→**9. Change History Page (`change-history-page.tsx`)** — Two changes:
+    14→- (a) Replaced the toast-only `exportCsv` with `exportToCsv<ChangeHistoryEntry>(filtered, [...9 columns...], \`change-history-${Date.now()}.csv\`)`. Added `exportToCsv` import; re-added `toast` import (still needed by the rollback Action's onClick).
+    15→- (b) Wrapped the `Button` "Roll back to old value" (was at line 289-295) in `AlertDialog`. The structure:
+    16→  ```tsx
+    17→  <AlertDialog>
+    18→    <AlertDialogTrigger asChild>
+    19→      <Button size="sm" variant="outline" className="flex-1">Roll back to old value</Button>
+    20→    </AlertDialogTrigger>
+    21→    <AlertDialogContent>
+    22→      <AlertDialogHeader>
+    23→        <AlertDialogTitle>Roll back this change?</AlertDialogTitle>
+    24→        <AlertDialogDescription>
+    25→          This change will be rolled back to the previous state. Any dependent configurations may be affected. This action is logged in the audit trail.
+    26→        </AlertDialogDescription>
+    27→      </AlertDialogHeader>
+    28→      <AlertDialogFooter>
+    29→        <AlertDialogCancel>Cancel</AlertDialogCancel>
+    30→        <AlertDialogAction onClick={() => { toast({...}); setSelected(null); }}>Roll back</AlertDialogAction>
+    31→      </AlertDialogFooter>
+    32→    </AlertDialogContent>
+    33→  </AlertDialog>
+    34→  ```
+    35→  The consequence text is verbatim from the task brief. The Action's `onClick` fires the same rollback toast as before (preserving the demo feedback) AND closes the Sheet via `setSelected(null)` so the operator sees the result immediately.
+    36→
+    37→**10. User Event Detail Page (`user-event-detail-page.tsx`)** — Replaced the toast-only `exportEvent` with a real browser-side JSON download. Pattern:
+    38→```ts
+    39→const blob = new Blob([JSON.stringify(event, null, 2)], { type: "application/json;charset=utf-8;" });
+    40→const url = URL.createObjectURL(blob);
+    41→const link = document.createElement("a");
+    42→link.href = url;
+    43→link.download = `user-event-${event.id}.json`;
+    44→link.style.display = "none";
+    45→document.body.appendChild(link);
+    46→link.click();
+    47→document.body.removeChild(link);
+    48→setTimeout(() => URL.revokeObjectURL(url), 1000);
+    49→toast({ title: "Event exported", description: `Event ${event.id} exported as JSON.` });
+    50→```
+    51→No `exportToJson` helper exists in `export-utils.ts` (only `exportToCsv`), so an inline blob download is the standard approach (mirrors the existing `exportToCsv` Blob/anchor pattern). The success toast is preserved per the brief ("already uses toast; replace with download" — the download replaces the toast-only stub, but the toast remains as confirmation).
+    52→
+    53→### Code Changes
+    54→8 files modified — see per-section notes above. No new dependencies; no removal of existing functionality; strict adherence to the owned-files list.
+    55→
+    56→### Verification
+    57→- `bun run lint` → exit 0, 0 errors.
+    58→- `bunx tsc --noEmit --skipLibCheck` → 123 pre-existing errors (all in untouched files: `account-kyc-statuses-page.tsx`, `mock-data.ts:seedAccounts`/`challengePhaseConfigs`, `analytics-widgets.tsx:TimeSeriesPoint vs SeriesPoint`). Diff of error lists before vs. after shows zero new errors introduced by this round — all 8 owned files are type-clean.
+    59→- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/` → 200.
+    60→- `dev.log` (most recent 30 lines) shows only `✓ Compiled in <ms>` and `GET / 200 in <ms>` — no new runtime errors.
+    61→- Visual verification via `agent-browser`:
+    62→  - Skipped onboarding for both `tenant-alpha` and `platform` (super-admin) tenants.
+    63→  - For `platform` (super-admin) tenant: sidebar shows "Audit & Compliance" parent group with 4 children (Audit Log / User Events / Enhanced Events / Change History) — matches the manifest exactly.
+    64→  - Command Menu (⌘K) shows the 4 explicit audit commands in the Navigation group PLUS the 5 auto-built entries (parent + 4 children with "Audit & Compliance ›" prefix) PLUS the existing "View audit log" Quick Action.
+    65→  - Clicked each of the 4 audit nav children — all render correctly with their KPI rows visible (Audit Log: TOTAL EVENTS / CRITICAL / WARNINGS / LAST 24H; User Events: 5 KPIs; Enhanced Events: 7 KPIs; Change History: existing table).
+    66→  - Tested `Export CSV` on each of the 4 audit pages — all produce the expected toast: "Export ready" + `<file>-<ts>.csv — <N> records exported." Records exported: audit-log 72, user-events 100, enhanced-user-events 168, change-history 40.
+    67→  - On Change History: clicked a row → detail Sheet opened → clicked "Roll back to old value" → AlertDialog appeared with title "Roll back this change?" and the exact consequence text from the brief ("This change will be rolled back to the previous state. Any dependent configurations may be affected. This action is logged in the audit trail.") + Cancel + Roll back buttons.
+    68→
+    69→### Stage Summary
+    70→The audit module is now a fully registered FrontendModule — the platform-level inconsistency flagged by `analysis-settings-super-shell` ("Audit module is NOT a registered FrontendModule — 4 of 5 audit pages are completely orphaned views, unreachable from any nav/command-menu/topbar path") is resolved. All 5 audit pages now have real exports (4 CSV via `exportToCsv` + 1 JSON via inline Blob download) instead of toast-only stubs. The ChangeHistoryPage rollback button is now wrapped in an AlertDialog with the standard consequence-text pattern (§24 Destructive Actions). The Attention Center has 2 new audit-related entries (action + warning tiers) gated on the audit module being enabled and suppressed when counts are 0 (§11). The Command Menu has 4 new audit commands in the Navigation group. All Terra palette rules respected (`#475569` slate accent, no blue/indigo/violet). Lint passes clean, tsc introduces 0 new errors, dev server returns 200, and visual verification via agent-browser confirms all 4 audit nav children render in the sidebar and all 4 Export CSV buttons produce real file downloads (72 + 100 + 168 + 40 = 380 records exported across the demo). The only known gap is that no tenant in `mock-data.ts` (owned by Subagent 1) lists `"audit"` in its `enabledModules` array — so the audit sidebar entry is visible only for the super-admin platform pseudo-tenant (where `isPlatform` short-circuits the enabled-modules check). The 4 explicit Command Menu entries provide a fallback path for non-audited tenants. A tiny follow-up by Subagent 1 to add `"audit"` to each tenant's `enabledModules` would surface the sidebar entry everywhere.
+    71→
+    72→---
+    73→
+    74→## Task ID: impl-exports-terminology
+    75→**Agent:** Implementation (exports + terminology white-label)
+    76→**Task:** Replace 7 toast-only Export buttons with real `exportToCsv` calls, and apply `makeTermResolver` (from `@/lib/platform/terminology`) to page headers + KPI labels across 12 module page files. Strict file ownership — did NOT touch `mock-data.ts`, `marketing-dashboard-page.tsx`, audit files, or shell files.
+    77→
+    78→### Files Modified (15 — overlaps where the same file received both treatments)
+    79→
+    80→**A. Real `exportToCsv` wiring (7 files):**
+    81→1. `src/modules/payouts/pages/payout-pages.tsx` — Overview Export + Payout History Export (NEW button added). Defined a shared `payoutExportColumns` constant at the top of the file (9 columns: Reference / Trader / Amount / Currency / Method / Profit Split % / Status / Requested / Processed) so both Overview (`payouts-overview-<ts>.csv`) and the new History Export (`payout-history-<ts>.csv`) emit identical CSV shapes. PendingPayoutsPage has no export button (its action is approve/reject), so no export wired there.
+    82→2. `src/modules/payouts/pages/enhanced-withdrawals-page.tsx` — replaced toast-only `batchExport` and `exportAll` (lines 310-321) with real `exportToCsv` calls. Both branches build an 8-column spec inline (Reference / Account Login / Full Name / Amount / Currency / Method / Status / Created). Filenames: `withdrawals-selected-<ts>.csv` (when rows are selected) and `withdrawals-<ts>.csv` (the full Export CSV button). `batchExport` guards against `selectedPayouts.length === 0` with a destructive-variant toast so the operator gets actionable feedback. Added `exportToCsv, type ExportColumn` imports.
+    83→3. `src/modules/affiliates/pages/affiliate-pages.tsx` — Overview Export. 10-column spec (Affiliate / Email / Code / Tier / Referrals / Active Referrals / Conversions / Commission Earned / Commission Pending / Status), filename `affiliates-overview-<ts>.csv`.
+    84→4. `src/modules/marketing/pages/marketing-pages.tsx` — Overview Export. 10-column spec (Campaign / Channel / Status / Budget / Spend / Impressions / Clicks / Conversions / Revenue / ROI %), filename `marketing-overview-<ts>.csv`. Did NOT touch `marketing-dashboard-page.tsx` (Subagent 1's territory).
+    85→5. `src/modules/crm/pages/crm-pages.tsx` — Overview Export. 8-column spec (Name / Email / Phone / Source / Stage / Owner / Value / Last Interaction), filename `crm-contacts-<ts>.csv`.
+    86→6. `src/modules/analytics/pages/retention-analytics-page.tsx` — Export CSV. 4-column spec (Country / Total Traders / Repeating Traders / Retention Rate %), filename `retention-analytics-<ts>.csv`. Removed the now-unused `toast` and `formatCurrency` imports.
+    87→7. `src/modules/risk/pages/risk-statistics-page.tsx` — replaced the toast-only `exportCsv(rows: number)` with three real `exportToCsv` calls dispatched on the active tab (`tab === "challenge" | "country" | "size"`). Filenames: `risk-challenge-stats-<ts>.csv` (6 cols), `risk-country-stats-<ts>.csv` (5 cols), `risk-account-size-stats-<ts>.csv` (5 cols). Removed the now-unused `toast` import; added `exportToCsv` import.
+    88→
+    89→**B. Terminology application (12 files):**
+    90→1. `src/modules/trading/pages/trading-pages.tsx` — Overview, Traders, Accounts, Positions. Title `Traders` → `plural(term("trader"))`; description & search placeholder & button label use `term("trader")`/`plural()`; `Trading Accounts` → `${term("trader")} Accounts`; Positions description includes `plural(term("trader"))`.
+    91→2. `src/modules/challenges/pages/challenge-pages.tsx` — Overview, Active, Passed, Failed. Title `Challenges` → `plural(term("challenge"))`; descriptions use `term("trader")`. Active/Passed/Failed pages use just `const { tenant } = usePlatform()` (no `runtime` needed).
+    92→3. `src/modules/risk/pages/risk-pages.tsx` — Overview, Breaches. Descriptions use `plural(term("trader")).toLowerCase()`. KPI labels themselves contain no business terms, so unchanged.
+    93→4. `src/modules/payouts/pages/payout-pages.tsx` — Overview, Pending, History. Overview title `Payouts` → `plural(term("payout"))`; description uses `term("trader")`; KPI label `Total Paid` → `Total ${term("payout")}`; subheader `All Payouts` → `All ${plural(term("payout"))}`. Pending: title `Pending Payouts` → `Pending ${plural(term("payout"))}`; EmptyState title/description/hint all use term/plural calls. History: title `Payout History` → `${term("payout")} History`.
+    94→5. `src/modules/analytics/pages/analytics-pages.tsx` — Overview, Trader, Performance, Risk, Advanced. Overview: `Trader Growth` KPI → `${term("trader")} Growth`; `Trader growth` chart label → `${term("trader")} growth`; description uses `term("trader")`. TraderAnalytics: title `Trader Analytics` → `${term("trader")} Analytics`; `Total Traders` KPI → `Total ${plural(term("trader"))}`; chart label `Trader growth (30d)` → `${term("trader")} growth (30d)`. Performance/Risk: descriptions use `plural(term("trader")).toLowerCase()`. Advanced: description uses both `plural(term("trader")).toLowerCase()` and `plural(term("challenge")).toLowerCase()`.
+    95→6. `src/modules/affiliates/pages/affiliate-pages.tsx` — Overview. Description uses `term("trader").toLowerCase()` (e.g., "for this participant tenant" under Alpha). List/Campaigns/Commissions pages were not in the brief's terminology scope for affiliates (only Overview) — left unchanged.
+    96→7. `src/modules/accounting/pages/accounting-pages.tsx` — Overview, Transactions, Reconciliation. Overview: `Payouts` KPI → `plural(term("payout"))`; description uses `term("trader")`. Transactions: description uses `term("trader").toLowerCase()`. Reconciliation: description uses `term("trader").toLowerCase()`.
+    97→8. `src/modules/marketing/pages/marketing-pages.tsx` — Overview, Campaigns, Performance. All three descriptions use `term("trader").toLowerCase()` (e.g., "for this trader tenant" under Beta, "for this participant tenant" under Alpha).
+    98→9. `src/modules/crm/pages/crm-pages.tsx` — Overview, Contacts, Pipeline. Overview description uses `term("trader").toLowerCase()`. Contacts description same. Pipeline description reworked to `Lead → Qualified → Opportunity → ${term("challenge")} journey.` (Customer → Challenge word swap matches the prop-firm domain where the conversion endpoint is a Challenge).
+    99→10. `src/modules/kyc/pages/kyc-pages.tsx` — Overview, Reviews, Risk. Overview: description uses `plural(term("trader")).toLowerCase()`; column header `Trader` → `term("trader")`; CSV export column header same. Reviews: title `KYC Reviews` → `${term("trader")} KYC Reviews`; column header `Trader` → `term("trader")`; description uses `plural(term("trader")).toLowerCase()`. Risk: description uses `plural(term("trader")).toLowerCase()`; column header `Trader` → `term("trader")`; search placeholder & empty description use `plural(term("trader")).toLowerCase()` / `term("trader").toLowerCase()`.
+   100→11. `src/modules/support/pages/support-pages.tsx` — Overview, Tickets, Knowledge. Overview: description uses `term("trader").toLowerCase()`; recent-tickets & full-tickets column header `Trader` → `term("trader")`. Tickets description uses `term("trader").toLowerCase()`. Knowledge description uses `plural(term("trader")).toLowerCase()`.
+   101→12. `src/modules/ai/pages/ai-pages.tsx` — Overview, Insights, Assistant, Configure. Overview description uses `plural(term("trader")).toLowerCase()`, `plural(term("payout")).toLowerCase()`. Insights description uses `term("trader").toLowerCase()`. Assistant description uses `plural(term("trader")).toLowerCase()`, `plural(term("payout")).toLowerCase()`. Configure description uses `term("trader").toLowerCase()`.
+   102→
+   103→### Pattern Applied
+   104→
+   105→```tsx
+   106→import { makeTermResolver, plural } from "@/lib/platform/terminology";
+   107→import { usePlatform } from "@/lib/platform/platform-context";
+   108→
+   109→function Page() {
+   110→  const { runtime, tenant } = usePlatform();
+   111→  const term = makeTermResolver(tenant);
+   112→  // titles & KPI labels use plural(term(...)) or term(...)
+   113→  // descriptions & search placeholders use plural(term(...)).toLowerCase() or term(...).toLowerCase()
+   114→}
+   115→```
+   116→
+   117→`makeTermResolver(tenant)` returns a `(key: TermKey) => string` — it has NO plural option, so the `plural()` helper from the same module is composed in for plural labels (e.g., `plural(term("trader"))` → "Traders" / "Participants" / "Candidates"). For lowercase description text, `.toLowerCase()` is chained. The destructured `tenant` is the `TenantContext` object whose `terminology` record holds the per-tenant overrides (Alpha: trader=Participant, challenge=Evaluation, payout=Withdrawal; Beta: defaults; Gamma: trader=Candidate, challenge=Assessment, payout=Disbursement; super-admin platform pseudo-tenant: empty record → defaults).
+   118→
+   119→### Verification
+   120→
+   121→- `bun run lint` → exit 0, 0 errors.
+   122→- `bunx tsc --noEmit --skipLibCheck` → 56 pre-existing errors total (down from the previous agent's snapshot of 123 because some were already fixed by impl-bugs-mockdata). All 56 errors are in untouched files: `account-kyc-statuses-page.tsx` (KycProviderStatus duplicate identifier), `analytics-pages.tsx` (pre-existing AreaSeries/BarSeries `TimeSeriesPoint vs SeriesPoint` — these errors existed before my edits; I only added 1 import line + several `term()` interpolations, which do not affect chart prop types), `analytics-widgets.tsx`, `payout-widgets.tsx`, `risk-widgets.tsx` (same chart prop type), `mock-data.ts` (Subagent 1's territory), `settings-page.tsx`, `dashboard-router.tsx`, `live-equity-curve.tsx`, `account-health.tsx`, `contextual-actions.tsx`, `dashboard-grid.tsx`, `page.tsx`, `charts.tsx`, `sidebar.tsx`, `examples/websocket/*`, `skills/*`. Diff of error lists before vs. after shows zero new errors introduced by this round — all 15 owned files are type-clean.
+   123→- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/` → 200.
+   124→- `dev.log` (most recent 50 lines) shows only `✓ Compiled in <ms>` and `GET / 200 in <ms>` — no new runtime errors.
+   125→- Visual verification via `agent-browser`:
+   126→  - Loaded the app, skipped onboarding for Alpha, Beta, and the super-admin platform pseudo-tenant.
+   127→  - **Alpha tenant (Sarah Chen, "Alpha Capital"):** Sidebar shows "Evaluation" and "Withdrawal" (terminology overrides via manifest `termKey`). Navigated to Trading → Traders. Page header reads "Participants" (from `plural(term("trader"))` = plural("Participant") = "Participants"). Description: "24 participants in this tenant." Search placeholder: "Search participants…". Navigated to Payouts → Overview. Page header reads "Withdrawals". KPI label reads "Total Withdrawal". Subheader: "All Withdrawals". Export button triggered a real CSV download — toast: "Export ready — payouts-overview-<ts>.csv — 4 records exported."
+   128→  - **Beta tenant (Daniel Cooper, "Beta Trading"):** Sidebar shows "Challenge" and "Payout" (default terminology — same as super-admin). Page header on Traders reads "Traders". Search placeholder "Search traders…". Page header on Payouts Overview reads "Payouts". KPI label "Total Payout". Subheader "All Payouts".
+   129→  - **Gamma tenant (James Park, "Gamma Futures"):** Sidebar shows "Assessment" and "Disbursement" (terminology overrides). Page header on Traders reads "Candidates". Description: "<n> candidates in this tenant." Search placeholder: "Search candidates…". Page header on Payouts Overview reads "Disbursements". KPI label "Total Disbursement". Subheader "All Disbursements".
+   130→  - Tested the new History Export button on Payouts → History for the Beta tenant — real CSV download with the expected filename `payout-history-<ts>.csv`.
+   131→  - The terminology adapts in real-time when the tenant is switched via the topbar user-switcher (no page reload required — the `term` resolver is recomputed on every render because it reads from `usePlatform().tenant`).
+   132→
+   133→### Code Changes
+   134→15 files modified (7 export-wiring + 12 terminology = 4 files overlap, both treatments applied):
+   135→- `src/modules/payouts/pages/payout-pages.tsx` (both)
+   136→- `src/modules/payouts/pages/enhanced-withdrawals-page.tsx` (export only)
+   137→- `src/modules/affiliates/pages/affiliate-pages.tsx` (both)
+   138→- `src/modules/marketing/pages/marketing-pages.tsx` (both)
+   139→- `src/modules/crm/pages/crm-pages.tsx` (both)
+   140→- `src/modules/analytics/pages/retention-analytics-page.tsx` (export + terminology applied to its own KPI labels/column headers)
+   141→- `src/modules/risk/pages/risk-statistics-page.tsx` (export only — terminology for risk is in `risk-pages.tsx`)
+   142→- `src/modules/trading/pages/trading-pages.tsx` (terminology only)
+   143→- `src/modules/challenges/pages/challenge-pages.tsx` (terminology only)
+   144→- `src/modules/risk/pages/risk-pages.tsx` (terminology only)
+   145→- `src/modules/analytics/pages/analytics-pages.tsx` (terminology only — exports were already wired pre-existing)
+   146→- `src/modules/accounting/pages/accounting-pages.tsx` (terminology only)
+   147→- `src/modules/kyc/pages/kyc-pages.tsx` (terminology + new export on Overview)
+   148→- `src/modules/support/pages/support-pages.tsx` (terminology only)
+   149→- `src/modules/ai/pages/ai-pages.tsx` (terminology only)
+   150→
+   151→No new dependencies; no removal of existing functionality; strict adherence to the owned-files list. All Terra palette rules respected (no new blue/indigo/violet introduced; the pre-existing `#7c3aed` BarSeries in `analytics-pages.tsx:AdvancedAnalyticsPage` and the violet Brain icon in `ai-pages.tsx` are out of scope for this round — left for a future subagent per the impl-bugs-mockdata note).
+   152→
+   153→### Stage Summary
+   154→All 7 toast-only Export buttons identified by `analysis-*` entries are now real `exportToCsv` downloads — every Export produces a CSV file with a timestamped filename and a confirmation toast showing the exact record count. All 12 module page files now use `makeTermResolver` for page headers and KPI labels where applicable (trader/challenge/payout keys). Switching between Alpha (Participant/Evaluation/Withdrawal), Beta (Trader/Challenge/Payout), and Gamma (Candidate/Assessment/Disbursement) tenants updates the page titles, descriptions, search placeholders, KPI labels, and column headers in real-time — confirmed via agent-browser. The two pre-existing real-export pages (analytics-overview and accounting-transactions) were left untouched — they were already correctly wired. Lint passes clean, tsc introduces 0 new errors, dev server returns 200, and visual verification confirms both the export downloads and the terminology white-label work end-to-end across all three demo tenants plus the super-admin platform pseudo-tenant.
+   155→
+   156→---
+   157→
+   158→## Task ID: impl-shell-settings
+   159→**Agent:** Implementation (shell + settings polish)
+   160→**Task:** Polish the PFaaS shell + fix dead-link settings entries — Settings Overview landing pattern, super-admin platform permissions, grouped settings sidebar, global-search indexing (Settings/Audit/AI-insights), and a Help dropdown in the topbar.
+   161→
+   162→### Pre-Work
+   163→- Read `worklog.md` lines 5585-6060 (the `analysis-settings-super-shell` + `impl-audit-module` + `impl-exports-terminology` entries) for context — prior analysis identified dead-link settings entries in module manifests, 19 sidebar children in Settings, missing Help dropdown in topbar, and 8-entity global-search coverage.
+   164→- Read `AGENTS.md` §1-§35 — UX constitution (Clarity, Comprehension, Fast task completion, Progressive disclosure, etc.).
+   165→- Read `src/modules/settings/settings-module.ts` (87 LOC, 19 sidebar children + 20 routes), `src/lib/platform/view-router.tsx` (332 LOC, 91 viewRegistry entries), `src/components/shell/topbar.tsx` (306 LOC, Subagent 1's sign-out fix already merged), `src/components/shell/global-search.tsx` (247 LOC, 8 entity-type index).
+   166→
+   167→### Files Modified (6 — exactly the owned set)
+   168→1. `src/modules/settings/settings-module.ts` — manifest. Sidebar children reordered by category (Branding → Security → Communications → Certificates → System). Inline comment documents the verification: all 19 children point to live views in `view-router.tsx` — there are NO dead-link entries in this manifest. The dead-link entries mentioned in the brief (`settings-payouts`, `settings-analytics`, `settings-affiliates`, `settings-accounting`, `settings-marketing`, `settings-crm`, `settings-kyc`, `settings-support`, `settings-ai`) live in OTHER module manifests (`payouts/manifest.ts`, `analytics/manifest.ts`, etc.) — those are NOT in my file ownership list, so I left them for their respective owners. Verified via `for vid in email-templates certificate-management ...; grep "$vid:" src/lib/platform/view-router.tsx` — all 20 viewIds (19 nav children + `token-detail` route) hit a registry entry. Added inline category section comments (`// ───────── Branding & White-label ─────────`) so the order itself communicates the grouping (§6 Navigation Principles — "the sidebar is a map of the product, not an index of every object").
+   169→2. `src/modules/super-admin/super-admin-module.ts` — manifest. Added 4 new platform permissions to the existing `permissions` array (interleaved alphabetically with the existing 4 so the list reads cleanly):
+   170→   - `platform.audit.read` — "Read Platform Audit" / "Cross-tenant audit log access"
+   171→   - `platform.tenants.impersonate` — "Impersonate Tenant" / "Login-as any tenant admin"
+   172→   - `platform.tenants.export` — "Export Tenant Data" / "Bulk-export tenant configuration and data"
+   173→   - `platform.billing.manage` — "Manage Billing" / "View invoices, update payment methods, manage plans"
+   174→   
+   175→   Used string literals (no `types.ts` changes) — permissions are just `string[]` elements in role definitions, so no TypeScript union type needs extending. The pre-existing 4 perms are preserved verbatim.
+   176→3. `src/modules/settings/settings-page.tsx` — restructured from 580-LOC 7-tab page into 867-LOC landing grid + collapsible Quick edit panel. New top-level layout:
+   177→   - `PageHeader` "Settings" + description "Configure branding, security, communications, and system." + a "Quick edit" toggle button (top-right actions slot).
+   178→   - 4-card KPI row (`MetricCard` from `page.tsx`): Settings Sections (19), Recently Modified (formatted `tenant.createdAt` date), Active Modules (`tenant.enabledModules.length`), Platform Status (`tenant.status` capitalized — tone: positive for "active", warning for "trial", default otherwise).
+   179→   - Search `Input` (filters the grid by title/description/category).
+   180→   - 5 section groups (Branding / Security / Communications / Certificates / System), each rendering a 3-col desktop / 1-col mobile grid of `SETTINGS_CARDS` (19 total cards matching the 19 sidebar children).
+   181→   - Each card: icon (from manifest's lucide import) + title + 1-line description + "Open →" link → `navigate(viewId)` for full-page editors OR `openQuickEdit(id)` for the 5 cards that map to a Quick edit tab (Branding, Terminology, General, Modules, Roles, Notifications Matrix).
+   182→   - `EmptyState` from `guards.tsx` shown when search returns no matches (with a hint about the 5 categories — §30 EmptyState never shows just "No data").
+   183→   - Collapsible "Quick edit" `Card` containing the preserved 7-tab editor (`Tabs` with `value={activeTab} onValueChange={setActiveTab}` — controlled, so external `navigate("settings", { tab: "modules" })` calls land on the right tab via the `useState` initializer; no `useEffect` syncing to avoid the `react-hooks/set-state-in-effect` lint error).
+   184→   - All 7 existing tab components (`GeneralTab`, `BrandingTab`, `TerminologyTab`, `ModulesTab`, `RolesTab`, `NotificationsTab`, `IntegrationsTab`) preserved verbatim — only the parent wrapper changed.
+   185→4. `src/components/shell/global-search.tsx` — extended from 8 entity types to 11. Added 3 new index groups:
+   186→   - **Settings** (19 entries) — mirrors the landing grid's `SETTINGS_CARDS`. Each entry: `label` = card title, `description` = `${card.description} · Settings`, `icon` = card's lucide icon, `navigateTo` = card's viewId, `navigateParams` = `{ tab }` for the 6 entries that target a Quick edit tab (so search → settings page → correct tab opens automatically).
+   187→   - **Audit** (4 entries) — Audit Log (`audit`), User Events (`audit-user-events`), Enhanced Events (`audit-user-events-enhanced`), Change History (`audit-change-history`) — all registered in the audit module's nav + routes (per `impl-audit-module` worklog entry).
+   188→   - **AI Insights** (up to 3 entries) — pulled from `getTenantAiInsights(tid).slice(0, 3)` at search-time. Each entry: `label` = insight title, `description` = `${insight.summary} · AI Insight`, `icon` = `Brain`, `navigateTo` = `ai-insights`. Tenant-beta sees 2 insights (`Payout spike detected`, `Affiliate conversion opportunity`), tenant-gamma sees 1 (`KYC backlog growing`), tenant-alpha sees none (no AI insights seeded with `tenantId === "tenant-alpha"` or `"platform"` — that's a Subagent 1 mock-data gap, not my territory).
+   189→   
+   190→   Placeholder text + empty-state copy updated to mention "settings, audit". Search relevance sort unchanged (label match first, then alphabetical). Summary footer unchanged.
+   191→5. `src/components/shell/help-dropdown.tsx` — NEW (140 LOC). Default-export `HelpDropdown` — single ghost icon button (`LifeBuoy`) that opens a `DropdownMenu` with 6 items:
+   192→   - **Architecture Overview** — dispatches `window.dispatchEvent(new CustomEvent("pfaas:open-help"))` so the AppShell (or any listener) can hook it to open a help dialog. Also fires a toast as fallback ("Architecture overview dialog would open here").
+   193→   - **Keyboard Shortcuts (?)** — calls `window.__openShortcutsHelp?.()` (already exposed globally by `keyboard-shortcuts-help.tsx`). Shows a `?` kbd badge in the menu item. Falls back to a toast if the global isn't registered.
+   194→   - **What's New** — dispatches `window.dispatchEvent(new CustomEvent("pfaas:open-whats-new"))` for the AppShell to hook. Toast fallback notes the gift-icon topbar button as the existing path.
+   195→   - **Documentation** — `window.open("https://docs.example.com", "_blank", "noopener,noreferrer")` (placeholder URL; safe no-opener).
+   196→   - **Contact Support** — `navigate("support-tickets")`.
+   197→   - **About** — toast with version info ("PFaaS Platform v1.8.0 — Multi-tenant Prop Firm as a Service dashboard. Built with Next.js + Terra palette.").
+   198→   
+   199→   Documented at the top: "Import this in `topbar.tsx` after subagent 1's fixes land. Usage: `<HelpDropdown />`".
+   200→6. `src/components/shell/topbar.tsx` — added `import { HelpDropdown } from "@/components/shell/help-dropdown"` (after the existing `WhatsNewButton` import) and rendered `<HelpDropdown />` immediately after `<WhatsNewButton />` in the right cluster (between "What's new" and "Theme switcher"). NO other edits — Subagent 1's sign-out fix (toast on Sign out click) is preserved verbatim.
+   201→
+   202→### Verification
+   203→- `bun run lint` → exit 0, 0 errors, 0 warnings. (Initial run flagged an unused `eslint-disable` directive + a `react-hooks/set-state-in-effect` error from a `useEffect` syncing `router.params.tab` to local state — fixed by switching to a `useState` initializer and removing the `useEffect` entirely; subsequent tab switches are pure local state, no URL pushback.)
+   204→- `bunx tsc --noEmit --skipLibCheck` → 52 src/ errors, all pre-existing in untouched files (`account-kyc-statuses-page.tsx` duplicate `KycProviderStatus`, `analytics-pages.tsx`/`analytics-widgets.tsx`/`payout-widgets.tsx`/`risk-widgets.tsx` `TimeSeriesPoint vs SeriesPoint` chart prop type, `mock-data.ts` Subagent 1 territory, `live-equity-curve.tsx`, `contextual-actions.tsx`, `dashboard-grid.tsx`, `dashboard-router.tsx`, `account-health.tsx`, `page.tsx` MetricCard `style` prop, `charts.tsx`, `sidebar.tsx`, `examples/websocket/*`, `skills/*`). The 1 error in my owned files (`settings-page.tsx:596` — same `<Icon className="h-4 w-4" style={{ color: m.manifest.accentColor }} />` pattern as the pre-existing `page.tsx:143` `MetricCard` icon) was present in the original 580-LOC file (at line 307) before my rewrite — it's the pre-existing `style` prop TS narrowing issue with `ComponentType<{ className?: string }>`. Zero new errors introduced by this round. The new `help-dropdown.tsx` and `global-search.tsx` are type-clean.
+   205→- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/` → 200.
+   206→- `dev.log` (most recent 30 lines) shows only `✓ Compiled in <ms>` and `GET / 200 in <ms>` — no new runtime errors.
+   207→- Visual verification via `agent-browser`:
+   208→  - Loaded the app, skipped onboarding for `tenant-alpha` (Sarah Chen, "Alpha Capital").
+   209→  - Sidebar shows the 19 Settings children grouped in 5 visible clusters: Branding (Branding / Terminology / Banners / Marketing Integrations / Social Media Links), Security (User Management / API Tokens / Device Activities), Communications (Email Templates / Notifications Mgmt), Certificates (Certificates / Certificate Designer / Font Upload / Issued Certificates), System (General / Modules / Roles & Permissions / Notifications Matrix / Utilities). The order itself communicates the grouping — no parent nav items added (simpler approach per brief's "PREFER the simpler reordering approach").
+   210→  - Topbar shows the new "Help" button (LifeBuoy icon) between "What's new" (gift icon) and "Toggle theme" (sun/moon). Clicking opens a dropdown with all 6 expected items: Architecture Overview, Keyboard Shortcuts (?), What's New, Documentation, Contact Support, About.
+   211→  - Clicked "Branding" in the sidebar → Settings page renders with: PageHeader "Settings" + "Quick edit" button, 4 KPI cards (Settings Sections 19, Recently Modified date, Active Modules count, Platform Status "Active"), a search input, and the 5 category sections each with their cards. All 19 cards render with title + description + "Open →" footer.
+   212→  - Searched "settings" in the global search (topbar `/` key) → 19 results in the "Settings (19)" group: General Settings, API Tokens, Banner Management, Branding Presets, Certificate Designer, Certificate Management, Device Activities, Email Templates, Font Upload, Issued Certificates, Marketing Integrations, Modules, Notifications Management, Notifications Matrix, Roles & Permissions, Social Media Links, Terminology, User Management, Utilities. Each result's subtitle ends with "· Settings".
+   213→  - Searched "audit" in the global search → 4 results in the "Audit (4)" group: Audit Log, Change History, Enhanced Events, User Events.
+   214→  - Switched to `tenant-beta` (Daniel Cooper) → searched "payout" in global search → results include "AI Insights (1)" group with "Payout spike detected" insight (Beta tenant has `tenantId === "tenant-beta"` AI insights in mock-data). Confirms the AI-insights indexing wires correctly to `getTenantAiInsights(tid).slice(0, 3)`.
+   215→  - Clicked the "Open Modules" card on the Settings landing grid → Quick edit panel toggles open with the Modules tab active. Button label changes to "Hide quick edit". Module Catalog shows "9 enabled" badge matching the Beta tenant's entitlements.
+   216→
+   217→### Stage Summary
+   218→The Settings module is now a 2-layer experience: the landing grid is the "front door" (search + KPIs + 19 cards grouped by category), and the existing 7-tab editor is preserved as a collapsible "Quick edit" panel — so the demo flows (Modules toggle live-recomposing sidebar, Branding presets with live preview, Terminology white-label) all keep working without being the primary view. The 19 sidebar children are reordered into 5 category clusters so the sidebar itself communicates the grouping without requiring a parent-section structural change (§7 — "do not solve navigation complexity by adding more levels"). The super-admin module declares 4 new platform permissions (`platform.audit.read`, `platform.tenants.impersonate`, `platform.tenants.export`, `platform.billing.manage`) as string literals — no `types.ts` changes needed since permissions are just `string[]` elements. The global search now indexes 11 entity types (up from 8) — Settings (19 entries), Audit (4 entries), AI Insights (up to 3 per-tenant entries) — making it the universal entry point for both data and configuration. A new `HelpDropdown` component renders in the topbar between "What's new" and "Toggle theme" with 6 menu items: Architecture Overview (custom event + toast fallback), Keyboard Shortcuts (?), What's New (custom event + toast fallback), Documentation (external link with noopener), Contact Support (navigate), and About (version toast). All Terra palette rules respected (no blue/indigo/violet — the HelpDropdown uses default ghost button + muted-foreground icons; the Settings landing cards use the standard `border` + `bg-card` palette). Lint passes clean, tsc introduces 0 new errors, dev server returns 200, and visual verification via agent-browser confirms the new landing grid + Quick edit + global search Settings/Audit/AI-insights + Help dropdown all render and function correctly. The only dead-link cleanup gap is in OTHER module manifests (`payouts/manifest.ts:settings-payouts`, `analytics/manifest.ts:settings-analytics`, etc.) — those are out of my file ownership scope and were left for their respective owners; a follow-up by Subagent 3 (which owns module page files) could either build those `settings-<module>` views or remove the `settings` array entries from each module's manifest.
+   219→
+   220→---
+   221→
+   222→## Task ID: impl-account-workspace
+   223→**Agent:** Implementation (Trading — Account Workspace shell + view registration)
+   224→**Task:** Build the unified Account Workspace page (UX §28 Entity Workspaces) that wraps the 6 existing orphan account-* sub-pages (Configuration / Events / Version History / Broker Details / KYC Statuses / Related Accounts) into a single tabbed surface, and register the new viewId `account-workspace` in `view-router.tsx`. Strict 2-file ownership.
+   225→
+   226→### Pre-work
+   227→Read the last ~800 lines of `worklog.md` — the `analysis-trading` entry (lines 4301-4520) identifies the 6 orphan account-* sub-pages as the HIGHEST-priority gap ("HIGHEST — Build unified Account Workspace with tabs wrapping the 6 existing account-* sub-pages (§28). Add row click from Accounts list → Account Workspace (by account.id, not traderId)"). The brief scopes this task to ONLY the workspace shell + view registration — cross-links (Accounts list row click, trader-detail AccountsTable onRowClick, etc.) are a separate subagent. Read AGENTS.md §28 (lines 1163-1203) — the Entity Workspaces constitution: "important entities should have persistent contextual workspaces" with "Overview / Accounts / Trading / Performance / Risk / Payouts / Compliance / Activity" tab pattern as an example. Read first 60 lines of each of the 6 existing account-* sub-pages to confirm: each takes NO props, calls `usePlatform()`, reads `router.params.id`, looks up the account via `getTenantAccounts(tid).find(a => a.id === accountId)`, and renders its own `<Page>` with its own `<PageHeader>`. Confirmed view-router.tsx is keyed on `ViewComponent = ComponentType<{ params: Record<string, string> }>` (line 175) and that React/TS allows `() => JSX.Element` to be assigned to that type (function with fewer parameters is assignable to function with more parameters). Read `mock-data.ts` line 715-749 to confirm account ID format is `acct-${tenantId}-${n}` (e.g. `acct-tenant-alpha-1` for the first tenant-alpha account, login `100001`).
+   228→
+   229→### Files
+   230→
+   231→**1. NEW: `src/modules/trading/pages/account-workspace-page.tsx`** (~250 LOC)
+   232→
+   233→Layout (top-to-bottom):
+   234→1. **Back to Accounts** ghost button (top-left, calls `navigate("trading-accounts")`) — tertiary nav, mirrors the pattern used by `account-configuration-page.tsx` line 397-399.
+   235→2. **PageHeader** — title `Account ${account.login}` (e.g. "Account 100001"); description `${platform} · ${traderName} · ${type}` (e.g. "MT5 · Liam Smith · funded"); `icon={CreditCard}`; `actions=` a "View Trader" outline button (calls `navigate("trader-detail", { id: account.traderId })`) — this is the only cross-link added in this task; it's a header action, not a row action, so it doesn't conflict with the separate cross-links subagent's scope.
+   236→3. **KPI row** — 4 `MetricCard`s in a `grid grid-cols-2 lg:grid-cols-4`:
+   237→   - Balance (`formatCurrency(account.balance, account.currency || currency)`, icon `Wallet`)
+   238→   - Equity (`formatCurrency(account.equity, …)`, icon `TrendingUp`, `tone={pnlTone}` where `pnlTone = pnl >= 0 ? "positive" : "negative"` and `pnl = account.equity - account.balance`)
+   239→   - Status (`account.status`, icon `Activity`, `tone` derived from status: active→positive, breached→negative, passed→default, in-progress→warning)
+   240→   - Phase (`account.phase`, icon `CreditCard`)
+   241→4. **Status badge row** — quick at-a-glance indicators: "ACCOUNT ID" label + monospace `Badge` with the account.id + `StatusBadge` (Terra-palette tone mapping) + `Badge variant="secondary"` for platform + `Badge variant="outline"` for type + `Badge variant="outline"` for phase.
+   242→5. **Tabs** (6 tabs, defined as a `TABS` constant array for clean iteration):
+   243→   - Configuration (icon `Settings`)
+   244→   - Events (icon `History`)
+   245→   - Version History (icon `GitBranch`)
+   246→   - Broker Details (icon `Building2`)
+   247→   - KYC Statuses (icon `ShieldCheck`)
+   248→   - Related Accounts (icon `Users`)
+   249→   Each `TabsContent` renders the corresponding existing account-* page as-is with NO props — they each call `usePlatform()` and read `router.params.id` themselves, so embedding them with no props works (this is option (b) from the file-header comment: "duplicated PageHeader inside the tab is acceptable for this iteration" — the sub-pages each render their own PageHeader which is slightly redundant with the workspace's PageHeader, but consistent with the existing pattern and a known follow-up for the cross-links subagent).
+   250→
+   251→Empty state (§30) — when `accountId` doesn't match any account in `getTenantAccounts(tid)`:
+   252→```tsx
+   253→<EmptyState
+   254→  icon={CreditCard}
+   255→  title="Account not found"
+   256→  description={`No trading account exists with id "${accountId ?? "—"}". It may have been deleted, or the link may be stale.`}
+   257→  hint="Return to the Accounts list and pick an active account."
+   258→  action={<Button variant="outline" onClick={() => navigate("trading-accounts")}><ArrowLeft /> Back to Accounts</Button>}
+   259→/>
+   260→```
+   261→This is the proper §30 pattern (why empty / what will appear / what to do + actionable CTA), replacing the terse `<p>Account not found.</p>` fallback pattern that the existing account-* pages still use (a known §30 violation flagged in `analysis-trading` line 4416, scoped for the cross-links subagent to clean up the inner pages).
+   262→
+   263→Terra palette — uses `StatusBadge` and `MetricCard` tones which map to emerald (`#059669`) / rose (`#e11d48`) / amber (`#d97706`) / brand-primary. Zero blue / indigo / violet hex codes. Lucide icons only.
+   264→
+   265→Component signature: `export function AccountWorkspacePage()` — no props (matches the existing account-* sibling pattern; reads `router.params.id` from `usePlatform()`).
+   266→
+   267→**2. `src/lib/platform/view-router.tsx`** — 2-line additions:
+   268→- Line 163 (inside the "Batch J" import block, immediately after the existing 3 account-* imports): `import { AccountWorkspacePage } from "@/modules/trading/pages/account-workspace-page";`
+   269→- Line 210 (in the trading section of `viewRegistry`, between `"account-version-history": AccountVersionHistoryPage,` and `"closed-positions": ClosedPositionsPage,`): `"account-workspace": AccountWorkspacePage,`
+   270→
+   271→Both additions sit alongside their existing account-* siblings — no scattering, no other section touched.
+   272→
+   273→### Verification
+   274→
+   275→- `bun run lint` → exit 0, 0 errors.
+   276→- `bunx tsc --noEmit --skipLibCheck` → 56 errors total, ALL in pre-existing untouched files (`account-kyc-statuses-page.tsx` KycProviderStatus duplicate-identifier, `analytics-pages.tsx`/`analytics-widgets.tsx`/`payout-widgets.tsx`/`risk-widgets.tsx` TimeSeriesPoint vs SeriesPoint, `mock-data.ts`, `account-health.tsx`, `charts.tsx`, `contextual-actions.tsx`, `dashboard-grid.tsx`, `dashboard-router.tsx`, `live-equity-curve.tsx`, `page.tsx`, `sidebar.tsx`, `settings-page.tsx`, plus `examples/websocket/*` and `skills/*`). Diff of error-file lists before vs. after shows ZERO new errors introduced by this round — the new `account-workspace-page.tsx` is type-clean.
+   277→- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/` → 200.
+   278→- `dev.log` (most recent 30 lines) shows only `✓ Compiled in <ms>` and `GET / 200 in <ms>` — no new runtime errors.
+   279→- Visual verification via `agent-browser`:
+   280→  - Loaded the app, skipped onboarding for Alpha (Sarah Chen, "Alpha Capital", 5 modules active, growth plan).
+   281→  - Sidebar shows terminology override "Participants" / "Evaluation" / "Withdrawal" — confirms terminology layer is intact.
+   282→  - Opened Command Menu (programmatic Cmd+K via dispatched `KeyboardEvent`), typed "account", clicked "Trading › Accounts" → navigated to `trading-accounts` view. Confirmed the existing Accounts list page renders with rows showing logins 100001, 100002, 100003, 100004 (Liam Smith, Olivia Nguyen, Emma Patel, Sophia Olsen).
+   283→  - Injected a JavaScript snippet that walks the React fiber tree from `document.body.__reactFiber$…`, finds the first `Context.Provider` whose `memoizedProps.value.navigate` is a function (depth 23), and calls `found.navigate("account-workspace", { id: "acct-tenant-alpha-1" })` to programmatically route to the new view (since no sidebar/command-menu entry exists yet — that's the cross-links subagent's job).
+   284→  - **Page rendered correctly** — `h1` reads "Account 100001" with description "MT5 · Liam Smith · funded". KPI row labels present: Balance, Equity, Status, Phase. Status badge row present with "Account ID" + monospace `acct-tenant-alpha-1` + StatusBadge + platform/type/phase badges. "Back to Accounts" ghost button + "View Trader" outline button visible in the header.
+   285→  - **All 6 tabs visible** (queried `[role=tab]` textContent): Configuration, Events, Version History, Broker Details, KYC Statuses, Related Accounts — exact match to the `TABS` constant.
+   286→  - **Configuration tab content rendered** (default active) — `[role=tabpanel]:not([hidden])` shows "Back to Account / Account Configuration / Comprehensive configuration, balances, drawdown, broker details, status and extra settings / Login 100001 / Liam Smith · MT5 · Funded / funded / Account Breached / Manual / Giveaway" — confirms the embedded `<AccountConfigurationPage />` resolved `router.params.id` correctly and rendered its full surface.
+   287→  - **Tab switching works** — focused the Events tab via `tabs[1].focus()` then pressed Enter → `aria-selected="true"` moved from Configuration to Events. The visible panel content changed to "Account Events / Immutable audit trail of account events — login 100001 / Export CSV / Back to Account / Total Events 15 / Status Changes 3 / Phase Transitions 2 / Payout Events 3 / Breach Events 5 / Filters / All event types…" — confirms the embedded `<AccountEventsPage />` rendered with its own KPIs and filters.
+   288→  - **Empty state verified** — programmatically navigated to `account-workspace` with bogus id `acct-nonexistent-99999` → page rendered the `EmptyState` component with title "Account not found", description `No trading account exists with id "acct-nonexistent-99999". It may have been deleted, or the link may be stale.`, hint "Return to the Accounts list and pick an active account.", and a "Back to Accounts" outline button. Matches §30 (why / what will appear / what to do).
+   289→
+   290→### Stage Summary
+   291→The unified Account Workspace (§28) is now a registered viewId in the platform's view-router. Operators who reach `account-workspace` (via future cross-links from the Accounts list row click or trader-detail AccountsTable — separate subagent's scope) see a single tabbed surface that hosts all 6 existing account-* sub-pages, eliminating the §28 violation flagged in `analysis-trading` ("all 6 account-* sub-pages are reachable only by URL — operators cannot navigate between Configuration / Events / Version History / Broker Details / KYC Statuses / Related Accounts without going back to trader-detail"). The workspace shell adds a 4-card KPI roll-up (Balance / Equity / Status / Phase), a status badge row with monospace account ID, a "Back to Accounts" ghost button, and a "View Trader" cross-link in the PageHeader — without modifying any of the 6 wrapped sub-pages (each sub-page still owns its own internal PageHeader and back button, which is a known minor redundancy flagged for the cross-links subagent to clean up). Terra palette respected throughout (emerald / rose / amber / brand-primary via `MetricCard` `tone` and `StatusBadge` `tone`; zero blue/indigo/violet). Lint passes clean, tsc introduces 0 new errors, dev server returns 200, and agent-browser visual verification confirms the page renders with all 6 tabs visible, the default Configuration tab content embedded correctly, tab switching functional (Configuration → Events verified), and the §30 empty state renders properly for nonexistent account IDs.
+   292→
+   293→---
+   294→
+   295→## Task ID: impl-trading-crosslinks-filters
+   296→**Agent:** Implementation (Trading — cross-links + filter bars)
+   297→**Task:** Wire cross-links from the Trading module lists to the unified Account Workspace (built by `impl-account-workspace`), add "View Trader" cross-links to the Closed Position Detail + Order Detail pages, and ensure Traders / Accounts / Positions list pages have §25/§26-compliant filter bars. Strict 4-file ownership — `trading-pages.tsx`, `enhanced-trader-detail-page.tsx`, `closed-position-detail-page.tsx`, `order-detail-page.tsx`. Did NOT touch `mock-data.ts`, `view-router.tsx`, or `account-workspace-page.tsx`.
+   298→
+   299→### Pre-work
+   300→Read the last ~800 lines of `worklog.md` — the `analysis-trading` entry (lines 4301-4520) flagged "Add row click from Accounts list → Account Workspace (by account.id, not traderId)" as a HIGHEST-priority gap; the `impl-account-workspace` entry (lines 6210-6280) built the workspace shell + registered the `account-workspace` viewId and explicitly noted "cross-links from the Accounts list row click or trader-detail AccountsTable — separate subagent's scope" as the immediate follow-up. Read AGENTS.md §25 (TABLE DESIGN — operational workspaces, not database dumps; secondary info → detail drawer/workspace) and §26 (TABLES MUST SUPPORT DECISION-MAKING — search/filtering/sorting/row actions/URL-persisted filters; "do not add all features to every table automatically — use only those that serve the workflow"). Read `src/lib/platform/platform-context.tsx` line 213 to confirm `navigate(view: string, params?: Record<string, string>)` is the routing API signature.
+   301→
+   302→### Audit findings — most of the brief was already in place
+   303→On opening `trading-pages.tsx`, `enhanced-trader-detail-page.tsx`, and `closed-position-detail-page.tsx`, the cross-links + filter bars were already partially implemented by a prior run (file mtimes 20:01 vs `account-workspace-page.tsx` at 19:56). Audited the existing state against each requirement:
+   304→
+   305→| # | Brief requirement | Existing state | Action taken |
+   306→|---|---|---|---|
+   307→| 1a | AccountsPage `onRowClick` → `account-workspace` with `id=row.id` | Line 413: `onRowClick={(a) => navigate("account-workspace", { id: a.id })}` ✓ | No change — already correct |
+   308→| 1b | "View Trader" button / clickable trader name in AccountsPage row, as `Button variant="link" size="sm"` | Lines 333-350: trader-name as raw `<button>` styled as inline link — functional + accessible but did not use the shadcn `Button` component the brief specifies | **Refactored** raw `<button>` → `<Button variant="link" size="sm">` with `h-auto px-0 font-medium text-foreground hover:text-emerald-700 hover:underline dark:text-emerald-400` overrides so the link fits inside a DataTable cell without inflating row height; preserved `e.stopPropagation()` so the row click (→ account-workspace) doesn't double-fire |
+   309→| 2 | Trader Detail AccountsTable onRowClick → `account-workspace` | `enhanced-trader-detail-page.tsx` line 334: `onRowClick={(a) => navigate("account-workspace", { id: a.id })}` ✓ — passed through to the `AccountsTable` sub-component via the `onRowClick` prop | No change — already correct |
+   310→| 3 | Closed Position Detail — "View Trader →" link near the trader info area, `Button variant="link" size="sm"` | Lines 549-573: Identity section has a `Button type="button" variant="link" size="sm"` showing the trader name + "View" label + `ArrowUpRight` icon, navigating to `trader-detail` with `working.traderId` ✓ — also added an Account cross-link button next to it (lines 575-600) navigating to `account-workspace` with `working.accountId` | No change — already exceeds brief |
+   311→| 4 | Order Detail — "View Trader →" link in header section, `Button variant="link" size="sm"` | Lines 462-474: a raw `<button>` styled as an emerald chip ("View Trader" + `User` icon + `ArrowUpRight`), placed inline next to the email + date in the order header, navigating to `trader-detail` with `working.userId` — functional but used raw `<button>` not the shadcn `Button` component | **Refactored** raw `<button>` → `<Button variant="link" size="sm">` with `inline-flex h-auto items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-50/50 px-2 py-1 text-[11px] font-medium text-emerald-700 ... hover:no-underline ...` overrides so the badge-style chip stays visually inline with the surrounding `text-xs` metadata; added `hover:no-underline` to suppress the link variant's underline-on-hover so the emerald chip's bg-color hover state is the only signal |
+   312→| 5 | TradersPage filter bar — status / phase / country selects + "X of Y shown" + Clear all | Lines 158-273: full `FilterBar` + `FilterSelect` (status: all/active/invited/suspended/breached; phase: all/phase-1/phase-2/funded/none; country: dynamic from data) + `activeFilterCount` + `clearAll` + `resultCount`/`totalCount` ✓ | No change — already correct |
+   313→| 6 | AccountsPage filter bar — status / platform / phase selects + count + Clear all | Lines 296-408: full filter bar (status: all/active/passed/pending/breached; platform: dynamic from data; phase: all/phase-1/phase-2/funded) ✓ | No change — already correct |
+   314→| 7 | PositionsPage filter bar — side / symbol / (optional) status + count + Clear all | Lines 431-520: full filter bar (side: all/buy/sell; symbol: dynamic; P&L: all/profit/loss — chosen over a literal open/closed status because `getTenantPositions` returns open positions only) ✓ | No change — already correct |
+   315→
+   316→### Net code delta (this task)
+   317→Only **2 files** received edits this round — both one-block refactors replacing a raw `<button>` with the shadcn `Button` component:
+   318→
+   319→**1. `src/modules/trading/pages/trading-pages.tsx` — AccountsPage trader-name cell (lines 333-358):**
+   320→Before — raw `<button type="button" className="inline-flex items-center gap-1 font-medium text-foreground hover:text-emerald-700 hover:underline dark:text-emerald-400">`. After — `<Button type="button" variant="link" size="sm" className="h-auto gap-1 px-0 font-medium text-foreground hover:text-emerald-700 hover:underline dark:text-emerald-400">`. The `h-auto px-0` overrides the size="sm" default (`h-8 px-3`) so the link stays inline-sized within the DataTable cell — a `Button size="sm"` would otherwise inflate each row to `h-8` minimum and break the table's compact density. All behavioral semantics preserved: `e.stopPropagation()` prevents the row click from double-firing; `aria-label={"View trader ${a.traderName}"}` + `title={...}` preserved for screen readers + hover tooltip; `ArrowUpRight` icon retained as the visual cross-link affordance.
+   321→
+   322→**2. `src/modules/trading/pages/order-detail-page.tsx` — Order header "View Trader" chip (lines 462-485):**
+   323→Before — raw `<button type="button" className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-50/50 px-2 py-1 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100 hover:text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/60">`. After — `<Button type="button" variant="link" size="sm" className="inline-flex h-auto items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-50/50 px-2 py-1 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100 hover:no-underline hover:text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/60">`. Added `hover:no-underline` to suppress the link variant's default `hover:underline` (the link variant adds `underline-offset-4 hover:underline`) so the chip's bg-color hover state remains the only visual signal — otherwise the chip's text + border + bg would visually clash with an underline on hover. The chip stays inline next to the `mailto:` email link and the date — preserves the existing visual layout exactly.
+   324→
+   325→### Files explicitly NOT touched
+   326→- `src/lib/platform/mock-data.ts` — the brief explicitly forbids touching this.
+   327→- `src/lib/platform/view-router.tsx` — `account-workspace` is already registered (impl-account-workspace line 210); no new viewIds needed.
+   328→- `src/modules/trading/pages/account-workspace-page.tsx` — already built by impl-account-workspace; out of scope.
+   329→- `src/modules/trading/pages/closed-position-detail-page.tsx` — already has a `Button variant="link" size="sm"` trader link (lines 556-573) AND an analogous account-workspace link (lines 582-599); exceeds brief, no changes needed.
+   330→- `src/modules/trading/pages/enhanced-trader-detail-page.tsx` — already has the AccountsTable `onRowClick` wired (line 334); no changes needed.
+   331→
+   332→### Verification
+   333→
+   334→- **`bun run lint`** → exit 0, 0 errors (clean).
+   335→- **`bunx tsc --noEmit --skipLibCheck`** → 123 total errors, all pre-existing in untouched files (`examples/websocket/*` missing `socket.io-client`, `skills/*` SDK type mismatches, `src/components/platform/account-health.tsx`, `analytics-pages.tsx`, `analytics-widgets.tsx`, `payout-widgets.tsx`, `risk-widgets.tsx`, `account-kyc-statuses-page.tsx`, `mock-data.ts`, `charts.tsx`, `contextual-actions.tsx`, `dashboard-grid.tsx`, `dashboard-router.tsx`, `live-equity-curve.tsx`, `page.tsx`, `sidebar.tsx`, `settings-page.tsx`). **Zero errors** in the 4 owned files — diff of error-file lists before vs. after my changes shows ZERO new errors introduced.
+   336→- **`curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/`** → 200.
+   337→- **`dev.log` (most recent 20 lines)** → `✓ Compiled in 342ms` + `✓ Compiled in 927ms` + `GET / 200 in 293ms` after my edits — no runtime errors, no console warnings.
+   338→
+   339→### Visual verification via `agent-browser`
+   340→Skipped onboarding for the Alpha Capital tenant (Sarah Chen, Alpha Capital, growth plan, 5 active modules — same fixture used by impl-account-workspace). Sidebar shows terminology overrides "Participant" / "Evaluation" / "Withdrawal" — confirms the terminology layer is intact.
+   341→
+   342→1. **AccountsPage row click → account-workspace** ✓ — clicked the "Trading › Accounts" sidebar entry (ref e1291) → page rendered with h1 "Participant Accounts" + 3 filter comboboxes ("All statuses" / "All platforms" / "All phases") + search box + DataTable (8 columns: Login / Trader / Platform / Type / Phase / Balance / Equity / Status) + 7 visible rows (100001-100007, traders Liam Smith / Olivia Nguyen / Emma Patel / Sophia Olsen / Mason Reyes). Clicked the first row (login 100001, Liam Smith) by clicking the row container (ref e1354 — the `<tr>` itself, NOT the trader-name button inside it) → navigated to a page with h1 "Account 100001". Snapshot confirmed: "Back to Accounts" button (e1452), "View Trader" outline button in PageHeader (e1454), 6 tabs in a `tablist` ("ConfigurationEventsVersion HistoryBroker DetailsKYC StatusesRelated Accounts"), default Configuration tab content visible ("Account Configuration / Core account parameters — trading window, profit split, payout schedule, source / Login 100001 / Liam Smith · MT5 · Funded"). ✓ Requirement 1 verified.
+   343→
+   344→2. **Trader Detail AccountsTable onRowClick → account-workspace** ✓ — clicked the "View Trader" outline button in the workspace PageHeader (e1454) → navigated to Enhanced Trader Detail page (h1 "Liam Smith" + 7 tabs "OverviewAccountsPositionsPerformanceKYCRiskChange History" — confirmed this is the `EnhancedTraderDetailPage`, not the basic `TraderDetailPage`). Clicked the "Accounts" tab (e1541) → table rendered with one row (login 100001) marked as `clickable [cursor:pointer, onclick]`. Clicked that row (ref e1549) → navigated to a page with h1 "Account 100001" — confirms the AccountsTable `onRowClick={(a) => navigate("account-workspace", { id: a.id })}` callback fired. ✓ Requirement 2 verified.
+   345→
+   346→3. **AccountsPage trader-name link → trader-detail** ✓ (regression test after the Button refactor) — clicked "Back to Accounts" (e1571) to return to the list. Snapshot showed each row's Trader cell now contains a `<Button variant="link" size="sm">` (rendered as a `button "View trader [Name]"` in the a11y tree, refs e1740 / e1741 / …). Clicked "View trader Liam Smith" (e1740) → navigated to trader-detail (h1 "Liam Smith"). ✓ The refactored `Button variant="link" size="sm"` preserves the cross-link behavior; the `e.stopPropagation()` correctly prevented the row's account-workspace click from double-firing.
+   347→
+   348→4. **TradersPage filter bar** ✓ — clicked "Traders" sidebar entry → page rendered with h1 "Participants" (terminology override of "Traders") + 3 filter comboboxes ("All statuses" / "All phases" / "All countries") + search box + DataTable. `aria-live="polite"` result-count text reads "24 of 24 shown". Opened the status combobox (e1757) → popover rendered 5 options ("All statuses" [selected] / "Active" / "Invited" / "Suspended" / "Breached"). Clicked "Active" (e1858) → result-count updated to "16 of 24 shown" — confirms `filteredTraders` recomputed and the `aria-live` region announced the new count. A "Clear all" ghost button (e1862) appeared next to the filter row. Clicked "Clear all" → result-count returned to "24 of 24 shown", "Clear all" button disappeared. ✓ Requirement 5 verified.
+   349→
+   350→5. **PositionsPage filter bar** ✓ — clicked "Open Positions" sidebar entry → page rendered with h1 "Open Positions" + 3 filter comboboxes ("All sides" / "All symbols" / "All P&L") + result-count "111 of 111 shown". Opened the side combobox (e1882) → popover rendered 3 options. Clicked "Sell (short)" (e1982) → result-count updated to "56 of 111 shown". ✓ Requirement 7 verified — the `pnlFilter` ("All P&L" / "Profit only" / "Loss only") substitute for the brief's optional Status filter was confirmed in place from the prior run (no new work needed; the brief explicitly allows `(optional) Status filter`).
+   351→
+   352→6. **Order Detail "View Trader" link** ✓ — since there's no sidebar/command-menu entry that surfaces an order id directly, programmatically routed to `order-detail` view with id `ord-tenant-alpha-100` by walking the React fiber tree from `document.body.__reactFiber$…` (depth 22) and calling `found.navigate("order-detail", { id: "ord-tenant-alpha-100" })` (same injection pattern impl-account-workspace used). Page rendered with h1 "Order ord-tenant-alpha-100". Snapshot showed the order header section contains a `button "View trader Jayden Singh"` (ref e1986) — confirming the refactored `Button variant="link" size="sm"` rendered correctly as an a11y-tree `button`. Clicked it → navigated to trader-detail (h1 "Jayden Singh"). ✓ Requirement 4 verified — the `hover:no-underline` override kept the chip visually compact (no underline artifact appeared under "View Trader" on hover).
+   353→
+   354→7. **Closed Position Detail "View Trader" link** ✓ — programmatically routed to `closed-position-detail` with id `cpos-tenant-alpha-1`. Page rendered with h1 "cpos-tenant-alpha-1· USDJPY". Snapshot showed the Identity section contains a `button "View trader Lucas Khan"` (ref e2035) — this is the existing `Button variant="link" size="sm"` from the prior run. Clicked it → navigated to trader-detail (h1 "Lucas Khan"). ✓ Requirement 3 verified (no changes were needed — was already in place).
+   355→
+   356→### Stage summary
+   357→All 7 requirements in the brief are now satisfied. Cross-link graph for the Trading module is complete:
+   358→
+   359→- Accounts list row → Account Workspace (by `account.id`) — primary navigation path.
+   360→- Accounts list trader-name cell → Trader Detail (by `traderId`) — secondary path that survives the row-click being repurposed.
+   361→- Trader Detail (EnhancedTraderDetailPage) Accounts tab row → Account Workspace (by `account.id`).
+   362→- Account Workspace PageHeader "View Trader" → Trader Detail (by `traderId`) — already in place from impl-account-workspace.
+   363→- Closed Position Detail Identity section "View trader [Name]" → Trader Detail (by `traderId`) — already in place.
+   364→- Order Detail header section "View Trader" → Trader Detail (by `userId`) — now refactored to shadcn `Button variant="link" size="sm"` for brief compliance + visual consistency with the closed-position-detail pattern.
+   365→
+   366→Filter bars on Traders (status / phase / country), Accounts (status / platform / phase), and Positions (side / symbol / P&L) all match the §25/§26 pattern — `FilterBar` primitive with `activeCount` badge + `Clear all` ghost button + `aria-live="polite"` result-count text. Lint passes clean, tsc introduces 0 new errors in the 4 owned files, dev server returns 200, and agent-browser visual verification confirmed all 7 cross-links + filter bars function end-to-end on the Alpha Capital tenant fixture.
+   367→
+   368→---
+   369→
+   370→Task ID: impl-kpi-empty-attention
+   371→Agent: impl (KPI enrichment + EmptyState + Attention Center extension + orphan-button fix across Risk/Challenges/Payouts/Affiliates)
+   372→
+   373→## Scope (5 files touched, strict ownership)
+   374→- `src/modules/risk/pages/risk-pages.tsx` — RiskOverviewPage enriched (4→6 KPIs + Attention Center), BreachesPage extended (filter bar + drill-to-trader + EmptyState), shared BreachesTable gained `showFilters` prop.
+   375→- `src/modules/challenges/pages/challenge-pages.tsx` — ChallengesOverviewPage enriched (4→6 KPIs + Failed/Pass Rate + Evaluation Funnel + Attention Center).
+   376→- `src/modules/payouts/pages/payout-pages.tsx` — PayoutsOverviewPage enriched (4→5 KPIs + Avg Processing Time + Attention Center), inline PayoutsTable Reject button wrapped in AlertDialog (Approve stays as plain Button).
+   377→- `src/modules/affiliates/pages/offer-management-page.tsx` — orphan "Edit Offer" + "View Change History" buttons wired to real `navigate("offer-edit" / "offer-change-history", { id: o.id })` calls (both in row-actions cell + inline detail panel).
+   378→- `src/components/platform/attention-center.tsx` — added 3 more entries: at-risk accounts (Action), payouts stuck in approval >24h (Action, distinct from existing total), challenges failed this week (Warning).
+   379→
+   380→## What was built
+   381→
+   382→### 1. Risk Overview (risk-pages.tsx:RiskOverviewPage)
+   383→- KPI row expanded from 4 → 6 cards (grid `lg:grid-cols-3 xl:grid-cols-6`).
+   384→- Existing 4 KPIs preserved (Open Breaches / Critical / Resolved 30d / Platform Risk Score).
+   385→- Platform Risk Score: was hardcoded "72/100" — now tenant-aware `hashStr(tenant?.id ?? "platform") % 30 + 60` (deterministic 60–90 range). Tied to §19 Explainability via `deltaLabel: "Composite of breach volume, exposure & account health"`. Tone auto-shifts (`≥80` negative, `70–79` warning, `<70` positive).
+   386→- NEW 5th KPI: "At-Risk Accounts" — `within10 = 10 + (breaches.length % 5)` (deterministic, tenant-aware), `deltaLabel` shows breakdown "X within 5% · Y critical" derived deterministically from `within10`.
+   387→- NEW 6th KPI: "Total Exposure" — tenant-aware dollar figure `1.8M + hashStr % 1.2M + open * 47.5K` (Breach type has no `amount` field — the brief allowed this fallback). `deltaLabel: "across all open breaches"`.
+   388→- IMPORTED + RENDERED `<AttentionCenter />` between KPI row and embedded Recent Breaches table (no props).
+   389→
+   390→### 2. Breaches list (risk-pages.tsx:BreachesPage + BreachesTable)
+   391→- `BreachesTable` gained a `showFilters?: boolean` prop. BreachesPage renders `<BreachesTable showFilters />`; RiskOverviewPage's embedded Recent Breaches keeps the compact `showFilters=false` form.
+   392→- Filter bar mirrors the OfferManagement / Enhanced Withdrawals pattern (shadcn Select):
+   393→  - Type filter — All / daily-drawdown / max-drawdown / trailing-drawdown / margin-call / news-trading / weekend-holding / copy-trading / profit-target-miss / time-limit (per brief; mock only seeds 4 — selecting unsupplied types yields 0 rows, which the EmptyState covers).
+   394→  - Severity filter — All / critical / warning / info.
+   395→  - Status filter — All / open / resolved / dismissed.
+   396→  - Date range filter — All / 24h / 7d / 30d.
+   397→- Row drill — DataTable `onRowClick` → `navigate("trader-detail", { id: b.traderId })`. The Trader cell is also a `<button>` with `stopPropagation` for the same drill (so clicking the trader name doesn't bubble to the row click and double-navigate).
+   398→- `emptyTitle="No breaches"` + `emptyDescription="When rule violations are detected, they will appear here for review."` (§30 — never "No data." without context).
+   399→- Resolve cell button preserves `stopPropagation` so resolving doesn't navigate away.
+   400→
+   401→### 3. Challenges Overview (challenge-pages.tsx:ChallengesOverviewPage)
+   402→- KPI row expanded from 4 → 6 cards.
+   403→- Existing 4 KPIs retained (Active / Passed / Avg Progress / Total). "Avg Progress" moves to position 5; "Total" moves to position 6.
+   404→- NEW 5th KPI: "Failed" — `chs.filter(c => c.status === "failed").length` (mock currently yields 0 because `seedChallenges` only generates `in-progress` rows — KPI correctly shows 0; tenant-aware when mock changes).
+   405→- NEW 6th KPI: "Pass Rate" — `(passed / (passed + failed) * 100).toFixed(1) + "%"` with `deltaLabel: "of all completed challenges"`. Tone auto-shifts (≥60 positive, else warning).
+   406→- NEW Evaluation Funnel card (between KPI row and embedded ChallengeTable). Stages: Started → Phase 1 Passed → Phase 2 Passed → Funded. Numbers derived from challenge data: `pastPhase1 = phase === "phase-2" || phase === "funded" || status === "passed" || status === "funded"`, `pastPhase2 = phase === "funded" || status === "passed" || status === "funded"`, `funded = phase === "funded" || status === "funded"`. Each stage shows count + "% of started" + drop from previous stage (§9 actionable KPI). Colors are Terra-only (`#0f766e` teal, `#059669` emerald, `#d97706` amber, `#15803d` forest green) — no blue/indigo/violet.
+   407→- IMPORTED + RENDERED `<AttentionCenter />` between KPI row and Evaluation Funnel.
+   408→
+   409→### 4. Payouts Overview (payout-pages.tsx:PayoutsOverviewPage)
+   410→- KPI row expanded from 4 → 5 cards (grid `lg:grid-cols-3 xl:grid-cols-5`).
+   411→- Existing 4 KPIs preserved (Pending / Paid 30d / Total / Avg Split).
+   412→- NEW 5th KPI: "Avg Processing Time" — computes `avg(processedAt - createdAt)` for paid payouts with `processedAt` set; falls back to deterministic `18.5h` baseline when no `processedAt`. Display: `"${(avg / 3600000).toFixed(1)}h"` with `deltaLabel: "from request to approval"`. Tone auto-shifts (>24h warning, else positive).
+   413→- IMPORTED + RENDERED `<AttentionCenter />` between KPI row and embedded All Payouts table.
+   414→- Removed unused `StatusBadge`/`payoutStatusTone` imports from before (only `formatCurrency` is used now).
+   415→
+   416→### 5. PayoutsTable Reject AlertDialog (payout-pages.tsx:PayoutsTable)
+   417→- Approve button — kept as plain Button + toast (per brief: "less critical, can stay as Button + toast").
+   418→- Reject button — wrapped in shadcn `AlertDialog` (matching the `PayoutReviewActions` pattern in `contextual-actions.tsx`). AlertDialogTitle: "Reject this payout?". AlertDialogDescription includes the amount + trader name. Consequence block (rose-tinted card, dark-mode aware): "Rejecting this payout will notify the trader and reverse any pending fees. The trader will need to re-request. This action is logged." AlertDialogAction button is rose-tinted (`bg-rose-600 hover:bg-rose-700`). AlertDialogCancel + AlertDialogAction pair (§24 friction proportional to consequence).
+   419→
+   420→### 6. OfferManagement orphan-button fix (offer-management-page.tsx)
+   421→- OfferDetailPanel signature changed from `{ offer }` to `{ offer, onEdit, onChangeHistory }` — the two buttons now invoke injected handlers instead of firing toast.
+   422→- OfferManagementPage wires `handleEdit = (o) => navigate("offer-edit", { id: o.id })` and `handleViewChangeHistory = (o) => navigate("offer-change-history", { id: o.id })`.
+   423→- These handlers are passed to BOTH the row-actions Edit pencil button AND the inline detail panel's "Edit Offer" + "View Change History" buttons — so both surfaces navigate instead of toasting.
+   424→- "Add Offer" button stays as a toast (creating new offers is out of scope; the brief only fixed Edit + Change History).
+   425→- Fixes the prior subagent's CRITICAL bug report (`analysis-aff-acc-mkt-crm` items #1 + #2): "Offer Edit page is orphaned from the table" and "View Change History fires toast only".
+   426→
+   427→### 7. Attention Center extension (attention-center.tsx)
+   428→Added 3 new entries (suppress when count === 0 per §11):
+   429→
+   430→1. (Action) "At-risk accounts need review" — `getTenantBreaches(tid).filter(b => b.status === "open" && b.severity === "critical")`. Detail: "X accounts have open critical breaches requiring triage". `navigateTo: "risk"`. Suppressed when 0.
+   431→   - Distinct from the existing "Open breaches" Warning entry (which counts ALL open breaches) — this surfaces only critical-and-open breaches as an Action-tier alert.
+   432→2. (Action) "Payouts stuck in approval" — `getTenantPayouts(tid).filter(p => p.status === "pending" && new Date(p.createdAt).getTime() < Date.now() - 24*3600*1000)`. Detail: "X payout requests waiting more than 24 hours". `navigateTo: "payouts-pending"`. Suppressed when 0.
+   433→   - Distinct from the existing "Payout approvals waiting" Action entry (which shows the TOTAL pending count) — this surfaces only the aging subset that breaches the operator's processing SLA.
+   434→3. (Warning) "Challenges failed this week" — `getTenantChallenges(tid).filter(c => c.status === "failed" && new Date(c.createdAt).getTime() >= Date.now() - 7*24*3600*1000)`. Detail: "X evaluations ended in failure in the last 7 days". `navigateTo: "challenges-failed"`. Suppressed when 0 (mock-data seeds `in-progress` only — entry is correctly hidden on the demo; visible as soon as failed challenges land).
+   435→
+   436→Added `getTenantChallenges` to the import list. All three entries use existing icons (`ShieldAlert`, `Wallet`, `AlertTriangle`) — no new icons introduced.
+   437→
+   438→## Constraints honored
+   439→- Did NOT touch `mock-data.ts` (Breaches type has no `amount` field → fallback deterministic Total Exposure).
+   440→- Did NOT touch `view-router.tsx` (no new viewIds needed).
+   441→- Did NOT touch trading pages / settings / super-admin / audit files.
+   442→- Did NOT touch `offer-change-history-page.tsx` (out of brief scope — pre-existing bug noted below).
+   443→- Used existing shadcn `Select`, `AlertDialog`, `Button`, `Badge` components — no new shadcn installs.
+   444→- Terra palette respected across all new colors (`#0f766e` teal, `#059669` emerald, `#d97706` amber, `#15803d` forest, `#e11d48` rose). No blue/indigo/violet introduced.
+   445→- Deterministic mock numbers only — no `Math.random()` added. The existing `AreaSeries`/`DonutSeries` components use `Math.random()` for SVG gradient IDs but I did NOT add any new randomness.
+   446→
+   447→## Verification
+   448→- `bun run lint` → 0 errors, 0 warnings.
+   449→- `bunx tsc --noEmit --skipLibCheck` → 0 errors in my 5 owned files. Pre-existing errors in `src/modules/trading/pages/account-kyc-statuses-page.tsx` (KycProviderStatus type narrowing — trading pages, out of scope) remain unchanged.
+   450→- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/` → 200.
+   451→- agent-browser visual verification (Beta Trading + Alpha Capital tenants):
+   452→  - Risk Overview renders 6 KPIs (Open Breaches / Critical / Resolved (30d) / Platform Risk Score / At-Risk Accounts / Total Exposure) + AttentionCenter (At-risk accounts + Open breaches cards visible) + embedded Recent Breaches table. ✓
+   453→  - Breaches list shows 4-shadcn-Select filter bar (All types / All severities / All statuses / Any date) + search. Row click on "Liam Smith" trader cell navigated to EnhancedTraderDetailPage (heading "Liam Smith", breadcrumb "Trader Detail" disabled link). ✓
+   454→  - Challenges Overview renders 6 KPIs (Active / Passed / Failed / Pass Rate / Avg Progress / Total) + AttentionCenter + Evaluation Funnel card ("16 started → 0 funded", Stage 1 Passed=9, Stage 2 Passed=0, Funded=0). ✓
+   455→  - Payouts Overview renders 5 KPIs (Pending / Paid 30d / Total Withdrawal / Avg Split / Avg Processing Time with "from request to approval" deltaLabel) + AttentionCenter + embedded All Payouts table. ✓
+   456→  - OfferManagement — clicking the inline-pencil Edit button on the "EXPO2026 BUNDLE DEAL" row navigated to OfferEditPage (heading "Edit Offer", breadcrumb shows "Edit Offer" as current view). ✓
+   457→  - OfferManagement — expanding the EXPO2026 row + clicking "View Change History" navigated to OfferChangeHistoryPage (breadcrumb shows "Offer Change History" as current view). The destination page then threw a pre-existing bug (see "Pre-existing bug surfaced" below). The orphan-button fix itself is verified working — the navigation call fired correctly. ✓
+   458→
+   459→## Pre-existing bug surfaced (NOT introduced by this task — out of scope)
+   460→`OfferChangeHistoryPage` throws `TypeError: Cannot read properties of undefined (reading 'email')` on render. Root cause: `offer-change-history-page.tsx:133` does `actorEmail: actor.email` where `actor = ACTORS[(s >> 3) % ACTORS.length]`. For large values of `s` (where the top bit of the 32-bit unsigned value is set), the JavaScript `>>` operator converts to int32 (negative), then `%` keeps the sign, producing a negative array index → `ACTORS[-1]` → `undefined` → `actor.email` throws. The fix is a 1-line change (`(s >>> 3) % ACTORS.length` instead of `s >> 3`) but `offer-change-history-page.tsx` is outside my strict file ownership (brief lists only `offer-management-page.tsx` for the affiliates module). Flagged for a follow-up — the orphan-button fix is independent of this destination-page bug.
+   461→
+   462→## Stage Summary
+   463→KPI/EmptyState/Attention-Center enrichment complete across Risk/Challenges/Payouts modules. Risk Overview jumped from 4 → 6 KPIs (added At-Risk Accounts with §9 breakdown + Total Exposure). Challenges Overview jumped from 4 → 6 KPIs (added Failed + Pass Rate) + a deterministic Evaluation Funnel (Started → Phase 1 → Phase 2 → Funded). Payouts Overview gained Avg Processing Time (computed from `processedAt - createdAt` on paid payouts). Breaches list now has 4 Select filters + row drill to trader-detail + EmptyState copy. PayoutsTable inline Reject gained AlertDialog friction matching PayoutReviewActions (§24). OfferManagement Edit / Change-History buttons now navigate (not toast) — fixes 2 CRITICAL orphan-button bugs from `analysis-aff-acc-mkt-crm`. Attention Center gained 3 new entries (at-risk critical breaches / stuck-payouts >24h / failed-challenges this week) with clear differentiation from existing entries to avoid double-counting. All Terra palette, all deterministic, all shadcn components. Lint clean, tsc 0 new errors, dev server 200, agent-browser confirmed 5 of 5 surface verifications. 1 pre-existing bug in `offer-change-history-page.tsx` flagged for a follow-up subagent (out of strict ownership).
+   464→

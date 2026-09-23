@@ -1,6 +1,7 @@
 "use client";
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantTransactions, type Transaction } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -32,7 +33,8 @@ function transactionFlowSeries(txns: { date: string; amount: number }[]) {
 /* ---------------------------------------------------------------- */
 
 export function AccountingOverviewPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   const txns = getTenantTransactions(tid);
@@ -45,11 +47,11 @@ export function AccountingOverviewPage() {
 
   return (
     <Page>
-      <PageHeader title="Accounting" description="Tenant financial ledger and bank reconciliation." icon={Calculator} />
+      <PageHeader title="Accounting" description={`${term("trader")} financial ledger and bank reconciliation.`} icon={Calculator} />
       <PageContent>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Revenue" value={formatCurrency(revenue, currency)} icon={ArrowUpCircle} tone="positive" />
-          <MetricCard label="Payouts" value={formatCurrency(payouts, currency)} icon={ArrowDownCircle} tone="negative" />
+          <MetricCard label={plural(term("payout"))} value={formatCurrency(payouts, currency)} icon={ArrowDownCircle} tone="negative" />
           <MetricCard label="Fees" value={formatCurrency(fees, currency)} icon={Percent} tone="warning" />
           <MetricCard label="Net" value={formatCurrency(net, currency)} icon={Wallet} tone={net >= 0 ? "positive" : "negative"} />
         </div>
@@ -88,7 +90,8 @@ export function AccountingOverviewPage() {
 /* ---------------------------------------------------------------- */
 
 export function TransactionsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const txns = getTenantTransactions(tid);
 
@@ -124,7 +127,7 @@ export function TransactionsPage() {
     <Page>
       <PageHeader
         title="Transactions"
-        description="All tenant financial transactions."
+        description={`All ${term("trader").toLowerCase()} financial transactions.`}
         icon={Receipt}
         actions={
           <Button size="sm" variant="outline" onClick={() => exportToCsv(
@@ -166,7 +169,8 @@ export function TransactionsPage() {
 /* ---------------------------------------------------------------- */
 
 export function ReconciliationPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   const txns = getTenantTransactions(tid);
@@ -214,7 +218,7 @@ export function ReconciliationPage() {
 
   return (
     <Page>
-      <PageHeader title="Reconciliation" description="Match tenant ledger entries against bank statements." icon={ArrowLeftRight} />
+      <PageHeader title="Reconciliation" description={`Match ${term("trader").toLowerCase()} ledger entries against bank statements.`} icon={ArrowLeftRight} />
       <PageContent>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Volume" value={formatCurrency(total, currency)} icon={Wallet} />

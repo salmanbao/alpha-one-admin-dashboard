@@ -328,7 +328,11 @@ export function EnhancedTraderDetailPage() {
         {/* Accounts — table of trading accounts */}
         <TabsContent value="accounts">
           <div className="rounded-lg border bg-card p-4">
-            <AccountsTable accounts={accounts} currency={currency} />
+            <AccountsTable
+              accounts={accounts}
+              currency={currency}
+              onRowClick={(a) => navigate("account-workspace", { id: a.id })}
+            />
           </div>
         </TabsContent>
 
@@ -478,7 +482,15 @@ export function EnhancedTraderDetailPage() {
 /* matches across both views.                                          */
 /* ------------------------------------------------------------------ */
 
-function AccountsTable({ accounts, currency }: { accounts: TradingAccount[]; currency: string }) {
+function AccountsTable({
+  accounts,
+  currency,
+  onRowClick,
+}: {
+  accounts: TradingAccount[];
+  currency: string;
+  onRowClick?: (row: TradingAccount) => void;
+}) {
   if (accounts.length === 0) {
     return (
       <EmptyState
@@ -508,6 +520,9 @@ function AccountsTable({ accounts, currency }: { accounts: TradingAccount[]; cur
       data={accounts}
       rowKey={(a) => a.id}
       pageSize={6}
+      onRowClick={onRowClick}
+      emptyTitle="No accounts"
+      emptyDescription="This trader has no trading accounts yet."
     />
   );
 }

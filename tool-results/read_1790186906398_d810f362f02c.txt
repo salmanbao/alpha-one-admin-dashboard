@@ -1,0 +1,1248 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Dashboard Tabs — Accounts / Payouts / Orders / Positions
+     5→ *
+     6→ * Operational tab pages surfaced under the main Dashboard. Each is a
+     7→ * full page component (receives { params }) and follows the UX
+     8→ * Constitution §4 model:
+     9→ *
+    10→ *   KPI strip  →  charts  →  cohort heatmap / grid  →  detail table
+    11→ *
+    12→ * "What needs my attention?" → "Why?" → "Detail."
+    13→ *
+    14→ * Terra palette only — forest green / sage / warm amber / cream /
+    15→ * emerald / amber-warning / rose-danger. No blue/indigo/violet.
+    16→ *
+    17→ * All mock data is generated inline with deterministic Math.sin /
+    18→ * pseudo-random curves so the dashboard is stable across reloads.
+    19→ */
+    20→
+    21→import { useMemo } from "react";
+    22→import { usePlatform } from "@/lib/platform/platform-context";
+    23→import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+    24→import { DataTable, type Column } from "@/components/platform/data-table";
+    25→import { AreaSeries, BarSeries } from "@/components/platform/charts";
+    26→import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
+    27→import { cn } from "@/lib/utils";
+    28→import {
+    29→  Bar,
+    30→  BarChart,
+    31→  CartesianGrid,
+    32→  Cell,
+    33→  Legend,
+    34→  ResponsiveContainer,
+    35→  Tooltip,
+    36→  XAxis,
+    37→  YAxis,
+    38→} from "recharts";
+    39→import {
+    40→  Activity,
+    41→  AlertTriangle,
+    42→  ArrowLeftRight,
+    43→  Ban,
+    44→  CheckCircle2,
+    45→  Clock,
+    46→  Coins,
+    47→  DollarSign,
+    48→  Gauge,
+    49→  Layers,
+    50→  Percent,
+    51→  ShoppingCart,
+    52→  Target,
+    53→  Timer,
+    54→  TrendingDown,
+    55→  TrendingUp,
+    56→  UserCheck,
+    57→  Users,
+    58→  Wallet,
+    59→  XCircle,
+    60→} from "lucide-react";
+    61→
+    62→/* ------------------------------------------------------------------ */
+    63→/* Terra palette                                                      */
+    64→/* ------------------------------------------------------------------ */
+    65→
+    66→const TERRA = {
+    67→  forest: "#4a7c59",
+    68→  sage: "#5a7c4a",
+    69→  amber: "#705c30",
+    70→  cream: "#f5efe6",
+    71→  emerald: "#059669",
+    72→  teal: "#0d9488",
+    73→  green: "#16a34a",
+    74→  warning: "#d97706",
+    75→  danger: "#e11d48",
+    76→  rose: "#dc2626",
+    77→  muted: "#78716c",
+    78→} as const;
+    79→
+    80→const tooltipStyle: React.CSSProperties = {
+    81→  backgroundColor: "var(--popover)",
+    82→  border: "1px solid var(--border)",
+    83→  borderRadius: "var(--radius)",
+    84→  fontSize: 12,
+    85→  color: "var(--popover-foreground)",
+    86→};
+    87→
+    88→const AXIS_STYLE = { fontSize: 11, fill: "var(--muted-foreground)" } as const;
+    89→
+    90→/* ------------------------------------------------------------------ */
+    91→/* Date helpers (stable per render — single module-level reference)   */
+    92→/* ------------------------------------------------------------------ */
+    93→
+    94→const now = new Date();
+    95→const daysAgo = (n: number) => {
+    96→  const d = new Date(now);
+    97→  d.setDate(d.getDate() - n);
+    98→  return d.toISOString().slice(0, 10);
+    99→};
+   100→const daysAgoShort = (n: number) => {
+   101→  const d = new Date(now);
+   102→  d.setDate(d.getDate() - n);
+   103→  return d.toISOString().slice(5, 10); // MM-DD
+   104→};
+   105→const monthsAgo = (n: number) => {
+   106→  const d = new Date(now);
+   107→  d.setMonth(d.getMonth() - n);
+   108→  return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+   109→};
+   110→const monthsAgoShort = (n: number) => {
+   111→  const d = new Date(now);
+   112→  d.setMonth(d.getMonth() - n);
+   113→  return d.toLocaleDateString("en-US", { month: "short" });
+   114→};
+   115→
+   116→/* ------------------------------------------------------------------ */
+   117→/* Local UI helpers                                                   */
+   118→/* ------------------------------------------------------------------ */
+   119→
+   120→function ChartCard({
+   121→  title,
+   122→  subtitle,
+   123→  children,
+   124→}: {
+   125→  title: string;
+   126→  subtitle?: string;
+   127→  children: React.ReactNode;
+   128→}) {
+   129→  return (
+   130→    <div className="rounded-lg border bg-card p-4">
+   131→      <div className="mb-2">
+   132→        <p className="text-sm font-medium text-foreground">{title}</p>
+   133→        {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
+   134→      </div>
+   135→      {children}
+   136→    </div>
+   137→  );
+   138→}
+   139→
+   140→/** Inline grouped bar chart — used for pass/fail highlights. */
+   141→function GroupedBars({
+   142→  data,
+   143→  xKey,
+   144→  series,
+   145→  height = 240,
+   146→  formatValue,
+   147→}: {
+   148→  data: Record<string, string | number>[];
+   149→  xKey: string;
+   150→  series: { key: string; label: string; color: string }[];
+   151→  height?: number;
+   152→  formatValue?: (v: number) => string;
+   153→}) {
+   154→  return (
+   155→    <div style={{ width: "100%", height }}>
+   156→      <ResponsiveContainer width="100%" height="100%">
+   157→        <BarChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 40 }}>
+   158→          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+   159→          <XAxis
+   160→            dataKey={xKey}
+   161→            tick={AXIS_STYLE}
+   162→            tickLine={false}
+   163→            axisLine={false}
+   164→            minTickGap={8}
+   165→            angle={-35}
+   166→            textAnchor="end"
+   167→            height={50}
+   168→            interval={2}
+   169→          />
+   170→          <YAxis
+   171→            tick={AXIS_STYLE}
+   172→            tickLine={false}
+   173→            axisLine={false}
+   174→            width={32}
+   175→            tickFormatter={(v) => (formatValue ? formatValue(Number(v)) : String(v))}
+   176→          />
+   177→          <Tooltip
+   178→            contentStyle={tooltipStyle}
+   179→            formatter={(v: number) => (formatValue ? formatValue(v) : v)}
+   180→            cursor={{ fill: "var(--muted)" }}
+   181→          />
+   182→          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
+   183→          {series.map((s) => (
+   184→            <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} radius={[3, 3, 0, 0]} />
+   185→          ))}
+   186→        </BarChart>
+   187→      </ResponsiveContainer>
+   188→    </div>
+   189→  );
+   190→}
+   191→
+   192→/** Inline horizontal bar chart — for category breakdowns where labels
+   193→ *  are long (challenge names, countries). */
+   194→function HorizontalBars({
+   195→  data,
+   196→  labelKey,
+   197→  valueKey,
+   198→  color = TERRA.forest,
+   199→  height = 220,
+   200→  formatValue,
+   201→}: {
+   202→  data: Record<string, string | number>[];
+   203→  labelKey: string;
+   204→  valueKey: string;
+   205→  color?: string;
+   206→  height?: number;
+   207→  formatValue?: (v: number) => string;
+   208→}) {
+   209→  return (
+   210→    <div style={{ width: "100%", height }}>
+   211→      <ResponsiveContainer width="100%" height="100%">
+   212→        <BarChart data={data} layout="vertical" margin={{ top: 6, right: 24, left: 8, bottom: 6 }}>
+   213→          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+   214→          <XAxis
+   215→            type="number"
+   216→            tick={AXIS_STYLE}
+   217→            tickLine={false}
+   218→            axisLine={false}
+   219→            tickFormatter={(v) => (formatValue ? formatValue(Number(v)) : String(v))}
+   220→          />
+   221→          <YAxis
+   222→            type="category"
+   223→            dataKey={labelKey}
+   224→            tick={AXIS_STYLE}
+   225→            tickLine={false}
+   226→            axisLine={false}
+   227→            width={130}
+   228→          />
+   229→          <Tooltip
+   230→            contentStyle={tooltipStyle}
+   231→            formatter={(v: number) => (formatValue ? formatValue(v) : v)}
+   232→            cursor={{ fill: "var(--muted)" }}
+   233→          />
+   234→          <Bar dataKey={valueKey} fill={color} radius={[0, 4, 4, 0]} />
+   235→        </BarChart>
+   236→      </ResponsiveContainer>
+   237→    </div>
+   238→  );
+   239→}
+   240→
+   241→/** Per-cell colored bar chart — green for positive, rose for negative. */
+   242→function ColoredBars({
+   243→  data,
+   244→  xKey,
+   245→  yKey,
+   246→  height = 240,
+   247→  formatValue,
+   248→}: {
+   249→  data: Record<string, string | number>[];
+   250→  xKey: string;
+   251→  yKey: string;
+   252→  height?: number;
+   253→  formatValue?: (v: number) => string;
+   254→}) {
+   255→  return (
+   256→    <div style={{ width: "100%", height }}>
+   257→      <ResponsiveContainer width="100%" height="100%">
+   258→        <BarChart data={data} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+   259→          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+   260→          <XAxis
+   261→            dataKey={xKey}
+   262→            tick={AXIS_STYLE}
+   263→            tickLine={false}
+   264→            axisLine={false}
+   265→            minTickGap={0}
+   266→            interval={1}
+   267→          />
+   268→          <YAxis
+   269→            tick={AXIS_STYLE}
+   270→            tickLine={false}
+   271→            axisLine={false}
+   272→            width={48}
+   273→            tickFormatter={(v) => (formatValue ? formatValue(Number(v)) : String(v))}
+   274→          />
+   275→          <Tooltip
+   276→            contentStyle={tooltipStyle}
+   277→            formatter={(v: number) => (formatValue ? formatValue(v) : v)}
+   278→            cursor={{ fill: "var(--muted)" }}
+   279→          />
+   280→          <Bar dataKey={yKey} radius={[3, 3, 0, 0]}>
+   281→            {data.map((d, i) => (
+   282→              <Cell key={i} fill={Number(d[yKey]) >= 0 ? TERRA.emerald : TERRA.rose} />
+   283→            ))}
+   284→          </Bar>
+   285→        </BarChart>
+   286→      </ResponsiveContainer>
+   287→    </div>
+   288→  );
+   289→}
+   290→
+   291→/** Heatmap cell background — interpolates green → amber → rose by % value. */
+   292→function retentionBg(pct: number): string {
+   293→  if (pct === 0) return "transparent";
+   294→  if (pct >= 85) return "rgba(22,163,74,0.92)";
+   295→  if (pct >= 70) return "rgba(22,163,74,0.72)";
+   296→  if (pct >= 55) return "rgba(217,119,6,0.72)";
+   297→  if (pct >= 40) return "rgba(217,119,6,0.92)";
+   298→  return "rgba(225,29,72,0.82)";
+   299→}
+   300→
+   301→function retentionText(pct: number): string {
+   302→  if (pct === 0) return "var(--muted-foreground)";
+   303→  return "#ffffff";
+   304→}
+   305→
+   306→function pctRate(pass: number | null, fail: number | null): string {
+   307→  if (pass === null || fail === null) return "—";
+   308→  const total = pass + fail;
+   309→  if (total === 0) return "—";
+   310→  return `${Math.round((fail / total) * 100)}%`;
+   311→}
+   312→
+   313→/* ------------------------------------------------------------------ */
+   314→/* 1. DashboardAccountsTab  (viewId: dashboard-accounts)               */
+   315→/* ------------------------------------------------------------------ */
+   316→
+   317→/** Mock: daily pass/fail counts over the last 30 days. */
+   318→function buildPassFailSeries() {
+   319→  return Array.from({ length: 30 }, (_, i) => {
+   320→    const n = 29 - i;
+   321→    const pass = Math.max(
+   322→      2,
+   323→      Math.round(8 + Math.sin(n / 3) * 4 + Math.cos(n / 7) * 2 + n * 0.1),
+   324→    );
+   325→    const fail = Math.max(
+   326→      1,
+   327→      Math.round(6 + Math.cos(n / 4) * 3 + n * 0.08),
+   328→    );
+   329→    return { date: daysAgoShort(n), pass, fail };
+   330→  });
+   331→}
+   332→
+   333→interface ChallengePerfRow {
+   334→  name: string;
+   335→  p1Pass: number;
+   336→  p1Fail: number;
+   337→  p2Pass: number | null;
+   338→  p2Fail: number | null;
+   339→  funded: number;
+   340→}
+   341→
+   342→const CHALLENGE_PERF: ChallengePerfRow[] = [
+   343→  { name: "Instant Standard", p1Pass: 312, p1Fail: 88, p2Pass: null, p2Fail: null, funded: 248 },
+   344→  { name: "2-Step Turbo", p1Pass: 428, p1Fail: 142, p2Pass: 196, p2Fail: 64, funded: 168 },
+   345→  { name: "1-Step Gen Z", p1Pass: 286, p1Fail: 76, p2Pass: null, p2Fail: null, funded: 224 },
+   346→  { name: "2-Step Gen Z", p1Pass: 372, p1Fail: 118, p2Pass: 174, p2Fail: 58, funded: 142 },
+   347→];
+   348→
+   349→interface RetentionCohortRow {
+   350→  month: string;
+   351→  d30: number;
+   352→  d60: number;
+   353→  d90: number;
+   354→}
+   355→
+   356→const RETENTION_COHORT: RetentionCohortRow[] = [
+   357→  { month: "Jun 2026", d30: 92, d60: 78, d90: 64 },
+   358→  { month: "Jul 2026", d30: 88, d60: 71, d90: 0 },
+   359→  { month: "Aug 2026", d30: 95, d60: 0, d90: 0 },
+   360→];
+   361→
+   362→export function DashboardAccountsTab({ params }: { params: Record<string, string> }) {
+   363→  const { runtime } = usePlatform();
+   364→  const tid = runtime.tenant?.id ?? "platform";
+   365→  const currency = runtime.tenant?.currency ?? "USD";
+   366→
+   367→  void tid; // tenant scoping hook — mock data is static for the demo
+   368→  void params;
+   369→
+   370→  const passFailData = useMemo(() => buildPassFailSeries(), []);
+   371→
+   372→  const totalPass = passFailData.reduce((s, d) => s + d.pass, 0);
+   373→  const totalFail = passFailData.reduce((s, d) => s + d.fail, 0);
+   374→
+   375→  return (
+   376→    <Page>
+   377→      <PageHeader
+   378→        title="Accounts Dashboard"
+   379→        description="Account lifecycle, breach health, and challenge performance — operational view."
+   380→        icon={Users}
+   381→      />
+   382→      <PageContent>
+   383→        {/* KPI strip — 13 cards */}
+   384→        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-7">
+   385→          <MetricCard label="Total Accounts" value={2486} delta={5} deltaLabel="vs last 30d" icon={Users} tone="positive" />
+   386→          <MetricCard label="Phase 1 Accounts" value={1314} delta={7} deltaLabel="vs last 30d" icon={Layers} />
+   387→          <MetricCard label="Phase 2 Accounts" value={482} delta={4} deltaLabel="vs last 30d" icon={Layers} />
+   388→          <MetricCard label="Live / Funded" value={690} delta={9} deltaLabel="vs last 30d" icon={CheckCircle2} tone="positive" />
+   389→          <MetricCard label="MT5 Active" value={2104} delta={6} deltaLabel="vs last 30d" icon={Activity} tone="positive" />
+   390→          <MetricCard label="Daily DD Breached" value={38} delta={-3} deltaLabel="vs last 30d" icon={AlertTriangle} tone="warning" />
+   391→          <MetricCard label="Max DD Breached" value={12} delta={-2} deltaLabel="vs last 30d" icon={XCircle} tone="negative" />
+   392→          <MetricCard label="Blocked Accounts" value={24} delta={0} deltaLabel="vs last 30d" icon={Ban} tone="negative" />
+   393→          <MetricCard label="Passed Accounts" value={totalPass} delta={8} deltaLabel="vs last 30d" icon={UserCheck} tone="positive" />
+   394→          <MetricCard label="Total Users" value={1842} delta={4} deltaLabel="vs last 30d" icon={Users} />
+   395→          <MetricCard label="Avg Accounts / User" value={1.35} icon={Gauge} />
+   396→          <MetricCard label="Avg Pass Time" value="9d 4h" icon={Timer} tone="positive" />
+   397→          <MetricCard label="Avg Breach Time" value="14d 7h" icon={Clock} tone="warning" />
+   398→        </div>
+   399→
+   400→        {/* Pass/Fail highlights — grouped bar chart */}
+   401→        <ChartCard
+   402→          title="Pass / Fail Highlights (30 days)"
+   403→          subtitle={`Daily challenge pass vs fail count — ${totalPass} passed, ${totalFail} failed over the window.`}
+   404→        >
+   405→          <GroupedBars
+   406→            data={passFailData}
+   407→            xKey="date"
+   408→            series={[
+   409→              { key: "pass", label: "Passed", color: TERRA.emerald },
+   410→              { key: "fail", label: "Failed", color: TERRA.rose },
+   411→            ]}
+   412→            height={260}
+   413→            formatValue={(v) => String(v)}
+   414→          />
+   415→        </ChartCard>
+   416→
+   417→        {/* Retention cohort heatmap */}
+   418→        <div className="rounded-lg border bg-card p-4">
+   419→          <div className="mb-3 flex items-center justify-between">
+   420→            <p className="text-sm font-medium">Account Retention Cohort</p>
+   421→            <span className="text-[10px] text-muted-foreground">% of cohort still active at +30/+60/+90 days</span>
+   422→          </div>
+   423→          <div className="overflow-hidden rounded-md border">
+   424→            <table className="w-full text-sm">
+   425→              <thead className="bg-muted/40">
+   426→                <tr className="text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+   427→                  <th className="px-3 py-2">Cohort month</th>
+   428→                  <th className="px-3 py-2 text-right">+30d</th>
+   429→                  <th className="px-3 py-2 text-right">+60d</th>
+   430→                  <th className="px-3 py-2 text-right">+90d</th>
+   431→                </tr>
+   432→              </thead>
+   433→              <tbody>
+   434→                {RETENTION_COHORT.map((row) => (
+   435→                  <tr key={row.month} className="border-t last:border-0">
+   436→                    <td className="px-3 py-2 font-medium text-foreground">{row.month}</td>
+   437→                    {(["d30", "d60", "d90"] as const).map((k) => (
+   438→                      <td
+   439→                        key={k}
+   440→                        className="px-3 py-2 text-right font-semibold tabular-nums"
+   441→                        style={{
+   442→                          background: retentionBg(row[k]),
+   443→                          color: retentionText(row[k]),
+   444→                        }}
+   445→                      >
+   446→                        {row[k] === 0 ? "—" : `${row[k]}%`}
+   447→                      </td>
+   448→                    ))}
+   449→                  </tr>
+   450→                ))}
+   451→              </tbody>
+   452→            </table>
+   453→          </div>
+   454→          <p className="mt-2 text-[10px] text-muted-foreground">
+   455→            Cells color from green (high retention) through amber to rose (low retention). 90-day
+   456→            cells populate as cohorts mature — empty cells indicate the cohort has not yet reached
+   457→            that age.
+   458→          </p>
+   459→        </div>
+   460→
+   461→        {/* Challenge performance grid */}
+   462→        <div>
+   463→          <div className="mb-3 flex items-center justify-between">
+   464→            <p className="text-sm font-semibold text-foreground">Challenge Performance Grid</p>
+   465→            <span className="text-xs text-muted-foreground">
+   466→              Pass / fail counts and failure rate per challenge type.
+   467→            </span>
+   468→          </div>
+   469→          <div className="grid gap-3 lg:grid-cols-2">
+   470→            {CHALLENGE_PERF.map((c) => (
+   471→              <div key={c.name} className="rounded-lg border bg-card p-4">
+   472→                <div className="mb-3 flex items-center justify-between">
+   473→                  <p className="text-sm font-semibold text-foreground">{c.name}</p>
+   474→                  <StatusBadge tone="info">{c.funded} funded</StatusBadge>
+   475→                </div>
+   476→                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+   477→                  <div className="flex items-center justify-between">
+   478→                    <span className="text-muted-foreground">Phase 1 Passes</span>
+   479→                    <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">{c.p1Pass}</span>
+   480→                  </div>
+   481→                  <div className="flex items-center justify-between">
+   482→                    <span className="text-muted-foreground">Phase 1 Fails</span>
+   483→                    <span className="font-semibold tabular-nums text-rose-600 dark:text-rose-400">{c.p1Fail}</span>
+   484→                  </div>
+   485→                  <div className="flex items-center justify-between">
+   486→                    <span className="text-muted-foreground">Phase 1 Failure Rate</span>
+   487→                    <span className="font-semibold tabular-nums text-foreground">{pctRate(c.p1Pass, c.p1Fail)}</span>
+   488→                  </div>
+   489→                  <div className="flex items-center justify-between">
+   490→                    <span className="text-muted-foreground">Phase 2 Passes</span>
+   491→                    <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+   492→                      {c.p2Pass === null ? "—" : c.p2Pass}
+   493→                    </span>
+   494→                  </div>
+   495→                  <div className="flex items-center justify-between">
+   496→                    <span className="text-muted-foreground">Phase 2 Fails</span>
+   497→                    <span className="font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+   498→                      {c.p2Fail === null ? "—" : c.p2Fail}
+   499→                    </span>
+   500→                  </div>
+   501→                  <div className="flex items-center justify-between">
+   502→                    <span className="text-muted-foreground">Phase 2 Failure Rate</span>
+   503→                    <span className="font-semibold tabular-nums text-foreground">{pctRate(c.p2Pass, c.p2Fail)}</span>
+   504→                  </div>
+   505→                </div>
+   506→                <div className="mt-3 flex items-center justify-between border-t pt-3 text-xs">
+   507→                  <span className="text-muted-foreground">Funded Accounts</span>
+   508→                  <span className="font-semibold tabular-nums text-foreground">{c.funded}</span>
+   509→                </div>
+   510→              </div>
+   511→            ))}
+   512→          </div>
+   513→        </div>
+   514→      </PageContent>
+   515→    </Page>
+   516→  );
+   517→}
+   518→
+   519→/* ------------------------------------------------------------------ */
+   520→/* 2. DashboardPayoutsTab  (viewId: dashboard-payouts)                */
+   521→/* ------------------------------------------------------------------ */
+   522→
+   523→interface WithdrawalRow {
+   524→  id: string;
+   525→  trader: string;
+   526→  amount: number;
+   527→  method: string;
+   528→  status: string;
+   529→  date: string;
+   530→}
+   531→
+   532→const WITHDRAWAL_METHODS = ["Bank Wire", "Crypto (USDT)", "Skrill", "PayPal", "Debit Card"] as const;
+   533→const WITHDRAWAL_STATUSES = ["paid", "approved", "processing", "pending", "rejected"] as const;
+   534→const TRADER_NAMES = [
+   535→  "Tom Allen", "Sarah Chen", "Mike Davies", "Emma Wilson", "Luca Romano",
+   536→  "Yuki Tanaka", "Carlos Mendez", "Priya Patel", "Jonas Weber", "Aisha Khan",
+   537→  "Noah Smith", "Lena Berg", "Omar Farouk", "Ingrid Sørensen", "Diego Vargas",
+   538→];
+   539→
+   540→function buildWithdrawals(): WithdrawalRow[] {
+   541→  const rows: WithdrawalRow[] = [];
+   542→  for (let i = 0; i < 12; i++) {
+   543→    const amount = Math.round(1200 + Math.sin(i / 2) * 800 + i * 240);
+   544→    rows.push({
+   545→      id: `WD-${(10248 - i).toString()}`,
+   546→      trader: TRADER_NAMES[i % TRADER_NAMES.length],
+   547→      amount,
+   548→      method: WITHDRAWAL_METHODS[i % WITHDRAWAL_METHODS.length],
+   549→      status: WITHDRAWAL_STATUSES[i % WITHDRAWAL_STATUSES.length],
+   550→      date: daysAgo(i).slice(0, 10),
+   551→    });
+   552→  }
+   553→  return rows;
+   554→}
+   555→
+   556→function buildPayoutDailySeries() {
+   557→  return Array.from({ length: 30 }, (_, i) => {
+   558→    const n = 29 - i;
+   559→    const v = Math.max(
+   560→      1500,
+   561→      Math.round(6400 + Math.sin(n / 4) * 2400 + Math.cos(n / 7) * 1200 + (30 - n) * 60),
+   562→    );
+   563→    return { date: daysAgoShort(n), value: v };
+   564→  });
+   565→}
+   566→
+   567→const PAYOUT_COHORT: RetentionCohortRow[] = [
+   568→  { month: "Jun 2026", d30: 38, d60: 52, d90: 64 },
+   569→  { month: "Jul 2026", d30: 41, d60: 55, d90: 0 },
+   570→  { month: "Aug 2026", d30: 35, d60: 0, d90: 0 },
+   571→];
+   572→
+   573→export function DashboardPayoutsTab({ params }: { params: Record<string, string> }) {
+   574→  const { runtime } = usePlatform();
+   575→  const tid = runtime.tenant?.id ?? "platform";
+   576→  const currency = runtime.tenant?.currency ?? "USD";
+   577→
+   578→  void tid;
+   579→  void params;
+   580→
+   581→  const fmt = (v: number) => formatCurrency(v, currency);
+   582→
+   583→  const dailyPayouts = useMemo(() => buildPayoutDailySeries(), []);
+   584→  const totalPayoutAmount = dailyPayouts.reduce((s, d) => s + d.value, 0);
+   585→  const withdrawals = useMemo(() => buildWithdrawals(), []);
+   586→
+   587→  const payoutsByChallenge = [
+   588→    { label: "Instant Standard", value: 184200 },
+   589→    { label: "2-Step Turbo", value: 312800 },
+   590→    { label: "1-Step Gen Z", value: 142400 },
+   591→    { label: "2-Step Gen Z", value: 228600 },
+   592→  ];
+   593→
+   594→  const payoutsByPlatform = [
+   595→    { label: "MT5", value: 624300 },
+   596→    { label: "DXTrade", value: 243700 },
+   597→  ];
+   598→
+   599→  const withdrawalColumns: Column<WithdrawalRow>[] = [
+   600→    {
+   601→      key: "id",
+   602→      header: "Request",
+   603→      cell: (r) => <span className="font-mono text-xs font-medium text-foreground">{r.id}</span>,
+   604→      sortValue: (r) => r.id,
+   605→      width: "110px",
+   606→    },
+   607→    {
+   608→      key: "trader",
+   609→      header: "Trader",
+   610→      cell: (r) => <span className="font-medium text-foreground">{r.trader}</span>,
+   611→      sortValue: (r) => r.trader,
+   612→    },
+   613→    {
+   614→      key: "amount",
+   615→      header: "Amount",
+   616→      cell: (r) => <span className="font-medium tabular-nums text-foreground">{fmt(r.amount)}</span>,
+   617→      sortValue: (r) => r.amount,
+   618→      numeric: true,
+   619→    },
+   620→    {
+   621→      key: "method",
+   622→      header: "Method",
+   623→      cell: (r) => <span className="text-muted-foreground">{r.method}</span>,
+   624→      sortValue: (r) => r.method,
+   625→    },
+   626→    {
+   627→      key: "status",
+   628→      header: "Status",
+   629→      cell: (r) => <StatusBadge tone={payoutStatusToneLocal(r.status)}>{r.status}</StatusBadge>,
+   630→      sortValue: (r) => r.status,
+   631→    },
+   632→    {
+   633→      key: "date",
+   634→      header: "Date",
+   635→      cell: (r) => <span className="text-muted-foreground tabular-nums">{r.date}</span>,
+   636→      sortValue: (r) => r.date,
+   637→      numeric: true,
+   638→    },
+   639→  ];
+   640→
+   641→  return (
+   642→    <Page>
+   643→      <PageHeader
+   644→        title="Payouts Dashboard"
+   645→        description="Withdrawal requests, payout rates by cohort, and recent trader withdrawals."
+   646→        icon={Wallet}
+   647→      />
+   648→      <PageContent>
+   649→        {/* KPI strip — 6 cards */}
+   650→        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+   651→          <MetricCard label="Approved Payouts" value={312} delta={6} deltaLabel="vs last 30d" icon={CheckCircle2} tone="positive" />
+   652→          <MetricCard label="Total Payout Amount" value={fmt(totalPayoutAmount)} delta={9} deltaLabel="vs last 30d" icon={DollarSign} tone="positive" />
+   653→          <MetricCard label="Avg Profit Split" value="78%" delta={2} deltaLabel="pts" icon={Percent} tone="positive" />
+   654→          <MetricCard label="Pending Payouts" value={24} delta={-1} deltaLabel="vs last 30d" icon={Clock} tone="warning" />
+   655→          <MetricCard label="Rejected Payouts" value={7} delta={-2} deltaLabel="vs last 30d" icon={XCircle} tone="negative" />
+   656→          <MetricCard label="Processing Payouts" value={14} delta={1} deltaLabel="vs last 30d" icon={Activity} tone="positive" />
+   657→        </div>
+   658→
+   659→        {/* Daily payout movement */}
+   660→        <ChartCard
+   661→          title="Daily Payout Movement (30 days)"
+   662→          subtitle={`Total daily payout amount — ${currency}`}
+   663→        >
+   664→          <AreaSeries
+   665→            data={dailyPayouts}
+   666→            xKey="date"
+   667→            yKey="value"
+   668→            color={TERRA.forest}
+   669→            height={240}
+   670→            formatValue={(v) => fmt(v)}
+   671→          />
+   672→        </ChartCard>
+   673→
+   674→        {/* Payout cohort matrix */}
+   675→        <div className="rounded-lg border bg-card p-4">
+   676→          <div className="mb-3 flex items-center justify-between">
+   677→            <p className="text-sm font-medium">Payout Cohort Matrix</p>
+   678→            <span className="text-[10px] text-muted-foreground">% of cohort paid out at +30/+60/+90 days</span>
+   679→          </div>
+   680→          <div className="overflow-hidden rounded-md border">
+   681→            <table className="w-full text-sm">
+   682→              <thead className="bg-muted/40">
+   683→                <tr className="text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+   684→                  <th className="px-3 py-2">Cohort month</th>
+   685→                  <th className="px-3 py-2 text-right">+30d</th>
+   686→                  <th className="px-3 py-2 text-right">+60d</th>
+   687→                  <th className="px-3 py-2 text-right">+90d</th>
+   688→                </tr>
+   689→              </thead>
+   690→              <tbody>
+   691→                {PAYOUT_COHORT.map((row) => (
+   692→                  <tr key={row.month} className="border-t last:border-0">
+   693→                    <td className="px-3 py-2 font-medium text-foreground">{row.month}</td>
+   694→                    {(["d30", "d60", "d90"] as const).map((k) => (
+   695→                      <td
+   696→                        key={k}
+   697→                        className="px-3 py-2 text-right font-semibold tabular-nums"
+   698→                        style={{
+   699→                          background: retentionBg(row[k]),
+   700→                          color: retentionText(row[k]),
+   701→                        }}
+   702→                      >
+   703→                        {row[k] === 0 ? "—" : `${row[k]}%`}
+   704→                      </td>
+   705→                    ))}
+   706→                  </tr>
+   707→                ))}
+   708→              </tbody>
+   709→            </table>
+   710→          </div>
+   711→          <p className="mt-2 text-[10px] text-muted-foreground">
+   712→            Payout rate climbs steadily through +30/+60/+90d as funded traders request their first
+   713→            and second withdrawals.
+   714→          </p>
+   715→        </div>
+   716→
+   717→        {/* Payouts by challenge & platform */}
+   718→        <div className="grid gap-4 lg:grid-cols-2">
+   719→          <ChartCard title="Payouts by Challenge" subtitle={`Total payout amount per challenge type — ${currency}`}>
+   720→            <HorizontalBars
+   721→              data={payoutsByChallenge}
+   722→              labelKey="label"
+   723→              valueKey="value"
+   724→              color={TERRA.forest}
+   725→              height={220}
+   726→              formatValue={(v) => fmt(v)}
+   727→            />
+   728→          </ChartCard>
+   729→          <ChartCard title="Payouts by Platform" subtitle={`Total payout amount per trading platform — ${currency}`}>
+   730→            <HorizontalBars
+   731→              data={payoutsByPlatform}
+   732→              labelKey="label"
+   733→              valueKey="value"
+   734→              color={TERRA.amber}
+   735→              height={220}
+   736→              formatValue={(v) => fmt(v)}
+   737→            />
+   738→          </ChartCard>
+   739→        </div>
+   740→
+   741→        {/* Recent withdrawals table */}
+   742→        <div className="rounded-lg border bg-card p-4">
+   743→          <p className="mb-3 text-sm font-medium text-foreground">Recent Withdrawal Requests</p>
+   744→          <DataTable
+   745→            columns={withdrawalColumns}
+   746→            data={withdrawals}
+   747→            rowKey={(r) => r.id}
+   748→            searchableText={(r) => `${r.id} ${r.trader} ${r.method} ${r.status}`}
+   749→            searchPlaceholder="Search withdrawals…"
+   750→            pageSize={8}
+   751→          />
+   752→        </div>
+   753→      </PageContent>
+   754→    </Page>
+   755→  );
+   756→}
+   757→
+   758→/* Local tone helper — keeps the import surface tight. Mirrors the
+   759→   shared payoutStatusTone in @/components/platform/status but is
+   760→   duplicated here so this file stays self-contained. */
+   761→function payoutStatusToneLocal(status: string):
+   762→  | "default" | "success" | "warning" | "danger" | "info" | "muted" {
+   763→  switch (status) {
+   764→    case "paid":
+   765→      return "success";
+   766→    case "approved":
+   767→    case "processing":
+   768→      return "info";
+   769→    case "pending":
+   770→      return "warning";
+   771→    case "rejected":
+   772→      return "danger";
+   773→    default:
+   774→      return "muted";
+   775→  }
+   776→}
+   777→
+   778→/* ------------------------------------------------------------------ */
+   779→/* 3. DashboardOrdersTab  (viewId: dashboard-orders)                  */
+   780→/* ------------------------------------------------------------------ */
+   781→
+   782→interface CountryRevenueRow {
+   783→  country: string;
+   784→  orders: number;
+   785→  revenue: number;
+   786→  avgOrder: number;
+   787→  marketShare: number;
+   788→}
+   789→
+   790→const COUNTRY_SEED: Array<[string, number, number]> = [
+   791→  ["United States", 1842, 312800],
+   792→  ["United Kingdom", 968, 168400],
+   793→  ["Germany", 724, 122600],
+   794→  ["Australia", 612, 98800],
+   795→  ["Canada", 548, 94300],
+   796→  ["United Arab Emirates", 426, 78200],
+   797→  ["Singapore", 318, 61400],
+   798→  ["France", 286, 51900],
+   799→  ["Netherlands", 224, 41700],
+   800→  ["Brazil", 198, 36400],
+   801→];
+   802→
+   803→function buildCountryRows(): CountryRevenueRow[] {
+   804→  const totalRevenue = COUNTRY_SEED.reduce((s, [, , r]) => s + r, 0);
+   805→  return COUNTRY_SEED.map(([country, orders, revenue]) => ({
+   806→    country,
+   807→    orders,
+   808→    revenue,
+   809→    avgOrder: Math.round(revenue / orders),
+   810→    marketShare: Math.round((revenue / totalRevenue) * 1000) / 10,
+   811→  }));
+   812→}
+   813→
+   814→function buildHourlyRevenue() {
+   815→  return Array.from({ length: 24 }, (_, h) => ({
+   816→    hour: `${h.toString().padStart(2, "0")}`,
+   817→    value: Math.max(
+   818→      200,
+   819→      Math.round(2400 + Math.sin(h / 3) * 1600 + Math.cos(h / 5) * 800 + (h > 8 && h < 20 ? 1200 : 0)),
+   820→    ),
+   821→  }));
+   822→}
+   823→
+   824→function buildHourlyOrders() {
+   825→  return Array.from({ length: 24 }, (_, h) => ({
+   826→    hour: `${h.toString().padStart(2, "0")}`,
+   827→    value: Math.max(
+   828→      2,
+   829→      Math.round(18 + Math.sin(h / 3) * 12 + Math.cos(h / 5) * 6 + (h > 8 && h < 20 ? 14 : 0)),
+   830→    ),
+   831→  }));
+   832→}
+   833→
+   834→function buildMonthlyRevenue() {
+   835→  return Array.from({ length: 12 }, (_, i) => {
+   836→    const n = 11 - i;
+   837→    const rev = Math.max(
+   838→      20000,
+   839→      Math.round(84000 + Math.sin(n / 2) * 22000 + n * 1400),
+   840→    );
+   841→    return { date: monthsAgoShort(n), value: rev };
+   842→  });
+   843→}
+   844→
+   845→export function DashboardOrdersTab({ params }: { params: Record<string, string> }) {
+   846→  const { runtime } = usePlatform();
+   847→  const tid = runtime.tenant?.id ?? "platform";
+   848→  const currency = runtime.tenant?.currency ?? "USD";
+   849→
+   850→  void tid;
+   851→  void params;
+   852→
+   853→  const fmt = (v: number) => formatCurrency(v, currency);
+   854→
+   855→  const monthlyRevenue = useMemo(() => buildMonthlyRevenue(), []);
+   856→  const totalRevenue = monthlyRevenue.reduce((s, d) => s + d.value, 0);
+   857→  const totalOrders = 7294;
+   858→
+   859→  const revenueByChallenge = [
+   860→    { label: "Instant Standard", value: 248400 },
+   861→    { label: "2-Step Turbo", value: 412800 },
+   862→    { label: "1-Step Gen Z", value: 196200 },
+   863→    { label: "2-Step Gen Z", value: 318600 },
+   864→  ];
+   865→
+   866→  const revenueByBroker = [
+   867→    { label: "MT5", value: 924300 },
+   868→    { label: "DXTrade", value: 251700 },
+   869→  ];
+   870→
+   871→  const hourlyRevenue = useMemo(() => buildHourlyRevenue(), []);
+   872→  const hourlyOrders = useMemo(() => buildHourlyOrders(), []);
+   873→  const countryRows = useMemo(() => buildCountryRows(), []);
+   874→
+   875→  const countryColumns: Column<CountryRevenueRow>[] = [
+   876→    {
+   877→      key: "country",
+   878→      header: "Country",
+   879→      cell: (r) => <span className="font-medium text-foreground">{r.country}</span>,
+   880→      sortValue: (r) => r.country,
+   881→    },
+   882→    {
+   883→      key: "orders",
+   884→      header: "Orders",
+   885→      cell: (r) => <span className="tabular-nums text-foreground">{r.orders}</span>,
+   886→      sortValue: (r) => r.orders,
+   887→      numeric: true,
+   888→    },
+   889→    {
+   890→      key: "revenue",
+   891→      header: "Revenue",
+   892→      cell: (r) => <span className="font-medium tabular-nums text-foreground">{fmt(r.revenue)}</span>,
+   893→      sortValue: (r) => r.revenue,
+   894→      numeric: true,
+   895→    },
+   896→    {
+   897→      key: "avgOrder",
+   898→      header: "Avg Order Value",
+   899→      cell: (r) => <span className="tabular-nums text-muted-foreground">{fmt(r.avgOrder)}</span>,
+   900→      sortValue: (r) => r.avgOrder,
+   901→      numeric: true,
+   902→    },
+   903→    {
+   904→      key: "marketShare",
+   905→      header: "Market Share",
+   906→      cell: (r) => (
+   907→        <span className="inline-flex items-center gap-2 tabular-nums">
+   908→          <span className="font-medium text-foreground">{r.marketShare}%</span>
+   909→          <span
+   910→            className="h-1.5 rounded-full bg-emerald-500/40"
+   911→            style={{ width: `${Math.min(100, r.marketShare * 4)}px` }}
+   912→          />
+   913→        </span>
+   914→      ),
+   915→      sortValue: (r) => r.marketShare,
+   916→      numeric: true,
+   917→    },
+   918→  ];
+   919→
+   920→  return (
+   921→    <Page>
+   922→      <PageHeader
+   923→        title="Orders Dashboard"
+   924→        description="Order volume, revenue attribution, and hourly movement."
+   925→        icon={ShoppingCart}
+   926→      />
+   927→      <PageContent>
+   928→        {/* KPI strip — 5 cards */}
+   929→        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+   930→          <MetricCard label="Total Orders" value={totalOrders} delta={8} deltaLabel="vs last 30d" icon={ShoppingCart} tone="positive" />
+   931→          <MetricCard label="Total Revenue" value={fmt(totalRevenue)} delta={11} deltaLabel="vs last 30d" icon={DollarSign} tone="positive" />
+   932→          <MetricCard label="Avg Order Value" value={fmt(Math.round(totalRevenue / totalOrders))} delta={3} deltaLabel="vs last 30d" icon={Target} tone="positive" />
+   933→          <MetricCard label="Conversion Rate" value="3.8%" delta={0.4} deltaLabel="pts" icon={TrendingUp} tone="positive" />
+   934→          <MetricCard label="Refund Rate" value="1.4%" delta={-0.3} deltaLabel="pts" icon={TrendingDown} tone="positive" />
+   935→        </div>
+   936→
+   937→        {/* Revenue by challenge & broker */}
+   938→        <div className="grid gap-4 lg:grid-cols-2">
+   939→          <ChartCard title="Revenue by Challenge" subtitle={`Revenue attributed per challenge type — ${currency}`}>
+   940→            <HorizontalBars
+   941→              data={revenueByChallenge}
+   942→              labelKey="label"
+   943→              valueKey="value"
+   944→              color={TERRA.forest}
+   945→              height={220}
+   946→              formatValue={(v) => fmt(v)}
+   947→            />
+   948→          </ChartCard>
+   949→          <ChartCard title="Revenue by Broker" subtitle={`Revenue attributed per broker — ${currency}`}>
+   950→            <HorizontalBars
+   951→              data={revenueByBroker}
+   952→              labelKey="label"
+   953→              valueKey="value"
+   954→              color={TERRA.amber}
+   955→              height={220}
+   956→              formatValue={(v) => fmt(v)}
+   957→            />
+   958→          </ChartCard>
+   959→        </div>
+   960→
+   961→        {/* Monthly revenue trend */}
+   962→        <ChartCard
+   963→          title="Monthly Revenue Trend (12 months)"
+   964→          subtitle={`Monthly gross revenue — ${currency}`}
+   965→        >
+   966→          <AreaSeries
+   967→            data={monthlyRevenue}
+   968→            xKey="date"
+   969→            yKey="value"
+   970→            color={TERRA.emerald}
+   971→            height={240}
+   972→            formatValue={(v) => fmt(v)}
+   973→          />
+   974→        </ChartCard>
+   975→
+   976→        {/* Hourly revenue / orders movement — side by side */}
+   977→        <div className="grid gap-4 lg:grid-cols-2">
+   978→          <ChartCard title="Hourly Revenue Movement" subtitle={`Revenue per hour (UTC) — ${currency}`}>
+   979→            <AreaSeries
+   980→              data={hourlyRevenue}
+   981→              xKey="hour"
+   982→              yKey="value"
+   983→              color={TERRA.teal}
+   984→              height={220}
+   985→              formatValue={(v) => fmt(v)}
+   986→            />
+   987→          </ChartCard>
+   988→          <ChartCard title="Hourly Orders Movement" subtitle="Order count per hour (UTC)">
+   989→            <AreaSeries
+   990→              data={hourlyOrders}
+   991→              xKey="hour"
+   992→              yKey="value"
+   993→              color={TERRA.amber}
+   994→              height={220}
+   995→              formatValue={(v) => String(v)}
+   996→            />
+   997→          </ChartCard>
+   998→        </div>
+   999→
+  1000→        {/* Revenue by country table */}
+  1001→        <div className="rounded-lg border bg-card p-4">
+  1002→          <p className="mb-3 text-sm font-medium text-foreground">Revenue by Country</p>
+  1003→          <DataTable
+  1004→            columns={countryColumns}
+  1005→            data={countryRows}
+  1006→            rowKey={(r) => r.country}
+  1007→            searchableText={(r) => r.country}
+  1008→            searchPlaceholder="Search countries…"
+  1009→            pageSize={10}
+  1010→          />
+  1011→        </div>
+  1012→      </PageContent>
+  1013→    </Page>
+  1014→  );
+  1015→}
+  1016→
+  1017→/* ------------------------------------------------------------------ */
+  1018→/* 4. DashboardPositionsTab  (viewId: dashboard-positions)            */
+  1019→/* ------------------------------------------------------------------ */
+  1020→
+  1021→interface SymbolStatRow {
+  1022→  symbol: string;
+  1023→  totalPositions: number;
+  1024→  buyRatio: string;
+  1025→  totalVolume: number;
+  1026→  totalPnl: number;
+  1027→  winRate: number;
+  1028→}
+  1029→
+  1030→const SYMBOL_SEED: Array<[string, number, number, number, number]> = [
+  1031→  // symbol, positions, volume (lots), pnl, winRate%
+  1032→  ["EURUSD", 1248, 4820, 38400, 58],
+  1033→  ["GBPUSD", 824, 3120, 22600, 54],
+  1034→  ["XAUUSD", 968, 2480, -12800, 47],
+  1035→  ["BTCUSD", 486, 920, 64200, 61],
+  1036→  ["ETHUSD", 372, 740, 18900, 52],
+  1037→  ["USDJPY", 612, 2240, -6400, 49],
+  1038→];
+  1039→
+  1040→function buildSymbolRows(): SymbolStatRow[] {
+  1041→  return SYMBOL_SEED.map(([symbol, positions, volume, pnl, winRate]) => {
+  1042→    const buyPct = 50 + Math.round(Math.sin(symbol.length + positions) * 12);
+  1043→    return {
+  1044→      symbol,
+  1045→      totalPositions: positions,
+  1046→      buyRatio: `${buyPct}% / ${100 - buyPct}%`,
+  1047→      totalVolume: volume,
+  1048→      totalPnl: pnl,
+  1049→      winRate,
+  1050→    };
+  1051→  });
+  1052→}
+  1053→
+  1054→function buildTradeDistributionByHour() {
+  1055→  return Array.from({ length: 24 }, (_, h) => ({
+  1056→    hour: `${h.toString().padStart(2, "0")}`,
+  1057→    value: Math.max(
+  1058→      4,
+  1059→      Math.round(42 + Math.sin(h / 3) * 22 + Math.cos(h / 5) * 12 + (h > 8 && h < 20 ? 30 : 0)),
+  1060→    ),
+  1061→  }));
+  1062→}
+  1063→
+  1064→function buildPerformanceByHour() {
+  1065→  // Total P&L per hour — values can be negative (rose) or positive (emerald)
+  1066→  return Array.from({ length: 24 }, (_, h) => {
+  1067→    const base = Math.sin(h / 3) * 4200 + Math.cos(h / 5) * 2400 + (h > 8 && h < 20 ? 3500 : -800);
+  1068→    return {
+  1069→      hour: `${h.toString().padStart(2, "0")}`,
+  1070→      value: Math.round(base),
+  1071→    };
+  1072→  });
+  1073→}
+  1074→
+  1075→export function DashboardPositionsTab({ params }: { params: Record<string, string> }) {
+  1076→  const { runtime } = usePlatform();
+  1077→  const tid = runtime.tenant?.id ?? "platform";
+  1078→  const currency = runtime.tenant?.currency ?? "USD";
+  1079→
+  1080→  void tid;
+  1081→  void params;
+  1082→
+  1083→  const fmt = (v: number) => formatCurrency(v, currency);
+  1084→  const fmtCompactSigned = (v: number) =>
+  1085→    `${v >= 0 ? "+" : "−"}${formatCompact(Math.abs(v))}`;
+  1086→
+  1087→  const symbolRows = useMemo(() => buildSymbolRows(), []);
+  1088→  const totalOpenPositions = symbolRows.reduce((s, r) => s + r.totalPositions, 0);
+  1089→  const totalVolume = symbolRows.reduce((s, r) => s + r.totalVolume, 0);
+  1090→  const totalPnl = symbolRows.reduce((s, r) => s + r.totalPnl, 0);
+  1091→  const winningPositions = 4820;
+  1092→  const losingPositions = 3386;
+  1093→  const winRate = Math.round((winningPositions / (winningPositions + losingPositions)) * 100);
+  1094→
+  1095→  // React Compiler auto-memoizes pure calls — no manual useMemo needed.
+  1096→  const tradeDistribution = buildTradeDistributionByHour();
+  1097→  const performanceByHour = buildPerformanceByHour();
+  1098→
+  1099→  const symbolColumns: Column<SymbolStatRow>[] = [
+  1100→    {
+  1101→      key: "symbol",
+  1102→      header: "Symbol",
+  1103→      cell: (r) => (
+  1104→        <span className="inline-flex items-center gap-1.5 font-mono font-semibold text-foreground">
+  1105→          <span className="h-2 w-2 rounded-sm" style={{ background: TERRA.forest }} />
+  1106→          {r.symbol}
+  1107→        </span>
+  1108→      ),
+  1109→      sortValue: (r) => r.symbol,
+  1110→    },
+  1111→    {
+  1112→      key: "totalPositions",
+  1113→      header: "Positions",
+  1114→      cell: (r) => <span className="tabular-nums text-foreground">{r.totalPositions}</span>,
+  1115→      sortValue: (r) => r.totalPositions,
+  1116→      numeric: true,
+  1117→    },
+  1118→    {
+  1119→      key: "buyRatio",
+  1120→      header: "Buy / Sell",
+  1121→      cell: (r) => (
+  1122→        <span className="tabular-nums text-muted-foreground">
+  1123→          <span className="text-emerald-600 dark:text-emerald-400">{r.buyRatio.split(" / ")[0]}</span>
+  1124→          {" / "}
+  1125→          <span className="text-rose-600 dark:text-rose-400">{r.buyRatio.split(" / ")[1]}</span>
+  1126→        </span>
+  1127→      ),
+  1128→      sortValue: (r) => r.buyRatio,
+  1129→    },
+  1130→    {
+  1131→      key: "totalVolume",
+  1132→      header: "Total Volume",
+  1133→      cell: (r) => <span className="tabular-nums text-muted-foreground">{formatCompact(r.totalVolume)} lots</span>,
+  1134→      sortValue: (r) => r.totalVolume,
+  1135→      numeric: true,
+  1136→    },
+  1137→    {
+  1138→      key: "totalPnl",
+  1139→      header: "Total P&L",
+  1140→      cell: (r) => (
+  1141→        <span
+  1142→          className={cn(
+  1143→            "font-medium tabular-nums",
+  1144→            r.totalPnl >= 0
+  1145→              ? "text-emerald-600 dark:text-emerald-400"
+  1146→              : "text-rose-600 dark:text-rose-400",
+  1147→          )}
+  1148→        >
+  1149→          {fmtCompactSigned(r.totalPnl)}
+  1150→        </span>
+  1151→      ),
+  1152→      sortValue: (r) => r.totalPnl,
+  1153→      numeric: true,
+  1154→    },
+  1155→    {
+  1156→      key: "winRate",
+  1157→      header: "Win Rate",
+  1158→      cell: (r) => (
+  1159→        <StatusBadge tone={r.winRate >= 55 ? "success" : r.winRate >= 50 ? "info" : "warning"}>
+  1160→          {r.winRate}%
+  1161→        </StatusBadge>
+  1162→      ),
+  1163→      sortValue: (r) => r.winRate,
+  1164→      numeric: true,
+  1165→    },
+  1166→  ];
+  1167→
+  1168→  return (
+  1169→    <Page>
+  1170→      <PageHeader
+  1171→        title="Positions Dashboard"
+  1172→        description="Open positions by symbol, volume, P&L, and hourly trading distribution."
+  1173→        icon={ArrowLeftRight}
+  1174→      />
+  1175→      <PageContent>
+  1176→        {/* KPI strip — 6 cards */}
+  1177→        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+  1178→          <MetricCard label="Total Open Positions" value={totalOpenPositions} delta={4} deltaLabel="vs yesterday" icon={ArrowLeftRight} tone="positive" />
+  1179→          <MetricCard label="Total Volume" value={`${formatCompact(totalVolume)} lots`} delta={6} deltaLabel="vs yesterday" icon={Layers} />
+  1180→          <MetricCard
+  1181→            label="Total P&L"
+  1182→            value={fmtCompactSigned(totalPnl)}
+  1183→            delta={8}
+  1184→            deltaLabel="vs yesterday"
+  1185→            icon={Coins}
+  1186→            tone={totalPnl >= 0 ? "positive" : "negative"}
+  1187→          />
+  1188→          <MetricCard label="Winning Positions" value={winningPositions} delta={5} deltaLabel="vs yesterday" icon={TrendingUp} tone="positive" />
+  1189→          <MetricCard label="Losing Positions" value={losingPositions} delta={-2} deltaLabel="vs yesterday" icon={TrendingDown} tone="negative" />
+  1190→          <MetricCard label="Win Rate" value={`${winRate}%`} delta={1} deltaLabel="pts" icon={Gauge} tone="positive" />
+  1191→        </div>
+  1192→
+  1193→        {/* Symbol stats table */}
+  1194→        <div className="rounded-lg border bg-card p-4">
+  1195→          <p className="mb-3 text-sm font-medium text-foreground">Symbol Stats</p>
+  1196→          <DataTable
+  1197→            columns={symbolColumns}
+  1198→            data={symbolRows}
+  1199→            rowKey={(r) => r.symbol}
+  1200→            searchableText={(r) => r.symbol}
+  1201→            searchPlaceholder="Search symbols…"
+  1202→            pageSize={10}
+  1203→          />
+  1204→        </div>
+  1205→
+  1206→        {/* Trade distribution & performance distribution by hour */}
+  1207→        <div className="grid gap-4 lg:grid-cols-2">
+  1208→          <ChartCard
+  1209→            title="Trade Distribution by Hour"
+  1210→            subtitle="Trade count per hour (UTC) — 24 bars"
+  1211→          >
+  1212→            <BarSeries
+  1213→              data={tradeDistribution}
+  1214→              xKey="hour"
+  1215→              yKey="value"
+  1216→              color={TERRA.forest}
+  1217→              height={240}
+  1218→              formatValue={(v) => String(v)}
+  1219→            />
+  1220→          </ChartCard>
+  1221→          <ChartCard
+  1222→            title="Performance Distribution by Hour"
+  1223→            subtitle={`Total P&L per hour (UTC) — emerald = positive, rose = negative`}
+  1224→          >
+  1225→            <ColoredBars
+  1226→              data={performanceByHour}
+  1227→              xKey="hour"
+  1228→              yKey="value"
+  1229→              height={240}
+  1230→              formatValue={(v) => fmt(v)}
+  1231→            />
+  1232→            <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+  1233→              <span className="inline-flex items-center gap-1.5">
+  1234→                <span className="h-2 w-2 rounded-sm" style={{ background: TERRA.emerald }} />
+  1235→                Positive hour
+  1236→              </span>
+  1237→              <span className="inline-flex items-center gap-1.5">
+  1238→                <span className="h-2 w-2 rounded-sm" style={{ background: TERRA.rose }} />
+  1239→                Negative hour
+  1240→              </span>
+  1241→            </div>
+  1242→          </ChartCard>
+  1243→        </div>
+  1244→      </PageContent>
+  1245→    </Page>
+  1246→  );
+  1247→}
+  1248→

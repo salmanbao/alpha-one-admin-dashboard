@@ -19,7 +19,7 @@ import { Megaphone, DollarSign, Eye, Target, TrendingUp } from "lucide-react";
 const CHANNEL_COLORS: Record<string, string> = {
   email: "#db2777",
   social: "#f59e0b",
-  "paid-ads": "#8b5cf6",
+  "paid-ads": "#db2777", // pink — Terra-allowed; replaces violet (#8b5cf6).
   content: "#059669",
   affiliate: "#0891b2",
 };

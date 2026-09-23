@@ -4,9 +4,32 @@
  * Spec section 43. Settings are modular. This module registers the
  * settings navigation entry. The settings page itself owns tabs for
  * General, Branding, Terminology, Modules, Roles, Notifications.
+ *
+ * Sidebar children are grouped by category (the order itself
+ * communicates the grouping — Branding → Security → Communications
+ * → Certificates → System). All 19 children point to live views
+ * registered in `src/lib/platform/view-router.tsx` — there are no
+ * dead-link entries in this manifest (verified 2026-09 by
+ * `impl-shell-settings`).
  */
 
-import { Settings as SettingsIcon, Palette, Users, Package, Bell, Type, Mail, Award, Image, UsersRound, KeyRound, Wrench, Plug, Share2, Fingerprint } from "lucide-react";
+import {
+  Settings as SettingsIcon,
+  Palette,
+  Users,
+  Package,
+  Bell,
+  Type,
+  Mail,
+  Award,
+  Image,
+  UsersRound,
+  KeyRound,
+  Wrench,
+  Plug,
+  Share2,
+  Fingerprint,
+} from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
 const navigation: NavigationItem[] = [
@@ -19,25 +42,34 @@ const navigation: NavigationItem[] = [
     permission: "settings.manage",
     application: ["prop-admin", "super-admin"],
     children: [
-      { id: "settings.general", label: "General", href: "settings", icon: SettingsIcon, permission: "settings.manage" },
+      // ───────── Branding & White-label ─────────
       { id: "settings.branding", label: "Branding", href: "settings", icon: Palette, permission: "settings.manage" },
       { id: "settings.terminology", label: "Terminology", href: "settings", icon: Type, permission: "settings.manage" },
-      { id: "settings.modules", label: "Modules", href: "settings", icon: Package, permission: "settings.manage" },
-      { id: "settings.roles", label: "Roles & Permissions", href: "settings", icon: Users, permission: "settings.manage" },
-      { id: "settings.notifications", label: "Notifications", href: "settings", icon: Bell, permission: "settings.manage" },
-      { id: "settings.email-templates", label: "Email Templates", href: "email-templates", icon: Mail, permission: "settings.manage" },
-      { id: "settings.certificates", label: "Certificates", href: "certificate-management", icon: Award, permission: "settings.manage" },
       { id: "settings.banners", label: "Banners", href: "banner-management", icon: Image, permission: "settings.manage" },
-      { id: "settings.users", label: "User Management", href: "user-management", icon: UsersRound, permission: "settings.manage" },
-      { id: "settings.tokens", label: "API Tokens", href: "token-management", icon: KeyRound, permission: "settings.manage" },
-      { id: "settings.cert-issued", label: "Issued Certificates", href: "certificates-issued", icon: Award, permission: "settings.manage" },
-      { id: "settings.notifications-mgmt", label: "Notifications Mgmt", href: "notifications-management", icon: Bell, permission: "settings.manage" },
-      { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage" },
-      { id: "settings.cert-designer", label: "Certificate Designer", href: "certificate-template-designer", icon: Palette, permission: "settings.manage" },
-      { id: "settings.font-upload", label: "Font Upload", href: "certificate-font-upload", icon: Type, permission: "settings.manage" },
       { id: "settings.mkt-integrations", label: "Marketing Integrations", href: "marketing-integrations", icon: Plug, permission: "settings.manage" },
       { id: "settings.social-media", label: "Social Media Links", href: "social-media-links", icon: Share2, permission: "settings.manage" },
+
+      // ───────── Security & Access ─────────
+      { id: "settings.users", label: "User Management", href: "user-management", icon: UsersRound, permission: "settings.manage" },
+      { id: "settings.tokens", label: "API Tokens", href: "token-management", icon: KeyRound, permission: "settings.manage" },
       { id: "settings.device-activities", label: "Device Activities", href: "device-activities", icon: Fingerprint, permission: "settings.manage" },
+
+      // ───────── Communications ─────────
+      { id: "settings.email-templates", label: "Email Templates", href: "email-templates", icon: Mail, permission: "settings.manage" },
+      { id: "settings.notifications-mgmt", label: "Notifications Mgmt", href: "notifications-management", icon: Bell, permission: "settings.manage" },
+
+      // ───────── Certificates ─────────
+      { id: "settings.certificates", label: "Certificates", href: "certificate-management", icon: Award, permission: "settings.manage" },
+      { id: "settings.cert-designer", label: "Certificate Designer", href: "certificate-template-designer", icon: Palette, permission: "settings.manage" },
+      { id: "settings.font-upload", label: "Font Upload", href: "certificate-font-upload", icon: Type, permission: "settings.manage" },
+      { id: "settings.cert-issued", label: "Issued Certificates", href: "certificates-issued", icon: Award, permission: "settings.manage" },
+
+      // ───────── System ─────────
+      { id: "settings.general", label: "General", href: "settings", icon: SettingsIcon, permission: "settings.manage" },
+      { id: "settings.modules", label: "Modules", href: "settings", icon: Package, permission: "settings.manage" },
+      { id: "settings.roles", label: "Roles & Permissions", href: "settings", icon: Users, permission: "settings.manage" },
+      { id: "settings.notifications", label: "Notifications Matrix", href: "settings", icon: Bell, permission: "settings.manage" },
+      { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage" },
     ],
   },
 ];

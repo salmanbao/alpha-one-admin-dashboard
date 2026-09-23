@@ -54,6 +54,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { cn } from "@/lib/utils";
 import {
   ScrollText,
@@ -494,10 +495,22 @@ export function EnhancedUserEventsPage() {
   };
 
   const onExportCsv = () => {
-    toast({
-      title: "Export started",
-      description: `Exporting ${filtered.length} user events as CSV.`,
-    });
+    exportToCsv<EnhancedUserEvent>(
+      filtered,
+      [
+        { key: "id", header: "Event ID", value: (e) => e.id },
+        { key: "timestamp", header: "Timestamp", value: (e) => e.timestamp },
+        { key: "userEmail", header: "User Email", value: (e) => e.userEmail },
+        { key: "accountId", header: "Account ID", value: (e) => e.accountId },
+        { key: "phaseType", header: "Phase Type", value: (e) => e.phaseType },
+        { key: "challengeName", header: "Challenge", value: (e) => e.challengeName },
+        { key: "eventType", header: "Event Type", value: (e) => e.eventType },
+        { key: "description", header: "Description", value: (e) => e.description },
+        { key: "ipAddress", header: "IP Address", value: (e) => e.ipAddress },
+        { key: "source", header: "Source", value: (e) => e.source },
+      ],
+      `enhanced-user-events-${Date.now()}.csv`,
+    );
   };
 
   // ----- Columns -----

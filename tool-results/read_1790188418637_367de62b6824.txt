@@ -1,0 +1,301 @@
+     1→     1→- **Offer Edit → Matching Users / Change History**: ✓ navigate() called (offer-edit-page.tsx:408, 416).
+     2→     2→- **Offer Matching Users → Trader Detail**: ✓ navigate() called (offer-matching-users-page.tsx:220).
+     3→     3→- **Affiliate Commissions → Payouts**: NO LINK.
+     4→     4→- **Marketing Campaign → CRM Contact**: NO LINK.
+     5→     5→- **MarketingDashboardPage top trader → trader-detail**: NO LINK (row click does nothing).
+     6→     6→- **CRM Contact → Trader Detail**: NO LINK (no row action).
+     7→     7→- **CRM Pipeline stage → Contacts filtered**: NO LINK (clicking stage card does nothing).
+     8→     8→- **Accounting Transaction → Payout / Affiliate**: NO LINK.
+     9→     9→- **Affiliate Overview chart → drill-down**: NO LINK (chart not clickable).
+    10→    10→
+    11→    11→### Bulk actions (§26)
+    12→    12→- **None** in any of the 4 modules. Affiliates list, Campaigns list, Commissions list, Transactions list, Reconciliation pending list, Marketing Campaigns list, CRM Contacts list — all bare DataTables without selection. Reconciliation "Reconcile" is single-row only — should support batch reconcile. CRM Contacts should support bulk stage-update. Affiliate list should support bulk status change.
+    13→    13→
+    14→    14→### Export/print
+    15→    15→- **Real `exportToCsv`**: TransactionsPage ✓, OfferChangeHistoryPage ✓ (handcrafted CSV Blob).
+    16→    16→- **Toast-only (fake)**: AffiliatesOverviewPage Export (affiliate-pages.tsx:48-52), MarketingOverviewPage Export (marketing-pages.tsx:63), MarketingDashboardPage Export CSV (line 204-209), CrmOverviewPage Export (crm-pages.tsx:56-61).
+    17→    17→- **No export**: All other pages (AffiliateCampaigns, AffiliateCommissions, OfferManagement, OfferMatchingUsers, Reconciliation, MarketingCampaigns, MarketingPerformance, CrmContacts, CrmPipeline).
+    18→    18→
+    19→    19→### Visual hierarchy (§41)
+    20→    20→- **AffiliatesOverviewPage 4 KPI cards equal weight** — no "primary" highlight. Spec §23 One Primary Action — if pending commissions > 0, should highlight "Pending Payout".
+    21→    21→- **MarketingOverviewPage 5 KPI cards** — ROI KPI has `tone={roi >= 0 ? "positive" : "negative"}` ✓ (best of the 4 modules).
+    22→    22→- **CrmOverviewPage 5 KPI cards** — Churned KPI correctly `tone="negative"` ✓.
+    23→    23→- **AccountingOverviewPage 4 KPI cards** — Revenue `tone="positive"` ✓, Payouts `tone="negative"` ✓, Fees `tone="warning"` ✓, Net conditional ✓. But **NO deltas** — weakest KPI hierarchy of the 4 modules.
+    24→    24→
+    25→    25→### Animation (§68)
+    26→    26→- Appropriate. Recharts default animations on AreaSeries/BarSeries/DonutSeries (subtle). No fake real-time indicators (§67 ✓).
+    27→    27→
+    28→    28→### Help / Education (§33)
+    29→    29→- **Strong**: offer-edit-page.tsx — 6 LabelWithHelp tooltips (Display Order, Offer Image, Coupon Code, Discount %, Offer URL, segment fields). Best-in-class for these 4 modules.
+    30→    30→- **Strong**: offer-change-history-page.tsx — "Showing X of Y total" header explains filter context.
+    31→    31→- **Weak**: affiliate-pages.tsx (all 4 pages), accounting-pages.tsx (all 3 pages), marketing-pages.tsx (all 3 pages), marketing-dashboard-page.tsx, crm-pages.tsx — ZERO `LabelWithHelp` or `ⓘ` tooltips. "ROI", "Net", "Pipeline Value", "Avg Ticket", "Reconciliation Rate", "Best Trade", "Logged In Users" — none have explanations.
+    32→    32→
+    33→    33→### Destructive actions (§24)
+    34→    34→- **Strong**: OfferEditPage Delete — AlertDialog with consequence text + permanent removal warning + coupon redemption impact (✓ best-in-class for these 4 modules).
+    35→    35→- **Weak**: Reconciliation "Reconcile" button — plain Button + toast, no confirmation, no audit-trail entry. Affects the books; should at least log actor + timestamp.
+    36→    36→- **Acceptable**: OfferManagementPage "Add Offer" / "Edit" buttons — non-destructive (toast demo only).
+    37→    37→
+    38→    38→### First-time experience (§34)
+    39→    39→- **No onboarding** on any Overview page for a new tenant with 0 data. Should say "Welcome — once you onboard affiliates / record transactions / launch campaigns / capture leads, KPIs will populate here".
+    40→    40→- **No first-time tooltip** on Offer Edit page's DualListBox explaining the add/remove flow.
+    41→    41→- **No first-time tooltip** on CRM Pipeline explaining the stage progression.
+    42→    42→- **No first-time tooltip** on Reconciliation explaining the bank-statement match workflow.
+    43→    43→
+    44→    44→## TOP PRIORITY ACTIONS (ordered)
+    45→    45→
+    46→    46→1. **HIGHEST** — Fix `MarketingDashboardPage` dead filter bug (`marketing-dashboard-page.tsx:131` — `|| true` makes the week-range filter a no-op). Either implement the filter properly (filter traders by `joinedAt` ≥ cutoff) or remove the dead `|| true` and show "no traders in range" EmptyState. — Effort: S.
+    47→    47→
+    48→    48→2. **HIGHEST** — Fix `OfferManagementPage` dead-link buttons: "Edit Offer" buttons (offer-management-page.tsx:143 + 267) and "View Change History" button (line 136) fire toast only; should `navigate("offer-edit", { id: o.id })` and `navigate("offer-change-history", { id: o.id })`. The Offer Edit and Offer Change History pages exist but aren't reachable from the table — orphaned pages. — Effort: S.
+    49→    49→
+    50→    50→3. **HIGHEST** — Fix the 4 dead-link Settings entries (`settings-affiliates`, `settings-accounting`, `settings-marketing`, `settings-crm`). Either build settings pages for each module or remove the `settings` array from each manifest. Same bug class as `settings-payouts` / `settings-analytics` from prior analysis. — Effort: M (build all 4) or S (remove all 4 entries).
+    51→    51→
+    52→    52→4. **HIGHEST** — Fix Terra palette violations: `affiliate-widgets.tsx:14` `platinum: "#7c3aed"` (violet) → use `#475569` (slate) or `#a21caf` (fuchsia); `affiliate-widgets.tsx:63` `bg-violet-100 text-violet-600` rank badge → use fuchsia or slate; `marketing/widgets/marketing-widgets.tsx:22` + `marketing/pages/marketing-pages.tsx:24` `CHANNEL_COLORS["paid-ads"] = "#8b5cf6"` (violet) → use `#c2410c` (orange) or `#92400e` (amber-800). — Effort: S each.
+    53→    53→
+    54→    54→5. **HIGH** — Wire real `exportToCsv` to AffiliatesOverviewPage Export (affiliate-pages.tsx:48-52), MarketingOverviewPage Export (marketing-pages.tsx:63), MarketingDashboardPage Export CSV (marketing-dashboard-page.tsx:204-209), CrmOverviewPage Export (crm-pages.tsx:56-61). Currently all toast-only. Use `exportToCsv` helper like TransactionsPage. — Effort: S each.
+    55→    55→
+    56→    56→6. **HIGH** — Add EmptyState to (a) AffiliatesOverviewPage, (b) AccountingOverviewPage, (c) MarketingOverviewPage, (d) MarketingPerformancePage, (e) CrmOverviewPage, (f) CrmPipelinePage. New tenant → blank charts. (§30 violation.) — Effort: S each.
+    57→    57→
+    58→    58→7. **HIGH** — Build CRM Contact detail drawer (§27 — spec #5). Clicking a contact should open a drawer with history, notes, tasks, deals, communications. Currently row click does nothing — Contacts table is a dead-end list. — Effort: M.
+    59→    59→
+    60→    60→8. **HIGH** — Build CRM kanban-style pipeline (spec #3). Currently only stage-flow cards + BarSeries; no drag-and-drop board for moving contacts between stages. — Effort: M.
+    61→    61→
+    62→    62→9. **HIGH** — Build Affiliate Commissions → Payouts cross-link (spec #10). Commissions page should surface "X pending affiliate payouts →" linking to payouts module filtered by source=affiliate. Also add Accounting Transaction (type=payout) → Payouts record link, and Transaction (type=commission) → Affiliate record link. — Effort: M.
+    63→    63→
+    64→    64→10. **HIGH** — Build CRM bulk import/export contacts (CSV) (spec #10) + bulk stage-update. Currently Contacts is read-only with no row actions, no Add Contact button. — Effort: M.
+    65→    65→
+    66→    66→11. **HIGH** — Add filters to TransactionsPage (status Select, type Select, date range, account Select) — currently only search. Mirror offer-change-history-page filter bar pattern. Also add to MarketingCampaignsPage (status Select, channel Select) + CrmContactsPage (stage Select, owner Select, source Select) + AffiliateCampaignsPage (status Select, affiliate Select) + AffiliateCommissionsPage (tier Select, status Select). — Effort: S each.
+    67→    67→
+    68→    68→12. **HIGH** — Build Accounting Invoices module (spec #4 — generate, send, track). Currently ZERO invoice UI. Includes invoice list, create form, PDF generation, email integration. — Effort: L.
+    69→    69→
+    70→    70→13. **HIGH** — Build Accounting reconciliation bank-statement import + discrepancy detection (spec #3). Currently manual single-row "Reconcile" only. Should support CSV upload, auto-match, side-by-side ledger-vs-bank view, discrepancy flagging. — Effort: L.
+    71→    71→
+    72→    72→14. **HIGH** — Add AlertDialog friction to Reconciliation "Reconcile" button (§24 — single-row is reversible but should log actor + timestamp). Add bulk reconcile (batch select + Reconcile Selected) mirroring enhanced-withdrawals-page pattern. — Effort: S each.
+    73→    73→
+    74→    74→15. **HIGH** — Add CTR / CPC / CPA derived columns to Marketing Campaigns table (spec #2 — currently has Impressions, Clicks, Conversions but no derived metrics). Also add MarketingCampaignsPage row actions (edit, pause, duplicate, view). — Effort: S (columns) / M (actions).
+    75→    75→
+    76→    76→16. **MEDIUM** — Build Affiliate Offer Edit's affiliate-commission config (commission %, bonus, min payout, conversion criteria — spec #6). Currently offer-edit-page only has discountPct + dates + popup + URL; no commission/payout structure for affiliates. — Effort: M.
+    77→    77→
+    78→    78→17. **MEDIUM** — Build Affiliate link tracking page (spec #13 — clicks/conversions per unique affiliate link). — Effort: M.
+    79→    79→
+    80→    80→18. **MEDIUM** — Build Affiliate payout schedule view (spec #10) + Affiliate public dashboard widget / white-label portal (spec #9). — Effort: M (schedule) + L (portal).
+    81→    81→
+    82→    82→19. **MEDIUM** — Build Marketing email campaigns module (templates, send, open rate, click rate — spec #5). Email templates exist in mock-data.ts but no Marketing page surfaces them. — Effort: L.
+    83→    83→
+    84→    84→20. **MEDIUM** — Build Marketing attribution reports (first-click, last-click, multi-touch — spec #10). — Effort: L.
+    85→    85→
+    86→    86→21. **MEDIUM** — Build Marketing A/B test results page (spec #9) + Marketing budget planner (spec #11) + Cohort marketing performance (spec #12). — Effort: M (each).
+    87→    87→
+    88→    88→22. **MEDIUM** — Build CRM lead scoring model (spec #4) + Tasks & reminders (spec #9) + Custom fields management (spec #11) + Deal tracking (spec #8). — Effort: M (each, except Deal tracking L).
+    89→    89→
+    90→    90→23. **MEDIUM** — Build Accounting P&L statement + Balance sheet + Chart of accounts + Tax reports (VAT, sales tax) (spec #5-8). — Effort: L (multi-page).
+    91→    91→
+    92→    92→24. **MEDIUM** — Add `deltaLabel` to all KPIs with deltas (§9). Affiliates Overview `delta={6}` / `delta={11}` without "vs prev 30d". Marketing Overview `delta={6}` without label. CRM Overview `delta={5}` without label. Accounting Overview has NO deltas at all (add them with labels). — Effort: S each.
+    93→    93→
+    94→    94→25. **MEDIUM** — Add contextual help (§33) — LabelWithHelp on KPIs across all 4 modules. "ROI" / "Net" / "Pipeline Value" / "Avg Ticket" / "Reconciliation Rate" / "Best Trade" / "Logged In Users" — none have explanations. — Effort: S each.
+    95→    95→
+    96→    96→26. **MEDIUM** — Add page-level ErrorBoundary + loading skeletons to every page in the 4 modules (§31, §32 violations). — Effort: M.
+    97→    97→
+    98→    98→27. **MEDIUM** — Add URL-persisted filters to all filtered pages (§51). OfferManagement status filter, OfferChangeHistory action filter, OfferMatchingUsers pagination, MarketingDashboard week range + search, all DataTable searches. Refresh loses context. — Effort: M.
+    99→    99→
+   100→   100→28. **MEDIUM** — Add `makeTermResolver` to all page headers (§54/§55). Tenant terminology might want payout → "Disbursement", challenge → "Evaluation", affiliate → "Partner". Sidebar adapts via `termKey` on nav parent (none declared for these 4 modules — add to manifests). — Effort: M.
+   101→   101→
+   102→   102→29. **MEDIUM** — Fix MarketingDashboardPage footer copy (line 470-473) — currently claims "Trading pair volume and buy/sell ratios are aggregated from open and closed positions" but topPairs are 100% synthetic mock. Either derive from positions data or reword to "synthetic sample for demo". Also derive "Best Trade" from positions instead of hardcoded 4250. — Effort: S.
+   103→   103→
+   104→   104→30. **MEDIUM** — Fix manifest data inconsistency in `marketing/manifest.ts` — 4 nav children (Overview/Campaigns/Performance/Dashboard) but only 3 routes (missing `marketing-dashboard` route entry). Add the missing RouteDefinition. — Effort: S.
+   105→   105→
+   106→   106→31. **MEDIUM** — Fix duplicate charts across Marketing Overview + Performance ("Spend by Channel" DonutSeries appears on both — violates §8 Dashboard Density Rule). Performance page should add unique breakdowns (by source, by attribution model), not duplicate Overview. — Effort: M.
+   107→   107→
+   108→   108→32. **MEDIUM** — Add MarketingPerformancePage KPIs (currently pure 3-chart page with no summary metrics). At minimum: Top Channel by ROI, Avg CPC, Avg CPA, Avg CTR. — Effort: S.
+   109→   109→
+   110→   110→33. **MEDIUM** — Replace raw `<Input type="date">` in `offer-edit-page.tsx:542, 551` with shadcn Calendar/DatePicker (§48 accessibility consistency). — Effort: S.
+   111→   111→
+   112→   112→34. **MEDIUM** — Add stage-card click navigation on CrmPipelinePage → filter Contacts table by stage (`navigate("crm-contacts", { stage })`). Currently dead-end visualization. — Effort: S.
+   113→   113→
+   114→   114→35. **MEDIUM** — Add tenantId field to `Offer` interface + scope `getOffers()` by tenant (currently 3 hardcoded offers shared across all tenants — multi-tenant demo looks identical). — Effort: S.
+   115→   115→
+   116→   116→36. **LOW** — Add cross-module links: Marketing Campaign → CRM Contacts (converted leads); CRM Contact → Trader Detail (if contact became a trader); Affiliate Campaign → CRM Contacts (signups from campaign); Offer Matching Users already links to trader-detail ✓. — Effort: M.
+   117→   117→
+   118→   118→37. **LOW** — Add plan gating to all 4 modules. Alpha (growth plan) shouldn't see Affiliates/Marketing/CRM/Accounting (these are scale+enterprise). Add `feature: "growth.marketing"` flag and gate via FeatureGuard. Currently `optional: true` with no feature flag — visible to any tenant with module enabled. — Effort: M.
+   119→   119→
+   120→   120→38. **LOW** — Make TopAffiliatesWidget rank badge accessible (color-only tier indication lacks `role="img"` + `aria-label`). Same for CrmPipelinePage stage cards (color conveys stage identity). — Effort: S each.
+   121→   121→
+   122→   122→39. **LOW** — Add multi-currency normalization to Accounting (transactions have per-row currency but no FX view) and to Marketing (ad spend often in USD with EUR/local conversions). — Effort: L.
+   123→   123→
+   124→   124→40. **LOW** — Make `affiliateCampaigns` mock filterable by affiliate (currently flat array sliced 0-12 — no per-affiliate drill-down). Add Affiliate detail drawer showing all campaigns for one affiliate. — Effort: M.
+   125→   125→
+   126→   126→## Summary
+   127→   127→- **4 modules, 18 files analyzed, 0 lint errors introduced (read-only analysis)**.
+   128→   128→- **Affiliates**: 8 pages (best of the 4 modules — Offer Edit is best-in-class for UX Constitution §12, §24, §27, §33), 3 widgets, 4 permissions. Critical gap: orphaned Offer Edit page from Offer Management table (toast-only buttons).
+   129→   129→- **Accounting**: 3 pages, 3 widgets, 2 permissions. Best `exportToCsv` of the 4 modules. Weakest KPI hierarchy (no deltas). Missing 7 spec items entirely (invoices, tax, P&L, balance sheet, COA, expense categories, multi-currency).
+   130→   130→- **Marketing**: 4 pages, 3 widgets, 2 permissions. Critical bug: dead `|| true` filter on MarketingDashboardPage makes week-range selector a no-op. Critical bug: misleading footer copy. Terra palette violation in CHANNEL_COLORS. Manifest data inconsistency (4 nav vs 3 routes).
+   131→   131→- **CRM**: 3 pages, 2 widgets, 2 permissions. Critical gap: Contacts table is a dead-end list — no contact detail drawer, no Add button, no row actions. No kanban. Missing 9 spec items (lead scoring, contact detail, email integration, activity timeline, deal tracking, tasks, bulk import, custom fields).
+   132→   132→- **All 4 modules**: ZERO `makeTermResolver` usage, ZERO loading skeletons, ZERO error boundaries, 4 dead-link Settings entries, weak contextual help (only offer-edit-page has it), toast-only exports on 4 of 5 Export buttons.
+   133→   133→
+   134→   134→Stage Summary: Read-only deep analysis of Affiliates + Accounting + Marketing + CRM modules. 4 CRITICAL bugs found (MarketingDashboard dead filter, OfferManagement orphaned Edit/Change-History buttons, 4 dead-link Settings entries, Terra palette violations in 2 modules). 40 ordered priority actions documented. No code changes made. Lead can dispatch follow-up tasks for the HIGHEST-priority fixes (items 1-4) — each is effort S and can be parallelized.
+   135→   135→
+   136→   136→---
+   137→   137→
+   138→   138→## Task ID: analysis-kyc-sup-ai
+   139→   139→**Agent:** Explore (deep module analysis)
+   140→   140→**Task:** Deep analysis of KYC + Support + AI modules — identify gaps vs. FUNDERBLU spec + AGENTS UX constitution.
+   141→   141→
+   142→   142→### Files Inspected
+   143→   143→- `src/modules/kyc/` — manifest.ts (61 LOC), index.ts (6 LOC), pages/kyc-pages.tsx (292 LOC, 3 pages), widgets/kyc-widgets.tsx (83 LOC, 2 widgets)
+   144→   144→- `src/modules/support/` — manifest.ts (62 LOC), index.ts (6 LOC), pages/support-pages.tsx (219 LOC, 3 pages), widgets/support-widgets.tsx (114 LOC, 3 widgets)
+   145→   145→- `src/modules/ai/` — manifest.ts (64 LOC), index.ts (7 LOC), pages/ai-pages.tsx (448 LOC, 4 pages), widgets/ai-widgets.tsx (135 LOC, 3 widgets)
+   146→   146→- Cross-references: `lib/platform/mock-data.ts` (KycRecord/SupportTicket/AiInsight interfaces + seeds), `lib/platform/view-router.tsx` (route registry), `components/platform/attention-center.tsx`, `components/platform/contextual-actions.tsx`, `components/shell/global-search.tsx`, `modules/trading/pages/account-kyc-statuses-page.tsx` (per-provider KYC already implemented in trading module), `components/platform/state-explanations.tsx`.
+   147→   147→- Context: `worklog.md` (most recent ~250 lines), `AGENTS.md` §3-§35, `FLOW-ANALYSIS.md`.
+   148→   148→
+   149→   149→### KYC — PRESENT
+   150→   150→- Manifest: id `kyc`, v1.0.0, category `compliance`, optional `true`, deps `["trading"]`, apps `[prop-admin, super-admin]`, accentColor `#475569` (slate — Terra-allowed), 2 perms (`kyc.read`, `kyc.approve`), 3 nav children at order 75 (Overview/Reviews/Risk), 3 routes, 2 widgets, 1 settings entry (DEAD LINK — `settings-kyc` not in view-router registry).
+   151→   151→- Overview (`kyc-pages.tsx:KycOverviewPage`): 5 MetricCards (Pending/In-Review/Approved/Rejected/High Risk) + recent submissions DataTable (6 rows). Uses `getTenantKyc(tid)`. Export button (toast-only).
+   152→   152→- Reviews (`KycReviewsPage`): full DataTable, 8 cols (Trader/Document/Country/Status/Risk/Submitted/Reviewed/Actions). Inline Approve/Reject gated by `PermissionGuard permission="kyc.approve"`. Toast feedback.
+   153→   153→- Risk (`KycRiskPage`): DonutSeries (low/med/high) + high-risk records DataTable.
+   154→   154→- Widgets: `KycOverviewWidget` (5 KPI MetricCards), `KycQueueWidget` (top-5 pending list w/ StatusBadge + high-risk badge).
+   155→   155→- Attention Center has 2 KYC entries (reviews needed + high-risk profiles) ✓. Global Search indexes KYC Records ✓. State-explanations has 5 KYC states ✓. Audit log seeded with `Approved KYC` entries ✓.
+   156→   156→
+   157→   157→### KYC — MISSING / THIN (effort)
+   158→   158→- Approval/rejection rate metrics on Overview (data exists; not computed) — **S**
+   159→   159→- Avg processing time metric on Overview (has `submittedAt`+`reviewedAt`; not computed) — **S**
+   160→   160→- By-provider breakdown on Overview (KYC module has no provider concept; per-provider data lives in `trading/pages/account-kyc-statuses-page.tsx`) — **M** (or **L** if consolidating provider mgmt into KYC module)
+   161→   161→- "Provider" + "Reviewer" columns on Reviews queue (data model missing `provider`, `reviewedBy`) — **S**
+   162→   162→- Risk scoring by country / document type / age / completeness (current Risk page only shows low/med/high distribution) — **M**
+   163→   163→- KYC Providers config / status / fallback management screen (Sumsub/Onfido/Veriff/Identity) — **L**
+   164→   164→- Document management — upload / view / verify (no `documents[]` array on KycRecord; no UI) — **L**
+   165→   165→- "Request additional docs" action (only Approve/Reject exist) — **S**
+   166→   166→- Use ContextualActionPanel pattern (build `KycReviewActions` in `contextual-actions.tsx`; mirror PayoutReviewActions) — **S** (§22-23, §37)
+   167→   167→- AlertDialog friction on Reject (currently plain `Button variant="ghost"`) — **S** (§24)
+   168→   168→- Bulk KYC actions (bulk approve/reject/assign reviewer; DataTable has no selection) — **M**
+   169→   169→- KYC audit trail per applicant (general audit log exists, no per-applicant timeline drawer) — **M**
+   170→   170→- AML/sanctions screening (no mock data, no UI, no flag on KycRecord) — **L**
+   171→   171→- PEP screening — **L**
+   172→   172→- KYC re-verification schedule (annual; no `expiresAt`/`reverifyAt` field; `kyc.expired` state exists but no scheduling UI) — **M**
+   173→   173→- Risk score explanation/breakdown (shows "high" without WHY — no sub-components) — **M** (§19, §20)
+   174→   174→- Use `ExplainableStateBadge` instead of plain `StatusBadge` (inconsistent with trading's account-kyc-statuses which does) — **S** (§17-19)
+   175→   175→- Apply `term()` to page headers (hardcoded "KYC / AML") — **S** (§54-55)
+   176→   176→- Build `settings-kyc` page or remove dead-link settings entry — **S**
+   177→   177→
+   178→   178→### SUPPORT — PRESENT
+   179→   179→- Manifest: id `support`, v1.0.0, category `core`, optional `true`, deps `["trading"]`, apps `[prop-admin, super-admin, trader]` (NOTE: trader included but all 3 pages are admin-facing — see UX gaps), accentColor `#c2410c` (orange — Terra-allowed), 2 perms (`support.read`, `support.configure`), 3 nav children at order 80, 3 routes, 3 widgets, 1 settings entry (DEAD LINK).
+   180→   180→- Overview (`support-pages.tsx:SupportOverviewPage`): 4 MetricCards (Open/Urgent/Avg Response/Resolved Today) + recent tickets DataTable (6 rows) + Priority distribution DonutSeries + New Ticket button (toast).
+   181→   181→- Tickets (`SupportTicketsPage`): full DataTable, 8 cols (Subject/Trader/Category/Priority/Status/Assignee/Created/Messages). `onRowClick` fires toast only — no detail drawer.
+   182→   182→- Knowledge (`SupportKnowledgePage`): 6 hardcoded FAQ Cards in responsive grid (const `faqItems` array at lines 150-193). No CRUD.
+   183→   183→- Widgets: `SupportOverviewWidget` (4 KPI MetricCards), `RecentTicketsWidget` (DataTable 6 rows), `TicketPriorityWidget` (DonutSeries).
+   184→   184→- Attention Center has 1 entry (urgent tickets) ✓. Global Search indexes Support Tickets ✓. Uses `relativeTime` helper (§29 pattern ✓). `avgResponseHours` helper computes real SLA-like metric from `createdAt`+`lastReplyAt`.
+   185→   185→
+   186→   186→### SUPPORT — MISSING / THIN (effort)
+   187→   187→- Satisfaction (CSAT) score metric on Overview (spec #1; no `csat` field, no survey mechanism) — **M**
+   188→   188→- By-category breakdown on Overview (spec #1; only Priority donut shown) — **S**
+   189→   189→- SLA timer / SLA breach indicator on Tickets list (spec #2; data exists but no "Due in Xh"/"Breached" badge) — **M**
+   190→   190→- SLA management policy config (per-priority targets, breach dashboard) — **L**
+   191→   191→- Ticket detail workspace — conversation thread / internal notes / attachments / escalation (spec #3; `onRowClick` only toasts) — **L** (§28)
+   192→   192→- Knowledge Base CRUD (spec #4; only 6 hardcoded FAQ items, no backend, no admin UI) — **L**
+   193→   193→- Knowledge Base — categories / search / public/private toggle — **M**
+   194→   194→- Live chat / chat widget (spec #5) — **L**
+   195→   195→- Ticket assignment & workload dashboard (e.g. "Sarah: 12 open, Marcus: 8") — **M**
+   196→   196→- Canned responses / macros (spec #8) — **M**
+   197→   197→- CSAT surveys post-resolution (spec #9) — **M**
+   198→   198→- Escalation rules (spec #10) — **M**
+   199→   199→- Auto-routing / auto-tagging rule engine (spec #11) — **L**
+   200→   200→- Support analytics dashboard (spec #12; current Overview has 4 KPIs + 1 donut — needs trend charts, agent leaderboard) — **M**
+   201→   201→- Bulk ticket actions (bulk assign/close/priority; DataTable has no selection) — **M**
+   202→   202→- Filter chips on Tickets list (only search; no status/priority/category/assignee/date filters) — **S** (mirror `enhanced-withdrawals-page` pattern)
+   203→   203→- Empty state on Tickets list (no `emptyTitle`/`emptyDescription` — §30 violation; KYC + Support Overview have proper ones) — **S**
+   204→   204→- Last Reply column not shown on Tickets list (`lastReplyAt` field exists but `messages` count shown instead) — **S**
+   205→   205→- Apply `term()` to page headers (hardcoded "Support") — **S**
+   206→   206→- Build `settings-support` page or remove dead-link settings entry — **S**
+   207→   207→- Trader-facing support portal (manifest declares `trader` app but all pages are admin-only; §5 violation) — **L**
+   208→   208→
+   209→   209→### AI — PRESENT
+   210→   210→- Manifest: id `ai`, v1.0.0, category `ai`, optional `true`, deps `["trading", "analytics"]`, apps `[prop-admin, super-admin]`, accentColor `#7c3aed` (violet — explicitly allowed, NOT blue/indigo), 2 perms (`ai.read`, `ai.configure`), 4 nav children at order 85 (Overview/Insights/Assistant/Configure), 4 routes, 3 widgets, 1 settings entry (DEAD LINK). Capabilities declared: `ai.insights`, `ai.assistant`, `ai.predictions`, `ai.anomaly` (last 2 unused).
+   211→   211→- Overview (`ai-pages.tsx:AiOverviewPage`): 4 MetricCards (Active Insights/Avg Confidence/Opportunities/Critical Alerts) + insights feed list + BarSeries "Confidence by insight".
+   212→   212→- Insights (`AiInsightsPage`): full grid of insight Cards w/ severity icon, confidence progress bar, Dismiss button (toast).
+   213→   213→- Assistant (`AiAssistantPage`): mock chat UI w/ `seedChat` (5 hardcoded messages), input box, Send button, Enter-to-send, toast feedback on send, ScrollArea, "demo mode" disclaimer, Avatars for user/assistant.
+   214→   214→- Configure (`AiConfigurePage`): 3 feature toggles (Insights/Predictions/Anomaly Detection) + Model selection (GPT-4o mini/GPT-4o/Claude 3.5 Sonnet/Llama 3.1 70B/Mistral Large) + Save button (toast). Includes "Tip" callout about cost-vs-capability.
+   215→   215→- Widgets: `AiOverviewWidget` (4 KPI MetricCards), `AiInsightsWidget` (top-4 insights list), `AiConfidenceWidget` (BarSeries).
+   216→   216→- Attention Center has 1 entry (AI opportunities detected) ✓. mock-data has `AiInsight` interface (id/tenantId/module/title/summary/detail/severity/confidence/generatedAt) + 3 seed insights + `getTenantAiInsights` helper.
+   217→   217→
+   218→   218→### AI — MISSING / THIN (effort)
+   219→   219→- Usage metrics (spec #1: calls/day, accuracy %, model status; only `active/avg confidence/opportunities/critical` shown) — **M**
+   220→   220→- AI Cost tracking (spec #1, #5; no `aiCost` data, no per-model cost-per-call, no monthly spend chart, no budget alerts) — **M**
+   221→   221→- AI Model fine-tuning config (spec #6; no dataset upload, no training config, no eval metrics) — **L**
+   222→   222→- AI Feedback loop — thumbs up/down, corrections (spec #7) — **M**
+   223→   223→- AI Audit log (spec #8; general audit log exists but no AI-specific log of prompts/responses/model invocations) — **M**
+   224→   224→- AI Use cases / applications gallery — predetermined templates (spec #9) — **M**
+   225→   225→- AI Predictive analytics — churn risk / payout fraud risk / trader success probability (spec #10; Predictions toggle exists but no predictions UI) — **L**
+   226→   226→- AI Anomaly detection — unusual trading patterns (spec #11; Anomaly toggle exists, capability declared but unused) — **M**
+   227→   227→- AI Conversation history persistence (`seedChat` in `useState`; resets on reload/navigate; no "Previous conversations" sidebar; spec #12) — **M**
+   228→   228→- AI Assistant context awareness + action suggestions (spec #3; seedChat demonstrates context but real send → only toast; no "Apply recommendation" buttons) — **M**
+   229→   229→- Insights — filter by severity/module/confidence (full grid renders flat) — **S**
+   230→   230→- Insights — "Dismiss" only toasts; no state mutation, no dismissed-list, no audit trail — **S**
+   231→   231→- Insights — no drill to underlying entity ("Payout spike detected" should link to payouts filtered to last 7d) — **M**
+   232→   232→- Insights — only "Dismiss" action; no "Apply"/"Investigate"/"Create ticket from insight" — **S** (§23 One Primary Action violation)
+   233→   233→- Configure — feature toggles all flat (no Advanced section for temperature/top-p/max tokens/system-prompt overrides) — **M** (§12-13 Progressive Disclosure)
+   234→   234→- Configure — no API key management UI (spec #4) — **M**
+   235→   235→- Configure — no prompts management UI (spec #4: `prompts`) — **M**
+   236→   236→- Configure — no training data management UI (spec #4: `training data`) — **M**
+   237→   237→- Configure — `ai.configure` permission declared but Save button not gated (route is gated by `ai.read` only) — **S**
+   238→   238→- AI insights not indexed in Global Search (KYC records + Support tickets ARE indexed) — **S**
+   239→   239→- Apply `term()` to page headers (hardcoded "AI / LLM") — **S**
+   240→   240→- Build `settings-ai` page or remove dead-link settings entry — **S**
+   241→   241→- Mock data: only 3 AI insights total — extremely thin. Tenant-alpha has 0 insights even if AI module enabled. `getTenantAiInsights` "platform" fallback (mock-data.ts line 1195) is dead code — no platform-level insights seeded — **S**
+   242→   242→
+   243→   243→### CROSS-TENANT GAPS
+   244→   244→- **Per-provider KYC data is fake per-tenant**: `account-kyc-statuses-page.tsx:deriveProviderKyc` deterministically derives provider statuses from the KycRecord id (lines 66-94 of that file). Not real per-tenant provider config. Two tenants with the same KycRecord id pattern get the same provider matrix. No "Tenant Alpha uses Sumsub primary, Onfido fallback" config exists.
+   245→   245→- **AI insights are not tenant-scoped**: Only 3 hardcoded insights total. `getTenantAiInsights(tid)` includes a `tenantId === "platform"` fallback but no platform-tenant AI insights are seeded → dead code.
+   246→   246→- **Support tickets seeded only for tenant-alpha/beta/gamma** (mock-data.ts line 1002) — platform tenant has 0 tickets.
+   247→   247→- **All 3 modules' settings entries are DEAD LINKS** (`settings-kyc`, `settings-support`, `settings-ai` declared in manifests but no pages in view-router.tsx). Same pattern as marketing/crm/affiliates/accounting flagged in prior worklog entries.
+   248→   248→- **No multi-tenant module config**: Super-admin can't see per-tenant KYC provider, per-tenant SLA targets, per-tenant AI model selection.
+   249→   249→- **Cross-module AI suggestions not deep-linkable**: AI insight "KYC backlog growing" (ai-3, tenant-gamma) has no "Open KYC queue" action. Attention Center navigates to `ai-insights` but insight cards themselves are dead-end.
+   250→   250→- **No shared Compliance Workspace** unifying KYC + AML + PEP + sanctions + audit trail.
+   251→   251→- **Super-admin KYC Provider row** (super-admin-pages.tsx line 287) shows "KYC Provider | operational | 310ms" globally but no drill to per-tenant provider config.
+   252→   252→
+   253→   253→### UX GAPS (AGENTS § references)
+   254→   254→- §22-23 Contextual Actions: KYC Reviews uses raw inline Approve/Reject buttons; no `KycReviewActions` component in `contextual-actions.tsx` (only Payout + Breach exist). Inconsistent with Payouts/Breaches which use the ContextualActionPanel pattern.
+   255→   255→- §24 Destructive Actions: KYC Reject + AI Dismiss are plain buttons without AlertDialog friction. Compare: Payouts reject uses AlertDialog with consequence text.
+   256→   256→- §17-19 Explainability + State-First: KYC status uses plain `StatusBadge`; trading's account-kyc-statuses uses `ExplainableStateBadge`. AI severity uses StatusBadge; AI insight has a `detail` field (partial credit ✓). Risk level badge shows "high" without breakdown of contributing factors.
+   257→   257→- §20 Rule Engine UX: KYC Risk score has no human-readable explanation layer (no "How is this calculated?" expansion).
+   258→   258→- §25-26 Tables: Support Tickets list has 8 cols with no filter chips (only search), no bulk select, no row drill (click → toast).
+   259→   259→- §27 Drawer vs Page: No detail drawer for KYC record, Ticket, or AI conversation.
+   260→   260→- §28 Entity Workspaces: No KYC record workspace, no Ticket detail workspace, no AI conversation workspace. KYC Review is flat table; Ticket is flat table; AI Assistant is single chat (no "previous conversations" sidebar).
+   261→   261→- §29 Activity Timelines: No per-applicant KYC timeline, no per-ticket conversation timeline (only created/replied cols), no AI conversation history timeline.
+   262→   262→- §30 Empty States: SupportTicketsPage DataTable has no `emptyTitle`/`emptyDescription`. KYC + Support Overview have proper ones.
+   263→   263→- §33 Help: No `LabelWithHelp` on Risk or Approval metrics in KYC. No contextual help on AI Confidence metric.
+   264→   264→- §11 Attention Center: KYC + Support + AI all have entries ✓ — present.
+   265→   265→- §35 Search: Global search indexes KYC records + Support tickets ✓. AI insights NOT indexed.
+   266→   266→- §16 Templates: No KYC verification templates / Support response macros / AI prompt templates. Spec calls for AI Use cases gallery.
+   267→   267→- §12-13 Progressive Disclosure: AI Configure exposes all toggles flat; no "Advanced" section for model params.
+   268→   268→- §54-§55 Terminology: None of the 3 modules apply `term()` to page headers. Hardcoded "KYC / AML", "Support", "AI / LLM", "Knowledge Base", "AI Configuration".
+   269→   269→- §32 Error States: No module-level error boundary in any of the 3 modules.
+   270→   270→- §31 Loading States: No skeletons. All pages render synchronously from mock data. (Acceptable for demo; gap for real integration.)
+   271→   271→- §23 One Primary Action: AI Insights has only "Dismiss" — no primary action ("Apply"/"Investigate").
+   272→   272→- §5 User-Centered Dashboards: Support manifest declares `trader` app (line 48) but ALL 3 pages are admin-facing. No trader-facing support portal. Trader can't see own tickets, browse KB, or start live chat.
+   273→   273→
+   274→   274→### TOP PRIORITY ACTIONS (ordered, with effort)
+   275→   275→1. **KYC — Build KYC Providers management screen in KYC module** (consolidate from `trading/account-kyc-statuses`; surface provider config/status/fallback per tenant; aligns with FUNDERBLU spec #11 + FLOW-ANALYSIS missing flows) — **L**
+   276→   276→2. **Support — Build Ticket Detail workspace** (conversation thread + internal notes + attachments + escalation actions + SLA countdown + canned response selector; replaces toast-only `onRowClick`) — **L** (§28)
+   277→   277→3. **Support — Build SLA management** (per-priority SLA targets, SLA badge on ticket list with countdown/breached state, SLA breach dashboard) — **L**
+   278→   278→4. **AI — Wire AI Assistant to real LLM + persist conversation history** (replace `seedChat`; add "Previous conversations" sidebar; spec #3 + #12) — **M**
+   279→   279→5. **KYC — Add AML/sanctions + PEP screening screens** (separate "Screening" tab in KYC module; surface hits with explainable badges) — **L** (spec #9, #10)
+   280→   280→6. **AI — Add Cost tracking + Usage metrics + Model status to AI Overview** (calls/day, accuracy %, monthly spend, budget alerts, operational status) — **M** (spec #1, #5)
+   281→   281→7. **Support — Build Knowledge Base CRUD** (replace 6 hardcoded FAQ items with articles list, categories, search, public/private toggle, edit/create article page) — **L** (spec #4)
+   282→   282→8. **AI — Add AI Feedback loop + AI Audit log** (thumbs up/down on each insight + assistant message; AI audit log page showing prompt/response/model/timestamp) — **M** (spec #7, #8)
+   283→   283→9. **Support — Add filter chips + bulk actions to Tickets list** (mirror `enhanced-withdrawals-page` filter bar; bulk assign/close/priority) — **M** (§25-26)
+   284→   284→10. **KYC — Switch to ContextualActionPanel pattern + add "Request additional docs" third action + AlertDialog friction on Reject** (build `KycReviewActions` in `contextual-actions.tsx`; mirror PayoutReviewActions) — **S** (§22-24, §37)
+   285→   285→11. **AI — Add AI Predictive analytics page + Anomaly detection page** (churn risk / payout fraud risk / trader success probability / unusual trading patterns) — **L** (spec #10, #11)
+   286→   286→12. **KYC — Add Risk breakdown by country / document type / age / completeness** (current Risk page only shows low/med/high donut) — **M** (spec #3)
+   287→   287→13. **KYC — Add Approval rate / Rejection rate / Avg processing time / By-provider metrics to Overview** (data already exists; just compute and render) — **S**
+   288→   288→14. **AI — Add Insights filter (severity/module/confidence) + "Apply recommendation" action on each insight** (currently only Dismiss) — **S** (§23)
+   289→   289→15. **KYC — Add KYC re-verification schedule (annual) + `expiresAt` field on KycRecord + overdue re-verification queue** — **M** (spec #11)
+   290→   290→16. **Build settings-kyc / settings-support / settings-ai pages OR remove dead-link settings entries from manifests** — **S** each (×3) — same pattern as marketing/crm/affiliates/accounting already flagged
+   291→   291→17. **Apply terminology (`term()`) to page headers in all 3 modules** — **S** each (×3) (§54-55)
+   292→   292→18. **Support — Build CSAT survey mechanism** (post-resolution survey widget + CSAT KPI on Overview + CSAT trend chart) — **M** (spec #9)
+   293→   293→19. **Support — Build Live chat widget** (trader-side chat + admin-side queue) — **L** (spec #5)
+   294→   294→20. **AI — Add Use cases gallery + Prompts management + API keys + Training data tabs to Configure page** — **M** each (spec #4, #9)
+   295→   295→
+   296→   296→### Code Changes
+   297→   297→None — analysis-only task. No files modified.
+   298→   298→
+   299→   299→### Stage Summary
+   300→   300→Deep read-only analysis of KYC + Support + AI modules. Total ~1497 LOC across 12 files. 3 manifest settings entries are DEAD LINKS (same pattern as 4 other modules previously flagged). KYC module is thinnest (3 pages, only Approve/Reject inline buttons, no provider/AML/PEP/document mgmt). Support module has no ticket detail drawer (only toast on row click), no SLA badge, no KB CRUD, no CSAT, no live chat. AI module's `ai.predictions` + `ai.anomaly` capabilities are declared but unused; `getTenantAiInsights` has a "platform" fallback that is dead code; `seedChat` is hardcoded and lost on reload. All 3 modules lack terminology application, module-level error boundaries, and use plain StatusBadge instead of ExplainableStateBadge where applicable. 20 ordered priority actions documented; lead can dispatch follow-up tasks for items 1-3 (each effort L) and items 10/13/14/16/17 (each effort S) in parallel.
+   301→   301→

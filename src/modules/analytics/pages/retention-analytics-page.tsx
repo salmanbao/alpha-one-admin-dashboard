@@ -19,11 +19,13 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantTraders } from "@/lib/platform/mock-data";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { BarSeries, DonutSeries } from "@/components/platform/charts";
-import { formatCurrency, formatCompact } from "@/components/platform/status";
+import { formatCompact } from "@/components/platform/status";
 import { Badge } from "@/components/ui/badge";
 import {
   Users,
@@ -34,7 +36,6 @@ import {
   Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 /** Cohort retention matrix — one row per month, % retention at 30/60/90d. */
@@ -67,7 +68,8 @@ interface CountryStat {
 }
 
 export function RetentionAnalyticsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const traders = useMemo(() => getTenantTraders(tid), [tid]);
 
@@ -118,10 +120,10 @@ export function RetentionAnalyticsPage() {
 
   const countryColumns: Column<CountryStat>[] = [
     { key: "country", header: "Country", cell: (r) => <span className="font-medium">{r.country}</span>, sortValue: (r) => r.country },
-    { key: "totalUsers", header: "Total Users", cell: (r) => r.totalUsers, sortValue: (r) => r.totalUsers, numeric: true },
+    { key: "totalUsers", header: `Total ${plural(term("trader"))}`, cell: (r) => r.totalUsers, sortValue: (r) => r.totalUsers, numeric: true },
     {
       key: "repeatingUsers",
-      header: "Repeating Users",
+      header: `Repeating ${plural(term("trader"))}`,
       cell: (r) => <span className="text-emerald-600 dark:text-emerald-400">{r.repeatingUsers}</span>,
       sortValue: (r) => r.repeatingUsers,
       numeric: true,
@@ -142,17 +144,30 @@ export function RetentionAnalyticsPage() {
     },
   ];
 
+  const handleExport = () => {
+    exportToCsv(
+      topCountries,
+      [
+        { key: "country", header: "Country", value: (r) => r.country },
+        { key: "totalUsers", header: `Total ${plural(term("trader"))}`, value: (r) => r.totalUsers },
+        { key: "repeatingUsers", header: `Repeating ${plural(term("trader"))}`, value: (r) => r.repeatingUsers },
+        { key: "retentionRate", header: "Retention Rate %", value: (r) => r.retentionRate },
+      ],
+      `retention-analytics-${Date.now()}.csv`,
+    );
+  };
+
   return (
     <Page>
       <PageHeader
-        title="Customer Retention & Behavior"
-        description="How customers stick around, what they do, and where repeating customers come from."
+        title={`${term("trader")} Retention & Behavior`}
+        description={`How ${plural(term("trader")).toLowerCase()} stick around, what they do, and where repeating ${plural(term("trader")).toLowerCase()} come from.`}
         icon={Repeat}
         actions={
           <Button
             size="sm"
             variant="outline"
-            onClick={() => toast({ title: "Export started", description: "Exporting retention analytics as CSV." })}
+            onClick={handleExport}
           >
             <Download className="mr-1 h-4 w-4" /> Export CSV
           </Button>
@@ -164,8 +179,8 @@ export function RetentionAnalyticsPage() {
           <MetricCard label="3-Month Retention" value={`${threeMonthRetention}%`} icon={TrendingUp} tone="positive" />
           <MetricCard label="6-Month Retention" value={`${sixMonthRetention}%`} icon={TrendingUp} tone="positive" />
           <MetricCard label="12-Month Retention" value={`${twelveMonthRetention}%`} icon={TrendingUp} tone="warning" />
-          <MetricCard label="Challenges / User" value={challengesPerUser} icon={Sparkles} tone="default" />
-          <MetricCard label="Repeating Customers" value={`${repeatingPct}%`} icon={Repeat} tone="positive" />
+          <MetricCard label={`${plural(term("challenge"))} / ${term("trader")}`} value={challengesPerUser} icon={Sparkles} tone="default" />
+          <MetricCard label={`Repeating ${plural(term("trader"))}`} value={`${repeatingPct}%`} icon={Repeat} tone="positive" />
         </div>
 
         {/* Visualization row — cohort matrix + distribution + donut */}

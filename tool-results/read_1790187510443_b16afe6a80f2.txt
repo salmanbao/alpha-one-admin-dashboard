@@ -1,0 +1,864 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Offer Edit / Create page (UX Constitution §12, §25-27).
+     5→ *
+     6→ * Comprehensive create/edit form for an Offer:
+     7→ *  - Basic information (title, description, image, coupon, discount, schedule, popup, url)
+     8→ *  - Country targeting (dual-list)
+     9→ *  - Challenge targeting (dual-list)
+    10→ *  - User segment rules (collapsible, progressive disclosure §12)
+    11→ *  - Save / Save & add another / Save & continue editing / Delete (§13)
+    12→ *
+    13→ * Navigation links at top connect to the matching-users view and the
+    14→ * per-object change-history view (§27 — related context surfaces next to
+    15→ * the entity being edited, not buried in a separate menu).
+    16→ *
+    17→ * Pre-fills from an existing offer when router.params.id resolves to one;
+    18→ * otherwise renders an empty "new offer" form. All form state lives in
+    19→ * local useState — no mutations to mock data.
+    20→ *
+    21→ * Terra palette — forest green primary, cream background, emerald/amber/rose
+    22→ * accents. No blue/indigo.
+    23→ */
+    24→
+    25→import { useMemo, useState } from "react";
+    26→import { usePlatform } from "@/lib/platform/platform-context";
+    27→import { getOffers } from "@/lib/platform/mock-data";
+    28→import { Page, PageHeader, PageContent } from "@/components/platform/page";
+    29→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    30→import { StatusBadge } from "@/components/platform/status";
+    31→import { Button } from "@/components/ui/button";
+    32→import { Input } from "@/components/ui/input";
+    33→import { Textarea } from "@/components/ui/textarea";
+    34→import { Label } from "@/components/ui/label";
+    35→import { Switch } from "@/components/ui/switch";
+    36→import { Badge } from "@/components/ui/badge";
+    37→import { Separator } from "@/components/ui/separator";
+    38→import {
+    39→  Collapsible,
+    40→  CollapsibleContent,
+    41→  CollapsibleTrigger,
+    42→} from "@/components/ui/collapsible";
+    43→import {
+    44→  Select,
+    45→  SelectContent,
+    46→  SelectItem,
+    47→  SelectTrigger,
+    48→  SelectValue,
+    49→} from "@/components/ui/select";
+    50→import {
+    51→  AlertDialog,
+    52→  AlertDialogAction,
+    53→  AlertDialogCancel,
+    54→  AlertDialogContent,
+    55→  AlertDialogDescription,
+    56→  AlertDialogFooter,
+    57→  AlertDialogHeader,
+    58→  AlertDialogTitle,
+    59→  AlertDialogTrigger,
+    60→} from "@/components/ui/alert-dialog";
+    61→import { toast } from "@/hooks/use-toast";
+    62→import {
+    63→  Tag,
+    64→  Users,
+    65→  History,
+    66→  Save,
+    67→  Plus,
+    68→  Trash2,
+    69→  ChevronRight,
+    70→  ChevronDown,
+    71→  ChevronLeft,
+    72→  Image as ImageIcon,
+    73→  Globe,
+    74→  Filter,
+    75→  Layers,
+    76→  Settings2,
+    77→  Calendar,
+    78→} from "lucide-react";
+    79→
+    80→/* ------------------------------------------------------------------ */
+    81→/* Static option pools                                                  */
+    82→/* ------------------------------------------------------------------ */
+    83→
+    84→const ALL_COUNTRIES = ["US", "GB", "AE", "SG", "DE", "FR", "BR", "IN", "ZA", "CA"] as const;
+    85→
+    86→const ALL_CHALLENGES = [
+    87→  "Instant Standard",
+    88→  "2-Step Turbo",
+    89→  "1-Step Gen Z",
+    90→  "3-Step Pro",
+    91→  "Free Trial",
+    92→  "Competition",
+    93→  "Instant Funded",
+    94→] as const;
+    95→
+    96→const TRI_STATE = ["any", "yes", "no"] as const;
+    97→type TriState = (typeof TRI_STATE)[number];
+    98→
+    99→interface SegmentRules {
+   100→  name: string;
+   101→  active: boolean;
+   102→  accountPurchased: TriState;
+   103→  competitionUser: TriState;
+   104→  hasApprovedPayout: TriState;
+   105→  fundAccountsOnly: TriState;
+   106→  hasFailedAccounts: TriState;
+   107→  accountSizeMin: string;
+   108→  accountSizeMax: string;
+   109→}
+   110→
+   111→const EMPTY_SEGMENT: SegmentRules = {
+   112→  name: "",
+   113→  active: true,
+   114→  accountPurchased: "any",
+   115→  competitionUser: "any",
+   116→  hasApprovedPayout: "any",
+   117→  fundAccountsOnly: "any",
+   118→  hasFailedAccounts: "any",
+   119→  accountSizeMin: "",
+   120→  accountSizeMax: "",
+   121→};
+   122→
+   123→/* ------------------------------------------------------------------ */
+   124→/* Helpers                                                              */
+   125→/* ------------------------------------------------------------------ */
+   126→
+   127→function triStateLabel(s: TriState): string {
+   128→  return s === "any" ? "Any" : s === "yes" ? "Yes" : "No";
+   129→}
+   130→
+   131→/* ------------------------------------------------------------------ */
+   132→/* Dual-list box                                                        */
+   133→/* ------------------------------------------------------------------ */
+   134→
+   135→interface DualListProps {
+   136→  availableLabel: string;
+   137→  selectedLabel: string;
+   138→  options: readonly string[];
+   139→  selected: string[];
+   140→  onChange: (next: string[]) => void;
+   141→  availableIcon?: React.ComponentType<{ className?: string }>;
+   142→}
+   143→
+   144→function DualListBox({
+   145→  availableLabel,
+   146→  selectedLabel,
+   147→  options,
+   148→  selected,
+   149→  onChange,
+   150→  availableIcon: AvailableIcon,
+   151→}: DualListProps) {
+   152→  const available = options.filter((o) => !selected.includes(o));
+   153→
+   154→  const add = (value: string) => {
+   155→    if (!selected.includes(value)) onChange([...selected, value]);
+   156→  };
+   157→  const remove = (value: string) => {
+   158→    onChange(selected.filter((v) => v !== value));
+   159→  };
+   160→  const addAll = () => onChange([...selected, ...available]);
+   161→  const removeAll = () => onChange([]);
+   162→
+   163→  return (
+   164→    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr]">
+   165→      {/* Available */}
+   166→      <div className="rounded-md border bg-background">
+   167→        <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
+   168→          <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+   169→            {AvailableIcon ? <AvailableIcon className="h-3 w-3" /> : null}
+   170→            {availableLabel}
+   171→          </span>
+   172→          <Badge variant="outline" className="text-[10px]">{available.length}</Badge>
+   173→        </div>
+   174→        <div className="max-h-60 overflow-auto p-1">
+   175→          {available.length === 0 ? (
+   176→            <p className="px-2 py-3 text-xs text-muted-foreground">No items available.</p>
+   177→          ) : (
+   178→            available.map((value) => (
+   179→              <label
+   180→                key={value}
+   181→                className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/40"
+   182→              >
+   183→                <input
+   184→                  type="checkbox"
+   185→                  checked={false}
+   186→                  onChange={() => add(value)}
+   187→                  className="h-3.5 w-3.5 accent-emerald-600"
+   188→                />
+   189→                <span className="text-foreground">{value}</span>
+   190→              </label>
+   191→            ))
+   192→          )}
+   193→        </div>
+   194→      </div>
+   195→
+   196→      {/* Controls */}
+   197→      <div className="flex flex-row items-center justify-center gap-2 md:flex-col">
+   198→        <Button
+   199→          type="button"
+   200→          size="sm"
+   201→          variant="outline"
+   202→          onClick={addAll}
+   203→          disabled={available.length === 0}
+   204→          aria-label="Add all"
+   205→        >
+   206→          <ChevronRight className="h-3.5 w-3.5" />
+   207→          <span className="sr-only md:not-sr-only md:ml-1">Add all</span>
+   208→        </Button>
+   209→        <Button
+   210→          type="button"
+   211→          size="sm"
+   212→          variant="outline"
+   213→          onClick={removeAll}
+   214→          disabled={selected.length === 0}
+   215→          aria-label="Remove all"
+   216→        >
+   217→          <ChevronLeft className="h-3.5 w-3.5" />
+   218→          <span className="sr-only md:not-sr-only md:ml-1">Remove all</span>
+   219→        </Button>
+   220→      </div>
+   221→
+   222→      {/* Selected */}
+   223→      <div className="rounded-md border bg-background">
+   224→        <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
+   225→          <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+   226→            <Filter className="h-3 w-3" />
+   227→            {selectedLabel}
+   228→          </span>
+   229→          <Badge variant="outline" className="text-[10px]">{selected.length}</Badge>
+   230→        </div>
+   231→        <div className="max-h-60 overflow-auto p-1">
+   232→          {selected.length === 0 ? (
+   233→            <p className="px-2 py-3 text-xs text-muted-foreground">
+   234→              No selection — applies to all.
+   235→            </p>
+   236→          ) : (
+   237→            selected.map((value) => (
+   238→              <label
+   239→                key={value}
+   240→                className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/40"
+   241→              >
+   242→                <input
+   243→                  type="checkbox"
+   244→                  checked
+   245→                  onChange={() => remove(value)}
+   246→                  className="h-3.5 w-3.5 accent-rose-500"
+   247→                />
+   248→                <span className="text-foreground">{value}</span>
+   249→              </label>
+   250→            ))
+   251→          )}
+   252→        </div>
+   253→      </div>
+   254→    </div>
+   255→  );
+   256→}
+   257→
+   258→/* ------------------------------------------------------------------ */
+   259→/* Section card                                                         */
+   260→/* ------------------------------------------------------------------ */
+   261→
+   262→function SectionCard({
+   263→  title,
+   264→  description,
+   265→  icon: Icon,
+   266→  children,
+   267→}: {
+   268→  title: string;
+   269→  description?: string;
+   270→  icon?: React.ComponentType<{ className?: string }>;
+   271→  children: React.ReactNode;
+   272→}) {
+   273→  return (
+   274→    <section className="rounded-lg border bg-card p-4">
+   275→      <div className="mb-4 flex items-start gap-2">
+   276→        {Icon ? (
+   277→          <div className="mt-0.5 rounded-md bg-muted/60 p-1.5">
+   278→            <Icon className="h-4 w-4 text-foreground" />
+   279→          </div>
+   280→        ) : null}
+   281→        <div>
+   282→          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+   283→          {description ? (
+   284→            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+   285→          ) : null}
+   286→        </div>
+   287→      </div>
+   288→      {children}
+   289→    </section>
+   290→  );
+   291→}
+   292→
+   293→/* ------------------------------------------------------------------ */
+   294→/* Page                                                                 */
+   295→/* ------------------------------------------------------------------ */
+   296→
+   297→export function OfferEditPage() {
+   298→  const { router, navigate } = usePlatform();
+   299→  const id = router.params.id ?? "";
+   300→  const existing = useMemo(
+   301→    () => (id ? getOffers().find((o) => o.id === id) : undefined),
+   302→    [id],
+   303→  );
+   304→  const isNew = !existing;
+   305→
+   306→  const [title, setTitle] = useState(existing?.name ?? "");
+   307→  const [description, setDescription] = useState(existing?.description ?? "");
+   308→  const [imageUrl, setImageUrl] = useState<string>("");
+   309→  const [displayOrder, setDisplayOrder] = useState<string>("0");
+   310→  const [couponCode, setCouponCode] = useState(existing?.couponCode ?? "");
+   311→  const [discountPct, setDiscountPct] = useState<string>(
+   312→    existing ? String(existing.discountPct) : "",
+   313→  );
+   314→  const [startDate, setStartDate] = useState<string>(
+   315→    existing?.startDate?.slice(0, 10) ?? "",
+   316→  );
+   317→  const [endDate, setEndDate] = useState<string>(
+   318→    existing?.endDate?.slice(0, 10) ?? "",
+   319→  );
+   320→  const [isPopup, setIsPopup] = useState<boolean>(false);
+   321→  const [offerUrl, setOfferUrl] = useState<string>("");
+   322→
+   323→  const [selectedCountries, setSelectedCountries] = useState<string[]>(
+   324→    existing?.targetCountries ?? [],
+   325→  );
+   326→  const [selectedChallenges, setSelectedChallenges] = useState<string[]>([]);
+   327→  const [segmentOpen, setSegmentOpen] = useState<boolean>(false);
+   328→  const [segment, setSegment] = useState<SegmentRules>(EMPTY_SEGMENT);
+   329→  const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
+   330→
+   331→  const setSegmentField = <K extends keyof SegmentRules>(
+   332→    key: K,
+   333→    value: SegmentRules[K],
+   334→  ) => setSegment((s) => ({ ...s, [key]: value }));
+   335→
+   336→  const resetForm = () => {
+   337→    setTitle("");
+   338→    setDescription("");
+   339→    setImageUrl("");
+   340→    setDisplayOrder("0");
+   341→    setCouponCode("");
+   342→    setDiscountPct("");
+   343→    setStartDate("");
+   344→    setEndDate("");
+   345→    setIsPopup(false);
+   346→    setOfferUrl("");
+   347→    setSelectedCountries([]);
+   348→    setSelectedChallenges([]);
+   349→    setSegment(EMPTY_SEGMENT);
+   350→  };
+   351→
+   352→  const onSave = () => {
+   353→    toast({
+   354→      title: "Offer saved",
+   355→      description: `${title || "Untitled offer"} was saved successfully.`,
+   356→    });
+   357→  };
+   358→
+   359→  const onSaveAndAdd = () => {
+   360→    toast({
+   361→      title: "Offer saved",
+   362→      description: `${title || "Untitled offer"} saved. Form cleared for the next offer.`,
+   363→    });
+   364→    resetForm();
+   365→  };
+   366→
+   367→  const onSaveAndContinue = () => {
+   368→    toast({
+   369→      title: "Changes saved",
+   370→      description: `${title || "Untitled offer"} updated. Continuing edits.`,
+   371→    });
+   372→  };
+   373→
+   374→  const onDelete = () => {
+   375→    setDeleteOpen(false);
+   376→    toast({
+   377→      title: "Offer deleted",
+   378→      description: `${title || "Untitled offer"} was permanently deleted.`,
+   379→    });
+   380→    navigate("offer-management");
+   381→  };
+   382→
+   383→  return (
+   384→    <Page>
+   385→      <PageHeader
+   386→        title={isNew ? "New Offer" : "Edit Offer"}
+   387→        description={
+   388→          isNew
+   389→            ? "Create a new discount coupon, schedule, and targeting rules."
+   390→            : `Editing “${existing?.name ?? ""}”.`
+   391→        }
+   392→        icon={Tag}
+   393→        actions={
+   394→          <Button size="sm" variant="outline" onClick={() => navigate("offer-management")}>
+   395→            <ChevronLeft className="mr-1 h-4 w-4" /> Back to Offers
+   396→          </Button>
+   397→        }
+   398→      />
+   399→
+   400→      {/* Related-context navigation links (§27) */}
+   401→      {!isNew ? (
+   402→        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+   403→          <span className="font-medium text-foreground">Related:</span>
+   404→          <Button
+   405→            size="sm"
+   406→            variant="ghost"
+   407→            className="h-7 px-2 text-xs"
+   408→            onClick={() => navigate("offer-matching-users", { id })}
+   409→          >
+   410→            <Users className="mr-1 h-3.5 w-3.5" /> View Matching Users
+   411→          </Button>
+   412→          <Button
+   413→            size="sm"
+   414→            variant="ghost"
+   415→            className="h-7 px-2 text-xs"
+   416→            onClick={() => navigate("offer-change-history", { id })}
+   417→          >
+   418→            <History className="mr-1 h-3.5 w-3.5" /> View Change History
+   419→          </Button>
+   420→        </div>
+   421→      ) : null}
+   422→
+   423→      <PageContent>
+   424→        {/* Basic Information */}
+   425→        <SectionCard
+   426→          title="Basic Information"
+   427→          description="Core offer details shown to traders and used for coupon redemption."
+   428→          icon={Tag}
+   429→        >
+   430→          <div className="grid gap-4 md:grid-cols-2">
+   431→            <div className="space-y-1.5">
+   432→              <Label htmlFor="offer-title">Title</Label>
+   433→              <Input
+   434→                id="offer-title"
+   435→                value={title}
+   436→                onChange={(e) => setTitle(e.target.value)}
+   437→                placeholder="e.g. EXPO2026 Bundle Deal"
+   438→              />
+   439→            </div>
+   440→            <div className="space-y-1.5">
+   441→              <LabelWithHelp help="Number used to sort offers when several are visible at once. Lower numbers appear first.">
+   442→                Display Order
+   443→              </LabelWithHelp>
+   444→              <Input
+   445→                id="offer-order"
+   446→                type="number"
+   447→                value={displayOrder}
+   448→                onChange={(e) => setDisplayOrder(e.target.value)}
+   449→                min={0}
+   450→              />
+   451→            </div>
+   452→            <div className="space-y-1.5 md:col-span-2">
+   453→              <Label htmlFor="offer-desc">Description</Label>
+   454→              <Textarea
+   455→                id="offer-desc"
+   456→                rows={3}
+   457→                value={description}
+   458→                onChange={(e) => setDescription(e.target.value)}
+   459→                placeholder="Short marketing copy describing what this offer grants."
+   460→              />
+   461→            </div>
+   462→
+   463→            {/* Image upload with preview */}
+   464→            <div className="space-y-1.5 md:col-span-2">
+   465→              <LabelWithHelp help="Shown as the offer banner image. Recommended size 1200×400px. JPG/PNG up to 2MB.">
+   466→                Offer Image
+   467→              </LabelWithHelp>
+   468→              <div className="flex flex-wrap items-start gap-4">
+   469→                <div className="flex h-24 w-40 items-center justify-center rounded-md border border-dashed bg-muted/30">
+   470→                  {imageUrl ? (
+   471→                    <img
+   472→                      src={imageUrl}
+   473→                      alt="Offer preview"
+   474→                      className="h-full w-full rounded-md object-cover"
+   475→                    />
+   476→                  ) : (
+   477→                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+   478→                      <ImageIcon className="h-6 w-6" />
+   479→                      <span className="text-[10px] uppercase">No image</span>
+   480→                    </div>
+   481→                  )}
+   482→                </div>
+   483→                <div className="flex flex-col gap-2">
+   484→                  <Input
+   485→                    type="file"
+   486→                    accept="image/png,image/jpeg,image/webp"
+   487→                    onChange={(e) => {
+   488→                      const file = e.target.files?.[0];
+   489→                      if (file) {
+   490→                        // Use object URL for preview only — no upload backend in demo.
+   491→                        setImageUrl(URL.createObjectURL(file));
+   492→                      } else {
+   493→                        setImageUrl("");
+   494→                      }
+   495→                    }}
+   496→                    className="max-w-xs text-xs"
+   497→                  />
+   498→                  {imageUrl ? (
+   499→                    <Button
+   500→                      type="button"
+   501→                      size="sm"
+   502→                      variant="ghost"
+   503→                      className="h-7 w-fit px-2 text-xs"
+   504→                      onClick={() => setImageUrl("")}
+   505→                    >
+   506→                      <Trash2 className="mr-1 h-3 w-3" /> Remove image
+   507→                    </Button>
+   508→                  ) : null}
+   509→                </div>
+   510→              </div>
+   511→            </div>
+   512→
+   513→            <div className="space-y-1.5">
+   514→              <LabelWithHelp help="Unique code traders enter at checkout. Codes are case-insensitive.">
+   515→                Coupon Code
+   516→              </LabelWithHelp>
+   517→              <Input
+   518→                id="offer-coupon"
+   519→                value={couponCode}
+   520→                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+   521→                placeholder="EXPO2026"
+   522→                className="font-mono"
+   523→              />
+   524→            </div>
+   525→            <div className="space-y-1.5">
+   526→              <LabelWithHelp help="Percentage discount applied when the coupon is redeemed. 0–100.">
+   527→                Discount %
+   528→              </LabelWithHelp>
+   529→              <Input
+   530→                id="offer-discount"
+   531→                type="number"
+   532→                min={0}
+   533→                max={100}
+   534→                value={discountPct}
+   535→                onChange={(e) => setDiscountPct(e.target.value)}
+   536→              />
+   537→            </div>
+   538→            <div className="space-y-1.5">
+   539→              <Label htmlFor="offer-start">Start Date</Label>
+   540→              <Input
+   541→                id="offer-start"
+   542→                type="date"
+   543→                value={startDate}
+   544→                onChange={(e) => setStartDate(e.target.value)}
+   545→              />
+   546→            </div>
+   547→            <div className="space-y-1.5">
+   548→              <Label htmlFor="offer-end">End Date</Label>
+   549→              <Input
+   550→                id="offer-end"
+   551→                type="date"
+   552→                value={endDate}
+   553→                onChange={(e) => setEndDate(e.target.value)}
+   554→              />
+   555→            </div>
+   556→            <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 md:col-span-2">
+   557→              <div className="flex flex-col">
+   558→                <Label htmlFor="offer-popup" className="cursor-pointer text-sm font-medium">
+   559→                  Is Popup
+   560→                </Label>
+   561→                <span className="text-xs text-muted-foreground">
+   562→                  Show as a popup overlay when traders land on the dashboard.
+   563→                </span>
+   564→              </div>
+   565→              <Switch
+   566→                id="offer-popup"
+   567→                checked={isPopup}
+   568→                onCheckedChange={setIsPopup}
+   569→              />
+   570→            </div>
+   571→            <div className="space-y-1.5 md:col-span-2">
+   572→              <LabelWithHelp help="Optional landing page URL for the offer. Leave blank to use the default offer popup.">
+   573→                Offer URL
+   574→              </LabelWithHelp>
+   575→              <Input
+   576→                id="offer-url"
+   577→                value={offerUrl}
+   578→                onChange={(e) => setOfferUrl(e.target.value)}
+   579→                placeholder="https://yourfirm.com/offers/expo2026"
+   580→              />
+   581→            </div>
+   582→          </div>
+   583→        </SectionCard>
+   584→
+   585→        {/* Country Targeting */}
+   586→        <SectionCard
+   587→          title="Country Targeting"
+   588→          description="Restrict this offer to traders in specific countries. Empty selection applies to all countries."
+   589→          icon={Globe}
+   590→        >
+   591→          <DualListBox
+   592→            availableLabel="Available Countries"
+   593→            selectedLabel="Selected Countries"
+   594→            options={ALL_COUNTRIES}
+   595→            selected={selectedCountries}
+   596→            onChange={setSelectedCountries}
+   597→            availableIcon={Globe}
+   598→          />
+   599→          {selectedCountries.length === 0 ? (
+   600→            <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+   601→              <ChevronRight className="h-3 w-3" /> No countries selected — the offer is
+   602→              visible worldwide.
+   603→            </p>
+   604→          ) : (
+   605→            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t pt-3">
+   606→              <span className="text-xs text-muted-foreground">Active in:</span>
+   607→              {selectedCountries.map((c) => (
+   608→                <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
+   609→              ))}
+   610→            </div>
+   611→          )}
+   612→        </SectionCard>
+   613→
+   614→        {/* Challenge Targeting */}
+   615→        <SectionCard
+   616→          title="Challenge Targeting"
+   617→          description="Restrict this offer to specific challenge types. Empty selection applies to all challenges."
+   618→          icon={Layers}
+   619→        >
+   620→          <DualListBox
+   621→            availableLabel="Available Challenges"
+   622→            selectedLabel="Selected Challenges"
+   623→            options={ALL_CHALLENGES}
+   624→            selected={selectedChallenges}
+   625→            onChange={setSelectedChallenges}
+   626→            availableIcon={Layers}
+   627→          />
+   628→        </SectionCard>
+   629→
+   630→        {/* User Segment — collapsible (§12 progressive disclosure) */}
+   631→        <Collapsible open={segmentOpen} onOpenChange={setSegmentOpen}>
+   632→          <section className="rounded-lg border bg-card p-4">
+   633→            <CollapsibleTrigger asChild>
+   634→              <button
+   635→                type="button"
+   636→                className="flex w-full items-center justify-between gap-2 text-left"
+   637→              >
+   638→                <div className="flex items-start gap-2">
+   639→                  <div className="mt-0.5 rounded-md bg-muted/60 p-1.5">
+   640→                    <Settings2 className="h-4 w-4 text-foreground" />
+   641→                  </div>
+   642→                  <div>
+   643→                    <h2 className="text-sm font-semibold text-foreground">
+   644→                      User Segment
+   645→                    </h2>
+   646→                    <p className="mt-0.5 text-xs text-muted-foreground">
+   647→                      Optional advanced targeting — narrow the audience by trader
+   648→                      attributes and account properties.
+   649→                    </p>
+   650→                  </div>
+   651→                </div>
+   652→                {segmentOpen ? (
+   653→                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+   654→                ) : (
+   655→                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+   656→                )}
+   657→              </button>
+   658→            </CollapsibleTrigger>
+   659→            <CollapsibleContent>
+   660→              <div className="mt-4 space-y-4">
+   661→                <div className="grid gap-4 md:grid-cols-2">
+   662→                  <div className="space-y-1.5">
+   663→                    <Label htmlFor="seg-name">Segment Name</Label>
+   664→                    <Input
+   665→                      id="seg-name"
+   666→                      value={segment.name}
+   667→                      onChange={(e) => setSegmentField("name", e.target.value)}
+   668→                      placeholder="e.g. New funded traders — US/EU"
+   669→                    />
+   670→                  </div>
+   671→                  <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+   672→                    <div className="flex flex-col">
+   673→                      <Label htmlFor="seg-active" className="cursor-pointer text-sm font-medium">
+   674→                        Segment Active
+   675→                      </Label>
+   676→                      <span className="text-xs text-muted-foreground">
+   677→                        Toggle off to disable this segment temporarily.
+   678→                      </span>
+   679→                    </div>
+   680→                    <Switch
+   681→                      id="seg-active"
+   682→                      checked={segment.active}
+   683→                      onCheckedChange={(v) => setSegmentField("active", v)}
+   684→                    />
+   685→                  </div>
+   686→                </div>
+   687→
+   688→                <Separator />
+   689→
+   690→                <div className="grid gap-3 md:grid-cols-2">
+   691→                  <TriStateSelect
+   692→                    label="Account Purchased"
+   693→                    help="Restrict to traders who have or have not purchased a challenge."
+   694→                    value={segment.accountPurchased}
+   695→                    onChange={(v) => setSegmentField("accountPurchased", v)}
+   696→                  />
+   697→                  <TriStateSelect
+   698→                    label="Competition User"
+   699→                    help="Restrict to traders who have or have not participated in a competition."
+   700→                    value={segment.competitionUser}
+   701→                    onChange={(v) => setSegmentField("competitionUser", v)}
+   702→                  />
+   703→                  <TriStateSelect
+   704→                    label="Has Approved Payout"
+   705→                    help="Restrict to traders who have or have not received an approved payout."
+   706→                    value={segment.hasApprovedPayout}
+   707→                    onChange={(v) => setSegmentField("hasApprovedPayout", v)}
+   708→                  />
+   709→                  <TriStateSelect
+   710→                    label="Fund Accounts Only"
+   711→                    help="Restrict to traders currently holding a funded account."
+   712→                    value={segment.fundAccountsOnly}
+   713→                    onChange={(v) => setSegmentField("fundAccountsOnly", v)}
+   714→                  />
+   715→                  <TriStateSelect
+   716→                    label="Has Failed Accounts"
+   717→                    help="Restrict to traders who have or have not failed any challenge."
+   718→                    value={segment.hasFailedAccounts}
+   719→                    onChange={(v) => setSegmentField("hasFailedAccounts", v)}
+   720→                  />
+   721→                  <div className="flex flex-col gap-1.5">
+   722→                    <LabelWithHelp help="Minimum account size in USD the trader must hold to qualify. Blank = no minimum.">
+   723→                      Account Size Min (USD)
+   724→                    </LabelWithHelp>
+   725→                    <Input
+   726→                      type="number"
+   727→                      min={0}
+   728→                      value={segment.accountSizeMin}
+   729→                      onChange={(e) => setSegmentField("accountSizeMin", e.target.value)}
+   730→                      placeholder="e.g. 5000"
+   731→                    />
+   732→                  </div>
+   733→                  <div className="flex flex-col gap-1.5">
+   734→                    <LabelWithHelp help="Maximum account size in USD the trader may hold to qualify. Blank = no maximum.">
+   735→                      Account Size Max (USD)
+   736→                    </LabelWithHelp>
+   737→                    <Input
+   738→                      type="number"
+   739→                      min={0}
+   740→                      value={segment.accountSizeMax}
+   741→                      onChange={(e) => setSegmentField("accountSizeMax", e.target.value)}
+   742→                      placeholder="e.g. 100000"
+   743→                    />
+   744→                  </div>
+   745→                </div>
+   746→
+   747→                <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
+   748→                  <span className="font-medium text-foreground">Segment preview:</span>{" "}
+   749→                  {segment.name || "Untitled segment"} —{" "}
+   750→                  <StatusBadge tone={segment.active ? "success" : "muted"}>
+   751→                    {segment.active ? "Active" : "Inactive"}
+   752→                  </StatusBadge>
+   753→                </div>
+   754→              </div>
+   755→            </CollapsibleContent>
+   756→          </section>
+   757→        </Collapsible>
+   758→
+   759→        {/* Action bar — one primary action (§13) */}
+   760→        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card p-3">
+   761→          <div className="text-xs text-muted-foreground">
+   762→            {isNew ? (
+   763→              <span className="flex items-center gap-1">
+   764→                <Calendar className="h-3 w-3" /> Creating a new offer.
+   765→              </span>
+   766→            ) : (
+   767→              <span className="flex items-center gap-1">
+   768→                <Calendar className="h-3 w-3" /> Last updated{" "}
+   769→                {existing?.createdAt
+   770→                  ? new Date(existing.createdAt).toLocaleDateString()
+   771→                  : "—"}
+   772→                .
+   773→              </span>
+   774→            )}
+   775→          </div>
+   776→          <div className="flex flex-wrap items-center gap-2">
+   777→            {!isNew ? (
+   778→              <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+   779→                <AlertDialogTrigger asChild>
+   780→                  <Button size="sm" variant="destructive">
+   781→                    <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+   782→                  </Button>
+   783→                </AlertDialogTrigger>
+   784→                <AlertDialogContent>
+   785→                  <AlertDialogHeader>
+   786→                    <AlertDialogTitle>Delete this offer?</AlertDialogTitle>
+   787→                    <AlertDialogDescription>
+   788→                      This will permanently remove <span className="font-medium text-foreground">{title || "this offer"}</span> and stop all
+   789→                      coupon redemptions using{" "}
+   790→                      <span className="font-mono">{couponCode || "(no coupon)"}</span>.
+   791→                      Traders who already redeemed the coupon will keep their discount.
+   792→                      This action cannot be undone.
+   793→                    </AlertDialogDescription>
+   794→                  </AlertDialogHeader>
+   795→                  <AlertDialogFooter>
+   796→                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+   797→                    <AlertDialogAction
+   798→                      className="bg-rose-600 hover:bg-rose-700"
+   799→                      onClick={onDelete}
+   800→                    >
+   801→                      Delete offer
+   802→                    </AlertDialogAction>
+   803→                  </AlertDialogFooter>
+   804→                </AlertDialogContent>
+   805→              </AlertDialog>
+   806→            ) : null}
+   807→            <Button
+   808→              size="sm"
+   809→              variant="outline"
+   810→              onClick={onSaveAndAdd}
+   811→            >
+   812→              <Plus className="mr-1 h-3.5 w-3.5" /> Save and add another
+   813→            </Button>
+   814→            <Button
+   815→              size="sm"
+   816→              variant="outline"
+   817→              onClick={onSaveAndContinue}
+   818→            >
+   819→              <Save className="mr-1 h-3.5 w-3.5" /> Save and continue editing
+   820→            </Button>
+   821→            <Button size="sm" onClick={onSave}>
+   822→              <Save className="mr-1 h-3.5 w-3.5" /> Save
+   823→            </Button>
+   824→          </div>
+   825→        </div>
+   826→      </PageContent>
+   827→    </Page>
+   828→  );
+   829→}
+   830→
+   831→/* ------------------------------------------------------------------ */
+   832→/* Tri-state select — Any/Yes/No dropdown                              */
+   833→/* ------------------------------------------------------------------ */
+   834→
+   835→function TriStateSelect({
+   836→  label,
+   837→  help,
+   838→  value,
+   839→  onChange,
+   840→}: {
+   841→  label: string;
+   842→  help: string;
+   843→  value: TriState;
+   844→  onChange: (v: TriState) => void;
+   845→}) {
+   846→  return (
+   847→    <div className="flex flex-col gap-1.5">
+   848→      <LabelWithHelp help={help}>{label}</LabelWithHelp>
+   849→      <Select value={value} onValueChange={(v) => onChange(v as TriState)}>
+   850→        <SelectTrigger className="w-full">
+   851→          <SelectValue />
+   852→        </SelectTrigger>
+   853→        <SelectContent>
+   854→          {TRI_STATE.map((s) => (
+   855→            <SelectItem key={s} value={s}>
+   856→              {triStateLabel(s)}
+   857→            </SelectItem>
+   858→          ))}
+   859→        </SelectContent>
+   860→      </Select>
+   861→    </div>
+   862→  );
+   863→}
+   864→

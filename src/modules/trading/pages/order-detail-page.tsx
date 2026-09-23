@@ -85,6 +85,7 @@ import {
   Pencil,
   Check,
   ArrowLeft,
+  ArrowUpRight,
   Mail,
   Braces,
   Calendar,
@@ -93,6 +94,7 @@ import {
   Link2,
   Repeat,
   ShieldAlert,
+  User,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -131,6 +133,7 @@ interface OrderDetail {
   id: string;
   userId: string;
   userEmail: string;
+  userFullName: string;
   addons: Record<string, unknown>;
   dateCreated: string;
   orderType: OrderType;
@@ -324,6 +327,7 @@ function generateOrderDetail(id: string, tenantId: string): OrderDetail {
     id,
     userId: trader?.id ?? "usr-unknown",
     userEmail: trader?.email ?? "trader@example.com",
+    userFullName: trader?.name ?? "Unknown trader",
     addons,
     dateCreated,
     orderType,
@@ -454,6 +458,31 @@ export function OrderDetailPage() {
               <span>
                 {new Date(working.dateCreated).toLocaleString()}
               </span>
+              <span aria-hidden>·</span>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                // Inline "View Trader" cross-link placed next to the email +
+                // date in the order header (UX §22 — contextual action where
+                // the decision happens, not buried at the bottom). The
+                // variant="link" + size="sm" base is overridden with compact
+                // `h-auto px-2 py-1 text-[11px]` so the badge-style chip
+                // stays visually inline with the surrounding `text-xs`
+                // metadata without inflating the line height. `hover:no-underline`
+                // suppresses the link variant's underline-on-hover so the
+                // emerald chip's bg-color hover state is the only signal.
+                onClick={() =>
+                  navigate("trader-detail", { id: working.userId })
+                }
+                className="inline-flex h-auto items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-50/50 px-2 py-1 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100 hover:no-underline hover:text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/60"
+                aria-label={`View trader ${working.userFullName}`}
+                title={`View trader ${working.userFullName}`}
+              >
+                <User className="h-3 w-3" />
+                View Trader
+                <ArrowUpRight className="h-3 w-3" />
+              </Button>
             </div>
           </div>
         </div>

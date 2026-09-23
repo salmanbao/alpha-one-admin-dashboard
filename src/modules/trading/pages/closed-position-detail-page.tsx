@@ -70,6 +70,7 @@ import { cn } from "@/lib/utils";
 import {
   Activity,
   ArrowLeft,
+  ArrowUpRight,
   ChevronRight,
   Hash,
   TrendingUp,
@@ -83,6 +84,8 @@ import {
   Save,
   Pencil,
   Check,
+  User,
+  CreditCard,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -121,6 +124,10 @@ interface ClosedPositionDetail {
   rrRatio: number | null;
   isPartial: boolean;
   closeReason: CloseReason;
+  traderId: string;
+  traderName: string;
+  accountId: string;
+  accountLogin: string;
 }
 
 const CLOSE_REASONS: CloseReason[] = [
@@ -227,8 +234,6 @@ function generateClosedPositionDetail(
 
   const trader = traders.find((t) => t.id === base.traderId);
   const account = accounts.find((a) => a.id === base.accountId);
-  void trader;
-  void account;
 
   return {
     id,
@@ -257,6 +262,10 @@ function generateClosedPositionDetail(
     rrRatio,
     isPartial: r4 > 0.85,
     closeReason,
+    traderId: trader?.id ?? "trader-unknown",
+    traderName: trader?.name ?? "Unknown trader",
+    accountId: account?.id ?? base.accountId,
+    accountLogin: account?.login ?? "—",
   };
 }
 
@@ -523,6 +532,7 @@ function ClosedPositionForm({
   currency: string;
   onFieldChange: (patch: Partial<ClosedPositionDetail>) => void;
 }) {
+  const { navigate } = usePlatform();
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {/* Identity */}
@@ -533,6 +543,62 @@ function ClosedPositionForm({
       >
         <div className="space-y-3">
           <ReadOnlyField label="Uid" value={working.uid} />
+          {/* Trader + Account cross-links (UX §22 — contextual actions
+              where the user's decision happens). */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <LabelWithHelp
+                help="The trader who opened this position. Click to open the Trader Workspace."
+                className="text-sm font-medium"
+              >
+                Trader
+              </LabelWithHelp>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-9 w-full justify-between gap-2 rounded-md border bg-muted/30 px-3 text-sm font-medium text-foreground hover:bg-muted/50 hover:text-emerald-700 hover:underline dark:text-emerald-400"
+                onClick={() =>
+                  navigate("trader-detail", { id: working.traderId })
+                }
+                aria-label={`View trader ${working.traderName}`}
+              >
+                <span className="inline-flex items-center gap-1.5 truncate">
+                  <User className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="truncate">{working.traderName}</span>
+                </span>
+                <span className="inline-flex items-center gap-0.5 text-[11px] text-emerald-700 dark:text-emerald-400">
+                  View <ArrowUpRight className="h-3 w-3" />
+                </span>
+              </Button>
+            </div>
+            <div className="space-y-1.5">
+              <LabelWithHelp
+                help="The trading account this position was opened on. Click to open the Account Workspace."
+                className="text-sm font-medium"
+              >
+                Account
+              </LabelWithHelp>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-9 w-full justify-between gap-2 rounded-md border bg-muted/30 px-3 font-mono text-xs text-foreground hover:bg-muted/50 hover:text-emerald-700 hover:underline dark:text-emerald-400"
+                onClick={() =>
+                  navigate("account-workspace", { id: working.accountId })
+                }
+                aria-label={`View account ${working.accountLogin}`}
+              >
+                <span className="inline-flex items-center gap-1.5 truncate">
+                  <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="truncate">{working.accountLogin}</span>
+                </span>
+                <span className="inline-flex items-center gap-0.5 text-[11px] text-emerald-700 dark:text-emerald-400">
+                  View <ArrowUpRight className="h-3 w-3" />
+                </span>
+              </Button>
+            </div>
+          </div>
           <div className="space-y-1.5">
             <LabelWithHelp
               help="LONG = buy side (profit when price rises). SHORT = sell side (profit when price falls)."

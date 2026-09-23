@@ -11,7 +11,7 @@ const tierTone: Record<string, string> = {
   bronze: "#b45309",
   silver: "#64748b",
   gold: "#d97706",
-  platinum: "#7c3aed",
+  platinum: "#b45309", // Terra-allowed amber — replaces violet (#7c3aed) to stay on-palette.
 };
 
 /**
@@ -60,7 +60,7 @@ export function TopAffiliatesWidget() {
     <ul className="space-y-2">
       {aff.map((a, i) => (
         <li key={a.id} className="flex items-center gap-2.5 rounded-md border bg-card p-2">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-semibold text-violet-600 dark:bg-violet-950 dark:text-violet-400">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-400">
             {i + 1}
           </span>
           <div className="min-w-0 flex-1">

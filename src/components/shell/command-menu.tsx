@@ -31,6 +31,7 @@ import {
   Building2,
   Package,
   Keyboard,
+  History,
 } from "lucide-react";
 import type { CommandAction } from "@/lib/platform/types";
 
@@ -78,6 +79,42 @@ export function CommandMenu() {
         }
       }
     }
+    // Audit sub-pages — explicit flat-labeled shortcuts so operators can
+    // jump to audit destinations even when the audit module sidebar isn't
+    // expanded (e.g. on tenants that haven't opted into the audit module
+    // but still need to inspect a known viewId). `g a` is already bound to
+    // `navigate("analytics")` by the keyboard-shortcuts-help listener, so
+    // we leave the shortcut empty here per the "only if not taken" rule.
+    out.push(
+      {
+        id: "nav-audit-log",
+        label: "Audit Log",
+        group: "Navigation",
+        icon: History,
+        run: () => navigate("audit"),
+      },
+      {
+        id: "nav-audit-user-events",
+        label: "User Events",
+        group: "Navigation",
+        icon: History,
+        run: () => navigate("audit-user-events"),
+      },
+      {
+        id: "nav-audit-user-events-enhanced",
+        label: "Enhanced Events",
+        group: "Navigation",
+        icon: History,
+        run: () => navigate("audit-user-events-enhanced"),
+      },
+      {
+        id: "nav-audit-change-history",
+        label: "Change History",
+        group: "Navigation",
+        icon: History,
+        run: () => navigate("audit-change-history"),
+      },
+    );
     // quick actions
     out.push(
       {

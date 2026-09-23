@@ -69,7 +69,7 @@ export function AdvancedAnalyticsWidget() {
         <span className="text-sm font-medium">Cohort retention analysis</span>
         <Badge variant="secondary" className="text-[10px]">Advanced</Badge>
       </div>
-      <BarSeries data={cohorts.map((c) => ({ date: c.name, value: c.value }))} xKey="date" yKey="value" color="#7c3aed" height={160} />
+      <BarSeries data={cohorts.map((c) => ({ date: c.name, value: c.value }))} xKey="date" yKey="value" color="#0d9488" height={160} />
     </div>
   );
 }

@@ -1,0 +1,1166 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Tenant Detail Page — comprehensive tenant workspace (spec §6, §41, §43).
+     5→ *
+     6→ * Super Admin's view into a single tenant: header + KPI row + 7 tabs that
+     7→ * cover the full tenant lifecycle surface:
+     8→ *   1. Overview       — summary + module adoption progress
+     9→ *   2. Modules        — toggle which modules this tenant can access (KEY feature)
+    10→ *   3. Users          — tenant's admin/support users
+    11→ *   4. Billing        — subscription + invoice history
+    12→ *   5. Activity       — recent audit timeline
+    13→ *   6. Configuration  — edit tenant settings (name, currency, branding, etc.)
+    14→ *   7. Risk           — risk summary + quick nav to tenant risk workspace
+    15→ *
+    16→ * Destructive actions (Suspend, Terminate) use AlertDialog with explicit
+    17→ * consequence explanations (UX §24). One primary action per surface (§22).
+    18→ */
+    19→
+    20→import { useMemo, useState } from "react";
+    21→import { usePlatform } from "@/lib/platform/platform-context";
+    22→import {
+    23→  getTenantTraders,
+    24→  getTenantAccounts,
+    25→  getTenantBreaches,
+    26→  getTenantPayouts,
+    27→  getTenantKyc,
+    28→  getTenantAudit,
+    29→  users as allUsers,
+    30→} from "@/lib/platform/mock-data";
+    31→import type { AuthUser, TenantContext } from "@/lib/platform/types";
+    32→import { moduleRegistry } from "@/lib/platform/module-registry";
+    33→import {
+    34→  Page,
+    35→  PageContent,
+    36→  EntityHeader,
+    37→  MetricCard,
+    38→} from "@/components/platform/page";
+    39→import { DataTable, type Column } from "@/components/platform/data-table";
+    40→import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
+    41→import { ActivityTimeline } from "@/components/platform/audit";
+    42→import { EmptyState } from "@/components/platform/guards";
+    43→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    44→import { Button } from "@/components/ui/button";
+    45→import { Badge } from "@/components/ui/badge";
+    46→import { Card, CardContent, CardHeader } from "@/components/ui/card";
+    47→import { Input } from "@/components/ui/input";
+    48→import { Label } from "@/components/ui/label";
+    49→import { Switch } from "@/components/ui/switch";
+    50→import { Separator } from "@/components/ui/separator";
+    51→import { Progress } from "@/components/ui/progress";
+    52→import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    53→import {
+    54→  Select,
+    55→  SelectContent,
+    56→  SelectItem,
+    57→  SelectTrigger,
+    58→  SelectValue,
+    59→} from "@/components/ui/select";
+    60→import {
+    61→  DropdownMenu,
+    62→  DropdownMenuContent,
+    63→  DropdownMenuItem,
+    64→  DropdownMenuTrigger,
+    65→} from "@/components/ui/dropdown-menu";
+    66→import {
+    67→  AlertDialog,
+    68→  AlertDialogAction,
+    69→  AlertDialogCancel,
+    70→  AlertDialogContent,
+    71→  AlertDialogDescription,
+    72→  AlertDialogFooter,
+    73→  AlertDialogHeader,
+    74→  AlertDialogTitle,
+    75→  AlertDialogTrigger,
+    76→} from "@/components/ui/alert-dialog";
+    77→import { toast } from "@/hooks/use-toast";
+    78→import { cn } from "@/lib/utils";
+    79→import {
+    80→  ArrowLeft,
+    81→  Settings as SettingsIcon,
+    82→  Pause,
+    83→  Play,
+    84→  Ban,
+    85→  Users,
+    86→  Package,
+    87→  DollarSign,
+    88→  AlertTriangle,
+    89→  Clock,
+    90→  Activity,
+    91→  Palette,
+    92→  ShieldAlert,
+    93→  FileText,
+    94→  ChevronDown,
+    95→  UserPlus,
+    96→  Pencil,
+    97→  Trash2,
+    98→  Building2,
+    99→  CheckCircle2,
+   100→  TrendingUp,
+   101→} from "lucide-react";
+   102→
+   103→/* ------------------------------------------------------------------ */
+   104→/* Helpers                                                            */
+   105→/* ------------------------------------------------------------------ */
+   106→
+   107→const PLAN_COST: Record<TenantContext["plan"], number | string> = {
+   108→  starter: 890,
+   109→  growth: 1900,
+   110→  scale: 4900,
+   111→  enterprise: "Custom",
+   112→};
+   113→
+   114→const tenantStatusTone = (s: string) =>
+   115→  s === "active"
+   116→    ? "success"
+   117→    : s === "trial"
+   118→      ? "info"
+   119→      : s === "suspended"
+   120→        ? "danger"
+   121→        : s === "terminated"
+   122→          ? "muted"
+   123→          : s === "invited"
+   124→            ? "info"
+   125→            : "warning";
+   126→
+   127→/* ------------------------------------------------------------------ */
+   128→/* Page                                                               */
+   129→/* ------------------------------------------------------------------ */
+   130→
+   131→export function TenantDetailPage() {
+   132→  const { router, navigate, availableTenants, setTenant, pushNotification } = usePlatform();
+   133→  const tenantId = router.params.id;
+   134→
+   135→  const foundTenant = useMemo(
+   136→    () => availableTenants.find((t) => t.id === tenantId && t.id !== "platform"),
+   137→    [availableTenants, tenantId],
+   138→  );
+   139→
+   140→  // Local working copy so module toggles / config edits are reflected
+   141→  // immediately in this surface and also pushed to global context.
+   142→  const [localTenant, setLocalTenant] = useState<TenantContext | null>(foundTenant ?? null);
+   143→
+   144→  // KPI data — pulled from mock domain functions
+   145→  const tenantTraders = useMemo(
+   146→    () => (localTenant ? getTenantTraders(localTenant.id) : []),
+   147→    [localTenant],
+   148→  );
+   149→  const tenantAccounts = useMemo(
+   150→    () => (localTenant ? getTenantAccounts(localTenant.id) : []),
+   151→    [localTenant],
+   152→  );
+   153→  const tenantBreaches = useMemo(
+   154→    () => (localTenant ? getTenantBreaches(localTenant.id) : []),
+   155→    [localTenant],
+   156→  );
+   157→  const tenantPayouts = useMemo(
+   158→    () => (localTenant ? getTenantPayouts(localTenant.id) : []),
+   159→    [localTenant],
+   160→  );
+   161→  const tenantKyc = useMemo(
+   162→    () => (localTenant ? getTenantKyc(localTenant.id) : []),
+   163→    [localTenant],
+   164→  );
+   165→  const tenantAudit = useMemo(
+   166→    () => (localTenant ? getTenantAudit(localTenant.id).slice(0, 12) : []),
+   167→    [localTenant],
+   168→  );
+   169→
+   170→  // Controlled tab state so the "Edit Configuration" header button can
+   171→  // programmatically switch to the Configuration tab (previously the
+   172→  // button called `navigate("tenant-config", { id })` — a viewId that
+   173→  // doesn't exist in the view-router, producing a "View not found"
+   174→  // fallback. The Configuration tab IS on this page; switching the
+   175→  // active tab is the correct action.)
+   176→  const [activeTab, setActiveTab] = useState<string>("overview");
+   177→
+   178→  if (!localTenant) {
+   179→    return (
+   180→      <Page>
+   181→        <Button variant="ghost" size="sm" className="w-fit" onClick={() => navigate("tenants")}>
+   182→          <ArrowLeft className="mr-1 h-4 w-4" />Back to tenants
+   183→        </Button>
+   184→        <EmptyState
+   185→          title="Tenant not found"
+   186→          description="This tenant may have been removed, or you followed a stale link."
+   187→          icon={Building2}
+   188→          hint="Return to the tenants list and pick a tenant to view."
+   189→        />
+   190→      </Page>
+   191→    );
+   192→  }
+   193→
+   194→  const currency = localTenant.currency;
+   195→  const openBreaches = tenantBreaches.filter((b) => b.status === "open");
+   196→  const pendingPayouts = tenantPayouts.filter((p) => p.status === "pending");
+   197→  const pendingKyc = tenantKyc.filter((k) => k.status === "pending" || k.status === "review");
+   198→  const activeAccounts = tenantAccounts.filter((a) => a.status === "active");
+   199→  const monthlyRevenue =
+   200→    typeof PLAN_COST[localTenant.plan] === "number"
+   201→      ? (PLAN_COST[localTenant.plan] as number)
+   202→      : 4900;
+   203→
+   204→  /* ---- Apply status change with toast + notification ---- */
+   205→  const applyStatus = (status: TenantContext["status"], verb: string) => {
+   206→    const updated: TenantContext = { ...localTenant, status };
+   207→    setLocalTenant(updated);
+   208→    setTenant(updated);
+   209→    pushNotification({
+   210→      title: `Tenant ${verb}`,
+   211→      message: `${localTenant.name} is now ${status}.`,
+   212→      severity:
+   213→        status === "suspended" || status === "terminated" ? "warning" : "success",
+   214→      module: "super-admin",
+   215→    });
+   216→    toast({
+   217→      title: `Tenant ${verb}`,
+   218→      description: `${localTenant.name} is now ${status}.`,
+   219→    });
+   220→  };
+   221→
+   222→  return (
+   223→    <Page>
+   224→      <Button
+   225→        variant="ghost"
+   226→        size="sm"
+   227→        className="w-fit"
+   228→        onClick={() => navigate("tenants")}
+   229→      >
+   230→        <ArrowLeft className="mr-1 h-4 w-4" />Back to tenants
+   231→      </Button>
+   232→
+   233→      {/* Header */}
+   234→      <EntityHeader
+   235→        title={localTenant.name}
+   236→        subtitle={`${localTenant.branding.tagline ?? "—"} · ${localTenant.slug}`}
+   237→        avatar={
+   238→          <span
+   239→            className="flex h-12 w-12 items-center justify-center rounded-lg text-sm font-bold text-white shadow-sm"
+   240→            style={{ background: localTenant.branding.primaryColor }}
+   241→          >
+   242→            {localTenant.branding.initials}
+   243→          </span>
+   244→        }
+   245→        badges={
+   246→          <>
+   247→            <Badge variant="outline" className="text-[10px] capitalize">{localTenant.plan}</Badge>
+   248→            <StatusBadge tone={tenantStatusTone(localTenant.status)}>{localTenant.status}</StatusBadge>
+   249→          </>
+   250→        }
+   251→        actions={
+   252→          <>
+   253→            <Button
+   254→              size="sm"
+   255→              variant="outline"
+   256→              onClick={() => setActiveTab("configuration")}
+   257→            >
+   258→              <SettingsIcon className="mr-1 h-4 w-4" />Edit Configuration
+   259→            </Button>
+   260→
+   261→            {localTenant.status === "active" || localTenant.status === "trial" ? (
+   262→              <AlertDialog>
+   263→                <AlertDialogTrigger asChild>
+   264→                  <Button size="sm" variant="outline">
+   265→                    <Pause className="mr-1 h-4 w-4" />Suspend
+   266→                  </Button>
+   267→                </AlertDialogTrigger>
+   268→                <AlertDialogContent>
+   269→                  <AlertDialogHeader>
+   270→                    <AlertDialogTitle>Suspend {localTenant.name}?</AlertDialogTitle>
+   271→                    <AlertDialogDescription>
+   272→                      The tenant will lose all platform access immediately. Trader logins,
+   273→                      open positions, and payout processing are paused. Admin users can still
+   274→                      log in to manage suspended-state tasks. This is reversible — you can
+   275→                      reactivate the tenant at any time.
+   276→                    </AlertDialogDescription>
+   277→                  </AlertDialogHeader>
+   278→                  <AlertDialogFooter>
+   279→                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+   280→                    <AlertDialogAction
+   281→                      className={cn("bg-destructive text-white hover:bg-destructive/90")}
+   282→                      onClick={() => applyStatus("suspended", "suspended")}
+   283→                    >
+   284→                      Suspend tenant
+   285→                    </AlertDialogAction>
+   286→                  </AlertDialogFooter>
+   287→                </AlertDialogContent>
+   288→              </AlertDialog>
+   289→            ) : null}
+   290→
+   291→            {localTenant.status === "suspended" ? (
+   292→              <Button
+   293→                size="sm"
+   294→                onClick={() => applyStatus("active", "reactivated")}
+   295→              >
+   296→                <Play className="mr-1 h-4 w-4" />Reactivate
+   297→              </Button>
+   298→            ) : null}
+   299→
+   300→            {localTenant.status !== "terminated" ? (
+   301→              <AlertDialog>
+   302→                <AlertDialogTrigger asChild>
+   303→                  <Button size="sm" variant="destructive">
+   304→                    <Ban className="mr-1 h-4 w-4" />Terminate
+   305→                  </Button>
+   306→                </AlertDialogTrigger>
+   307→                <AlertDialogContent>
+   308→                  <AlertDialogHeader>
+   309→                    <AlertDialogTitle>Terminate {localTenant.name}?</AlertDialogTitle>
+   310→                    <AlertDialogDescription>
+   311→                      All trader data, accounts, payouts, and audit logs for this tenant will be
+   312→                      permanently archived. The tenant will lose all platform access immediately.
+   313→                      This action cannot be reversed from the standard admin UI — recovery
+   314→                      requires a platform-level data restoration request.
+   315→                    </AlertDialogDescription>
+   316→                  </AlertDialogHeader>
+   317→                  <AlertDialogFooter>
+   318→                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+   319→                    <AlertDialogAction
+   320→                      className={cn("bg-destructive text-white hover:bg-destructive/90")}
+   321→                      onClick={() => applyStatus("terminated", "terminated")}
+   322→                    >
+   323→                      Terminate tenant
+   324→                    </AlertDialogAction>
+   325→                  </AlertDialogFooter>
+   326→                </AlertDialogContent>
+   327→              </AlertDialog>
+   328→            ) : null}
+   329→          </>
+   330→        }
+   331→      />
+   332→
+   333→      {/* KPI row */}
+   334→      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+   335→        <MetricCard label="Traders" value={tenantTraders.length} icon={Users} />
+   336→        <MetricCard label="Active Accounts" value={activeAccounts.length} icon={Package} tone="positive" />
+   337→        <MetricCard
+   338→          label="MRR"
+   339→          value={formatCurrency(monthlyRevenue, currency)}
+   340→          icon={DollarSign}
+   341→          tone="positive"
+   342→        />
+   343→        <MetricCard
+   344→          label="Open Breaches"
+   345→          value={openBreaches.length}
+   346→          icon={AlertTriangle}
+   347→          tone={openBreaches.length > 0 ? "negative" : "default"}
+   348→        />
+   349→        <MetricCard
+   350→          label="Pending Payouts"
+   351→          value={pendingPayouts.length}
+   352→          icon={Clock}
+   353→          tone={pendingPayouts.length > 0 ? "warning" : "default"}
+   354→        />
+   355→        <MetricCard
+   356→          label="KYC Pending"
+   357→          value={pendingKyc.length}
+   358→          icon={ShieldAlert}
+   359→          tone={pendingKyc.length > 0 ? "warning" : "default"}
+   360→        />
+   361→      </div>
+   362→
+   363→      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+   364→        <TabsList className="flex flex-wrap justify-start">
+   365→          <TabsTrigger value="overview" className="gap-1"><Activity className="h-3 w-3" />Overview</TabsTrigger>
+   366→          <TabsTrigger value="modules" className="gap-1"><Package className="h-3 w-3" />Modules</TabsTrigger>
+   367→          <TabsTrigger value="users" className="gap-1"><Users className="h-3 w-3" />Users</TabsTrigger>
+   368→          <TabsTrigger value="billing" className="gap-1"><DollarSign className="h-3 w-3" />Billing</TabsTrigger>
+   369→          <TabsTrigger value="activity" className="gap-1"><Clock className="h-3 w-3" />Activity</TabsTrigger>
+   370→          <TabsTrigger value="configuration" className="gap-1"><SettingsIcon className="h-3 w-3" />Configuration</TabsTrigger>
+   371→          <TabsTrigger value="risk" className="gap-1"><ShieldAlert className="h-3 w-3" />Risk</TabsTrigger>
+   372→        </TabsList>
+   373→
+   374→        <TabsContent value="overview">
+   375→          <OverviewTab tenant={localTenant} />
+   376→        </TabsContent>
+   377→        <TabsContent value="modules">
+   378→          <ModulesTab tenant={localTenant} onChange={setLocalTenant} onPersist={setTenant} />
+   379→        </TabsContent>
+   380→        <TabsContent value="users">
+   381→          <UsersTab tenantId={localTenant.id} />
+   382→        </TabsContent>
+   383→        <TabsContent value="billing">
+   384→          <BillingTab tenant={localTenant} />
+   385→        </TabsContent>
+   386→        <TabsContent value="activity">
+   387→          <div className="rounded-lg border bg-card p-4">
+   388→            <p className="mb-3 text-sm font-medium">Recent activity</p>
+   389→            <ActivityTimeline entries={tenantAudit} max={12} />
+   390→          </div>
+   391→        </TabsContent>
+   392→        <TabsContent value="configuration">
+   393→          <ConfigurationTab tenant={localTenant} onChange={setLocalTenant} onPersist={setTenant} />
+   394→        </TabsContent>
+   395→        <TabsContent value="risk">
+   396→          <RiskTab tenant={localTenant} breaches={tenantBreaches} accountsCount={tenantAccounts.length} />
+   397→        </TabsContent>
+   398→      </Tabs>
+   399→    </Page>
+   400→  );
+   401→}
+   402→
+   403→/* ------------------------------------------------------------------ */
+   404→/* Tab 1 — Overview                                                    */
+   405→/* ------------------------------------------------------------------ */
+   406→
+   407→function OverviewTab({ tenant }: { tenant: TenantContext }) {
+   408→  const allModules = moduleRegistry.getAll();
+   409→  const summary = [
+   410→    { label: "Tenant ID", value: tenant.id, mono: true },
+   411→    { label: "Slug", value: tenant.slug },
+   412→    { label: "Plan", value: <Badge variant="outline" className="text-[10px] capitalize">{tenant.plan}</Badge> },
+   413→    { label: "Status", value: <StatusBadge tone={tenantStatusTone(tenant.status)}>{tenant.status}</StatusBadge> },
+   414→    { label: "Currency", value: tenant.currency },
+   415→    { label: "Timezone", value: tenant.timezone },
+   416→    { label: "Locale", value: tenant.locale },
+   417→    { label: "Created", value: new Date(tenant.createdAt).toLocaleDateString() },
+   418→    { label: "Last active", value: "2 hours ago" },
+   419→    { label: "Application", value: tenant.application },
+   420→  ];
+   421→
+   422→  return (
+   423→    <div className="grid gap-4 lg:grid-cols-3">
+   424→      <div className="rounded-lg border bg-card p-4 lg:col-span-2">
+   425→        <p className="mb-3 text-sm font-medium">Tenant summary</p>
+   426→        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-2">
+   427→          {summary.map((row) => (
+   428→            <div key={row.label}>
+   429→              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{row.label}</dt>
+   430→              <dd className={cn("mt-0.5", row.mono ? "font-mono text-xs" : "text-sm")}>{row.value}</dd>
+   431→            </div>
+   432→          ))}
+   433→        </dl>
+   434→      </div>
+   435→      <div className="rounded-lg border bg-card p-4">
+   436→        <p className="mb-3 text-sm font-medium">
+   437→          <LabelWithHelp help="Modules currently enabled for this tenant. Use the Modules tab to toggle entitlements.">
+   438→            Module adoption
+   439→          </LabelWithHelp>
+   440→        </p>
+   441→        <div className="space-y-2">
+   442→          {allModules.map((m) => {
+   443→            const enabled = tenant.enabledModules.includes(m.manifest.id);
+   444→            const Icon = m.manifest.icon;
+   445→            return (
+   446→              <div key={m.manifest.id} className="flex items-center gap-2">
+   447→                {Icon ? <Icon className="h-3.5 w-3.5 text-muted-foreground" /> : null}
+   448→                <span className="flex-1 truncate text-xs">{m.manifest.name}</span>
+   449→                {enabled ? (
+   450→                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+   451→                ) : (
+   452→                  <span className="h-1.5 w-1.5 rounded-full bg-muted" />
+   453→                )}
+   454→              </div>
+   455→            );
+   456→          })}
+   457→        </div>
+   458→        <Separator className="my-3" />
+   459→        <p className="text-xs text-muted-foreground">
+   460→          {tenant.enabledModules.length} of {allModules.length} modules enabled
+   461→        </p>
+   462→        <Progress value={(tenant.enabledModules.length / allModules.length) * 100} className="mt-1.5 h-1.5" />
+   463→      </div>
+   464→    </div>
+   465→  );
+   466→}
+   467→
+   468→/* ------------------------------------------------------------------ */
+   469→/* Tab 2 — Modules (KEY feature: toggle tenant entitlements)         */
+   470→/* ------------------------------------------------------------------ */
+   471→
+   472→function ModulesTab({
+   473→  tenant,
+   474→  onChange,
+   475→  onPersist,
+   476→}: {
+   477→  tenant: TenantContext;
+   478→  onChange: (t: TenantContext) => void;
+   479→  onPersist: (t: TenantContext) => void;
+   480→}) {
+   481→  const allModules = moduleRegistry.getAll();
+   482→
+   483→  const toggle = (moduleId: string) => {
+   484→    const enabled = new Set(tenant.enabledModules);
+   485→    const willEnable = !enabled.has(moduleId);
+   486→    if (willEnable) enabled.add(moduleId);
+   487→    else enabled.delete(moduleId);
+   488→    const updated: TenantContext = {
+   489→      ...tenant,
+   490→      enabledModules: Array.from(enabled),
+   491→    };
+   492→    onChange(updated);
+   493→    onPersist(updated);
+   494→    const mod = allModules.find((m) => m.manifest.id === moduleId);
+   495→    toast({
+   496→      title: willEnable ? "Module enabled" : "Module disabled",
+   497→      description: `${mod?.manifest.name ?? moduleId} is now ${willEnable ? "accessible" : "hidden"} for ${tenant.name}.`,
+   498→    });
+   499→  };
+   500→
+   501→  return (
+   502→    <div className="space-y-3">
+   503→      <div className="flex items-center justify-between rounded-lg border bg-card p-3">
+   504→        <div>
+   505→          <p className="text-sm font-medium">
+   506→            <LabelWithHelp help="Toggle modules to control which features this tenant can access. Disabled modules disappear from the tenant's sidebar and dashboard instantly.">
+   507→              Module entitlements
+   508→            </LabelWithHelp>
+   509→          </p>
+   510→          <p className="text-xs text-muted-foreground">
+   511→            {tenant.enabledModules.length} of {allModules.length} modules enabled
+   512→          </p>
+   513→        </div>
+   514→        <Progress
+   515→          value={(tenant.enabledModules.length / allModules.length) * 100}
+   516→          className="h-2 w-32"
+   517→        />
+   518→      </div>
+   519→      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+   520→        {allModules.map((m) => {
+   521→          const enabled = tenant.enabledModules.includes(m.manifest.id);
+   522→          const Icon = m.manifest.icon;
+   523→          const accent = m.manifest.accentColor ?? tenant.branding.primaryColor;
+   524→          return (
+   525→            <Card key={m.manifest.id} className={cn("gap-4 py-4", enabled && "ring-1 ring-primary/20")}>
+   526→              <CardContent className="space-y-3">
+   527→                <div className="flex items-start justify-between">
+   528→                  <div className="flex items-start gap-2.5">
+   529→                    <div className="rounded-md p-2" style={{ background: `${accent}1a`, color: accent }}>
+   530→                      {Icon ? <Icon className="h-4 w-4" /> : null}
+   531→                    </div>
+   532→                    <div>
+   533→                      <p className="text-sm font-semibold leading-tight">{m.manifest.name}</p>
+   534→                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+   535→                        {m.manifest.category ?? "module"}
+   536→                      </p>
+   537→                    </div>
+   538→                  </div>
+   539→                  <Switch
+   540→                    checked={enabled}
+   541→                    onCheckedChange={() => toggle(m.manifest.id)}
+   542→                    aria-label={`Toggle ${m.manifest.name}`}
+   543→                  />
+   544→                </div>
+   545→                <p className="text-xs text-muted-foreground leading-relaxed">
+   546→                  {m.manifest.description ?? "No description available."}
+   547→                </p>
+   548→                <div className="flex flex-wrap items-center gap-1.5">
+   549→                  <Badge variant="outline" className="text-[9px]">{m.manifest.version}</Badge>
+   550→                  {m.manifest.supportedApplications?.map((a) => (
+   551→                    <Badge key={a} variant="secondary" className="text-[9px]">{a}</Badge>
+   552→                  ))}
+   553→                </div>
+   554→              </CardContent>
+   555→            </Card>
+   556→          );
+   557→        })}
+   558→      </div>
+   559→    </div>
+   560→  );
+   561→}
+   562→
+   563→/* ------------------------------------------------------------------ */
+   564→/* Tab 3 — Users                                                      */
+   565→/* ------------------------------------------------------------------ */
+   566→
+   567→function UsersTab({ tenantId }: { tenantId: string }) {
+   568→  const tenantUsers = allUsers.filter((u) => u.tenantId === tenantId);
+   569→
+   570→  const columns: Column<AuthUser>[] = [
+   571→    {
+   572→      key: "name",
+   573→      header: "User",
+   574→      cell: (u) => (
+   575→        <div className="flex items-center gap-2">
+   576→          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-[10px] font-semibold">
+   577→            {u.initials}
+   578→          </span>
+   579→          <div>
+   580→            <p className="font-medium text-foreground">{u.name}</p>
+   581→            <p className="text-[10px] text-muted-foreground">{u.email}</p>
+   582→          </div>
+   583→        </div>
+   584→      ),
+   585→      sortValue: (u) => u.name,
+   586→    },
+   587→    {
+   588→      key: "role",
+   589→      header: "Role",
+   590→      cell: (u) => (
+   591→        <div className="flex flex-wrap gap-1">
+   592→          {u.roles.map((r) => (
+   593→            <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>
+   594→          ))}
+   595→        </div>
+   596→      ),
+   597→      sortValue: (u) => u.roles.join(","),
+   598→    },
+   599→    {
+   600→      key: "application",
+   601→      header: "Application",
+   602→      cell: (u) => <Badge variant="outline" className="text-[10px]">{u.application}</Badge>,
+   603→      sortValue: (u) => u.application,
+   604→    },
+   605→    {
+   606→      key: "lastActive",
+   607→      header: "Last active",
+   608→      cell: (u) => {
+   609→        const diff = Date.now() - new Date(u.lastActiveAt).getTime();
+   610→        const hours = Math.round(diff / (1000 * 60 * 60));
+   611→        const label = hours < 24 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`;
+   612→        return <span className="text-xs text-muted-foreground">{label}</span>;
+   613→      },
+   614→      sortValue: (u) => u.lastActiveAt,
+   615→    },
+   616→    {
+   617→      key: "actions",
+   618→      header: "",
+   619→      cell: (u) => (
+   620→        <div className="flex items-center gap-1">
+   621→          <Button
+   622→            size="sm"
+   623→            variant="ghost"
+   624→            className="h-7 gap-1 text-xs"
+   625→            onClick={() => toast({ title: "Edit role", description: `Opening role editor for ${u.name}.` })}
+   626→          >
+   627→            <Pencil className="h-3 w-3" /> Edit role
+   628→          </Button>
+   629→          <Button
+   630→            size="sm"
+   631→            variant="ghost"
+   632→            className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
+   633→            onClick={() => toast({ title: "User removed", description: `${u.name} removed from tenant.` })}
+   634→          >
+   635→            <Trash2 className="h-3 w-3" /> Remove
+   636→          </Button>
+   637→        </div>
+   638→      ),
+   639→    },
+   640→  ];
+   641→
+   642→  return (
+   643→    <div className="space-y-3">
+   644→      <div className="flex items-center justify-between">
+   645→        <p className="text-sm font-medium">{tenantUsers.length} users in this tenant</p>
+   646→        <Button
+   647→          size="sm"
+   648→          onClick={() => toast({ title: "Invite user", description: "Invitation form would open here." })}
+   649→        >
+   650→          <UserPlus className="mr-1 h-4 w-4" /> Invite user
+   651→        </Button>
+   652→      </div>
+   653→      <DataTable
+   654→        columns={columns}
+   655→        data={tenantUsers}
+   656→        rowKey={(u) => u.id}
+   657→        searchableText={(u) => `${u.name} ${u.email} ${u.roles.join(" ")}`}
+   658→        searchPlaceholder="Search tenant users…"
+   659→        pageSize={6}
+   660→        emptyTitle="No users in this tenant"
+   661→        emptyDescription="Invite a tenant administrator to manage their prop firm."
+   662→      />
+   663→    </div>
+   664→  );
+   665→}
+   666→
+   667→/* ------------------------------------------------------------------ */
+   668→/* Tab 4 — Billing                                                    */
+   669→/* ------------------------------------------------------------------ */
+   670→
+   671→interface InvoiceRow {
+   672→  id: string;
+   673→  date: string;
+   674→  amount: number;
+   675→  status: "paid" | "pending" | "failed";
+   676→}
+   677→
+   678→function BillingTab({ tenant }: { tenant: TenantContext }) {
+   679→  const cost = PLAN_COST[tenant.plan];
+   680→  const costLabel = typeof cost === "number" ? formatCurrency(cost, tenant.currency) : "Custom";
+   681→
+   682→  // Mock billing history — 6 deterministic entries
+   683→  const history: InvoiceRow[] = useMemo(() => {
+   684→    const base = typeof cost === "number" ? cost : 4900;
+   685→    const now = Date.now();
+   686→    const monthMs = 30 * 24 * 60 * 60 * 1000;
+   687→    return Array.from({ length: 6 }).map((_, i) => ({
+   688→      id: `inv-${i}`,
+   689→      date: new Date(now - i * monthMs).toISOString(),
+   690→      amount: base,
+   691→      status: i === 0 ? "paid" : i === 1 ? "pending" : "paid",
+   692→    }));
+   693→  }, [cost]);
+   694→
+   695→  const columns: Column<InvoiceRow>[] = [
+   696→    {
+   697→      key: "id",
+   698→      header: "Invoice",
+   699→      cell: (r) => <span className="font-mono text-xs">{r.id.toUpperCase()}</span>,
+   700→      sortValue: (r) => r.id,
+   701→    },
+   702→    {
+   703→      key: "date",
+   704→      header: "Date",
+   705→      cell: (r) => <span className="text-xs">{new Date(r.date).toLocaleDateString()}</span>,
+   706→      sortValue: (r) => r.date,
+   707→    },
+   708→    {
+   709→      key: "amount",
+   710→      header: "Amount",
+   711→      cell: (r) => formatCurrency(r.amount, tenant.currency),
+   712→      sortValue: (r) => r.amount,
+   713→      numeric: true,
+   714→    },
+   715→    {
+   716→      key: "status",
+   717→      header: "Status",
+   718→      cell: (r) => {
+   719→        const tone =
+   720→          r.status === "paid" ? "success" : r.status === "pending" ? "warning" : "danger";
+   721→        return <StatusBadge tone={tone}>{r.status}</StatusBadge>;
+   722→      },
+   723→      sortValue: (r) => r.status,
+   724→    },
+   725→  ];
+   726→
+   727→  return (
+   728→    <div className="grid gap-4 lg:grid-cols-3">
+   729→      {/* Subscription card */}
+   730→      <div className="rounded-lg border bg-card p-4 lg:col-span-2">
+   731→        <div className="flex items-start justify-between">
+   732→          <div>
+   733→            <p className="text-xs uppercase tracking-wide text-muted-foreground">Current plan</p>
+   734→            <p className="mt-1 text-lg font-semibold capitalize">{tenant.plan}</p>
+   735→            <p className="text-sm text-muted-foreground">
+   736→              {costLabel} / month · billed monthly
+   737→            </p>
+   738→          </div>
+   739→          <StatusBadge tone="success">active</StatusBadge>
+   740→        </div>
+   741→        <Separator className="my-3" />
+   742→        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+   743→          <div>
+   744→            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Billing cycle</dt>
+   745→            <dd className="mt-0.5">Monthly</dd>
+   746→          </div>
+   747→          <div>
+   748→            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Next billing</dt>
+   749→            <dd className="mt-0.5">1st of next month</dd>
+   750→          </div>
+   751→          <div>
+   752→            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Payment method</dt>
+   753→            <dd className="mt-0.5">Visa ··4242</dd>
+   754→          </div>
+   755→          <div>
+   756→            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Status</dt>
+   757→            <dd className="mt-0.5">In good standing</dd>
+   758→          </div>
+   759→        </dl>
+   760→        <div className="mt-4 flex flex-wrap gap-2">
+   761→          <DropdownMenu>
+   762→            <DropdownMenuTrigger asChild>
+   763→              <Button size="sm" variant="outline" className="gap-1">
+   764→                Change plan <ChevronDown className="h-3 w-3" />
+   765→              </Button>
+   766→            </DropdownMenuTrigger>
+   767→            <DropdownMenuContent align="start">
+   768→              <DropdownMenuItem
+   769→                onClick={() => toast({ title: "Plan change requested", description: "Switching to Starter plan." })}
+   770→              >
+   771→                Starter — $890/mo
+   772→              </DropdownMenuItem>
+   773→              <DropdownMenuItem
+   774→                onClick={() => toast({ title: "Plan change requested", description: "Switching to Growth plan." })}
+   775→              >
+   776→                Growth — $1,900/mo
+   777→              </DropdownMenuItem>
+   778→              <DropdownMenuItem
+   779→                onClick={() => toast({ title: "Plan change requested", description: "Switching to Scale plan." })}
+   780→              >
+   781→                Scale — $4,900/mo
+   782→              </DropdownMenuItem>
+   783→              <DropdownMenuItem
+   784→                onClick={() => toast({ title: "Plan change requested", description: "An account executive will reach out for Enterprise pricing." })}
+   785→              >
+   786→                Enterprise — Custom
+   787→              </DropdownMenuItem>
+   788→            </DropdownMenuContent>
+   789→          </DropdownMenu>
+   790→          <Button
+   791→            size="sm"
+   792→            variant="outline"
+   793→            className="gap-1"
+   794→            onClick={() => toast({ title: "Invoice generated", description: `Invoice for ${tenant.name} downloaded.` })}
+   795→          >
+   796→            <FileText className="h-3.5 w-3.5" /> Generate invoice
+   797→          </Button>
+   798→        </div>
+   799→      </div>
+   800→
+   801→      {/* Spending summary */}
+   802→      <div className="rounded-lg border bg-card p-4">
+   803→        <p className="mb-2 text-sm font-medium">Spending summary</p>
+   804→        <div className="space-y-2 text-sm">
+   805→          <div className="flex items-center justify-between">
+   806→            <span className="text-muted-foreground">This month</span>
+   807→            <span className="font-medium">{costLabel}</span>
+   808→          </div>
+   809→          <div className="flex items-center justify-between">
+   810→            <span className="text-muted-foreground">YTD</span>
+   811→            <span className="font-medium">
+   812→              {typeof cost === "number" ? formatCurrency(cost * 6, tenant.currency) : "Custom"}
+   813→            </span>
+   814→          </div>
+   815→          <div className="flex items-center justify-between">
+   816→            <span className="text-muted-foreground">All-time</span>
+   817→            <span className="font-medium">
+   818→              {typeof cost === "number" ? formatCurrency(cost * 18, tenant.currency) : "Custom"}
+   819→            </span>
+   820→          </div>
+   821→        </div>
+   822→        <Separator className="my-3" />
+   823→        <p className="text-xs text-muted-foreground">
+   824→          <TrendingUp className="mr-1 inline h-3 w-3" />
+   825→          Spending tracked since tenant creation.
+   826→        </p>
+   827→      </div>
+   828→
+   829→      {/* Billing history */}
+   830→      <div className="lg:col-span-3">
+   831→        <p className="mb-2 text-sm font-medium">Billing history</p>
+   832→        <DataTable
+   833→          columns={columns}
+   834→          data={history}
+   835→          rowKey={(r) => r.id}
+   836→          pageSize={6}
+   837→          emptyTitle="No invoices yet"
+   838→          emptyDescription="Invoices will appear here after the first billing cycle."
+   839→        />
+   840→      </div>
+   841→    </div>
+   842→  );
+   843→}
+   844→
+   845→/* ------------------------------------------------------------------ */
+   846→/* Tab 6 — Configuration                                              */
+   847→/* ------------------------------------------------------------------ */
+   848→
+   849→function ConfigurationTab({
+   850→  tenant,
+   851→  onChange,
+   852→  onPersist,
+   853→}: {
+   854→  tenant: TenantContext;
+   855→  onChange: (t: TenantContext) => void;
+   856→  onPersist: (t: TenantContext) => void;
+   857→}) {
+   858→  const [name, setName] = useState(tenant.name);
+   859→  const [tagline, setTagline] = useState(tenant.branding.tagline ?? "");
+   860→  const [currency, setCurrency] = useState(tenant.currency);
+   861→  const [timezone, setTimezone] = useState(tenant.timezone);
+   862→  const [locale, setLocale] = useState(tenant.locale);
+   863→  const [primaryColor, setPrimaryColor] = useState(tenant.branding.primaryColor);
+   864→  const [accentColor, setAccentColor] = useState(tenant.branding.accentColor);
+   865→  const [radius, setRadius] = useState(tenant.branding.radius);
+   866→  const [initials, setInitials] = useState(tenant.branding.initials);
+   867→
+   868→  const presets = [
+   869→    { name: "Forest", primary: "#4a7c59", accent: "#705c30", surface: "#f5efe6" },
+   870→    { name: "Sage", primary: "#5a7c4a", accent: "#8a6d30", surface: "#f5efe6" },
+   871→    { name: "Deep Green", primary: "#4a6c59", accent: "#705c30", surface: "#f5efe6" },
+   872→    { name: "Golden Brown", primary: "#705c30", accent: "#4a7c59", surface: "#f5efe6" },
+   873→    { name: "Warm Taupe", primary: "#8a7560", accent: "#4a7c59", surface: "#f5efe6" },
+   874→    { name: "Slate Green", primary: "#5a7060", accent: "#705c30", surface: "#f5efe6" },
+   875→  ];
+   876→
+   877→  const save = () => {
+   878→    const updated: TenantContext = {
+   879→      ...tenant,
+   880→      name,
+   881→      currency,
+   882→      timezone,
+   883→      locale,
+   884→      branding: {
+   885→        ...tenant.branding,
+   886→        name,
+   887→        tagline,
+   888→        primaryColor,
+   889→        accentColor,
+   890→        radius,
+   891→        initials: initials.toUpperCase(),
+   892→      },
+   893→    };
+   894→    onChange(updated);
+   895→    onPersist(updated);
+   896→    toast({
+   897→      title: "Configuration saved",
+   898→      description: `${name} updated successfully.`,
+   899→    });
+   900→  };
+   901→
+   902→  return (
+   903→    <div className="grid gap-4 lg:grid-cols-3">
+   904→      <div className="rounded-lg border bg-card p-4 lg:col-span-2">
+   905→        <p className="mb-3 text-sm font-medium">Tenant configuration</p>
+   906→
+   907→        <div className="space-y-4">
+   908→          <div>
+   909→            <Label className="mb-2 block text-xs">Color presets</Label>
+   910→            <div className="flex flex-wrap gap-2">
+   911→              {presets.map((p) => (
+   912→                <button
+   913→                  key={p.name}
+   914→                  type="button"
+   915→                  onClick={() => {
+   916→                    setPrimaryColor(p.primary);
+   917→                    setAccentColor(p.accent);
+   918→                  }}
+   919→                  className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs hover:bg-muted"
+   920→                  style={{ borderColor: primaryColor === p.primary ? p.primary : undefined }}
+   921→                >
+   922→                  <span className="h-3 w-3 rounded-sm" style={{ background: p.primary }} />
+   923→                  <span className="h-3 w-3 rounded-sm" style={{ background: p.accent }} />
+   924→                  {p.name}
+   925→                </button>
+   926→              ))}
+   927→            </div>
+   928→          </div>
+   929→          <Separator />
+   930→          <div className="grid gap-4 md:grid-cols-2">
+   931→            <FieldRow label="Tenant name">
+   932→              <Input value={name} onChange={(e) => setName(e.target.value)} />
+   933→            </FieldRow>
+   934→            <FieldRow label="Tagline">
+   935→              <Input value={tagline} onChange={(e) => setTagline(e.target.value)} />
+   936→            </FieldRow>
+   937→            <FieldRow label="Currency">
+   938→              <Select value={currency} onValueChange={setCurrency}>
+   939→                <SelectTrigger className="w-full">
+   940→                  <SelectValue />
+   941→                </SelectTrigger>
+   942→                <SelectContent>
+   943→                  <SelectItem value="USD">USD</SelectItem>
+   944→                  <SelectItem value="GBP">GBP</SelectItem>
+   945→                  <SelectItem value="EUR">EUR</SelectItem>
+   946→                  <SelectItem value="AED">AED</SelectItem>
+   947→                </SelectContent>
+   948→              </Select>
+   949→            </FieldRow>
+   950→            <FieldRow label="Timezone">
+   951→              <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} />
+   952→            </FieldRow>
+   953→            <FieldRow label="Locale">
+   954→              <Input value={locale} onChange={(e) => setLocale(e.target.value)} />
+   955→            </FieldRow>
+   956→            <FieldRow label="Initials">
+   957→              <Input
+   958→                value={initials}
+   959→                maxLength={3}
+   960→                onChange={(e) => setInitials(e.target.value.toUpperCase())}
+   961→              />
+   962→            </FieldRow>
+   963→            <FieldRow label="Primary color">
+   964→              <div className="flex gap-2">
+   965→                <input
+   966→                  type="color"
+   967→                  value={primaryColor}
+   968→                  onChange={(e) => setPrimaryColor(e.target.value)}
+   969→                  className="h-9 w-12 rounded-md border"
+   970→                />
+   971→                <Input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} />
+   972→              </div>
+   973→            </FieldRow>
+   974→            <FieldRow label="Accent color">
+   975→              <div className="flex gap-2">
+   976→                <input
+   977→                  type="color"
+   978→                  value={accentColor}
+   979→                  onChange={(e) => setAccentColor(e.target.value)}
+   980→                  className="h-9 w-12 rounded-md border"
+   981→                />
+   982→                <Input value={accentColor} onChange={(e) => setAccentColor(e.target.value)} />
+   983→              </div>
+   984→            </FieldRow>
+   985→            <FieldRow label="Border radius">
+   986→              <Select value={radius} onValueChange={setRadius}>
+   987→                <SelectTrigger className="w-full">
+   988→                  <SelectValue />
+   989→                </SelectTrigger>
+   990→                <SelectContent>
+   991→                  <SelectItem value="0.25rem">Sharp (0.25rem)</SelectItem>
+   992→                  <SelectItem value="0.5rem">Subtle (0.5rem)</SelectItem>
+   993→                  <SelectItem value="0.625rem">Default (0.625rem)</SelectItem>
+   994→                  <SelectItem value="0.75rem">Rounded (0.75rem)</SelectItem>
+   995→                  <SelectItem value="1rem">Pill (1rem)</SelectItem>
+   996→                </SelectContent>
+   997→              </Select>
+   998→            </FieldRow>
+   999→          </div>
+  1000→          <Button size="sm" onClick={save} className="gap-1">
+  1001→            <CheckCircle2 className="h-4 w-4" /> Save changes
+  1002→          </Button>
+  1003→        </div>
+  1004→      </div>
+  1005→
+  1006→      <div className="rounded-lg border bg-card p-4">
+  1007→        <p className="mb-2 text-sm font-medium">Live preview</p>
+  1008→        <div
+  1009→          className="rounded-lg border p-4"
+  1010→          style={{ background: tenant.branding.surfaceColor }}
+  1011→        >
+  1012→          <div className="flex items-center gap-3">
+  1013→            <span
+  1014→              className="flex h-10 w-10 items-center justify-center rounded-md text-sm font-bold text-white"
+  1015→              style={{ background: primaryColor }}
+  1016→            >
+  1017→              {initials || "TN"}
+  1018→            </span>
+  1019→            <div>
+  1020→              <p className="text-sm font-semibold" style={{ color: primaryColor }}>{name}</p>
+  1021→              <p className="text-xs text-muted-foreground">{tagline || "Tagline preview"}</p>
+  1022→            </div>
+  1023→          </div>
+  1024→          <div className="mt-3 flex gap-2">
+  1025→            <Button
+  1026→              size="sm"
+  1027→              className="text-white"
+  1028→              style={{ background: primaryColor, borderColor: primaryColor }}
+  1029→            >
+  1030→              Primary button
+  1031→            </Button>
+  1032→            <Button
+  1033→              size="sm"
+  1034→              variant="outline"
+  1035→              style={{ color: accentColor, borderColor: accentColor }}
+  1036→            >
+  1037→              Accent button
+  1038→            </Button>
+  1039→          </div>
+  1040→        </div>
+  1041→        <Separator className="my-3" />
+  1042→        <p className="text-xs text-muted-foreground">
+  1043→          <Palette className="mr-1 inline h-3 w-3" />
+  1044→          White-label changes apply instantly across the tenant's dashboard.
+  1045→        </p>
+  1046→      </div>
+  1047→    </div>
+  1048→  );
+  1049→}
+  1050→
+  1051→/* ------------------------------------------------------------------ */
+  1052→/* Tab 7 — Risk                                                       */
+  1053→/* ------------------------------------------------------------------ */
+  1054→
+  1055→function RiskTab({
+  1056→  tenant,
+  1057→  breaches,
+  1058→  accountsCount,
+  1059→}: {
+  1060→  tenant: TenantContext;
+  1061→  breaches: ReturnType<typeof getTenantBreaches>;
+  1062→  accountsCount: number;
+  1063→}) {
+  1064→  const open = breaches.filter((b) => b.status === "open");
+  1065→  const critical = open.filter((b) => b.severity === "critical");
+  1066→  // Mock risk score: weighted by open / critical / total accounts
+  1067→  const riskScore = Math.min(
+  1068→    100,
+  1069→    open.length * 8 + critical.length * 14 + Math.max(0, accountsCount - 5),
+  1070→  );
+  1071→  const riskTone =
+  1072→    riskScore >= 50 ? "danger" : riskScore >= 25 ? "warning" : "success";
+  1073→  const riskColor =
+  1074→    riskScore >= 50 ? "#e11d48" : riskScore >= 25 ? "#d97706" : "#059669";
+  1075→
+  1076→  return (
+  1077→    <div className="grid gap-4 lg:grid-cols-3">
+  1078→      <div className="rounded-lg border bg-card p-4 lg:col-span-2">
+  1079→        <p className="mb-3 text-sm font-medium">Risk summary</p>
+  1080→        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+  1081→          <div>
+  1082→            <p className="text-xs uppercase tracking-wide text-muted-foreground">Open breaches</p>
+  1083→            <p className="mt-1 text-2xl font-bold">{open.length}</p>
+  1084→          </div>
+  1085→          <div>
+  1086→            <p className="text-xs uppercase tracking-wide text-muted-foreground">Critical</p>
+  1087→            <p className="mt-1 text-2xl font-bold text-rose-600">{critical.length}</p>
+  1088→          </div>
+  1089→          <div>
+  1090→            <p className="text-xs uppercase tracking-wide text-muted-foreground">Accounts at risk</p>
+  1091→            <p className="mt-1 text-2xl font-bold">{Math.min(accountsCount, open.length * 2)}</p>
+  1092→          </div>
+  1093→        </div>
+  1094→        <Separator className="my-3" />
+  1095→        <div>
+  1096→          <div className="mb-1.5 flex items-center justify-between">
+  1097→            <span className="text-xs font-medium">
+  1098→              <LabelWithHelp help="Composite risk score based on open breaches, critical violations, and accounts at risk. Lower is better.">
+  1099→                Risk score
+  1100→              </LabelWithHelp>
+  1101→            </span>
+  1102→            <span className="text-xs font-semibold" style={{ color: riskColor }}>
+  1103→              {riskScore} / 100
+  1104→            </span>
+  1105→          </div>
+  1106→          <Progress value={riskScore} className="h-2" style={{ color: riskColor }} />
+  1107→          <p className="mt-1 text-[10px] text-muted-foreground">
+  1108→            <StatusBadge tone={riskTone}>{riskScore >= 50 ? "high" : riskScore >= 25 ? "moderate" : "low"}</StatusBadge>
+  1109→          </p>
+  1110→        </div>
+  1111→      </div>
+  1112→      <div className="rounded-lg border bg-card p-4">
+  1113→        <p className="mb-2 text-sm font-medium">Quick actions</p>
+  1114→        <div className="space-y-2">
+  1115→          <Button
+  1116→            size="sm"
+  1117→            variant="outline"
+  1118→            className="w-full justify-start gap-1.5"
+  1119→            onClick={() => toast({ title: "Opening risk workspace", description: `Navigating to ${tenant.name}'s risk workspace.` })}
+  1120→          >
+  1121→            <ShieldAlert className="h-3.5 w-3.5" />Open risk workspace
+  1122→          </Button>
+  1123→          <Button
+  1124→            size="sm"
+  1125→            variant="outline"
+  1126→            className="w-full justify-start gap-1.5"
+  1127→            onClick={() => toast({ title: "Opening breaches", description: `Showing ${open.length} open breaches.` })}
+  1128→          >
+  1129→            <AlertTriangle className="h-3.5 w-3.5" />View open breaches
+  1130→          </Button>
+  1131→          <Button
+  1132→            size="sm"
+  1133→            variant="outline"
+  1134→            className="w-full justify-start gap-1.5"
+  1135→            onClick={() => toast({ title: "Export queued", description: "Risk report will be downloaded." })}
+  1136→          >
+  1137→            <FileText className="h-3.5 w-3.5" />Export risk report
+  1138→          </Button>
+  1139→        </div>
+  1140→      </div>
+  1141→    </div>
+  1142→  );
+  1143→}
+  1144→
+  1145→/* ------------------------------------------------------------------ */
+  1146→/* Shared form helpers                                                */
+  1147→/* ------------------------------------------------------------------ */
+  1148→
+  1149→function FieldRow({
+  1150→  label,
+  1151→  children,
+  1152→  hint,
+  1153→}: {
+  1154→  label: string;
+  1155→  hint?: string;
+  1156→  children: React.ReactNode;
+  1157→}) {
+  1158→  return (
+  1159→    <div className="space-y-1.5">
+  1160→      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+  1161→      {children}
+  1162→      {hint ? <p className="text-[10px] text-muted-foreground/80">{hint}</p> : null}
+  1163→    </div>
+  1164→  );
+  1165→}
+  1166→

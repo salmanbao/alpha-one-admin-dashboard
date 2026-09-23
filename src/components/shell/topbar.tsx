@@ -37,6 +37,8 @@ import { users } from "@/lib/platform/mock-data";
 import { StatusBadge } from "@/components/platform/status";
 import { ActivityTicker } from "@/components/shell/activity-ticker";
 import { WhatsNewButton } from "@/components/shell/whats-new";
+import { HelpDropdown } from "@/components/shell/help-dropdown";
+import { toast } from "@/hooks/use-toast";
 
 export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
   const {
@@ -166,6 +168,9 @@ export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
         {/* What's new */}
         <WhatsNewButton />
 
+        {/* Help dropdown — architecture overview, keyboard shortcuts, etc. */}
+        <HelpDropdown />
+
         {/* Theme switcher */}
         <Button
           variant="ghost"
@@ -275,7 +280,17 @@ export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
             <DropdownMenuItem onClick={() => navigate("settings", { tab: "general" })}>Settings</DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("audit")}>Audit log</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-rose-600 focus:text-rose-600">Sign out</DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-rose-600 focus:text-rose-600"
+              onClick={() =>
+                toast({
+                  title: "Signed out",
+                  description: "Session terminated (demo)",
+                })
+              }
+            >
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

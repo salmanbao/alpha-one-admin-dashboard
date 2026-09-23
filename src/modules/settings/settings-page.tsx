@@ -1,16 +1,22 @@
 "use client";
 
 /**
- * Settings Page — modular settings with tabs.
+ * Settings Page — modular settings with a landing grid + tabbed editor.
  *
- * Spec section 43. Tabs: General, Branding, Terminology, Modules,
- * Roles, Integrations, Notifications. The Modules tab is the demo centerpiece —
- * toggling modules updates tenant entitlements live, and the sidebar
- * + dashboard re-compose instantly (spec section 67 demonstration).
+ * Spec section 43. The landing grid is the "front door" to Settings —
+ * a searchable, categorized grid of all 19 settings sections (Branding,
+ * Security, Communications, Certificates, System). Below the grid is a
+ * collapsible "Quick edit" panel containing the 7-tab editor (General,
+ * Branding, Terminology, Modules, Roles, Integrations, Notifications).
+ *
+ * Tabs are still preserved so the existing demo flows (Modules toggle,
+ * Branding presets, Terminology editor) keep working — they are now
+ * behind the "Quick edit" disclosure instead of being the primary view.
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
-import { Page, PageHeader, PageContent } from "@/components/platform/page";
+import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+import { EmptyState } from "@/components/platform/guards";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,36 +51,319 @@ import {
   FileCheck,
   Archive,
   Globe,
+  Image,
+  UsersRound,
+  KeyRound,
+  Wrench,
+  Share2,
+  Fingerprint,
+  Award,
+  ChevronRight,
+  Search,
+  Pencil,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import type { TenantBranding } from "@/lib/platform/types";
 
+interface SettingsCardSpec {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  viewId: string;
+  category: "Branding" | "Security" | "Communications" | "Certificates" | "System";
+}
+
+const SETTINGS_CARDS: SettingsCardSpec[] = [
+  // Branding
+  { id: "branding", title: "Branding Presets", description: "Color presets, primary/accent colors, border radius, live preview.", icon: Palette, viewId: "settings", category: "Branding" },
+  { id: "terminology", title: "Terminology", description: "White-label business terms (challenge, trader, payout, account).", icon: Type, viewId: "settings", category: "Branding" },
+  { id: "banners", title: "Banner Management", description: "Site-wide promotional banners with scheduling and targeting.", icon: Image, viewId: "banner-management", category: "Branding" },
+  { id: "mkt-integrations", title: "Marketing Integrations", description: "External marketing platforms, analytics providers, ad networks.", icon: Plug, viewId: "marketing-integrations", category: "Branding" },
+  { id: "social-media", title: "Social Media Links", description: "Configure footer social links and sharing channels.", icon: Share2, viewId: "social-media-links", category: "Branding" },
+
+  // Security
+  { id: "users", title: "User Management", description: "Tenant users, group membership, role assignments, status.", icon: UsersRound, viewId: "user-management", category: "Security" },
+  { id: "tokens", title: "API Tokens", description: "Long-lived API tokens with scoped permissions and rotation.", icon: KeyRound, viewId: "token-management", category: "Security" },
+  { id: "device-activities", title: "Device Activities", description: "Login device fingerprinting, IP history, session audit.", icon: Fingerprint, viewId: "device-activities", category: "Security" },
+
+  // Communications
+  { id: "email-templates", title: "Email Templates", description: "Transactional and marketing email templates with variables.", icon: Mail, viewId: "email-templates", category: "Communications" },
+  { id: "notifications-mgmt", title: "Notifications Management", description: "Configure notification types, channels, and triggers.", icon: Bell, viewId: "notifications-management", category: "Communications" },
+
+  // Certificates
+  { id: "certificates", title: "Certificate Management", description: "Manage issued certificate templates and the issuer identity.", icon: Award, viewId: "certificate-management", category: "Certificates" },
+  { id: "cert-designer", title: "Certificate Designer", description: "Visual designer for certificate layouts, fonts, and colors.", icon: Palette, viewId: "certificate-template-designer", category: "Certificates" },
+  { id: "font-upload", title: "Font Upload", description: "Upload custom fonts for certificate rendering.", icon: Type, viewId: "certificate-font-upload", category: "Certificates" },
+  { id: "cert-issued", title: "Issued Certificates", description: "Search and revoke issued certificates per trader.", icon: Award, viewId: "certificates-issued", category: "Certificates" },
+
+  // System
+  { id: "general", title: "General", description: "Tenant name, tagline, currency, timezone, plan summary.", icon: SettingsIcon, viewId: "settings", category: "System" },
+  { id: "modules", title: "Modules", description: "Toggle tenant entitlements — sidebar and dashboard recompose live.", icon: Package, viewId: "settings", category: "System" },
+  { id: "roles", title: "Roles & Permissions", description: "Permission-driven role definitions for RBAC visibility.", icon: Users, viewId: "settings", category: "System" },
+  { id: "notifications", title: "Notifications Matrix", description: "Per-module, per-channel notification preferences and quiet hours.", icon: Bell, viewId: "settings", category: "System" },
+  { id: "utilities", title: "Utilities", description: "Bulk data export, cache management, and system diagnostics.", icon: Wrench, viewId: "utilities", category: "System" },
+];
+
+const CATEGORY_ORDER: SettingsCardSpec["category"][] = [
+  "Branding",
+  "Security",
+  "Communications",
+  "Certificates",
+  "System",
+];
+
 export function SettingsPage() {
-  const { router, tenant, setTenant, runtime } = usePlatform();
-  const initialTab = (router.params.tab as string) || "general";
+  const { router, navigate, tenant, runtime } = usePlatform();
+  const [query, setQuery] = useState("");
+  const [showQuickEdit, setShowQuickEdit] = useState(false);
+
+  // Quick edit's active tab — initialized from the URL `?tab=` param so
+  // deep-links like `navigate("settings", { tab: "modules" })` land on
+  // the right tab when the page first mounts. Subsequent tab clicks
+  // are pure local state — we don't push back to the URL (avoids the
+  // setState-in-effect anti-pattern).
+  const [activeTab, setActiveTab] = useState<string>(
+    (router.params.tab as string) || "general",
+  );
+
+  const openQuickEdit = (tab: string) => {
+    setActiveTab(tab);
+    setShowQuickEdit(true);
+  };
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return SETTINGS_CARDS;
+    const q = query.toLowerCase();
+    return SETTINGS_CARDS.filter(
+      (c) =>
+        `${c.title} ${c.description} ${c.category}`.toLowerCase().includes(q),
+    );
+  }, [query]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<SettingsCardSpec["category"], SettingsCardSpec[]>();
+    for (const cat of CATEGORY_ORDER) map.set(cat, []);
+    for (const c of filtered) map.get(c.category)!.push(c);
+    return map;
+  }, [filtered]);
+
+  const totalSections = SETTINGS_CARDS.length;
+  const activeModules = tenant.enabledModules.length;
+  const recentlyModified = new Date(tenant.createdAt).toLocaleDateString(
+    "en-US",
+    { year: "numeric", month: "short", day: "numeric" },
+  );
 
   return (
     <Page>
-      <PageHeader title="Settings" description={`Configure ${tenant.branding.name}.`} icon={SettingsIcon} />
+      <PageHeader
+        title="Settings"
+        description="Configure branding, security, communications, and system."
+        icon={SettingsIcon}
+        actions={
+          <Button
+            variant={showQuickEdit ? "default" : "outline"}
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowQuickEdit((s) => !s)}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {showQuickEdit ? "Hide quick edit" : "Quick edit"}
+          </Button>
+        }
+      />
+
       <PageContent>
-        <Tabs defaultValue={initialTab} className="w-full">
-          <TabsList className="flex flex-wrap justify-start">
-            <TabsTrigger value="general" className="gap-1"><SettingsIcon className="h-3 w-3" /> General</TabsTrigger>
-            <TabsTrigger value="branding" className="gap-1"><Palette className="h-3 w-3" /> Branding</TabsTrigger>
-            <TabsTrigger value="terminology" className="gap-1"><Type className="h-3 w-3" /> Terminology</TabsTrigger>
-            <TabsTrigger value="modules" className="gap-1"><Package className="h-3 w-3" /> Modules</TabsTrigger>
-            <TabsTrigger value="roles" className="gap-1"><Users className="h-3 w-3" /> Roles</TabsTrigger>
-            <TabsTrigger value="integrations" className="gap-1"><Plug className="h-3 w-3" /> Integrations</TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-1"><Bell className="h-3 w-3" /> Notifications</TabsTrigger>
-          </TabsList>
-          <TabsContent value="general"><GeneralTab /></TabsContent>
-          <TabsContent value="branding"><BrandingTab /></TabsContent>
-          <TabsContent value="terminology"><TerminologyTab /></TabsContent>
-          <TabsContent value="modules"><ModulesTab /></TabsContent>
-          <TabsContent value="roles"><RolesTab /></TabsContent>
-          <TabsContent value="integrations"><IntegrationsTab /></TabsContent>
-          <TabsContent value="notifications"><NotificationsTab /></TabsContent>
-        </Tabs>
+        {/* KPI row — §9 KPI rules (value + meaning, not bare metrics) */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <MetricCard
+            label="Settings Sections"
+            value={totalSections}
+            deltaLabel="across 5 categories"
+            icon={SettingsIcon}
+          />
+          <MetricCard
+            label="Recently Modified"
+            value={recentlyModified}
+            deltaLabel="tenant creation date"
+            icon={RefreshCw}
+          />
+          <MetricCard
+            label="Active Modules"
+            value={activeModules}
+            deltaLabel={`${runtime.enabledFeatures.length} feature flags`}
+            icon={Package}
+            tone="positive"
+          />
+          <MetricCard
+            label="Platform Status"
+            value={tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
+            deltaLabel={`${tenant.plan} plan`}
+            icon={ShieldCheck}
+            tone={
+              tenant.status === "active"
+                ? "positive"
+                : tenant.status === "trial"
+                  ? "warning"
+                  : "default"
+            }
+          />
+        </div>
+
+        {/* Search bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search settings sections by title or description…"
+            className="pl-9"
+            aria-label="Search settings sections"
+          />
+        </div>
+
+        {/* Landing grid — grouped by category */}
+        {filtered.length === 0 ? (
+          <EmptyState
+            title="No settings match"
+            description={`No settings sections match "${query}". Try a different term.`}
+            icon={Search}
+            hint="Settings are grouped under Branding, Security, Communications, Certificates, and System."
+          />
+        ) : (
+          <div className="space-y-6">
+            {CATEGORY_ORDER.map((cat) => {
+              const items = grouped.get(cat) ?? [];
+              if (items.length === 0) return null;
+              return (
+                <section key={cat} aria-label={`${cat} settings`}>
+                  <div className="mb-3 flex items-center gap-2">
+                    <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                      {cat}
+                    </h2>
+                    <Badge variant="outline" className="text-[10px]">
+                      {items.length}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {items.map((card) => {
+                      const Icon = card.icon;
+                      const isQuickEdit = card.viewId === "settings";
+                      return (
+                        <button
+                          key={card.id}
+                          onClick={() =>
+                            isQuickEdit
+                              ? openQuickEdit(card.id)
+                              : navigate(card.viewId)
+                          }
+                          className="group flex h-full flex-col gap-2 rounded-lg border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-accent/40"
+                          aria-label={`Open ${card.title}`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="rounded-md border bg-muted p-1.5">
+                              <Icon className="h-4 w-4 text-foreground" />
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">
+                              {card.title}
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {card.description}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
+                            Open →
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Quick edit (collapsible 7-tab editor) */}
+        {showQuickEdit ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium">Quick edit</span>
+                  <p className="text-xs text-muted-foreground">
+                    Inline editors for the 7 most-changed settings groups.
+                    Each card above links to its full-page editor.
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowQuickEdit(false)}
+                  aria-label="Hide quick edit"
+                >
+                  Hide
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="w-full"
+              >
+                <TabsList className="flex flex-wrap justify-start">
+                  <TabsTrigger value="general" className="gap-1">
+                    <SettingsIcon className="h-3 w-3" /> General
+                  </TabsTrigger>
+                  <TabsTrigger value="branding" className="gap-1">
+                    <Palette className="h-3 w-3" /> Branding
+                  </TabsTrigger>
+                  <TabsTrigger value="terminology" className="gap-1">
+                    <Type className="h-3 w-3" /> Terminology
+                  </TabsTrigger>
+                  <TabsTrigger value="modules" className="gap-1">
+                    <Package className="h-3 w-3" /> Modules
+                  </TabsTrigger>
+                  <TabsTrigger value="roles" className="gap-1">
+                    <Users className="h-3 w-3" /> Roles
+                  </TabsTrigger>
+                  <TabsTrigger value="integrations" className="gap-1">
+                    <Plug className="h-3 w-3" /> Integrations
+                  </TabsTrigger>
+                  <TabsTrigger value="notifications" className="gap-1">
+                    <Bell className="h-3 w-3" /> Notifications
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="general">
+                  <GeneralTab />
+                </TabsContent>
+                <TabsContent value="branding">
+                  <BrandingTab />
+                </TabsContent>
+                <TabsContent value="terminology">
+                  <TerminologyTab />
+                </TabsContent>
+                <TabsContent value="modules">
+                  <ModulesTab />
+                </TabsContent>
+                <TabsContent value="roles">
+                  <RolesTab />
+                </TabsContent>
+                <TabsContent value="integrations">
+                  <IntegrationsTab />
+                </TabsContent>
+                <TabsContent value="notifications">
+                  <NotificationsTab />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        ) : null}
       </PageContent>
     </Page>
   );
@@ -450,8 +739,6 @@ function NotificationsTab() {
  * Notifications, Marketing. Never exposes secret credentials after save.
  */
 function IntegrationsTab() {
-  const { tenant } = usePlatform();
-
   const integrationCategories = [
     {
       name: "Trading Platform",

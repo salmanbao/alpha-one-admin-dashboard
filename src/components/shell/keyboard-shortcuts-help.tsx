@@ -5,6 +5,12 @@
  *
  * Opens with `?` key. Shows all available keyboard shortcuts in a
  * clean overlay. Spec section 9 (shell features).
+ *
+ * This component is globally mounted via `AppShell`, so it also owns
+ * the wiring of the `g <next-key>` navigation shortcuts and the `b`
+ * sidebar toggle. (Command-menu.tsx only implements `g d` and `g s`;
+ * we wire the remainder here to fix the documentation drift between
+ * the help list and the actual handlers.)
  */
 
 import { useEffect, useState } from "react";
@@ -40,7 +46,7 @@ const SHORTCUTS: Shortcut[] = [
 ];
 
 export function KeyboardShortcutsHelp() {
-  const { setCommandOpen, setSearchOpen } = usePlatform();
+  const { setCommandOpen, setSearchOpen, navigate, sidebarCollapsed, setSidebarCollapsed } = usePlatform();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -54,11 +60,47 @@ export function KeyboardShortcutsHelp() {
       if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         e.preventDefault();
         setOpen((o) => !o);
+        return;
+      }
+      // `b` toggles the sidebar (desktop only — the listener is global,
+      // but the collapsed-state visually affects only `md+` breakpoints).
+      if (e.key === "b" || e.key === "B") {
+        // Ignore when the user is in a form field (covered above) but
+        // also when a Dialog/Sheet is open (the dialog owns Esc focus).
+        const dialogOpen = document.querySelector("[role='dialog']");
+        if (dialogOpen) return;
+        e.preventDefault();
+        setSidebarCollapsed(!sidebarCollapsed);
+        return;
+      }
+      // `g <next-key>` navigation — listen for `g`, then the next key.
+      // Command-menu.tsx handles `g d` and `g s`; we own `g t/a/p/r`.
+      if (e.key === "g") {
+        const onKey = (ev: KeyboardEvent) => {
+          const next = ev.key.toLowerCase();
+          if (next === "t") {
+            ev.preventDefault();
+            navigate("trading-traders");
+          } else if (next === "a") {
+            ev.preventDefault();
+            navigate("analytics");
+          } else if (next === "p") {
+            ev.preventDefault();
+            navigate("payouts");
+          } else if (next === "r") {
+            ev.preventDefault();
+            navigate("risk");
+          }
+          // `g d` / `g s` are handled by command-menu.tsx's own listener
+          // (which only reacts to `d` and `s`), so they fall through.
+          window.removeEventListener("keydown", onKey);
+        };
+        window.addEventListener("keydown", onKey, { once: true });
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [navigate, sidebarCollapsed, setSidebarCollapsed]);
 
   // Also expose a global to open it from the command menu
   useEffect(() => {

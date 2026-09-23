@@ -19,6 +19,7 @@ import { crmModule } from "@/modules/crm";
 import { kycModule } from "@/modules/kyc";
 import { supportModule } from "@/modules/support";
 import { aiModule } from "@/modules/ai";
+import { auditModule } from "@/modules/audit";
 import { settingsModule } from "@/modules/settings";
 import { superAdminModule } from "@/modules/super-admin";
 
@@ -44,4 +45,6 @@ export function bootstrapModules() {
   moduleRegistry.register(kycModule);
   moduleRegistry.register(supportModule);
   moduleRegistry.register(aiModule);
+  // compliance modules — audit depends on settings, register after it.
+  moduleRegistry.register(auditModule);
 }

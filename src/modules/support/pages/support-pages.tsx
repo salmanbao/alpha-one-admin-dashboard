@@ -1,16 +1,50 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { getTenantTickets } from "@/lib/platform/mock-data";
+import { makeTermResolver, plural } from "@/lib/platform/terminology";
+import { getTenantTickets, hashStr } from "@/lib/platform/mock-data";
 import type { SupportTicket } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, ticketPriorityTone, ticketStatusTone } from "@/components/platform/status";
 import { DonutSeries } from "@/components/platform/charts";
 import { toast } from "@/hooks/use-toast";
-import { LifeBuoy, Inbox, AlertTriangle, Clock, CheckCircle2, BookOpen, FileText } from "lucide-react";
+import {
+  LifeBuoy,
+  Inbox,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
+  BookOpen,
+  FileText,
+  MessageSquare,
+  Paperclip,
+  Send,
+  User,
+  AlertCircle,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -37,12 +71,120 @@ function avgResponseHours(tickets: SupportTicket[]): number {
   return Math.round(total / withReplies.length);
 }
 
+/**
+ * Derive SLA target (in hours) from priority — used by the Ticket Detail
+ * Sheet KPI strip. The mock SupportTicket has no `slaHours` field, so we
+ * project from the existing `priority` field deterministically.
+ */
+function slaHoursFor(priority: SupportTicket["priority"]): number {
+  switch (priority) {
+    case "urgent": return 4;
+    case "high": return 8;
+    case "medium": return 24;
+    case "low": return 48;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Deterministic conversation thread generator                          */
+/* ------------------------------------------------------------------ */
+
+interface ConversationMessage {
+  author: string;
+  authorInitials: string;
+  body: string;
+  timestamp: string;
+  fromTrader: boolean;
+}
+
+const TRADER_OPENERS = [
+  "Hi team, I'm seeing the issue described above and would appreciate a quick look.",
+  "Following up — this is still blocking my trading session today.",
+  "Any update on this? I'd like to get back to the challenge before the daily reset.",
+  "Thanks for the reply. I've attached the screenshot showing the error.",
+  "Could you also confirm whether the payout window re-opens once this is resolved?",
+];
+
+const AGENT_OPENERS = [
+  "Thanks for reaching out — I've pulled up your account and I'm investigating now.",
+  "I can confirm this is a known issue on our side; engineering is rolling out a fix this afternoon.",
+  "Could you share the exact timestamp when this last occurred? I'll cross-reference the logs.",
+  "Good news — the rule engine has been recalibrated; please refresh your dashboard in 5 minutes.",
+  "I've escalated this to Tier 2 support. You should hear back within the SLA window.",
+];
+
+function conversationFor(t: SupportTicket): ConversationMessage[] {
+  const seed = hashStr(t.id);
+  // Build 3 deterministic messages anchored on createdAt; spacing of 2h, 5h.
+  const created = new Date(t.createdAt).getTime();
+  const mkTs = (hoursAgo: number) => new Date(created + hoursAgo * 3_600_000).toISOString();
+  const traderIdx = seed % TRADER_OPENERS.length;
+  const agentIdx = (seed >>> 3) % AGENT_OPENERS.length;
+  const traderInitials = t.traderName
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return [
+    {
+      author: t.traderName,
+      authorInitials: traderInitials,
+      body: TRADER_OPENERS[traderIdx],
+      timestamp: mkTs(0),
+      fromTrader: true,
+    },
+    {
+      author: t.assignee ?? "Support Agent",
+      authorInitials: (t.assignee ?? "SA")
+        .split(" ")
+        .map((p) => p[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase(),
+      body: AGENT_OPENERS[agentIdx],
+      timestamp: mkTs(2),
+      fromTrader: false,
+    },
+    {
+      author: t.traderName,
+      authorInitials: traderInitials,
+      body: TRADER_OPENERS[(traderIdx + 2) % TRADER_OPENERS.length],
+      timestamp: mkTs(5),
+      fromTrader: true,
+    },
+  ];
+}
+
+interface InternalNote {
+  author: string;
+  body: string;
+  timestamp: string;
+}
+
+function internalNotesFor(t: SupportTicket): InternalNote[] {
+  const seed = hashStr(t.id);
+  const created = new Date(t.createdAt).getTime();
+  const mkTs = (h: number) => new Date(created + h * 3_600_000).toISOString();
+  const authors = ["Sarah K.", "Marcus T.", "Elena R."];
+  const notes = [
+    "Triaged to billing tier — confirmed the trader is on the 100k challenge plan.",
+    "Cross-referenced with the trading log; the rule-engine recalc is plausible.",
+  ];
+  return notes.map((body, i) => ({
+    author: authors[(seed >>> (i * 2)) % authors.length],
+    body,
+    timestamp: mkTs(i + 1),
+  }));
+}
+
 /* ------------------------------------------------------------------ */
 /* Pages                                                               */
 /* ------------------------------------------------------------------ */
 
 export function SupportOverviewPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const tickets = getTenantTickets(tid);
   const open = tickets.filter((t) => t.status === "open" || t.status === "in-progress").length;
@@ -65,7 +207,7 @@ export function SupportOverviewPage() {
     <Page>
       <PageHeader
         title="Support"
-        description="Ticketing and trader assistance across the tenant."
+        description={`Ticketing and ${term("trader").toLowerCase()} assistance across this tenant.`}
         icon={LifeBuoy}
         actions={
           <Button size="sm" variant="outline" onClick={() => toast({ title: "New ticket", description: "Open a new ticket (demo)." })}>
@@ -86,7 +228,7 @@ export function SupportOverviewPage() {
             <DataTable
               columns={[
                 { key: "subject", header: "Subject", cell: (t) => <span className="font-medium text-foreground">{t.subject}</span> },
-                { key: "traderName", header: "Trader", cell: (t) => <span className="text-muted-foreground">{t.traderName}</span> },
+                { key: "traderName", header: term("trader"), cell: (t) => <span className="text-muted-foreground">{t.traderName}</span> },
                 { key: "priority", header: "Priority", cell: (t) => <StatusBadge tone={ticketPriorityTone(t.priority)}>{t.priority}</StatusBadge> },
                 { key: "status", header: "Status", cell: (t) => <StatusBadge tone={ticketStatusTone(t.status)}>{t.status}</StatusBadge> },
                 { key: "created", header: "Created", cell: (t) => <span className="text-xs text-muted-foreground">{relativeTime(t.createdAt)}</span>, sortValue: (t) => t.createdAt },
@@ -107,12 +249,18 @@ export function SupportOverviewPage() {
 }
 
 export function SupportTicketsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const tickets = getTenantTickets(tid);
+
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [reply, setReply] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
+
   const columns: Column<SupportTicket>[] = [
     { key: "subject", header: "Subject", cell: (t) => <span className="font-medium text-foreground">{t.subject}</span> },
-    { key: "traderName", header: "Trader", cell: (t) => <span className="text-muted-foreground">{t.traderName}</span> },
+    { key: "traderName", header: term("trader"), cell: (t) => <span className="text-muted-foreground">{t.traderName}</span> },
     { key: "category", header: "Category", cell: (t) => <span className="capitalize text-muted-foreground">{t.category}</span>, sortValue: (t) => t.category },
     { key: "priority", header: "Priority", cell: (t) => <StatusBadge tone={ticketPriorityTone(t.priority)}>{t.priority}</StatusBadge>, sortValue: (t) => t.priority },
     { key: "status", header: "Status", cell: (t) => <StatusBadge tone={ticketStatusTone(t.status)}>{t.status}</StatusBadge>, sortValue: (t) => t.status },
@@ -120,19 +268,222 @@ export function SupportTicketsPage() {
     { key: "created", header: "Created", cell: (t) => <span className="text-xs text-muted-foreground">{relativeTime(t.createdAt)}</span>, sortValue: (t) => t.createdAt },
     { key: "messages", header: "Messages", cell: (t) => <span className="text-xs text-muted-foreground">{t.messages}</span>, sortValue: (t) => t.messages },
   ];
+
+  // Derived conversation thread for the currently-selected ticket — memoised
+  // so toggling `selectedTicket` doesn't recompute on every keystroke in the
+  // reply box.
+  const conversation = useMemo(
+    () => (selectedTicket ? conversationFor(selectedTicket) : []),
+    [selectedTicket],
+  );
+  const internalNotes = useMemo(
+    () => (selectedTicket ? internalNotesFor(selectedTicket) : []),
+    [selectedTicket],
+  );
+
   return (
     <Page>
-      <PageHeader title="Support Tickets" description="All trader support tickets." icon={Inbox} />
+      <PageHeader title="Support Tickets" description={`All ${term("trader").toLowerCase()} support tickets.`} icon={Inbox} />
       <PageContent>
         <DataTable
           columns={columns}
           data={tickets}
           rowKey={(t) => t.id}
           searchableText={(t) => `${t.subject} ${t.traderName} ${t.category} ${t.assignee ?? ""}`}
-          onRowClick={(t) => toast({ title: `Open ticket ${t.id}`, description: t.subject })}
+          onRowClick={(t) => {
+            setSelectedTicket(t);
+            setReply("");
+            setNotesOpen(false);
+          }}
           pageSize={12}
         />
       </PageContent>
+
+      {/* Detail Sheet drawer (§27 — quick inspection + small contextual actions) */}
+      <Sheet
+        open={!!selectedTicket}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedTicket(null);
+            setReply("");
+          }
+        }}
+      >
+        <SheetContent className="sm:max-w-[640px] overflow-y-auto" side="right">
+          {selectedTicket && (
+            <div className="flex h-full flex-col">
+              <SheetHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <SheetTitle className="text-lg">{selectedTicket.subject}</SheetTitle>
+                    <SheetDescription className="mt-1">
+                      <span className="font-mono">#{selectedTicket.id}</span> · Opened {relativeTime(selectedTicket.createdAt)}
+                    </SheetDescription>
+                  </div>
+                  <StatusBadge tone={ticketStatusTone(selectedTicket.status)} className="shrink-0">
+                    {selectedTicket.status}
+                  </StatusBadge>
+                </div>
+              </SheetHeader>
+
+              {/* KPI strip */}
+              <div className="grid grid-cols-3 gap-2 px-4 py-3">
+                <div className="rounded-lg border p-2 text-center">
+                  <Clock className="h-3 w-3 mx-auto text-amber-600 mb-1" />
+                  <div className="text-[10px] text-muted-foreground">SLA</div>
+                  <div className="text-xs font-medium">{slaHoursFor(selectedTicket.priority)}h</div>
+                </div>
+                <div className="rounded-lg border p-2 text-center">
+                  <User className="h-3 w-3 mx-auto text-emerald-600 mb-1" />
+                  <div className="text-[10px] text-muted-foreground">Assignee</div>
+                  <div className="text-xs font-medium truncate">{selectedTicket.assignee ?? "Unassigned"}</div>
+                </div>
+                <div className="rounded-lg border p-2 text-center">
+                  <MessageSquare className="h-3 w-3 mx-auto text-rose-600 mb-1" />
+                  <div className="text-[10px] text-muted-foreground">Messages</div>
+                  <div className="text-xs font-medium">{selectedTicket.messages}</div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {/* Conversation thread */}
+                <div className="space-y-3 my-2">
+                  <h4 className="text-sm font-medium">Conversation</h4>
+                  {conversation.map((msg, i) => (
+                    <div
+                      key={i}
+                      className={`flex gap-2 ${msg.fromTrader ? "flex-row" : "flex-row-reverse"}`}
+                    >
+                      <Avatar className="h-7 w-7 shrink-0">
+                        <AvatarFallback
+                          className={`text-[10px] ${
+                            msg.fromTrader
+                              ? "bg-muted text-foreground"
+                              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                          }`}
+                        >
+                          {msg.authorInitials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div
+                        className={`flex-1 rounded-lg p-3 ${
+                          msg.fromTrader ? "bg-muted" : "bg-emerald-50 dark:bg-emerald-950/20"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1 gap-2">
+                          <span className="text-xs font-medium truncate">{msg.author}</span>
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            {relativeTime(msg.timestamp)}
+                          </span>
+                        </div>
+                        <p className="text-sm leading-relaxed">{msg.body}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Separator className="my-3" />
+
+                {/* Internal notes (collapsed — §12 Progressive Disclosure) */}
+                <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
+                  <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                    {notesOpen ? (
+                      <ChevronUp className="h-3 w-3" />
+                    ) : (
+                      <ChevronDown className="h-3 w-3" />
+                    )}
+                    Internal notes ({internalNotes.length})
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-2 space-y-2">
+                    {internalNotes.map((n, i) => (
+                      <div key={i} className="rounded-md border border-dashed bg-muted/30 p-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-medium text-foreground">{n.author}</span>
+                          <span className="text-[10px] text-muted-foreground">{relativeTime(n.timestamp)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{n.body}</p>
+                      </div>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+
+                {/* Reply box */}
+                <div className="mt-4">
+                  <Textarea
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    placeholder="Type your reply..."
+                    className="min-h-[80px]"
+                    aria-label="Reply to ticket"
+                  />
+                  <div className="flex items-center justify-between mt-2 gap-2">
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => toast({ title: "Attachment (demo)", description: "File picker would open here." })}
+                        aria-label="Attach file"
+                      >
+                        <Paperclip className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => toast({ title: "Canned responses (demo)", description: "Insert a saved macro." })}
+                      >
+                        <FileText className="h-3 w-3" /> Canned
+                      </Button>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={!reply.trim()}
+                      onClick={() => {
+                        toast({
+                          title: "Reply sent",
+                          description: `Reply posted to ${selectedTicket.id} (demo).`,
+                        });
+                        setReply("");
+                      }}
+                    >
+                      <Send className="h-3 w-3" /> Send
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <SheetFooter className="mt-auto flex-row gap-2 border-t pt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    toast({
+                      title: "Escalated (demo)",
+                      description: `Ticket ${selectedTicket.id} moved to Tier 2 queue.`,
+                      variant: "default",
+                    })
+                  }
+                >
+                  <AlertCircle className="h-3 w-3" /> Escalate
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    toast({
+                      title: "Resolved (demo)",
+                      description: `Ticket ${selectedTicket.id} marked as resolved.`,
+                    });
+                    setSelectedTicket(null);
+                    setReply("");
+                  }}
+                >
+                  <CheckCircle2 className="h-3 w-3" /> Resolve
+                </Button>
+              </SheetFooter>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </Page>
   );
 }
@@ -193,9 +544,11 @@ const faqItems: FaqItem[] = [
 ];
 
 export function SupportKnowledgePage() {
+  const { tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   return (
     <Page>
-      <PageHeader title="Knowledge Base" description="Self-service guides and FAQs for traders." icon={BookOpen} />
+      <PageHeader title="Knowledge Base" description={`Self-service guides and FAQs for ${plural(term("trader")).toLowerCase()}.`} icon={BookOpen} />
       <PageContent>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {faqItems.map((f) => (

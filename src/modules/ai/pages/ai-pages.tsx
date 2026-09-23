@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantAiInsights } from "@/lib/platform/mock-data";
 import type { AiInsight } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -51,7 +52,8 @@ function avgConfidence(insights: AiInsight[]): number {
 /* ------------------------------------------------------------------ */
 
 export function AiOverviewPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const insights = getTenantAiInsights(tid)
     .slice()
@@ -68,7 +70,7 @@ export function AiOverviewPage() {
     <Page>
       <PageHeader
         title="AI / LLM"
-        description="AI-generated insights and assistant across the tenant."
+        description={`AI-generated insights and assistant for ${plural(term("trader")).toLowerCase()}, ${plural(term("payout")).toLowerCase()}, and risk across this tenant.`}
         icon={Brain}
       />
       <PageContent>
@@ -134,14 +136,15 @@ export function AiOverviewPage() {
 }
 
 export function AiInsightsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const insights = getTenantAiInsights(tid)
     .slice()
     .sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime());
   return (
     <Page>
-      <PageHeader title="AI Insights" description="Full list of AI-generated insights, ranked by recency." icon={Sparkles} />
+      <PageHeader title="AI Insights" description={`Full list of AI-generated insights for this ${term("trader").toLowerCase()} tenant, ranked by recency.`} icon={Sparkles} />
       <PageContent>
         {insights.length === 0 ? (
           <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
@@ -238,6 +241,8 @@ const seedChat: ChatMessage[] = [
 ];
 
 export function AiAssistantPage() {
+  const { tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const [messages, setMessages] = useState<ChatMessage[]>(seedChat);
   const [input, setInput] = useState("");
   const counter = useRef(seedChat.length);
@@ -257,7 +262,7 @@ export function AiAssistantPage() {
 
   return (
     <Page>
-      <PageHeader title="AI Assistant" description="Ask questions across traders, payouts, risk, and analytics." icon={Bot} />
+      <PageHeader title="AI Assistant" description={`Ask questions across ${plural(term("trader")).toLowerCase()}, ${plural(term("payout")).toLowerCase()}, risk, and analytics.`} icon={Bot} />
       <PageContent>
         <Card className="flex h-[560px] flex-col">
           <div className="flex items-center gap-2 border-b px-4 py-3">
@@ -340,6 +345,8 @@ export function AiAssistantPage() {
 /* ------------------------------------------------------------------ */
 
 export function AiConfigurePage() {
+  const { tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const [insights, setInsights] = useState(true);
   const [predictions, setPredictions] = useState(true);
   const [anomaly, setAnomaly] = useState(false);
@@ -354,7 +361,7 @@ export function AiConfigurePage() {
 
   return (
     <Page>
-      <PageHeader title="AI Configuration" description="Toggle AI features and select the model used across the tenant." icon={Brain} />
+      <PageHeader title="AI Configuration" description={`Toggle AI features and select the model used across this ${term("trader").toLowerCase()} tenant.`} icon={Brain} />
       <PageContent>
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>

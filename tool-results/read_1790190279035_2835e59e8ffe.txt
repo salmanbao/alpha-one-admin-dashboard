@@ -1,0 +1,960 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Audit — Enhanced User Events Page
+     5→ *
+     6→ * Builds on the original UserEventsPage (audit/user-events-page.tsx) with
+     7→ * three key upgrades required by the screenshot audit (img-batchL):
+     8→ *
+     9→ * 1. **Account context** — every event is now linked to a specific trading
+    10→ *    account ("[Phase Type] Challenge Name - Account ID"), clickable to
+    11→ *    open the trader workspace.
+    12→ * 2. **Risk event types** — three new event types are added to the badge
+    13→ *    legend (FLOATING_PNL_BREACHED, DAILY_DRAWDOWN_BREACHED,
+    14→ *    TARGET_PROFIT_REACHED, PHASE_UPGRADED) with rich metric-snapshot
+    15→ *    descriptions (equity / balance / open PnL / limits / progress %).
+    16→ * 3. **Advanced Filter Panel** — a collapsible panel (Collapsible / §27)
+    17→ *    with multi-select event types, date range, user text, account text,
+    18→ *    source dropdown, Apply + Clear buttons and live result-count.
+    19→ *
+    20→ * This is a NEW file — the original UserEventsPage is untouched. Suggested
+    21→ * viewId: `audit-user-events-enhanced`.
+    22→ *
+    23→ * Mock data is deterministic (index-seeded) — 168 events covering every
+    24→ * event type. No Math.random. Terra palette — emerald / amber / rose / sky
+    25→ * accents, no blue / indigo.
+    26→ */
+    27→
+    28→import { useMemo, useState } from "react";
+    29→import { usePlatform } from "@/lib/platform/platform-context";
+    30→import {
+    31→  traders as allTraders,
+    32→  type Trader,
+    33→} from "@/lib/platform/mock-data";
+    34→import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+    35→import { DataTable, type Column } from "@/components/platform/data-table";
+    36→import { StatusBadge } from "@/components/platform/status";
+    37→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    38→import { Button } from "@/components/ui/button";
+    39→import { Input } from "@/components/ui/input";
+    40→import { Badge } from "@/components/ui/badge";
+    41→import { Checkbox } from "@/components/ui/checkbox";
+    42→import { Label } from "@/components/ui/label";
+    43→import { Separator } from "@/components/ui/separator";
+    44→import {
+    45→  Collapsible,
+    46→  CollapsibleContent,
+    47→  CollapsibleTrigger,
+    48→} from "@/components/ui/collapsible";
+    49→import {
+    50→  Select,
+    51→  SelectContent,
+    52→  SelectItem,
+    53→  SelectTrigger,
+    54→  SelectValue,
+    55→} from "@/components/ui/select";
+    56→import { toast } from "@/hooks/use-toast";
+    57→import { cn } from "@/lib/utils";
+    58→import {
+    59→  ScrollText,
+    60→  Activity,
+    61→  UserPlus,
+    62→  ShieldCheck,
+    63→  Wallet,
+    64→  AlertTriangle,
+    65→  TrendingDown,
+    66→  Target,
+    67→  Download,
+    68→  Filter,
+    69→  X,
+    70→  ChevronDown,
+    71→  ChevronRight,
+    72→} from "lucide-react";
+    73→
+    74→/* ------------------------------------------------------------------ */
+    75→/* Types & static option pools                                         */
+    76→/* ------------------------------------------------------------------ */
+    77→
+    78→/** All event types — original 12 + 4 new risk-specific ones. */
+    79→export type EnhancedEventType =
+    80→  | "ACCOUNT_CREATED"
+    81→  | "KYC_COMPLETED"
+    82→  | "KYC_REJECTED"
+    83→  | "ORDER_CREATED"
+    84→  | "PAYOUT_REQUESTED"
+    85→  | "PAYOUT_COMPLETED"
+    86→  | "CHALLENGE_STARTED"
+    87→  | "CHALLENGE_PASSED"
+    88→  | "CHALLENGE_FAILED"
+    89→  | "BREACH_DETECTED"
+    90→  | "FLOATING_PNL_BREACHED"
+    91→  | "DAILY_DRAWDOWN_BREACHED"
+    92→  | "TARGET_PROFIT_REACHED"
+    93→  | "PHASE_UPGRADED"
+    94→  | "LOGIN"
+    95→  | "PASSWORD_CHANGED";
+    96→
+    97→type EventSource = "System" | "Admin" | "User" | "API";
+    98→
+    99→interface EnhancedUserEvent {
+   100→  id: string;
+   101→  /** ISO timestamp — most recent first. */
+   102→  timestamp: string;
+   103→  traderId: string;
+   104→  userEmail: string;
+   105→  /** "Phase Type" label, e.g. "Live Account", "Phase 1", "Phase 2". */
+   106→  phaseType: string;
+   107→  /** Challenge name, e.g. "2 step Gen Z", "1-Step Evaluation". */
+   108→  challengeName: string;
+   109→  /** 9-digit account id, e.g. "333388771". */
+   110→  accountId: string;
+   111→  eventType: EnhancedEventType;
+   112→  description: string;
+   113→  ipAddress: string;
+   114→  source: EventSource;
+   115→}
+   116→
+   117→const EVENT_LABELS: Record<EnhancedEventType, string> = {
+   118→  ACCOUNT_CREATED: "Account Created",
+   119→  KYC_COMPLETED: "KYC Completed",
+   120→  KYC_REJECTED: "KYC Rejected",
+   121→  ORDER_CREATED: "Order Created",
+   122→  PAYOUT_REQUESTED: "Payout Requested",
+   123→  PAYOUT_COMPLETED: "Payout Completed",
+   124→  CHALLENGE_STARTED: "Challenge Started",
+   125→  CHALLENGE_PASSED: "Challenge Passed",
+   126→  CHALLENGE_FAILED: "Challenge Failed",
+   127→  BREACH_DETECTED: "Breach Detected",
+   128→  FLOATING_PNL_BREACHED: "Floating PnL Breached",
+   129→  DAILY_DRAWDOWN_BREACHED: "Daily Drawdown Breached",
+   130→  TARGET_PROFIT_REACHED: "Target Profit Reached",
+   131→  PHASE_UPGRADED: "Phase Upgraded",
+   132→  LOGIN: "Login",
+   133→  PASSWORD_CHANGED: "Password Changed",
+   134→};
+   135→
+   136→/** All event types in deterministic rotation order. */
+   137→const ALL_EVENT_TYPES: EnhancedEventType[] = [
+   138→  "ACCOUNT_CREATED",
+   139→  "KYC_COMPLETED",
+   140→  "ORDER_CREATED",
+   141→  "PAYOUT_REQUESTED",
+   142→  "PAYOUT_COMPLETED",
+   143→  "CHALLENGE_STARTED",
+   144→  "CHALLENGE_PASSED",
+   145→  "CHALLENGE_FAILED",
+   146→  "BREACH_DETECTED",
+   147→  "FLOATING_PNL_BREACHED",
+   148→  "DAILY_DRAWDOWN_BREACHED",
+   149→  "TARGET_PROFIT_REACHED",
+   150→  "PHASE_UPGRADED",
+   151→  "KYC_REJECTED",
+   152→  "LOGIN",
+   153→  "PASSWORD_CHANGED",
+   154→];
+   155→
+   156→const SOURCE_OPTIONS: EventSource[] = ["System", "Admin", "User", "API"];
+   157→
+   158→const DATE_RANGES: Record<string, number> = {
+   159→  "24h": 24 * 60 * 60 * 1000,
+   160→  "7d": 7 * 24 * 60 * 60 * 1000,
+   161→  "30d": 30 * 24 * 60 * 60 * 1000,
+   162→};
+   163→
+   164→/** Tone for the Event Type badge (§17-19 — Explainable State). */
+   165→function eventTone(
+   166→  eventType: EnhancedEventType,
+   167→): "default" | "success" | "warning" | "danger" | "info" | "muted" {
+   168→  switch (eventType) {
+   169→    case "ACCOUNT_CREATED":
+   170→    case "KYC_COMPLETED":
+   171→    case "CHALLENGE_PASSED":
+   172→    case "PAYOUT_COMPLETED":
+   173→    case "TARGET_PROFIT_REACHED":
+   174→    case "PHASE_UPGRADED":
+   175→      return "success";
+   176→    case "KYC_REJECTED":
+   177→    case "BREACH_DETECTED":
+   178→    case "CHALLENGE_FAILED":
+   179→    case "FLOATING_PNL_BREACHED":
+   180→    case "DAILY_DRAWDOWN_BREACHED":
+   181→      return "danger";
+   182→    case "ORDER_CREATED":
+   183→    case "PAYOUT_REQUESTED":
+   184→    case "CHALLENGE_STARTED":
+   185→    case "LOGIN":
+   186→      return "info";
+   187→    case "PASSWORD_CHANGED":
+   188→      return "warning";
+   189→    default:
+   190→      return "muted";
+   191→  }
+   192→}
+   193→
+   194→/** Tone for the Source badge — System/Admin/User/API. */
+   195→function sourceTone(src: EventSource): "default" | "info" | "warning" | "muted" {
+   196→  switch (src) {
+   197→    case "Admin":
+   198→      return "warning";
+   199→    case "API":
+   200→      return "info";
+   201→    case "User":
+   202→      return "default";
+   203→    case "System":
+   204→    default:
+   205→      return "muted";
+   206→  }
+   207→}
+   208→
+   209→/* ------------------------------------------------------------------ */
+   210→/* Deterministic mock data — 168 events covering every type           */
+   211→/* ------------------------------------------------------------------ */
+   212→
+   213→/** Simple deterministic 32-bit string hash for index-seeded data. */
+   214→function hashStr(s: string): number {
+   215→  let n = 5381;
+   216→  for (let i = 0; i < s.length; i++) {
+   217→    n = ((n << 5) + n + s.charCodeAt(i)) >>> 0;
+   218→  }
+   219→  return n;
+   220→}
+   221→
+   222→/** Deterministic IP address. */
+   223→function ipFor(i: number): string {
+   224→  const a = 10 + ((i * 13) % 240);
+   225→  const b = 1 + ((i * 17) % 254);
+   226→  const c = 1 + ((i * 23) % 254);
+   227→  const d = (i * 31) % 256;
+   228→  return `${a}.${b}.${c}.${d}`;
+   229→}
+   230→
+   231→/** Deterministic 9-digit account id, prefix 33338. */
+   232→function accountIdFor(i: number): string {
+   233→  // 33338xxxxx — last 4 digits derived from i (5-digit suffix).
+   234→  const suffix = 70000 + ((i * 137) % 29999);
+   235→  return `33338${suffix}`;
+   236→}
+   237→
+   238→/** Phase type label by index. */
+   239→function phaseTypeFor(i: number): string {
+   240→  const phases = ["Phase 1", "Phase 2", "Live Account", "Verification"];
+   241→  return phases[i % phases.length];
+   242→}
+   243→
+   244→/** Challenge name by index. */
+   245→function challengeNameFor(i: number): string {
+   246→  const names = [
+   247→    "1-Step Evaluation",
+   248→    "2 step Gen Z",
+   249→    "Standard 100K",
+   250→    "Pro Trader 50K",
+   251→    "Instant Funding",
+   252→  ];
+   253→  return names[i % names.length];
+   254→}
+   255→
+   256→/** Source by event type — most event types have a natural source. */
+   257→function sourceFor(eventType: EnhancedEventType, i: number): EventSource {
+   258→  switch (eventType) {
+   259→    case "ACCOUNT_CREATED":
+   260→    case "KYC_COMPLETED":
+   261→    case "KYC_REJECTED":
+   262→    case "CHALLENGE_STARTED":
+   263→    case "CHALLENGE_PASSED":
+   264→    case "CHALLENGE_FAILED":
+   265→    case "BREACH_DETECTED":
+   266→    case "FLOATING_PNL_BREACHED":
+   267→    case "DAILY_DRAWDOWN_BREACHED":
+   268→    case "TARGET_PROFIT_REACHED":
+   269→    case "PHASE_UPGRADED":
+   270→      return "System";
+   271→    case "ORDER_CREATED":
+   272→    case "LOGIN":
+   273→    case "PASSWORD_CHANGED":
+   274→      return "User";
+   275→    case "PAYOUT_REQUESTED":
+   276→      return "User";
+   277→    case "PAYOUT_COMPLETED":
+   278→      return "Admin";
+   279→    default:
+   280→      return ["Admin", "API", "System", "User"][i % 4] as EventSource;
+   281→  }
+   282→}
+   283→
+   284→/** Build the rich-text description per event type with metric snapshots. */
+   285→function buildDescription(
+   286→  eventType: EnhancedEventType,
+   287→  i: number,
+   288→  accountId: string,
+   289→): string {
+   290→  // Deterministic money/percent values derived from i — always rendered with
+   291→  // fixed 2-decimal precision for visual consistency.
+   292→  const equity = (4500 + (i * 13) % 1500).toFixed(2);
+   293→  const balance = (4900 + (i * 7) % 1500).toFixed(2);
+   294→  const openPnl = -(50 + (i * 3) % 100).toFixed(2);
+   295→  const positions = 132413231 + i;
+   296→  const dailyLimit = "250.00";
+   297→  const dailyCurrent = (280 + (i * 5) % 100).toFixed(2);
+   298→  const dailyUsedPct = Math.round((parseFloat(dailyCurrent) / 250) * 100);
+   299→  const target = "800.00";
+   300→  const targetCurrent = (820 + (i * 7) % 100).toFixed(2);
+   301→  const targetPct = Math.round((parseFloat(targetCurrent) / 800) * 100);
+   302→  const oldAccountId = `33338${50000 + (i * 11) % 40000}`;
+   303→  const newAccountId = accountId;
+   304→  const payoutAmount = (750 + (i * 11) % 200).toFixed(2);
+   305→  const veriffRef = `veriff-${hashStr(`${i}-veriff`).toString(16).slice(0, 8)}`;
+   306→  const ticket = 132413231 + i;
+   307→  const symbol = ["EURUSD", "GBPUSD", "XAUUSD", "BTCUSD", "USDJPY"][i % 5];
+   308→  const lots = (0.1 + (i % 5) * 0.5).toFixed(1);
+   309→  const price = (1.05 + (i % 50) * 0.001).toFixed(4);
+   310→  const device = ["Chrome on macOS", "Safari on iPhone", "Edge on Windows", "Firefox on Linux"][i % 4];
+   311→  const plan = ["1-Step Evaluation", "2-Step Gen Z", "Standard 100K"][i % 3];
+   312→  const startBalance = (5000 + (i % 5) * 5000).toLocaleString("en-US");
+   313→
+   314→  switch (eventType) {
+   315→    case "ACCOUNT_CREATED":
+   316→      return `Account registered via signup flow. Initial balance: $${startBalance}. Plan: ${plan}.`;
+   317→    case "KYC_COMPLETED":
+   318→      return `KYC verification completed via Veriff with manual admin intervention.`;
+   319→    case "KYC_REJECTED":
+   320→      return `KYC rejected: document failed liveness check. Veriff reference: ${veriffRef}.`;
+   321→    case "ORDER_CREATED":
+   322→      return `Buy order placed on ${symbol}, ${lots} lots @ ${price}. Ticket: ${ticket}.`;
+   323→    case "PAYOUT_REQUESTED":
+   324→      return `Payout of $${payoutAmount} requested via bank transfer. Reference: wd-${accountId}.`;
+   325→    case "PAYOUT_COMPLETED":
+   326→      return `Payout of $${payoutAmount} sent via bank transfer. Reference: wd-${accountId}.`;
+   327→    case "CHALLENGE_STARTED":
+   328→      return `Challenge ${plan} started with $${startBalance} starting balance.`;
+   329→    case "CHALLENGE_PASSED":
+   330→      return `Challenge passed: profit target of $${target} reached without breaching risk limits.`;
+   331→    case "CHALLENGE_FAILED":
+   332→      return `Challenge failed: max drawdown breached before reaching profit target. Final PnL: -$${dailyCurrent}.`;
+   333→    case "BREACH_DETECTED":
+   334→      return `Breach detected: max drawdown reached 10.1% of starting balance. Account disabled.`;
+   335→    case "FLOATING_PNL_BREACHED":
+   336→      return `Floating PnL breached: ${accountId} Equity: $${equity}; Balance: $${balance}; Open PnL: $${openPnl}; Positions: ${positions}...`;
+   337→    case "DAILY_DRAWDOWN_BREACHED":
+   338→      return `Daily Drawdown breached: ${accountId} Daily limit: $${dailyLimit}; Current: $${dailyCurrent}; Used: ${dailyUsedPct}%`;
+   339→    case "TARGET_PROFIT_REACHED":
+   340→      return `Target Profit reached: ${accountId} Target: $${target}; Current: $${targetCurrent}; Progress: ${targetPct}%`;
+   341→    case "PHASE_UPGRADED":
+   342→      return `Account: ${oldAccountId} upgraded from Phase 2 to 3. New account: ${newAccountId}`;
+   343→    case "LOGIN":
+   344→      return `User logged in from ${ipFor(i)} (${device}).`;
+   345→    case "PASSWORD_CHANGED":
+   346→      return `Password changed via account settings. MFA still active.`;
+   347→    default:
+   348→      return `Event of type ${eventType}.`;
+   349→  }
+   350→}
+   351→
+   352→/** Build 168 deterministic events covering all 16 types (each ≥ 8 reps). */
+   353→function buildEnhancedEvents(traderPool: Trader[]): EnhancedUserEvent[] {
+   354→  const pool = traderPool.length > 0 ? traderPool : allTraders;
+   355→  const totalEvents = 168;
+   356→  const out: EnhancedUserEvent[] = [];
+   357→  for (let i = 0; i < totalEvents; i++) {
+   358→    const trader = pool[i % pool.length];
+   359→    const eventType = ALL_EVENT_TYPES[i % ALL_EVENT_TYPES.length];
+   360→    const accountId = accountIdFor(i);
+   361→    const phaseType = phaseTypeFor(i);
+   362→    const challengeName = challengeNameFor(i);
+   363→    out.push({
+   364→      id: `eue-${i + 1}`,
+   365→      timestamp: new Date(
+   366→        Date.now() - i * 90 * 60 * 1000, // every 90 minutes apart, newest first
+   367→      ).toISOString(),
+   368→      traderId: trader.id,
+   369→      userEmail: trader.email,
+   370→      phaseType,
+   371→      challengeName,
+   372→      accountId,
+   373→      eventType,
+   374→      description: buildDescription(eventType, i, accountId),
+   375→      ipAddress: ipFor(i),
+   376→      source: sourceFor(eventType, i),
+   377→    });
+   378→  }
+   379→  return out;
+   380→}
+   381→
+   382→/* ------------------------------------------------------------------ */
+   383→/* Page component                                                      */
+   384→/* ------------------------------------------------------------------ */
+   385→
+   386→export function EnhancedUserEventsPage() {
+   387→  const { runtime, navigate } = usePlatform();
+   388→  void runtime; // tenant runtime unused here; events are platform-wide
+   389→
+   390→  // Build the full event set once — deterministic, no reseed on render.
+   391→  const allEvents = useMemo(() => buildEnhancedEvents(allTraders), []);
+   392→
+   393→  // ----- Filter state (panel inputs) -----
+   394→  const [filtersOpen, setFiltersOpen] = useState(false);
+   395→  const [selectedTypes, setSelectedTypes] = useState<Set<EnhancedEventType>>(
+   396→    new Set(),
+   397→  );
+   398→  const [dateRange, setDateRange] = useState<string>("all");
+   399→  const [userFilter, setUserFilter] = useState("");
+   400→  const [accountFilter, setAccountFilter] = useState("");
+   401→  const [sourceFilter, setSourceFilter] = useState<string>("all");
+   402→
+   403→  // Top-level search (instant, applies to all text fields).
+   404→  const [search, setSearch] = useState("");
+   405→
+   406→  // ----- Derived filtered view -----
+   407→  const filtered = useMemo(() => {
+   408→    const q = search.trim().toLowerCase();
+   409→    const nowMs = Date.now();
+   410→    return allEvents.filter((e) => {
+   411→      // Event type multi-select — empty = all
+   412→      if (selectedTypes.size > 0 && !selectedTypes.has(e.eventType)) return false;
+   413→      // Date range
+   414→      if (dateRange !== "all") {
+   415→        const cutoff = nowMs - (DATE_RANGES[dateRange] ?? 0);
+   416→        if (new Date(e.timestamp).getTime() < cutoff) return false;
+   417→      }
+   418→      // User text — matches email (case-insensitive contains)
+   419→      if (userFilter.trim()) {
+   420→        if (!e.userEmail.toLowerCase().includes(userFilter.trim().toLowerCase())) {
+   421→          return false;
+   422→        }
+   423→      }
+   424→      // Account text — matches account id contains
+   425→      if (accountFilter.trim()) {
+   426→        if (!e.accountId.includes(accountFilter.trim())) return false;
+   427→      }
+   428→      // Source dropdown
+   429→      if (sourceFilter !== "all" && e.source !== sourceFilter) return false;
+   430→      // Top-level search — broad substring across all visible text
+   431→      if (
+   432→        q &&
+   433→        !`${e.userEmail} ${e.accountId} ${e.phaseType} ${e.challengeName} ${e.eventType} ${e.description} ${e.ipAddress} ${e.source}`
+   434→          .toLowerCase()
+   435→          .includes(q)
+   436→      ) {
+   437→        return false;
+   438→      }
+   439→      return true;
+   440→    });
+   441→  }, [allEvents, selectedTypes, dateRange, userFilter, accountFilter, sourceFilter, search]);
+   442→
+   443→  // ----- KPIs (computed against the unfiltered full set for stability) -----
+   444→  const totalEvents = allEvents.length;
+   445→  const accountCreated = allEvents.filter(
+   446→    (e) => e.eventType === "ACCOUNT_CREATED",
+   447→  ).length;
+   448→  const kycCompleted = allEvents.filter(
+   449→    (e) => e.eventType === "KYC_COMPLETED",
+   450→  ).length;
+   451→  const breachDetected = allEvents.filter(
+   452→    (e) =>
+   453→      e.eventType === "BREACH_DETECTED" ||
+   454→      e.eventType === "FLOATING_PNL_BREACHED" ||
+   455→      e.eventType === "DAILY_DRAWDOWN_BREACHED",
+   456→  ).length;
+   457→  const payoutEvents = allEvents.filter(
+   458→    (e) =>
+   459→      e.eventType === "PAYOUT_REQUESTED" ||
+   460→      e.eventType === "PAYOUT_COMPLETED",
+   461→  ).length;
+   462→  const targetProfitReached = allEvents.filter(
+   463→    (e) => e.eventType === "TARGET_PROFIT_REACHED",
+   464→  ).length;
+   465→  const drawdownBreached = allEvents.filter(
+   466→    (e) => e.eventType === "DAILY_DRAWDOWN_BREACHED",
+   467→  ).length;
+   468→
+   469→  // ----- Filter helpers -----
+   470→  const toggleType = (t: EnhancedEventType) => {
+   471→    setSelectedTypes((prev) => {
+   472→      const next = new Set(prev);
+   473→      if (next.has(t)) next.delete(t);
+   474→      else next.add(t);
+   475→      return next;
+   476→    });
+   477→  };
+   478→
+   479→  const activeFilterCount =
+   480→    (selectedTypes.size > 0 ? 1 : 0) +
+   481→    (dateRange !== "all" ? 1 : 0) +
+   482→    (userFilter ? 1 : 0) +
+   483→    (accountFilter ? 1 : 0) +
+   484→    (sourceFilter !== "all" ? 1 : 0) +
+   485→    (search ? 1 : 0);
+   486→
+   487→  const clearFilters = () => {
+   488→    setSelectedTypes(new Set());
+   489→    setDateRange("all");
+   490→    setUserFilter("");
+   491→    setAccountFilter("");
+   492→    setSourceFilter("all");
+   493→    setSearch("");
+   494→  };
+   495→
+   496→  const onExportCsv = () => {
+   497→    toast({
+   498→      title: "Export started",
+   499→      description: `Exporting ${filtered.length} user events as CSV.`,
+   500→    });
+   501→  };
+   502→
+   503→  // ----- Columns -----
+   504→  const columns: Column<EnhancedUserEvent>[] = [
+   505→    {
+   506→      key: "userEmail",
+   507→      header: "User",
+   508→      cell: (e) => (
+   509→        <button
+   510→          type="button"
+   511→          onClick={(ev) => {
+   512→            ev.stopPropagation();
+   513→            navigate("trader-detail", { id: e.traderId });
+   514→          }}
+   515→          className="font-medium text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400"
+   516→          title={`Open trader workspace for ${e.userEmail}`}
+   517→        >
+   518→          {e.userEmail}
+   519→        </button>
+   520→      ),
+   521→      sortValue: (e) => e.userEmail,
+   522→      width: "200px",
+   523→    },
+   524→    {
+   525→      key: "accountId",
+   526→      header: "Account",
+   527→      cell: (e) => (
+   528→        <button
+   529→          type="button"
+   530→          onClick={(ev) => {
+   531→            ev.stopPropagation();
+   532→            navigate("trader-detail", { id: e.traderId });
+   533→          }}
+   534→          className="flex flex-col text-left text-xs hover:underline"
+   535→          title={`Open trader workspace for account ${e.accountId}`}
+   536→        >
+   537→          <span className="font-mono text-muted-foreground">
+   538→            [{e.phaseType}]
+   539→          </span>
+   540→          <span className="text-foreground">{e.challengeName}</span>
+   541→          <span className="font-mono text-muted-foreground">
+   542→            - {e.accountId}
+   543→          </span>
+   544→        </button>
+   545→      ),
+   546→      sortValue: (e) => e.accountId,
+   547→      width: "220px",
+   548→    },
+   549→    {
+   550→      key: "eventType",
+   551→      header: "Event Type",
+   552→      cell: (e) => (
+   553→        <StatusBadge tone={eventTone(e.eventType)}>
+   554→          {EVENT_LABELS[e.eventType]}
+   555→        </StatusBadge>
+   556→      ),
+   557→      sortValue: (e) => e.eventType,
+   558→      width: "180px",
+   559→    },
+   560→    {
+   561→      key: "description",
+   562→      header: "Event Description",
+   563→      cell: (e) => (
+   564→        <span className="text-sm text-muted-foreground">{e.description}</span>
+   565→      ),
+   566→    },
+   567→    {
+   568→      key: "ipAddress",
+   569→      header: "IP Address",
+   570→      cell: (e) => (
+   571→        <span className="font-mono text-xs text-foreground">{e.ipAddress}</span>
+   572→      ),
+   573→      sortValue: (e) => e.ipAddress,
+   574→      width: "140px",
+   575→    },
+   576→    {
+   577→      key: "source",
+   578→      header: "Source",
+   579→      cell: (e) => (
+   580→        <StatusBadge tone={sourceTone(e.source)}>{e.source}</StatusBadge>
+   581→      ),
+   582→      sortValue: (e) => e.source,
+   583→      width: "100px",
+   584→    },
+   585→    {
+   586→      key: "timestamp",
+   587→      header: "Created",
+   588→      cell: (e) => (
+   589→        <span className="font-mono text-xs text-muted-foreground">
+   590→          {new Date(e.timestamp).toLocaleString()}
+   591→        </span>
+   592→      ),
+   593→      sortValue: (e) => e.timestamp,
+   594→      width: "180px",
+   595→    },
+   596→  ];
+   597→
+   598→  return (
+   599→    <Page>
+   600→      <PageHeader
+   601→        title="User Events (Enhanced)"
+   602→        description="Real-time log of all user, account, and risk events with metric snapshots."
+   603→        icon={ScrollText}
+   604→        actions={
+   605→          <Button size="sm" variant="outline" onClick={onExportCsv}>
+   606→            <Download className="mr-1 h-4 w-4" /> Export CSV
+   607→          </Button>
+   608→        }
+   609→      />
+   610→
+   611→      <PageContent>
+   612→        {/* KPI row — 7 metrics per spec */}
+   613→        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
+   614→          <MetricCard
+   615→            label="Total Events"
+   616→            value={totalEvents}
+   617→            icon={Activity}
+   618→            tone="default"
+   619→          />
+   620→          <MetricCard
+   621→            label="Account Created"
+   622→            value={accountCreated}
+   623→            icon={UserPlus}
+   624→            tone="positive"
+   625→          />
+   626→          <MetricCard
+   627→            label="KYC Completed"
+   628→            value={kycCompleted}
+   629→            icon={ShieldCheck}
+   630→            tone="positive"
+   631→          />
+   632→          <MetricCard
+   633→            label="Breaches Detected"
+   634→            value={breachDetected}
+   635→            icon={AlertTriangle}
+   636→            tone={breachDetected > 0 ? "negative" : "positive"}
+   637→          />
+   638→          <MetricCard
+   639→            label="Payout Events"
+   640→            value={payoutEvents}
+   641→            icon={Wallet}
+   642→            tone="warning"
+   643→          />
+   644→          <MetricCard
+   645→            label="Target Profit Reached"
+   646→            value={targetProfitReached}
+   647→            icon={Target}
+   648→            tone="positive"
+   649→          />
+   650→          <MetricCard
+   651→            label="Drawdown Breached"
+   652→            value={drawdownBreached}
+   653→            icon={TrendingDown}
+   654→            tone={drawdownBreached > 0 ? "negative" : "positive"}
+   655→          />
+   656→        </div>
+   657→
+   658→        {/* Top toolbar — search + Filters toggle + count */}
+   659→        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-2">
+   660→          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+   661→            <Filter className="h-3.5 w-3.5" />
+   662→            <span>Filters</span>
+   663→            {activeFilterCount > 0 ? (
+   664→              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px]">
+   665→                {activeFilterCount}
+   666→              </Badge>
+   667→            ) : null}
+   668→          </div>
+   669→          {/* Search */}
+   670→          <div className="relative w-full md:w-80">
+   671→            <Input
+   672→              value={search}
+   673→              onChange={(e) => setSearch(e.target.value)}
+   674→              placeholder="Search email, account, description…"
+   675→              aria-label="Search user events"
+   676→              className="h-8 text-xs"
+   677→            />
+   678→          </div>
+   679→          <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+   680→            <CollapsibleTrigger asChild>
+   681→              <Button size="sm" variant="outline" className="h-8 gap-1 text-xs">
+   682→                <Filter className="h-3 w-3" /> Advanced
+   683→                {activeFilterCount > 0 ? (
+   684→                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px]">
+   685→                    {activeFilterCount}
+   686→                  </Badge>
+   687→                ) : null}
+   688→                {filtersOpen ? (
+   689→                  <ChevronDown className="h-3 w-3" />
+   690→                ) : (
+   691→                  <ChevronRight className="h-3 w-3" />
+   692→                )}
+   693→              </Button>
+   694→            </CollapsibleTrigger>
+   695→          </Collapsible>
+   696→          {activeFilterCount > 0 ? (
+   697→            <Button
+   698→              size="sm"
+   699→              variant="ghost"
+   700→              className="h-8 gap-1 text-xs"
+   701→              onClick={clearFilters}
+   702→            >
+   703→              <X className="h-3 w-3" /> Clear
+   704→            </Button>
+   705→          ) : null}
+   706→          <span className="ml-auto text-xs text-muted-foreground">
+   707→            {filtered.length} of {allEvents.length} events
+   708→          </span>
+   709→        </div>
+   710→
+   711→        {/* Advanced Filter Panel — collapsible */}
+   712→        <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+   713→          <section className="rounded-lg border bg-card p-4">
+   714→            <CollapsibleTrigger asChild>
+   715→              <button
+   716→                type="button"
+   717→                className="flex w-full items-center justify-between gap-2 text-left"
+   718→              >
+   719→                <div className="flex items-start gap-2">
+   720→                  <div className="mt-0.5 rounded-md bg-muted/60 p-1.5">
+   721→                    <Filter className="h-4 w-4 text-foreground" />
+   722→                  </div>
+   723→                  <div>
+   724→                    <h2 className="text-sm font-semibold text-foreground">
+   725→                      Advanced Filters
+   726→                    </h2>
+   727→                    <p className="mt-0.5 text-xs text-muted-foreground">
+   728→                      Multi-select event types, date range, user, account, and
+   729→                      source. Click Apply to filter the table.
+   730→                    </p>
+   731→                  </div>
+   732→                </div>
+   733→                {filtersOpen ? (
+   734→                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+   735→                ) : (
+   736→                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+   737→                )}
+   738→              </button>
+   739→            </CollapsibleTrigger>
+   740→            <CollapsibleContent>
+   741→              <Separator className="my-4" />
+   742→              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+   743→                {/* Event Type multi-select */}
+   744→                <div className="space-y-1.5 lg:col-span-2">
+   745→                  <LabelWithHelp
+   746→                    help="Tick the event types you want to include. Empty selection shows all event types."
+   747→                    className="text-sm font-medium"
+   748→                  >
+   749→                    Event Type
+   750→                  </LabelWithHelp>
+   751→                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
+   752→                    {ALL_EVENT_TYPES.map((t) => {
+   753→                      const checked = selectedTypes.has(t);
+   754→                      return (
+   755→                        <label
+   756→                          key={t}
+   757→                          className={cn(
+   758→                            "flex cursor-pointer items-start gap-1.5 rounded-md border bg-background px-2 py-1.5 text-xs hover:bg-muted/30",
+   759→                            checked && "border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30",
+   760→                          )}
+   761→                        >
+   762→                          <Checkbox
+   763→                            checked={checked}
+   764→                            onCheckedChange={() => toggleType(t)}
+   765→                            className="mt-0.5"
+   766→                          />
+   767→                          <span className="flex flex-col">
+   768→                            <span className="font-medium text-foreground">
+   769→                              {EVENT_LABELS[t]}
+   770→                            </span>
+   771→                            <span className="text-[10px] text-muted-foreground">
+   772→                              {t}
+   773→                            </span>
+   774→                          </span>
+   775→                        </label>
+   776→                      );
+   777→                    })}
+   778→                  </div>
+   779→                  {selectedTypes.size > 0 ? (
+   780→                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+   781→                      <span className="text-xs text-muted-foreground">
+   782→                        Selected:
+   783→                      </span>
+   784→                      {Array.from(selectedTypes).map((t) => (
+   785→                        <Badge
+   786→                          key={t}
+   787→                          variant="outline"
+   788→                          className="cursor-pointer text-[10px]"
+   789→                          onClick={() => toggleType(t)}
+   790→                        >
+   791→                          {EVENT_LABELS[t]} ×
+   792→                        </Badge>
+   793→                      ))}
+   794→                    </div>
+   795→                  ) : (
+   796→                    <p className="text-xs text-muted-foreground">
+   797→                      No event types selected — all are included.
+   798→                    </p>
+   799→                  )}
+   800→                </div>
+   801→
+   802→                {/* Date Range */}
+   803→                <div className="space-y-1.5">
+   804→                  <LabelWithHelp
+   805→                    help="Restrict to events that happened within the selected window. 'All time' shows everything."
+   806→                    className="text-sm font-medium"
+   807→                  >
+   808→                    Date Range
+   809→                  </LabelWithHelp>
+   810→                  <Select value={dateRange} onValueChange={setDateRange}>
+   811→                    <SelectTrigger className="w-full">
+   812→                      <SelectValue />
+   813→                    </SelectTrigger>
+   814→                    <SelectContent>
+   815→                      <SelectItem value="all">All time</SelectItem>
+   816→                      <SelectItem value="24h">Last 24 hours</SelectItem>
+   817→                      <SelectItem value="7d">Last 7 days</SelectItem>
+   818→                      <SelectItem value="30d">Last 30 days</SelectItem>
+   819→                    </SelectContent>
+   820→                  </Select>
+   821→                </div>
+   822→
+   823→                {/* User text input */}
+   824→                <div className="space-y-1.5">
+   825→                  <LabelWithHelp
+   826→                    help="Case-insensitive substring match against the user email."
+   827→                    className="text-sm font-medium"
+   828→                  >
+   829→                    User
+   830→                  </LabelWithHelp>
+   831→                  <Input
+   832→                    value={userFilter}
+   833→                    onChange={(e) => setUserFilter(e.target.value)}
+   834→                    placeholder="e.g. sarah@…"
+   835→                    className="text-xs"
+   836→                  />
+   837→                </div>
+   838→
+   839→                {/* Account ID text input */}
+   840→                <div className="space-y-1.5">
+   841→                  <LabelWithHelp
+   842→                    help="Substring match against the account ID (e.g. 333388)."
+   843→                    className="text-sm font-medium"
+   844→                  >
+   845→                    Account ID
+   846→                  </LabelWithHelp>
+   847→                  <Input
+   848→                    value={accountFilter}
+   849→                    onChange={(e) => setAccountFilter(e.target.value)}
+   850→                    placeholder="e.g. 333388"
+   851→                    className="font-mono text-xs"
+   852→                  />
+   853→                </div>
+   854→
+   855→                {/* Source dropdown */}
+   856→                <div className="space-y-1.5">
+   857→                  <LabelWithHelp
+   858→                    help="Origin of the event — System (automated), Admin (manual admin action), User (trader action), or API (third-party integration)."
+   859→                    className="text-sm font-medium"
+   860→                  >
+   861→                    Source
+   862→                  </LabelWithHelp>
+   863→                  <Select
+   864→                    value={sourceFilter}
+   865→                    onValueChange={setSourceFilter}
+   866→                  >
+   867→                    <SelectTrigger className="w-full">
+   868→                      <SelectValue />
+   869→                    </SelectTrigger>
+   870→                    <SelectContent>
+   871→                      <SelectItem value="all">All sources</SelectItem>
+   872→                      {SOURCE_OPTIONS.map((s) => (
+   873→                        <SelectItem key={s} value={s}>
+   874→                          {s}
+   875→                        </SelectItem>
+   876→                      ))}
+   877→                    </SelectContent>
+   878→                  </Select>
+   879→                </div>
+   880→              </div>
+   881→
+   882→              {/* Apply + Clear + result count */}
+   883→              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2">
+   884→                <div className="text-xs text-muted-foreground">
+   885→                  <span className="font-medium text-foreground">
+   886→                    {filtered.length}
+   887→                  </span>{" "}
+   888→                  of{" "}
+   889→                  <span className="font-medium text-foreground">
+   890→                    {allEvents.length}
+   891→                  </span>{" "}
+   892→                  events match
+   893→                </div>
+   894→                <div className="flex flex-wrap items-center gap-2">
+   895→                  <Button
+   896→                    size="sm"
+   897→                    variant="outline"
+   898→                    className="h-8 text-xs"
+   899→                    onClick={clearFilters}
+   900→                    disabled={activeFilterCount === 0}
+   901→                  >
+   902→                    <X className="mr-1 h-3 w-3" /> Clear Filters
+   903→                  </Button>
+   904→                  <Button
+   905→                    size="sm"
+   906→                    className="h-8 text-xs"
+   907→                    onClick={() => {
+   908→                      setFiltersOpen(false);
+   909→                      toast({
+   910→                        title: "Filters applied",
+   911→                        description: `${filtered.length} of ${allEvents.length} events match.`,
+   912→                      });
+   913→                    }}
+   914→                  >
+   915→                    Apply Filters
+   916→                  </Button>
+   917→                </div>
+   918→              </div>
+   919→            </CollapsibleContent>
+   920→          </section>
+   921→        </Collapsible>
+   922→
+   923→        {/* Events table — 100 per page per spec */}
+   924→        <div className="rounded-lg border bg-card">
+   925→          <DataTable
+   926→            columns={columns}
+   927→            data={filtered}
+   928→            rowKey={(e) => e.id}
+   929→            pageSize={100}
+   930→            emptyTitle="No events match your filters"
+   931→            emptyDescription="Try widening the date range, clearing event types, or removing the user/account filter."
+   932→          />
+   933→        </div>
+   934→
+   935→        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+   936→          <Activity className="h-3 w-3" />
+   937→          Risk events (Floating PnL / Daily Drawdown / Target Profit / Phase
+   938→          Upgraded) include metric snapshots for forensic review.
+   939→        </p>
+   940→      </PageContent>
+   941→    </Page>
+   942→  );
+   943→}
+   944→
+   945→/* ------------------------------------------------------------------ */
+   946→/* Re-exported helpers for downstream pages                            */
+   947→/* ------------------------------------------------------------------ */
+   948→
+   949→// Keep these exports for any future detail page that wants to reuse the
+   950→// deterministic mock data + tone legend. They are intentionally pure.
+   951→// (EnhancedUserEvent, EnhancedEventType, EventSource are already exported
+   952→// at their declaration sites above.)
+   953→export {
+   954→  EVENT_LABELS,
+   955→  ALL_EVENT_TYPES,
+   956→  eventTone,
+   957→  sourceTone,
+   958→  buildEnhancedEvents,
+   959→};
+   960→

@@ -1,0 +1,336 @@
+Agent: explore-aff-acc-mkt-crm
+Task: Deep analysis of Affiliates, Accounting, Marketing, CRM modules vs spec + UX Constitution
+
+Scope:
+- src/modules/affiliates/{manifest.ts, widgets/affiliate-widgets.tsx, pages/{affiliate-pages,offer-management-page,offer-edit-page,offer-matching-users-page,offer-change-history-page}.tsx, index.ts}
+- src/modules/accounting/{manifest.ts, widgets/accounting-widgets.tsx, pages/accounting-pages.tsx, index.ts}
+- src/modules/marketing/{manifest.ts, widgets/marketing-widgets.tsx, pages/{marketing-pages,marketing-dashboard-page}.tsx, index.ts}
+- src/modules/crm/{manifest.ts, widgets/crm-widgets.tsx, pages/crm-pages.tsx, index.ts}
+- Cross-referenced mock-data.ts (Affiliate, AffiliateCampaign, Transaction, MarketingCampaign, CrmContact, Offer interfaces + helpers), view-router.tsx wiring, navigation-engine.ts, module-registry.ts getSettings()
+
+## AFFILIATES — PRESENT
+1. **Manifest** (`affiliates/manifest.ts`) — id `affiliates`, v1.0.0, category `growth`, optional `true`, dependencies `["trading"]`, supportedApplications `["prop-admin","super-admin"]`, accentColor `#a21caf` (fuchsia-700 — Terra-allowed). 4 permissions (`affiliate.read|create|update|configure`). 6 nav children at order 55: Overview, Affiliates, Campaigns, Commissions, Offers, Edit Offer. 8 routes (includes offer-matching-users + offer-change-history even though those aren't in nav — good, they're reached from Offer Edit page). 3 widgets (metric/leaderboard/chart). Settings entry `viewId: "settings-affiliates"` (DEAD LINK — no view registered in view-router.tsx).
+2. **Affiliates Overview** (`affiliate-pages.tsx:AffiliatesOverviewPage`, 103 LOC) — 4 KPIs (Total Affiliates, Active, Conversions, Commission Earned with delta=6/11) + 12-month commission trend AreaSeries (color `#a21caf`) + Recent Campaigns DataTable (5 rows, columns: Campaign, Affiliate, Clicks, Signups, Conv., Revenue, Status). Export button (toast-only — no `exportToCsv`).
+3. **Affiliates List** (`AffiliatesListPage`, 47 LOC) — DataTable columns: Name, Code (monospace), Tier badge (tierTone helper), Referrals, Conversions, Commission Earned, Status badge. ✓ `emptyTitle`/`emptyDescription`.
+4. **Affiliate Campaigns** (`AffiliateCampaignsPage`, 47 LOC) — DataTable columns: Campaign, Affiliate, Clicks, Signups, Conv., Spend, Revenue, ROI% (color-coded emerald/rose), Status badge. ✓ empty state.
+5. **Affiliate Commissions** (`AffiliateCommissionsPage`, 57 LOC) — 4 KPIs (Total Earned, Pending Payout, Avg Ticket = earned/conversions, Active Partners) + DataTable columns: Affiliate, Tier, Referrals, Conversions, Earned (emerald), Pending (amber), Status badge. ✓ empty state.
+6. **Offer Management** (`offer-management-page.tsx`, 351 LOC) — **STRONG**. DataTable of offers (Name, Coupon, Discount %, Status, Start, End, Countries badge, Matches count) with status filter Select, Add Offer button, row-click → inline detail panel (`OfferDetailPanel` shows offer basics + targeting countries/segments + matching users count + View Change History / Edit Offer action buttons). ✓ §27 inline detail panel for quick-review task. ✓ emptyTitle/emptyDescription.
+7. **Offer Edit** (`offer-edit-page.tsx`, 864 LOC) — **BEST-IN-CLASS for the 4 modules**. Full create/edit form: Basic Information (Title, Display Order, Description, Textarea, Image upload with preview, Coupon Code auto-uppercase, Discount %, Start/End dates, Is Popup Switch, Offer URL) + Country Targeting (DualListBox add/remove all + selected preview) + Challenge Targeting (DualListBox) + User Segment (Collapsible §12 — Segment Name, Active Switch, 5 TriStateSelects Account Purchased/Competition User/Has Approved Payout/Fund Accounts Only/Has Failed Accounts, Account Size Min/Max). 6 `LabelWithHelp` tooltips (§33 ✓ — only page in the 4 modules with contextual help). Save / Save and add another / Save and continue editing / Delete (AlertDialog with consequence text §24 ✓). Related-context navigation links at top: View Matching Users, View Change History (navigate() calls ✓ §27).
+8. **Offer Matching Users** (`offer-matching-users-page.tsx`, 366 LOC) — 4 KPIs (Total Matches 3633, Funded Matches, New Users, Existing Users) + paginated DataTable (100 rows/page) of deterministic mock users (email, country, account status, has purchased, funded). "View User" action per row → `navigate("trader-detail", { id })` ✓ cross-module link. ✓ EmptyState when offer not found. Custom pagination across 37 pages.
+9. **Offer Change History** (`offer-change-history-page.tsx`, 389 LOC) — **STRONG**. Per-offer audit trail DataTable (Date/Time, User email + role Badge, Action label, Description with old→new value diff chips). Action filter Select (7 action types). Real CSV export ✓ (handcrafted Blob). Deterministic generator (8-15 entries per offer). ✓ EmptyState. Terra palette ✓ (emerald/amber/rose/slate).
+10. **3 widgets** (`affiliate-widgets.tsx`, 107 LOC) — AffiliateOverviewWidget (4 KPIs w12h1, identical to Overview page KPIs), TopAffiliatesWidget (top-6 ranked list w6h2 with tier-colored bars + rank badges), AffiliateRevenueWidget (12-month AreaSeries w6h2, accent #a21caf). ✓ EmptyState on TopAffiliatesWidget for 0 affiliates.
+
+## AFFILIATES — MISSING / THIN (effort S/M/L)
+- **Overview KPIs missing "top earner" + "conversion rate" + "total commission paid"** (spec #1) — Currently shows Total Affiliates, Active, Conversions, Commission Earned. Spec calls for: active affiliates, total commission PAID (≠ earned — earned includes pending), conversion rate (conversions/referrals or conversions/clicks), top earner. None present. — Effort: S.
+- **Affiliate List missing referral LINK + payout method columns** (spec #2) — Has referral `code` (font-mono) but no full URL (e.g. `https://yourfirm.com/r/AFFB1`). No payout method column (PayPal/Bank/Wire/Crypto). — Effort: S.
+- **Affiliate Campaigns missing "by campaign, by source, conversion funnel"** (spec #3) — Has by-campaign table but no by-source breakdown and no funnel (Clicks → Signups → Conversions drop-off visualization). — Effort: M.
+- **Affiliate Commissions missing per-referral breakdown + payout link** (spec #4) — Currently rolls up by affiliate (Earned/Pending). Spec calls for "per-referral commission breakdown, status, payout link". No per-referral ledger row. No link to payouts module. — Effort: M.
+- **Offer Edit missing "commission %, bonus, min payout, conversion criteria"** (spec #6) — Only has discountPct + dates + popup + URL. No affiliate-commission config (commission %, signing bonus, minimum payout threshold, conversion criteria for what counts as a converted referral). — Effort: M.
+- **No Affiliate dashboard widget / white-label public portal** (spec #9) — TopAffiliatesWidget is admin-side leaderboard. No public-facing affiliate portal where affiliates log in, see their own clicks/conversions/commissions/pending payouts. — Effort: L.
+- **No Affiliate payout schedule** (spec #10) — No scheduled-payout view (weekly/monthly/net-30). No link from Affiliate Commissions → Payouts module filtered by source=affiliate. — Effort: M.
+- **No standalone performance leaderboards page** (spec #11) — TopAffiliatesWidget exists but no full leaderboards page with rank/profit/win-rate/equity. — Effort: M.
+- **Coupon codes are part of Offer, no standalone CRUD** (spec #12) — Coupon lives inside offer only. No bulk coupon generation, no usage tracking per code, no expiry/limit per code. — Effort: M.
+- **Affiliate link tracking page missing** (spec #13) — Clicks/conversions shown aggregated per campaign but no per-link tracking page (unique affiliate link → clicks/conversions over time). — Effort: M.
+- **Terra palette violation: `platinum: "#7c3aed"` (violet)** — `affiliate-widgets.tsx:14`. Violates platform Terra-palette rule (no blue/indigo/violet). Should be `#475569` (slate) or `#a21caf` (fuchsia). — Effort: S.
+- **Terra palette violation: rank badge uses `bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400`** — `affiliate-widgets.tsx:63`. Should use fuchsia or slate. — Effort: S.
+- **Settings entry is a dead link** — `viewId: "settings-affiliates"` (manifest.ts:70) — no view registered in view-router.tsx. Clicking "Affiliates" in Settings → "no view registered" error. Same bug class as payouts/analytics. — Effort: M (build) or S (remove entry).
+- **KPI deltas lack `deltaLabel`** (§9) — `delta={6}` / `delta={11}` without "vs prev 30d" context. — Effort: S.
+- **No contextual help on KPIs** (§33) — Zero `LabelWithHelp` on affiliate-pages.tsx (Overview/List/Campaigns/Commissions). "Avg Ticket" KPI ambiguous — average commission per conversion or average order value? — Effort: S.
+- **Export is toast-only** on AffiliatesOverviewPage (affiliate-pages.tsx:48-52) — should call `exportToCsv` like accounting-pages.tsx. — Effort: S.
+- **Affiliate "Active Referrals" field exists in mock-data.ts:527 but never surfaced in UI** — Affiliate interface has `activeReferrals` but no page shows it. — Effort: S.
+- **OfferManagementPage "Edit Offer" buttons fire toast only** (offer-management-page.tsx:143 + 267) — should `navigate("offer-edit", { id: o.id })`. The Offer Edit page exists but isn't reachable from the table. — Effort: S. **CRITICAL — Offer Edit page is orphaned from the table.**
+- **OfferManagementPage "View Change History" button fires toast only** (offer-management-page.tsx:136) — should `navigate("offer-change-history", { id: o.id })`. — Effort: S.
+- **AffiliatesOverviewPage Recent Campaigns uses `.slice(0, 5)` by array order** — not by date or revenue. Should be "Latest 5 by startDate" or "Top 5 by revenue". — Effort: S.
+- **AffiliateCommissionsPage "Active Partners" KPI is duplicate of Overview's "Active" KPI** — same `aff.filter(status === "active").length` calc. Should be replaced with "Next Payout" or "Avg Commission / Conversion" unique metric. — Effort: S.
+- **No URL-persisted filters** on any Affiliates page (§51) — OfferManagement status filter, OfferChangeHistory action filter, OfferMatchingUsers pagination, all DataTable searches use local state. — Effort: M.
+- **No loading skeletons / no error boundaries** (§31, §32). — Effort: M.
+- **No terminology applied** to page headers — `makeTermResolver` not imported anywhere. Tenant terminology might want "Partner" vs "Affiliate". — Effort: M.
+- **index.ts barrel export incomplete** — only re-exports 4 pages from affiliate-pages.tsx. The 4 offer-* pages (OfferManagementPage, OfferEditPage, OfferMatchingUsersPage, OfferChangeHistoryPage) are imported directly by view-router.tsx. Either add to barrel or document the split. — Effort: S.
+
+## ACCOUNTING — PRESENT
+1. **Manifest** (`accounting/manifest.ts`) — id `accounting`, v1.0.0, category `advanced`, optional `true`, dependencies `["trading"]`, supportedApplications `["prop-admin","super-admin"]`, accentColor `#b45309` (amber-700 — Terra-allowed). 2 permissions (`accounting.read|configure`). 3 nav children at order 60: Overview, Transactions, Reconciliation. 3 routes. 3 widgets (metric/bar chart/area chart). Settings entry `viewId: "settings-accounting"` (DEAD LINK).
+2. **Accounting Overview** (`accounting-pages.tsx:AccountingOverviewPage`, 50 LOC) — 4 KPIs (Total Revenue = sum of challenge-fee + subscription, Payouts = sum of payout, Fees = sum of commission, Net = revenue - payouts - fees) + 2 charts side-by-side (Revenue by type BarSeries with 5 transaction types, Transaction flow 12-month AreaSeries). All amounts use tenant.currency. KPIs have `tone` differentiation (positive/negative/warning/conditional) ✓ but **NO deltas** (weakest KPI hierarchy of the 4 modules).
+3. **Transactions Page** (`TransactionsPage`, 73 LOC) — DataTable columns: Reference (monospace), Type (capitalize), Description (muted), Amount (color-coded + for inflow / - for outflow, emerald/rose), Category (capitalize), Status badge (reconciled=success, posted=info, pending=warning), Date, Account. ✓ Real `exportToCsv` with 9 columns (best in the 4 modules). ✓ `emptyTitle`/`emptyDescription`.
+4. **Reconciliation Page** (`ReconciliationPage`, 70 LOC) — 4 KPIs (Total Volume, Reconciled total, Pending total, Reconciliation Rate % with conditional tone) + DataTable of non-reconciled transactions only with "Reconcile" button per row (plain Button + toast demo, no AlertDialog §24 inconsistency vs PayoutReviewActions). ✓ emptyTitle/emptyDescription "Nothing to reconcile".
+5. **3 widgets** (`accounting-widgets.tsx`, 84 LOC) — AccountingOverviewWidget (4 KPIs w12h1, identical calc to Overview page), RevenueByTypeWidget (BarSeries w6h2 color #b45309), TransactionFlowWidget (AreaSeries w6h2 color #b45309). All tenant-scoped via `getTenantTransactions(tid)`.
+
+## ACCOUNTING — MISSING / THIN (effort S/M/L)
+- **No "pending invoices" / "ATR" KPIs** (spec #1) — Has Revenue/Payouts/Fees/Net but no invoices pending, no ATR (Average Transaction Revenue). — Effort: S.
+- **No "income/expense" axis** (spec #2) — Type enum is payout/challenge-fee/subscription/refund/commission; no income vs expense categorization. (Workaround: code infers outflow from type — `payout || refund || commission`.) — Effort: S.
+- **No "source" column** (spec #2) — Has `account` (e.g. "Operating Account") and `category` (== type) but no source field (Stripe / Bank / PayPal / Crypto gateway). — Effort: S.
+- **Reconciliation: no bank statement import / CSV upload** (spec #3) — Manual single-row "Reconcile" button only. No bank statement parser, no auto-match, no side-by-side view. — Effort: L.
+- **Reconciliation: no discrepancy detection** (spec #3) — Just shows non-reconciled rows. No "discrepancies" view (amount mismatch between ledger and bank statement). — Effort: M.
+- **No Invoices / billing module** (spec #4) — Zero invoice UI. No invoice list, no generate/send/track, no PDF generation, no email integration. — Effort: L.
+- **No Tax reports** (VAT, sales tax) (spec #5). — Effort: L.
+- **No P&L statement** (spec #6). — Effort: M.
+- **No Balance sheet snapshot** (spec #7). — Effort: M.
+- **No Chart of accounts** (spec #8) — Account field on Transaction is free-text "Operating Account" with no COA tree. — Effort: M.
+- **No Expense categories admin** (spec #9) — Category field exists but no admin UI to manage categories. — Effort: M.
+- **No Multi-currency accounting** (spec #10) — Transactions have per-row `currency` (tenant-beta uses GBP) but no FX normalization, no multi-currency view, no gain/loss on FX. — Effort: L.
+- **Reconciliation "Reconcile" button is plain Button + toast** (§24 inconsistency) — Should require confirmation (or at least log actor + timestamp to audit). Reconciliation affects the books. — Effort: S.
+- **Accounting Overview KPIs lack deltas** — Revenue/Payouts/Fees/Net have no `delta` numbers at all (unlike Marketing Overview which has deltas). — Effort: S.
+- **No contextual help on KPIs** (§33) — "Net" KPI is `revenue - payouts - fees` calculation; no tooltip explains formula. "Total Revenue" excludes payouts/commissions — counterintuitive. — Effort: S.
+- **No EmptyState on AccountingOverviewPage** — new tenant with 0 transactions → blank charts. (§30 violation.) — Effort: S.
+- **Settings entry is a dead link** — `viewId: "settings-accounting"` (manifest.ts:61). — Effort: M (build) or S (remove).
+- **Reconciliation page filters nothing** — just shows non-reconciled rows; no time-range, no account filter, no type filter. — Effort: S.
+- **TransactionsPage has no filters** (search only) — no status Select, no type Select, no date range, no account Select. — Effort: S.
+- **No drill from transaction to detail** (§27) — row click does nothing. Should open drawer with full transaction context, linked payout/trader, audit trail. — Effort: M.
+- **No bulk reconcile** — only single-row action button. Should support batch select + Reconcile Selected (matches enhanced-withdrawals-page pattern). — Effort: S.
+- **No URL-persisted filters** (§51). — Effort: M.
+- **No loading skeletons / no error boundaries** (§31, §32). — Effort: M.
+- **No terminology applied** to page headers. — Effort: M.
+- **Accounting Overview duplicates widgets** — AccountingOverviewWidget (dashboard) is identical KPI set to AccountingOverviewPage. Per §8 Dashboard Density Rule, widget should be a tighter subset or include a "View detailed accounting →" link. — Effort: S.
+
+## MARKETING — PRESENT
+1. **Manifest** (`marketing/manifest.ts`) — id `marketing`, v1.0.0, category `growth`, optional `true`, dependencies `["trading"]`, supportedApplications `["prop-admin","super-admin"]`, accentColor `#db2777` (pink-600 — Terra-allowed). 2 permissions (`marketing.read|configure`). **4 nav children at order 65** (Overview, Campaigns, Performance, **Dashboard**) but **3 routes only** (manifest data inconsistency: `marketing-dashboard` declared as nav child but not in routes array — runtime works because view-router.tsx has the viewId, but the manifest itself is inconsistent). 3 widgets. Settings entry `viewId: "settings-marketing"` (DEAD LINK — note: marketing-integrations + marketing-banner-edit pages exist but those viewIds are different).
+2. **Marketing Overview** (`marketing-pages.tsx:MarketingOverviewPage`, 90 LOC) — 5 KPIs (Active Campaigns delta=6, Total Spend delta=4, Impressions delta=11, Conversions delta=8, ROI% with conditional tone) + 2 charts side-by-side (Campaign Revenue BarSeries top 6, Spend by Channel DonutSeries). Export button (toast-only).
+3. **Marketing Campaigns** (`MarketingCampaignsPage`, 56 LOC) — DataTable columns: Campaign, Channel (capitalize), Status badge, Budget, Spend, Impr., Clicks, Conv., Revenue (font-semibold), ROI% (color-coded emerald/rose). ✓ `emptyTitle`/`emptyDescription`.
+4. **Marketing Performance** (`MarketingPerformancePage`, 43 LOC) — 3 charts: Revenue by Channel BarSeries, Conversions by Channel BarSeries (color #059669), Spend Distribution DonutSeries. **NO EmptyState** (new tenant → blank charts). **NO KPIs** — pure charts only. **Duplicate "Spend by Channel" donut with Overview**.
+5. **Marketing Dashboard** (`marketing-dashboard-page.tsx`, 477 LOC) — **STRONG**. 4 KPIs (Best Trade +$4250 hardcoded, Best Trader, Logged In Users, Total Payouts derived) + Week range Select (This Week / Last Week / This Month) + Search input + 3 DataTables: Top Traders (Rank badge 1-10 with Crown for #1, Name, P&L color-coded, Win Rate, Country), Top Trading Pairs (Symbol, Trades, Buy/Sell ratio, Volume, Avg P&L), Top Countries by Payouts (Country, Payouts, Total Amount, % of Total with progress bar). Custom pagination. ✓ `emptyTitle`/`emptyDescription` on traders table.
+6. **3 widgets** (`marketing-widgets.tsx`, 75 LOC) — MarketingOverviewWidget (5 KPIs w12h1, identical to Overview page), CampaignPerformanceWidget (BarSeries top 6 w6h2), ChannelBreakdownWidget (DonutSeries w6h2).
+
+## MARKETING — MISSING / THIN (effort S/M/L)
+- **CRITICAL: MarketingDashboardPage dead filter bug** (`marketing-dashboard-page.tsx:131`) — `traders.filter((t) => new Date(t.joinedAt).getTime() >= cutoff * 0.3 || true)`. The `|| true` makes the filter always return true, so the "This Week / Last Week / This Month" selector computes the cutoff but never applies it. Top Traders table shows the same data regardless of selected range. — Effort: S.
+- **CRITICAL: MarketingDashboardPage footer copy is misleading** (line 470-473) — "Trading pair volume and buy/sell ratios are aggregated from open and closed positions in the selected range. Country payouts include all paid and approved withdrawals." But top trading pairs are 100% synthetic mock (lines 145-155 — TRADING_PAIRS hardcoded array, tradeCount = `120 - i*9 + (i%3)*5`), NOT derived from positions. The footer is technically false. — Effort: S (fix copy or derive from positions).
+- **MarketingDashboardPage "Best Trade = 4250"** (line 195) — hardcoded constant, not derived from positions. — Effort: S.
+- **MarketingDashboardPage "Logged In Users"** = `traders.length * 0.42 + 38` (line 197) — arbitrary formula not grounded in any session data. — Effort: M (mock session data).
+- **Manifest data inconsistency**: 4 nav children vs 3 routes (`marketing-dashboard` declared in nav but not in routes array). Runtime works because view-router.tsx maps the viewId directly. — Effort: S (add missing route entry).
+- **No "by source, attribution model" in Performance** (spec #3) — Only by channel. No source (which ad network, which affiliate), no attribution model (first-click / last-click / multi-touch). — Effort: L.
+- **No email campaigns module** (spec #5) — No templates, no send UI, no open rate / click rate metrics. Email templates exist in mock-data.ts (`emailTemplates` array) but no Marketing page surfaces them. — Effort: L.
+- **No social media campaigns** (spec #6) — No scheduled posts, no engagement metrics. — Effort: L.
+- **No ad spend tracking by platform** (spec #7) — Channel enum is generic (email/social/paid-ads/content/affiliate). No Google Ads / Meta Ads / TikTok Ads breakdown with per-platform spend, CPC, CPM. — Effort: L.
+- **No lead capture / landing pages** (spec #8). — Effort: L.
+- **No A/B test results** (spec #9). — Effort: M.
+- **No marketing attribution reports** (first-click, last-click, multi-touch) (spec #10). — Effort: L.
+- **No marketing budget planner** (spec #11). — Effort: M.
+- **No cohort marketing performance** (spec #12). — Effort: L.
+- **Terra palette violation: `CHANNEL_COLORS["paid-ads"] = "#8b5cf6"` (violet)** — Appears in BOTH `marketing-widgets.tsx:22` AND `marketing-pages.tsx:24`. Should be `#c2410c` (orange) or `#92400e` (amber-800). — Effort: S each.
+- **Settings entry is a dead link** — `viewId: "settings-marketing"` (manifest.ts:65). Note: marketing-integrations + marketing-banner-edit pages exist in view-router.tsx but their viewIds are `marketing-integrations` and `marketing-banner-edit`, NOT `settings-marketing`. The Settings entry still throws. — Effort: M (reconcile viewId or build settings-marketing page).
+- **No contextual help on KPIs** (§33) — "ROI" KPI is `(revenue - spend) / spend * 100` calculation; no tooltip explains formula. "Impressions" delta=11 without "vs prev period" label. — Effort: S.
+- **Export is toast-only** on MarketingOverviewPage (marketing-pages.tsx:63) and MarketingDashboardPage (line 204-209) — no real `exportToCsv`. — Effort: S each.
+- **MarketingCampaignsPage is read-only** — No edit, pause, duplicate, view row actions (spec #2 calls for full campaign CRUD). — Effort: M.
+- **MarketingOverviewPage + MarketingPerformancePage have NO EmptyState** — new tenant with 0 campaigns → blank charts. (§30 violation.) — Effort: S each.
+- **Duplicate charts across Overview + Performance**: "Spend by Channel" DonutSeries appears on BOTH pages (Overview line 84 + Performance line 187). Violates §8 Dashboard Density Rule — "Every component must justify its existence". Performance page should add unique breakdowns (by source, by attribution), not duplicate Overview. — Effort: M (differentiate).
+- **CTR / CPC / CPA derived columns missing** (spec #2) — Campaigns table has Impressions, Clicks, Conversions but no derived CTR (clicks/impressions), CPC (spend/clicks), CPA (spend/conversions). — Effort: S.
+- **MarketingPerformancePage has NO KPIs** — pure 3-chart page. Should have at least "Top Channel by ROI" / "Avg CPC" / "Avg CPA" summary KPIs. — Effort: S.
+- **No URL-persisted filters** (§51) — MarketingDashboard week range + search use local state. — Effort: M.
+- **No loading skeletons / no error boundaries** (§31, §32). — Effort: M.
+- **No terminology applied** to page headers. — Effort: M.
+
+## CRM — PRESENT
+1. **Manifest** (`crm/manifest.ts`) — id `crm`, v1.0.0, category `growth`, optional `true`, dependencies `["trading"]`, supportedApplications `["prop-admin","super-admin"]`, accentColor `#0891b2` (cyan-600 — Terra-allowed). 2 permissions (`crm.read|update`). 3 nav children at order 70: Overview, Contacts, Pipeline. 3 routes. 2 widgets (metric/chart). Settings entry `viewId: "settings-crm"` (DEAD LINK).
+2. **CRM Overview** (`crm-pages.tsx:CrmOverviewPage`, 109 LOC) — 5 KPIs (Total Contacts delta=5, Leads delta=9, Qualified delta=7, Customers delta=3, Churned delta=-2 with negative tone ✓) + 2 charts side-by-side (Pipeline by Stage BarSeries color #0891b2, Pipeline Value per stage with progress bars + count + value display). Export button (toast-only).
+3. **CRM Contacts** (`CrmContactsPage`, 50 LOC) — DataTable columns: Name (font-medium), Email (muted), Source, Stage badge (color-coded via STAGE_COLOR map), Owner, Value (font-semibold), Last Interaction. ✓ `emptyTitle`/`emptyDescription`.
+4. **CRM Pipeline** (`CrmPipelinePage`, 49 LOC) — Stage-flow visualization: 5 stage cards in a grid (lead → qualified → opportunity → customer → churned) with horizontal arrow connectors, count + value per stage. Then a BarSeries "Contacts per Stage" chart. **NO EmptyState** for new tenant. **Stage cards not clickable** — should filter Contacts to that stage.
+5. **2 widgets** (`crm-widgets.tsx`, 46 LOC) — CrmOverviewWidget (5 KPIs w12h1, identical to Overview page), PipelineWidget (BarSeries w6h2 color #0891b2).
+
+## CRM — MISSING / THIN (effort S/M/L)
+- **"pipeline value" KPI present but missing "new leads" + "conversion rate"** (spec #1) — CrmOverviewPage computes pipelineValue (sum of contact values for non-churned) inside the Pipeline Value card badge, but the 5 top-level KPIs don't include "new leads this period" or "conversion rate" (lead → customer %). — Effort: S.
+- **Contacts list missing "last contact" semantic** (spec #2) — Has `lastInteraction` field displayed as "Last Interaction". Spec calls for "last contact". Minor semantic gap; the data is the same. — Effort: S (rename column).
+- **No Pipeline kanban** (spec #3) — Stage-flow cards exist but no drag-and-drop kanban board. Operators can't move contacts between stages visually. — Effort: M.
+- **No Lead scoring model** (spec #4) — No lead-scoring UI, no score column, no score-based filtering. — Effort: M.
+- **No Contact detail page / drawer** (spec #5) — Clicking a contact does nothing. No detail drawer with history, notes, tasks, deals, communications. **CRITICAL — Contacts table is a dead-end list.** — Effort: M.
+- **No Email integration** (Gmail/Outlook) (spec #6). — Effort: L.
+- **No Activity timeline per contact** (spec #7) — Only `lastInteraction` timestamp shown. No chronological feed. — Effort: M.
+- **No Deal tracking** (value/stage/expected close) (spec #8) — `value` field on contact is the only deal-equivalent. No deal records, no expected close dates, no deal stage progression. — Effort: L.
+- **No Tasks & reminders** (spec #9). — Effort: M.
+- **No Bulk import/export contacts (CSV)** (spec #10) — No import/export UI. Export button is toast-only. — Effort: S (export) / M (import + CSV mapping).
+- **No Custom fields management** (spec #11). — Effort: L.
+- **Settings entry is a dead link** — `viewId: "settings-crm"` (manifest.ts:59). — Effort: M (build) or S (remove).
+- **No contextual help on KPIs** (§33) — "Pipeline Value" is a sum of contact values; no tooltip explains. "Churned" KPI delta=-2 without "vs prev 30d" label. — Effort: S.
+- **Export is toast-only** on CrmOverviewPage (crm-pages.tsx:56-61) — no real `exportToCsv`. — Effort: S.
+- **Contacts table is read-only** — No edit, add, delete, row actions. No "Add Contact" button. — Effort: M.
+- **CrmOverviewPage + CrmPipelinePage have NO EmptyState** — new tenant with 0 contacts → blank charts + blank stage cards. (§30 violation.) — Effort: S each.
+- **CrmPipelinePage stage cards not clickable** — should `navigate("crm-contacts", { stage: <stage> })` or filter Contacts table. Currently dead-end visualization. — Effort: S.
+- **Pipeline stages are hardcoded** — `["lead", "qualified", "opportunity", "customer", "churned"]` (line 41, 168). No admin UI to customize stages (rename, add, reorder, hide). — Effort: M.
+- **CrmContactsPage has no filters** (search only) — no stage Select, no owner Select, no source Select. — Effort: S.
+- **No URL-persisted filters** (§51). — Effort: M.
+- **No loading skeletons / no error boundaries** (§31, §32). — Effort: M.
+- **No terminology applied** to page headers. — Effort: M.
+- **Pipeline Widget (dashboard) duplicates Overview's Pipeline by Stage chart** — same BarSeries on both. Per §8 should differentiate or surface "View pipeline →" link. — Effort: S.
+
+## CROSS-TENANT GAPS
+- **Terminology not applied** — ZERO `makeTermResolver` calls in any of the 4 modules. Affiliate → "Partner"? Payout → "Disbursement"? Challenge → "Evaluation"? Tenant-alpha terminology overrides unused on all page headers. Sidebar adapts via `termKey` on nav parent (none declared for these 4 modules) but page headers don't call resolver. — Effort: M.
+- **4 of 4 dead-link Settings entries** — `settings-affiliates`, `settings-accounting`, `settings-marketing`, `settings-crm` all declared in module manifests but NONE registered in view-router.tsx. Clicking any in Settings page → "no view registered" error. Same bug class as `settings-payouts` / `settings-analytics` from prior analysis. — Effort: M (build all 4) or S (remove all 4 entries).
+- **Multi-currency accounting missing** — Affiliates uses tenant.currency for ALL amounts (commission earned, pending) but affiliate payouts may be in different currency (USD affiliate earning GBP commission). Accounting transactions have per-row `currency` (tenant-beta uses GBP) but no FX normalization view. Marketing uses tenant.currency for spend/revenue even though ad spend is often in USD with EUR/local conversions. CRM uses tenant.currency for contact value (least problematic — deal value is tenant-local). — Effort: L.
+- **Tenant-alpha (growth plan) gets EMPTY Affiliate/Marketing/CRM modules** — Mock data only includes affiliates/campaigns/contacts for tenant-beta + tenant-gamma (lines 856, 921, 946 of mock-data.ts). Alpha admin sees empty DataTables (with emptyTitle ✓ but blank Overview charts). Plus: these 4 modules are all `category: "growth"` or `advanced` but `optional: true` with NO `feature` flag — Alpha on growth plan shouldn't see them at all. — Effort: M (add FeatureGuard or plan gating).
+- **Locale not used** — All date formatting uses `toLocaleDateString()` / `toLocaleString()` without explicit locale. Tenant-beta `en-GB` with Europe/London tz shows browser-default. — Effort: M.
+- **No tenant-specific mock variation for Offers** — `getOffers()` returns 3 hardcoded offers with NO `tenantId` field on Offer interface. All tenants see the same 3 offers. — Effort: S (add tenantId field + scope).
+- **Cross-module links missing across all 4 modules**:
+  - Affiliate Commissions → Payouts: NO LINK (should surface "X pending affiliate payouts →" linking to payouts module filtered by source=affiliate).
+  - Marketing Campaign → CRM Contacts: NO LINK (campaign conversions should link to contacts who converted).
+  - CRM Contact → Trader Detail: NO LINK (contacts that converted to traders should link to trader-detail).
+  - Accounting Transaction → Payout: NO LINK (transaction.type === "payout" should link to corresponding payout record).
+  - Accounting Transaction → Affiliate: NO LINK (transaction.type === "commission" should link to the affiliate who earned the commission).
+  - OfferManagementPage → OfferEditPage: NO LINK (Edit buttons fire toast only — orphaned page).
+  - OfferManagementPage → OfferChangeHistoryPage: NO LINK (View Change History button fires toast only).
+- **Branding palette mostly applied** — Affiliates #a21caf ✓, Accounting #b45309 ✓, Marketing #db2777 ✓, CRM #0891b2 ✓. But chart series colors have Terra violations: TopAffiliatesWidget platinum tier `#7c3aed` violet, Marketing CHANNEL_COLORS paid-ads `#8b5cf6` violet.
+
+## UX GAPS
+
+### Empty states (§30)
+- **Affiliates**: OfferManagementPage ✓ emptyTitle/emptyDescription, OfferMatchingUsersPage ✓ EmptyState component, OfferChangeHistoryPage ✓ EmptyState. Affiliate-pages List/Campaigns/Commissions ✓ emptyTitle/emptyDescription. **AffiliatesOverviewPage NO empty state** — new tenant → blank chart + empty DataTable.
+- **Accounting**: TransactionsPage ✓ emptyTitle/emptyDescription, ReconciliationPage ✓ "Nothing to reconcile". **AccountingOverviewPage NO empty state**.
+- **Marketing**: MarketingCampaignsPage ✓ emptyTitle/emptyDescription. MarketingDashboardPage ✓ emptyTitle/emptyDescription on traders table. **MarketingOverviewPage + MarketingPerformancePage NO empty state**.
+- **CRM**: CrmContactsPage ✓ emptyTitle/emptyDescription. **CrmOverviewPage + CrmPipelinePage NO empty state**.
+
+### Loading states (§31)
+- ZERO loading skeletons in any of the 4 modules. All synchronous mock. When backend wires up, every page will flash empty. Same gap as payouts/analytics.
+
+### Error states (§32)
+- No page-level or widget-level error boundaries in any of the 4 modules. If one widget throws (e.g. chart library crash), the whole page errors.
+
+### Accessibility (§48)
+- **offer-edit-page.tsx:542, 551** — raw `<Input type="date">` for Start Date and End Date. Inconsistent with shadcn Calendar/DatePicker pattern. Same §48 violation class as daily-highlights-page.
+- **OfferManagementPage, OfferChangeHistoryPage, OfferMatchingUsersPage, MarketingDashboardPage** — use shadcn Select ✓.
+- **TopAffiliatesWidget rank badge** — color-only tier indication (bronze/silver/gold/platinum) without `role="img"` or text alternative for screen readers.
+- **CrmPipelinePage stage cards** — color conveys stage identity without `role="img"` or text alternative.
+- **MarketingDashboardPage top traders Crown icon** for rank 1 — decorative, no `aria-label`.
+
+### Filter combinations (§26)
+- **Strong**: OfferManagementPage (search + status filter + sort), OfferMatchingUsersPage (search + pagination + sort), OfferChangeHistoryPage (search + action filter + sort), MarketingDashboardPage (search + week range + sort).
+- **Medium**: TransactionsPage (search only — no status/type/date filters), ReconciliationPage (search only), MarketingCampaignsPage (search only), CrmContactsPage (search only).
+- **Weak/None**: AffiliateCampaignsPage (search only), AffiliateCommissionsPage (search only), AccountingOverviewPage (no filters), MarketingOverviewPage (no filters), MarketingPerformancePage (no filters), CrmOverviewPage (no filters), CrmPipelinePage (no filters).
+
+### Cross-references / navigation
+- **Offer Management → Offer Edit**: NO NAVIGATE CALL — "Edit Offer" buttons fire toast only (offer-management-page.tsx:143 + 267). The Offer Edit page exists but is orphaned from the table. — CRITICAL bug.
+- **Offer Management → Change History**: NO LINK (only inside OfferDetailPanel "View Change History" button fires toast — offer-management-page.tsx:136).
+- **Offer Edit → Matching Users / Change History**: ✓ navigate() called (offer-edit-page.tsx:408, 416).
+- **Offer Matching Users → Trader Detail**: ✓ navigate() called (offer-matching-users-page.tsx:220).
+- **Affiliate Commissions → Payouts**: NO LINK.
+- **Marketing Campaign → CRM Contact**: NO LINK.
+- **MarketingDashboardPage top trader → trader-detail**: NO LINK (row click does nothing).
+- **CRM Contact → Trader Detail**: NO LINK (no row action).
+- **CRM Pipeline stage → Contacts filtered**: NO LINK (clicking stage card does nothing).
+- **Accounting Transaction → Payout / Affiliate**: NO LINK.
+- **Affiliate Overview chart → drill-down**: NO LINK (chart not clickable).
+
+### Bulk actions (§26)
+- **None** in any of the 4 modules. Affiliates list, Campaigns list, Commissions list, Transactions list, Reconciliation pending list, Marketing Campaigns list, CRM Contacts list — all bare DataTables without selection. Reconciliation "Reconcile" is single-row only — should support batch reconcile. CRM Contacts should support bulk stage-update. Affiliate list should support bulk status change.
+
+### Export/print
+- **Real `exportToCsv`**: TransactionsPage ✓, OfferChangeHistoryPage ✓ (handcrafted CSV Blob).
+- **Toast-only (fake)**: AffiliatesOverviewPage Export (affiliate-pages.tsx:48-52), MarketingOverviewPage Export (marketing-pages.tsx:63), MarketingDashboardPage Export CSV (line 204-209), CrmOverviewPage Export (crm-pages.tsx:56-61).
+- **No export**: All other pages (AffiliateCampaigns, AffiliateCommissions, OfferManagement, OfferMatchingUsers, Reconciliation, MarketingCampaigns, MarketingPerformance, CrmContacts, CrmPipeline).
+
+### Visual hierarchy (§41)
+- **AffiliatesOverviewPage 4 KPI cards equal weight** — no "primary" highlight. Spec §23 One Primary Action — if pending commissions > 0, should highlight "Pending Payout".
+- **MarketingOverviewPage 5 KPI cards** — ROI KPI has `tone={roi >= 0 ? "positive" : "negative"}` ✓ (best of the 4 modules).
+- **CrmOverviewPage 5 KPI cards** — Churned KPI correctly `tone="negative"` ✓.
+- **AccountingOverviewPage 4 KPI cards** — Revenue `tone="positive"` ✓, Payouts `tone="negative"` ✓, Fees `tone="warning"` ✓, Net conditional ✓. But **NO deltas** — weakest KPI hierarchy of the 4 modules.
+
+### Animation (§68)
+- Appropriate. Recharts default animations on AreaSeries/BarSeries/DonutSeries (subtle). No fake real-time indicators (§67 ✓).
+
+### Help / Education (§33)
+- **Strong**: offer-edit-page.tsx — 6 LabelWithHelp tooltips (Display Order, Offer Image, Coupon Code, Discount %, Offer URL, segment fields). Best-in-class for these 4 modules.
+- **Strong**: offer-change-history-page.tsx — "Showing X of Y total" header explains filter context.
+- **Weak**: affiliate-pages.tsx (all 4 pages), accounting-pages.tsx (all 3 pages), marketing-pages.tsx (all 3 pages), marketing-dashboard-page.tsx, crm-pages.tsx — ZERO `LabelWithHelp` or `ⓘ` tooltips. "ROI", "Net", "Pipeline Value", "Avg Ticket", "Reconciliation Rate", "Best Trade", "Logged In Users" — none have explanations.
+
+### Destructive actions (§24)
+- **Strong**: OfferEditPage Delete — AlertDialog with consequence text + permanent removal warning + coupon redemption impact (✓ best-in-class for these 4 modules).
+- **Weak**: Reconciliation "Reconcile" button — plain Button + toast, no confirmation, no audit-trail entry. Affects the books; should at least log actor + timestamp.
+- **Acceptable**: OfferManagementPage "Add Offer" / "Edit" buttons — non-destructive (toast demo only).
+
+### First-time experience (§34)
+- **No onboarding** on any Overview page for a new tenant with 0 data. Should say "Welcome — once you onboard affiliates / record transactions / launch campaigns / capture leads, KPIs will populate here".
+- **No first-time tooltip** on Offer Edit page's DualListBox explaining the add/remove flow.
+- **No first-time tooltip** on CRM Pipeline explaining the stage progression.
+- **No first-time tooltip** on Reconciliation explaining the bank-statement match workflow.
+
+## TOP PRIORITY ACTIONS (ordered)
+
+1. **HIGHEST** — Fix `MarketingDashboardPage` dead filter bug (`marketing-dashboard-page.tsx:131` — `|| true` makes the week-range filter a no-op). Either implement the filter properly (filter traders by `joinedAt` ≥ cutoff) or remove the dead `|| true` and show "no traders in range" EmptyState. — Effort: S.
+
+2. **HIGHEST** — Fix `OfferManagementPage` dead-link buttons: "Edit Offer" buttons (offer-management-page.tsx:143 + 267) and "View Change History" button (line 136) fire toast only; should `navigate("offer-edit", { id: o.id })` and `navigate("offer-change-history", { id: o.id })`. The Offer Edit and Offer Change History pages exist but aren't reachable from the table — orphaned pages. — Effort: S.
+
+3. **HIGHEST** — Fix the 4 dead-link Settings entries (`settings-affiliates`, `settings-accounting`, `settings-marketing`, `settings-crm`). Either build settings pages for each module or remove the `settings` array from each manifest. Same bug class as `settings-payouts` / `settings-analytics` from prior analysis. — Effort: M (build all 4) or S (remove all 4 entries).
+
+4. **HIGHEST** — Fix Terra palette violations: `affiliate-widgets.tsx:14` `platinum: "#7c3aed"` (violet) → use `#475569` (slate) or `#a21caf` (fuchsia); `affiliate-widgets.tsx:63` `bg-violet-100 text-violet-600` rank badge → use fuchsia or slate; `marketing/widgets/marketing-widgets.tsx:22` + `marketing/pages/marketing-pages.tsx:24` `CHANNEL_COLORS["paid-ads"] = "#8b5cf6"` (violet) → use `#c2410c` (orange) or `#92400e` (amber-800). — Effort: S each.
+
+5. **HIGH** — Wire real `exportToCsv` to AffiliatesOverviewPage Export (affiliate-pages.tsx:48-52), MarketingOverviewPage Export (marketing-pages.tsx:63), MarketingDashboardPage Export CSV (marketing-dashboard-page.tsx:204-209), CrmOverviewPage Export (crm-pages.tsx:56-61). Currently all toast-only. Use `exportToCsv` helper like TransactionsPage. — Effort: S each.
+
+6. **HIGH** — Add EmptyState to (a) AffiliatesOverviewPage, (b) AccountingOverviewPage, (c) MarketingOverviewPage, (d) MarketingPerformancePage, (e) CrmOverviewPage, (f) CrmPipelinePage. New tenant → blank charts. (§30 violation.) — Effort: S each.
+
+7. **HIGH** — Build CRM Contact detail drawer (§27 — spec #5). Clicking a contact should open a drawer with history, notes, tasks, deals, communications. Currently row click does nothing — Contacts table is a dead-end list. — Effort: M.
+
+8. **HIGH** — Build CRM kanban-style pipeline (spec #3). Currently only stage-flow cards + BarSeries; no drag-and-drop board for moving contacts between stages. — Effort: M.
+
+9. **HIGH** — Build Affiliate Commissions → Payouts cross-link (spec #10). Commissions page should surface "X pending affiliate payouts →" linking to payouts module filtered by source=affiliate. Also add Accounting Transaction (type=payout) → Payouts record link, and Transaction (type=commission) → Affiliate record link. — Effort: M.
+
+10. **HIGH** — Build CRM bulk import/export contacts (CSV) (spec #10) + bulk stage-update. Currently Contacts is read-only with no row actions, no Add Contact button. — Effort: M.
+
+11. **HIGH** — Add filters to TransactionsPage (status Select, type Select, date range, account Select) — currently only search. Mirror offer-change-history-page filter bar pattern. Also add to MarketingCampaignsPage (status Select, channel Select) + CrmContactsPage (stage Select, owner Select, source Select) + AffiliateCampaignsPage (status Select, affiliate Select) + AffiliateCommissionsPage (tier Select, status Select). — Effort: S each.
+
+12. **HIGH** — Build Accounting Invoices module (spec #4 — generate, send, track). Currently ZERO invoice UI. Includes invoice list, create form, PDF generation, email integration. — Effort: L.
+
+13. **HIGH** — Build Accounting reconciliation bank-statement import + discrepancy detection (spec #3). Currently manual single-row "Reconcile" only. Should support CSV upload, auto-match, side-by-side ledger-vs-bank view, discrepancy flagging. — Effort: L.
+
+14. **HIGH** — Add AlertDialog friction to Reconciliation "Reconcile" button (§24 — single-row is reversible but should log actor + timestamp). Add bulk reconcile (batch select + Reconcile Selected) mirroring enhanced-withdrawals-page pattern. — Effort: S each.
+
+15. **HIGH** — Add CTR / CPC / CPA derived columns to Marketing Campaigns table (spec #2 — currently has Impressions, Clicks, Conversions but no derived metrics). Also add MarketingCampaignsPage row actions (edit, pause, duplicate, view). — Effort: S (columns) / M (actions).
+
+16. **MEDIUM** — Build Affiliate Offer Edit's affiliate-commission config (commission %, bonus, min payout, conversion criteria — spec #6). Currently offer-edit-page only has discountPct + dates + popup + URL; no commission/payout structure for affiliates. — Effort: M.
+
+17. **MEDIUM** — Build Affiliate link tracking page (spec #13 — clicks/conversions per unique affiliate link). — Effort: M.
+
+18. **MEDIUM** — Build Affiliate payout schedule view (spec #10) + Affiliate public dashboard widget / white-label portal (spec #9). — Effort: M (schedule) + L (portal).
+
+19. **MEDIUM** — Build Marketing email campaigns module (templates, send, open rate, click rate — spec #5). Email templates exist in mock-data.ts but no Marketing page surfaces them. — Effort: L.
+
+20. **MEDIUM** — Build Marketing attribution reports (first-click, last-click, multi-touch — spec #10). — Effort: L.
+
+21. **MEDIUM** — Build Marketing A/B test results page (spec #9) + Marketing budget planner (spec #11) + Cohort marketing performance (spec #12). — Effort: M (each).
+
+22. **MEDIUM** — Build CRM lead scoring model (spec #4) + Tasks & reminders (spec #9) + Custom fields management (spec #11) + Deal tracking (spec #8). — Effort: M (each, except Deal tracking L).
+
+23. **MEDIUM** — Build Accounting P&L statement + Balance sheet + Chart of accounts + Tax reports (VAT, sales tax) (spec #5-8). — Effort: L (multi-page).
+
+24. **MEDIUM** — Add `deltaLabel` to all KPIs with deltas (§9). Affiliates Overview `delta={6}` / `delta={11}` without "vs prev 30d". Marketing Overview `delta={6}` without label. CRM Overview `delta={5}` without label. Accounting Overview has NO deltas at all (add them with labels). — Effort: S each.
+
+25. **MEDIUM** — Add contextual help (§33) — LabelWithHelp on KPIs across all 4 modules. "ROI" / "Net" / "Pipeline Value" / "Avg Ticket" / "Reconciliation Rate" / "Best Trade" / "Logged In Users" — none have explanations. — Effort: S each.
+
+26. **MEDIUM** — Add page-level ErrorBoundary + loading skeletons to every page in the 4 modules (§31, §32 violations). — Effort: M.
+
+27. **MEDIUM** — Add URL-persisted filters to all filtered pages (§51). OfferManagement status filter, OfferChangeHistory action filter, OfferMatchingUsers pagination, MarketingDashboard week range + search, all DataTable searches. Refresh loses context. — Effort: M.
+
+28. **MEDIUM** — Add `makeTermResolver` to all page headers (§54/§55). Tenant terminology might want payout → "Disbursement", challenge → "Evaluation", affiliate → "Partner". Sidebar adapts via `termKey` on nav parent (none declared for these 4 modules — add to manifests). — Effort: M.
+
+29. **MEDIUM** — Fix MarketingDashboardPage footer copy (line 470-473) — currently claims "Trading pair volume and buy/sell ratios are aggregated from open and closed positions" but topPairs are 100% synthetic mock. Either derive from positions data or reword to "synthetic sample for demo". Also derive "Best Trade" from positions instead of hardcoded 4250. — Effort: S.
+
+30. **MEDIUM** — Fix manifest data inconsistency in `marketing/manifest.ts` — 4 nav children (Overview/Campaigns/Performance/Dashboard) but only 3 routes (missing `marketing-dashboard` route entry). Add the missing RouteDefinition. — Effort: S.
+
+31. **MEDIUM** — Fix duplicate charts across Marketing Overview + Performance ("Spend by Channel" DonutSeries appears on both — violates §8 Dashboard Density Rule). Performance page should add unique breakdowns (by source, by attribution model), not duplicate Overview. — Effort: M.
+
+32. **MEDIUM** — Add MarketingPerformancePage KPIs (currently pure 3-chart page with no summary metrics). At minimum: Top Channel by ROI, Avg CPC, Avg CPA, Avg CTR. — Effort: S.
+
+33. **MEDIUM** — Replace raw `<Input type="date">` in `offer-edit-page.tsx:542, 551` with shadcn Calendar/DatePicker (§48 accessibility consistency). — Effort: S.
+
+34. **MEDIUM** — Add stage-card click navigation on CrmPipelinePage → filter Contacts table by stage (`navigate("crm-contacts", { stage })`). Currently dead-end visualization. — Effort: S.
+
+35. **MEDIUM** — Add tenantId field to `Offer` interface + scope `getOffers()` by tenant (currently 3 hardcoded offers shared across all tenants — multi-tenant demo looks identical). — Effort: S.
+
+36. **LOW** — Add cross-module links: Marketing Campaign → CRM Contacts (converted leads); CRM Contact → Trader Detail (if contact became a trader); Affiliate Campaign → CRM Contacts (signups from campaign); Offer Matching Users already links to trader-detail ✓. — Effort: M.
+
+37. **LOW** — Add plan gating to all 4 modules. Alpha (growth plan) shouldn't see Affiliates/Marketing/CRM/Accounting (these are scale+enterprise). Add `feature: "growth.marketing"` flag and gate via FeatureGuard. Currently `optional: true` with no feature flag — visible to any tenant with module enabled. — Effort: M.
+
+38. **LOW** — Make TopAffiliatesWidget rank badge accessible (color-only tier indication lacks `role="img"` + `aria-label`). Same for CrmPipelinePage stage cards (color conveys stage identity). — Effort: S each.
+
+39. **LOW** — Add multi-currency normalization to Accounting (transactions have per-row currency but no FX view) and to Marketing (ad spend often in USD with EUR/local conversions). — Effort: L.
+
+40. **LOW** — Make `affiliateCampaigns` mock filterable by affiliate (currently flat array sliced 0-12 — no per-affiliate drill-down). Add Affiliate detail drawer showing all campaigns for one affiliate. — Effort: M.
+
+## Summary
+- **4 modules, 18 files analyzed, 0 lint errors introduced (read-only analysis)**.
+- **Affiliates**: 8 pages (best of the 4 modules — Offer Edit is best-in-class for UX Constitution §12, §24, §27, §33), 3 widgets, 4 permissions. Critical gap: orphaned Offer Edit page from Offer Management table (toast-only buttons).
+- **Accounting**: 3 pages, 3 widgets, 2 permissions. Best `exportToCsv` of the 4 modules. Weakest KPI hierarchy (no deltas). Missing 7 spec items entirely (invoices, tax, P&L, balance sheet, COA, expense categories, multi-currency).
+- **Marketing**: 4 pages, 3 widgets, 2 permissions. Critical bug: dead `|| true` filter on MarketingDashboardPage makes week-range selector a no-op. Critical bug: misleading footer copy. Terra palette violation in CHANNEL_COLORS. Manifest data inconsistency (4 nav vs 3 routes).
+- **CRM**: 3 pages, 2 widgets, 2 permissions. Critical gap: Contacts table is a dead-end list — no contact detail drawer, no Add button, no row actions. No kanban. Missing 9 spec items (lead scoring, contact detail, email integration, activity timeline, deal tracking, tasks, bulk import, custom fields).
+- **All 4 modules**: ZERO `makeTermResolver` usage, ZERO loading skeletons, ZERO error boundaries, 4 dead-link Settings entries, weak contextual help (only offer-edit-page has it), toast-only exports on 4 of 5 Export buttons.
+
+Stage Summary: Read-only deep analysis of Affiliates + Accounting + Marketing + CRM modules. 4 CRITICAL bugs found (MarketingDashboard dead filter, OfferManagement orphaned Edit/Change-History buttons, 4 dead-link Settings entries, Terra palette violations in 2 modules). 40 ordered priority actions documented. No code changes made. Lead can dispatch follow-up tasks for the HIGHEST-priority fixes (items 1-4) — each is effort S and can be parallelized.
+
+---
+
+## Task ID: analysis-kyc-sup-ai
+**Agent:** Explore (deep module analysis)

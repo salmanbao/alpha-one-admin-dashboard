@@ -6,7 +6,7 @@
  * platform users, roles, global feature flags, billing, audit, health.
  */
 
-import { Building2, Server, Package, BarChart3, ShieldCheck, Plus, GitBranch, UserCog, LayoutDashboard } from "lucide-react";
+import { Building2, Server, Package, BarChart3, ShieldCheck, Plus, GitBranch, UserCog, LayoutDashboard, ScrollText } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
 const navigation: NavigationItem[] = [
@@ -24,6 +24,7 @@ const navigation: NavigationItem[] = [
       { id: "super.catalog", label: "Service Catalog", href: "module-catalog", icon: Package, application: ["super-admin"] },
       { id: "super.health", label: "System Health", href: "platform-health", icon: Server, application: ["super-admin"] },
       { id: "super.dashboard-manager", label: "Dashboard Manager", href: "dashboard-manager", icon: LayoutDashboard, application: ["super-admin"] },
+      { id: "super.platform-audit", label: "Platform Audit", href: "platform-audit", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 65 },
     ],
   },
 ];
@@ -37,6 +38,7 @@ const routes: RouteDefinition[] = [
   { path: "module-catalog", viewId: "module-catalog", label: "Service Catalog", application: ["super-admin"] },
   { path: "platform-health", viewId: "platform-health", label: "System Health", application: ["super-admin"] },
   { path: "dashboard-manager", viewId: "dashboard-manager", label: "Dashboard Manager", application: ["super-admin"] },
+  { path: "platform-audit", viewId: "platform-audit", label: "Platform Audit Log", application: ["super-admin"], permission: "platform.audit.read" },
 ];
 
 export const superAdminModule: FrontendModule = {
@@ -50,8 +52,12 @@ export const superAdminModule: FrontendModule = {
     permissions: [
       { id: "platform.tenants.read", label: "View tenants" },
       { id: "platform.tenants.manage", label: "Manage tenants" },
+      { id: "platform.tenants.impersonate", label: "Impersonate Tenant", description: "Login-as any tenant admin" },
+      { id: "platform.tenants.export", label: "Export Tenant Data", description: "Bulk-export tenant configuration and data" },
       { id: "platform.modules.manage", label: "Manage module catalog" },
       { id: "platform.health.read", label: "View system health" },
+      { id: "platform.audit.read", label: "Read Platform Audit", description: "Cross-tenant audit log access" },
+      { id: "platform.billing.manage", label: "Manage Billing", description: "View invoices, update payment methods, manage plans" },
     ],
     icon: ShieldCheck,
     accentColor: "#0a0a0a",

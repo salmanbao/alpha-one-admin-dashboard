@@ -98,6 +98,8 @@ import {
   Building2,
   CheckCircle2,
   TrendingUp,
+  LogIn,
+  Shield,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -129,7 +131,7 @@ const tenantStatusTone = (s: string) =>
 /* ------------------------------------------------------------------ */
 
 export function TenantDetailPage() {
-  const { router, navigate, availableTenants, setTenant, pushNotification } = usePlatform();
+  const { router, navigate, availableTenants, setTenant, pushNotification, user } = usePlatform();
   const tenantId = router.params.id;
 
   const foundTenant = useMemo(
@@ -166,6 +168,14 @@ export function TenantDetailPage() {
     () => (localTenant ? getTenantAudit(localTenant.id).slice(0, 12) : []),
     [localTenant],
   );
+
+  // Controlled tab state so the "Edit Configuration" header button can
+  // programmatically switch to the Configuration tab (previously the
+  // button called `navigate("tenant-config", { id })` — a viewId that
+  // doesn't exist in the view-router, producing a "View not found"
+  // fallback. The Configuration tab IS on this page; switching the
+  // active tab is the correct action.)
+  const [activeTab, setActiveTab] = useState<string>("overview");
 
   if (!localTenant) {
     return (
@@ -242,10 +252,65 @@ export function TenantDetailPage() {
         }
         actions={
           <>
+            {/* Login-as / impersonate — privileged action with audit-trail
+             * notice (§22 Contextual Actions + §24 friction proportional
+             * to consequences). The AlertDialog spells out exactly what
+             * changes: the operator's session switches into this tenant's
+             * workspace, all subsequent actions are flagged as
+             * impersonated in the audit trail, and the return path is
+             * the topbar tenant switcher.
+             */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <LogIn className="mr-1 h-4 w-4" />Login as
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Impersonate this tenant?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You will be switched into the <strong>{localTenant.name}</strong> workspace with their branding, modules, and permissions. All actions you take will be logged with an “impersonated by” flag in the audit trail. To return to the platform admin view, use the tenant switcher in the topbar.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs dark:border-amber-900 dark:bg-amber-950/20">
+                  <div className="flex items-start gap-2">
+                    <Shield className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <div>
+                      <div className="font-medium text-amber-900 dark:text-amber-100">Audit-trail notice</div>
+                      <div className="mt-0.5 text-amber-800 dark:text-amber-200">
+                        Your session is being impersonated by platform admin <strong>{user.name}</strong>. All actions are attributed to <strong>{localTenant.name}</strong> but flagged as impersonated.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      setTenant(localTenant);
+                      pushNotification({
+                        title: `Impersonating ${localTenant.name}`,
+                        message: `Platform admin ${user.name} switched into ${localTenant.name}. Use the tenant switcher in the topbar to return.`,
+                        severity: "warning",
+                        module: "super-admin",
+                      });
+                      toast({
+                        title: `Now viewing as ${localTenant.name}`,
+                        description: "Use the tenant switcher in topbar to return to platform admin view.",
+                      });
+                    }}
+                  >
+                    <LogIn className="mr-1 h-4 w-4" />Switch to {localTenant.name}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
             <Button
               size="sm"
               variant="outline"
-              onClick={() => navigate("tenant-config", { id: localTenant.id })}
+              onClick={() => setActiveTab("configuration")}
             >
               <SettingsIcon className="mr-1 h-4 w-4" />Edit Configuration
             </Button>
@@ -352,7 +417,7 @@ export function TenantDetailPage() {
         />
       </div>
 
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="flex flex-wrap justify-start">
           <TabsTrigger value="overview" className="gap-1"><Activity className="h-3 w-3" />Overview</TabsTrigger>
           <TabsTrigger value="modules" className="gap-1"><Package className="h-3 w-3" />Modules</TabsTrigger>

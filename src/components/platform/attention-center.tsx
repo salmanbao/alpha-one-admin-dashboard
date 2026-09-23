@@ -22,11 +22,13 @@ import {
   Info,
   ChevronRight,
   ShieldAlert,
+  ShieldCheck,
   Wallet,
   Users,
   FileCheck,
   CheckCircle2,
   ArrowRight,
+  History,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
@@ -38,6 +40,9 @@ import {
   getTenantAiInsights,
   getTenantTraders,
   getTenantAccounts,
+  getTenantAudit,
+  getUserEvents,
+  getTenantChallenges,
 } from "@/lib/platform/mock-data";
 
 interface AttentionItem {
@@ -288,6 +293,114 @@ function buildAttentionGroups(tid: string, enabledModules: string[]): AttentionG
         icon: Info,
         navigateTo: "challenges-passed",
         navigateLabel: "View",
+      });
+    }
+  }
+
+  // Action Required: unresolved critical-severity audit alerts.
+  // Critical entries in the audit log flag actions that broke policy or
+  // compliance (e.g. forced KYC approval, manual payout override). Zero
+  // critical entries → return null (don't show a 0-count alert, §11).
+  if (has("audit")) {
+    const critical = getTenantAudit(tid).filter((a) => a.severity === "critical");
+    if (critical.length > 0) {
+      actionItems.push({
+        id: "audit-critical-alerts",
+        title: "Unresolved audit alerts",
+        detail: `${critical.length} critical-severity entries in the audit log`,
+        count: critical.length,
+        icon: ShieldAlert,
+        navigateTo: "audit",
+        navigateLabel: "Review audit log",
+      });
+    }
+  }
+
+  // Action Required: at-risk accounts with open critical breaches.
+  // Distinct from the "Open breaches" warning card above — this surfaces
+  // only the accounts that breached a CRITICAL-severity rule, which the
+  // operator must triage before payout-cycle. Suppress when count is 0.
+  if (has("risk")) {
+    const atRiskCritical = getTenantBreaches(tid).filter(
+      (b) => b.status === "open" && b.severity === "critical",
+    );
+    if (atRiskCritical.length > 0) {
+      actionItems.push({
+        id: "risk-at-risk-accounts",
+        title: "At-risk accounts need review",
+        detail: `${atRiskCritical.length} accounts have open critical breaches requiring triage`,
+        count: atRiskCritical.length,
+        icon: ShieldAlert,
+        navigateTo: "risk",
+        navigateLabel: "Review risk",
+      });
+    }
+  }
+
+  // Action Required: payouts stuck in approval for more than 24h.
+  // Distinct signal from the "Payout approvals waiting" total — surfaces
+  // aging requests that breach the operator's processing SLA. Suppress
+  // when count is 0 (§11 — never show 0-count cards).
+  if (has("payouts")) {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const stuck = getTenantPayouts(tid).filter(
+      (p) => p.status === "pending" && new Date(p.createdAt).getTime() < cutoff,
+    );
+    if (stuck.length > 0) {
+      actionItems.push({
+        id: "payouts-stuck-approval",
+        title: "Payouts stuck in approval",
+        detail: `${stuck.length} payout requests waiting more than 24 hours`,
+        count: stuck.length,
+        icon: Wallet,
+        navigateTo: "payouts-pending",
+        navigateLabel: "Clear queue",
+      });
+    }
+  }
+
+  // Warnings: failed login attempts in last 24h.
+  // The UserEvent stream may carry `LOGIN` events but no explicit
+  // `LOGIN_FAILED` type — in that case the count is 0 and the entry is
+  // suppressed (per §11 — never show 0-count warning cards).
+  if (has("audit")) {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const failed = getUserEvents(200).filter(
+      (e) =>
+        (e.eventType as string) === "LOGIN" &&
+        e.description.toLowerCase().includes("fail") &&
+        new Date(e.timestamp).getTime() >= cutoff,
+    );
+    if (failed.length > 0) {
+      warningItems.push({
+        id: "audit-failed-logins",
+        title: "Failed login attempts",
+        detail: `${failed.length} failed login attempts in the last 24 hours`,
+        count: failed.length,
+        icon: ShieldCheck,
+        navigateTo: "audit-user-events",
+        navigateLabel: "Investigate",
+      });
+    }
+  }
+
+  // Warnings: challenges failed this week.
+  // Surfaces failed evaluations so operators can spot rule-tightening
+  // opportunities or trader-quality dips. Suppress when count is 0 (§11).
+  if (has("challenges")) {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const failed = getTenantChallenges(tid).filter(
+      (c) => c.status === "failed" && new Date(c.createdAt).getTime() >= cutoff,
+    );
+    if (failed.length > 0) {
+      warningItems.push({
+        id: "challenges-failed-this-week",
+        title: "Challenges failed this week",
+        detail: `${failed.length} evaluations ended in failure in the last 7 days`,
+        count: failed.length,
+        icon: AlertTriangle,
+        navigateTo: "challenges-failed",
+        navigateLabel: "Review failures",
       });
     }
   }

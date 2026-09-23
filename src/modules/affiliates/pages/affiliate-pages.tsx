@@ -1,7 +1,9 @@
 "use client";
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver } from "@/lib/platform/terminology";
 import { getTenantAffiliates, affiliateCampaigns, type Affiliate, type AffiliateCampaign } from "@/lib/platform/mock-data";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, campaignStatusTone, formatCurrency, formatCompact } from "@/components/platform/status";
@@ -26,7 +28,8 @@ function affiliateStatusTone(status: string) {
 /* ---------------------------------------------------------------- */
 
 export function AffiliatesOverviewPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   const aff = getTenantAffiliates(tid);
@@ -35,17 +38,36 @@ export function AffiliatesOverviewPage() {
   const earned = aff.reduce((s, a) => s + a.commissionEarned, 0);
   const campaigns = affiliateCampaigns.filter((c) => c.tenantId === tid).slice(0, 5);
 
+  const handleExport = () => {
+    exportToCsv(
+      aff,
+      [
+        { key: "name", header: "Affiliate", value: (a) => a.name },
+        { key: "email", header: "Email", value: (a) => a.email },
+        { key: "code", header: "Code", value: (a) => a.code },
+        { key: "tier", header: "Tier", value: (a) => a.tier },
+        { key: "referrals", header: "Referrals", value: (a) => a.referrals },
+        { key: "activeReferrals", header: "Active Referrals", value: (a) => a.activeReferrals },
+        { key: "conversions", header: "Conversions", value: (a) => a.conversions },
+        { key: "commissionEarned", header: "Commission Earned", value: (a) => a.commissionEarned },
+        { key: "commissionPending", header: "Commission Pending", value: (a) => a.commissionPending },
+        { key: "status", header: "Status", value: (a) => a.status },
+      ],
+      `affiliates-overview-${Date.now()}.csv`,
+    );
+  };
+
   return (
     <Page>
       <PageHeader
         title="Affiliates"
-        description="Affiliate partners, campaigns, and commission performance."
+        description={`Affiliate partners, campaigns, and commission performance for this ${term("trader").toLowerCase()} tenant.`}
         icon={Megaphone}
         actions={
           <Button
             size="sm"
             variant="outline"
-            onClick={() => toast({ title: "Export started", description: "Affiliate report generating (demo)." })}
+            onClick={handleExport}
           >
             <Download className="mr-1 h-4 w-4" /> Export
           </Button>

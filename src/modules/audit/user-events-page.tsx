@@ -15,6 +15,7 @@ import { getUserEvents, type UserEvent } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge } from "@/components/platform/status";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import {
   Activity,
   UserPlus,
@@ -29,7 +30,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 type EventTone = "default" | "success" | "warning" | "danger" | "info" | "muted";
@@ -154,10 +154,18 @@ export function UserEventsPage() {
   ];
 
   const exportCsv = () => {
-    toast({
-      title: "Export started",
-      description: `Exporting ${filtered.length} user events as CSV.`,
-    });
+    exportToCsv<UserEvent>(
+      filtered,
+      [
+        { key: "id", header: "Event ID", value: (e) => e.id },
+        { key: "timestamp", header: "Timestamp", value: (e) => e.timestamp },
+        { key: "userEmail", header: "User Email", value: (e) => e.userEmail },
+        { key: "accountId", header: "Account ID", value: (e) => e.accountId },
+        { key: "eventType", header: "Event Type", value: (e) => e.eventType },
+        { key: "description", header: "Description", value: (e) => e.description },
+      ],
+      `user-events-${Date.now()}.csv`,
+    );
   };
 
   return (

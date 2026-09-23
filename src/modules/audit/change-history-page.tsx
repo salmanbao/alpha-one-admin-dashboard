@@ -21,6 +21,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { exportToCsv } from "@/lib/platform/export-utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Sheet,
   SheetContent,
@@ -142,10 +154,21 @@ export function ChangeHistoryPage() {
   ];
 
   const exportCsv = () => {
-    toast({
-      title: "Export started",
-      description: `Exporting ${filtered.length} change-history entries as CSV.`,
-    });
+    exportToCsv<ChangeHistoryEntry>(
+      filtered,
+      [
+        { key: "id", header: "Change ID", value: (c) => c.id },
+        { key: "timestamp", header: "Timestamp", value: (c) => c.timestamp },
+        { key: "actor", header: "Actor", value: (c) => c.actor },
+        { key: "entityType", header: "Entity Type", value: (c) => c.entityType },
+        { key: "entityId", header: "Entity ID", value: (c) => c.entityId },
+        { key: "field", header: "Field Changed", value: (c) => c.field },
+        { key: "oldValue", header: "Old Value", value: (c) => c.oldValue },
+        { key: "newValue", header: "New Value", value: (c) => c.newValue },
+        { key: "reason", header: "Reason", value: (c) => c.reason },
+      ],
+      `change-history-${Date.now()}.csv`,
+    );
   };
 
   return (
@@ -285,14 +308,41 @@ export function ChangeHistoryPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => toast({ title: "Rollback queued", description: `Reverting ${selected.field} to ${selected.oldValue}.` })}
-                    >
-                      Roll back to old value
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          Roll back to old value
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Roll back this change?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This change will be rolled back to the previous
+                            state. Any dependent configurations may be
+                            affected. This action is logged in the audit trail.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => {
+                              toast({
+                                title: "Rollback queued",
+                                description: `Reverting ${selected.field} to ${selected.oldValue}.`,
+                              });
+                              setSelected(null);
+                            }}
+                          >
+                            Roll back
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               </>

@@ -15,6 +15,7 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import {
   getChallengeTypes,
   getChallengePhaseConfigs,
+  hashStr,
   type ChallengeType,
   type ChallengePhaseConfig,
 } from "@/lib/platform/mock-data";
@@ -149,6 +150,7 @@ function PhaseConfigCard({
             <AdvancedSection
               title="Trading Rules"
               icon={ShieldCheck}
+              typeId={challengeType?.id ?? phase.challengeTypeId}
               rows={[
                 { label: "News Trading", type: "toggle", help: "Allow trading during high-impact news events. Default is to block new positions during news windows." },
                 { label: "Hold Over Weekend", type: "toggle", help: "Permit holding positions over the weekend. Default disabled for evaluation phases." },
@@ -158,6 +160,7 @@ function PhaseConfigCard({
             <AdvancedSection
               title="News Trading"
               icon={Newspaper}
+              typeId={challengeType?.id ?? phase.challengeTypeId}
               rows={[
                 { label: "Block NFP", type: "toggle", help: "Block new trades during Non-Farm Payrolls releases." },
                 { label: "Block FOMC", type: "toggle", help: "Block new trades during Federal Open Market Committee statements." },
@@ -167,6 +170,7 @@ function PhaseConfigCard({
             <AdvancedSection
               title="Weekend Rules"
               icon={CalendarDays}
+              typeId={challengeType?.id ?? phase.challengeTypeId}
               rows={[
                 { label: "Close on Friday", type: "toggle", help: "Automatically close open positions at end of trading week (Friday 17:00 server time)." },
                 { label: "Friday Cutoff (HH:MM)", type: "input", help: "Server time at which new positions cannot be opened on Fridays.", value: "17:00" },
@@ -175,6 +179,7 @@ function PhaseConfigCard({
             <AdvancedSection
               title="Other Limits"
               icon={Settings2}
+              typeId={challengeType?.id ?? phase.challengeTypeId}
               rows={[
                 { label: "Max Daily Trades", type: "input", help: "Maximum number of new positions permitted per trading day (0 = unlimited).", value: "0" },
                 { label: "Max Lot Size", type: "input", help: "Maximum aggregate lot size per position.", value: "5" },
@@ -191,10 +196,12 @@ function PhaseConfigCard({
 function AdvancedSection({
   title,
   icon: Icon,
+  typeId,
   rows,
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
+  typeId: string;
   rows: Array<
     | { label: string; type: "toggle"; help: React.ReactNode }
     | { label: string; type: "input"; help: React.ReactNode; value: string }
@@ -213,7 +220,15 @@ function AdvancedSection({
               <span className="text-xs text-muted-foreground">{r.label}</span>
             </LabelWithHelp>
             {r.type === "toggle" ? (
-              <Switch defaultChecked={r.label === "Require Stop-Loss" ? false : Math.random() > 0.4} />
+              <Switch
+                defaultChecked={
+                  r.label === "Require Stop-Loss"
+                    ? false
+                    : // Deterministic per (challengeTypeId + toggle label) —
+                      // stable across reloads, replaces Math.random() drift.
+                      hashStr(`${typeId}-${r.label}`) % 10 > 4
+                }
+              />
             ) : (
               <Input defaultValue={r.value} className="h-7 w-24 text-xs tabular-nums" />
             )}

@@ -25,9 +25,9 @@ import {
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
 import {
   ShieldCheck,
   DollarSign,
@@ -225,11 +225,45 @@ export function RiskStatisticsPage() {
     { key: "revenue", header: "Revenue", cell: (r) => formatCurrency(r.revenue, currency), sortValue: (r) => r.revenue, numeric: true },
   ];
 
-  const exportCsv = (rows: number) => {
-    toast({
-      title: "Export started",
-      description: `Exporting ${rows} rows as CSV.`,
-    });
+  const exportCsv = () => {
+    if (tab === "challenge") {
+      exportToCsv(
+        challengeRows,
+        [
+          { key: "challengeType", header: "Challenge Type", value: (r) => r.challengeType },
+          { key: "revenue", header: "Revenue", value: (r) => r.revenue },
+          { key: "totalPayouts", header: "Total Payouts", value: (r) => r.totalPayouts },
+          { key: "profitMargin", header: "Profit Margin %", value: (r) => r.profitMargin },
+          { key: "payoutCount", header: "Payout Count", value: (r) => r.payoutCount },
+          { key: "fundedAccounts", header: "Funded Accounts", value: (r) => r.fundedAccounts },
+        ],
+        `risk-challenge-stats-${Date.now()}.csv`,
+      );
+    } else if (tab === "country") {
+      exportToCsv(
+        countryRows,
+        [
+          { key: "country", header: "Country", value: (r) => r.country },
+          { key: "traders", header: "Traders", value: (r) => r.traders },
+          { key: "funded", header: "Funded", value: (r) => r.funded },
+          { key: "breached", header: "Breached", value: (r) => r.breached },
+          { key: "revenue", header: "Revenue", value: (r) => r.revenue },
+        ],
+        `risk-country-stats-${Date.now()}.csv`,
+      );
+    } else {
+      exportToCsv(
+        sizeRows,
+        [
+          { key: "range", header: "Size Range", value: (r) => r.range },
+          { key: "accounts", header: "Accounts", value: (r) => r.accounts },
+          { key: "funded", header: "Funded", value: (r) => r.funded },
+          { key: "breached", header: "Breached", value: (r) => r.breached },
+          { key: "revenue", header: "Revenue", value: (r) => r.revenue },
+        ],
+        `risk-account-size-stats-${Date.now()}.csv`,
+      );
+    }
   };
 
   return (
@@ -254,7 +288,7 @@ export function RiskStatisticsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => exportCsv(tab === "challenge" ? challengeRows.length : tab === "country" ? countryRows.length : sizeRows.length)}
+              onClick={exportCsv}
             >
               <Download className="mr-1 h-4 w-4" /> Export CSV
             </Button>
