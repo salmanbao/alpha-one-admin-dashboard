@@ -3,7 +3,7 @@
  * Includes Breaches (spec section 7 — Breaches is a sub-area of Risk).
  */
 
-import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { RiskOverviewWidget, RiskDistributionWidget, BreachTrendWidget, OpenBreachesWidget } from "./widgets/risk-widgets";
 
@@ -18,6 +18,10 @@ const navigation: NavigationItem[] = [
       { id: "risk.breaches", label: "Breaches", href: "breaches", icon: ShieldAlert, permission: "breach.read" },
       { id: "risk.statistics", label: "Statistics", href: "risk-statistics", icon: BarChart3, permission: "risk.read" },
       { id: "risk.events", label: "Trading Events", href: "trading-events", icon: Radar, permission: "risk.read" },
+      { id: "risk.unprofitable", label: "Unprofitable Countries", href: "risk-unprofitable-countries", icon: Globe2, permission: "risk.read" },
+      { id: "risk.revenue-loss", label: "Revenue Loss", href: "risk-revenue-loss", icon: TrendingDown, permission: "risk.read" },
+      { id: "risk.label-payouts", label: "Label vs Payouts", href: "risk-label-vs-payouts", icon: Tag, permission: "risk.read" },
+      { id: "risk.highest-earners", label: "Highest Earners", href: "risk-highest-earners", icon: TrendingUp, permission: "risk.read" },
     ],
   },
 ];
@@ -27,6 +31,10 @@ const routes: RouteDefinition[] = [
   { path: "breaches", viewId: "breaches", label: "Breaches", permission: "breach.read", module: "risk" },
   { path: "risk-statistics", viewId: "risk-statistics", label: "Risk Statistics", permission: "risk.read", module: "risk" },
   { path: "trading-events", viewId: "trading-events", label: "Trading Events", permission: "risk.read", module: "risk" },
+  { path: "risk-unprofitable-countries", viewId: "risk-unprofitable-countries", label: "Unprofitable Countries", permission: "risk.read", module: "risk" },
+  { path: "risk-revenue-loss", viewId: "risk-revenue-loss", label: "Revenue Loss", permission: "risk.read", module: "risk" },
+  { path: "risk-label-vs-payouts", viewId: "risk-label-vs-payouts", label: "Label vs Payouts", permission: "risk.read", module: "risk" },
+  { path: "risk-highest-earners", viewId: "risk-highest-earners", label: "Highest Earners", permission: "risk.read", module: "risk" },
 ];
 
 const widgets: WidgetDefinition[] = [

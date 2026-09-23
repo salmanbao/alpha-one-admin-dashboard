@@ -6,7 +6,7 @@
  * General, Branding, Terminology, Modules, Roles, Notifications.
  */
 
-import { Settings as SettingsIcon, Palette, Users, Package, Bell, Type, Mail, Award, Image } from "lucide-react";
+import { Settings as SettingsIcon, Palette, Users, Package, Bell, Type, Mail, Award, Image, UsersRound, KeyRound } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
 const navigation: NavigationItem[] = [
@@ -28,6 +28,8 @@ const navigation: NavigationItem[] = [
       { id: "settings.email-templates", label: "Email Templates", href: "email-templates", icon: Mail, permission: "settings.manage" },
       { id: "settings.certificates", label: "Certificates", href: "certificate-management", icon: Award, permission: "settings.manage" },
       { id: "settings.banners", label: "Banners", href: "banner-management", icon: Image, permission: "settings.manage" },
+      { id: "settings.users", label: "User Management", href: "user-management", icon: UsersRound, permission: "settings.manage" },
+      { id: "settings.tokens", label: "API Tokens", href: "token-management", icon: KeyRound, permission: "settings.manage" },
     ],
   },
 ];
@@ -37,6 +39,9 @@ const routes: RouteDefinition[] = [
   { path: "email-templates", viewId: "email-templates", label: "Email Templates", permission: "settings.manage", module: "settings" },
   { path: "certificate-management", viewId: "certificate-management", label: "Certificate Management", permission: "settings.manage", module: "settings" },
   { path: "banner-management", viewId: "banner-management", label: "Banner Management", permission: "settings.manage", module: "settings" },
+  { path: "user-management", viewId: "user-management", label: "User Management", permission: "settings.manage", module: "settings" },
+  { path: "group-management", viewId: "group-management", label: "Group Management", permission: "settings.manage", module: "settings" },
+  { path: "token-management", viewId: "token-management", label: "Token Management", permission: "settings.manage", module: "settings" },
 ];
 
 export const settingsModule: FrontendModule = {

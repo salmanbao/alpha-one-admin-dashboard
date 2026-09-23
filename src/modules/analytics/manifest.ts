@@ -5,7 +5,7 @@
  * prove plug-and-play behavior. It depends on Trading + Accounts.
  */
 
-import { BarChart3, TrendingUp, Users, DollarSign, Activity, Brain, Building2, CalendarClock, Repeat } from "lucide-react";
+import { BarChart3, TrendingUp, Users, DollarSign, Activity, Brain, Building2, CalendarClock, Repeat, CreditCard, ShoppingBag, CandlestickChart } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { RevenueWidget, TraderGrowthWidget, RiskDistributionWidget, BreachTrendWidget, AnalyticsOverviewWidget, AdvancedAnalyticsWidget } from "./widgets/analytics-widgets";
 
@@ -32,6 +32,10 @@ const navigation: NavigationItem[] = [
       { id: "analytics.firm-stats", label: "Firm Statistics", href: "analytics-firm-statistics", icon: Building2, permission: "analytics.read" },
       { id: "analytics.daily-highlights", label: "Daily Highlights", href: "analytics-daily-highlights", icon: CalendarClock, permission: "analytics.read" },
       { id: "analytics.retention", label: "Retention", href: "analytics-retention", icon: Repeat, permission: "analytics.read" },
+      { id: "analytics.accounts", label: "Dashboard: Accounts", href: "dashboard-accounts", icon: CreditCard, permission: "analytics.read" },
+      { id: "analytics.payouts", label: "Dashboard: Payouts", href: "dashboard-payouts", icon: DollarSign, permission: "analytics.read" },
+      { id: "analytics.orders", label: "Dashboard: Orders", href: "dashboard-orders", icon: ShoppingBag, permission: "analytics.read" },
+      { id: "analytics.positions", label: "Dashboard: Positions", href: "dashboard-positions", icon: CandlestickChart, permission: "analytics.read" },
     ],
   },
 ];
@@ -45,6 +49,10 @@ const routes: RouteDefinition[] = [
   { path: "analytics-firm-statistics", viewId: "analytics-firm-statistics", label: "Firm Statistics", permission: "analytics.read", module: "analytics" },
   { path: "analytics-daily-highlights", viewId: "analytics-daily-highlights", label: "Daily Highlights", permission: "analytics.read", module: "analytics" },
   { path: "analytics-retention", viewId: "analytics-retention", label: "Retention Analytics", permission: "analytics.read", module: "analytics" },
+  { path: "dashboard-accounts", viewId: "dashboard-accounts", label: "Dashboard: Accounts", permission: "analytics.read", module: "analytics" },
+  { path: "dashboard-payouts", viewId: "dashboard-payouts", label: "Dashboard: Payouts", permission: "analytics.read", module: "analytics" },
+  { path: "dashboard-orders", viewId: "dashboard-orders", label: "Dashboard: Orders", permission: "analytics.read", module: "analytics" },
+  { path: "dashboard-positions", viewId: "dashboard-positions", label: "Dashboard: Positions", permission: "analytics.read", module: "analytics" },
 ];
 
 const widgets: WidgetDefinition[] = [

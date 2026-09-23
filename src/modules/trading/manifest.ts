@@ -12,6 +12,7 @@ import {
   CreditCard,
   Activity,
   UserPlus,
+  Archive,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { TradingOverviewWidget } from "./widgets/trading-overview-widget";
@@ -33,6 +34,7 @@ const navigation: NavigationItem[] = [
       { id: "trading.accounts", label: "Accounts", href: "trading-accounts", icon: CreditCard, permission: "account.read" },
       { id: "trading.positions", label: "Open Positions", href: "trading-positions", icon: Activity, permission: "account.read" },
       { id: "trading.add-account", label: "Add Account", href: "trading-add-account", icon: UserPlus, permission: "account.write" },
+      { id: "trading.closed-positions", label: "Closed Positions", href: "closed-positions", icon: Archive, permission: "account.read" },
     ],
   },
 ];
@@ -44,6 +46,10 @@ const routes: RouteDefinition[] = [
   { path: "trading-positions", viewId: "trading-positions", label: "Open Positions", permission: "account.read", module: "trading" },
   { path: "trader-detail", viewId: "trader-detail", label: "Trader Detail", permission: "trader.read", module: "trading" },
   { path: "trading-add-account", viewId: "trading-add-account", label: "Add Account", permission: "account.write", module: "trading" },
+  { path: "closed-positions", viewId: "closed-positions", label: "Closed Positions", permission: "account.read", module: "trading" },
+  { path: "account-broker-details", viewId: "account-broker-details", label: "Account Broker Details", permission: "account.read", module: "trading" },
+  { path: "account-kyc-statuses", viewId: "account-kyc-statuses", label: "Account KYC Statuses", permission: "account.read", module: "trading" },
+  { path: "account-related-accounts", viewId: "account-related-accounts", label: "Related Accounts", permission: "account.read", module: "trading" },
 ];
 
 const widgets: WidgetDefinition[] = [

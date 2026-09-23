@@ -97,6 +97,25 @@ import { TradingEventsPage } from "@/modules/risk/pages/trading-events-page";
 import { RiskStatisticsPage } from "@/modules/risk/pages/risk-statistics-page";
 import { UserEventsPage } from "@/modules/audit/user-events-page";
 import { ChangeHistoryPage } from "@/modules/audit/change-history-page";
+import { UserEventDetailPage } from "@/modules/audit/user-event-detail-page";
+
+/* Batch A: Dashboard tabs */
+import { DashboardAccountsTab, DashboardPayoutsTab, DashboardOrdersTab, DashboardPositionsTab } from "@/modules/analytics/pages/dashboard-tabs";
+
+/* Batch B: Risk reports + User/Group/Token management */
+import { RiskUnprofitableCountriesPage } from "@/modules/risk/pages/risk-unprofitable-countries-page";
+import { RiskRevenueLossPage } from "@/modules/risk/pages/risk-revenue-loss-page";
+import { RiskLabelVsPayoutsPage } from "@/modules/risk/pages/risk-label-vs-payouts-page";
+import { RiskHighestEarnersPage } from "@/modules/risk/pages/risk-highest-earners-page";
+import { UserManagementPage } from "@/modules/settings/pages/user-management-page";
+import { GroupManagementPage } from "@/modules/settings/pages/group-management-page";
+import { TokenManagementPage } from "@/modules/settings/pages/token-management-page";
+
+/* Batch C: Account detail tabs + Closed positions */
+import { AccountBrokerDetailsPage } from "@/modules/trading/pages/account-broker-details-page";
+import { AccountKycStatusesPage } from "@/modules/trading/pages/account-kyc-statuses-page";
+import { AccountRelatedAccountsPage } from "@/modules/trading/pages/account-related-accounts-page";
+import { ClosedPositionsPage } from "@/modules/trading/pages/closed-positions-page";
 
 export type ViewComponent = ComponentType<{ params: Record<string, string> }>;
 
@@ -126,6 +145,10 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "trading-positions": PositionsPage,
   "trader-detail": EnhancedTraderDetailPage,
   "trading-add-account": AddAccountPage,
+  "account-broker-details": AccountBrokerDetailsPage,
+  "account-kyc-statuses": AccountKycStatusesPage,
+  "account-related-accounts": AccountRelatedAccountsPage,
+  "closed-positions": ClosedPositionsPage,
 
   /* challenges */
   challenges: ChallengesOverviewPage,
@@ -142,6 +165,10 @@ export const viewRegistry: Record<string, ViewComponent> = {
   breaches: BreachesPage,
   "risk-statistics": RiskStatisticsPage,
   "trading-events": TradingEventsPage,
+  "risk-unprofitable-countries": RiskUnprofitableCountriesPage,
+  "risk-revenue-loss": RiskRevenueLossPage,
+  "risk-label-vs-payouts": RiskLabelVsPayoutsPage,
+  "risk-highest-earners": RiskHighestEarnersPage,
 
   /* payouts */
   payouts: PayoutsOverviewPage,
@@ -157,6 +184,10 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "analytics-firm-statistics": FirmStatisticsPage,
   "analytics-daily-highlights": DailyHighlightsPage,
   "analytics-retention": RetentionAnalyticsPage,
+  "dashboard-accounts": DashboardAccountsTab,
+  "dashboard-payouts": DashboardPayoutsTab,
+  "dashboard-orders": DashboardOrdersTab,
+  "dashboard-positions": DashboardPositionsTab,
 
   /* affiliates */
   affiliates: AffiliatesOverviewPage,
@@ -199,11 +230,15 @@ export const viewRegistry: Record<string, ViewComponent> = {
   /* audit — new flows */
   "audit-user-events": UserEventsPage,
   "audit-change-history": ChangeHistoryPage,
+  "audit-user-event-detail": UserEventDetailPage,
 
   /* settings — new flows */
   "email-templates": EmailTemplatesPage,
   "certificate-management": CertificateManagementPage,
   "banner-management": BannerManagementPage,
+  "user-management": UserManagementPage,
+  "group-management": GroupManagementPage,
+  "token-management": TokenManagementPage,
 };
 
 const dynamicViews = new Map<string, ViewComponent>();
