@@ -4013,3 +4013,116 @@ Export: `AccountVersionHistoryPage` → viewId: `account-version-history`
 - All 3 routes registered in view-router → accessible via `navigate("account-configuration", { id: traderId })` from the EnhancedTraderDetailPage ✓
 - All mock data deterministic (hashStr-based seeds, no Math.random) ✓
 - Terra palette only (emerald/amber/rose — no blue/indigo) ✓
+
+---
+Task ID: img-batchK
+Agent: general-purpose
+Task: Build closed position detail + order detail + social media + device activities (4 missing-feature pages)
+
+Work Log:
+- Read worklog.md (4015 lines) and inspected existing patterns: closed-positions-page.tsx (mock seeding pattern), certificate-detail-page.tsx (detail+edit pattern with AlertDialog destructive confirm, breadcrumb, FormSection/ReadOnlyField building blocks), banner-management-page.tsx (Switch + Select + inline editor pattern), marketing-integrations-page.tsx (Collapsible + AlertDialog + DataTable+inline form pattern), enhanced-trader-detail-page.tsx (Breadcrumbs + AlertDialog destructive).
+- Confirmed platform primitives: `Page`, `PageHeader`, `PageContent`, `MetricCard`, `DataTable`/`Column<T>`, `StatusBadge`+`formatCurrency`, `EmptyState`, `LabelWithHelp`, `exportToCsv`. Confirmed `usePlatform()` returns `{ runtime, navigate, router }` with `router.params.id` for detail views.
+- Confirmed Terra palette constraints: `MetricCard` `tone` accepts only `default|positive|negative|warning` (no `info`) — fixed on first tsc pass. No blue/indigo used (emerald / amber / rose / slate only). Used `font-mono` for hashes and IDs, `tabular-nums` for numbers.
+- Built 4 new files (zero lint errors, zero tsc errors in new files):
+
+1. `src/modules/trading/pages/closed-position-detail-page.tsx` — `ClosedPositionDetailPage`. Breadcrumb "Closed Positions > [id]". Deterministic mock via `hashSeed(id)` + `seededRandom` mirroring `generateClosedPositions` symbol list (so detail matches list when row clicked). 6 FormSection cards in a 2-column grid (Identity, Volume & Pricing, Timing, Order IDs, P&L, Risk, Flags) covering every field from the spec — LONG/SHORT badge, CLOSED badge, Uid, Symbol description, Position type (Market/Pending) Select, Entry type (In/Out) Select, volume, open/close/current prices, open/close time + duration (calculated), open/close order IDs, Profit (colored), Commission, Swap, Net profit (calculated: profit - commission - swap), SL/TP, RR Ratio (calculated), Is partial (Switch read-only), Close reason (Select: TP/SL/Manual/System/Liquidation). Footer: destructive "Delete Closed Position" AlertDialog with exact consequence text from spec ("This trade record will be permanently deleted. The position data, P&L, and audit trail will be lost."), "Save Changes" primary toast, "Save and continue editing" outline toast, "Back to Closed Positions" ghost → navigate("closed-positions").
+
+2. `src/modules/trading/pages/order-detail-page.tsx` — `OrderDetailPage`. Breadcrumb "Orders > [id]". Header section with user email link, Order ID (mono), Addons JSON code block (`<pre>` with JSON.stringify(..., null, 2)). Main form (read-only + Edit toggle): Date created (read-only disabled Input), Order type Select (Challenge Purchase/Activation Fee/Add-on/Subscription/Refund), Notes Textarea. Financials grid (2-col sm:grid-cols-2 inside FormSection): Challenge, Competition ("None" fallback), Account balance formatCurrency, Amount paid (signed for refunds), Quantity, Payment method Select (Crypto/Card/Bank Transfer/PayPal), Coupon code Input, Bundle ID Input ("None" placeholder), Customer IP address Input (mono). 3 Collapsible sections (Accordion type="multiple" defaultValue={[]} so all start collapsed): (1) Attribution/UTM Tracking with Source/Campaign/Medium/Term/Content/Referrer URL (link)/Landing page (link); (2) Accounts DataTable with Login/Phase/Broker/Initial Balance/Status StatusBadge; (3) Subscription DataTable with Billing Date/Amount/Status (Active/Cancelled/Expired)/Next Billing. Footer: Save primary toast, Save and add another outline toast → navigate("dashboard-orders"), Delete destructive AlertDialog, Back ghost → navigate("dashboard-orders").
+
+3. `src/modules/settings/pages/social-media-links-page.tsx` — `SocialMediaLinksPage`. PageHeader with description "Manage social media profiles linked to trader accounts". DataTable: Platform (StatusBadge with per-platform icon: Twitter/Instagram/Telegram/Discord/YouTube/TikTok/LinkedIn/Facebook), Handle (mono), Custom URL (truncated link with ExternalLink), Account (mailto link), Created (date), Actions (Edit toast / Delete AlertDialog). Inline AddLinkForm (revealed via "Add Link" toggle): Platform Select (8 platforms with icons), Handle Input (auto-builds URL on change), Custom URL Input (auto-derived from platform+handle, editable), Account Select (tenant traders), Save/Cancel. Preview chip showing the current selection. KPI row (Total Links, Unique Platforms, Accounts with Links, Most Popular Platform). Search + filter by platform. Empty state with exact text "No social media links yet. Add links to track trader social presence." Export CSV button. Delete confirmation AlertDialog.
+
+4. `src/modules/settings/pages/device-activities-page.tsx` — `DeviceActivitiesPage`. PageHeader "Device Activities" + description "Login device history and fingerprint tracking". Collapsible "Device Activity Guide" info banner (collapsed by default) with exact spec text: "This view tracks unique device fingerprints used to access trader accounts. Multiple logins from the same device may indicate shared access." + extra explanation bullets for Device ID / Login Count / Country. DataTable: Source (StatusBadge Web/Mobile/API), Device ID (truncated 40-char hex), IP Address (mono with Wifi icon), Device Type (StatusBadge Desktop/Mobile/Tablet with Monitor/Smartphone/Tablet icon), Platform (StatusBadge Windows/macOS/iOS/Android), Country (Badge with MapPin), First Seen (timestamp), Last Seen (timestamp), Login Count (numeric), Actions (View → toast "Viewing device detail", Delete AlertDialog). KPI row (Total Devices, Unique IPs, Mobile Devices, Desktop Devices, Most Active Country). Search + filter by source/device type/platform + date range (24h/7d/30d/90d). Row click → toast "Viewing device detail". Export CSV button. Empty state with exact spec text "No device activities recorded. Device fingerprints will appear here when traders log in."
+
+Patterns:
+- All 4 files start with `"use client"`.
+- All use `usePlatform()` for `runtime` (tenant.id fallback "platform", tenant.currency fallback "USD"), `navigate`, `router.params.id`.
+- All use platform primitives (`Page`/`PageHeader`/`PageContent`/`MetricCard`/`DataTable`/`StatusBadge`/`formatCurrency`/`EmptyState`/`LabelWithHelp`) + shadcn/ui (`Input`/`Textarea`/`Label`/`Switch`/`Button`/`Badge`/`Separator`/`Collapsible`/`AlertDialog`/`Select`/`Accordion`).
+- All destructive actions wrapped in `AlertDialog` with explicit consequence text (UX §24).
+- All read-only fields use the `ReadOnlyField` building block (border + bg-muted/30 container) with `LabelWithHelp` tooltips.
+- Deterministic mock data via `hashSeed(id)` / `seededRandom(seed)` — no `Math.random` anywhere.
+- Terra palette only — emerald (positive/success), amber (warning), rose (destructive/negative), slate/muted (neutral). No blue/indigo. Detail pages match certificate-detail-page + enhanced-trader-detail-page patterns.
+
+Did NOT modify:
+- `view-router.tsx` (no viewId registrations added — lead will wire 4 new viewIds).
+- `trading/manifest.ts` and `settings/settings-module.ts` (no nav items or routes added).
+- `module-bootstrap.ts`.
+- No test files created.
+
+Suggested viewIds for the lead to register in `view-router.tsx`:
+- `closed-position-detail` → `ClosedPositionDetailPage` (from `@/modules/trading/pages/closed-position-detail-page`)
+- `order-detail` → `OrderDetailPage` (from `@/modules/trading/pages/order-detail-page`)
+- `social-media-links` → `SocialMediaLinksPage` (from `@/modules/settings/pages/social-media-links-page`)
+- `device-activities` → `DeviceActivitiesPage` (from `@/modules/settings/pages/device-activities-page`)
+
+Optional nav/route entries the lead may add to manifests:
+- `trading/manifest.ts` routes: `{ path: "closed-position-detail", viewId: "closed-position-detail", label: "Closed Position Detail", permission: "account.read", module: "trading" }` and `{ path: "order-detail", viewId: "order-detail", label: "Order Detail", permission: "account.read", module: "trading" }`.
+- `settings/settings-module.ts` navigation children: `{ id: "settings.social-media", label: "Social Media Links", href: "social-media-links", icon: Share2, permission: "settings.manage" }` and `{ id: "settings.device-activities", label: "Device Activities", href: "device-activities", icon: Fingerprint, permission: "settings.manage" }` plus matching route entries.
+
+Verifying:
+- `bun run lint` → exit 0, no errors (clean baseline maintained).
+- `bunx tsc --noEmit` → 0 errors in the 4 new files (pre-existing 56 TS errors all in `src/modules/trading/pages/account-kyc-statuses-page.tsx`, out of scope).
+- `bunx eslint <4 new files>` → exit 0.
+
+Stage Summary:
+- 4 self-contained detail/list pages shipped under `src/modules/{trading,settings}/pages/`. Each fully matches the platform's existing detail/list page patterns (certificate-detail-page, banner-management-page, marketing-integrations-page, closed-positions-page) and uses the Terra Organic Design palette exclusively.
+- Lead next steps: register 4 viewIds in `view-router.tsx` viewRegistry + add route/nav entries to `trading/manifest.ts` and `settings/settings-module.ts` if these should appear in the sidebar / be navigable.
+
+---
+Task ID: img-batch-10
+Agent: lead-architect
+Task: Analyze final batch images 107-124 and implement 4 missing features
+
+## Analysis Summary
+Analyzed images 107-124 — the final batch from FUNDERBLU screenshots. Found 6 missing features, grouped into 4 new page implementations.
+
+## 4 New Pages Built & Wired
+
+### 1. Closed Position Detail Page
+File: `src/modules/trading/pages/closed-position-detail-page.tsx`
+Export: `ClosedPositionDetailPage` → viewId: `closed-position-detail`
+- Read-only detail grid with: Uid, Direction (LONG/SHORT badge), State, Symbol, Symbol description, Position type, Entry type, Volume, Open/Close prices, Open/Close times, Duration, Order IDs, Profit (colored), Commission, Swap, Net profit, SL, TP, RR Ratio, Is partial, Close reason dropdown
+- Footer: Delete (destructive AlertDialog), Save, Save and continue editing, Back
+- Deterministic mock data matching closed-positions-page.tsx symbols
+
+### 2. Order Detail Page
+File: `src/modules/trading/pages/order-detail-page.tsx`
+Export: `OrderDetailPage` → viewId: `order-detail`
+- Header: User email, Order ID, Addons JSON display
+- Main form: Date created, Order type dropdown (Challenge Purchase, Activation Fee, Add-on, Subscription, Refund), Notes textarea
+- Financials grid: Challenge, Competition, Account balance, Amount paid, Quantity, Payment method, Coupon code, Bundle ID, Customer IP
+- 3 collapsible accordions: Attribution/UTM Tracking (source, campaign, medium, term, content, referrer, landing page), Accounts table, Subscription table
+- Footer: Save, Save and add another, Delete (AlertDialog), Back
+
+### 3. Social Media Links Page
+File: `src/modules/settings/pages/social-media-links-page.tsx`
+Export: `SocialMediaLinksPage` → viewId: `social-media-links`
+- DataTable: Platform (badge with icon), Handle, Custom URL (link), Account (email link), Created, Actions (Edit/Delete)
+- Inline add form: Platform dropdown (8 platforms: Twitter/X, Instagram, Telegram, Discord, YouTube, TikTok, LinkedIn, Facebook), Handle, Custom URL, Account dropdown
+- KPI row: Total Links, Unique Platforms, Accounts with Links, Most Popular Platform
+- Search + filter by platform + Export CSV + Empty state
+
+### 4. Device Activities Page
+File: `src/modules/settings/pages/device-activities-page.tsx`
+Export: `DeviceActivitiesPage` → viewId: `device-activities`
+- Collapsible "Device Activity Guide" info banner
+- DataTable: Source (Web/Mobile/API badge), Device ID (truncated hash), IP, Device Type (Desktop/Mobile/Tablet), Platform (Windows/macOS/iOS/Android), Country, First Seen, Last Seen, Login Count, Actions
+- KPI row: Total Devices, Unique IPs, Mobile Devices, Desktop Devices, Most Active Country
+- Search + filter by source/device type/platform + date range + Export CSV + Empty state
+
+## View Router Wiring
+4 new view IDs registered in `view-router.tsx`
+
+## Module Navigation Wiring
+- **Trading manifest**: +2 routes (closed-position-detail, order-detail)
+- **Settings manifest**: +2 nav children (Social Media Links, Device Activities) + 2 routes
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- Command menu shows 80 options for Beta tenant (up from 78) ✓
+- New items verified: Settings › Social Media Links, Settings › Device Activities ✓
+- Closed position detail + order detail are sub-pages (accessible via navigation from closed-positions page and orders page) ✓
+- All mock data deterministic (hashStr-based seeds, no Math.random) ✓
+- Terra palette only (emerald/amber/rose/slate — no blue/indigo) ✓
+
+## COMPLETE IMAGE ANALYSIS SUMMARY
+All 121 images from the FUNDERBLU Admin screenshots have now been analyzed across 10 batches. The platform has grown from ~40 views to 80+ views, covering every flow visible in the reference screenshots.

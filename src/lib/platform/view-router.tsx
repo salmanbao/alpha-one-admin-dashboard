@@ -161,6 +161,12 @@ import { AccountConfigurationPage } from "@/modules/trading/pages/account-config
 import { AccountEventsPage } from "@/modules/trading/pages/account-events-page";
 import { AccountVersionHistoryPage } from "@/modules/trading/pages/account-version-history-page";
 
+/* Batch K: Closed position detail + Order detail + Social media + Device activities */
+import { ClosedPositionDetailPage } from "@/modules/trading/pages/closed-position-detail-page";
+import { OrderDetailPage } from "@/modules/trading/pages/order-detail-page";
+import { SocialMediaLinksPage } from "@/modules/settings/pages/social-media-links-page";
+import { DeviceActivitiesPage } from "@/modules/settings/pages/device-activities-page";
+
 export type ViewComponent = ComponentType<{ params: Record<string, string> }>;
 
 export const viewRegistry: Record<string, ViewComponent> = {
@@ -197,6 +203,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "account-events": AccountEventsPage,
   "account-version-history": AccountVersionHistoryPage,
   "closed-positions": ClosedPositionsPage,
+  "closed-position-detail": ClosedPositionDetailPage,
+  "order-detail": OrderDetailPage,
 
   /* challenges */
   challenges: ChallengesOverviewPage,
@@ -313,6 +321,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "certificate-font-upload": CertificateFontUploadPage,
   "marketing-integrations": MarketingIntegrationsPage,
   "marketing-banner-edit": MarketingBannerEditPage,
+  "social-media-links": SocialMediaLinksPage,
+  "device-activities": DeviceActivitiesPage,
 };
 
 const dynamicViews = new Map<string, ViewComponent>();

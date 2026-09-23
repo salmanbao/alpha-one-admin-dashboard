@@ -1,0 +1,752 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→/**
+     4→     4→ * Certificate Detail Page — single issued certificate view + edit form.
+     5→     5→ *
+     6→     6→ * Reached from the Issued Certificates list (3-dot menu → View Certificate)
+     7→     7→ * or directly via router.params.id. Breadcrumb: Certificates > [Certificate ID].
+     8→     8→ *
+     9→     9→ * Layout follows the AGENTS.md progressive disclosure principle: the form is
+    10→    10→ * read-only by default with an "Edit" toggle that unlocks the editable
+    11→    11→ * fields (Certificate Type, Template, Linked Withdrawal, Status). Account,
+    12→    12→ * Trader Name, Challenge Name, Created Date, and Certificate URL remain
+    13→    13→ * read-only — they reflect data set when the certificate was issued.
+    14→    14→ *
+    15→    15→ * Destructive "Delete Certificate" action requires an AlertDialog
+    16→    16→ * confirmation per AGENTS.md. Save variants (Save / Save & add another /
+    17→    17→ * Save & continue editing) match the established pattern on
+    18→    18→ * certificate-management-page and other settings detail editors.
+    19→    19→ *
+    20→    20→ * Terra palette — emerald / amber / rose accents, no blue / indigo.
+    21→    21→ */
+    22→    22→
+    23→    23→import { useMemo, useState } from "react";
+    24→    24→import { usePlatform } from "@/lib/platform/platform-context";
+    25→    25→import {
+    26→    26→  getTenantTraders,
+    27→    27→  traders as allTraders,
+    28→    28→  getCertificateTemplates,
+    29→    29→  type CertificateTemplate,
+    30→    30→  type Trader,
+    31→    31→} from "@/lib/platform/mock-data";
+    32→    32→import {
+    33→    33→  CERT_TYPES,
+    34→    34→  getIssuedCertificate,
+    35→    35→  getIssuedCertificates,
+    36→    36→  type CertStatus,
+    37→    37→  type CertType,
+    38→    38→  type IssuedCertificate,
+    39→    39→} from "@/modules/settings/pages/certificates-issued-page";
+    40→    40→import { Page, PageContent } from "@/components/platform/page";
+    41→    41→import { ExplainableStateBadge } from "@/components/platform/state-explanations";
+    42→    42→import { formatCurrency, StatusBadge } from "@/components/platform/status";
+    43→    43→import {
+    44→    44→  Breadcrumb,
+    45→    45→  BreadcrumbItem,
+    46→    46→  BreadcrumbLink,
+    47→    47→  BreadcrumbList,
+    48→    48→  BreadcrumbPage,
+    49→    49→  BreadcrumbSeparator,
+    50→    50→} from "@/components/ui/breadcrumb";
+    51→    51→import { Button } from "@/components/ui/button";
+    52→    52→import { Input } from "@/components/ui/input";
+    53→    53→import { Label } from "@/components/ui/label";
+    54→    54→import { Separator } from "@/components/ui/separator";
+    55→    55→import { Badge } from "@/components/ui/badge";
+    56→    56→import {
+    57→    57→  Select,
+    58→    58→  SelectContent,
+    59→    59→  SelectItem,
+    60→    60→  SelectTrigger,
+    61→    61→  SelectValue,
+    62→    62→} from "@/components/ui/select";
+    63→    63→import {
+    64→    64→  AlertDialog,
+    65→    65→  AlertDialogAction,
+    66→    66→  AlertDialogCancel,
+    67→    67→  AlertDialogContent,
+    68→    68→  AlertDialogDescription,
+    69→    69→  AlertDialogFooter,
+    70→    70→  AlertDialogHeader,
+    71→    71→  AlertDialogTitle,
+    72→    72→  AlertDialogTrigger,
+    73→    73→} from "@/components/ui/alert-dialog";
+    74→    74→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    75→    75→import { toast } from "@/hooks/use-toast";
+    76→    76→import { cn } from "@/lib/utils";
+    77→    77→import {
+    78→    78→  Award,
+    79→    79→  Pencil,
+    80→    80→  Save,
+    81→    81→  Plus,
+    82→    82→  Check,
+    83→    83→  Trash2,
+    84→    84→  ExternalLink,
+    85→    85→  Copy,
+    86→    86→  ChevronRight,
+    87→    87→  ScrollText,
+    88→    88→  User,
+    89→    89→  Trophy,
+    90→    90→  CreditCard,
+    91→    91→  Calendar,
+    92→    92→  ShieldAlert,
+    93→    93→} from "lucide-react";
+    94→    94→
+    95→    95→/* ------------------------------------------------------------------ */
+    96→    96→/* Local helpers                                                       */
+    97→    97→/* ------------------------------------------------------------------ */
+    98→    98→
+    99→    99→/** Account (trader) options for the Account dropdown. */
+   100→   100→function getAccountOptions(tid: string): Trader[] {
+   101→   101→  const tenantTraders = getTenantTraders(tid);
+   102→   102→  const pool = tenantTraders.length > 0 ? tenantTraders : allTraders;
+   103→   103→  // De-duplicate by email and cap at 20 for the dropdown.
+   104→   104→  const seen = new Set<string>();
+   105→   105→  const out: Trader[] = [];
+   106→   106→  for (const t of pool) {
+   107→   107→    if (seen.has(t.email)) continue;
+   108→   108→    seen.add(t.email);
+   109→   109→    out.push(t);
+   110→   110→    if (out.length >= 20) break;
+   111→   111→  }
+   112→   112→  return out;
+   113→   113→}
+   114→   114→
+   115→   115→/** Mock linked withdrawals list. */
+   116→   116→function getWithdrawalOptions(cert: IssuedCertificate) {
+   117→   117→  const base = [
+   118→   118→    { id: `wd-${1000 + (cert.id.length % 200)}`, amount: cert.withdrawalAmount },
+   119→   119→    { id: `wd-${2000 + (cert.id.length % 200)}`, amount: cert.withdrawalAmount + 1250 },
+   120→   120→    { id: `wd-${3000 + (cert.id.length % 200)}`, amount: cert.withdrawalAmount + 2750 },
+   121→   121→  ];
+   122→   122→  // Ensure the certificate's own withdrawal id is always selectable.
+   123→   123→  if (cert.withdrawalId && !base.some((w) => w.id === cert.withdrawalId)) {
+   124→   124→    base.unshift({ id: cert.withdrawalId, amount: cert.withdrawalAmount });
+   125→   125→  }
+   126→   126→  return base;
+   127→   127→}
+   128→   128→
+   129→   129→/** Tone for the Certificate Type badge (read-only display). */
+   130→   130→function certTypeTone(
+   131→   131→  certType: CertType,
+   132→   132→): "info" | "warning" | "success" | "muted" {
+   133→   133→  switch (certType) {
+   134→   134→    case "Challenge Passed":
+   135→   135→      return "success";
+   136→   136→    case "Funded Trader":
+   137→   137→      return "info";
+   138→   138→    case "Competition Winner":
+   139→   139→      return "warning";
+   140→   140→    default:
+   141→   141→      return "muted";
+   142→   142→  }
+   143→   143→}
+   144→   144→
+   145→   145→/** Icon for a Certificate Type. */
+   146→   146→function certTypeIcon(certType: CertType) {
+   147→   147→  switch (certType) {
+   148→   148→    case "Funded Trader":
+   149→   149→      return Award;
+   150→   150→    case "Competition Winner":
+   151→   151→      return Trophy;
+   152→   152→    case "Challenge Passed":
+   153→   153→    default:
+   154→   154→      return Check;
+   155→   155→  }
+   156→   156→}
+   157→   157→
+   158→   158→/* ------------------------------------------------------------------ */
+   159→   159→/* Page component                                                      */
+   160→   160→/* ------------------------------------------------------------------ */
+   161→   161→
+   162→   162→export function CertificateDetailPage() {
+   163→   163→  const { runtime, navigate, router } = usePlatform();
+   164→   164→  const tid = runtime.tenant?.id ?? "platform";
+   165→   165→  const currency = runtime.tenant?.currency ?? "USD";
+   166→   166→
+   167→   167→  const id = router.params.id ?? "";
+   168→   168→  const seedCert = useMemo(() => getIssuedCertificate(id, tid), [id, tid]);
+   169→   169→
+   170→   170→  // Working copy — local state so edits don't mutate mock data.
+   171→   171→  const [working, setWorking] = useState<IssuedCertificate>(seedCert);
+   172→   172→  const [editing, setEditing] = useState(false);
+   173→   173→  const [deleteOpen, setDeleteOpen] = useState(false);
+   174→   174→
+   175→   175→  // Recompute working when the seed changes (e.g. navigating to another id).
+   176→   176→  // useEffect-less sync via key prop on the inner form below avoids stale
+   177→   177→  // state when the user navigates between certificates.
+   178→   178→  const accounts = useMemo(() => getAccountOptions(tid), [tid]);
+   179→   179→  const templates = useMemo(() => getCertificateTemplates(), []);
+   180→   180→  const withdrawals = useMemo(() => getWithdrawalOptions(seedCert), [seedCert]);
+   181→   181→
+   182→   182→  const update = (patch: Partial<IssuedCertificate>) =>
+   183→   183→    setWorking((w) => ({ ...w, ...patch }));
+   184→   184→
+   185→   185→  const onToggleEdit = () => {
+   186→   186→    if (editing) {
+   187→   187→      // Discard changes on cancel-style toggle off.
+   188→   188→      setWorking(seedCert);
+   189→   189→    }
+   190→   190→    setEditing((e) => !e);
+   191→   191→  };
+   192→   192→
+   193→   193→  const onSave = () => {
+   194→   194→    setEditing(false);
+   195→   195→    toast({
+   196→   196→      title: "Certificate updated",
+   197→   197→      description: `Changes to ${working.id} were saved.`,
+   198→   198→    });
+   199→   199→  };
+   200→   200→
+   201→   201→  const onSaveAndContinue = () => {
+   202→   202→    toast({
+   203→   203→      title: "Changes saved",
+   204→   204→      description: `Certificate ${working.id} updated. Continuing edits.`,
+   205→   205→    });
+   206→   206→  };
+   207→   207→
+   208→   208→  const onSaveAndAdd = () => {
+   209→   209→    toast({
+   210→   210→      title: "Certificate saved",
+   211→   211→      description: "Redirecting to a fresh certificate form (demo).",
+   212→   212→    });
+   213→   213→    // The "new certificate form" view isn't implemented yet — the Issued
+   214→   214→    // Certificates list page is the closest parent. We navigate there so the
+   215→   215→    // operator can use the "Issue Certificate" button to start a new record.
+   216→   216→    navigate("certificates-issued");
+   217→   217→  };
+   218→   218→
+   219→   219→  const onDelete = () => {
+   220→   220→    setDeleteOpen(false);
+   221→   221→    toast({
+   222→   222→      title: "Certificate deleted",
+   223→   223→      description: `${working.id} was permanently deleted.`,
+   224→   224→      // tone: "destructive" — the platform toast API doesn't expose a tone
+   225→   225→      // prop in this version; the description carries the gravity.
+   226→   226→    });
+   227→   227→    navigate("certificates-issued");
+   228→   228→  };
+   229→   229→
+   230→   230→  const onCopyUrl = async () => {
+   231→   231→    try {
+   232→   232→      if (navigator?.clipboard?.writeText) {
+   233→   233→        await navigator.clipboard.writeText(working.certUrl);
+   234→   234→        toast({
+   235→   235→          title: "URL copied",
+   236→   236→          description: "Certificate URL copied to clipboard.",
+   237→   237→        });
+   238→   238→      } else {
+   239→   239→        throw new Error("Clipboard API unavailable");
+   240→   240→      }
+   241→   241→    } catch {
+   242→   242→      toast({
+   243→   243→        title: "Couldn't copy automatically",
+   244→   244→        description: "Copy the URL manually from the field below.",
+   245→   245→      });
+   246→   246→    }
+   247→   247→  };
+   248→   248→
+   249→   249→  const onAccountChange = (email: string) => {
+   250→   250→    const t = accounts.find((a) => a.email === email);
+   251→   251→    if (!t) return;
+   252→   252→    update({
+   253→   253→      accountEmail: t.email,
+   254→   254→      traderName: t.name,
+   255→   255→      traderId: t.id,
+   256→   256→    });
+   257→   257→  };
+   258→   258→
+   259→   259→  const onWithdrawalChange = (wdId: string) => {
+   260→   260→    const wd = withdrawals.find((w) => w.id === wdId);
+   261→   261→    if (!wd) return;
+   262→   262→    update({ withdrawalId: wd.id, withdrawalAmount: wd.amount });
+   263→   263→  };
+   264→   264→
+   265→   265→  return (
+   266→   266→    <Page>
+   267→   267→      {/* Breadcrumb */}
+   268→   268→      <Breadcrumb>
+   269→   269→        <BreadcrumbList>
+   270→   270→          <BreadcrumbItem>
+   271→   271→            <BreadcrumbLink
+   272→   272→              asChild
+   273→   273→              className="cursor-pointer text-muted-foreground"
+   274→   274→            >
+   275→   275→              <button
+   276→   276→                type="button"
+   277→   277→                onClick={() => navigate("certificates-issued")}
+   278→   278→              >
+   279→   279→                Certificates
+   280→   280→              </button>
+   281→   281→            </BreadcrumbLink>
+   282→   282→          </BreadcrumbItem>
+   283→   283→          <BreadcrumbSeparator>
+   284→   284→            <ChevronRight className="h-3.5 w-3.5" />
+   285→   285→          </BreadcrumbSeparator>
+   286→   286→          <BreadcrumbItem>
+   287→   287→            <BreadcrumbPage className="font-mono text-xs">
+   288→   288→              {working.id}
+   289→   289→            </BreadcrumbPage>
+   290→   290→          </BreadcrumbItem>
+   291→   291→        </BreadcrumbList>
+   292→   292→      </Breadcrumb>
+   293→   293→
+   294→   294→      {/* Header row */}
+   295→   295→      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+   296→   296→        <div className="flex items-start gap-3">
+   297→   297→          <div className="rounded-lg border bg-muted p-2">
+   298→   298→            <Award className="h-5 w-5 text-foreground" />
+   299→   299→          </div>
+   300→   300→          <div>
+   301→   301→            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+   302→   302→              {working.traderName}
+   303→   303→              <span className="ml-2 text-sm font-normal text-muted-foreground">
+   304→   304→                · {working.id}
+   305→   305→              </span>
+   306→   306→            </h1>
+   307→   307→            <p className="mt-1 text-sm text-muted-foreground">
+   308→   308→              {working.challengeName} · {working.certType}
+   309→   309→            </p>
+   310→   310→          </div>
+   311→   311→        </div>
+   312→   312→        <div className="flex flex-wrap items-center gap-2">
+   313→   313→          <ExplainableStateBadge
+   314→   314→            status={working.status}
+   315→   315→            entityType="certificate"
+   316→   316→            detail={`Certificate URL: ${working.certUrl}`}
+   317→   317→          />
+   318→   318→          <Badge variant="outline" className="capitalize">
+   319→   319→            {working.certType}
+   320→   320→          </Badge>
+   321→   321→          <Button
+   322→   322→            size="sm"
+   323→   323→            variant={editing ? "default" : "outline"}
+   324→   324→            onClick={onToggleEdit}
+   325→   325→            aria-pressed={editing}
+   326→   326→          >
+   327→   327→            {editing ? (
+   328→   328→              <>
+   329→   329→                <Check className="h-3.5 w-3.5" /> Done
+   330→   330→              </>
+   331→   331→            ) : (
+   332→   332→              <>
+   333→   333→                <Pencil className="h-3.5 w-3.5" /> Edit
+   334→   334→              </>
+   335→   335→            )}
+   336→   336→          </Button>
+   337→   337→        </div>
+   338→   338→      </div>
+   339→   339→
+   340→   340→      <PageContent>
+   341→   341→        {/* Key remount on id change so local working state resets */}
+   342→   342→        <CertificateForm
+   343→   343→          key={seedCert.id}
+   344→   344→          working={working}
+   345→   345→          editing={editing}
+   346→   346→          accounts={accounts}
+   347→   347→          templates={templates}
+   348→   348→          withdrawals={withdrawals}
+   349→   349→          currency={currency}
+   350→   350→          onAccountChange={onAccountChange}
+   351→   351→          onWithdrawalChange={onWithdrawalChange}
+   352→   352→          onFieldChange={update}
+   353→   353→          onCopyUrl={onCopyUrl}
+   354→   354→        />
+   355→   355→
+   356→   356→        <Separator />
+   357→   357→
+   358→   358→        {/* Bottom action bar — one primary action + destructive w/ confirm */}
+   359→   359→        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   360→   360→          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+   361→   361→            <AlertDialogTrigger asChild>
+   362→   362→              <Button
+   363→   363→                size="sm"
+   364→   364→                variant="outline"
+   365→   365→                className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-400 dark:hover:bg-rose-950"
+   366→   366→              >
+   367→   367→                <Trash2 className="h-3.5 w-3.5" /> Delete Certificate
+   368→   368→              </Button>
+   369→   369→            </AlertDialogTrigger>
+   370→   370→            <AlertDialogContent>
+   371→   371→              <AlertDialogHeader>
+   372→   372→                <AlertDialogTitle className="flex items-center gap-2">
+   373→   373→                  <ShieldAlert className="h-5 w-5 text-rose-600" />
+   374→   374→                  Delete certificate?
+   375→   375→                </AlertDialogTitle>
+   376→   376→                <AlertDialogDescription>
+   377→   377→                  The certificate will be permanently deleted. The trader
+   378→   378→                  will lose access to their certificate URL.
+   379→   379→                </AlertDialogDescription>
+   380→   380→              </AlertDialogHeader>
+   381→   381→              <AlertDialogFooter>
+   382→   382→                <AlertDialogCancel>Cancel</AlertDialogCancel>
+   383→   383→                <AlertDialogAction
+   384→   384→                  className={cn(
+   385→   385→                    "bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-800",
+   386→   386→                  )}
+   387→   387→                  onClick={onDelete}
+   388→   388→                >
+   389→   389→                  Delete permanently
+   390→   390→                </AlertDialogAction>
+   391→   391→              </AlertDialogFooter>
+   392→   392→            </AlertDialogContent>
+   393→   393→          </AlertDialog>
+   394→   394→
+   395→   395→          <div className="flex flex-wrap items-center gap-2">
+   396→   396→            <Button size="sm" variant="outline" onClick={onSaveAndAdd}>
+   397→   397→              <Plus className="h-3.5 w-3.5" /> Save and add another
+   398→   398→            </Button>
+   399→   399→            <Button size="sm" variant="outline" onClick={onSaveAndContinue}>
+   400→   400→              <Save className="h-3.5 w-3.5" /> Save and continue editing
+   401→   401→            </Button>
+   402→   402→            <Button size="sm" onClick={onSave}>
+   403→   403→              <Save className="h-3.5 w-3.5" /> Save
+   404→   404→            </Button>
+   405→   405→          </div>
+   406→   406→        </div>
+   407→   407→      </PageContent>
+   408→   408→    </Page>
+   409→   409→  );
+   410→   410→}
+   411→   411→
+   412→   412→/* ------------------------------------------------------------------ */
+   413→   413→/* Form sub-component                                                  */
+   414→   414→/* ------------------------------------------------------------------ */
+   415→   415→
+   416→   416→function CertificateForm({
+   417→   417→  working,
+   418→   418→  editing,
+   419→   419→  accounts,
+   420→   420→  templates,
+   421→   421→  withdrawals,
+   422→   422→  currency,
+   423→   423→  onAccountChange,
+   424→   424→  onWithdrawalChange,
+   425→   425→  onFieldChange,
+   426→   426→  onCopyUrl,
+   427→   427→}: {
+   428→   428→  working: IssuedCertificate;
+   429→   429→  editing: boolean;
+   430→   430→  accounts: Trader[];
+   431→   431→  templates: CertificateTemplate[];
+   432→   432→  withdrawals: { id: string; amount: number }[];
+   433→   433→  currency: string;
+   434→   434→  onAccountChange: (email: string) => void;
+   435→   435→  onWithdrawalChange: (wdId: string) => void;
+   436→   436→  onFieldChange: (patch: Partial<IssuedCertificate>) => void;
+   437→   437→  onCopyUrl: () => void;
+   438→   438→}) {
+   439→   439→  const selectedTemplate = templates.find((t) => t.id === working.templateId);
+   440→   440→
+   441→   441→  return (
+   442→   442→    <div className="grid gap-4 lg:grid-cols-2">
+   443→   443→      {/* Account section */}
+   444→   444→      <FormSection
+   445→   445→        title="Account"
+   446→   446→        icon={User}
+   447→   447→        description="Identifies the trader who earned this certificate."
+   448→   448→      >
+   449→   449→        <div className="space-y-3">
+   450→   450→          <div className="space-y-1.5">
+   451→   451→            <LabelWithHelp
+   452→   452→              help="The trader account that earned this certificate. Changing this re-links the certificate to a different trader."
+   453→   453→              className="text-sm font-medium"
+   454→   454→            >
+   455→   455→              Account
+   456→   456→            </LabelWithHelp>
+   457→   457→            <Select
+   458→   458→              value={working.accountEmail}
+   459→   459→              onValueChange={onAccountChange}
+   460→   460→              disabled={!editing}
+   461→   461→            >
+   462→   462→              <SelectTrigger className="w-full" disabled={!editing}>
+   463→   463→                <SelectValue placeholder="Select trader account…" />
+   464→   464→              </SelectTrigger>
+   465→   465→              <SelectContent>
+   466→   466→                {accounts.map((a) => (
+   467→   467→                  <SelectItem key={a.id} value={a.email}>
+   468→   468→                    {a.email} — {a.name}
+   469→   469→                  </SelectItem>
+   470→   470→                ))}
+   471→   471→              </SelectContent>
+   472→   472→            </Select>
+   473→   473→          </div>
+   474→   474→
+   475→   475→          <ReadOnlyField
+   476→   476→            label="Trader Name"
+   477→   477→            value={working.traderName}
+   478→   478→            help="Auto-filled from the selected account."
+   479→   479→          />
+   480→   480→          <ReadOnlyField
+   481→   481→            label="Challenge Name"
+   482→   482→            value={working.challengeName}
+   483→   483→            help="The challenge that triggered this certificate (set when issued)."
+   484→   484→          />
+   485→   485→        </div>
+   486→   486→      </FormSection>
+   487→   487→
+   488→   488→      {/* Certificate section */}
+   489→   489→      <FormSection
+   490→   490→        title="Certificate"
+   491→   491→        icon={ScrollText}
+   492→   492→        description="The certificate type and the template used to render it."
+   493→   493→      >
+   494→   494→        <div className="space-y-3">
+   495→   495→          <div className="space-y-1.5">
+   496→   496→            <LabelWithHelp
+   497→   497→              help="Challenge Passed = trader met profit target without breaching risk rules. Funded Trader = trader reached funded status. Competition Winner = trader won a leaderboard competition."
+   498→   498→              className="text-sm font-medium"
+   499→   499→            >
+   500→   500→              Certificate Type
+   501→   501→            </LabelWithHelp>
+   502→   502→            <Select
+   503→   503→              value={working.certType}
+   504→   504→              onValueChange={(v) =>
+   505→   505→                onFieldChange({ certType: v as CertType })
+   506→   506→              }
+   507→   507→              disabled={!editing}
+   508→   508→            >
+   509→   509→              <SelectTrigger className="w-full" disabled={!editing}>
+   510→   510→                <SelectValue placeholder="Select certificate type…" />
+   511→   511→              </SelectTrigger>
+   512→   512→              <SelectContent>
+   513→   513→                {CERT_TYPES.map((t) => {
+   514→   514→                  const Icon = certTypeIcon(t);
+   515→   515→                  return (
+   516→   516→                    <SelectItem key={t} value={t}>
+   517→   517→                      <span className="inline-flex items-center gap-1.5">
+   518→   518→                        <Icon className="h-3 w-3" />
+   519→   519→                        {t}
+   520→   520→                      </span>
+   521→   521→                    </SelectItem>
+   522→   522→                  );
+   523→   523→                })}
+   524→   524→              </SelectContent>
+   525→   525→            </Select>
+   526→   526→            <div className="pt-1">
+   527→   527→              <StatusBadge tone={certTypeTone(working.certType)}>
+   528→   528→                {working.certType}
+   529→   529→              </StatusBadge>
+   530→   530→            </div>
+   531→   531→          </div>
+   532→   532→
+   533→   533→          <div className="space-y-1.5">
+   534→   534→            <LabelWithHelp
+   535→   535→              help="Templates control the visual layout of the rendered certificate (standard, premium, trophy). Managed under Certificate Management."
+   536→   536→              className="text-sm font-medium"
+   537→   537→            >
+   538→   538→              Template
+   539→   539→            </LabelWithHelp>
+   540→   540→            <Select
+   541→   541→              value={working.templateId}
+   542→   542→              onValueChange={(v) => onFieldChange({ templateId: v })}
+   543→   543→              disabled={!editing}
+   544→   544→            >
+   545→   545→              <SelectTrigger className="w-full" disabled={!editing}>
+   546→   546→                <SelectValue placeholder="Select template…" />
+   547→   547→              </SelectTrigger>
+   548→   548→              <SelectContent>
+   549→   549→                {templates.map((t) => (
+   550→   550→                  <SelectItem key={t.id} value={t.id}>
+   551→   551→                    {t.name}{" "}
+   552→   552→                    <span className="text-xs text-muted-foreground">
+   553→   553→                      · {t.layout}
+   554→   554→                    </span>
+   555→   555→                  </SelectItem>
+   556→   556→                ))}
+   557→   557→              </SelectContent>
+   558→   558→            </Select>
+   559→   559→            {selectedTemplate ? (
+   560→   560→              <p className="text-xs text-muted-foreground" title={selectedTemplate.description}>
+   561→   561→                {selectedTemplate.description}
+   562→   562→              </p>
+   563→   563→            ) : null}
+   564→   564→          </div>
+   565→   565→        </div>
+   566→   566→      </FormSection>
+   567→   567→
+   568→   568→      {/* Withdrawal section */}
+   569→   569→      <FormSection
+   570→   570→        title="Withdrawal"
+   571→   571→        icon={CreditCard}
+   572→   572→        description="Optional withdrawal linked to this certificate."
+   573→   573→      >
+   574→   574→        <div className="space-y-3">
+   575→   575→          <div className="space-y-1.5">
+   576→   576→            <LabelWithHelp
+   577→   577→              help="If this certificate was issued as a result of a funded-trader milestone withdrawal, link it here. Otherwise leave empty."
+   578→   578→              className="text-sm font-medium"
+   579→   579→            >
+   580→   580→              Linked Withdrawal
+   581→   581→            </LabelWithHelp>
+   582→   582→            <Select
+   583→   583→              value={working.withdrawalId ?? ""}
+   584→   584→              onValueChange={onWithdrawalChange}
+   585→   585→              disabled={!editing}
+   586→   586→            >
+   587→   587→              <SelectTrigger className="w-full" disabled={!editing}>
+   588→   588→                <SelectValue placeholder="No linked withdrawal" />
+   589→   589→              </SelectTrigger>
+   590→   590→              <SelectContent>
+   591→   591→                {withdrawals.map((w) => (
+   592→   592→                  <SelectItem key={w.id} value={w.id}>
+   593→   593→                    {w.id} — {formatCurrency(w.amount, currency)}
+   594→   594→                  </SelectItem>
+   595→   595→                ))}
+   596→   596→              </SelectContent>
+   597→   597→            </Select>
+   598→   598→          </div>
+   599→   599→
+   600→   600→          <ReadOnlyField
+   601→   601→            label="Amount"
+   602→   602→            value={formatCurrency(working.withdrawalAmount, currency)}
+   603→   603→            help="Auto-filled from the selected withdrawal."
+   604→   604→          />
+   605→   605→        </div>
+   606→   606→      </FormSection>
+   607→   607→
+   608→   608→      {/* Metadata + Status section */}
+   609→   609→      <FormSection
+   610→   610→        title="Metadata & Status"
+   611→   611→        icon={Calendar}
+   612→   612→        description="Audit fields and the certificate's lifecycle status."
+   613→   613→      >
+   614→   614→        <div className="space-y-3">
+   615→   615→          <ReadOnlyField
+   616→   616→            label="Created Date"
+   617→   617→            value={new Date(working.createdAt).toLocaleDateString()}
+   618→   618→            help="Set when the certificate was first issued. Read-only."
+   619→   619→          />
+   620→   620→
+   621→   621→          <div className="space-y-1.5">
+   622→   622→            <LabelWithHelp
+   623→   623→              help="The publicly verifiable certificate URL. Anyone with the link can verify the certificate while its status is Valid."
+   624→   624→              className="text-sm font-medium"
+   625→   625→            >
+   626→   626→              Certificate URL
+   627→   627→            </LabelWithHelp>
+   628→   628→            <div className="flex items-center gap-1.5">
+   629→   629→              <Input
+   630→   630→                value={working.certUrl}
+   631→   631→                readOnly
+   632→   632→                className="flex-1 font-mono text-xs"
+   633→   633→                aria-label="Certificate URL"
+   634→   634→              />
+   635→   635→              <Button
+   636→   636→                size="sm"
+   637→   637→                variant="outline"
+   638→   638→                className="h-8 shrink-0 px-2"
+   639→   639→                onClick={onCopyUrl}
+   640→   640→                aria-label="Copy certificate URL"
+   641→   641→              >
+   642→   642→                <Copy className="h-3.5 w-3.5" />
+   643→   643→              </Button>
+   644→   644→              <a
+   645→   645→                href={working.certUrl}
+   646→   646→                target="_blank"
+   647→   647→                rel="noopener noreferrer"
+   648→   648→                className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border bg-background px-2 text-xs text-emerald-700 hover:bg-muted dark:text-emerald-400"
+   649→   649→                aria-label="Open certificate URL in new tab"
+   650→   650→              >
+   651→   651→                <ExternalLink className="h-3.5 w-3.5" />
+   652→   652→              </a>
+   653→   653→            </div>
+   654→   654→          </div>
+   655→   655→
+   656→   656→          <Separator />
+   657→   657→
+   658→   658→          <div className="space-y-1.5">
+   659→   659→            <LabelWithHelp
+   660→   660→              help="Valid = active & verifiable. Expired = past its validity period. Revoked = manually invalidated by an admin; the URL stops working."
+   661→   661→              className="text-sm font-medium"
+   662→   662→            >
+   663→   663→              Status
+   664→   664→            </LabelWithHelp>
+   665→   665→            <Select
+   666→   666→              value={working.status}
+   667→   667→              onValueChange={(v) =>
+   668→   668→                onFieldChange({ status: v as CertStatus })
+   669→   669→              }
+   670→   670→              disabled={!editing}
+   671→   671→            >
+   672→   672→              <SelectTrigger className="w-full" disabled={!editing}>
+   673→   673→                <SelectValue placeholder="Select status…" />
+   674→   674→              </SelectTrigger>
+   675→   675→              <SelectContent>
+   676→   676→                <SelectItem value="valid">Valid</SelectItem>
+   677→   677→                <SelectItem value="expired">Expired</SelectItem>
+   678→   678→                <SelectItem value="revoked">Revoked</SelectItem>
+   679→   679→              </SelectContent>
+   680→   680→            </Select>
+   681→   681→            <div className="pt-1">
+   682→   682→              <ExplainableStateBadge
+   683→   683→                status={working.status}
+   684→   684→                entityType="certificate"
+   685→   685→                detail={`Certificate URL: ${working.certUrl}`}
+   686→   686→              />
+   687→   687→            </div>
+   688→   688→          </div>
+   689→   689→        </div>
+   690→   690→      </FormSection>
+   691→   691→    </div>
+   692→   692→  );
+   693→   693→}
+   694→   694→
+   695→   695→/* ------------------------------------------------------------------ */
+   696→   696→/* Small building blocks                                               */
+   697→   697→/* ------------------------------------------------------------------ */
+   698→   698→
+   699→   699→function FormSection({
+   700→   700→  title,
+   701→   701→  icon: Icon,
+   702→   702→  description,
+   703→   703→  children,
+   704→   704→}: {
+   705→   705→  title: string;
+   706→   706→  icon: React.ComponentType<{ className?: string }>;
+   707→   707→  description?: string;
+   708→   708→  children: React.ReactNode;
+   709→   709→}) {
+   710→   710→  return (
+   711→   711→    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+   712→   712→      <header className="flex items-start gap-2">
+   713→   713→        <div className="rounded-md bg-muted p-1.5">
+   714→   714→          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+   715→   715→        </div>
+   716→   716→        <div>
+   717→   717→          <p className="text-sm font-medium text-foreground">{title}</p>
+   718→   718→          {description ? (
+   719→   719→            <p className="text-xs text-muted-foreground">{description}</p>
+   720→   720→          ) : null}
+   721→   721→        </div>
+   722→   722→      </header>
+   723→   723→      <Separator />
+   724→   724→      {children}
+   725→   725→    </section>
+   726→   726→  );
+   727→   727→}
+   728→   728→
+   729→   729→function ReadOnlyField({
+   730→   730→  label,
+   731→   731→  value,
+   732→   732→  help,
+   733→   733→}: {
+   734→   734→  label: string;
+   735→   735→  value: string;
+   736→   736→  help?: string;
+   737→   737→}) {
+   738→   738→  return (
+   739→   739→    <div className="space-y-1.5">
+   740→   740→      <LabelWithHelp
+   741→   741→        help={help ?? "Read-only."}
+   742→   742→        className="text-sm font-medium"
+   743→   743→      >
+   744→   744→        {label}
+   745→   745→      </LabelWithHelp>
+   746→   746→      <div className="flex h-9 items-center rounded-md border bg-muted/30 px-3 text-sm text-foreground">
+   747→   747→        {value}
+   748→   748→      </div>
+   749→   749→    </div>
+   750→   750→  );
+   751→   751→}
+   752→   752→

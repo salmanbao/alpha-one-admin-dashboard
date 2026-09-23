@@ -6,7 +6,7 @@
  * General, Branding, Terminology, Modules, Roles, Notifications.
  */
 
-import { Settings as SettingsIcon, Palette, Users, Package, Bell, Type, Mail, Award, Image, UsersRound, KeyRound, Wrench, Plug } from "lucide-react";
+import { Settings as SettingsIcon, Palette, Users, Package, Bell, Type, Mail, Award, Image, UsersRound, KeyRound, Wrench, Plug, Share2, Fingerprint } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
 const navigation: NavigationItem[] = [
@@ -36,6 +36,8 @@ const navigation: NavigationItem[] = [
       { id: "settings.cert-designer", label: "Certificate Designer", href: "certificate-template-designer", icon: Palette, permission: "settings.manage" },
       { id: "settings.font-upload", label: "Font Upload", href: "certificate-font-upload", icon: Type, permission: "settings.manage" },
       { id: "settings.mkt-integrations", label: "Marketing Integrations", href: "marketing-integrations", icon: Plug, permission: "settings.manage" },
+      { id: "settings.social-media", label: "Social Media Links", href: "social-media-links", icon: Share2, permission: "settings.manage" },
+      { id: "settings.device-activities", label: "Device Activities", href: "device-activities", icon: Fingerprint, permission: "settings.manage" },
     ],
   },
 ];
@@ -58,6 +60,8 @@ const routes: RouteDefinition[] = [
   { path: "certificate-font-upload", viewId: "certificate-font-upload", label: "Certificate Font Upload", permission: "settings.manage", module: "settings" },
   { path: "marketing-integrations", viewId: "marketing-integrations", label: "Marketing Integrations", permission: "settings.manage", module: "settings" },
   { path: "marketing-banner-edit", viewId: "marketing-banner-edit", label: "Marketing Banner Edit", permission: "settings.manage", module: "settings" },
+  { path: "social-media-links", viewId: "social-media-links", label: "Social Media Links", permission: "settings.manage", module: "settings" },
+  { path: "device-activities", viewId: "device-activities", label: "Device Activities", permission: "settings.manage", module: "settings" },
 ];
 
 export const settingsModule: FrontendModule = {
