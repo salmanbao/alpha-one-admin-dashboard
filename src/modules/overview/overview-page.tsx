@@ -1,7 +1,7 @@
 "use client";
 
 import { usePlatform } from "@/lib/platform/platform-context";
-import { DashboardGrid, CustomizeDashboardDialog } from "@/components/platform/dashboard-grid";
+import { DashboardGrid, CustomizeDashboardDialog } from "@/components/platform/gridstack-dashboard";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { AttentionCenter } from "@/components/platform/attention-center";
 import { LiveActivityFeedWidget } from "@/components/platform/live-activity-feed";

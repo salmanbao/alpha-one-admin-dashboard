@@ -1605,3 +1605,70 @@ Task: Apply Terra — Organic Design system to the complete project
 - **VLM rating: 9/10** — "textbook execution of Terra Organic Design system"
 - "balances complexity of financial data with calming, natural aesthetic"
 - "serif fonts + cream background + forest green = sophisticated, non-digital atmosphere"
+
+---
+Task ID: gridstack-drag-drop
+Agent: lead-architect
+Task: Implement GridStack drag-and-drop resizable widgets with super-admin-only editing
+
+## Requirements
+- Use GridStack library for draggable/resizable dashboard widgets
+- Only Super Admin (platform admin) can edit layout for tenant dashboards
+- Tenants cannot change the layout — read-only grid
+- Layout persisted per-tenant to localStorage
+
+## Completed Modifications
+
+### 1. Installed GridStack
+- `gridstack@11.5.1` — drag-and-drop grid library
+- CSS imported in `globals.css`: `gridstack.min.css` + `gridstack-extra.min.css`
+
+### 2. Created GridStackDashboard component
+File: `src/components/platform/gridstack-dashboard.tsx`
+
+**Permission model:**
+- `isSuperAdmin = runtime.user.application === "super-admin"` 
+- When true: shows "Edit Layout" / "Lock Layout" toggle button + "Reset" button
+- When false: shows "Dashboard layout is managed by your platform administrator" lock message
+- GridStack initialized with `staticGrid: !isSuperAdmin` — read-only for non-super-admin
+- `disableResize` and `disableDrag` set based on `isSuperAdmin`
+
+**Grid initialization:**
+- Pre-builds DOM elements with `gs-id`, `gs-x`, `gs-y`, `gs-w`, `gs-h` attributes
+- Appends to grid container BEFORE calling `GridStack.init()` — auto-detection
+- 12-column grid, 80px cell height, 12px margin
+- Dynamic import of gridstack JS (keeps initial bundle clean)
+
+**Layout persistence:**
+- Layout saved to `localStorage` key `pfaas:gridLayout:{tenantId}` on drag/resize/change events
+- Layout loaded on mount — falls back to auto-layout from resolveDashboardLayout if no saved layout
+- Reset button clears localStorage and reloads page
+
+**Widget rendering:**
+- Each grid-stack-item gets a `.grid-stack-item-content` div
+- React widgets rendered independently via `createRoot` into each content div
+- Each widget wrapped in ModuleErrorBoundary
+- Widget card header shows title + category badge in module accent color
+
+**Edit mode:**
+- When edit mode is enabled: grid items get dashed border, drag cursor, resize handles visible
+- Placeholder content shown during drag (semi-transparent primary color)
+- Toast feedback: "Layout editing enabled" / "Layout locked"
+
+### 3. Wired into OverviewPage
+- Replaced `DashboardGrid` from `dashboard-grid.tsx` with `GridStackDashboard` from `gridstack-dashboard.tsx`
+- `CustomizeDashboardDialog` is now a no-op (returns null) — layout editing handled by GridStack
+
+### 4. Terra-styled GridStack CSS
+- `.grid-stack-item-content`: rounded corners (var(--radius)), soft shadow (var(--shadow-soft)), warm cream background (var(--card))
+- Edit mode: dashed border in primary color, drag cursor, hover scale effect
+- Placeholder: semi-transparent primary color background
+- Resize handles: opacity transitions
+
+## Verification Results
+- Page loads 200 ✓, lint clean ✓, 0 console errors ✓
+- GridStack container exists with 16 items ✓ (verified via DOM: `itemCount: 16`)
+- Prop-admin (Sarah Chen): sees "Dashboard layout is managed by your platform administrator" lock message ✓
+- Module section headers visible: Trading, Challenges, Risk Management, Payouts ✓
+- Widget content rendered: KPI metrics, charts, tables, activity feeds ✓
+- VLM rating: 9/10 — "responsive grid with diverse content, admin control bar, clear section headers"
