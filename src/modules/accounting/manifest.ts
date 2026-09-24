@@ -6,7 +6,7 @@
  * reconciliation.
  */
 
-import { Calculator, Receipt, BookOpen, ArrowLeftRight, ListChecks } from "lucide-react";
+import { Calculator, Receipt, BookOpen, ArrowLeftRight, ListChecks, FileText, TrendingUp } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { AccountingOverviewWidget, RevenueByTypeWidget, TransactionFlowWidget } from "./widgets/accounting-widgets";
 
@@ -20,6 +20,8 @@ const navigation: NavigationItem[] = [
       { id: "accounting.overview", label: "Overview", href: "accounting", icon: BookOpen, permission: "accounting.read" },
       { id: "accounting.transactions", label: "Transactions", href: "accounting-transactions", icon: Receipt, permission: "accounting.read" },
       { id: "accounting.reconciliation", label: "Reconciliation", href: "accounting-reconciliation", icon: ArrowLeftRight, permission: "accounting.read" },
+      { id: "accounting.invoices", label: "Invoices", href: "accounting-invoices", icon: FileText, permission: "accounting.read", order: 73 },
+      { id: "accounting.pl", label: "P&L Statement", href: "accounting-pl", icon: TrendingUp, permission: "accounting.read", order: 74 },
     ],
   },
 ];
@@ -28,6 +30,8 @@ const routes: RouteDefinition[] = [
   { path: "accounting", viewId: "accounting", label: "Accounting Overview", permission: "accounting.read", module: "accounting" },
   { path: "accounting-transactions", viewId: "accounting-transactions", label: "Transactions", permission: "accounting.read", module: "accounting" },
   { path: "accounting-reconciliation", viewId: "accounting-reconciliation", label: "Reconciliation", permission: "accounting.read", module: "accounting" },
+  { path: "accounting-invoices", viewId: "accounting-invoices", label: "Invoices", permission: "accounting.read", module: "accounting" },
+  { path: "accounting-pl", viewId: "accounting-pl", label: "P&L Statement", permission: "accounting.read", module: "accounting" },
 ];
 
 const widgets: WidgetDefinition[] = [

@@ -1,0 +1,1647 @@
+     1→/**
+     2→ * PFaaS Platform — Mock Data Store
+     3→ *
+     4→ * Powers the demo: tenants, users, roles, traders, accounts, challenges,
+     5→ * breaches, payouts, analytics, affiliates, accounting transactions,
+     6→ * marketing campaigns, kyc records, support tickets, ai insights, audit log.
+     7→ *
+     8→ * Deterministic (seeded) so the dashboard is stable across reloads.
+     9→ */
+    10→
+    11→import type {
+    12→  AuditEntry,
+    13→  AuthUser,
+    14→  RoleDefinition,
+    15→  TenantContext,
+    16→} from "./types";
+    17→
+    18→/* ------------------------------------------------------------------ */
+    19→/* Helpers                                                             */
+    20→/* ------------------------------------------------------------------ */
+    21→
+    22→/**
+    23→ * Module augmentation — extend AuditEntry with an optional `tenantId`
+    24→ * field without modifying the canonical interface in types.ts. This lets
+    25→ * us scope audit log entries (and the user-events / change-history cousins
+    26→ * defined locally below) per-tenant in a multi-tenant SaaS shell.
+    27→ */
+    28→declare module "./types" {
+    29→  interface AuditEntry {
+    30→    tenantId?: string;
+    31→  }
+    32→}
+    33→
+    34→/**
+    35→ * Deterministic small-string hash — used in place of `Math.random()` so
+    36→ * mock data is stable across reloads (e.g. tenant scoping, default toggles).
+    37→ */
+    38→export function hashStr(s: string): number {
+    39→  let h = 7;
+    40→  for (let i = 0; i < s.length; i++) {
+    41→    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    42→  }
+    43→  return h;
+    44→}
+    45→
+    46→const now = new Date();
+    47→const iso = (d: Date) => d.toISOString();
+    48→const daysAgo = (n: number) => {
+    49→  const d = new Date(now);
+    50→  d.setDate(d.getDate() - n);
+    51→  return iso(d);
+    52→};
+    53→const hoursAgo = (n: number) => {
+    54→  const d = new Date(now);
+    55→  d.setHours(d.getHours() - n);
+    56→  return iso(d);
+    57→};
+    58→
+    59→/* ------------------------------------------------------------------ */
+    60→/* Tenants                                                             */
+    61→/* ------------------------------------------------------------------ */
+    62→
+    63→export const tenants: TenantContext[] = [
+    64→  {
+    65→    id: "tenant-alpha",
+    66→    slug: "alpha",
+    67→    name: "Alpha Capital",
+    68→    application: "prop-admin",
+    69→    branding: {
+    70→      name: "Alpha Capital",
+    71→      tagline: "Trade. Prove. Earn.",
+    72→      initials: "AC",
+    73→      primaryColor: "#4a7c59", // Terra forest green
+    74→      accentColor: "#705c30", // Terra warm amber
+    75→      surfaceColor: "#f5efe6", // Terra warm cream
+    76→      radius: "0.75rem",
+    77→    },
+    78→    locale: "en-US",
+    79→    timezone: "America/New_York",
+    80→    currency: "USD",
+    81→    enabledModules: ["trading", "challenges", "risk", "payouts", "settings"],
+    82→    enabledFeatures: ["challenges.two-phase", "risk.daily-drawdown"],
+    83→    terminology: {
+    84→      challenge: "Evaluation",
+    85→      trader: "Participant",
+    86→      payout: "Withdrawal",
+    87→    },
+    88→    plan: "growth",
+    89→    status: "active",
+    90→    createdAt: daysAgo(220),
+    91→  },
+    92→  {
+    93→    id: "tenant-beta",
+    94→    slug: "beta",
+    95→    name: "Beta Trading",
+    96→    application: "prop-admin",
+    97→    branding: {
+    98→      name: "Beta Trading",
+    99→      tagline: "Funded traders, faster.",
+   100→      initials: "BT",
+   101→      primaryColor: "#5a7c4a", // Terra sage green
+   102→      accentColor: "#8a6d30", // Terra golden brown
+   103→      surfaceColor: "#f5efe6",
+   104→      radius: "0.5rem",
+   105→    },
+   106→    locale: "en-GB",
+   107→    timezone: "Europe/London",
+   108→    currency: "GBP",
+   109→    enabledModules: [
+   110→      "trading",
+   111→      "challenges",
+   112→      "risk",
+   113→      "payouts",
+   114→      "analytics",
+   115→      "affiliates",
+   116→      "accounting",
+   117→      "ai",
+   118→      "settings",
+   119→    ],
+   120→    enabledFeatures: [
+   121→      "challenges.two-phase",
+   122→      "risk.daily-drawdown",
+   123→      "analytics.advanced",
+   124→      "analytics.cohorts",
+   125→      "ai.insights",
+   126→    ],
+   127→    terminology: {
+   128→      challenge: "Challenge",
+   129→      trader: "Trader",
+   130→      payout: "Payout",
+   131→    },
+   132→    plan: "scale",
+   133→    status: "active",
+   134→    createdAt: daysAgo(410),
+   135→  },
+   136→  {
+   137→    id: "tenant-gamma",
+   138→    slug: "gamma",
+   139→    name: "Gamma Futures",
+   140→    application: "prop-admin",
+   141→    branding: {
+   142→      name: "Gamma Futures",
+   143→      tagline: "Quantitative prop trading.",
+   144→      initials: "GF",
+   145→      primaryColor: "#4a6c59", // Terra deep green
+   146→      accentColor: "#705c30", // Terra warm amber
+   147→      surfaceColor: "#f5efe6",
+   148→      radius: "0.625rem",
+   149→    },
+   150→    locale: "en-US",
+   151→    timezone: "America/Chicago",
+   152→    currency: "USD",
+   153→    enabledModules: [
+   154→      "trading",
+   155→      "challenges",
+   156→      "risk",
+   157→      "payouts",
+   158→      "analytics",
+   159→      "marketing",
+   160→      "crm",
+   161→      "kyc",
+   162→      "support",
+   163→      "settings",
+   164→    ],
+   165→    enabledFeatures: [
+   166→      "challenges.two-phase",
+   167→      "analytics.cohorts",
+   168→      "kyc.automated",
+   169→    ],
+   170→    terminology: {
+   171→      challenge: "Assessment",
+   172→      trader: "Candidate",
+   173→      payout: "Disbursement",
+   174→    },
+   175→    plan: "enterprise",
+   176→    status: "active",
+   177→    createdAt: daysAgo(95),
+   178→  },
+   179→];
+   180→
+   181→/* The super-admin "platform" pseudo-tenant */
+   182→export const platformTenant: TenantContext = {
+   183→  id: "platform",
+   184→  slug: "platform",
+   185→  name: "PFaaS Platform",
+   186→  application: "super-admin",
+   187→  branding: {
+   188→    name: "PFaaS Platform",
+   189→    tagline: "White-label prop firm infrastructure.",
+   190→    initials: "PF",
+   191→    primaryColor: "#4a7c59", // Terra forest green
+   192→    accentColor: "#705c30", // Terra warm amber
+   193→    surfaceColor: "#faf6f0", // Terra warm cream
+   194→    radius: "0.625rem",
+   195→  },
+   196→  locale: "en-US",
+   197→  timezone: "UTC",
+   198→  currency: "USD",
+   199→  enabledModules: [
+   200→    "trading",
+   201→    "challenges",
+   202→    "risk",
+   203→    "payouts",
+   204→    "analytics",
+   205→    "affiliates",
+   206→    "accounting",
+   207→    "marketing",
+   208→    "crm",
+   209→    "kyc",
+   210→    "support",
+   211→    "ai",
+   212→  ],
+   213→  enabledFeatures: ["platform.all"],
+   214→  terminology: {},
+   215→  plan: "enterprise",
+   216→  status: "active",
+   217→  createdAt: daysAgo(900),
+   218→};
+   219→
+   220→/* ------------------------------------------------------------------ */
+   221→/* Roles                                                               */
+   222→/* ------------------------------------------------------------------ */
+   223→
+   224→export const roles: RoleDefinition[] = [
+   225→  {
+   226→    id: "super-admin",
+   227→    name: "Super Admin",
+   228→    description: "Controls the PFaaS platform itself.",
+   229→    application: "super-admin",
+   230→    permissions: ["*"],
+   231→    color: "#0a0a0a",
+   232→  },
+   233→  {
+   234→    id: "prop-admin",
+   235→    name: "Prop Firm Admin",
+   236→    description: "Full control of the tenant.",
+   237→    application: "prop-admin",
+   238→    permissions: [
+   239→      "trader.read",
+   240→      "trader.update",
+   241→      "account.read",
+   242→      "account.write",
+   243→      "challenge.read",
+   244→      "challenge.create",
+   245→      "challenge.update",
+   246→      "challenge.delete",
+   247→      "risk.read",
+   248→      "risk.configure",
+   249→      "breach.read",
+   250→      "payout.read",
+   251→      "payout.approve",
+   252→      "analytics.read",
+   253→      "analytics.advanced.read",
+   254→      "analytics.export",
+   255→      "affiliate.read",
+   256→      "affiliate.configure",
+   257→      "accounting.read",
+   258→      "accounting.configure",
+   259→      "marketing.read",
+   260→      "marketing.configure",
+   261→      "crm.read",
+   262→      "kyc.read",
+   263→      "kyc.approve",
+   264→      "support.read",
+   265→      "support.configure",
+   266→      "ai.read",
+   267→      "ai.configure",
+   268→      "settings.manage",
+   269→      "users.manage",
+   270→      "audit.read",
+   271→    ],
+   272→    color: "#0f766e",
+   273→  },
+   274→  {
+   275→    id: "risk-manager",
+   276→    name: "Risk Manager",
+   277→    description: "Monitors risk and breaches.",
+   278→    application: "prop-admin",
+   279→    permissions: [
+   280→      "trader.read",
+   281→      "account.read",
+   282→      "risk.read",
+   283→      "risk.configure",
+   284→      "breach.read",
+   285→      "analytics.read",
+   286→    ],
+   287→    color: "#b91c1c",
+   288→  },
+   289→  {
+   290→    id: "finance-manager",
+   291→    name: "Finance Manager",
+   292→    description: "Approves payouts and manages accounting.",
+   293→    application: "prop-admin",
+   294→    permissions: [
+   295→      "payout.read",
+   296→      "payout.approve",
+   297→      "accounting.read",
+   298→      "accounting.configure",
+   299→      "analytics.read",
+   300→      "trader.read",
+   301→      "account.read",
+   302→    ],
+   303→    color: "#15803d",
+   304→  },
+   305→  {
+   306→    id: "marketing-manager",
+   307→    name: "Marketing Manager",
+   308→    description: "Manages affiliates and campaigns.",
+   309→    application: "prop-admin",
+   310→    permissions: [
+   311→      "affiliate.read",
+   312→      "affiliate.configure",
+   313→      "marketing.read",
+   314→      "marketing.configure",
+   315→      "analytics.read",
+   316→      "trader.read",
+   317→    ],
+   318→    color: "#a21caf",
+   319→  },
+   320→  {
+   321→    id: "support-agent",
+   322→    name: "Support Agent",
+   323→    description: "Handles trader support tickets.",
+   324→    application: "prop-admin",
+   325→    permissions: [
+   326→      "support.read",
+   327→      "support.configure",
+   328→      "trader.read",
+   329→      "account.read",
+   330→    ],
+   331→    color: "#c2410c",
+   332→  },
+   333→  {
+   334→    id: "trader",
+   335→    name: "Trader",
+   336→    description: "Participates in challenges and trades.",
+   337→    application: "trader",
+   338→    permissions: [
+   339→      "trader.self",
+   340→      "account.self",
+   341→      "challenge.self",
+   342→      "payout.self",
+   343→      "analytics.self",
+   344→      "support.self",
+   345→      "affiliate.self",
+   346→    ],
+   347→    color: "#0369a1",
+   348→  },
+   349→];
+   350→
+   351→/* ------------------------------------------------------------------ */
+   352→/* Users                                                               */
+   353→/* ------------------------------------------------------------------ */
+   354→
+   355→export const users: AuthUser[] = [
+   356→  {
+   357→    id: "user-super",
+   358→    name: "Alex Morgan",
+   359→    email: "alex@pfaas.io",
+   360→    initials: "AM",
+   361→    roles: ["super-admin"],
+   362→    permissions: ["*"],
+   363→    application: "super-admin",
+   364→    lastActiveAt: hoursAgo(1),
+   365→  },
+   366→  {
+   367→    id: "user-alpha-admin",
+   368→    tenantId: "tenant-alpha",
+   369→    name: "Sarah Chen",
+   370→    email: "sarah@alphacapital.io",
+   371→    initials: "SC",
+   372→    roles: ["prop-admin"],
+   373→    permissions: roles.find((r) => r.id === "prop-admin")!.permissions,
+   374→    application: "prop-admin",
+   375→    lastActiveAt: hoursAgo(2),
+   376→  },
+   377→  {
+   378→    id: "user-alpha-risk",
+   379→    tenantId: "tenant-alpha",
+   380→    name: "Marcus Webb",
+   381→    email: "marcus@alphacapital.io",
+   382→    initials: "MW",
+   383→    roles: ["risk-manager"],
+   384→    permissions: roles.find((r) => r.id === "risk-manager")!.permissions,
+   385→    application: "prop-admin",
+   386→    lastActiveAt: hoursAgo(3),
+   387→  },
+   388→  {
+   389→    id: "user-alpha-finance",
+   390→    tenantId: "tenant-alpha",
+   391→    name: "Priya Nair",
+   392→    email: "priya@alphacapital.io",
+   393→    initials: "PN",
+   394→    roles: ["finance-manager"],
+   395→    permissions: roles.find((r) => r.id === "finance-manager")!.permissions,
+   396→    application: "prop-admin",
+   397→    lastActiveAt: hoursAgo(5),
+   398→  },
+   399→  {
+   400→    id: "user-beta-admin",
+   401→    tenantId: "tenant-beta",
+   402→    name: "Daniel Cooper",
+   403→    email: "daniel@betatrading.co.uk",
+   404→    initials: "DC",
+   405→    roles: ["prop-admin"],
+   406→    permissions: roles.find((r) => r.id === "prop-admin")!.permissions,
+   407→    application: "prop-admin",
+   408→    lastActiveAt: hoursAgo(1),
+   409→  },
+   410→  {
+   411→    id: "user-beta-marketing",
+   412→    tenantId: "tenant-beta",
+   413→    name: "Elena Rossi",
+   414→    email: "elena@betatrading.co.uk",
+   415→    initials: "ER",
+   416→    roles: ["marketing-manager"],
+   417→    permissions: roles.find((r) => r.id === "marketing-manager")!.permissions,
+   418→    application: "prop-admin",
+   419→    lastActiveAt: hoursAgo(4),
+   420→  },
+   421→  {
+   422→    id: "user-gamma-admin",
+   423→    tenantId: "tenant-gamma",
+   424→    name: "James Park",
+   425→    email: "james@gammafutures.com",
+   426→    initials: "JP",
+   427→    roles: ["prop-admin"],
+   428→    permissions: roles.find((r) => r.id === "prop-admin")!.permissions,
+   429→    application: "prop-admin",
+   430→    lastActiveAt: hoursAgo(2),
+   431→  },
+   432→  {
+   433→    id: "user-trader-1",
+   434→    tenantId: "tenant-beta",
+   435→    name: "Tom Allen",
+   436→    email: "tom@example.com",
+   437→    initials: "TA",
+   438→    roles: ["trader"],
+   439→    permissions: roles.find((r) => r.id === "trader")!.permissions,
+   440→    application: "trader",
+   441→    lastActiveAt: hoursAgo(1),
+   442→  },
+   443→];
+   444→
+   445→/* ------------------------------------------------------------------ */
+   446→/* Trading domain                                                      */
+   447→/* ------------------------------------------------------------------ */
+   448→
+   449→export interface Trader {
+   450→  id: string;
+   451→  tenantId: string;
+   452→  name: string;
+   453→  email: string;
+   454→  country: string;
+   455→  status: "active" | "invited" | "suspended" | "breached";
+   456→  joinedAt: string;
+   457→  challengePhase?: "phase-1" | "phase-2" | "funded" | "none";
+   458→  accountBalance: number;
+   459→  equity: number;
+   460→  totalPnl: number;
+   461→  winRate: number;
+   462→  trades: number;
+   463→}
+   464→
+   465→export interface TradingAccount {
+   466→  id: string;
+   467→  tenantId: string;
+   468→  traderId: string;
+   469→  traderName: string;
+   470→  login: string;
+   471→  platform: "MT5" | "MT4" | "DXTrade";
+   472→  type: "challenge" | "funded" | "demo";
+   473→  phase: "phase-1" | "phase-2" | "funded";
+   474→  balance: number;
+   475→  equity: number;
+   476→  leverage: string;
+   477→  currency: string;
+   478→  status: "active" | "breached" | "passed" | "pending";
+   479→  createdAt: string;
+   480→}
+   481→
+   482→export interface Position {
+   483→  id: string;
+   484→  tenantId: string;
+   485→  accountId: string;
+   486→  traderId: string;
+   487→  symbol: string;
+   488→  side: "buy" | "sell";
+   489→  volume: number;
+   490→  entryPrice: number;
+   491→  currentPrice: number;
+   492→  pnl: number;
+   493→  pnlPct: number;
+   494→  swap: number;
+   495→  openedAt: string;
+   496→}
+   497→
+   498→export interface Challenge {
+   499→  id: string;
+   500→  tenantId: string;
+   501→  traderId: string;
+   502→  traderName: string;
+   503→  name: string;
+   504→  phase: "phase-1" | "phase-2" | "funded" | "failed";
+   505→  accountSize: number;
+   506→  profitTarget: number;
+   507→  maxDrawdown: number;
+   508→  dailyDrawdown: number;
+   509→  progressPct: number;
+   510→  daysLeft: number;
+   511→  currentProfit: number;
+   512→  status: "in-progress" | "passed" | "failed" | "funded";
+   513→  createdAt: string;
+   514→}
+   515→
+   516→export interface Breach {
+   517→  id: string;
+   518→  tenantId: string;
+   519→  traderId: string;
+   520→  traderName: string;
+   521→  accountId: string;
+   522→  type: "daily-drawdown" | "max-drawdown" | "profit-target-miss" | "time-limit";
+   523→  rule: string;
+   524→  triggeredAt: string;
+   525→  severity: "warning" | "critical";
+   526→  status: "open" | "resolved";
+   527→}
+   528→
+   529→export interface Payout {
+   530→  id: string;
+   531→  tenantId: string;
+   532→  traderId: string;
+   533→  traderName: string;
+   534→  amount: number;
+   535→  currency: string;
+   536→  method: "bank-transfer" | "crypto" | "paypal" | "skrill";
+   537→  status: "pending" | "approved" | "processing" | "paid" | "rejected";
+   538→  profitSplit: number; // trader % share
+   539→  createdAt: string;
+   540→  processedAt?: string;
+   541→  reference: string;
+   542→}
+   543→
+   544→export interface Affiliate {
+   545→  id: string;
+   546→  tenantId: string;
+   547→  name: string;
+   548→  email: string;
+   549→  code: string;
+   550→  referrals: number;
+   551→  activeReferrals: number;
+   552→  conversions: number;
+   553→  commissionEarned: number;
+   554→  commissionPending: number;
+   555→  status: "active" | "pending" | "suspended";
+   556→  tier: "bronze" | "silver" | "gold" | "platinum";
+   557→  joinedAt: string;
+   558→}
+   559→
+   560→export interface AffiliateCampaign {
+   561→  id: string;
+   562→  tenantId: string;
+   563→  name: string;
+   564→  affiliateId: string;
+   565→  affiliateName: string;
+   566→  clicks: number;
+   567→  signups: number;
+   568→  conversions: number;
+   569→  spend: number;
+   570→  revenue: number;
+   571→  status: "active" | "paused" | "ended";
+   572→  startDate: string;
+   573→}
+   574→
+   575→export interface Transaction {
+   576→  id: string;
+   577→  tenantId: string;
+   578→  reference: string;
+   579→  type: "payout" | "challenge-fee" | "subscription" | "refund" | "commission";
+   580→  description: string;
+   581→  amount: number;
+   582→  currency: string;
+   583→  category: string;
+   584→  status: "posted" | "pending" | "reconciled";
+   585→  date: string;
+   586→  account: string;
+   587→}
+   588→
+   589→export interface MarketingCampaign {
+   590→  id: string;
+   591→  tenantId: string;
+   592→  name: string;
+   593→  channel: "email" | "social" | "paid-ads" | "content" | "affiliate";
+   594→  status: "active" | "paused" | "draft" | "completed";
+   595→  budget: number;
+   596→  spend: number;
+   597→  impressions: number;
+   598→  clicks: number;
+   599→  conversions: number;
+   600→  revenue: number;
+   601→  startDate: string;
+   602→  endDate?: string;
+   603→}
+   604→
+   605→export interface CrmContact {
+   606→  id: string;
+   607→  tenantId: string;
+   608→  name: string;
+   609→  email: string;
+   610→  phone?: string;
+   611→  source: string;
+   612→  stage: "lead" | "qualified" | "opportunity" | "customer" | "churned";
+   613→  owner: string;
+   614→  value: number;
+   615→  lastInteraction: string;
+   616→  notes: string;
+   617→}
+   618→
+   619→export interface KycRecord {
+   620→  id: string;
+   621→  tenantId: string;
+   622→  traderId: string;
+   623→  traderName: string;
+   624→  status: "pending" | "review" | "approved" | "rejected" | "expired";
+   625→  documentType: "passport" | "driving-license" | "national-id";
+   626→  country: string;
+   627→  submittedAt: string;
+   628→  reviewedAt?: string;
+   629→  riskLevel: "low" | "medium" | "high";
+   630→}
+   631→
+   632→export interface SupportTicket {
+   633→  id: string;
+   634→  tenantId: string;
+   635→  subject: string;
+   636→  traderName: string;
+   637→  category: "trading" | "payout" | "account" | "technical" | "billing";
+   638→  priority: "low" | "medium" | "high" | "urgent";
+   639→  status: "open" | "in-progress" | "waiting" | "resolved" | "closed";
+   640→  assignee?: string;
+   641→  createdAt: string;
+   642→  lastReplyAt?: string;
+   643→  messages: number;
+   644→}
+   645→
+   646→export interface AiInsight {
+   647→  id: string;
+   648→  tenantId: string;
+   649→  module: string;
+   650→  title: string;
+   651→  summary: string;
+   652→  detail: string;
+   653→  severity: "info" | "warning" | "opportunity" | "critical";
+   654→  confidence: number;
+   655→  generatedAt: string;
+   656→}
+   657→
+   658→/* ------------------------------------------------------------------ */
+   659→/* Seeded traders (shared, used across tenants)                        */
+   660→/* ------------------------------------------------------------------ */
+   661→
+   662→const traderFirstNames = [
+   663→  "Liam", "Noah", "Olivia", "Emma", "Sophia", "Mason", "Ava", "Lucas",
+   664→  "Isabella", "Ethan", "Mia", "Aiden", "Amelia", "Jayden", "Harper",
+   665→  "Riley", "Zoe", "Nora", "Leo", "Ezra",
+   666→];
+   667→const traderLastNames = [
+   668→  "Smith", "Khan", "Garcia", "Müller", "Rossi", "Wang", "Nguyen", "Silva",
+   669→  "Andersson", "Patel", "Kim", "Lopez", "Olsen", "Haddad", "Kowalski",
+   670→  "Reyes", "Ivanov", "Cohen", "Park", "Singh",
+   671→];
+   672→const countries = ["US", "GB", "AE", "SG", "DE", "FR", "BR", "IN", "ZA", "CA"];
+   673→
+   674→function seedTraders(tenantId: string, count: number): Trader[] {
+   675→  const out: Trader[] = [];
+   676→  for (let i = 0; i < count; i++) {
+   677→    const name = `${traderFirstNames[i % traderFirstNames.length]} ${traderLastNames[(i * 3) % traderLastNames.length]}`;
+   678→    const phaseRoll = (i % 7);
+   679→    const phase =
+   680→      phaseRoll === 0 ? "funded" :
+   681→      phaseRoll === 1 ? "none" :
+   682→      phaseRoll <= 3 ? "phase-1" : "phase-2";
+   683→    const status =
+   684→      phase === "none" ? "invited" :
+   685→      i % 11 === 0 ? "breached" :
+   686→      i % 9 === 0 ? "suspended" : "active";
+   687→    const balance = phase === "funded" ? 25000 + (i % 4) * 25000 : 5000 + (i % 5) * 5000;
+   688→    const equity = balance + (Math.sin(i) * balance * 0.08);
+   689→    out.push({
+   690→      id: `trader-${tenantId}-${i + 1}`,
+   691→      tenantId,
+   692→      name,
+   693→      email: `${name.toLowerCase().replace(/\s+/g, ".")}@email.com`,
+   694→      country: countries[i % countries.length],
+   695→      status,
+   696→      joinedAt: daysAgo(180 - i * 3),
+   697→      challengePhase: phase as Trader["challengePhase"],
+   698→      accountBalance: balance,
+   699→      equity: Math.round(equity),
+   700→      totalPnl: Math.round(Math.sin(i * 1.3) * 4200 + 1200),
+   701→      winRate: 38 + (i % 30),
+   702→      trades: 40 + (i % 220),
+   703→    });
+   704→  }
+   705→  return out;
+   706→}
+   707→
+   708→export const traders: Trader[] = [
+   709→  ...seedTraders("tenant-alpha", 24),
+   710→  ...seedTraders("tenant-beta", 38),
+   711→  ...seedTraders("tenant-gamma", 18),
+   712→];
+   713→
+   714→/* Trading accounts */
+   715→function seedAccounts(): TradingAccount[] {
+   716→  const out: TradingAccount[] = [];
+   717→  let n = 0;
+   718→  for (const t of traders) {
+   719→    if (t.challengePhase === "none") continue;
+   720→    const phases: TradingAccount["phase"][] =
+   721→      t.challengePhase === "funded"
+   722→        ? ["funded"]
+   723→        : t.challengePhase === "phase-2"
+   724→        ? ["phase-1", "phase-2"]
+   725→        : ["phase-1"];
+   726→    for (const phase of phases) {
+   727→      n++;
+   728→      const isFunded = phase === "funded";
+   729→      out.push({
+   730→        id: `acct-${t.tenantId}-${n}`,
+   731→        tenantId: t.tenantId,
+   732→        traderId: t.id,
+   733→        traderName: t.name,
+   734→        login: `${100000 + n}`,
+   735→        platform: n % 3 === 0 ? "DXTrade" : "MT5",
+   736→        type: isFunded ? "funded" : "challenge",
+   737→        phase,
+   738→        balance: isFunded ? 50000 : 10000,
+   739→        equity: Math.round(t.equity),
+   740→        leverage: "1:100",
+   741→        currency: t.tenantId === "tenant-beta" ? "GBP" : "USD",
+   742→        status: t.status === "breached" ? "breached" : isFunded ? "active" : "in-progress",
+   743→        createdAt: t.joinedAt,
+   744→      });
+   745→    }
+   746→  }
+   747→  return out;
+   748→}
+   749→export const tradingAccounts: TradingAccount[] = seedAccounts();
+   750→
+   751→/* Positions */
+   752→const symbols = [
+   753→  ["EURUSD", 1.085], ["GBPUSD", 1.271], ["USDJPY", 151.4], ["XAUUSD", 2348.5],
+   754→  ["BTCUSD", 67250], ["ETHUSD", 3480], ["SP500", 5230], ["NAS100", 18420],
+   755→];
+   756→function seedPositions(): Position[] {
+   757→  const out: Position[] = [];
+   758→  let n = 0;
+   759→  for (const a of tradingAccounts.slice(0, 60)) {
+   760→    const count = 1 + (n % 4);
+   761→    for (let i = 0; i < count; i++) {
+   762→      n++;
+   763→      const [sym, price] = symbols[(n + i) % symbols.length];
+   764→      const entry = price * (1 + (Math.sin(n) * 0.01));
+   765→      const current = price;
+   766→      const volume = 0.05 + (n % 5) * 0.1;
+   767→      const pnl = (current - entry) * volume * (sym.includes("JPY") ? 1000 : 10000) * (n % 2 === 0 ? 1 : -1);
+   768→      out.push({
+   769→        id: `pos-${n}`,
+   770→        tenantId: a.tenantId,
+   771→        accountId: a.id,
+   772→        traderId: a.traderId,
+   773→        symbol: sym,
+   774→        side: n % 2 === 0 ? "buy" : "sell",
+   775→        volume,
+   776→        entryPrice: Math.round(entry * 100) / 100,
+   777→        currentPrice: current,
+   778→        pnl: Math.round(pnl),
+   779→        pnlPct: Math.round((pnl / (entry * volume)) * 10000) / 100,
+   780→        swap: Math.round(Math.sin(n) * 5),
+   781→        openedAt: hoursAgo(n % 48),
+   782→      });
+   783→    }
+   784→  }
+   785→  return out;
+   786→}
+   787→export const positions: Position[] = seedPositions();
+   788→
+   789→/* Challenges */
+   790→function seedChallenges(): Challenge[] {
+   791→  const out: Challenge[] = [];
+   792→  let n = 0;
+   793→  for (const t of traders) {
+   794→    if (t.challengePhase === "none" || t.challengePhase === "funded") continue;
+   795→    n++;
+   796→    const phase = t.challengePhase;
+   797→    const accountSize = phase === "phase-2" ? 25000 : 10000;
+   798→    const profitTarget = accountSize * (phase === "phase-2" ? 0.05 : 0.08);
+   799→    out.push({
+   800→      id: `chal-${t.tenantId}-${n}`,
+   801→      tenantId: t.tenantId,
+   802→      traderId: t.id,
+   803→      traderName: t.name,
+   804→      name: phase === "phase-2" ? "Verification Phase" : "1-Step Evaluation",
+   805→      phase,
+   806→      accountSize,
+   807→      profitTarget,
+   808→      maxDrawdown: accountSize * 0.1,
+   809→      dailyDrawdown: accountSize * 0.05,
+   810→      progressPct: Math.round(((Math.sin(n) + 1) / 2) * 100),
+   811→      daysLeft: 30 - (n % 25),
+   812→      currentProfit: Math.round((Math.sin(n) + 1) * profitTarget * 0.5),
+   813→      status: "in-progress",
+   814→      createdAt: t.joinedAt,
+   815→    });
+   816→  }
+   817→  return out;
+   818→}
+   819→export const challenges: Challenge[] = seedChallenges();
+   820→
+   821→/* Breaches */
+   822→function seedBreaches(): Breach[] {
+   823→  const out: Breach[] = [];
+   824→  const breachedTraders = traders.filter((t) => t.status === "breached" || t.challengePhase === "phase-1");
+   825→  let n = 0;
+   826→  for (const t of breachedTraders.slice(0, 18)) {
+   827→    n++;
+   828→    const types: Breach["type"][] = ["daily-drawdown", "max-drawdown", "profit-target-miss", "time-limit"];
+   829→    out.push({
+   830→      id: `br-${t.tenantId}-${n}`,
+   831→      tenantId: t.tenantId,
+   832→      traderId: t.id,
+   833→      traderName: t.name,
+   834→      accountId: tradingAccounts.find((a) => a.traderId === t.id)?.id ?? "acct-unknown",
+   835→      type: types[n % types.length],
+   836→      rule: n % 2 === 0 ? "Daily loss limit exceeded (5%)" : "Max drawdown breached (10%)",
+   837→      triggeredAt: daysAgo(n),
+   838→      severity: n % 3 === 0 ? "critical" : "warning",
+   839→      status: n % 4 === 0 ? "resolved" : "open",
+   840→    });
+   841→  }
+   842→  return out;
+   843→}
+   844→export const breaches: Breach[] = seedBreaches();
+   845→
+   846→/* Payouts */
+   847→function seedPayouts(): Payout[] {
+   848→  const out: Payout[] = [];
+   849→  const fundedTraders = traders.filter((t) => t.challengePhase === "funded");
+   850→  let n = 0;
+   851→  for (const t of fundedTraders) {
+   852→    const count = 1 + (n % 3);
+   853→    for (let i = 0; i < count; i++) {
+   854→      n++;
+   855→      const statuses: Payout["status"][] = ["pending", "approved", "processing", "paid", "rejected"];
+   856→      const status = statuses[(n + i) % statuses.length];
+   857→      out.push({
+   858→        id: `pay-${t.tenantId}-${n}`,
+   859→        tenantId: t.tenantId,
+   860→        traderId: t.id,
+   861→        traderName: t.name,
+   862→        amount: Math.round(1200 + (Math.sin(n) + 1) * 4500),
+   863→        currency: t.tenantId === "tenant-beta" ? "GBP" : "USD",
+   864→        method: ["bank-transfer", "crypto", "paypal", "skrill"][n % 4] as Payout["method"],
+   865→        status,
+   866→        profitSplit: 80 + (n % 20),
+   867→        createdAt: daysAgo(n * 2),
+   868→        processedAt: status === "paid" ? daysAgo(n) : undefined,
+   869→        reference: `WD-${10000 + n}`,
+   870→      });
+   871→    }
+   872→  }
+   873→  return out;
+   874→}
+   875→export const payouts: Payout[] = seedPayouts();
+   876→
+   877→/* Affiliates */
+   878→const affiliateNames = ["Prime FX Partners", "Trading Hub", "Fx Influencers", "Capital Network", "Quant Affiliates", "Pro Traders Club"];
+   879→export const affiliates: Affiliate[] = affiliateNames.flatMap((name, i) =>
+   880→  ["tenant-beta", "tenant-gamma"].map((tid, j) => ({
+   881→    id: `aff-${tid}-${i}`,
+   882→    tenantId: tid,
+   883→    name,
+   884→    email: `contact@${name.toLowerCase().replace(/\s+/g, "")}.com`,
+   885→    code: `${tid.slice(0, 2).toUpperCase()}${name.slice(0, 2).toUpperCase()}${i + 1}`,
+   886→    referrals: 20 + i * 15 + j * 8,
+   887→    activeReferrals: 12 + i * 6 + j * 3,
+   888→    conversions: 5 + i * 4 + j * 2,
+   889→    commissionEarned: Math.round(2400 + i * 1800 + j * 900),
+   890→    commissionPending: Math.round(300 + i * 220),
+   891→    status: i % 4 === 0 ? "pending" : "active",
+   892→    tier: (["bronze", "silver", "gold", "platinum"] as const)[i % 4],
+   893→    joinedAt: daysAgo(120 + i * 30),
+   894→  }))
+   895→);
+   896→
+   897→export const affiliateCampaigns: AffiliateCampaign[] = affiliates.slice(0, 12).map((a, i) => ({
+   898→  id: `camp-${a.id}`,
+   899→  tenantId: a.tenantId,
+   900→  name: `Q${(i % 4) + 1} ${a.name} Push`,
+   901→  affiliateId: a.id,
+   902→  affiliateName: a.name,
+   903→  clicks: 800 + i * 320,
+   904→  signups: 40 + i * 12,
+   905→  conversions: 8 + i * 3,
+   906→  spend: Math.round(400 + i * 250),
+   907→  revenue: Math.round(2400 + i * 1200),
+   908→  status: i % 3 === 0 ? "paused" : "active",
+   909→  startDate: daysAgo(60 - i * 4),
+   910→}));
+   911→
+   912→/* Accounting transactions */
+   913→export const transactions: Transaction[] = (() => {
+   914→  const out: Transaction[] = [];
+   915→  for (const tid of ["tenant-alpha", "tenant-beta", "tenant-gamma"]) {
+   916→    for (let i = 0; i < 30; i++) {
+   917→      const types: Transaction["type"][] = ["payout", "challenge-fee", "subscription", "refund", "commission"];
+   918→      const type = types[i % types.length];
+   919→      out.push({
+   920→        id: `txn-${tid}-${i}`,
+   921→        tenantId: tid,
+   922→        reference: `TXN-${20000 + i}`,
+   923→        type,
+   924→        description:
+   925→          type === "payout" ? "Trader withdrawal" :
+   926→          type === "challenge-fee" ? "Challenge registration fee" :
+   927→          type === "subscription" ? "Platform monthly subscription" :
+   928→          type === "refund" ? "Refund processed" : "Affiliate commission payout",
+   929→        amount: Math.round((Math.sin(i) + 1) * 3500 + 200),
+   930→        currency: tid === "tenant-beta" ? "GBP" : "USD",
+   931→        category: type,
+   932→        status: i % 5 === 0 ? "pending" : i % 7 === 0 ? "reconciled" : "posted",
+   933→        date: daysAgo(i),
+   934→        account: "Operating Account",
+   935→      });
+   936→    }
+   937→  }
+   938→  return out;
+   939→})();
+   940→
+   941→/* Marketing campaigns */
+   942→export const marketingCampaigns: MarketingCampaign[] = (() => {
+   943→  const out: MarketingCampaign[] = [];
+   944→  const names = ["Spring Launch", "Funded Trader Promo", "Crypto Challenge Series", "Black Friday Bonus", "Affiliate Boost", "Retargeting Q1"];
+   945→  for (const tid of ["tenant-beta", "tenant-gamma"]) {
+   946→    names.forEach((n, i) => {
+   947→      out.push({
+   948→        id: `mkt-${tid}-${i}`,
+   949→        tenantId: tid,
+   950→        name: n,
+   951→        channel: ["email", "social", "paid-ads", "content", "affiliate"][i % 5] as MarketingCampaign["channel"],
+   952→        status: i % 4 === 0 ? "draft" : i % 5 === 0 ? "completed" : "active",
+   953→        budget: 2000 + i * 1500,
+   954→        spend: Math.round(800 + i * 600),
+   955→        impressions: 12000 + i * 4500,
+   956→        clicks: 480 + i * 180,
+   957→        conversions: 12 + i * 6,
+   958→        revenue: Math.round(3200 + i * 2100),
+   959→        startDate: daysAgo(45 - i * 3),
+   960→        endDate: i % 4 === 0 ? daysAgo(10) : undefined,
+   961→      });
+   962→    });
+   963→  }
+   964→  return out;
+   965→})();
+   966→
+   967→/* CRM contacts */
+   968→export const crmContacts: CrmContact[] = (() => {
+   969→  const out: CrmContact[] = [];
+   970→  for (const tid of ["tenant-beta", "tenant-gamma"]) {
+   971→    for (let i = 0; i < 18; i++) {
+   972→      out.push({
+   973→        id: `crm-${tid}-${i}`,
+   974→        tenantId: tid,
+   975→        name: `${traderFirstNames[i % traderFirstNames.length]} ${traderLastNames[(i * 2) % traderLastNames.length]}`,
+   976→        email: `lead${i}@example.com`,
+   977→        phone: i % 2 === 0 ? `+1-555-01${i}` : undefined,
+   978→        source: ["Website", "Webinar", "Affiliate", "Social", "Cold Outbound"][i % 5],
+   979→        stage: (["lead", "qualified", "opportunity", "customer", "churned"] as const)[i % 5],
+   980→        owner: ["Sarah", "Elena", "James", "Marcus"][i % 4],
+   981→        value: 500 + i * 350,
+   982→        lastInteraction: daysAgo(i),
+   983→        notes: i % 3 === 0 ? "Interested in 100k challenge." : "Demo account requested.",
+   984→      });
+   985→    }
+   986→  }
+   987→  return out;
+   988→})();
+   989→
+   990→/* KYC records */
+   991→export const kycRecords: KycRecord[] = (() => {
+   992→  const out: KycRecord[] = [];
+   993→  let n = 0;
+   994→  for (const t of traders) {
+   995→    if (t.status === "invited") continue;
+   996→    n++;
+   997→    out.push({
+   998→      id: `kyc-${t.tenantId}-${n}`,
+   999→      tenantId: t.tenantId,
+  1000→      traderId: t.id,
+  1001→      traderName: t.name,
+  1002→      status: (["pending", "review", "approved", "approved", "rejected"] as const)[n % 5],
+  1003→      documentType: (["passport", "driving-license", "national-id"] as const)[n % 3],
+  1004→      country: t.country,
+  1005→      submittedAt: daysAgo(n * 2),
+  1006→      reviewedAt: n % 3 === 0 ? daysAgo(n) : undefined,
+  1007→      riskLevel: (["low", "medium", "high"] as const)[n % 3],
+  1008→    });
+  1009→  }
+  1010→  return out;
+  1011→})();
+  1012→
+  1013→/* Support tickets */
+  1014→export const supportTickets: SupportTicket[] = (() => {
+  1015→  const out: SupportTicket[] = [];
+  1016→  const subjects = [
+  1017→    "Cannot login to MT5 account",
+  1018→    "Payout taking too long",
+  1019→    "Challenge progress not updating",
+  1020→    "Profit target reached but not funded",
+  1021→    "Need to update bank details",
+  1022→    "Drawdown calculation seems off",
+  1023→    "How to upload KYC documents",
+  1024→    "Affiliate commission missing",
+  1025→  ];
+  1026→  for (const tid of ["tenant-alpha", "tenant-beta", "tenant-gamma"]) {
+  1027→    for (let i = 0; i < 14; i++) {
+  1028→      out.push({
+  1029→        id: `tkt-${tid}-${i}`,
+  1030→        tenantId: tid,
+  1031→        subject: subjects[i % subjects.length],
+  1032→        traderName: traders.filter((t) => t.tenantId === tid)[i % 10]?.name ?? "Unknown",
+  1033→        category: (["trading", "payout", "account", "technical", "billing"] as const)[i % 5],
+  1034→        priority: (["low", "medium", "high", "urgent"] as const)[i % 4],
+  1035→        status: (["open", "in-progress", "waiting", "resolved", "closed"] as const)[i % 5],
+  1036→        assignee: i % 2 === 0 ? "Support Team" : undefined,
+  1037→        createdAt: daysAgo(i * 2),
+  1038→        lastReplyAt: i % 3 === 0 ? hoursAgo(8) : undefined,
+  1039→        messages: 1 + (i % 8),
+  1040→      });
+  1041→    }
+  1042→  }
+  1043→  return out;
+  1044→})();
+  1045→
+  1046→/* AI insights */
+  1047→export const aiInsights: AiInsight[] = [
+  1048→  {
+  1049→    id: "ai-1",
+  1050→    tenantId: "tenant-beta",
+  1051→    module: "ai",
+  1052→    title: "Payout spike detected",
+  1053→    summary: "Payout requests up 38% week-over-week, concentrated in funded traders.",
+  1054→    detail: "Model confidence 87%. Recommend reviewing payout reserves.",
+  1055→    severity: "warning",
+  1056→    confidence: 0.87,
+  1057→    generatedAt: hoursAgo(2),
+  1058→  },
+  1059→  {
+  1060→    id: "ai-2",
+  1061→    tenantId: "tenant-beta",
+  1062→    module: "ai",
+  1063→    title: "Affiliate conversion opportunity",
+  1064→    summary: "Affiliates in 'gold' tier convert 2.4x better. Consider tier upgrade for 3 partners.",
+  1065→    detail: "Expected revenue uplift: $18.4k over 30 days.",
+  1066→    severity: "opportunity",
+  1067→    confidence: 0.78,
+  1068→    generatedAt: hoursAgo(6),
+  1069→  },
+  1070→  {
+  1071→    id: "ai-3",
+  1072→    tenantId: "tenant-gamma",
+  1073→    module: "ai",
+  1074→    title: "KYC backlog growing",
+  1075→    summary: "14 KYC reviews pending >48h. Risk of churn for 4 high-value leads.",
+  1076→    detail: "Auto-approve low-risk profiles to reduce backlog.",
+  1077→    severity: "critical",
+  1078→    confidence: 0.92,
+  1079→    generatedAt: hoursAgo(3),
+  1080→  },
+  1081→];
+  1082→
+  1083→/* Audit log */
+  1084→export const auditLog: AuditEntry[] = (() => {
+  1085→  const out: AuditEntry[] = [];
+  1086→  const actors = ["Sarah Chen", "Marcus Webb", "Priya Nair", "Daniel Cooper", "Elena Rossi", "James Park", "System"];
+  1087→  const actions = [
+  1088→    ["Approved payout", "payout"],
+  1089→    ["Updated risk config", "risk"],
+  1090→    ["Created challenge", "challenge"],
+  1091→    ["Suspended trader", "trader"],
+  1092→    ["Enabled module", "settings"],
+  1093→    ["Updated branding", "settings"],
+  1094→    ["Resolved breach", "breach"],
+  1095→    ["Approved KYC", "kyc"],
+  1096→  ] as const;
+  1097→  // Per-tenant seeded entries (20 per tenant). The outer loop binding
+  1098→  // `tid` is now stored on each AuditEntry so `getTenantAudit(tid)` can
+  1099→  // actually filter — previously every tenant saw the same 60 entries.
+  1100→  for (const tid of ["tenant-alpha", "tenant-beta", "tenant-gamma"]) {
+  1101→    for (let i = 0; i < 20; i++) {
+  1102→      const [action, entity] = actions[i % actions.length];
+  1103→      out.push({
+  1104→        id: `aud-${tid}-${i}`,
+  1105→        timestamp: hoursAgo(i * 5),
+  1106→        actor: actors[i % actors.length],
+  1107→        action,
+  1108→        entity,
+  1109→        entityId: `${entity}-${1000 + i}`,
+  1110→        summary: `${action} on ${entity}`,
+  1111→        severity: i % 6 === 0 ? "critical" : i % 3 === 0 ? "warning" : "info",
+  1112→        module: entity,
+  1113→        tenantId: tid,
+  1114→      });
+  1115→    }
+  1116→  }
+  1117→  // Platform-scoped entries (visible to super-admin only).
+  1118→  for (let i = 0; i < 12; i++) {
+  1119→    const [action, entity] = actions[i % actions.length];
+  1120→    out.push({
+  1121→      id: `aud-platform-${i}`,
+  1122→      timestamp: hoursAgo(i * 7),
+  1123→      actor: actors[(i + 1) % actors.length],
+  1124→      action,
+  1125→      entity,
+  1126→      entityId: `${entity}-platform-${1000 + i}`,
+  1127→      summary: `${action} (platform-wide)`,
+  1128→      severity: i % 5 === 0 ? "critical" : i % 4 === 0 ? "warning" : "info",
+  1129→      module: entity,
+  1130→      tenantId: "platform",
+  1131→    });
+  1132→  }
+  1133→  return out;
+  1134→})();
+  1135→
+  1136→/* ------------------------------------------------------------------ */
+  1137→/* Analytics aggregations                                              */
+  1138→/* ------------------------------------------------------------------ */
+  1139→
+  1140→export interface TimeSeriesPoint {
+  1141→  date: string;
+  1142→  value: number;
+  1143→}
+  1144→
+  1145→export function revenueSeries(tenantId: string): TimeSeriesPoint[] {
+  1146→  const out: TimeSeriesPoint[] = [];
+  1147→  for (let i = 29; i >= 0; i--) {
+  1148→    out.push({
+  1149→      date: daysAgo(i).slice(0, 10),
+  1150→      value: Math.round(8000 + Math.sin(i / 3) * 2400 + (30 - i) * 80),
+  1151→    });
+  1152→  }
+  1153→  return out;
+  1154→}
+  1155→
+  1156→export function traderGrowthSeries(tenantId: string): TimeSeriesPoint[] {
+  1157→  const out: TimeSeriesPoint[] = [];
+  1158→  let base = 10;
+  1159→  for (let i = 29; i >= 0; i--) {
+  1160→    base += Math.round(Math.sin(i) + 2);
+  1161→    out.push({ date: daysAgo(i).slice(0, 10), value: base });
+  1162→  }
+  1163→  return out;
+  1164→}
+  1165→
+  1166→export function payoutSeries(tenantId: string): TimeSeriesPoint[] {
+  1167→  const out: TimeSeriesPoint[] = [];
+  1168→  for (let i = 29; i >= 0; i--) {
+  1169→    out.push({
+  1170→      date: daysAgo(i).slice(0, 10),
+  1171→      value: Math.round(3200 + Math.cos(i / 4) * 1400 + (30 - i) * 30),
+  1172→    });
+  1173→  }
+  1174→  return out;
+  1175→}
+  1176→
+  1177→export function riskDistribution(tenantId: string) {
+  1178→  return [
+  1179→    { label: "Low Risk", value: 62, color: "#16a34a" },
+  1180→    { label: "Moderate", value: 24, color: "#ca8a04" },
+  1181→    { label: "Elevated", value: 10, color: "#ea580c" },
+  1182→    { label: "Critical", value: 4, color: "#dc2626" },
+  1183→  ];
+  1184→}
+  1185→
+  1186→export function breachTrend(tenantId: string): TimeSeriesPoint[] {
+  1187→  const out: TimeSeriesPoint[] = [];
+  1188→  for (let i = 29; i >= 0; i--) {
+  1189→    out.push({
+  1190→      date: daysAgo(i).slice(0, 10),
+  1191→      value: Math.round(Math.max(0, 2 + Math.sin(i / 2) * 3)),
+  1192→    });
+  1193→  }
+  1194→  return out;
+  1195→}
+  1196→
+  1197→/* ------------------------------------------------------------------ */
+  1198→/* Lookup helpers                                                      */
+  1199→/* ------------------------------------------------------------------ */
+  1200→
+  1201→export function getTenant(id: string): TenantContext | undefined {
+  1202→  return [...tenants, platformTenant].find((t) => t.id === id);
+  1203→}
+  1204→
+  1205→export function getTenantTraders(tenantId: string): Trader[] {
+  1206→  return traders.filter((t) => t.tenantId === tenantId);
+  1207→}
+  1208→export function getTenantAccounts(tenantId: string): TradingAccount[] {
+  1209→  return tradingAccounts.filter((a) => a.tenantId === tenantId);
+  1210→}
+  1211→export function getTenantChallenges(tenantId: string): Challenge[] {
+  1212→  return challenges.filter((c) => c.tenantId === tenantId);
+  1213→}
+  1214→export function getTenantBreaches(tenantId: string): Breach[] {
+  1215→  return breaches.filter((b) => b.tenantId === tenantId);
+  1216→}
+  1217→export function getTenantPayouts(tenantId: string): Payout[] {
+  1218→  return payouts.filter((p) => p.tenantId === tenantId);
+  1219→}
+  1220→export function getTenantAffiliates(tenantId: string): Affiliate[] {
+  1221→  return affiliates.filter((a) => a.tenantId === tenantId);
+  1222→}
+  1223→export function getTenantTransactions(tenantId: string): Transaction[] {
+  1224→  return transactions.filter((t) => t.tenantId === tenantId);
+  1225→}
+  1226→export function getTenantCampaigns(tenantId: string): MarketingCampaign[] {
+  1227→  return marketingCampaigns.filter((m) => m.tenantId === tenantId);
+  1228→}
+  1229→export function getTenantContacts(tenantId: string): CrmContact[] {
+  1230→  return crmContacts.filter((c) => c.tenantId === tenantId);
+  1231→}
+  1232→export function getTenantKyc(tenantId: string): KycRecord[] {
+  1233→  return kycRecords.filter((k) => k.tenantId === tenantId);
+  1234→}
+  1235→export function getTenantTickets(tenantId: string): SupportTicket[] {
+  1236→  return supportTickets.filter((s) => s.tenantId === tenantId);
+  1237→}
+  1238→export function getTenantAiInsights(tenantId: string): AiInsight[] {
+  1239→  return aiInsights.filter((a) => a.tenantId === tenantId || a.tenantId === "platform");
+  1240→}
+  1241→export function getPlatformAudit(): AuditEntry[] {
+  1242→  // Cross-tenant view for super-admin (every seeded entry).
+  1243→  return auditLog;
+  1244→}
+  1245→export function getTenantAudit(tenantId: string): AuditEntry[] {
+  1246→  // Platform tenant sees the full cross-tenant stream; a regular tenant
+  1247→  // only sees its own entries plus any unscoped (`tenantId === undefined`)
+  1248→  // legacy entries. Previously this returned the same 60 entries for every
+  1249→  // tenant because the `tid` argument was ignored.
+  1250→  if (tenantId === "platform") return auditLog;
+  1251→  return auditLog.filter((a) => a.tenantId === tenantId || a.tenantId === undefined);
+  1252→}
+  1253→export function getTenantPositions(tenantId: string): Position[] {
+  1254→  return positions.filter((p) => p.tenantId === tenantId);
+  1255→}
+  1256→
+  1257→/* ------------------------------------------------------------------ */
+  1258→/* New types for missing flows                                        */
+  1259→/* ------------------------------------------------------------------ */
+  1260→
+  1261→export interface ChallengeType {
+  1262→  id: string;
+  1263→  name: string;
+  1264→  description: string;
+  1265→  phases: number;
+  1266→  icon: string;
+  1267→  hasFreeTrial: boolean;
+  1268→  isCompetition: boolean;
+  1269→  active: boolean;
+  1270→}
+  1271→
+  1272→export interface ChallengePhaseConfig {
+  1273→  id: string;
+  1274→  challengeTypeId: string;
+  1275→  phaseName: string;
+  1276→  phaseOrder: number;
+  1277→  accountSize: number;
+  1278→  profitTargetPct: number;
+  1279→  maxDrawdownPct: number;
+  1280→  dailyDrawdownPct: number;
+  1281→  minTradingDays: number;
+  1282→  maxDays: number;
+  1283→  profitSplit: number;
+  1284→  isFunded: boolean;
+  1285→}
+  1286→
+  1287→export interface Offer {
+  1288→  id: string;
+  1289→  name: string;
+  1290→  description: string;
+  1291→  couponCode: string;
+  1292→  discountPct: number;
+  1293→  startDate: string;
+  1294→  endDate: string;
+  1295→  status: "active" | "expired" | "scheduled";
+  1296→  targetCountries: string[];
+  1297→  targetSegments: string[];
+  1298→  matchingUsers: number;
+  1299→  createdAt: string;
+  1300→}
+  1301→
+  1302→export interface EmailTemplate {
+  1303→  id: string;
+  1304→  name: string;
+  1305→  subject: string;
+  1306→  body: string;
+  1307→  trigger: string;
+  1308→  variables: string[];
+  1309→  lastModified: string;
+  1310→}
+  1311→
+  1312→export interface CertificateTemplate {
+  1313→  id: string;
+  1314→  name: string;
+  1315→  description: string;
+  1316→  triggerEvent: string;
+  1317→  layout: string;
+  1318→  active: boolean;
+  1319→  lastModified: string;
+  1320→}
+  1321→
+  1322→export interface Banner {
+  1323→  id: string;
+  1324→  type: "marketing" | "announcement";
+  1325→  title: string;
+  1326→  content: string;
+  1327→  status: "active" | "inactive";
+  1328→  startDate: string;
+  1329→  endDate: string;
+  1330→  position: "top" | "sidebar" | "modal";
+  1331→}
+  1332→
+  1333→export interface TradingEventRule {
+  1334→  id: string;
+  1335→  type: "news" | "copy" | "inverse" | "weekend";
+  1336→  name: string;
+  1337→  description: string;
+  1338→  symbol: string;
+  1339→  severity: "warning" | "critical";
+  1340→  action: "flag" | "block" | "notify";
+  1341→  active: boolean;
+  1342→}
+  1343→
+  1344→export interface UserEvent {
+  1345→  id: string;
+  1346→  timestamp: string;
+  1347→  userEmail: string;
+  1348→  accountId: string;
+  1349→  eventType: "ACCOUNT_CREATED" | "KYC_COMPLETED" | "KYC_REJECTED" | "ORDER_CREATED" | "PAYOUT_REQUESTED" | "PAYOUT_COMPLETED" | "CHALLENGE_STARTED" | "CHALLENGE_PASSED" | "CHALLENGE_FAILED" | "BREACH_DETECTED" | "LOGIN" | "PASSWORD_CHANGED";
+  1350→  description: string;
+  1351→  /** Tenant scoping — derived deterministically from the trader the event is bound to. */
+  1352→  tenantId?: string;
+  1353→}
+  1354→
+  1355→export interface ChangeHistoryEntry {
+  1356→  id: string;
+  1357→  timestamp: string;
+  1358→  actor: string;
+  1359→  entityType: string;
+  1360→  entityId: string;
+  1361→  field: string;
+  1362→  oldValue: string;
+  1363→  newValue: string;
+  1364→  reason: string;
+  1365→  /** Tenant scoping — derived deterministically from `id` via `hashStr`. */
+  1366→  tenantId?: string;
+  1367→}
+  1368→
+  1369→/* Seeded data for new types */
+  1370→
+  1371→export const challengeTypes: ChallengeType[] = [
+  1372→  { id: "ct-1", name: "Instant Funded", description: "Get funded immediately without evaluation phases.", phases: 1, icon: "Zap", hasFreeTrial: false, isCompetition: false, active: true },
+  1373→  { id: "ct-2", name: "1-Step Evaluation", description: "Single phase evaluation to prove trading ability.", phases: 1, icon: "Target", hasFreeTrial: false, isCompetition: false, active: true },
+  1374→  { id: "ct-3", name: "2-Step Evaluation", description: "Two-phase evaluation with verification step.", phases: 2, icon: "Layers", hasFreeTrial: false, isCompetition: false, active: true },
+  1375→  { id: "ct-4", name: "3-Step Evaluation", description: "Three-phase evaluation for advanced traders.", phases: 3, icon: "GitBranch", hasFreeTrial: false, isCompetition: false, active: true },
+  1376→  { id: "ct-5", name: "Free Trial", description: "No-cost evaluation to attract new traders.", phases: 1, icon: "Gift", hasFreeTrial: true, isCompetition: false, active: true },
+  1377→  { id: "ct-6", name: "Competition", description: "Leaderboard-based competition among traders.", phases: 1, icon: "Trophy", hasFreeTrial: false, isCompetition: true, active: true },
+  1378→];
+  1379→
+  1380→export const challengePhaseConfigs: ChallengePhaseConfig[] = [
+  1381→  { id: "pc-1", challengeTypeId: "ct-3", phaseName: "Phase 1", phaseOrder: 1, accountSize: 10000, profitTargetPct: 8, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 30, profitSplit: 0, isFunded: false },
+  1382→  { id: "pc-2", challengeTypeId: "ct-3", phaseName: "Phase 2", phaseOrder: 2, accountSize: 10000, profitTargetPct: 5, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 60, profitSplit: 0, isFunded: false },
+  1383→  { id: "pc-3", challengeTypeId: "ct-3", phaseName: "Funded", phaseOrder: 3, accountSize: 10000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 80, isFunded: true },
+  1384→  { id: "pc-4", challengeTypeId: "ct-2", phaseName: "Phase 1", phaseOrder: 1, accountSize: 25000, profitTargetPct: 8, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 3, maxDays: 30, profitSplit: 0, isFunded: false },
+  1385→  { id: "pc-5", challengeTypeId: "ct-2", phaseName: "Funded", phaseOrder: 2, accountSize: 25000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 80, isFunded: true },
+  1386→  { id: "pc-6", challengeTypeId: "ct-1", phaseName: "Funded", phaseOrder: 1, accountSize: 50000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 90, isFunded: true },
+  1387→];
+  1388→
+  1389→export const offers: Offer[] = [
+  1390→  { id: "off-1", name: "EXPO2026 BUNDLE DEAL", description: "Bundle 3 challenges at 40% off", couponCode: "EXPO2026", discountPct: 40, startDate: "2026-08-31", endDate: "2026-09-30", status: "active", targetCountries: ["US", "GB", "AE", "SG"], targetSegments: ["new_users", "no_purchase"], matchingUsers: 142, createdAt: daysAgo(15) },
+  1391→  { id: "off-2", name: "Summer Promo", description: "20% off all 2-step evaluations", couponCode: "SUMMER20", discountPct: 20, startDate: "2026-06-01", endDate: "2026-08-31", status: "expired", targetCountries: ["US", "CA"], targetSegments: ["all"], matchingUsers: 0, createdAt: daysAgo(90) },
+  1392→  { id: "off-3", name: "Black Friday Flash", description: "50% off everything for 48 hours", couponCode: "BF50", discountPct: 50, startDate: "2026-11-25", endDate: "2026-11-27", status: "scheduled", targetCountries: [], targetSegments: ["all"], matchingUsers: 0, createdAt: daysAgo(5) },
+  1393→];
+  1394→
+  1395→export const emailTemplates: EmailTemplate[] = [
+  1396→  { id: "et-1", name: "Challenge Purchased", subject: "Your {{challenge_name}} challenge is ready!", body: "Hi {{user_name}}, your {{challenge_name}} challenge has been activated...", trigger: "challenge.purchased", variables: ["user_name", "challenge_name", "account_login"], lastModified: daysAgo(30) },
+  1397→  { id: "et-2", name: "Challenge Passed", subject: "Congratulations! You passed Phase {{phase}}", body: "Hi {{user_name}}, you've successfully passed Phase {{phase}}...", trigger: "challenge.passed", variables: ["user_name", "phase", "next_steps"], lastModified: daysAgo(15) },
+  1398→  { id: "et-3", name: "Payout Approved", subject: "Your payout of {{amount}} has been approved", body: "Hi {{user_name}}, your withdrawal request of {{amount}} {{currency}} has been approved...", trigger: "payout.approved", variables: ["user_name", "amount", "currency", "method"], lastModified: daysAgo(7) },
+  1399→  { id: "et-4", name: "Breach Notification", subject: "Account breached: {{rule}}", body: "Hi {{user_name}}, your account has been breached due to {{rule}}...", trigger: "breach.detected", variables: ["user_name", "rule", "account_login"], lastModified: daysAgo(3) },
+  1400→  { id: "et-5", name: "KYC Approved", subject: "Your KYC verification is complete", body: "Hi {{user_name}}, your identity has been verified...", trigger: "kyc.approved", variables: ["user_name"], lastModified: daysAgo(20) },
+  1401→];
+  1402→
+  1403→export const certificateTemplates: CertificateTemplate[] = [
+  1404→  { id: "cert-1", name: "Challenge Passed Certificate", description: "Awarded when a trader passes a challenge phase", triggerEvent: "challenge.passed", layout: "standard", active: true, lastModified: daysAgo(45) },
+  1405→  { id: "cert-2", name: "Funded Trader Certificate", description: "Awarded when a trader reaches funded status", triggerEvent: "challenge.funded", layout: "premium", active: true, lastModified: daysAgo(30) },
+  1406→  { id: "cert-3", name: "Competition Winner", description: "Awarded to competition winners", triggerEvent: "competition.won", layout: "trophy", active: false, lastModified: daysAgo(60) },
+  1407→];
+  1408→
+  1409→export const banners: Banner[] = [
+  1410→  { id: "ban-1", type: "announcement", title: "Platform Maintenance", content: "Scheduled maintenance on Sunday 2-4 AM UTC. Trading may be briefly interrupted.", status: "active", startDate: daysAgo(2), endDate: daysAgo(-5), position: "top" },
+  1411→  { id: "ban-2", type: "marketing", title: "EXPO2026 Deal Live!", content: "Get 40% off all challenge bundles with code EXPO2026", status: "active", startDate: daysAgo(5), endDate: daysAgo(-30), position: "top" },
+  1412→  { id: "ban-3", type: "announcement", title: "FREEDOM Promotion", content: "Celebrate freedom with special pricing this week!", status: "inactive", startDate: daysAgo(40), endDate: daysAgo(10), position: "top" },
+  1413→  { id: "ban-4", type: "marketing", title: "New Challenge Type", content: "Try our new 3-Step Evaluation for advanced traders", status: "active", startDate: daysAgo(1), endDate: daysAgo(-60), position: "sidebar" },
+  1414→];
+  1415→
+  1416→export const tradingEventRules: TradingEventRule[] = [
+  1417→  { id: "te-1", type: "news", name: "NFP Release", description: "Block trading during Non-Farm Payrolls release", symbol: "All", severity: "critical", action: "block", active: true },
+  1418→  { id: "te-2", type: "news", name: "FOMC Statement", description: "Flag trades during FOMC press conference", symbol: "All", severity: "warning", action: "flag", active: true },
+  1419→  { id: "te-3", type: "copy", name: "Copy Trading Detection", description: "Detect synchronized trading across accounts", symbol: "All", severity: "critical", action: "block", active: true },
+  1420→  { id: "te-4", type: "inverse", name: "Inverse Trading Detection", description: "Detect hedging/inverse trading patterns", symbol: "All", severity: "warning", action: "flag", active: true },
+  1421→  { id: "te-5", type: "weekend", name: "Weekend Trading Block", description: "Block new positions on weekends for challenge accounts", symbol: "All", severity: "warning", action: "block", active: true },
+  1422→];
+  1423→
+  1424→export const userEvents: UserEvent[] = (() => {
+  1425→  const out: UserEvent[] = [];
+  1426→  const eventTypes: UserEvent["eventType"][] = ["ACCOUNT_CREATED", "KYC_COMPLETED", "ORDER_CREATED", "PAYOUT_REQUESTED", "PAYOUT_COMPLETED", "CHALLENGE_STARTED", "CHALLENGE_PASSED", "CHALLENGE_FAILED", "BREACH_DETECTED", "LOGIN"];
+  1427→  const descriptions: Record<string, string> = {
+  1428→    ACCOUNT_CREATED: "Account registered and initial setup completed",
+  1429→    KYC_COMPLETED: "Identity verification completed successfully",
+  1430→    ORDER_CREATED: "Challenge purchase order placed",
+  1431→    PAYOUT_REQUESTED: "Withdrawal request submitted",
+  1432→    PAYOUT_COMPLETED: "Payout sent to trader successfully",
+  1433→    CHALLENGE_STARTED: "Challenge evaluation began",
+  1434→    CHALLENGE_PASSED: "Challenge phase passed successfully",
+  1435→    CHALLENGE_FAILED: "Challenge failed - risk rule breached",
+  1436→    BREACH_DETECTED: "Risk rule violation detected",
+  1437→    LOGIN: "User logged in to platform",
+  1438→  };
+  1439→  for (let i = 0; i < 120; i++) {
+  1440→    const t = traders[i % traders.length];
+  1441→    const evt = eventTypes[i % eventTypes.length];
+  1442→    out.push({
+  1443→      id: `ue-${i}`,
+  1444→      timestamp: hoursAgo(i * 3),
+  1445→      userEmail: t.email,
+  1446→      accountId: `3333887${100 + i}`,
+  1447→      eventType: evt,
+  1448→      description: descriptions[evt],
+  1449→      // Bind each event to the same tenant as its trader so user-events
+  1450→      // can be filtered per-tenant by the audit module's helper.
+  1451→      tenantId: t.tenantId,
+  1452→    });
+  1453→  }
+  1454→  return out;
+  1455→})();
+  1456→
+  1457→export const changeHistory: ChangeHistoryEntry[] = (() => {
+  1458→  const out: ChangeHistoryEntry[] = [];
+  1459→  const actors = ["Sarah Chen", "Marcus Webb", "Priya Nair", "System", "AI Engine"];
+  1460→  const changes = [
+  1461→    { entity: "Challenge", field: "profitTargetPct", old: "8%", new: "10%" },
+  1462→    { entity: "Challenge", field: "maxDrawdownPct", old: "10%", new: "8%" },
+  1463→    { entity: "Account", field: "status", old: "active", new: "suspended" },
+  1464→    { entity: "Payout", field: "status", old: "pending", new: "approved" },
+  1465→    { entity: "Risk Rule", field: "dailyLossLimit", old: "5%", new: "4%" },
+  1466→    { entity: "Offer", field: "discountPct", old: "20%", new: "40%" },
+  1467→    { entity: "Phase", field: "minTradingDays", old: "0", new: "3" },
+  1468→    { entity: "Email Template", field: "subject", old: "Old subject", new: "New subject" },
+  1469→  ];
+  1470→  for (let i = 0; i < 40; i++) {
+  1471→    const c = changes[i % changes.length];
+  1472→    const id = `ch-${i}`;
+  1473→    // Deterministically assign this change-history entry to one of the
+  1474→    // 3 tenants (or "platform" for super-admin) using `hashStr`.
+  1475→    const h = hashStr(id) % 4;
+  1476→    const tid = h === 0 ? "tenant-alpha" : h === 1 ? "tenant-beta" : h === 2 ? "tenant-gamma" : "platform";
+  1477→    out.push({
+  1478→      id,
+  1479→      timestamp: hoursAgo(i * 6),
+  1480→      actor: actors[i % actors.length],
+  1481→      entityType: c.entity,
+  1482→      entityId: `${c.entity}-${1000 + i}`,
+  1483→      field: c.field,
+  1484→      oldValue: c.old,
+  1485→      newValue: c.new,
+  1486→      reason: i % 3 === 0 ? "Policy update" : i % 3 === 1 ? "Configuration change" : "Manual adjustment",
+  1487→      tenantId: tid,
+  1488→    });
+  1489→  }
+  1490→  return out;
+  1491→})();
+  1492→
+  1493→/* New helper functions */
+  1494→
+  1495→export function getChallengeTypes(): ChallengeType[] {
+  1496→  return challengeTypes;
+  1497→}
+  1498→export function getChallengePhaseConfigs(challengeTypeId?: string): ChallengePhaseConfig[] {
+  1499→  return challengeTypeId ? challengePhaseConfigs.filter((p) => p.challengeTypeId === challengeTypeId) : challengePhaseConfigs;
+  1500→}
+  1501→export function getOffers(): Offer[] {
+  1502→  return offers;
+  1503→}
+  1504→export function getEmailTemplates(): EmailTemplate[] {
+  1505→  return emailTemplates;
+  1506→}
+  1507→export function getCertificateTemplates(): CertificateTemplate[] {
+  1508→  return certificateTemplates;
+  1509→}
+  1510→export function getBanners(type?: "marketing" | "announcement"): Banner[] {
+  1511→  return type ? banners.filter((b) => b.type === type) : banners;
+  1512→}
+  1513→export function getTradingEventRules(type?: string): TradingEventRule[] {
+  1514→  return type ? tradingEventRules.filter((r) => r.type === type) : tradingEventRules;
+  1515→}
+  1516→export function getUserEvents(limit = 100): UserEvent[] {
+  1517→  return userEvents.slice(0, limit);
+  1518→}
+  1519→export function getTenantUserEvents(tenantId: string, limit = 100): UserEvent[] {
+  1520→  // Platform tenant sees the full cross-tenant stream; a regular tenant
+  1521→  // only sees its own events plus any unscoped legacy entries.
+  1522→  const filtered =
+  1523→    tenantId === "platform"
+  1524→      ? userEvents
+  1525→      : userEvents.filter((e) => e.tenantId === tenantId || e.tenantId === undefined);
+  1526→  return filtered.slice(0, limit);
+  1527→}
+  1528→export function getChangeHistory(entityType?: string, entityId?: string): ChangeHistoryEntry[] {
+  1529→  let result = changeHistory;
+  1530→  if (entityType) result = result.filter((c) => c.entityType === entityType);
+  1531→  if (entityId) result = result.filter((c) => c.entityId === entityId);
+  1532→  return result;
+  1533→}
+  1534→export function getTenantChangeHistory(tenantId: string, entityType?: string, entityId?: string): ChangeHistoryEntry[] {
+  1535→  // Platform tenant sees the full cross-tenant stream; a regular tenant
+  1536→  // only sees its own changes plus any unscoped legacy entries.
+  1537→  let result =
+  1538→    tenantId === "platform"
+  1539→      ? changeHistory
+  1540→      : changeHistory.filter((c) => c.tenantId === tenantId || c.tenantId === undefined);
+  1541→  if (entityType) result = result.filter((c) => c.entityType === entityType);
+  1542→  if (entityId) result = result.filter((c) => c.entityId === entityId);
+  1543→  return result;
+  1544→}
+  1545→
+  1546→/* Firm statistics data */
+  1547→export function getFirmStatistics(tenantId: string) {
+  1548→  const traders = getTenantTraders(tenantId);
+  1549→  const payouts = getTenantPayouts(tenantId);
+  1550→  const challenges = getTenantChallenges(tenantId);
+  1551→  const totalRevenue = 40355.82;
+  1552→  const totalPayouts = payouts.reduce((s, p) => s + p.amount, 0) + 6808;
+  1553→  const challengesSold = 1140;
+  1554→  const netProfit = totalRevenue - totalPayouts;
+  1555→  const profitMargin = ((netProfit / totalRevenue) * 100).toFixed(1);
+  1556→  const avgChallengeValue = totalRevenue / challengesSold;
+  1557→  const payoutRatio = ((totalPayouts / totalRevenue) * 100).toFixed(1);
+  1558→  return {
+  1559→    totalRevenue,
+  1560→    totalPayouts,
+  1561→    netProfit,
+  1562→    profitMargin: parseFloat(profitMargin),
+  1563→    avgChallengeValue,
+  1564→    payoutRatio: parseFloat(payoutRatio),
+  1565→    challengesSold,
+  1566→    copyTradingEvents: 156352,
+  1567→    inverseTradingEvents: 131673,
+  1568→    newsTradingEvents: 5407,
+  1569→    totalAccounts: traders.length,
+  1570→    activeAccounts: traders.filter((t) => t.status === "active").length,
+  1571→    fundedAccounts: traders.filter((t) => t.challengePhase === "funded").length,
+  1572→    revenueSeries: Array.from({ length: 12 }, (_, i) => ({
+  1573→      date: new Date(2026, i, 1).toLocaleString("default", { month: "short" }),
+  1574→      revenue: Math.round(2000 + Math.sin(i / 2) * 1500 + i * 800),
+  1575→      payouts: Math.round(400 + Math.cos(i / 3) * 300 + i * 100),
+  1576→      net: Math.round(1600 + Math.sin(i / 2) * 1200 + i * 700),
+  1577→      challenges: Math.round(40 + Math.sin(i / 2) * 20 + i * 15),
+  1578→    })),
+  1579→  };
+  1580→}
+  1581→
+  1582→/* Daily highlights data */
+  1583→export function getDailyHighlights(tenantId: string) {
+  1584→  const hours = Array.from({ length: 24 }, (_, h) => `${h}:00`);
+  1585→  return {
+  1586→    dailyRevenue: 1092.16,
+  1587→    dailyPayouts: 52.5,
+  1588→    dailyNetRevenue: 1039.66,
+  1589→    avgOrderValue: 40.45,
+  1590→    latestHourRevenue: 36.77,
+  1591→    // Hourly revenue/orders/payouts use deterministic sine curves (no
+  1592→    // Math.random) — stable across reloads, mirrors `payoutSeries` and
+  1593→    // `breachTrend` patterns. `tenantId` is intentionally consumed so the
+  1594→    // values differ slightly per tenant without losing determinism.
+  1595→    hourlyRevenue: hours.map((h, i) => ({
+  1596→      hour: h,
+  1597→      value: Math.round(20 + Math.sin(i / 3) * 40 + (hashStr(`${tenantId}-rev-${i}`) % 30)),
+  1598→    })),
+  1599→    hourlyOrders: hours.map((h, i) => ({
+  1600→      hour: h,
+  1601→      value: Math.round(1 + Math.sin(i / 3) * 2 + ((hashStr(`${tenantId}-ord-${i}`) % 10) / 10)),
+  1602→    })),
+  1603→    hourlyPayouts: hours.map((h, i) => ({
+  1604→      hour: h,
+  1605→      value: Math.round((hashStr(`${tenantId}-pay-${i}`) % 50) / 10),
+  1606→    })),
+  1607→    topCountries: [
+  1608→      { country: "United States", orders: 142, revenue: 5680 },
+  1609→      { country: "United Kingdom", orders: 89, revenue: 3560 },
+  1610→      { country: "UAE", orders: 67, revenue: 2680 },
+  1611→      { country: "Singapore", orders: 45, revenue: 1800 },
+  1612→      { country: "Germany", orders: 38, revenue: 1520 },
+  1613→    ],
+  1614→    topPSPs: [
+  1615→      { psp: "Crypto (USDT)", orders: 198, revenue: 7920 },
+  1616→      { psp: "Card (Stripe)", orders: 156, revenue: 6240 },
+  1617→      { psp: "Fiat (Bank)", orders: 67, revenue: 2680 },
+  1618→    ],
+  1619→    topPlatforms: [
+  1620→      { platform: "MetaTrader 5", accounts: 1240, pct: 87 },
+  1621→      { platform: "DXTrade", accounts: 186, pct: 13 },
+  1622→    ],
+  1623→    topCoupons: [
+  1624→      { code: "EXPO2026", redemptions: 42, savings: 1680 },
+  1625→      { code: "SUMMER20", redemptions: 28, savings: 560 },
+  1626→      { code: "WELCOME10", redemptions: 15, savings: 150 },
+  1627→    ],
+  1628→    purchasesByAccountSize: [
+  1629→      { size: "$5K", count: 45, revenue: 1800 },
+  1630→      { size: "$10K", count: 112, revenue: 4480 },
+  1631→      { size: "$25K", count: 89, revenue: 3560 },
+  1632→      { size: "$50K", count: 67, revenue: 2680 },
+  1633→      { size: "$100K", count: 34, revenue: 1360 },
+  1634→    ],
+  1635→    // Recent orders use deterministic `hashStr` for the amount in place of
+  1636→    // Math.random — keeps the demo table stable across reloads.
+  1637→    recentOrders: Array.from({ length: 8 }, (_, i) => ({
+  1638→      id: `ORD-${10000 + i}`,
+  1639→      customer: traders[i % traders.length]?.name ?? "Unknown",
+  1640→      challenge: ["2-Step Gen Z", "Instant Standard", "1-Step Turbo"][i % 3],
+  1641→      amount: 35 + (hashStr(`${tenantId}-ord-amount-${i}`) % 50),
+  1642→      psp: ["Crypto", "Card", "Fiat"][i % 3],
+  1643→      time: `${i + 1}h ago`,
+  1644→    })),
+  1645→  };
+  1646→}
+  1647→

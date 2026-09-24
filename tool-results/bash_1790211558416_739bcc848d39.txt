@@ -1,0 +1,300 @@
+- `countryFlagEmoji(country)` — ISO-2 → 🇺🇸 via regional indicator code points.
+- `deriveProfitFactor(trader)` — deterministic proxy [0.5–2.65] from `winRate` + `hashStr(trader.id)` jitter.
+- `derive30dPnl(trader)` — deterministic 25–65% slice of `totalPnl` seeded by `hashStr(trader.id + "30d")`.
+- `activityTier(trades)` — buckets trade count into Low/Medium/High/Power.
+- `GroupedBars` — recharts BarChart with **dual Y-axis** support (left for %, right for currency).
+- `ColoredBars` — recharts BarChart with per-`<Cell>` color picking (hour-of-day heatmap).
+- `MultiLineChart` — recharts LineChart overlaying N series (Top-5 equity curves).
+
+### 1. TraderAnalyticsPage (was 23 LOC body → ~190 LOC body)
+- **4 KPI cards** (Terra tones): Top Trader Equity (emerald), Avg Win Rate (amber), Profit Factor (emerald, with ⓘ), Most Traded Symbol (neutral).
+- **Trader Leaderboard DataTable** (Top 10 by equity): Rank (Crown/Award icons for top 3) / Trader (Avatar + name + email + flag emoji) / Equity / 30d PnL (signed, color-coded) / Win Rate / Profit Factor / Trades / Status (StatusBadge with `traderStatusTone`). `onRowClick` → `navigate("trader-detail", { id: trader.id })`. EmptyState with terminology-aware copy.
+- **Win/Loss Distribution Donut**: 3 slices (Profitable ≥55% / Break-even 45–54% / Losing <45%) in emerald/amber/rose.
+- **Top 5 Equity Curves (12d)**: `MultiLineChart` with 12 deterministic `Math.sin`-seeded points per trader anchored at current equity; legend shows `#1 Lucas` / `#2 Riley` etc.
+- **Trader Activity Distribution BarSeries**: 4 tiers (Low/Medium/High/Power) with trader counts.
+
+### 2. PerformanceAnalyticsPage (was 20 LOC body → ~210 LOC body)
+- **4 KPI cards**: Best Challenge Type (Trophy, emerald), Most Profitable Symbol (Target, emerald), Highest Win Rate Phase (Award, amber), Best Performing Country (Flag, emerald, with flag emoji).
+- **Performance by Challenge Type BarSeries**: 4 bars (1-Step/2-Step/3-Step/Funded), Y-axis pass rate %.
+- **Performance by Phase `GroupedBars` (dual-axis)**: left axis = Pass Rate % (teal), right axis = Avg PnL (amber), 3 phases. Tooltip uses `rightFormatValue` for the Avg PnL series.
+- **Performance by Symbol (Top 8) DataTable**: Symbol / Trades / Win Rate (color-coded) / Avg PnL (signed) / Total Volume / Sharpe. Sharpe formula in section subtitle (header is a button so can't nest another button for ⓘ).
+- **Performance by Country DataTable**: Country (flag + ISO) / Traders / Avg Equity / Win Rate / Total Payouts / Profit Factor. Derived from `getTenantTraders(tid)` + `getTenantPayouts(tid)` aggregated by trader country.
+- **Performance by Hour of Day ColoredBars**: 24 hours, trade count colored emerald/amber/rose by profitability signal.
+
+### 3. RiskAnalyticsPage (was 20 LOC body → ~230 LOC body)
+- **4 KPI cards — every label has a ⓘ tooltip** (via `ExplainableMetricCard`): VaR (95%) (AlertTriangle, rose), Expected Shortfall (rose), Max Drawdown (amber), Sharpe Ratio (emerald, Sigma icon).
+- **Drawdown Distribution AreaSeries** (rose): 5 buckets (0–5% / 5–10% / 10–15% / 15–20% / 20%+) with account counts.
+- **VaR Confidence Curve AreaSeries** (amber): 5 confidence levels (90% / 95% / 97.5% / 99% / 99.9%) with VaR $ amounts widening as confidence tightens.
+- **Risk-Adjusted Returns by Challenge Type BarSeries** (teal): 4 challenge types, Sharpe ratio per category.
+- **Top 10 Highest-Risk Accounts DataTable**: Account (login + platform + phase) / Trader (flag + name) / Equity / Drawdown % (color-coded) / Open PnL (signed) / Risk Score (color-coded) / Status (StatusBadge). `onRowClick` → `navigate("account-workspace", { id: account.id })`. Risk Score formula in section subtitle.
+- **Breach Type Breakdown DonutSeries**: 7 slices — 4 actual breach types from `getTenantBreaches(tid)` (Daily DD / Max DD / Profit Target Miss / Time Limit) + 3 rule-engine-derived (Trailing DD / Margin Call / News Trading), all deterministic.
+
+### Deterministic mock (no `Math.random`)
+- `hashStr(s)` for per-trader / per-account / per-symbol seeding.
+- `Math.sin(i / 3)` / `Math.cos(i / 4)` patterns for chart curves.
+- Equity curve anchors at current equity with 4% wobble per point.
+- All numerical KPIs (VaR, ES, Max DD, Sharpe) derive from `hashStr(tid + metric)`.
+
+### Verification
+1. **`bun run lint`** → exit 0, 0 errors, 0 warnings.
+2. **`bunx tsc --noEmit --skipLibCheck`** → 3 errors in `analytics-pages.tsx` at lines 497, 501, 509 — ALL pre-existing in the verbatim `AnalyticsOverviewPage` (`TimeSeriesPoint[]` not assignable to `SeriesPoint[]`; same pattern as `analytics-widgets.tsx` lines 34/41/54, `payout-widgets.tsx` line 68, `risk-widgets.tsx` line 40). **0 new errors** introduced. Before: 6 errors (3 from Overview + 1 each from Trader/Performance/Risk). After: 3 errors (only Overview — the 3 target pages no longer pass `TimeSeriesPoint[]` to chart components).
+3. **`curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/`** → `200`.
+4. **`dev.log`** → only `✓ Compiled in <ms>` + `GET / 200 in <ms>` — no runtime errors.
+5. **agent-browser visual verification** (Beta Trading tenant — terminology "Challenge", currency GBP):
+   - **Trader Analytics**: Header "Trader Analytics"; 4 KPIs (£105,256 Top Equity / 50% Avg Win Rate / 2.64 Profit Factor with ⓘ / BTCUSD Most Traded); leaderboard table with 10 ranked rows (Crown on #1, Award on #2/#3, Avatar initials LK/RW/HG/NM/...); row click on #1 → navigated to `trader-detail` viewId for `Lucas Khan` (verified breadcrumb "Trader Detail" + heading "Lucas Khan" + email "lucas.khan@email.com · IN"); Win/Loss Donut with 3 slices; Top 5 Equity Curves MultiLineChart with 5 distinct Terra-colored legend entries; Activity Distribution BarSeries with 4 tiers.
+   - **Performance Analytics**: Header "Performance Analytics"; 4 KPIs (2-Step Best Challenge 79% / XAUUSD Most Profitable +£1,766 / Phase 2 Highest Win 56% / 🇩🇪 DE Best Country £38,419 avg equity — country flag emoji rendered correctly); Performance by Challenge Type BarSeries (4 bars 0–80%); Performance by Phase dual-axis GroupedBars (left 0–60% teal "Pass Rate %", right £0–£2,600 amber "Avg PnL", legend present); Symbol Performance DataTable (8 symbols with sortable headers); Country Performance DataTable (8 countries DE/IN/FR/CA/ZA/GB/SG/AE sorted by avg equity); Hour of Day ColoredBars (24 hours 0–23).
+   - **Risk Analytics**: Header "Risk Analytics"; 4 KPIs with single ⓘ button each (£27,668 VaR 95% / £39,959 ES +44% vs VaR / 15.2% Max DD / 1.07 Sharpe — no duplicate label text after ExplainableMetricCard fix); Drawdown Distribution AreaSeries (5 buckets); VaR Confidence Curve AreaSeries (5 levels 90–99.9%, £0–£60,000); Risk-Adjusted Returns BarSeries (4 challenge types, Sharpe 0–2.0); Breach Type Breakdown DonutSeries (7 slices); Top 10 Highest-Risk Accounts DataTable (Account 100047 MT5 phase-2 Jayden Singh / 100042 DXTrade phase-1 Aiden Haddad breached, etc.); row click on first row → navigated to `account-workspace` viewId for `Account 100047` (verified breadcrumb "Account Workspace" + heading "Account 100047" + "MT5 · Jayden Singh · challenge").
+6. **Console**: `[Fast Refresh] rebuilding/done in <ms>` only — no React warnings after fixing the nested-button issue (initial run flagged `<button> cannot contain a nested <button>` from passing `LabelWithHelp` JSX to DataTable `Column.header`; resolved by moving the Sharpe / Risk Score formulas to section subtitles and rendering plain string headers).
+
+### Design decisions (deviations from spec, with rationale)
+- **ExplainableMetricCard wrapper** (instead of passing `LabelWithHelp` to `MetricCard.label`): `MetricCard.label` is typed `string` in `page.tsx` (out of file-ownership scope). Built a local wrapper that mirrors the exact visual treatment and accepts `help?: ReactNode` rendered inline.
+- **Sharpe / Risk Score formulas in section subtitle** (instead of in DataTable column headers): `Column.header` is typed `string` and is rendered inside a sort-toggle `<button>`, so passing JSX-with-`<button>` (LabelWithHelp) creates invalid nested-button HTML. Moved the formulas into the section subtitle (visible to all users, better per §9 KPI rule "Never show a metric without meaning" — the formula is shown by default rather than requiring hover).
+- **Dual-axis GroupedBars**: Initial implementation mixed Pass Rate % (0–100) and Avg PnL (£0–£2,600) on a single Y-axis, producing garbled axis labels (`650%` for £650). Added an optional `rightSeries` + `rightFormatValue` config so the second series plots against a right-side Y-axis with its own currency formatter.
+- **Profit Factor / 30d PnL derived**: Real PF needs gross profit / gross loss per trade — the mock only exposes signed `totalPnl`. Built `deriveProfitFactor` (winRate-anchored + hashStr jitter) and `derive30dPnl` (deterministic slice of `totalPnl`). Documented both in code comments.
+- **Breach Type Breakdown**: Mock `Breach.type` enum only has 4 values (daily-drawdown/max-drawdown/profit-target-miss/time-limit). Spec called for 7 (Daily DD / Max DD / Trailing DD / Margin Call / News Trading / Weekend / Copy Trading). Showed 4 actual + 3 rule-engine-derived slices with deterministic counts anchored to total breach count.
+
+### Outcome vs `analysis-payouts-analytics` gaps
+- ✅ Trader Analytics — leaderboard (#2) — DONE.
+- ✅ Trader Analytics — win/loss distribution (#2) — DONE.
+- ✅ Trader Analytics — equity curves per top trader (#2) — DONE (MultiLineChart Top 5).
+- ✅ Performance Analytics — by challenge / phase / symbol / country (#3) — DONE (4 breakdowns + hour-of-day).
+- ✅ Risk Analytics — VaR / ES / Drawdown distribution (#4) — DONE (4 KPIs with formulas + 5 charts + risk accounts table + breach donut).
+- ✅ Contextual help on KPIs (§33) — DONE (LabelWithHelp on VaR, ES, Max DD, Sharpe, Profit Factor; formulas also surfaced in section subtitles for table headers that couldn't accept JSX).
+- ✅ Drill from row to underlying entity (§70 Analytics UX) — DONE (trader-detail from leaderboard; account-workspace from risk accounts).
+- ✅ Terra palette only (no violet) — DONE.
+- ✅ Deterministic mock (no `Math.random`) — DONE.
+
+---
+
+**Task ID**: `impl-crm-kanban`
+**Agent**: impl-crm-kanban (focused, single-file task)
+**File owned**: `src/modules/crm/pages/crm-pages.tsx` (CrmPipelinePage rewrite + LeadScoreCard + computeLeadScore + CrmContactSheet extraction — all within the same file)
+**File size**: 612 → 1,218 lines (~2× growth; new code is kanban + Lead Score + methodology card + shared Sheet drawer)
+
+### Pre-work performed
+- Read `worklog.md` tail (~200 lines) — captured the latest context including the `impl-crm-contact-drawer` task (which had FOUND the Sheet drawer already wired into `CrmContactsPage` lines 332-558 by an earlier batch agent `impl-detail-drawers-*`); also noted `analysis-aff-acc-mkt-crm` flagging the CRM Pipeline page as "stage-flow visualization with 5 cards + connectors + BarSeries" but cards NOT clickable — exactly what this task fixes.
+- Read `AGENTS.md` §22-§30 (Contextual Actions / One Primary Action / Destructive Actions / Table Design / Tables Support Decision-Making / Drawer vs Page / Entity Workspaces / Activity Timelines / Empty States) to ground the kanban rewrite in the UX constitution.
+- Read full `src/modules/crm/pages/crm-pages.tsx` (612 LOC) — confirmed the 3 exports (`CrmOverviewPage`, `CrmContactsPage`, `CrmPipelinePage`) and the existing Sheet drawer structure (lines 332-558) wired by the prior task.
+- Read `src/lib/platform/mock-data.ts` lines 605-617 (CrmContact interface — `stage: "lead" | "qualified" | "opportunity" | "customer" | "churned"`) + lines 968-988 (`crmContacts` seed — 18 contacts per tenant for tenant-beta + tenant-gamma; source values are `"Website" | "Webinar" | "Affiliate" | "Social" | "Cold Outbound"`) + line 1229-1231 (`getTenantContacts` helper).
+- Read `src/components/platform/page.tsx` (150 LOC) — confirmed `Page` / `PageHeader` / `PageContent` / `MetricCard` API (MetricCard accepts `deltaLabel` for explainability).
+- Read `src/components/platform/contextual-help.tsx` (87 LOC) — `LabelWithHelp` API: takes `children` (label text) + `help` (ReactNode for tooltip body).
+- Read `src/components/platform/status.tsx` (138 LOC) — confirmed `formatCurrency(value, currency)` + `StatusBadge({ tone, children })` exports (Tone: `default | success | warning | danger | info | muted`).
+- Read `src/components/ui/card.tsx` (92 LOC) + `src/components/ui/badge.tsx` (46 LOC) — standard shadcn exports.
+- Read `src/app/globals.css` lines 220-241 — confirmed `scrollbar-thin` utility class is already defined globally (used for kanban card lists).
+- Confirmed `crm/manifest.ts` only declares `crm-pipeline` viewId (no new viewId needed for this task — kept everything inline on the existing Pipeline page).
+
+### Implementation state at task start
+- `CrmPipelinePage` was a 5-card stage-flow visualization + BarSeries chart (lines 563-612 of the prior file). Cards showed stage name + count + currency but were NOT interactive — matching the `analysis-aff-acc-mkt-crm` finding.
+- The Sheet drawer (lines 332-558 of the prior file) lived inline inside `CrmContactsPage` — owned entirely by that page, not reusable.
+
+### Architectural decision: extract CrmContactSheet
+- The brief asked the kanban cards to "open the existing Contact Sheet drawer (already implemented in the file — keep it!)". The drawer was wired inline inside `CrmContactsPage`, so reusing it from `CrmPipelinePage` required either (a) duplicating ~230 lines of JSX in the new page, or (b) extracting it into a shared component.
+- Chose (b) — extracted `CrmContactSheet` (outer shell: handles Sheet open/close + tenant/currency/term resolution via `usePlatform`) + `CrmContactSheetBody` (inner: keyed by `contact.id` so it remounts per contact, manages its own `notes` `useState` initialised from `contact.notes`, memoises `activityFor` + `dealsFor` on the whole `contact` object).
+- Keying the body by `contact.id` eliminated the prior `useEffect(() => setNotes(contact.notes), [contact?.id])` pattern — React Compiler rejects `setState-in-effect` (`react-hooks/set-state-in-effect`) and the `[contact?.id]` manual memo dependency (`react-hooks/preserve-manual-memoization`). The keyed-remount pattern resolves both: notes initial state is read once on mount, and `useMemo(..., [contact])` matches the React Compiler's inferred dependency.
+- `CrmContactsPage` and `CrmPipelinePage` both render `<CrmContactSheet contact={...} onClose={...} />` — single source of truth for the drawer UI.
+
+### Code Changes
+
+**1. New helpers (top of file, after existing helpers)**
+
+- `KANBAN_STAGES` constant — `["lead", "qualified", "opportunity", "customer", "churned"]` array used by both the column renderer and the Move dropdown (filters out current stage).
+- `computeLeadScore(contact: CrmContact): number` — deterministic scoring function (no `Math.random`):
+  - `+50` base
+  - `+20` if `contact.value > 5000`
+  - `+10` if `contact.value > 15000` (stacks with the +20)
+  - `+15` if `contact.source.toLowerCase()` is `"referral"` or `"affiliate"` (case-insensitive — mock data source values are capitalized like `"Affiliate"`)
+  - `+15` if `lastInteraction < 3 days`
+  - `+8` else if `< 7 days` (mutually exclusive with the +15)
+  - `−10` else if `> 30 days`
+  - `+12` if `dealsFor(contact).length > 0` (reuses the existing `dealsFor` helper which already exists in the file — no duplication)
+  - Clamps to `[0, 100]` via `Math.max(0, Math.min(100, score))`.
+- `leadScoreTone(score)` — returns `"hot" | "warm" | "cold"` (Hot ≥ 80, Warm 50–79, Cold < 50).
+- `LEAD_SCORE_TONE_CLASS` + `LEAD_SCORE_TONE_LABEL` — Terra palette mappings: emerald (Hot), amber (Warm), rose (Cold). No blue/indigo/violet.
+- `LeadScoreCard` component — small pill Badge with `Zap` icon + numeric score + tone label. Rendered on every kanban card and inline in the Sheet drawer's "Lead Score" row above the activity timeline.
+
+**2. CrmContactSheet + CrmContactSheetBody (extracted, ~230 LOC)**
+
+- Outer `CrmContactSheet({ contact, onClose })` — `Sheet open={!!contact}` controlled wrapper. Resolves `term` + `currency` via `usePlatform` once at the shell level (avoids re-resolving on every notes keystroke inside the body).
+- Inner `CrmContactSheetBody({ contact, currency, term, onClose })` — keyed remount per `contact.id`. Renders the same JSX the prior task shipped: Avatar + initials + SheetTitle + SheetDescription + stage Badge + source/owner/phone row; 3-cell KPI strip (Pipeline Value / Last Contact / Deals); inline Lead Score row (NEW — surfaces `LeadScoreCard`); activity timeline (§29); deal list; notes Textarea + Save button; SheetFooter with Convert to {term("trader")} + Add Task + Delete (AlertDialog with consequence panel — §24 destructive friction preserved).
+
+**3. CrmContactsPage (refactored, slightly shrunk)**
+
+- Removed inline Sheet drawer JSX (was 230 LOC) — replaced with `<CrmContactSheet contact={selectedContact} onClose={() => setSelectedContact(null)} />`.
+- Removed local `notes` + `setNotes` state + `openContact` notes-seeding logic (now owned by `CrmContactSheetBody`).
+- Removed `useMemo` for `activity` + `deals` (now owned by `CrmContactSheetBody`).
+- `onRowClick={(c) => setSelectedContact(c)}` — same as before but no notes seeding (handled by keyed remount).
+- All other behavior (DataTable, columns, search, export) unchanged.
+
+**4. CrmPipelinePage (full rewrite — 5 stages → kanban board)**
+
+- Replaced the old 5-card stage-flow visualization + BarSeries chart with a real kanban.
+- **State**: `localContacts` (local copy of `getTenantContacts(tid)` so DnD + Move menu can mutate stage assignments client-side; mock data — no persistence layer); `selectedContact`; `draggedContact`; `draggedOverStage`.
+- **KPI row** (4 `MetricCard`s with `deltaLabel` explainability — §24 metric category):
+  1. Total Pipeline Value — `formatCurrency(totalPipelineValue, currency)`, icon `DollarSign`, tone `positive`, deltaLabel `"all stages"`.
+  2. Open Deals — count of contacts in `lead` + `qualified` + `opportunity` stages, icon `Briefcase`, deltaLabel `"lead → opportunity"`.
+  3. Avg Deal Size — `totalPipelineValue / localContacts.length`, icon `TrendingUp`, deltaLabel `"per contact"`.
+  4. Win Rate — `(customer / (customer + churned)) * 100` formatted to 1 decimal, icon `Award`, tone `positive`, deltaLabel `"{wonCount} won / {lostCount} lost"`.
+- **Kanban board** — `flex gap-3 overflow-x-auto pb-2` outer row (horizontal scroll on small viewports), 5 `KanbanColumn`s each `w-[280px] shrink-0`. Each column is a drop target via HTML5 `onDragOver` (preventDefault + `setDraggedOverStage`), `onDragLeave`, `onDrop` (calls `moveContact` + clears state).
+- **Column header** — colored square + stage name (capitalized) + count `Badge` + total pipeline value (`formatCurrency`).
+- **Card list** — `max-h-[600px] overflow-y-auto p-2 space-y-2` with `scrollbar-thin` class (existing project utility from `globals.css`). Empty state shows `"Drop contact here"` when `draggedOverStage === stage` else `"No contacts in this stage"` (§30 — never "No data." without context).
+- **Contact cards** (`ContactKanbanCard`) — `draggable` HTML5 element + per-card Move dropdown fallback:
+  - Top row: Avatar (7×7) with initials + name + email (truncated) + `MoreHorizontal` button (Move dropdown trigger).
+  - Middle row: `formatCurrency(contact.value, currency)` (left, bold) + `LeadScoreCard` (right).
+  - Bottom row: source `Badge` (secondary) + last interaction `Badge` (outline, with `Activity` icon + `relativeTime`).
+  - Card click → `onOpen` (opens Sheet drawer via `setSelectedContact`). Card `role="button"` + `tabIndex={0}` + `onKeyDown` Enter/Space handler for keyboard accessibility (§AGENTS).
+  - Move dropdown trigger `onClick={(e) => e.stopPropagation()}` + `onPointerDown={(e) => e.stopPropagation()}` to prevent triggering the card's dragstart. Dropdown lists the 4 other stages (current excluded) with `ArrowRight` icon + colored dot.
+- **Lead Scoring Methodology card** (`Card` + `CardHeader` + `CardContent`) — inline "Lead Scoring page" (avoiding new viewId per task brief preference):
+  - Title uses `LabelWithHelp` wrapping `"How lead scores are calculated"` with a tooltip body explaining the deterministic 50-base + weighted-factors + clamp 0–100 computation.
+  - `CardDescription` spells out the tone thresholds: Hot ≥ 80 (emerald), Warm 50–79 (amber), Cold < 50 (rose).
+  - 2-column grid (`sm:grid-cols-2`) of 8 factor rows — each row is `border p-2.5 rounded-md` with factor label + detail + weight `Badge` (font-mono, color-coded: positive factors in emerald/slate, neutral recent-interaction in amber, negative stale-interaction in rose).
+  - Factors surfaced verbatim from `computeLeadScore` (Base +50, Pipeline value > $5,000 +20, Pipeline value > $15,000 +10, Referral/affiliate source +15, Recent interaction < 3 days +15, Recent interaction < 7 days +8, Stale interaction > 30 days −10, Has associated deals +12).
+- `moveContact(contact, newStage)` mutator:
+  - Early-returns if `contact.stage === newStage` (no-op).
+  - Updates `localContacts` via `prev.map(...)` (immutable update with `{ ...c, stage: newStage }`).
+  - Also updates `selectedContact` if the moved contact is currently open in the Sheet drawer (keeps the drawer in sync — the body's `useMemo([contact])` recomputes `activityFor` / `dealsFor` for the new stage automatically).
+  - Fires `toast({ title: "Moved", description: "{name} → {stage}" })` — §22 contextual feedback.
+- `handleColumnDrop(stage)` — invoked by `KanbanColumn.onDrop`; calls `moveContact(draggedContact, stage)` then clears DnD state.
+- Tenant-aware language via `makeTermResolver(tenant)` — description uses `term("trader").toLowerCase()` + `term("challenge")`. Verified live: Gamma tenant (terminology `{ challenge: "Assessment", trader: "Candidate" }`) renders description as "Kanban view of the candidate → Assessment journey…" and the Sheet drawer's Convert button shows "Convert to Candidate".
+
+**5. Imports added**
+
+- `useMemo, useState` (removed `useEffect` after the keyed-remount refactor — no longer needed).
+- `LabelWithHelp` from `@/components/platform/contextual-help`.
+- `MoreHorizontal, ArrowRight, TrendingUp, Award, Zap` from lucide-react (Move dropdown trigger, dropdown item icon, Avg Deal icon, Win Rate icon, Lead Score icon).
+- `DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger` from `@/components/ui/dropdown-menu` (Move menu).
+- `Card, CardContent, CardDescription, CardHeader, CardTitle` from `@/components/ui/card` (methodology card).
+- `cn` from `@/lib/utils` (conditional class merging for drop-target highlight).
+
+### Verification
+
+- `bun run lint` → exit 0, 0 errors, 0 warnings.
+- `bunx tsc --noEmit --skipLibCheck` → 0 errors in `src/modules/crm/pages/crm-pages.tsx` (the 53 pre-existing errors are in OTHER files: `account-kyc-statuses-page.tsx`, `charts.tsx`, `mock-data.ts`, etc. — none in this file).
+- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/` → 200 (server responding).
+- **agent-browser live verification** (full happy-path):
+  1. Loaded `/` → switched tenant Alpha Capital → Beta Trading → Gamma Futures (only Gamma has CRM module enabled per `mock-data.ts:160`).
+  2. Dismissed Gamma's "Tenant Setup Wizard" dialog (auto-shown for fresh tenants).
+  3. Sidebar showed new "CRM" section with Overview / Contacts / Pipeline children.
+  4. Clicked "Pipeline" → kanban page rendered with:
+     - KPI row: `$62,550` (Total Pipeline Value, all stages), `12` (Open Deals, lead → opportunity), `$3,475` (Avg Deal Size, per contact), `50.0%` (Win Rate, 3 won / 3 lost). All four numbers check out: 18 contacts total × $3,475 avg = $62,550 ✓; 4+4+4 = 12 open deals ✓; 3 customer / (3 customer + 3 churned) = 50% ✓.
+     - 5 columns rendered with correct counts: lead=4, qualified=4, opportunity=4, customer=3, churned=3 (total 18 ✓).
+     - Lead Score badges appear on cards — tone distribution matches the score function (no Math.random, deterministic).
+     - Methodology card lists all 8 factors with weight badges: +50 / +20 / +10 / +15 / +15 / +8 / −10 / +12.
+     - "How lead scores are calculated" tooltip trigger renders as a contextual help button.
+  5. Clicked a contact card (Liam Smith) → Sheet drawer opened with Avatar + SheetTitle + SheetDescription + stage Badge + source/owner row + 3-cell KPI strip (Pipeline Value / Last Contact / Deals) + Lead Score row + Activity Timeline + Deals list + Notes Textarea + Convert/Add Task/Delete footer.
+  6. Closed the drawer (Escape), clicked the `MoreHorizontal` button on a card → Move dropdown opened listing 4 other stages (current excluded). Clicked "Customer" → card moved from lead column to customer column (lead: 4→3, customer: 3→4), toast "Moved" + "Liam Smith → customer" appeared, Liam Smith now visible in Customer column.
+  7. Screenshot saved at `agent-ctx/screenshots/impl-crm-kanban-pipeline.png` (335KB).
+
+### Constraints respected
+- ✅ ONLY touched `src/modules/crm/pages/crm-pages.tsx` — no other file modified.
+- ✅ Did NOT touch `view-router.tsx` (no new viewId needed — Lead Scoring is inline section on CrmPipelinePage).
+- ✅ Did NOT touch `mock-data.ts` (consumed existing `crmContacts` via `getTenantContacts(tid)`).
+- ✅ Did NOT touch `crm/manifest.ts` (existing `crm-pipeline` route/viewId reused).
+- ✅ Did NOT remove the existing Contact Sheet drawer (extracted to shared `CrmContactSheet` component — same UI/behavior, used by both CrmContactsPage and CrmPipelinePage).
+- ✅ Used existing platform components: `Page` / `PageHeader` / `PageContent` / `MetricCard` / `LabelWithHelp`; existing shadcn: `Card` / `Badge` / `Avatar` / `Separator` / `Sheet` / `AlertDialog` / `DropdownMenu` / `Textarea` / `Button`.
+- ✅ Terra palette only — emerald / amber / rose / slate / cyan-600 (existing `STAGE_COLOR` for `qualified` is `#0891b2` cyan-600, untouched because it's referenced by CrmOverviewPage + CrmContactsPage; all NEW colors added are emerald/amber/rose/slate). No blue/indigo/violet introduced.
+- ✅ Deterministic mock data — `computeLeadScore` is pure, no `Math.random`. Verified live: same contact yields same score across renders.
+- ✅ `usePlatform()` + `makeTermResolver(tenant)` for tenant-aware "trader"/"challenge" references.
+- ✅ Mobile-first responsive: kanban uses `flex overflow-x-auto` on small viewports (each column `w-[280px] shrink-0`), KPI row uses `grid-cols-2 lg:grid-cols-4`, methodology card uses `grid-cols-1 sm:grid-cols-2`.
+
+### Code Changes Summary
+1 file modified (`src/modules/crm/pages/crm-pages.tsx`): rewrote CrmPipelinePage as a kanban board; added `computeLeadScore` + `LeadScoreCard` + `KANBAN_STAGES` + `ContactKanbanCard` + `KanbanColumn` + `SCORING_FACTORS`; extracted `CrmContactSheet` (outer shell) + `CrmContactSheetBody` (inner keyed body) from inline `CrmContactsPage` Sheet drawer so both Contacts and Pipeline pages share the same detail drawer. No new dependencies. No new viewIds. No breaking changes to existing exports (`CrmOverviewPage` byte-identical; `CrmContactsPage` behavior-identical with the Sheet drawer just delegated to `CrmContactSheet`).
+
+---
+
+## Task ID: impl-support-sla
+**Agent:** impl-support-sla (focused, single-feature task)
+**Task:** Build the Support SLA Management + Breach Dashboard page (per-priority SLA targets, breach dashboard, agent workload, breach trend + compliance charts, edit-via-Sheet policy editor). Implements priority action #3 from `analysis-kyc-sup-ai` ("Build SLA management").
+
+### Pre-work (read-only)
+1. Read `worklog.md` tail (~400 lines) — captured context incl. `analysis-kyc-sup-ai` (line 5419+, which explicitly identified "Support module has no SLA badge, no SLA management policy, no breach dashboard" — priority action #3 = "Build SLA management").
+2. Read `AGENTS.md` UX constitution — §9 KPIs (every metric needs context), §17-§19 State-First + Explainability (breached state must explain WHY), §22-§23 Contextual Actions + One Primary Action, §24 Destructive Actions, §27 Drawer vs Page, §33 Help (`LabelWithHelp`), §54-§55 Terminology (`term()` + `plural()`).
+3. Read `src/modules/support/manifest.ts` (62 LOC, 4 nav children, 3 routes — Note: nav uses parent `order: 80`; child ordering is positional, but task spec asked for `order: 84` on the new child, and `NavigationItem.order?` is a valid optional field per `types.ts` line 120).
+4. Read `src/modules/support/pages/support-pages.tsx` (FULL — 573 LOC) — captured Sheet drawer pattern from `impl-support-ticket-drawer` (lines 302-486), `relativeTime` helper, `slaHoursFor(priority)` projection, `conversationFor`/`internalNotesFor` deterministic generators. The existing SupportTicketsPage Sheet is at lines 302-486 and uses `Sheet/SheetContent/SheetHeader/SheetTitle/SheetDescription/SheetFooter` from `@/components/ui/sheet`.
+5. Read `src/lib/platform/mock-data.ts` — `SupportTicket` interface (id/tenantId/subject/traderName/category/priority/status/assignee/createdAt/lastReplyAt?/messages — NO `slaHours` field), `getTenantTickets(tid)` filter, `hashStr(s)` helper.
+6. Read `src/components/platform/page.tsx` — `Page`, `PageHeader` (supports `title/description/icon/term/actions`), `PageContent`, `MetricCard` (supports `label/value/delta/deltaLabel/icon/tone`).
+7. Read `src/components/platform/data-table.tsx` — `DataTable` API: `columns//data/loading/searchPlaceholder/searchableText/pageSize/rowKey/onRowClick/toolbar/emptyTitle/emptyDescription`. `Column<T>`: `key/header/cell/sortValue/className/width/numeric`.
+8. Read `src/components/platform/charts.tsx` — `AreaSeries(data, xKey, yKey, color, height, formatValue)`, `BarSeries` (single color per chart — not per-bar, so compliance-by-priority chart inlined using recharts `<BarChart>` + `<Cell>` per-bar coloring for color-band semantics).
+9. Read `src/components/platform/status.tsx` — `StatusBadge` tones (`default/success/warning/danger/info/muted`), `ticketPriorityTone(p)` returns `danger/warning/info/muted` for `urgent/high/medium/low`.
+10. Read `src/components/platform/contextual-help.tsx` — `LabelWithHelp({children, help, className})` shows label + info tooltip.
+11. Read `src/lib/platform/export-utils.ts` — `exportToCsv<T>(rows, columns: ExportColumn<T>[], filename)` with RFC 4180 escaping + UTF-8 BOM + toast on success / empty.
+12. Read `src/lib/platform/platform-context.tsx` — `usePlatform()` returns `{ runtime, tenant, navigate, ... }`; `runtime.tenant?.id` for the tenant id; `navigate(view, params)` for client-side routing.
+13. Read `src/lib/platform/view-router.tsx` lines 290-345 — confirmed `viewRegistry` is keyed by `viewId`. **Did NOT touch** — lead will batch-register `"support-sla": SupportSlaPage` in `viewRegistry` (after line 302, alongside the other `support-*` entries).
+
+### Files touched
+- **NEW** `src/modules/support/pages/support-sla-page.tsx` (~620 LOC, single named export `SupportSlaPage`).
+- **EDIT** `src/modules/support/manifest.ts` — added `Clock` to the lucide-react import line (line 8); added `{ id: "support.sla", label: "SLA Management", href: "support-sla", icon: Clock, permission: "support.read", order: 84 }` to nav children between `support-tickets` and `support-knowledge` (line 21); added `{ path: "support-sla", viewId: "support-sla", label: "SLA Management", permission: "support.read", module: "support" }` to routes (line 31).
+
+### Files deliberately NOT touched (per task constraints)
+- `src/lib/platform/view-router.tsx` — lead will batch-register `support-sla` viewId after all batch-1 subagents finish.
+- `src/lib/platform/mock-data.ts` — read-only; SLA mock data (policies / breach trend / compliance / breached tickets / agent workload) lives inside the new page module as constants so the page is self-contained.
+- `src/modules/support/pages/support-pages.tsx` — owned by `impl-support-ticket-drawer`'s previous work (Sheet drawer already wired there).
+- `src/modules/support/index.ts` — file ownership scope is restricted to `manifest.ts` + the new page file; lead will add the export in the batched edit alongside the view-router registration.
+
+### Component export name + viewId (for lead's batched registration)
+- **Export name**: `SupportSlaPage` (named export — matches the pattern of `SupportOverviewPage`/`SupportTicketsPage`/`SupportKnowledgePage`).
+- **viewId / route path**: `support-sla`.
+- **Suggested view-router line** (lead to add after `support-knowledge` entry at line 302): `"support-sla": SupportSlaPage,` (with `import { SupportSlaPage } from "@/modules/support/pages/support-sla-page";` at the top alongside the other support imports at line 59-60).
+
+### Page Layout (top → bottom)
+
+1. **PageHeader** — title "SLA Management" + description "Configure service level targets per priority and monitor breach rates." + `Clock` icon tile + `term` sublabel `Across all {trader}s · {N} active policies` (white-label-aware via `makeTermResolver(tenant)` + `plural()` so Gamma Futures' "Candidate" terminology surfaces correctly as "Candidates"). Actions cluster (§22 — contextual actions where the decision happens): **Export CSV** (outline — `exportToCsv` real call on `BREACHED_TICKETS`) + **Save Changes** (default — toast "SLA policies saved (demo)").
+2. **KPI row** — 4 MetricCards responsive `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` (§9 — every metric carries a `deltaLabel` for context):
+   - **Total Tickets (30d)** — deterministic count derived via `deriveTotalTickets30d(tid)` (uses `hashStr(tid)` → range 80–180; super-admin/platform sees 142). `Inbox` icon. `deltaLabel="across all priorities"`.
+   - **Breached SLAs** — `BREACHED_TICKETS.length = 7`. `AlertTriangle` icon, **rose tone** (`tone="negative"`). `deltaLabel="past their SLA target"`.
+   - **Avg First Response** — `"2.4h"`. `Timer` icon. `deltaLabel="target: 4h"` (target surfaced inline §9 + §33).
+   - **Avg Resolution Time** — `"8.1h"`. `TimerReset` icon. `deltaLabel="target: 24h"`.
+3. **SLA Policy Configuration Card** — `Card` + `DataTable` with 6 columns: Priority (`StatusBadge` via `ticketPriorityTone(p.priority)` — rose for urgent, amber for high, sky for medium, slate for low) / First Response / Resolution / Description / Active (per-row `Switch` toggle, fires toast on change) / Actions (`Button` outline "Edit" → opens Sheet drawer). `searchableText` covers priority + description; `pageSize=8`. Mock `SLA_POLICIES` array (4 entries — urgent: 1h/4h/2h auto-escalate, businessHoursOnly=false, pauseOnCustomer=true, active=true / high: 4h/8h/6h / medium: 24h/48h/36h businessHoursOnly=true / low: 48h/72h/60h **active=false** to demonstrate the disabled-policy state).
+4. **Charts row** — `grid gap-4 lg:grid-cols-2`:
+   - **SLA Breach Trend** (AreaSeries) — `BREACH_TREND` 12 weeks deterministically generated via `Math.floor(8 + Math.sin(i / 2) * 4 + (i % 3 === 0 ? 3 : 0))` → produces a smooth sin-wave baseline (range 4–15) with periodic spikes every 3rd week. `color=rose #e11d48`. height=220.
+   - **SLA Compliance by Priority** (inlined recharts `BarChart` with per-bar `Cell` coloring — the platform `BarSeries` only supports a single chart-wide color, so per-band coloring required inline recharts. Not a new abstraction — just direct recharts usage in one spot, allowed per §76). Bars: Urgent 88% (amber), High 92% (amber), Medium 96% (emerald), Low 98% (emerald). Y-axis 0–100 formatted as `%`. Legend below explains the 3 bands (≥95% On Target emerald / 80–94% At Risk amber / <80% Off Target rose).
+5. **Currently Breached Tickets Card** — `DataTable` with 8 columns: Ticket ID (mono) / Subject / Priority (`StatusBadge`) / Created / SLA Due / **Time Over** (`AlertTriangle` icon + `{N}h` in **rose** — §17-§19 makes the breach state visible + explainable) / Assignee / Status (`StatusBadge tone="danger"` showing "Breached"). `onRowClick` → `navigate("support-tickets", { breached: t.id })` (existing `SupportTicketsPage` is the row drill target — §22 contextual action, the deep-link to investigate is inline). 7 deterministic breached tickets (T-1042 urgent 1h over → T-0998 medium 8h over).
+6. **Agent Workload Card** — `DataTable` with 6 columns: Agent (avatar circle with initials + name) / Open Tickets / Avg Response / Avg Resolution / SLA Compliance % (inline mini-progress-bar colored by band + percentage in band color) / Status (`StatusBadge` "On Target"/"At Risk"/"Off Target" using `complianceTone(v)` = `success` if ≥95 / `warning` if 80-94 / `danger` if <80). 5 deterministic agents (Sarah 94% amber / Marcus 91% amber / Elena 96% emerald / David 85% amber / Priya 89% amber).
+7. **Sheet drawer (SLA Policy Editor)** — opened by Edit button on each policy row. Right-side `sm:max-w-[480px]`. Sections:
+   - **SheetHeader** — title "Edit SLA Policy — {priority}" + description.
+   - **Priority** (read-only) — locked field showing the `StatusBadge` + "Cannot be changed".
+   - **Separator**.
+   - **First Response Target (hours)** — `LabelWithHelp` (§33) explaining "Time within which an agent must send the first reply to the trader... breaching triggers At-Risk state" + numeric `Input` clamped to `Math.max(1, …)`.
+   - **Resolution Target (hours)** — `LabelWithHelp` explaining "Time within which the ticket must be fully resolved... Breaching triggers the Breached state shown in the dashboard" + numeric `Input`.
+   - **Auto-escalate after (hours)** — `LabelWithHelp` explaining "When the SLA clock crosses this threshold, the ticket is auto-routed to a senior agent or Tier 2 queue" + numeric `Input`.
+   - **Separator**.
+   - **Business hours only** — boxed `Switch` + `LabelWithHelp` ("Only count business hours toward the SLA clock").
+   - **Pause on customer response** — boxed `Switch` + `LabelWithHelp` ("Pause the SLA clock while waiting for the customer. The clock resumes once the customer replies, so SLA is not unfairly penalised by customer latency").
+   - **SheetFooter** — Cancel (outline) + Save Policy (default — writes draft back to `policies` state, fires toast "SLA policy saved", closes Sheet).
+   - Sheet state is `useState`-local (`editingPriority` + `draft`). Cancel / overlay-click / Esc all call `closeSheet()` which nulls out the draft. Save commits the draft back to the `policies` state array, so toggling Edit on the same row again reflects the saved values.
+
+### Determinism guarantees
+- **No `Math.random()` anywhere.** All numbers are either constants, `Math.sin()` patterns, or derived from `hashStr(tid)`.
+- `BREACH_TREND[i].breaches = Math.floor(8 + Math.sin(i / 2) * 4 + (i % 3 === 0 ? 3 : 0))` — same value on every render, every tenant.
+- `deriveTotalTickets30d(tid)` — `hashStr(tid) % 101 + 80`, deterministic per-tenant; platform sees 142.
+- All mock `BREACHED_TICKETS`, `AGENT_WORKLOAD`, `COMPLIANCE_BY_PRIORITY`, `SLA_POLICIES` are constant arrays.
+
+### Color palette (Terra-only, no blue/indigo/violet)
+- emerald `#059669` (On Target ≥95%)
+- amber   `#d97706` (At Risk 80-94%)
+- rose    `#e11d48` (Off Target <80% + Breached + breach trend chart)
+- sky     `#0ea5e9` (medium-priority StatusBadge — comes from `ticketPriorityTone`, already in platform `status.tsx`)
+- slate   muted-foreground / muted backgrounds
+- No blue/indigo/violet anywhere in the file (verified by grep on the source).
+
+### Accessibility
+- Every `Switch` has an `aria-label`.
+- Every numeric `Input` has an `aria-label`.
+- `StatusBadge` exposes `role="status"` + computed `aria-label` (from platform `status.tsx`).
+- Edit button uses `e.stopPropagation()` so a future row-click handler on the policies table wouldn't double-fire.
+- Breached tickets row click uses `cursor-pointer` (added by `DataTable` when `onRowClick` is set).
+
+### Verification
+1. **`bun run lint`** → exit 0, 0 errors, 0 warnings. Clean `$ eslint .` output.
+2. **`bunx tsc --noEmit --skipLibCheck`** → 0 errors in `src/modules/support/pages/support-sla-page.tsx` and `src/modules/support/manifest.ts` (grep `support-sla` returns 0 hits). All pre-existing errors are in untouched files (`examples/*`, `skills/*`, `src/components/platform/*` flagged in prior worklog entries, `src/lib/platform/mock-data.ts`, `src/components/shell/sidebar.tsx`, `src/modules/analytics/*`) — out of scope.
+3. **`curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/`** → `200` (after both edits).
+4. **`dev.log`** tail → only `✓ Compiled in <ms>` + `GET / 200 in <ms>` — no runtime errors. The pre-existing `EADDRINUSE` error at the very top is unrelated (auto-dev-server restart race — flagged in prior entries).
+
+### Notes for lead
+- The new file imports from `recharts` directly (for `BarChart`/`Bar`/`Cell`/`XAxis`/`YAxis`/`CartesianGrid`/`Tooltip`/`ResponsiveContainer`) because the platform `BarSeries` component only supports a single chart-wide fill color and cannot do per-bar `<Cell>` coloring. This is consistent with §76 (don't build ad-hoc primitives) — I'm not creating a new wrapper, just using recharts components directly in one spot.
+- The `AreaSeries` from `@/components/platform/charts` IS used for the breach trend (single color, fine for that use case).
+- The `usePlatform()` import pulls in `runtime`, `tenant`, `navigate`. `runtime.tenant?.id` feeds `deriveTotalTickets30d()`; `tenant` feeds `makeTermResolver()`; `navigate("support-tickets", { breached: t.id })` is the row-click drill.
+- The `tid` is also used implicitly via `runtime.tenant?.id ?? "platform"` — same pattern as the existing `SupportOverviewPage` line 188.
+
+### Code Changes
+- `src/modules/support/pages/support-sla-page.tsx` (NEW — ~620 LOC)
+- `src/modules/support/manifest.ts` (EDIT — +1 import keyword, +1 nav child line, +1 route line; total file now 65 LOC, was 62)

@@ -173,6 +173,19 @@ import { DeviceActivitiesPage } from "@/modules/settings/pages/device-activities
 import { TokenDetailPage } from "@/modules/settings/pages/token-detail-page";
 import { EnhancedUserEventsPage } from "@/modules/audit/enhanced-user-events-page";
 
+/* Batch M (Group G high-value pages): KYC Providers + Support SLA + AI Predictive/Anomaly/Cost + Accounting Invoices/P&L + Marketing Email/AdSpend + Affiliate Coupons/LinkTracking */
+import { KycProvidersPage } from "@/modules/settings/pages/kyc-providers-page";
+import { SupportSlaPage } from "@/modules/support/pages/support-sla-page";
+import { AiPredictivePage } from "@/modules/ai/pages/ai-predictive-page";
+import { AiAnomalyPage } from "@/modules/ai/pages/ai-anomaly-page";
+import { AiCostPage } from "@/modules/ai/pages/ai-cost-page";
+import { AccountingInvoicesPage } from "@/modules/accounting/pages/accounting-invoices-page";
+import { AccountingPlPage } from "@/modules/accounting/pages/accounting-pl-page";
+import { MarketingEmailCampaignsPage } from "@/modules/marketing/pages/marketing-email-campaigns-page";
+import { MarketingAdSpendPage } from "@/modules/marketing/pages/marketing-ad-spend-page";
+import { AffiliateCouponsPage } from "@/modules/affiliates/pages/affiliate-coupons-page";
+import { AffiliateLinkTrackingPage } from "@/modules/affiliates/pages/affiliate-link-tracking-page";
+
 export type ViewComponent = ComponentType<{ params: Record<string, string> }>;
 
 export const viewRegistry: Record<string, ViewComponent> = {
@@ -274,17 +287,23 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "offer-edit": OfferEditPage,
   "offer-matching-users": OfferMatchingUsersPage,
   "offer-change-history": OfferChangeHistoryPage,
+  "affiliate-coupons": AffiliateCouponsPage,
+  "affiliate-link-tracking": AffiliateLinkTrackingPage,
 
   /* accounting */
   accounting: AccountingOverviewPage,
   "accounting-transactions": TransactionsPage,
   "accounting-reconciliation": ReconciliationPage,
+  "accounting-invoices": AccountingInvoicesPage,
+  "accounting-pl": AccountingPlPage,
 
   /* marketing */
   marketing: MarketingOverviewPage,
   "marketing-campaigns": MarketingCampaignsPage,
   "marketing-performance": MarketingPerformancePage,
   "marketing-dashboard": MarketingDashboardPage,
+  "marketing-email-campaigns": MarketingEmailCampaignsPage,
+  "marketing-ad-spend": MarketingAdSpendPage,
 
   /* crm */
   crm: CrmOverviewPage,
@@ -300,12 +319,16 @@ export const viewRegistry: Record<string, ViewComponent> = {
   support: SupportOverviewPage,
   "support-tickets": SupportTicketsPage,
   "support-knowledge": SupportKnowledgePage,
+  "support-sla": SupportSlaPage,
 
   /* ai */
   ai: AiOverviewPage,
   "ai-insights": AiInsightsPage,
   "ai-assistant": AiAssistantPage,
   "ai-configure": AiConfigurePage,
+  "ai-predictive": AiPredictivePage,
+  "ai-anomaly": AiAnomalyPage,
+  "ai-cost": AiCostPage,
 
   /* audit — new flows */
   "audit-user-events": UserEventsPage,
@@ -333,6 +356,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "device-activities": DeviceActivitiesPage,
   "token-detail": TokenDetailPage,
   "audit-user-events-enhanced": EnhancedUserEventsPage,
+  "kyc-providers": KycProvidersPage,
 };
 
 const dynamicViews = new Map<string, ViewComponent>();

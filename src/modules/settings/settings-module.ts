@@ -7,10 +7,13 @@
  *
  * Sidebar children are grouped by category (the order itself
  * communicates the grouping — Branding → Security → Communications
- * → Certificates → System). All 19 children point to live views
+ * → Certificates → System). All 20 children point to live views
  * registered in `src/lib/platform/view-router.tsx` — there are no
  * dead-link entries in this manifest (verified 2026-09 by
- * `impl-shell-settings`).
+ * `impl-shell-settings`). KYC Providers (added by
+ * `impl-kyc-providers-config`) is the 20th child; its viewId
+ * `kyc-providers` is registered in view-router.tsx by the lead
+ * agent's batched edit.
  */
 
 import {
@@ -29,6 +32,7 @@ import {
   Plug,
   Share2,
   Fingerprint,
+  ShieldCheck,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -53,6 +57,7 @@ const navigation: NavigationItem[] = [
       { id: "settings.users", label: "User Management", href: "user-management", icon: UsersRound, permission: "settings.manage" },
       { id: "settings.tokens", label: "API Tokens", href: "token-management", icon: KeyRound, permission: "settings.manage" },
       { id: "settings.device-activities", label: "Device Activities", href: "device-activities", icon: Fingerprint, permission: "settings.manage" },
+      { id: "settings.kyc-providers", label: "KYC Providers", href: "kyc-providers", icon: ShieldCheck, permission: "settings.manage", order: 75 },
 
       // ───────── Communications ─────────
       { id: "settings.email-templates", label: "Email Templates", href: "email-templates", icon: Mail, permission: "settings.manage" },
@@ -94,6 +99,7 @@ const routes: RouteDefinition[] = [
   { path: "marketing-banner-edit", viewId: "marketing-banner-edit", label: "Marketing Banner Edit", permission: "settings.manage", module: "settings" },
   { path: "social-media-links", viewId: "social-media-links", label: "Social Media Links", permission: "settings.manage", module: "settings" },
   { path: "device-activities", viewId: "device-activities", label: "Device Activities", permission: "settings.manage", module: "settings" },
+  { path: "kyc-providers", viewId: "kyc-providers", label: "KYC Providers", permission: "settings.manage", module: "settings" },
   { path: "token-detail", viewId: "token-detail", label: "Token Detail", permission: "settings.manage", module: "settings" },
 ];
 

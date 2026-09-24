@@ -5,7 +5,7 @@
  * an assistant chat, and model configuration. Depends on Trading + Analytics.
  */
 
-import { Brain, Sparkles, Bot, Settings2 } from "lucide-react";
+import { Brain, Sparkles, Bot, Settings2, TrendingUp, AlertTriangle, DollarSign } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { AiOverviewWidget, AiInsightsWidget, AiConfidenceWidget } from "./widgets/ai-widgets";
 
@@ -20,6 +20,9 @@ const navigation: NavigationItem[] = [
       { id: "ai.insights", label: "Insights", href: "ai-insights", icon: Sparkles, permission: "ai.read" },
       { id: "ai.assistant", label: "Assistant", href: "ai-assistant", icon: Bot, permission: "ai.read" },
       { id: "ai.configure", label: "Configure", href: "ai-configure", icon: Settings2, permission: "ai.read" },
+      { id: "ai.predictive", label: "Predictive Analytics", href: "ai-predictive", icon: TrendingUp, permission: "ai.read", order: 86 },
+      { id: "ai.anomaly", label: "Anomaly Detection", href: "ai-anomaly", icon: AlertTriangle, permission: "ai.read", order: 87 },
+      { id: "ai.cost", label: "Cost Tracking", href: "ai-cost", icon: DollarSign, permission: "ai.read", order: 88 },
     ],
   },
 ];
@@ -29,6 +32,9 @@ const routes: RouteDefinition[] = [
   { path: "ai-insights", viewId: "ai-insights", label: "AI Insights", permission: "ai.read", module: "ai" },
   { path: "ai-assistant", viewId: "ai-assistant", label: "AI Assistant", permission: "ai.read", module: "ai" },
   { path: "ai-configure", viewId: "ai-configure", label: "AI Configuration", permission: "ai.read", module: "ai" },
+  { path: "ai-predictive", viewId: "ai-predictive", label: "AI Predictive Analytics", permission: "ai.read", module: "ai" },
+  { path: "ai-anomaly", viewId: "ai-anomaly", label: "AI Anomaly Detection", permission: "ai.read", module: "ai" },
+  { path: "ai-cost", viewId: "ai-cost", label: "AI Cost Tracking", permission: "ai.read", module: "ai" },
 ];
 
 const widgets: WidgetDefinition[] = [

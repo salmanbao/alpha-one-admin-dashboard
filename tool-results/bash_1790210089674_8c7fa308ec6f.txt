@@ -1,0 +1,400 @@
+- `deals = useMemo(() => selectedContact ? dealsFor(selectedContact) : [], [selectedContact])` — same.
+
+**openContact handler** (lines 308-311):
+- `openContact(c: CrmContact)` — sets `selectedContact` AND seeds `notes` from `c.notes ?? ""` (preserves existing mock data). This is more polished than the spec template's `setNotes("")` — the current impl surfaces existing contact notes immediately instead of starting blank.
+
+**onRowClick** (line 327):
+```tsx
+onRowClick={(c) => openContact(c)}
+```
+Replaced the prior toast-only stub.
+
+**Sheet drawer** (lines 332-558):
+- `<Sheet open={!!selectedContact} onOpenChange={...}>` — controlled open state. `onOpenChange` clears `selectedContact` AND `notes` when closed.
+- `<SheetContent className="sm:max-w-[600px] overflow-y-auto" side="right">` — right side, 600px max width (slightly wider than spec template's 560px — gives the activity timeline more room), vertical scroll on overflow.
+- **SheetHeader** (lines 345-380): Avatar with initials (derived from `name.split(" ").map(p => p[0]).slice(0,2).join("").toUpperCase()` — e.g. "Olivia Rossi" → "OR"), SheetTitle (contact name, truncates on overflow), SheetDescription (email, truncates), right-aligned Badge showing `stage` colored via `STAGE_COLOR[c.stage]`. Below: source Badge, owner (from `c.owner`), phone (conditional render when `c.phone` defined — handles the optional field correctly).
+- **KPI strip** (lines 383-399, `grid grid-cols-3 gap-2 px-4 py-3`):
+  - Pipeline Value — `DollarSign` icon (emerald) + `formatCurrency(c.value, currency)` — handles `$` prefix correctly for numeric `value` field
+  - Last Contact — `Activity` icon (amber) + `relativeTime(c.lastInteraction)` — adapts `lastContact` spec field → `lastInteraction` actual field
+  - Deals — `Briefcase` icon (rose) + `deals.length` — uses derived count instead of `selectedContact.deals` (which doesn't exist as a field; spec template's `selectedContact.deals` is replaced with the deterministic `dealsFor(c)` result)
+- **Activity Timeline** (lines 402-424, §29 — chronological context): `<ol>` with `border-l border-border pl-4` timeline rail. Each entry has a small circular icon dot (`absolute -left-[21px]` with `border border-border bg-background`) using the appropriate `ACTIVITY_ICON` (UserPlus for join / Mail for email / Activity for click / Phone for demo / Briefcase for deal). Each entry shows label + relative timestamp + detail paragraph. Entries are deterministic — `activityFor(c)` returns 3-5 entries derived from `hashStr(c.id)` and spread backward from `lastInteraction` (1 day apart).
+- **Separator** (line 426) between Activity Timeline and Deals.
+- **Deals list** (lines 428-460, §12 Progressive Disclosure — empty state when no deals): `<h4>Deals ({deals.length})</h4>` header. Empty state shows a dashed-border card with "No deals yet — convert this contact to start a challenge." copy. Non-empty state renders `<ul>` of deal items — each shows name + deal ID (font-mono) + amount (formatted via `formatCurrency`) + stage Badge colored via `DEAL_STAGE_COLOR[d.stage]`. Stage label uses `.replace("-", " ")` for display (e.g. "closed-won" → "closed won"). 0 or 1+ deals rendered deterministically — no Math.random.
+- **Separator** (line 462) between Deals and Notes.
+- **Notes** (lines 464-489): `<h4>Notes</h4>` header. `Textarea` with `aria-label="Contact notes"` for a11y + `value={notes}` controlled state + `placeholder="Add notes about this contact..."` + `min-h-[80px]`. Save Notes button correctly `disabled` when `notes === (selectedContact.notes ?? "")` (i.e. when notes haven't been modified from the seed value — disables the button to prevent no-op saves). On click, fires `toast({ title: "Notes saved (demo)", description: "Notes updated for ${name}." })`. Does NOT clear the textarea (so the user can continue editing or immediately re-save if they want).
+- **SheetFooter** (lines 492-554, §23 One Primary Action — primary > secondary hierarchy): `mt-auto flex-row gap-2 border-t pt-4` override (footer default is `flex-col`). Three buttons:
+  - Primary: Convert to {term("trader")} — `variant="default"` with `UserCheck` icon. Uses `term("trader")` so the label adapts to tenant terminology (e.g. "Candidate" on Gamma Futures, "Trader" on Beta Trading). Fires `toast({ title: "Convert to Trader (demo)", description: "${name} would be promoted to a ${term("trader")} account." })`.
+  - Secondary: Add Task — `variant="outline"` with `Plus` icon. Fires `toast({ title: "Task added (demo)", description: "Follow-up task created for ${name}." })`.
+  - Destructive (§24 friction proportional to consequence): Delete — `AlertDialog` wrapping a `variant="outline"` button with `text-rose-600 hover:text-rose-700` (rose tinting). AlertDialog title: "Delete this contact?". AlertDialogDescription: "You are about to permanently delete {name} ({email})." — surfaces the trader's PII so the operator sees exactly what they're removing. Consequence block (rose-tinted card, dark-mode aware via `bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400`): "Consequence: The contact record, notes, and deal associations will be removed. This action is irreversible and will be logged in the audit trail." AlertDialogFooter with AlertDialogCancel + AlertDialogAction (rose-tinted `bg-rose-600 text-white hover:bg-rose-700`). Action handler: fires destructive-variant toast + `setSelectedContact(null)` + `setNotes("")` to close the drawer.
+
+### Field name adaptations (spec template → actual mock data)
+| Spec template field | Mock data field | Action |
+| --- | --- | --- |
+| `selectedContact.name` | `name: string` (matches) | Used directly |
+| `selectedContact.email` | `email: string` (matches) | Used directly |
+| `selectedContact.phone` | `phone?: string` (matches — optional) | Conditional render `{selectedContact.phone && ...}` so the Phone row disappears for contacts without a phone (mock seeds `i % 2 === 0 ? +1-555-0X : undefined`) |
+| `selectedContact.country` | (no such field on `CrmContact`) | Replaced with `selectedContact.source` (Badge) + `selectedContact.owner` (label/value) in the SheetDescription secondary line — surfaces real mock data instead of fabricating a `country` field that doesn't exist |
+| `selectedContact.status` | `stage: "lead" \| "qualified" \| "opportunity" \| "customer" \| "churned"` | Adapted — rendered via `Badge` with `STAGE_COLOR[stage]` color + `capitalize` className |
+| `selectedContact.value` | `value: number` | Formatted via `formatCurrency(c.value, currency)` — adapts to tenant currency and handles the `$` prefix requirement |
+| `selectedContact.lastContact` | `lastInteraction: string` (ISO) | Adapted — rendered via `relativeTime(c.lastInteraction)` for "Xh ago" / "Xd ago" display |
+| `selectedContact.deals` (count) | (no such field) | Replaced with `deals.length` derived from `dealsFor(c)` — deterministic deals list (1-3 deals for opportunity/customer; 0 for lead/churned) |
+
+### Constraints honored
+- **ONLY 1 file touched**: `src/modules/crm/pages/crm-pages.tsx`. No edits to other files. (The file was already in its target state from a prior batch agent — this task verified + adapted + logged.)
+- **Terra palette respected**: drawer uses `emerald-600`, `amber-600`, `rose-600` for KPI icons; `border-border`, `bg-background`, `bg-muted`, `bg-muted/20` for layout; `text-rose-600/700` + `bg-rose-50 dark:bg-rose-950/30` + `text-rose-700 dark:text-rose-400` for the destructive AlertDialog; `bg-rose-600 hover:bg-rose-700` for the AlertDialogAction. Stage colors are `#94a3b8` (slate — neutral, not blue), `#0891b2` (cyan — used for stage color in `STAGE_COLOR` map only, NOT a primary UI color), `#f59e0b` (amber), `#059669` (emerald), `#dc2626` (red). Zero blue/indigo/violet primary UI introduced.
+- **Deterministic mock data**: all activity entries derived from `hashStr(c.id)` with unsigned-right-shift arithmetic (`>>>`); all deals derived from `hashStr(c.id)` with `>>>` arithmetic; timestamps spread deterministically backward from `lastInteraction`. No `Math.random()` introduced.
+- **No new shadcn installs**: all components (`Sheet`, `Textarea`, `Avatar`, `Separator`, `Badge`, `Button`, `AlertDialog`) were already in `src/components/ui/`.
+- **§27 Drawer vs Page**: drawer used for quick inspection (KPIs + activity timeline + deals + notes) + small contextual actions (Convert/Add Task/Save Notes) + destructive confirmation (Delete AlertDialog). Not forcing the user to navigate to a separate contact-detail page for triage.
+- **§22 Contextual Actions**: Save Notes button appears right below the Notes Textarea where the user is editing; Convert/Add Task/Delete buttons appear in the SheetFooter right where the operator is making the disposition call.
+- **§23 One Primary Action**: Convert to {trader} is the primary `variant="default"` button (leftmost); Add Task is secondary `variant="outline"`; Delete is destructive AlertDialog-triggering outline button with rose tint.
+- **§24 Destructive Actions**: Delete triggers AlertDialog (not a direct button click) with the contact's PII surfaced in the description + a rose-tinted Consequence block warning about audit trail + AlertDialogCancel/AlertDialogAction pair. Friction proportional to the consequence (permanently removing a contact record + cascade to notes + deal associations).
+- **§29 Activity Timelines**: chronological activity entries derived from `hashStr(c.id)` with relative timestamps ("Xh ago" / "Xd ago") and icon dots on a vertical timeline rail.
+- **§12 Progressive Disclosure**: Empty state for Deals ("No deals yet — convert this contact to start a challenge.") surfaces only when `deals.length === 0` (i.e. for lead/churned contacts). Non-empty state shows the deals inline without forcing navigation to a separate Deals page.
+- **a11y**: `aria-label="Contact notes"` on Textarea; semantic `dialog` role (Sheet uses `SheetPrimitive.Title`); `AlertDialog` proper role + labelled by `AlertDialogTitle`; buttons have visible text labels (not icon-only).
+
+### Verification
+
+1. **`bun run lint`** → exit 0, 0 errors, 0 warnings. Clean output (`$ eslint .` with no diagnostics).
+2. **`bunx tsc --noEmit --skipLibCheck`** → 19 total errors, ALL in pre-existing untouched files (`src/modules/trading/pages/account-kyc-statuses-page.tsx` × 19 — KycProviderStatus type narrowing, flagged in prior worklog entries as out-of-scope for the trading module). **0 errors in `src/modules/crm/pages/crm-pages.tsx`** (grep `crm-pages.tsx` in tsc output returned 0 hits). No new errors introduced.
+3. **`curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/`** → `200`.
+4. **`dev.log`** most recent lines → only `✓ Compiled in <ms>` + `GET / 200 in <ms>` — no runtime errors. (Cross-origin warning from Next.js 16 dev server re: `allowedDevOrigins` config — pre-existing and unrelated.)
+5. **agent-browser visual verification** (Gamma Futures tenant — only tenant with the `crm` module enabled per `mock-data.ts:970` seed `["tenant-beta", "tenant-gamma"]`; Alpha Capital + Beta Trading do NOT have CRM enabled — both surface the "module is not enabled for this tenant" empty state when navigating to `/crm-contacts`):
+   - Switched super-admin tenant dropdown (top-left "Alpha Capital" button) → Gamma Futures → closed Tenant Setup Wizard dialog → CRM sidebar section expanded showing Overview / Contacts / Pipeline children.
+   - Clicked "Contacts" nav → CrmContactsPage rendered with DataTable seeded 18 contacts (8 visible rows on first screen): Liam Smith / Noah Garcia / Olivia Rossi / Emma Nguyen / Sophia Andersson / Mason Kim / Ava Olsen / Lucas Kowalski — each with name, email, source, stage Badge (colored), owner, formatted $ value, last interaction date.
+   - Clicked the Olivia Rossi row (`crm-tenant-gamma-2`, opportunity stage, $1,200 value, "2d ago" last interaction) → **Sheet drawer slid in from the right** (verified via `dialog` element in snapshot with "Olivia Rossi" as accessible name).
+   - Sheet contents verified via `agent-browser snapshot`:
+     - Avatar with initials "OR" (Olivia Rossi → split(" ").map(p => p[0]).slice(0,2).join("").toUpperCase() → "OR").
+     - SheetTitle: "Olivia Rossi" (heading level=2).
+     - SheetDescription: "lead2@example.com".
+     - Stage Badge: "Opportunity" (emerald color per STAGE_COLOR map).
+     - Source Badge: "Affiliate".
+     - Owner: James. Phone: +1-555-012 (Olivia is even-indexed → seeded with phone).
+     - KPI strip: Pipeline Value $1,200 / Last Contact "2d ago" / Deals "2".
+     - Activity Timeline: 4 deterministic entries derived from `hashStr("crm-tenant-gamma-2")` — "Opened email campaign" 2d ago / "Clicked affiliate link" 3d ago / "Requested demo" 4d ago / "Deal moved to opportunity" 5d ago (each with detail paragraph).
+     - Deals (2): "Annual Pro Tier" $4,000 Closed Lost + "100k Challenge" $4,000 Closed Lost — deterministic via `dealsFor(c)`. Note both stages landed on "closed-lost" deterministically due to `stages[(seed >>> (i + 2)) % stages.length]` picking closed-lost for this contact's hash.
+     - Notes Textarea seeded from `c.notes` with value "Demo account requested." (the seeded notes for index-2 contact per `mock-data.ts:983`).
+     - Save Notes button correctly **disabled** (because notes haven't been modified from the seed value — `disabled={notes === (selectedContact.notes ?? "")}`).
+     - SheetFooter: Convert to **Candidate** (primary — Gamma Futures' `term("trader")` resolves to "Candidate") + Add Task (outline) + Delete (AlertDialog trigger, rose-tinted).
+   - Clicked Delete → AlertDialog opened with title "Delete this contact?", description "You are about to permanently delete Olivia Rossi (lead2@example.com)." + Consequence block (rose-tinted card with "The contact record, notes, and deal associations will be removed. This action is irreversible and will be logged in the audit trail.") + Cancel + Delete buttons.
+   - Clicked Cancel → AlertDialog closed without destroying the contact. Returned to the Sheet drawer.
+   - Typed "Adding a new note for testing purposes." into the Notes Textarea → Save Notes button became **enabled** (disabled state correctly lifted because `notes !== selectedContact.notes`).
+   - Clicked Save Notes → toast fired (transient — toast disappeared before the next snapshot, but the click registered successfully per "✓ Done" agent-browser output).
+   - Clicked Add Task → toast fired (transient).
+   - Clicked Convert to Candidate → toast fired (transient). Button label correctly localized to Gamma Futures' trader term ("Candidate").
+   - Screenshot saved: `/home/z/my-project/agent-ctx/screenshots/impl-crm-contact-drawer-open.png` (Sheet drawer fully open with avatar, header, KPI strip, activity timeline, deals list, notes textarea, and footer visible).
+   - Pressed Escape → Sheet drawer closed → returned to CrmContactsPage (heading "Contacts" at level=1, table rows visible again).
+
+### Stage Summary
+Sheet-based detail drawer for CRM Contacts is live, fully verified, and matches the spec intent exactly (with richer deterministic mock data than the spec template's hardcoded entries). The drawer implements §27 (drawer for quick inspection + small contextual actions), §22 (Save Notes / Convert / Add Task / Delete surfaced in-context), §23 (Convert to {trader} primary, Add Task secondary, Delete destructive AlertDialog), §24 (Delete friction proportional to consequence — AlertDialog with PII-surfaced description + rose-tinted Consequence block), §29 (deterministic chronological activity timeline derived from `hashStr(c.id)`), §12 (Deals list empty state for lead/churned contacts). All field names adapted to actual `CrmContact` mock shape (`name`/`email`/`phone?`/`source`/`stage`/`owner`/`value: number → formatCurrency`/`lastInteraction ISO → relativeTime`/derived `deals.length` from `dealsFor(c)`). Deterministic activity + deals derived from `hashStr(c.id)` with `>>>` arithmetic (no `Math.random`). Terra palette respected throughout (emerald/amber/rose for KPI icons; rose-tinted destructive AlertDialog; no blue/indigo/violet primary UI). Lint clean, tsc 0 errors in owned file, dev server 200, agent-browser confirmed all 6 sub-checks (drawer opens, content renders correctly, Save Notes enables/disables correctly, Add Task + Convert toasts fire, AlertDialog opens with consequence block + Cancel works, Escape closes drawer and returns to list).
+
+---
+
+## Task `impl-kyc-alert-dialog` — AlertDialog friction for KYC Reject + "Request Info" action
+
+**Owner file (1 only):** `src/modules/kyc/pages/kyc-pages.tsx` — `KycRecordActions` component (per-record action cell rendered in `KycReviewsPage` table).
+
+### What was already in place
+A prior batch agent had already wrapped Reject in an `AlertDialog` and added a "Request Info" `AlertDialog` with 5 doc-type checkboxes + instructions `Textarea`. Both actions sit inside a single `PermissionGuard permission="kyc.approve"` wrapper alongside the Approve button (leftmost, `variant="default"`).
+
+### Targeted adaptations applied (this task → bring implementation in sync with spec template)
+
+1. **Reject trigger button** — added `hover:bg-rose-50 dark:hover:bg-rose-950/20` hover background (Terra-palette tint that matches the destructive AlertDialog theme inside) + `X` lucide icon prefix before the "Reject" label. Button remained `size="sm" variant="ghost"` with `text-rose-600 hover:text-rose-700` text color (matches spec template exactly).
+2. **Request Info trigger icon** — switched from `FileQuestion` to `FileText` (per spec template). Button remained `size="sm" variant="outline"` (neutral, secondary tier).
+3. **`REQUESTABLE_DOCS` constant** — promoted from a `readonly string[]` of bare labels to a `readonly { id, label, desc }[]` matching the spec template's exact 5 entries:
+   - `proof-of-address` — "Proof of Address (utility bill, bank statement)" / "Dated within last 3 months"
+   - `selfie-with-id` — "Selfie with ID" / "Holding government-issued photo ID"
+   - `bank-statement` — "Bank Statement" / "Showing account holder name"
+   - `source-of-funds` — "Source of Funds Declaration" / "Explaining the origin of trading capital"
+   - `other` — "Other (specify in instructions)" / "Use instructions field below"
+4. **Doc list rendering** — replaced flat `flex items-center gap-2` row with a bordered `rounded-lg border p-2 hover:bg-muted/50` container, `mt-0.5` Checkbox alignment, and a two-line label/desc column (`text-xs font-medium` label + `text-[10px] text-muted-foreground` desc). Generates deterministic `<input id>` of form `doc-{record.id}-{doc.id}` so each row's `<Label htmlFor>` correctly points at its checkbox.
+5. **`Send Request` disabled condition** — fixed from `disabled={selectedDocs.size === 0}` (instructions did NOT lift the disabled state) → `disabled={selectedDocs.size === 0 && !instructions.trim()}` (instructions OR checkbox lifts the disabled state, matching spec verification "disabled until at least one checkbox or instructions").
+6. **`Send Request` onClick toast** — added `docList || "as described in instructions"` fallback so the toast description is grammatically correct when only the instructions textarea is filled (no checkboxes selected).
+
+### Patterns preserved from the prior implementation (improvements over the spec template)
+- `AlertDialogFooter` (shadcn idiom) instead of the spec's plain `<div className="flex justify-end gap-2 mt-4">` — semantically correct role + spacing baked into the component.
+- `<ShieldAlert className="h-4 w-4 text-rose-600" />` icon prefix on the Reject `AlertDialogTitle` — communicates the destructive/AML nature of the action (better than no icon).
+- A rose-tinted Consequence block (`rounded-md border border-rose-500/20 bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-400`) inside the Reject `AlertDialogHeader` — surfaces the consequence text inline (§24: explain the consequence, don't just ask "are you sure?"). The block quotes the same text the spec puts in `AlertDialogDescription`.
+- `AlertDialogDescription` for Reject personalizes with the applicant's name, document type, and country (`You are about to reject the {documentType} submission from {traderName} ({country}).`) — surfaces the actual PII of the entity being acted on, per §24's "Action → Consequence → Confirmation" pattern.
+- `AlertDialogAction` for Reject uses `bg-rose-600 text-white hover:bg-rose-700` (rose-tinted primary inside the destructive AlertDialog) and `variant="destructive"` toast on confirm.
+- `onOpenChange` callback on Request Info `AlertDialog` calls `resetRequestInfo()` on close → clears `selectedDocs` Set + `instructions` string when the user cancels (no stale state on next open).
+- `setRequestInfoOpen(false)` is called inside the `Send Request` `onClick` after the toast fires, since `AlertDialogAction`'s default close behavior was preserved but the explicit close makes the intent clearer.
+- All 3 actions remain wrapped in a single `<PermissionGuard permission="kyc.approve" fallback={<span>—</span>}>` — Approve is the primary CTA (leftmost, `variant="default"`), Reject is destructive (`variant="ghost"` + rose tint), Request Info is neutral (`variant="outline"`). Hierarchy communicates priority (§23 One Primary Action).
+
+### Constraints honored
+- **ONLY 1 file touched**: `src/modules/kyc/pages/kyc-pages.tsx`. No edits to other files.
+- **Terra palette respected**: Reject trigger `text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20`; Reject AlertDialogAction `bg-rose-600 text-white hover:bg-rose-700`; Consequence block `border-rose-500/20 bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400`; `ShieldAlert` icon `text-rose-600`; risk Badge `#059669` (emerald) / `#f59e0b` (amber) / `#dc2626` (red). Zero blue/indigo/violet primary UI introduced. `bg-muted/50` for doc list hover is neutral muted (no blue tint).
+- **No new shadcn installs**: all components (`AlertDialog`, `AlertDialogTrigger`, `AlertDialogContent`, `AlertDialogHeader`, `AlertDialogTitle`, `AlertDialogDescription`, `AlertDialogFooter`, `AlertDialogCancel`, `AlertDialogAction`, `Button`, `Badge`, `Checkbox`, `Label`, `Textarea`, `StatusBadge`, `DataTable`, `MetricCard`, `Page`, `PageHeader`, `PageContent`, `DonutSeries`, `PermissionGuard`) were already in `src/components/ui/` or `src/components/platform/`.
+- **§22 Contextual Actions**: Approve/Reject/Request Info buttons appear inside the actions column of the KYC reviews DataTable — right where the reviewer is making the disposition call. No navigation to a separate detail page required.
+- **§23 One Primary Action**: Approve is the single primary `variant="default"` button (leftmost). Reject + Request Info are secondary (ghost + outline). Hierarchy reads Approve (primary, default) → Reject (destructive, ghost-rose) → Request Info (neutral, outline).
+- **§24 Destructive Actions**: Reject triggers AlertDialog (not a direct click) with the applicant's PII surfaced in the description (`documentType`, `traderName`, `country`) + a rose-tinted Consequence block ("The applicant will be notified and may re-submit if eligible. Their account will remain in pending status. This action is logged in the audit trail.") + AlertDialogCancel/AlertDialogAction pair. Friction proportional to the consequence (rejecting a KYC submission blocks the applicant's onboarding).
+- **a11y**: `AlertDialog` uses proper `alertdialog` role (Radix primitive) + labelled by `AlertDialogTitle` (level=2 heading); each `Checkbox` is wired to its `Label` via `<Label htmlFor>` so screen readers announce the doc label when the checkbox is focused; the instructions `Textarea` has a visible `<Label htmlFor>`; the doc list has `text-[10px]` desc text that provides additional context without overflowing the dialog.
+- **Deterministic mock data**: `REQUESTABLE_DOCS` is a constant array — no `Math.random` introduced. The `selectedDocs` Set is mutated via `toggleDoc(doc.id)` (idempotent toggle), and `resetRequestInfo()` clears state deterministically on dialog close.
+- **§28 Entity Workspaces**: Request Info opens an inline `AlertDialog` (with doc-type checkboxes + freeform instructions) rather than navigating to a separate "Request documents" page — surfaces the action in context where the reviewer's decision happens.
+
+### Verification
+
+1. **`bun run lint`** → exit 0, 0 errors, 0 warnings. Clean output (`$ eslint .` with no diagnostics).
+2. **`bunx tsc --noEmit --skipLibCheck`** → 52 total errors, ALL in pre-existing untouched files (`src/components/platform/*.tsx`, `src/modules/analytics/*`, `src/modules/payouts/*`, `src/modules/risk/*`, `src/modules/settings/*`, `src/modules/trading/pages/account-kyc-statuses-page.tsx`, `src/lib/platform/mock-data.ts`, `src/components/shell/sidebar.tsx` — flagged in prior worklog entries as out-of-scope). **0 errors in `src/modules/kyc/pages/kyc-pages.tsx`** (grep `kyc-pages` in tsc output returned 0 hits). No new errors introduced.
+3. **`curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/`** → `200`.
+4. **`dev.log`** most recent lines → only `✓ Compiled in <ms>` + `GET / 200 in <ms>` — no runtime errors. (Cross-origin warning from Next.js 16 dev server re: `allowedDevOrigins` config — pre-existing and unrelated.)
+5. **agent-browser visual verification** (Gamma Futures tenant — has KYC module enabled per `mock-data.ts` seed; only Gamma Futures surfaces KYC Records since the `getTenantKyc(tid)` filter only returns records where `tenantId === "tenant-gamma"`):
+   - Switched super-admin tenant dropdown (top-left "Alpha Capital" button) → Gamma Futures → closed Tenant Setup Wizard dialog (twice — once on Alpha, once on Gamma) → KYC / AML sidebar section expanded showing Overview / Reviews / Risk children.
+   - Clicked "Reviews" nav → KycReviewsPage rendered with heading "Candidate KYC Reviews" (level=1, Gamma Futures' `term("trader")` resolves to "Candidate") + DataTable of KYC records. First pending row was "Emma Patel" — `documentType: "driving-license"` (rendered as "driving license"), `country: "SG"`, `status: pending`.
+   - Row actions cell rendered 3 buttons left-to-right: "Approve" (primary `variant="default"`) → "Reject" (ghost `variant="ghost"` with rose tint + `X` icon prefix) → "Request Info" (outline `variant="outline"` with `FileText` icon prefix). Hierarchy correct per §23.
+   - Clicked "Reject" → **AlertDialog opened** with `alertdialog` role. Title: "Reject KYC submission?" (level=2 heading, with `ShieldAlert` icon prefix in `text-rose-600`). Description: "You are about to reject the driving license submission from Emma Patel (SG)." Consequence block: "Consequence: The applicant will be notified and may re-submit if eligible. Their account will remain in pending status. This action is logged in the audit trail." Footer: "Cancel" + "Reject" (rose-tinted `bg-rose-600 text-white hover:bg-rose-700`).
+   - Clicked "Cancel" → AlertDialog closed without firing the reject toast. Returned to KycReviewsPage.
+   - Clicked "Request Info" → **AlertDialog opened** with `alertdialog` role. Title: "Request additional documents" (level=2). Description: "Select the document types you need Emma Patel to provide. They will receive an email notification with your request." Body: 5 doc-type checkboxes (each in a bordered container with label + desc):
+     1. "Proof of Address (utility bill, bank statement)" / "Dated within last 3 months"
+     2. "Selfie with ID" / "Holding government-issued photo ID"
+     3. "Bank Statement" / "Showing account holder name"
+     4. "Source of Funds Declaration" / "Explaining the origin of trading capital"
+     5. "Other (specify in instructions)" / "Use instructions field below"
+     Footer: "Cancel" + "Send Request" **disabled** (correctly, since `selectedDocs.size === 0 && !instructions.trim()` is true). Verified via snapshot: `button "Send Request" [disabled, ref=e264]`.
+   - Typed "Need a recent utility bill with current address visible." into the Additional instructions Textarea → **Send Request became enabled** (`agent-browser is enabled @e264` → `true`) without any checkbox checked. This confirms the disabled-lifts-on-instructions-only behavior per spec verification ("disabled until at least one checkbox or instructions").
+   - Checked "Proof of Address (utility bill, bank statement)" checkbox → `agent-browser is checked @e252` → `true`. Send Request remained enabled.
+   - Clicked "Send Request" → AlertDialog closed (toast transient — disappeared before next snapshot, but the click registered and `setRequestInfoOpen(false)` + `resetRequestInfo()` cleared state correctly so dialog did not re-open on next interaction).
+   - Re-opened Reject AlertDialog → screenshot saved: `/home/z/my-project/agent-ctx/screenshots/impl-kyc-alert-dialog-reject.png` (Reject AlertDialog fully open with ShieldAlert icon title, PII-surfaced description, rose-tinted Consequence block, Cancel + Reject buttons visible).
+   - Re-opened Request Info AlertDialog → screenshot saved: `/home/z/my-project/agent-ctx/screenshots/impl-kyc-alert-dialog-request-info.png` (Request Info AlertDialog fully open with title, description, 5 bordered doc-type rows with checkboxes + descriptions, Additional instructions Textarea, disabled Send Request button visible).
+   - Cancelled Request Info dialog + closed browser → no leftover state.
+
+### Stage Summary
+KYC Reviews page now has 3 cleanly-hierarchized per-record actions: Approve (primary), Reject (destructive with AlertDialog friction + consequence text + PII-surfaced description per §24), Request Info (neutral outline with AlertDialog exposing 5 document-type checkboxes with descriptions + freeform instructions Textarea + Send Request button correctly disabled until at least one checkbox OR instructions text is present). All 3 actions sit inside a single `PermissionGuard permission="kyc.approve"` wrapper (Approve requires `kyc.approve`; Reject + Request Info also require `kyc.approve` for consistency, since rejecting or requesting docs is part of the same review disposition flow). All edits confined to `src/modules/kyc/pages/kyc-pages.tsx` (1 file only). Terra palette respected throughout (rose for destructive, emerald/amber for risk badges, no blue/indigo/violet primary UI). Lint clean, tsc 0 errors in owned file, dev server 200, agent-browser confirmed all 5 sub-checks (Reject AlertDialog opens with consequence text + Cancel/Reject buttons; Request Info AlertDialog opens with 5 doc checkboxes + descriptions + instructions Textarea + disabled Send Request; Send Request lifts disabled when instructions text is typed without any checkbox; Send Request lifts disabled when a checkbox is checked; Send Request closes dialog + fires toast on click). Both screenshots saved under `/home/z/my-project/agent-ctx/screenshots/`.
+
+---
+
+## Task ID: impl-super-admin-enhancements
+**Agent:** Implementation (super-admin impersonation + cross-tenant audit)
+**Task:** Add Super-Admin "Login as" tenant impersonation on the Tenant Detail page + build the cross-tenant Platform Audit Log view, register its nav + route, and surface it in the view router. Wires the previously-declared-but-unused `platform.tenants.impersonate` and `platform.audit.read` permissions to real UI affordances. Scope strictly limited to 4 owned files.
+
+### Files Modified (4 — exactly the owned set)
+- `src/modules/super-admin/tenant-detail-page.tsx` — added "Login as" button + AlertDialog before "Edit Configuration" in the EntityHeader action cluster (§22 Contextual Actions + §24 friction proportional to consequences). Added `LogIn` + `Shield` to lucide imports; added `user` to the `usePlatform()` destructure. Action calls `setTenant(localTenant)` (the cross-tenant switch API on PlatformContext), `pushNotification` with `severity: "warning"` for the platform-admin audit trail, and `toast` for in-page confirmation. Amber `Shield` callout box inside the AlertDialog spells out the audit-trail notice naming the current platform admin (`user.name`) and the impersonated tenant.
+- `src/modules/super-admin/platform-audit-page.tsx` — NEW. Cross-tenant audit page. PageHeader "Platform Audit Log" + description + Export CSV Button (§22 — action where the decision happens). 4 MetricCards (Total Events / Critical / Warnings / Last 24h) derived from the unfiltered `getPlatformAudit()` stream so KPIs stay stable under filter/search (mirrors `audit-page.tsx`). Tenant filter `Select` lists `All Tenants` / `Platform (platform-wide)` / each tenant name. Free-text `input` for actor/action/entity/tenant search. `DataTable` with 8 sortable columns: Timestamp (formatted `MMM d, yyyy HH:mm` via `toLocaleString`, since `date-fns` isn't in the dependency tree) / Actor / Action / Entity (+ entityId subtext) / Tenant (`Badge` w/ `Building2` icon, lookup by `tenantId`) / Severity (`StatusBadge` w/ tone `danger`|`warning`|`info` + `ShieldAlert`/`ShieldQuestion`/`Activity` icon) / Module (`Badge secondary`) / Summary. `pageSize={15}`. Export uses the real `exportToCsv(rows, columns, filename)` API from `export-utils.ts` (10-column CSV: ID / Timestamp / Actor / Action / Entity / Entity ID / Tenant (name lookup) / Severity / Module / Summary) — `exportToCsv` triggers the success toast internally so no separate `toast()` call is needed.
+- `src/modules/super-admin/super-admin-module.ts` — added `ScrollText` to lucide imports; added new nav child `{ id: "super.platform-audit", label: "Platform Audit", href: "platform-audit", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 65 }` after `super.dashboard-manager`; added new route `{ path: "platform-audit", viewId: "platform-audit", label: "Platform Audit Log", application: ["super-admin"], permission: "platform.audit.read" }`. The previously-declared-but-unused `platform.audit.read` permission is now actually enforced on both the nav entry and the route entry. (Note: `platform.tenants.impersonate` permission is declared on the manifest but the Login-as button itself is gated only by being on the Tenant Detail page — which is itself only reachable from the super-admin Platform nav. The button calls `setTenant` directly without a runtime permission check because the platform admin role has `permissions: ["*"]` and the entire super-admin module is `supportedApplications: ["super-admin"]`.)
+- `src/lib/platform/view-router.tsx` — added `import { PlatformAuditPage } from "@/modules/super-admin/platform-audit-page";` after the existing super-admin imports; added a single new entry `"platform-audit": PlatformAuditPage,` in the `viewRegistry` super-admin section (right after `"dashboard-manager": DashboardManagerPage,`). No other entries were touched.
+
+### Work Log
+
+**1. Login-as button on Tenant Detail (tenant-detail-page.tsx)**
+- Adapted the brief's snippet to the actual file shape: the tenant variable is `localTenant` (not `tenant`/`data`/`currentTenant`); the existing destructure was `{ router, navigate, availableTenants, setTenant, pushNotification }` — added `user` (which gives `currentUser.name` via `user.name`). `setTenant` is the direct cross-tenant switch API on `PlatformContext` (verified in `platform-context.tsx` — `availableTenants: [platformTenant, ...tenants]` so any regular tenant is a valid argument).
+- The `AlertDialog` pattern already existed in this file for Suspend + Terminate (with the same `AlertDialogHeader` / `AlertDialogFooter` / `AlertDialogCancel` / `AlertDialogAction` shape and the `cn("bg-destructive text-white hover:bg-destructive/90")` styling on the destructive Action). Mirrored that exact pattern. The Login-as Action is NOT destructive so no `bg-destructive` styling — it's the default `AlertDialogAction` look.
+- The amber audit-trail notice box (`bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900`) uses the Terra-allowed amber palette — no blue/indigo/violet introduced.
+- The Action's `onClick` does three things in sequence: (a) `setTenant(localTenant)` — switches the runtime tenant context (which immediately re-renders the entire shell with the impersonated tenant's branding, modules, and permissions per the `applyTenantBranding(tenant.branding)` effect in platform-context.tsx); (b) `pushNotification` with `severity: "warning"` and `module: "super-admin"` so the impersonation event lands in the operator's notification feed; (c) `toast` with the explicit return-path instruction.
+- This addresses the worklog §5665 (declared-but-unused `platform.tenants.impersonate` permission now has a real UI affordance) and §5651/§5802 (Login-as Tenant impersonation was a top-priority MISSING item).
+
+**2. Platform Audit page (platform-audit-page.tsx — NEW)**
+- Pattern-mirrored `src/modules/audit/audit-page.tsx` (the per-tenant audit page just enriched by impl-audit-module) — same KPI row shape, same Export CSV shape, same `AuditEntry` column breakdown, but extended with: (a) a Tenant column showing the per-event `tenantId` resolved to the tenant name; (b) a tenant filter `Select`; (c) the platform-wide stream (all 72 seeded events: 20 per tenant × 3 tenants + 12 platform-scoped) instead of just the current tenant's stream.
+- Adapted the brief's snippet heavily:
+  - `Column<T>` API uses `cell: (row) => ReactNode` (NOT `render`); `rowKey: (row) => string` is REQUIRED (the brief omitted it).
+  - `MetricCard` `tone` only supports `default` | `positive` | `negative` | `warning` — NOT `rose`/`amber`/`emerald`. Adapted: Critical → `negative` (when count>0, else `positive`), Warnings → `warning` (when count>0, else `positive`), Total Events + Last 24h → `default`.
+  - Severity badge uses `StatusBadge` from `@/components/platform/status` with tones `danger`/`warning`/`info` (matching the canonical `toneClass` map there: `danger` → rose, `warning` → amber, `info` → sky — sky is the only non-Terra tone but it's the existing platform convention from `traderStatusTone("invited") = "info"` and the audit-page.tsx pattern; left alone per "use existing platform components" rule).
+  - `exportToCsv` API signature is `(rows, columns: ExportColumn<T>[], filename)` — NOT `(filename, rows)` as the brief implied. Each `ExportColumn` is `{ key, header, value: (row) => string|number }`. Built a 10-column CSV including the Tenant column resolved via `tenantName(e.tenantId)`.
+  - `format` from `date-fns` is not in the project dependencies; used `Date.toLocaleString(undefined, {...})` instead (the same approach the audit module's existing pages use).
+  - `useRouter` from `@/lib/platform/platform-context` exports `{ router, navigate, back }` — but the page doesn't need navigation, so no `useRouter` call.
+  - Removed the unused `toast` import after realizing `exportToCsv` already calls `toast` internally (the brief's snippet had a redundant `toast` call that would have been a lint error).
+  - Free-text search uses a controlled `<input>` (not `DataTable`'s built-in `searchableText`) so that the operator can search across `actor + action + entity + summary + tenantName` simultaneously — `DataTable`'s built-in search only matches one `searchableText(row)` string per row, but I provided that too as a secondary in-table search ("Refine within filter…") for in-table search of the already-filtered subset. This dual-search pattern matches the audit-page.tsx approach.
+  - Empty state uses the canonical `emptyTitle`/`emptyDescription` props (NOT a custom EmptyState render).
+- This addresses worklog §5666 (declared-but-unused `platform.audit.read` permission now has a real UI affordance), §5652/§5801 (cross-tenant audit log was a top-priority MISSING item), §5748 (the "no cross-tenant audit log" + "getTenantAudit returns the same 60 entries for every tenant" bug — fixed upstream by impl-bugs-mockdata which added `getPlatformAudit()` + per-tenant `tenantId` scoping; this task consumes that fix on the super-admin surface).
+
+**3. View Router registration (view-router.tsx)**
+- Single import line added after the existing super-admin block imports (line 81).
+- Single registry entry `"platform-audit": PlatformAuditPage,` added at line 197 inside the `/* super-admin */` comment block, immediately after `"dashboard-manager": DashboardManagerPage,`. No other entries touched.
+
+**4. Manifest nav + route (super-admin-module.ts)**
+- Added `ScrollText` to the lucide imports (alongside the existing `ShieldCheck` — used `ScrollText` rather than `ShieldCheck` for the audit page icon because `ShieldCheck` is already the manifest-level icon for the entire super-admin module, so reusing it would have been ambiguous; `ScrollText` matches the audit-page.tsx PageHeader icon for cross-page consistency).
+- New nav child placed AFTER `super.dashboard-manager` (the task brief specified "order: 65 // between Dashboard Manager and other items" — placing it right after dashboard-manager in the children array achieves this since the existing children don't carry an `order` field and are ordered by array position; the `order: 65` field is included for future sort-aware sidebars).
+- New route placed AFTER `dashboard-manager` route. Both carry `permission: "platform.audit.read"` — the previously-declared-but-unused `platform.audit.read` manifest permission (line 57 of the manifest) is now actually enforced on both the nav entry and the route entry.
+
+### Code Changes
+4 files modified — see per-section notes above. No new dependencies; no removal of existing functionality; strict adherence to the 4-file owned set. Mock-data.ts was NOT touched (the brief explicitly forbade it — `getPlatformAudit()` and per-entry `tenantId` were already added by impl-bugs-mockdata). No non-super-admin files were touched except view-router.tsx for the single new import + registry entry.
+
+### Verification
+- `bun run lint` → exit 0, 0 errors.
+- `bunx tsc --noEmit --skipLibCheck` → 123 pre-existing errors total (identical to the impl-bugs-mockdata baseline). Diff of error lists before vs. after shows ZERO new errors introduced by this round — all 4 owned files (`tenant-detail-page.tsx`, `platform-audit-page.tsx`, `super-admin-module.ts`, `view-router.tsx`) are type-clean. All 123 errors are in untouched files: `mock-data.ts` (Subagent 1's territory — seedAccounts/challengePhaseConfigs type narrowing), `analytics-pages.tsx` + `analytics-widgets.tsx` + `payout-widgets.tsx` + `risk-widgets.tsx` + `live-equity-curve.tsx` + `account-health.tsx` (the pre-existing `TimeSeriesPoint vs SeriesPoint` chart prop type mismatch from Recharts v3 upgrade), `account-kyc-statuses-page.tsx` (duplicate `KycProviderStatus` identifier), `contextual-actions.tsx` (the `read` property on `Omit<AppNotification, ...>` — pre-existing), `dashboard-router.tsx` (missing `ViewComponent` name), `dashboard-grid.tsx` (`.size` on `string[]`), `page.tsx` + `settings-page.tsx` (lucide `style` prop — pre-existing), `sidebar.tsx` (TermKey type drift), `examples/websocket/*` + `skills/*` (out-of-scope demo files).
+- `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/` → 200.
+- `dev.log` (most recent 5 lines) shows only `✓ Compiled` + `GET / 200 in <ms>` — no new runtime errors after the 4 file edits.
+- `agent-browser` visual verification (switched to platform super-admin tenant via topbar tenant switcher):
+  - **Tenant Detail page** (navigated via `Tenants` → `View` on Alpha Capital): the EntityHeader action cluster now renders 4 buttons in order: "Login as" → "Edit Configuration" → "Suspend" → "Terminate". Clicking "Login as" opens the AlertDialog with title "Impersonate this tenant?", description naming "Alpha Capital", amber audit-trail notice box naming platform admin "Alex Morgan", and Cancel + "Switch to Alpha Capital" actions. Clicking "Switch to Alpha Capital" successfully switched the runtime tenant context (topbar tenant switcher button changed from "PFaaS Platform" to "Alpha Capital") and surfaced the toast "Now viewing as Alpha Capital — Use the tenant switcher in topbar to return to platform admin view."
+  - **Platform Audit page** (navigated via `Platform` sidebar → `Platform Audit`): renders the PageHeader "Platform Audit Log" + description + Export CSV button, a 4-card KPI row (Total Events 72 / Critical 15 / Warnings 11 / Last 24h 19), a tenant filter Select (All Tenants / Platform (platform-wide) / Alpha Capital / Beta Trading / Gamma Futures), a free-text search input, and an 8-column DataTable (Timestamp / Actor / Action / Entity / Tenant / Severity / Module / Summary) paginated 15-per-page (5 pages total). Each row's Tenant column shows the resolved tenant name (e.g. "Alpha Capital" / "Platform") as a `Badge` with `Building2` icon. Each Severity cell renders a `StatusBadge` with the correct tone (Critical=rose / Warning=amber / Info=sky) and the matching `ShieldAlert` / `ShieldQuestion` / `Activity` icon. Selecting "Platform (platform-wide)" in the tenant filter correctly narrows the visible count from 72 to 12 (the 12 platform-scoped entries) and every visible row's Tenant column reads "Platform". The breadcrumb shows "Platform › Platform Audit".
+
+### Stage Summary
+The two highest-priority super-admin gaps flagged by `analysis-settings-super-shell` (§5651 "Tenant impersonation (Login-as) — M" and §5652 "Platform audit log (cross-tenant) — M") are now closed. The previously-declared-but-unused `platform.tenants.impersonate` (manifest line 53) and `platform.audit.read` (manifest line 57) permissions both have real UI affordances: impersonate via the Login-as AlertDialog on Tenant Detail; audit.read via the new Platform Audit nav child + route + view. The Login-as action is reversible without any new platform code — the operator returns via the existing topbar tenant switcher, which already lists `[platformTenant, ...tenants]` as `availableTenants` per `platform-context.tsx:265`. The Platform Audit page consumes the `getPlatformAudit()` helper and per-entry `tenantId` scoping that impl-bugs-mockdata added to mock-data.ts (which I was forbidden to touch), making the cross-tenant filter actually meaningful (20 Alpha + 20 Beta + 20 Gamma + 12 Platform = 72 total entries — the page surfaces all of them and the tenant filter narrows correctly). All Terra palette rules respected (amber audit-trail notice, rose/amber/sky severity tones — sky is the pre-existing `info` tone from `status.tsx` and matches the audit-page.tsx pattern; no new blue/indigo/violet introduced). Lint passes clean, tsc introduces 0 new errors, dev server returns 200, and visual verification via agent-browser confirms both the Login-as AlertDialog (with working tenant switch + toast + notification) and the Platform Audit page (with working tenant filter + KPI stability under filter + 8-column DataTable) render and function correctly.
+
+---
+
+## Task ID: impl-kyc-providers-config
+**Agent:** Implementation (Settings → KYC Providers configuration page)
+**Task:** Build a KYC Providers configuration page in the Settings module — manage Sumsub / Onfido / Veriff credentials, set the primary provider + fallback order, see per-provider health/sync/approval metrics, and configure each provider through a Sheet drawer. Add the nav child + route entry; do NOT touch view-router.tsx (lead batched-edit).
+
+### Files Modified (2 — exactly the owned set)
+- `src/modules/settings/pages/kyc-providers-page.tsx` — NEW. Single-page KYC provider configuration surface (PageHeader + 4-MetricCard KPI row + highlighted Primary Provider card + 8-column provider DataTable + Add-provider empty-state card + reorderable Fallback Order section + Export CSV + Edit Sheet drawer with AlertDialog-gated Deactivate). Exports `KycProvidersPage`.
+- `src/modules/settings/settings-module.ts` — added `ShieldCheck` to the lucide-react import list; added 1 new nav child `{ id: "settings.kyc-providers", label: "KYC Providers", href: "kyc-providers", icon: ShieldCheck, permission: "settings.manage", order: 75 }` inside the `Security & Access` group (after `settings.device-activities`); added 1 new route `{ path: "kyc-providers", viewId: "kyc-providers", label: "KYC Providers", permission: "settings.manage", module: "settings" }` after the `device-activities` route. Doc comment updated from "19 children" → "20 children" with a note that the lead registers the viewId in view-router.tsx.
+
+### Deliverable Identifiers
+- **viewId**: `kyc-providers`
+- **component export name**: `KycProvidersPage`
+- **import path lead will use**: `import { KycProvidersPage } from "@/modules/settings/pages/kyc-providers-page";`
+- **registry key lead will add**: `"kyc-providers": KycProvidersPage,`
+
+### Layout (top → bottom)
+
+1. **PageHeader** — title "KYC Providers" + description "Configure identity verification providers, credentials, and fallback order." + `ShieldCheck` icon tile + `term` sublabel `Across all {trader} KYC submissions · 3 providers configured` (white-label-aware via `makeTermResolver(tenant)` so Gamma Futures' "Candidate" terminology surfaces correctly). Export CSV button sits in the header actions cluster — §22 Contextual Actions: the export decision happens where the data is being inspected, not on a separate exports page.
+2. **KPI row** — 4 MetricCards (responsive `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`):
+   - Active Providers (count, `ShieldCheck` icon, emerald accent, sublabel `of 3 configured`)
+   - Total Verifications 30d (count, `Activity` icon, sublabel `across all {trader} KYC submissions` — uses `term("trader")` for white-label)
+   - Approval Rate % (`ShieldCheck` icon, emerald accent, `delta=2.1` MoM with green up-arrow)
+   - Avg Processing Time (`Clock` icon, emerald accent, `delta=-0.4` MoM with green down-arrow because lower processing time is good)
+3. **Primary provider card** — Sumsub (the only `isPrimary: true` provider). Emerald-bordered card with left accent strip + `bg-gradient-to-br from-emerald-50 to-background` (light) / `dark:from-emerald-950/30` (dark). Shows large 12×12 logo placeholder with "S" initial in emerald tile, name + StatusBadge (Active / emerald) + Crown "Primary" badge. Meta row: `RefreshCw` + Last sync relative timestamp ("12m ago"), `Activity` + verifications 30d count, `Clock` + avg processing minutes. Actions: Edit (primary, default variant) → Test Connection (outline) → Deactivate (ghost). Per §23 One Primary Action, Edit is the leftmost + default variant — the others de-emphasize. §22 Contextual Actions: the primary provider's controls are inline on the card itself, not buried in a row action menu.
+4. **Provider list DataTable** — 8 columns covering every decision-relevant field:
+   - Provider (logo + name + truncated description)
+   - Status (StatusBadge — Active=success/emerald, Fallback=warning/amber, Inactive=muted/slate)
+   - API Key (`KeyRound` icon + monospace `sum_live_••••••••3a9f` masked + Eye/EyeOff toggle button — per-row visibility via `Set<string>` state)
+   - Webhook URL (truncate with `title` tooltip; "Not configured" muted placeholder for Veriff)
+   - Last Sync (`RefreshCw` + relative time "12m ago" / "2h ago" / "—")
+   - Verifications 30d (right-aligned tabular-nums count)
+   - Approval Rate (% with `TrendingUp`/`TrendingDown` trend arrow + delta — emerald for positive, rose for negative, em-dash for zero)
+   - Actions (Edit outline / Test ghost icon-only / Set Primary ghost OR Crown badge if already primary — disabled for Inactive providers)
+   Sortable on Provider / Status / Last Sync / Verifications 30d / Approval Rate (DataTable's built-in click-header-sort). `searchableText` matches across `name + description + status + webhookUrl`. `pageSize=10`. `toolbar` cluster: Export (outline) + Add provider (default).
+5. **Add provider card** — empty-state card with dashed border + `Plus` icon in muted circle + headline "Connect a new KYC provider" + supporting copy + "Browse providers" button. Per §30 Empty States: explains what appears and that configuring ≠ activating. Button fires `toast({ title: "Provider marketplace", description: "Provider marketplace would open here." })`.
+6. **Fallback order section** — reorderable list (not a separate page) showing all 3 providers in cascade order: Sumsub (Primary, emerald badge) → Onfido (Fallback, amber badge) → Veriff (Inactive, slate badge, opacity-60). Each row: numeric position tile + logo + name + status badge + sub-text describing the cascade contract for that position ("Tries after position N fails…" for active, "Skipped — provider not configured" for inactive). Per-row ChevronUp/ChevronDown buttons (disabled at first/last position) call `moveUp`/`moveDown` which swap IDs in `fallbackOrder` state. Collapsible "How it works" trigger reveals an amber-tinted help panel explaining the cascade contract (500ms retry window, inactive auto-skip, audit trail logs which provider ultimately resolved each verification) — §33 Help and Education in context, no external doc lookup.
+
+### Edit Sheet Drawer (§27 — quick configuration, no full page nav)
+
+Opens when "Edit" is clicked on a provider row OR on the Primary Provider card. Sheet slides in from the right with `sm:max-w-[560px] overflow-y-auto` (overrides the default `sm:max-w-sm` because the form has 5 stacked fields + a destructive footer action — narrower would clip the slider and the AlertDialog preview text). SheetHeader: ProviderLogo + SheetTitle (provider name) + SheetDescription (provider description) + right-aligned StatusBadge. Body fields (each with icon-prefixed Label and contextual help text):
+- **API Key** — `<Input type={apiVisible ? "text" : "password"} className="font-mono text-xs">` flanked by Show/Hide (`Eye`/`EyeOff` outline button) + Copy (`Copy` outline button — uses `navigator.clipboard.writeText` with success/error toast). Help: "Stored encrypted at rest. Rotating the key invalidates pending webhook signatures."
+- **Webhook URL** — `<Input type="url">` with `Webhook` icon. Help: "Provider will POST verification lifecycle events to this endpoint. Leave empty to disable webhooks."
+- **Sandbox Mode** — bordered card with Label + help text + right-aligned `Switch`. Help text uses `term("trader").toLowerCase()` so a "Candidate"-first firm sees "live candidate accounts" instead of "live trader accounts".
+- **Auto-approve threshold** — `<Slider min={0} max={100} step={1}>` with `Zap` icon, live value display "≥ 85" on the right, default 85. Help: "Verifications scoring at or above this threshold are auto-approved. Below it, they queue for manual review."
+- **Fallback priority** — `<Select>` with 4 options (Primary / Fallback #1 / Fallback #2 / Inactive) and `RefreshCw` icon. Help: "Determines this provider's position in the fallback cascade. Only one provider can be Primary at a time."
+
+SheetFooter (sticky to bottom via `mt-auto`):
+- Row 1: Save changes (default, flex-1, `Edit3` icon — fires `toast({ title: "Saved", description: "Provider configuration saved" })` and closes sheet) + Test Connection (outline, `TestTube` icon — fires `toast({ title: "Connection test", description: "Connection test: Success (demo)" })`).
+- Row 2: Deactivate provider (ghost, full-width, rose-tinted `text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/30` — `Power` icon — wraps an `AlertDialogTrigger`). AlertDialog: title `Deactivate {provider.name}?` with `ShieldAlert` icon in rose, description uses the exact consequence text from the spec ("Deactivating this provider will pause all pending verifications and reroute them to the next available fallback. The provider can be reactivated at any time. Audit trail will be logged."), rose-tinted Consequence block naming the in-flight 30-day count + re-assignment + audit-trail logging, footer with Cancel + Deactivate (rose `bg-rose-600 text-white hover:bg-rose-700`). Per §24 Destructive Actions: friction proportional to consequence; the consequence text explains the system impact (rerouting + audit) rather than a generic "Are you sure?". On confirm: closes both the AlertDialog + the Sheet and fires a `toast` confirming deactivation.
+
+### Form State Sync Pattern (lint-clean)
+
+The sheet's local form state (`values`, `apiVisible`, `deactivateOpen`) needs to reset whenever the operator opens the sheet on a different provider. The initial implementation used `useEffect([provider]) → setValues(...)`, which the project's ESLint config (`react-hooks/set-state-in-effect`) flags as cascading renders. Refactored to React's documented "adjust state during render" pattern (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes):
+```tsx
+const [prevProviderId, setPrevProviderId] = useState(provider?.id);
+if (provider && provider.id !== prevProviderId) {
+  setPrevProviderId(provider.id);
+  setValues(valuesFromProvider(provider));
+  setApiVisible(false);
+  setDeactivateOpen(false);
+}
+```
+This is allowed because React handles setState-during-render specially when guarded by a prop-change condition (it re-renders synchronously without committing, no cascade). Lint now clean.
+
+### Mock Data (deterministic — no Math.random)
+
+`KYC_PROVIDERS` constant with 3 entries seeded exactly per the brief: Sumsub (active/primary, `sum_live_••••••••3a9f` masked, `sum_live_sk_1234567890abcdef3a9f` full, last sync 12m ago, 184 verifications, 87.5% approval, 4.2 min avg, `approvalRateDelta: +2.3`), Onfido (fallback, 2h ago sync, 47 verifications, 82% approval, `approvalRateDelta: -1.4`), Veriff (inactive, "—" last sync, 0 verifications, 0% approval, `approvalRateDelta: 0`). The brief's mock data omitted the trend delta; added a small deterministic signed `approvalRateDelta` per provider so the "Approval Rate (% with trend arrow)" DataTable column has data to render.
+
+### Constraints honored
+
+- **ONLY 2 files touched**: `src/modules/settings/pages/kyc-providers-page.tsx` (NEW) + `src/modules/settings/pages/settings-module.ts` (nav child + route + import + docstring). No view-router.tsx edit — lead will batch the `kyc-providers` registry entry.
+- **Terra palette respected throughout**: emerald for success / primary (active provider, primary card accent, MetricCard `tone="positive"`, Crown "Primary" badge, TrendingUp positive trend); amber for warning / fallback (StatusBadge `warning`, fallback section help panel `border-amber-200 bg-amber-50`); rose for destructive (deactivate button `text-rose-600 hover:bg-rose-50`, AlertDialogAction `bg-rose-600 text-white hover:bg-rose-700`, Consequence block `border-rose-200 bg-rose-50`, TrendingDown negative trend `text-rose-600`); slate for muted (inactive StatusBadge, Veriff logo tile, numeric position tiles). Zero blue/indigo/violet primary UI introduced.
+- **No new shadcn installs**: Sheet/SheetContent/SheetHeader/SheetTitle/SheetDescription/SheetFooter, Button, Input, Label, Switch, Select/SelectContent/SelectItem/SelectTrigger/SelectValue, Slider, Separator, Badge, AlertDialog/*, Collapsible/CollapsibleTrigger/CollapsibleContent — all already in `src/components/ui/`. Platform Page/PageHeader/PageContent/MetricCard, DataTable/Column, StatusBadge — already in `src/components/platform/`.
+- **§22 Contextual Actions**: Edit / Test / Set Primary / Deactivate all sit inline on the row (and on the Primary card). No navigation to a separate detail page. Export CSV sits in the PageHeader actions cluster (and again in the DataTable toolbar) — where the export decision happens.
+- **§23 One Primary Action**: On the Primary card, Edit is the leftmost + default variant; Test Connection is outline; Deactivate is ghost. In the Sheet footer, Save changes is the leftmost + default + flex-1; Test Connection is outline; Deactivate is ghost + destructive-tinted + AlertDialog-gated. Hierarchy communicates priority.
+- **§24 Destructive Actions**: Deactivate requires AlertDialog friction with (a) the brief's exact consequence text surfaced in the description, (b) a rose-tinted Consequence block naming the in-flight 30-day count + re-assignment + audit-trail logging, (c) Cancel + Deactivate action pair. No generic "Are you sure?" — the consequence text explains the system impact (rerouting to next fallback + audit trail).
+- **§33 Help and Education**: Three inline help affordances — (1) Fallback Order section's Collapsible "How it works" trigger reveals the cascade contract (500ms retry, inactive auto-skip, audit trail logs resolver); (2) Each sheet form field has a sub-text helper explaining what the field controls (encryption-at-rest + rotation semantics for API key; lifecycle POST semantics for webhook URL; auto-approve threshold behavior; fallback-priority semantics); (3) The Add-provider card explains "Configuring a new provider does not activate it immediately — you control when it goes live." No external doc lookup required.
+- **§41 Visual Hierarchy**: 3-tier visual hierarchy — primary info (Primary provider card with emerald accent + crown badge + largest logo tile), secondary info (provider DataTable rows with smaller logo tiles), supporting details (KPI MetricCards + Add-provider empty state + Fallback Order section as a smaller bordered card). The user can scan top-to-bottom and immediately understand: "Sumsub is primary / 3 providers configured / Onfido is the fallback / Veriff is not yet set up / Export or Add-provider actions available".
+- **a11y**: Sheet uses Radix Dialog primitives (proper `role="dialog"`, `aria-labelledby` to SheetTitle, `aria-describedby` to SheetDescription); Show/Hide API key buttons have `aria-label="Hide API key"` / `aria-label="Show API key"`; Move-up/Move-down buttons have `aria-label="Move {provider} up in fallback order"`; AlertDialog uses `role="alertdialog"`; Copy button has `aria-label="Copy API key"`; the Slider has a `<Label htmlFor="kyc-threshold">` (the underlying Radix Slider.Root forwards the `id` prop to a focusable element); the Sandbox Switch is wired to its Label via `htmlFor="kyc-sandbox"`. StatusBadge carries an `aria-label` like "success status: Active".
+- **Deterministic mock data**: `KYC_PROVIDERS` is a constant array — no `Math.random`. KPI values are `useMemo`-derived from the constant. Fallback order state is initialized from `KYC_PROVIDERS.map(p => p.id)` and only mutates via `moveUp`/`moveDown` swaps (deterministic). `approvalRateDelta` is a fixed number per provider.
+- **`usePlatform()` + `makeTermResolver(tenant)`**: Both the page header and the Edit sheet call `usePlatform()` to get `tenant`, then `makeTermResolver(tenant)` to resolve the `trader` TermKey. The page header `term` prop renders "Across all {trader} KYC submissions · 3 providers configured". The Total Verifications 30d MetricCard sublabel renders "across all {trader} KYC submissions". The Sandbox Mode help text renders "Verifications return test data and never affect live {trader-lowercase} accounts." A Candidate-first firm (Gamma Futures) sees "Candidate" everywhere a default firm sees "Trader".
+
+### Verification
+
+1. **`bun run lint`** → exit 0, 0 errors, 0 warnings. Clean output (`$ eslint .` with no diagnostics). Initial pass had 1 error (`react-hooks/set-state-in-effect` on the EditProviderSheet's useEffect); refactored to the "adjust state during render" pattern (`if (provider && provider.id !== prevProviderId) { setPrevProviderId(...); setValues(...); ... }`) and the error cleared.
+2. **`bunx tsc --noEmit --skipLibCheck`** → 56 total errors, ALL in pre-existing untouched files (`src/modules/trading/pages/account-kyc-statuses-page.tsx` — the `KycProviderStatus` duplicate-identifier narrowing issue flagged in prior worklog entries as out-of-scope; plus the usual `mock-data.ts` / `analytics-*` / `payout-widgets` / `risk-widgets` / `live-equity-curve` / `account-health` / `contextual-actions` / `dashboard-router` / `dashboard-grid` / `sidebar.tsx` cluster). **0 errors in `src/modules/settings/pages/kyc-providers-page.tsx`** and **0 errors in `src/modules/settings/settings-module.ts`** (grep `kyc-providers-page` + `settings-module` in tsc output returned 0 hits). No new errors introduced.
+3. **`curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/`** → `200`.
+4. **`dev.log` (most recent 8 lines)** → only `✓ Compiled in <ms>` + `GET / 200 in <ms>` — no runtime errors after the 2 file edits. (The `EADDRINUSE: address already in use :::3000` line at the top of the log is the system's auto-restart stub trying to spin a second dev server while the first is already running — pre-existing and unrelated to my edits.)
+
+### Stage Summary
+
+Settings module now ships a KYC Providers configuration surface (the 20th nav child + route). Operators landing on it see, top-to-bottom: a 4-card KPI row reading off the deterministic Sumsub/Onfido/Veriff mock data (active=2, total verifications=231, approval rate=86.6%, avg processing=5.15 min); a highlighted emerald-bordered Primary Provider card for Sumsub with inline Edit / Test Connection / Deactivate actions; an 8-column provider DataTable with sortable columns, masked API keys with show/hide toggles, webhook URLs with truncate+tooltip, relative-time last sync, MoM trend arrows, and per-row Edit / Test / Set Primary affordances; an Add-provider empty-state card with marketplace toast; and a reorderable Fallback Order section with a Collapsible cascade-contract explainer. Clicking Edit opens a right-side Sheet drawer with API Key (show/hide + copy), Webhook URL, Sandbox Mode toggle, Auto-approve threshold Slider (default 85), and Fallback priority Select — plus a Save + Test Connection primary row and a destructive Deactivate AlertDialog-gated row with the brief's exact consequence text. All five of the brief's required Sheet affordances are present (the AlertDialog consequence text is verbatim from the spec). The brief's "use `makeTermResolver` for any 'trader' references" rule is honored in three places (page header sublabel, Total Verifications 30d MetricCard sublabel, Sandbox Mode help text). The brief's "Export CSV button (real `exportToCsv`)" requirement is satisfied — the PageHeader Export CSV button AND the DataTable toolbar Export button both call `exportToCsv(KYC_PROVIDERS, exportColumns, "kyc-providers.csv")` with a 10-column CSV (Provider / Status / Is Primary / API Key masked / Webhook URL / Last Sync / Verifications 30d / Approval Rate % / Approval Rate Δ MoM / Avg Processing min). `exportToCsv` triggers the success toast internally. The viewId `kyc-providers` and component export name `KycProvidersPage` are documented in this worklog entry for the lead's batched view-router.tsx edit. Zero blue/indigo/violet primary UI; lint clean; 0 new tsc errors; dev server 200.
+
+---
+
+## Task: impl-analytics-breakdowns
+
+**Agent**: fullstack-developer (analytics module enricher)
+**Scope**: Replace the "VERY THIN" TraderAnalyticsPage / PerformanceAnalyticsPage / RiskAnalyticsPage in `src/modules/analytics/pages/analytics-pages.tsx` with rich breakdowns.
+
+### Files touched
+- `src/modules/analytics/pages/analytics-pages.tsx` (REWRITTEN — kept `AnalyticsOverviewPage` + `AdvancedAnalyticsPage` verbatim; replaced 3 target pages + added 4 local helpers + `ExplainableMetricCard` wrapper).
+- `src/modules/analytics/manifest.ts` (NOT MODIFIED — no new viewIds needed).
+
+### Pre-work
+1. Read `worklog.md` lines 4813-4907 (`analysis-payouts-analytics` task summary) — confirmed Trader/Performance/Risk pages flagged "VERY THIN".
+2. Read `AGENTS.md` §8 (Density), §9 (KPI rule), §33 (Contextual help), §70 (Analytics UX).
+3. Read `analytics-pages.tsx` (full file), `analytics/manifest.ts`, `mock-data.ts` (traders/accounts/payouts/breaches + helpers), `charts.tsx`, `page.tsx`, `data-table.tsx`, `terminology.ts`, `contextual-help.tsx`, `status.tsx`, plus existing `dashboard-tabs.tsx` `GroupedBars`/`ColoredBars` patterns.
+
+### Local helpers added (in analytics-pages.tsx)
+- `TERRA` palette: emerald #10b981, amber #f59e0b, rose #e11d48, slate #64748b, sky #0ea5e9, teal #0d9488, forest #4a7c59. NO blue/indigo/violet.
+- `ChartCard` — section wrapper (title + subtitle + body).
+- **`ExplainableMetricCard`** — local wrapper mirroring `MetricCard` but accepts `help?: ReactNode` rendered via `LabelWithHelp` inline next to label (since `MetricCard.label` is typed `string` and is out of file-ownership scope). Used for VaR / ES / Max Drawdown / Sharpe / Profit Factor KPIs.
+- `countryFlagEmoji(country)` — ISO-2 → 🇺🇸 via regional indicator code points.
+- `deriveProfitFactor(trader)` — deterministic proxy [0.5–2.65] from `winRate` + `hashStr(trader.id)` jitter.
+- `derive30dPnl(trader)` — deterministic 25–65% slice of `totalPnl` seeded by `hashStr(trader.id + "30d")`.
+- `activityTier(trades)` — buckets trade count into Low/Medium/High/Power.
+- `GroupedBars` — recharts BarChart with **dual Y-axis** support (left for %, right for currency).
+- `ColoredBars` — recharts BarChart with per-`<Cell>` color picking (hour-of-day heatmap).
+- `MultiLineChart` — recharts LineChart overlaying N series (Top-5 equity curves).
+
+### 1. TraderAnalyticsPage (was 23 LOC body → ~190 LOC body)
+- **4 KPI cards** (Terra tones): Top Trader Equity (emerald), Avg Win Rate (amber), Profit Factor (emerald, with ⓘ), Most Traded Symbol (neutral).
+- **Trader Leaderboard DataTable** (Top 10 by equity): Rank (Crown/Award icons for top 3) / Trader (Avatar + name + email + flag emoji) / Equity / 30d PnL (signed, color-coded) / Win Rate / Profit Factor / Trades / Status (StatusBadge with `traderStatusTone`). `onRowClick` → `navigate("trader-detail", { id: trader.id })`. EmptyState with terminology-aware copy.
+- **Win/Loss Distribution Donut**: 3 slices (Profitable ≥55% / Break-even 45–54% / Losing <45%) in emerald/amber/rose.
+- **Top 5 Equity Curves (12d)**: `MultiLineChart` with 12 deterministic `Math.sin`-seeded points per trader anchored at current equity; legend shows `#1 Lucas` / `#2 Riley` etc.
+- **Trader Activity Distribution BarSeries**: 4 tiers (Low/Medium/High/Power) with trader counts.
+
+### 2. PerformanceAnalyticsPage (was 20 LOC body → ~210 LOC body)
+- **4 KPI cards**: Best Challenge Type (Trophy, emerald), Most Profitable Symbol (Target, emerald), Highest Win Rate Phase (Award, amber), Best Performing Country (Flag, emerald, with flag emoji).
+- **Performance by Challenge Type BarSeries**: 4 bars (1-Step/2-Step/3-Step/Funded), Y-axis pass rate %.
+- **Performance by Phase `GroupedBars` (dual-axis)**: left axis = Pass Rate % (teal), right axis = Avg PnL (amber), 3 phases. Tooltip uses `rightFormatValue` for the Avg PnL series.
+- **Performance by Symbol (Top 8) DataTable**: Symbol / Trades / Win Rate (color-coded) / Avg PnL (signed) / Total Volume / Sharpe. Sharpe formula in section subtitle (header is a button so can't nest another button for ⓘ).
+- **Performance by Country DataTable**: Country (flag + ISO) / Traders / Avg Equity / Win Rate / Total Payouts / Profit Factor. Derived from `getTenantTraders(tid)` + `getTenantPayouts(tid)` aggregated by trader country.
+- **Performance by Hour of Day ColoredBars**: 24 hours, trade count colored emerald/amber/rose by profitability signal.
+
+### 3. RiskAnalyticsPage (was 20 LOC body → ~230 LOC body)
+- **4 KPI cards — every label has a ⓘ tooltip** (via `ExplainableMetricCard`): VaR (95%) (AlertTriangle, rose), Expected Shortfall (rose), Max Drawdown (amber), Sharpe Ratio (emerald, Sigma icon).
+- **Drawdown Distribution AreaSeries** (rose): 5 buckets (0–5% / 5–10% / 10–15% / 15–20% / 20%+) with account counts.
+- **VaR Confidence Curve AreaSeries** (amber): 5 confidence levels (90% / 95% / 97.5% / 99% / 99.9%) with VaR $ amounts widening as confidence tightens.
+- **Risk-Adjusted Returns by Challenge Type BarSeries** (teal): 4 challenge types, Sharpe ratio per category.
+- **Top 10 Highest-Risk Accounts DataTable**: Account (login + platform + phase) / Trader (flag + name) / Equity / Drawdown % (color-coded) / Open PnL (signed) / Risk Score (color-coded) / Status (StatusBadge). `onRowClick` → `navigate("account-workspace", { id: account.id })`. Risk Score formula in section subtitle.
+- **Breach Type Breakdown DonutSeries**: 7 slices — 4 actual breach types from `getTenantBreaches(tid)` (Daily DD / Max DD / Profit Target Miss / Time Limit) + 3 rule-engine-derived (Trailing DD / Margin Call / News Trading), all deterministic.
+
+### Deterministic mock (no `Math.random`)
+- `hashStr(s)` for per-trader / per-account / per-symbol seeding.
+- `Math.sin(i / 3)` / `Math.cos(i / 4)` patterns for chart curves.
+- Equity curve anchors at current equity with 4% wobble per point.
+- All numerical KPIs (VaR, ES, Max DD, Sharpe) derive from `hashStr(tid + metric)`.
+
+### Verification
+1. **`bun run lint`** → exit 0, 0 errors, 0 warnings.
+2. **`bunx tsc --noEmit --skipLibCheck`** → 3 errors in `analytics-pages.tsx` at lines 497, 501, 509 — ALL pre-existing in the verbatim `AnalyticsOverviewPage` (`TimeSeriesPoint[]` not assignable to `SeriesPoint[]`; same pattern as `analytics-widgets.tsx` lines 34/41/54, `payout-widgets.tsx` line 68, `risk-widgets.tsx` line 40). **0 new errors** introduced. Before: 6 errors (3 from Overview + 1 each from Trader/Performance/Risk). After: 3 errors (only Overview — the 3 target pages no longer pass `TimeSeriesPoint[]` to chart components).
+3. **`curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/`** → `200`.
+4. **`dev.log`** → only `✓ Compiled in <ms>` + `GET / 200 in <ms>` — no runtime errors.
+5. **agent-browser visual verification** (Beta Trading tenant — terminology "Challenge", currency GBP):
+   - **Trader Analytics**: Header "Trader Analytics"; 4 KPIs (£105,256 Top Equity / 50% Avg Win Rate / 2.64 Profit Factor with ⓘ / BTCUSD Most Traded); leaderboard table with 10 ranked rows (Crown on #1, Award on #2/#3, Avatar initials LK/RW/HG/NM/...); row click on #1 → navigated to `trader-detail` viewId for `Lucas Khan` (verified breadcrumb "Trader Detail" + heading "Lucas Khan" + email "lucas.khan@email.com · IN"); Win/Loss Donut with 3 slices; Top 5 Equity Curves MultiLineChart with 5 distinct Terra-colored legend entries; Activity Distribution BarSeries with 4 tiers.
+   - **Performance Analytics**: Header "Performance Analytics"; 4 KPIs (2-Step Best Challenge 79% / XAUUSD Most Profitable +£1,766 / Phase 2 Highest Win 56% / 🇩🇪 DE Best Country £38,419 avg equity — country flag emoji rendered correctly); Performance by Challenge Type BarSeries (4 bars 0–80%); Performance by Phase dual-axis GroupedBars (left 0–60% teal "Pass Rate %", right £0–£2,600 amber "Avg PnL", legend present); Symbol Performance DataTable (8 symbols with sortable headers); Country Performance DataTable (8 countries DE/IN/FR/CA/ZA/GB/SG/AE sorted by avg equity); Hour of Day ColoredBars (24 hours 0–23).
+   - **Risk Analytics**: Header "Risk Analytics"; 4 KPIs with single ⓘ button each (£27,668 VaR 95% / £39,959 ES +44% vs VaR / 15.2% Max DD / 1.07 Sharpe — no duplicate label text after ExplainableMetricCard fix); Drawdown Distribution AreaSeries (5 buckets); VaR Confidence Curve AreaSeries (5 levels 90–99.9%, £0–£60,000); Risk-Adjusted Returns BarSeries (4 challenge types, Sharpe 0–2.0); Breach Type Breakdown DonutSeries (7 slices); Top 10 Highest-Risk Accounts DataTable (Account 100047 MT5 phase-2 Jayden Singh / 100042 DXTrade phase-1 Aiden Haddad breached, etc.); row click on first row → navigated to `account-workspace` viewId for `Account 100047` (verified breadcrumb "Account Workspace" + heading "Account 100047" + "MT5 · Jayden Singh · challenge").
+6. **Console**: `[Fast Refresh] rebuilding/done in <ms>` only — no React warnings after fixing the nested-button issue (initial run flagged `<button> cannot contain a nested <button>` from passing `LabelWithHelp` JSX to DataTable `Column.header`; resolved by moving the Sharpe / Risk Score formulas to section subtitles and rendering plain string headers).
+
+### Design decisions (deviations from spec, with rationale)
+- **ExplainableMetricCard wrapper** (instead of passing `LabelWithHelp` to `MetricCard.label`): `MetricCard.label` is typed `string` in `page.tsx` (out of file-ownership scope). Built a local wrapper that mirrors the exact visual treatment and accepts `help?: ReactNode` rendered inline.
+- **Sharpe / Risk Score formulas in section subtitle** (instead of in DataTable column headers): `Column.header` is typed `string` and is rendered inside a sort-toggle `<button>`, so passing JSX-with-`<button>` (LabelWithHelp) creates invalid nested-button HTML. Moved the formulas into the section subtitle (visible to all users, better per §9 KPI rule "Never show a metric without meaning" — the formula is shown by default rather than requiring hover).
+- **Dual-axis GroupedBars**: Initial implementation mixed Pass Rate % (0–100) and Avg PnL (£0–£2,600) on a single Y-axis, producing garbled axis labels (`650%` for £650). Added an optional `rightSeries` + `rightFormatValue` config so the second series plots against a right-side Y-axis with its own currency formatter.
+- **Profit Factor / 30d PnL derived**: Real PF needs gross profit / gross loss per trade — the mock only exposes signed `totalPnl`. Built `deriveProfitFactor` (winRate-anchored + hashStr jitter) and `derive30dPnl` (deterministic slice of `totalPnl`). Documented both in code comments.
+- **Breach Type Breakdown**: Mock `Breach.type` enum only has 4 values (daily-drawdown/max-drawdown/profit-target-miss/time-limit). Spec called for 7 (Daily DD / Max DD / Trailing DD / Margin Call / News Trading / Weekend / Copy Trading). Showed 4 actual + 3 rule-engine-derived slices with deterministic counts anchored to total breach count.
+
+### Outcome vs `analysis-payouts-analytics` gaps
+- ✅ Trader Analytics — leaderboard (#2) — DONE.
+- ✅ Trader Analytics — win/loss distribution (#2) — DONE.
+- ✅ Trader Analytics — equity curves per top trader (#2) — DONE (MultiLineChart Top 5).
+- ✅ Performance Analytics — by challenge / phase / symbol / country (#3) — DONE (4 breakdowns + hour-of-day).
+- ✅ Risk Analytics — VaR / ES / Drawdown distribution (#4) — DONE (4 KPIs with formulas + 5 charts + risk accounts table + breach donut).
+- ✅ Contextual help on KPIs (§33) — DONE (LabelWithHelp on VaR, ES, Max DD, Sharpe, Profit Factor; formulas also surfaced in section subtitles for table headers that couldn't accept JSX).
+- ✅ Drill from row to underlying entity (§70 Analytics UX) — DONE (trader-detail from leaderboard; account-workspace from risk accounts).
+- ✅ Terra palette only (no violet) — DONE.
+- ✅ Deterministic mock (no `Math.random`) — DONE.
