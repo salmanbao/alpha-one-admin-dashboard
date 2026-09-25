@@ -712,6 +712,7 @@ function OrderForm({
   tenant: TenantContext;
   onFieldChange: (patch: Partial<OrderDetail>) => void;
 }) {
+  const term = makeTermResolver(tenant);
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {/* Main form — date created (read-only), order type, notes */}
