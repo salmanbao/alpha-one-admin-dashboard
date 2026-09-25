@@ -64,6 +64,7 @@ import {
   Activity,
   FileCheck,
   History,
+  Key,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -152,6 +153,7 @@ export function EnhancedTraderDetailPage() {
     );
   }
 
+  const isTrader = user.application === "trader";
   const openBreaches = breaches.filter((b) => b.status === "open");
   const kyc = kycRecords[0];
 
@@ -160,25 +162,33 @@ export function EnhancedTraderDetailPage() {
     trader.challengePhase === "phase-1" ||
     trader.challengePhase === "phase-2";
 
+  // Round 10: trader-facing display name — use the AuthUser's name (Tom Allen)
+  // instead of the seeded Trader record's name (Liam Smith) so the workspace
+  // header matches the topbar/sidebar identity.
+  const displayName = isTrader ? user.name : trader.name;
+  const displayEmail = isTrader ? user.email : trader.email;
+  const displayInitials = isTrader
+    ? user.initials
+    : trader.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
+
   return (
     <Page>
       <Button
         variant="ghost"
         size="sm"
         className="w-fit"
-        onClick={() => navigate("trading-traders")}
+        onClick={() => navigate(isTrader ? "overview" : "trading-traders")}
       >
-        <ArrowLeft className="mr-1 h-4 w-4" />Back to traders
+        <ArrowLeft className="mr-1 h-4 w-4" />
+        {isTrader ? "Back to Dashboard" : "Back to traders"}
       </Button>
 
       <EntityHeader
-        title={trader.name}
-        subtitle={`${trader.email} · ${trader.country}`}
+        title={displayName}
+        subtitle={`${displayEmail} · ${trader.country}`}
         avatar={
           <Avatar className="h-12 w-12">
-            <AvatarFallback>
-              {trader.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-            </AvatarFallback>
+            <AvatarFallback>{displayInitials}</AvatarFallback>
           </Avatar>
         }
         badges={
@@ -188,54 +198,71 @@ export function EnhancedTraderDetailPage() {
           </>
         }
         actions={
-          <>
-            {/* Destructive action wrapped in AlertDialog (§24) */}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button size="sm" variant="destructive">
-                  <Ban className="mr-1 h-4 w-4" />Block Account
+          isTrader ? (
+            // Trader-facing actions — read-only workspace, no destructive controls
+            <>
+              <Button size="sm" variant="default" onClick={() => navigate("trading-credentials")}>
+                <Key className="mr-1 h-4 w-4" />Credentials
+              </Button>
+              {trader.challengePhase === "funded" && (
+                <Button size="sm" variant="outline" onClick={() => navigate("payout-eligibility")}>
+                  <Wallet className="mr-1 h-4 w-4" />Request Payout
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Block trader account?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will immediately suspend all of {trader.name}&apos;s trading accounts,
-                    close open positions at market, and prevent new logins. The trader will be
-                    notified by email. This action is reversible from the admin panel.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className={cn("bg-destructive text-destructive-foreground hover:bg-destructive/90")}
-                    onClick={() =>
-                      toast({
-                        title: "Account blocked",
-                        description: `${trader.name} can no longer log in.`,
-                      })
-                    }
-                  >
-                    Block account
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => toast({ title: "Resync queued", description: "Re-syncing trading accounts from MT5." })}
-            >
-              <RefreshCw className="mr-1 h-4 w-4" />Resync
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => toast({ title: "Opening payout schedule", description: "Editing payout schedule for this trader." })}
-            >
-              <Calendar className="mr-1 h-4 w-4" />Edit Payout Schedule
-            </Button>
-          </>
+              )}
+              <Button size="sm" variant="outline" onClick={() => navigate("objectives")}>
+                <Target className="mr-1 h-4 w-4" />Objectives
+              </Button>
+            </>
+          ) : (
+            // Admin-facing actions
+            <>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" variant="destructive">
+                    <Ban className="mr-1 h-4 w-4" />Block Account
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Block trader account?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will immediately suspend all of {trader.name}&apos;s trading accounts,
+                      close open positions at market, and prevent new logins. The trader will be
+                      notified by email. This action is reversible from the admin panel.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className={cn("bg-destructive text-destructive-foreground hover:bg-destructive/90")}
+                      onClick={() =>
+                        toast({
+                          title: "Account blocked",
+                          description: `${trader.name} can no longer log in.`,
+                        })
+                      }
+                    >
+                      Block account
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => toast({ title: "Resync queued", description: "Re-syncing trading accounts from MT5." })}
+              >
+                <RefreshCw className="mr-1 h-4 w-4" />Resync
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => toast({ title: "Opening payout schedule", description: "Editing payout schedule for this trader." })}
+              >
+                <Calendar className="mr-1 h-4 w-4" />Edit Payout Schedule
+              </Button>
+            </>
+          )
         }
       />
 
@@ -260,6 +287,7 @@ export function EnhancedTraderDetailPage() {
             maxDrawdown={{ current: Math.round(trader.equity * 0.037), limit: Math.round(trader.equity * 0.1) }}
             profitTarget={{ current: Math.max(0, trader.totalPnl), limit: Math.round(trader.equity * 0.08) }}
             accountBalance={trader.equity}
+            currency={currency}
           />
         </div>
       ) : null}
@@ -272,7 +300,8 @@ export function EnhancedTraderDetailPage() {
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="kyc">KYC</TabsTrigger>
           <TabsTrigger value="risk">Risk</TabsTrigger>
-          <TabsTrigger value="history">Change History</TabsTrigger>
+          {/* Change History is admin-internal — traders don't need it */}
+          {!isTrader && <TabsTrigger value="history">Change History</TabsTrigger>}
         </TabsList>
 
         {/* Overview — account summary + key metrics */}

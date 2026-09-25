@@ -48,13 +48,13 @@ const statusConfig: Record<HealthStatus, { label: string; color: string; barColo
   progress: { label: "Progress", color: "text-teal-600 dark:text-teal-400", barColor: "bg-teal-500", badgeClass: "border-teal-500/40 text-teal-700 dark:text-teal-400" },
 };
 
-function formatValue(v: number, unit: HealthMetric["unit"]): string {
-  if (unit === "currency") return `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+function formatValue(v: number, unit: HealthMetric["unit"], currency = "USD"): string {
+  if (unit === "currency") return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
   if (unit === "percent") return `${v}%`;
   return v.toLocaleString("en-US");
 }
 
-function HealthMetricRow({ metric }: { metric: HealthMetric }) {
+function HealthMetricRow({ metric, currency = "USD" }: { metric: HealthMetric; currency?: string }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const status = computeStatus(metric);
   const config = statusConfig[status];
@@ -75,8 +75,8 @@ function HealthMetricRow({ metric }: { metric: HealthMetric }) {
       </div>
       <div className="flex items-baseline justify-between text-sm">
         <span className="font-semibold tabular-nums text-foreground">
-          {formatValue(metric.current, metric.unit)}
-          <span className="text-xs font-normal text-muted-foreground"> / {formatValue(metric.limit, metric.unit)}</span>
+          {formatValue(metric.current, metric.unit, currency)}
+          <span className="text-xs font-normal text-muted-foreground"> / {formatValue(metric.limit, metric.unit, currency)}</span>
         </span>
         <span className={cn("text-xs font-medium", config.color)}>{Math.round(pct)}%</span>
       </div>
@@ -88,9 +88,9 @@ function HealthMetricRow({ metric }: { metric: HealthMetric }) {
       </div>
       <div className="flex items-center justify-between text-[10px] text-muted-foreground">
         {metric.direction === "loss" ? (
-          <span>Remaining: {formatValue(remaining, metric.unit)}</span>
+          <span>Remaining: {formatValue(remaining, metric.unit, currency)}</span>
         ) : (
-          <span>Target: {formatValue(metric.limit, metric.unit)}</span>
+          <span>Target: {formatValue(metric.limit, metric.unit, currency)}</span>
         )}
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
@@ -121,11 +121,13 @@ export function AccountHealthWidget({
   maxDrawdown = { current: 1840, limit: 5000 },
   profitTarget = { current: 7200, limit: 10000 },
   accountBalance = 10000,
+  currency = "USD",
 }: {
   dailyLoss?: { current: number; limit: number };
   maxDrawdown?: { current: number; limit: number };
   profitTarget?: { current: number; limit: number };
   accountBalance?: number;
+  currency?: string;
 }) {
   const metrics: HealthMetric[] = [
     {
@@ -185,7 +187,7 @@ export function AccountHealthWidget({
         <Badge variant="outline" className="text-[9px]">Live</Badge>
       </div>
       {metrics.map((m) => (
-        <HealthMetricRow key={m.id} metric={m} />
+        <HealthMetricRow key={m.id} metric={m} currency={currency} />
       ))}
     </div>
   );
