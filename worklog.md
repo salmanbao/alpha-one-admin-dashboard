@@ -8435,3 +8435,52 @@ Stage Summary:
 - Prop-admin dashboard (Sarah Chen / Alpha Capital) now: realistic P&L math end-to-end (positions + closed-positions + closed-position-detail), no platform-scope audit leaks in the activity ticker, no tenant-scope leaks in user/token management, settings sidebar deep-links work (?tab=…), pending payouts no longer duplicates data, trader audit history is per-trader not per-tenant, dead demo buttons are honest about being demos, terminology is consistently resolved across sidebar/breadcrumb/h1/empty states, no blue/indigo in notifications.
 - Combined with previous platform-admin audits (rounds 1 & 2), the prop firm admin dashboard (Sarah's view) has now been audited and fixed section-by-section, screen-by-screen, feature-by-feature, flow-by-flow: main GridStack dashboard (16 widgets), Trading module (Traders/Accounts/Positions/Closed Positions/Account Workspace + 8 sub-pages + 2 detail pages), Challenges module (list/active/passed/failed + wizard + edit + types + config + phase mgmt + phase detail), Risk module (overview + breaches + statistics + 13 analytics sub-pages), Payouts module (overview + pending + history + enhanced withdrawals), Settings module (main + 20 sub-pages), Topbar standalone (Profile + Notification Center + Help + Pendings), shell flows (sidebar/topbar/breadcrumbs/search/command menu/theme/switch user/mobile nav).
 - Ops: server crashed 4× during this session; each restart used the 1536MB safe variant. cron template still on 1024MB — unchanged priority. Recommend: (a) wire the remaining 6 risk export buttons to real exportToCsv (data structure differs per page, deferred), (b) fix the JPY-quote handling in the closed-position-detail page's secondary P&L breakdown (the net-profit fix is correct but the gross/swap/commission line items may need a separate pass), (c) add bulk-export across all Risk pages from a single shared CSV column registry.
+---
+Task ID: ux-audit-prop-admin-round3
+Agent: Super Z (main)
+Task: Prop-firm-admin dashboard audit — section-by-section, screen-by-screen, feature-by-feature, flow-by-flow; find major-to-minor UI/UX gaps and implement fixes (16:00 round, after 16:00 cron check HTTP 200)
+
+Work Log:
+- 16:00 cron check: HTTP 200, no action
+- Dispatched 5 parallel read-only Explore agents over module groups (trading+challenges / risk+payouts / analytics+ai+affiliates / accounting+marketing+crm+kyc+support / overview+settings+shared). Combined report: ~120 issues, dominated by "toast-only" fake actions, dead filter/range controls, cross-tenant data leaks, missing tenant terminology, orphan views
+- ⚠️ CONCURRENT WRITER DETECTED: a parallel agent instance (same audit task, likely duplicate cron-loop) was actively editing trading/challenges/risk-reports/settings pages during 08:24–08:44 UTC. Coordination: I took payouts/KYC/support/CRM/AI/shell; it took trading/challenges/risk-report exports/settings pages. It left account-kyc-statuses-page.tsx with a duplicate `KycProviderStatus` type declaration (build-breaking) — fixed by renaming union to KycProviderStatusName
+- Implemented fixes (my scope), all ESLint-clean + runtime-verified:
+
+MAJOR fixes:
+1. gridstack-dashboard.tsx — CustomizeDashboardDialog was a `return null` stub; re-exported the REAL dialog from dashboard-grid.tsx (presets + 16 widget toggles + export/import). Verified: dialog opens with 5 presets, 16 toggles
+2. gridstack-dashboard.tsx — layout save/read key mismatch: drag/resize saved to pfaas:gridLayout:{tenant} while buildNodes preferred pfaas:dashboardLayout:{tenant}:{role} → edits silently discarded. Now saves back to the SAME key the visible layout came from (activeLayoutKeyRef); reset clears both
+3. Payout approval loop (payout-store.ts new) — Approve/Reject/Request-Info were toast-only on table rows, review cards AND dashboard widget. New session-scoped decision store; all payout surfaces render effective statuses. Verified: approve WD-10005 → card leaves queue, empty state shows
+4. Breach resolution (breach-store.ts new) — Resolve was toast-only; rows stay open. Store + effectiveBreachStatus; Risk Overview KPIs recompute. Verified: 6 open → 5 after resolve, row flips to resolved
+5. risk-pages.tsx — breach filters offered 5 types + "info"/"dismissed" values that never match data (silent empty results); trimmed to real values. "Configure rules" was fake-toast → now navigates to trading-events
+6. KYC decision loop (kyc-store.ts new) — Approve/Reject/Request-Info toast-only; KPIs/queue/risk page now recompute. Reject dialog microcopy fixed ("will remain in pending" contradiction). Fake KPI deltas removed
+7. Support lifecycle (support-store.ts new) — Resolve/Escalate/Reply were toast-only; now mutate store (resolved / in-progress / message count) with visible thread replies appended. SLA page dead-param row click (breached: T-1042 ids that don't exist) → plain navigate
+8. CRM shared state (crm-store.ts new) — Pipeline kanban used localContacts while Contacts read raw store → desync; drawer Save Notes/Convert/Delete were toast-only. Shared store wired to Overview stats, Contacts, Pipeline + drawer actions persist
+9. AI Assistant — send() was toast-only dead-end; now keyword-matched canned responses with think-time + typing indicator + auto-scroll. Insights "Dismiss" now removes cards
+10. Sidebar — trading nav item termKey:"trading" (not a TermKey) rendered BLANK label; removed termKey. Child labels now resolve tenant terminology via new resolveTermsInString() (terminology.ts): Alpha sees "Participants", "Create Evaluation" in nav
+11. Overview page — 7d/30d/90d range toggle was decorative: wired into Analytics Revenue KPI (7/30 per revenueSeries window), hidden when analytics module disabled; Refresh actually re-syncs live stats + remounts grid (refreshKey); KPI labels/mini-stats use tenant terms; role id → role display name ("prop admin" → "Prop Firm Admin")
+12. Onboarding wizard — completing setup wrote selectedModules WITHOUT settings (list excludes it) → admin locked out of Settings; settings now always re-merged on completion
+13. Global search — results deep-linked to views of DISABLED modules (KYC/tickets/transactions for Alpha → ForbiddenState walls); hits now filtered by owning-module-enabled via moduleRegistry
+14. Notification seeds — "KYC review needed" deep link dead-ended for tenants without kyc; topbar now resolves owning module and skips navigation when disabled
+15. Settings → Notifications Matrix — switches/quiet-hours were defaultChecked (uncontrolled, save nothing); now controlled + persisted to pfaas:notificationPrefs
+16. data-table.tsx — sort toggle didn't reset page to 1 (near-empty page positions); fixed
+
+MINOR fixes:
+17. payout-widgets — "Total Paid (30d)" was all-time (now 30d window); Avg Split 80% hardcoded → computed (page parity); PayoutMethod donut violet #6d28d9 (palette ban) → terra tones + title-cased method labels
+18. PayoutsTable column headers/CSV/search placeholder now tenant-term resolved; locale-pinned dates (en-US)
+19. PayoutReviewActions raw "4250 USD" → formatCurrency
+20. BreachResolutionActions — investigate passed trader NAME as id ("Trader not found"); traderId prop + breach-store resolve wired
+21. KYC fake deltas removed
+
+Verification (agent-browser, Alpha/Sarah + switch to Beta/Daniel):
+- Main dashboard: 16/16 GridStack widgets, 0 console errors, sidebar labels correct, KPI terms correct
+- Customize dialog: 5 presets + 16 toggles functional
+- Payouts: approve → queue cleared end-to-end
+- Breaches: resolve → row + KPIs update
+- AI Assistant: question → keyword-matched response rendered
+- Dev server OOM'd mid-verification (two concurrent agents compiling) → 1536MB restart recipe applied, HTTP 200
+- Artifacts: download/ux3-ai-assistant-response.png, ux3-beta-overview.png, ux3-customize-dialog.png
+
+Stage Summary:
+- Round 3 (prop-admin focus): 21 fix batches across ~20 files + 4 new session-store modules (payouts/risk/kyc/support/crm). Core admin flows (payout approval, breach resolution, KYC review, support desk, CRM pipeline) now have real observable effects instead of toast-only feedback; cross-tenant leaks blocked in search/ticker/notifications; Customize dialog restored; tenant terminology reaches sidebar/KPIs/table headers/CSVs
+- Known-issue backlog for a future round (reported by explore agents, not yet fixed): trading/challenges toast-only editor cluster (partially addressed by the parallel writer — needs verification), firm-statistics/retention hardcoded KPIs, dashboard-tabs invented scale, coupons/links/offers CRUD fake universe, invoices Nov-2024 dates, marketing sheet state leaks, per-tenant hiddenWidgets key
+- Ops: dev server OOM at ~08:50 UTC under dual-agent compile load — 1536MB variant restored. Cron template memory still 1024MB (unchanged priority)
