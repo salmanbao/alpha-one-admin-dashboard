@@ -13,6 +13,7 @@
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -161,6 +162,7 @@ export function PayoutReviewActions({
   currency: string;
 }) {
   const { pushNotification, runtime } = usePlatform();
+  const tenant = runtime.tenant;
   const currencyFmt = formatCurrency(amount, currency || runtime.tenant?.currency || "USD");
 
   const actions: ContextualAction[] = [
@@ -174,10 +176,10 @@ export function PayoutReviewActions({
         // Mutate the shared decision store — the pending queue (table,
         // dashboard widget) drops this payout everywhere, instantly.
         applyPayoutDecision(payoutId, "approved");
-        toast({ title: "Payout approved", description: `${traderName}'s payout of ${currencyFmt} is being processed.` });
+        toast({ title: "Payout approved", description: resolveTermsInString(`${traderName}'s payout of ${currencyFmt} is being processed.`, tenant) });
         pushNotification({
           title: "Payout approved",
-          message: `${traderName} — ${currencyFmt}`,
+          message: resolveTermsInString(`${traderName} — ${currencyFmt}`, tenant),
           severity: "success",
           module: "payouts",
           actionLabel: "View",
@@ -193,7 +195,7 @@ export function PayoutReviewActions({
       destructive: {
         title: "Reject this payout?",
         description: `You are about to reject the payout of ${currencyFmt} for ${traderName}.`,
-        consequence: "The trader will need to re-request the payout. The rejection will be logged in the audit trail.",
+        consequence: resolveTermsInString("The trader will need to re-request the payout. The rejection will be logged in the audit trail.", tenant),
       },
       onAction: () => {
         applyPayoutDecision(payoutId, "rejected");
@@ -207,7 +209,7 @@ export function PayoutReviewActions({
       variant: "secondary",
       onAction: () => {
         applyPayoutDecision(payoutId, "info-requested");
-        toast({ title: "Information requested", description: `Additional information has been requested from ${traderName}.` });
+        toast({ title: "Information requested", description: resolveTermsInString(`Additional information has been requested from ${traderName}.`, tenant) });
       },
     },
   ];

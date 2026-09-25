@@ -535,7 +535,7 @@ function AddProviderCard() {
         onClick={() =>
           toast({
             title: "Provider marketplace",
-            description: "Provider marketplace would open here.",
+            description: "Provider marketplace would open here. (demo)",
           })
         }
       >
@@ -718,7 +718,7 @@ function EditProviderSheet({
   const handleSave = () => {
     toast({
       title: "Saved",
-      description: "Provider configuration saved",
+      description: "Provider configuration saved (demo)",
     });
     onOpenChange(false);
   };
@@ -741,7 +741,7 @@ function EditProviderSheet({
     onOpenChange(false);
     toast({
       title: "Provider deactivated",
-      description: `${provider.name} has been deactivated. Pending verifications rerouted to next fallback.`,
+      description: `${provider.name} has been deactivated. Pending verifications rerouted to next fallback. (demo)`,
     });
   };
 
@@ -1064,7 +1064,7 @@ export function KycProvidersPage() {
     }
     toast({
       title: "Primary updated",
-      description: `${p.name} is now the primary KYC provider.`,
+      description: `${p.name} is now the primary KYC provider. (demo)`,
     });
   };
 

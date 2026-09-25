@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import {
   Dialog,
   DialogContent,
@@ -46,7 +47,7 @@ const SHORTCUTS: Shortcut[] = [
 ];
 
 export function KeyboardShortcutsHelp() {
-  const { setCommandOpen, setSearchOpen, navigate, sidebarCollapsed, setSidebarCollapsed } = usePlatform();
+  const { setCommandOpen, setSearchOpen, navigate, sidebarCollapsed, setSidebarCollapsed, tenant } = usePlatform();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -137,7 +138,7 @@ export function KeyboardShortcutsHelp() {
                   return (
                     <div key={s.label} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/40">
                       <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="flex-1 text-sm text-foreground">{s.label}</span>
+                      <span className="flex-1 text-sm text-foreground">{resolveTermsInString(s.label, tenant)}</span>
                       <kbd className="rounded border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                         {s.keys}
                       </kbd>
@@ -153,7 +154,7 @@ export function KeyboardShortcutsHelp() {
           <p className="font-medium text-foreground">Tips</p>
           <ul className="mt-1 space-y-0.5">
             <li>• The command menu (⌘K) also supports fuzzy search across pages, tenants, and users.</li>
-            <li>• Global search (/) searches across traders, accounts, payouts, and more.</li>
+            <li>• Global search (/) searches across {resolveTermsInString("traders", tenant).toLowerCase()}, accounts, {resolveTermsInString("payouts", tenant).toLowerCase()}, and more.</li>
             <li>• Switch tenants instantly from the top bar — the entire UI re-composes.</li>
           </ul>
         </div>

@@ -160,7 +160,7 @@ export function TenantsPage() {
     { key: "created", header: "Created", cell: (t) => <span className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleDateString()}</span>, sortValue: (t) => t.createdAt },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       cell: (t) => (
         <Button
           size="sm"

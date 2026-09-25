@@ -431,7 +431,7 @@ export function AiConfigurePage() {
   const save = () => {
     toast({
       title: "AI configuration saved",
-      description: `Model: ${model} · Insights: ${insights ? "on" : "off"} · Predictions: ${predictions ? "on" : "off"} · Anomaly: ${anomaly ? "on" : "off"}`,
+      description: `Model: ${model} · Insights: ${insights ? "on" : "off"} · Predictions: ${predictions ? "on" : "off"} · Anomaly: ${anomaly ? "on" : "off"} (demo)`,
     });
   };
 

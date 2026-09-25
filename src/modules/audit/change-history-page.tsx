@@ -12,6 +12,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import { getChangeHistory, getTenantChangeHistory, type ChangeHistoryEntry } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -52,7 +53,7 @@ const ENTITY_TYPES = [
 ] as const;
 
 export function ChangeHistoryPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const allChanges = useMemo(
     () => (tid === "platform" ? getChangeHistory() : getTenantChangeHistory(tid)),
@@ -210,7 +211,7 @@ export function ChangeHistoryPage() {
           >
             <option value="all">All entity types</option>
             {ENTITY_TYPES.map((t) => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t}>{resolveTermsInString(t, tenant)}</option>
             ))}
           </select>
           <select

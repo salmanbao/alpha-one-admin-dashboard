@@ -186,7 +186,7 @@ export function TenantLifecyclePage() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       cell: (t) => <RowActions tenant={t} onApply={applyStatus} onView={() => navigate("tenant-detail", { id: t.id })} />,
     },
   ];

@@ -289,7 +289,7 @@ export function OfferManagementPage() {
         actions={
           <Button
             size="sm"
-            onClick={() => toast({ title: "Add offer", description: "The new offer form would open here." })}
+            onClick={() => toast({ title: "Add offer", description: "The new offer form would open here. (demo)" })}
           >
             <Plus className="mr-1 h-4 w-4" /> Add Offer
           </Button>

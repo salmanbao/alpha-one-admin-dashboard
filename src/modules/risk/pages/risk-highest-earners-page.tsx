@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { cn } from "@/lib/utils";
 import {
   Trophy,
@@ -266,12 +267,25 @@ export function RiskHighestEarnersPage() {
   ];
 
   const exportCsv = () => {
-    // Demo-only — would call exportToCsv(filtered, [...], file) in
-    // production. Honest copy prevents the operator thinking a file
-    // was downloaded when nothing happened.
+    // Real CSV write — mirrors the working export on risk-revenue-loss-page.
+    exportToCsv(
+      filtered,
+      [
+        { key: "rank", header: "Rank", value: (r: EarnerRow) => r.rank },
+        { key: "trader", header: "Trader", value: (r) => r.trader.name },
+        { key: "email", header: "Email", value: (r) => r.email },
+        { key: "country", header: "Country", value: (r) => r.country },
+        { key: "totalRevenue", header: "Total Revenue", value: (r) => r.totalRevenue },
+        { key: "activeAccounts", header: "Active Accounts", value: (r) => r.activeAccounts },
+        { key: "fundedAccounts", header: "Funded Accounts", value: (r) => r.fundedAccounts },
+        { key: "payoutAccounts", header: "Payout Accounts", value: (r) => r.payoutAccounts },
+        { key: "profitMargin", header: "Profit Margin %", value: (r) => r.profitMargin },
+      ],
+      `risk-highest-earners-${Date.now()}.csv`,
+    );
     toast({
-      title: "Export started (demo)",
-      description: `Would export ${filtered.length} earners as CSV in production.`,
+      title: "Export complete",
+      description: `Exported ${filtered.length} earners to CSV.`,
     });
   };
 

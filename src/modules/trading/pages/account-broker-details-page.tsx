@@ -166,7 +166,7 @@ export function AccountBrokerDetailsPage() {
   const saveChanges = () => {
     toast({
       title: "Changes saved",
-      description: `Broker configuration for login ${account.login} updated.`,
+      description: `Broker configuration for login ${account.login} updated. (demo)`,
     });
     setEditing(false);
     setDraft(null);
@@ -175,14 +175,14 @@ export function AccountBrokerDetailsPage() {
   const triggerSync = () => {
     toast({
       title: "Sync queued",
-      description: `Pulling latest state from ${config.server}.`,
+      description: `Pulling latest state from ${config.server}. (demo)`,
     });
   };
 
   const resyncAccount = () => {
     toast({
       title: "Resync started",
-      description: "Reconciling account equity and open positions from the bridge.",
+      description: "Reconciling account equity and open positions from the bridge. (demo)",
     });
   };
 

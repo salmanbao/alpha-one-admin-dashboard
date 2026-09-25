@@ -430,7 +430,7 @@ export function KycReviewsPage() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       cell: (r) =>
         r.status === "pending" || r.status === "review" ? <KycRecordActions record={r} /> : null,
     },

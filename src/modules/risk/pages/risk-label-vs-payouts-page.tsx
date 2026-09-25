@@ -210,9 +210,50 @@ export function RiskLabelVsPayoutsPage() {
   };
 
   const exportCsv = () => {
+    // Flatten groups → one row per account, including label and payout.
+    // Mirrors the working export pattern from risk-revenue-loss-page.
+    const rows: Array<{
+      label: string;
+      accountId: string;
+      login: string;
+      trader: string;
+      revenue: number;
+      payouts: number;
+      margin: number;
+    }> = [];
+    for (const g of filteredGroups) {
+      for (const a of g.accounts) {
+        const acctPayout = accountPayouts.get(a.id) ?? 0;
+        rows.push({
+          label: g.label,
+          accountId: a.id,
+          login: a.login,
+          trader: a.traderName,
+          revenue: REVENUE_PER_ACCOUNT,
+          payouts: acctPayout,
+          margin:
+            REVENUE_PER_ACCOUNT > 0
+              ? Math.round(((REVENUE_PER_ACCOUNT - acctPayout) / REVENUE_PER_ACCOUNT) * 1000) / 10
+              : 0,
+        });
+      }
+    }
+    exportToCsv(
+      rows,
+      [
+        { key: "label", header: "Label", value: (r) => r.label },
+        { key: "accountId", header: "Account ID", value: (r) => r.accountId },
+        { key: "login", header: "Login", value: (r) => r.login },
+        { key: "trader", header: "Trader", value: (r) => r.trader },
+        { key: "revenue", header: "Revenue", value: (r) => r.revenue },
+        { key: "payouts", header: "Payouts", value: (r) => r.payouts },
+        { key: "margin", header: "Margin %", value: (r) => r.margin },
+      ],
+      `risk-label-vs-payouts-${Date.now()}.csv`,
+    );
     toast({
-      title: "Export started (demo)",
-      description: `Would export ${totalAccounts} labeled accounts as CSV in production.`,
+      title: "Export complete",
+      description: `Exported ${rows.length} accounts across ${filteredGroups.length} labels to CSV.`,
     });
   };
 

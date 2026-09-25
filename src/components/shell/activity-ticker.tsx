@@ -24,7 +24,9 @@ import {
 } from "lucide-react";
 import { getTenantAudit } from "@/lib/platform/mock-data";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import type { AuditEntry } from "@/lib/platform/types";
+import type { TenantContext } from "@/lib/platform/types";
 
 /** Render an actor name as "First L." (Tom Allen → "Tom A."). */
 function shortActor(name: string): string {
@@ -88,7 +90,7 @@ interface TickerItem {
 }
 
 /** Build ticker items from the most recent audit entries for the active tenant. */
-function buildTickerItems(tid: string, limit = 8): TickerItem[] {
+function buildTickerItems(tid: string, tenant: Pick<TenantContext, "terminology"> | undefined, limit = 8): TickerItem[] {
   // Take the most recent entries by timestamp (auditLog is seeded
   // chronologically ascending — newest first is `reverse()`).
   // Filtered to the current tenant so a tenant admin never sees
@@ -99,15 +101,15 @@ function buildTickerItems(tid: string, limit = 8): TickerItem[] {
   const recent = [...scoped].reverse().slice(0, limit);
   return recent.map((a) => {
     const Icon = ICON_FOR_ACTION[a.entity ?? a.action] ?? TrendingUp;
-    const text = `${shortActor(a.actor)} — ${describeAction(a.action, a.summary)} · ${relativeTime(a.timestamp)}`;
+    const text = resolveTermsInString(`${shortActor(a.actor)} — ${describeAction(a.action, a.summary)} · ${relativeTime(a.timestamp)}`, tenant);
     return { icon: Icon, text, tone: TONE_FOR_SEVERITY[a.severity] };
   });
 }
 
 export function ActivityTicker() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
-  const items = useMemo(() => buildTickerItems(tid, 8), [tid]);
+  const items = useMemo(() => buildTickerItems(tid, tenant, 8), [tid, tenant]);
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {

@@ -223,6 +223,24 @@ export function InverseTradingEventsPage() {
   const [dateRange, setDateRange] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  // Track in-session Expired overrides so the Switch visually flips when
+  // toggled (previously bounced back to the seed value on next render).
+  // The effective state is `e.expired XOR toggled.has(e.id)`.
+  const [expiredToggles, setExpiredToggles] = useState<Set<string>>(new Set());
+  const isExpired = (e: InverseEvent) => e.expired !== expiredToggles.has(e.id);
+  const toggleExpired = (e: InverseEvent) => {
+    setExpiredToggles((prev) => {
+      const next = new Set(prev);
+      if (next.has(e.id)) next.delete(e.id);
+      else next.add(e.id);
+      return next;
+    });
+    toast({
+      title: isExpired(e) ? "Event expired" : "Event re-activated",
+      description: `Inverse trading event ${e.id} marked as ${isExpired(e) ? "expired" : "active"} (demo).`,
+    });
+  };
+
   // Add-event form state
   const [showForm, setShowForm] = useState(false);
   const [formBuyId, setFormBuyId] = useState<string>("");
@@ -433,13 +451,8 @@ export function InverseTradingEventsPage() {
       header: "Expired",
       cell: (e) => (
         <Switch
-          checked={e.expired}
-          onCheckedChange={() => {
-            toast({
-              title: e.expired ? "Event re-activated" : "Event expired",
-              description: `Inverse trading event ${e.id} marked as ${e.expired ? "active" : "expired"}.`,
-            });
-          }}
+          checked={isExpired(e)}
+          onCheckedChange={() => toggleExpired(e)}
           onClick={(ev) => ev.stopPropagation()}
           aria-label={`Toggle expired for ${e.id}`}
         />

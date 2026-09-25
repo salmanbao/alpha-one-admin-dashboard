@@ -390,7 +390,7 @@ export function GroupManagementPage() {
                     onClick={() =>
                       toast({
                         title: "Members exported",
-                        description: `${members.length} members of ${selectedGroup.name} exported.`,
+                        description: `${members.length} members of ${selectedGroup.name} exported. (demo)`,
                       })
                     }
                   >

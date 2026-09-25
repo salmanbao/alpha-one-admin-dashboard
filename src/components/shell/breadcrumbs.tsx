@@ -10,6 +10,7 @@
 import { useMemo, useState } from "react";
 import { ChevronRight, Home } from "lucide-react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import { resolveNavigation, findNavForView } from "@/lib/platform/navigation-engine";
 import {
   Breadcrumb,
@@ -43,18 +44,18 @@ export function Breadcrumbs() {
       i.effectiveHref === router.view || i.children?.some((c) => c.href === router.view),
     );
     if (parent) {
-      out.push({ label: parent.label, href: parent.effectiveHref });
+      out.push({ label: resolveTermsInString(parent.label, tenant), href: parent.effectiveHref });
       if (parent.children?.some((c) => c.href === router.view) && found) {
-        out.push({ label: found.label });
+        out.push({ label: resolveTermsInString(found.label, tenant) });
       }
     } else if (found) {
-      out.push({ label: found.label });
+      out.push({ label: resolveTermsInString(found.label, tenant) });
     } else {
       // unknown view — use the view name
-      out.push({ label: router.view.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) });
+      out.push({ label: resolveTermsInString(router.view.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), tenant) });
     }
     return out;
-  }, [items, router.view]);
+  }, [items, router.view, tenant]);
 
   return (
     <Breadcrumb className="mb-3">
@@ -119,7 +120,7 @@ export function MobileNav() {
                 {item.isSection ? (
                   <div className="mt-2">
                     <p className="px-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {item.label}
+                      {resolveTermsInString(item.label, tenant)}
                     </p>
                     <ul className="ml-2 space-y-0.5">
                       {item.children?.map((c) => (
@@ -131,7 +132,7 @@ export function MobileNav() {
                             }}
                             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
                           >
-                            {c.label}
+                            {resolveTermsInString(c.label, tenant)}
                           </button>
                         </li>
                       ))}
@@ -145,7 +146,7 @@ export function MobileNav() {
                     }}
                     className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
                   >
-                    {item.label}
+                    {resolveTermsInString(item.label, tenant)}
                     {item.badge ? (
                       <Badge variant="secondary" className="ml-auto text-[9px]">{item.badge}</Badge>
                     ) : null}

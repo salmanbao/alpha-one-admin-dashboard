@@ -123,7 +123,7 @@ export function CertificateManagementPage() {
   const onSave = (t: CertificateTemplate) => {
     toast({
       title: "Certificate template saved",
-      description: `“${t.name}” updated successfully.`,
+      description: `“${t.name}” updated successfully. (demo)`,
     });
   };
 

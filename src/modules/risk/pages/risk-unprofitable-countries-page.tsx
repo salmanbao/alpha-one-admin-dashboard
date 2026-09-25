@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { cn } from "@/lib/utils";
 import {
   Globe,
@@ -212,9 +213,21 @@ export function RiskUnprofitableCountriesPage() {
   ];
 
   const exportCsv = () => {
+    exportToCsv(
+      filtered,
+      [
+        { key: "countryCode", header: "Country", value: (r: CountryRow) => r.countryCode },
+        { key: "traders", header: "Traders", value: (r) => r.traders },
+        { key: "totalRevenue", header: "Total Revenue", value: (r) => r.totalRevenue },
+        { key: "totalPayouts", header: "Total Payouts", value: (r) => r.totalPayouts },
+        { key: "revenueLoss", header: "Revenue Loss", value: (r) => r.revenueLoss },
+        { key: "lossPct", header: "Loss %", value: (r) => r.lossPct },
+      ],
+      `risk-unprofitable-countries-${Date.now()}.csv`,
+    );
     toast({
-      title: "Export started (demo)",
-      description: `Would export ${filtered.length} unprofitable countries as CSV in production.`,
+      title: "Export complete",
+      description: `Exported ${filtered.length} country rows to CSV.`,
     });
   };
 

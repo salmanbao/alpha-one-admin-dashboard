@@ -744,7 +744,7 @@ function PhasesTab({
           onClick={() =>
             toast({
               title: "Add Phase",
-              description: "The new phase form would open here.",
+              description: "The new phase form would open here. (demo)",
             })
           }
         >
@@ -973,7 +973,7 @@ function PayoutTab({
           onClick={() =>
             toast({
               title: "Reverted",
-              description: "Payout rules reverted to last saved values.",
+              description: "Payout rules reverted to last saved values. (demo)",
             })
           }
         >
@@ -984,7 +984,7 @@ function PayoutTab({
           onClick={() =>
             toast({
               title: "Payout rules saved",
-              description: `Profit split ${payout.profitSplit}% · ${PAYOUT_FREQUENCIES.find((f) => f.value === payout.payoutFrequency)?.label} payout frequency.`,
+              description: `Profit split ${payout.profitSplit}% · ${PAYOUT_FREQUENCIES.find((f) => f.value === payout.payoutFrequency)?.label} payout frequency. (demo)`,
             })
           }
         >
@@ -1116,7 +1116,7 @@ function CheckoutTab({
           onClick={() =>
             toast({
               title: "Checkout test successful",
-              description: `Product ${checkout.productId} linked and reachable.`,
+              description: `Product ${checkout.productId} linked and reachable. (demo)`,
             })
           }
         >
@@ -1127,7 +1127,7 @@ function CheckoutTab({
           onClick={() =>
             toast({
               title: "Checkout config saved",
-              description: `WooCommerce product ${checkout.productId} · ${checkout.currency} ${checkout.price} + ${checkout.currency} ${checkout.activationFee} activation fee.`,
+              description: `WooCommerce product ${checkout.productId} · ${checkout.currency} ${checkout.price} + ${checkout.currency} ${checkout.activationFee} activation fee. (demo)`,
             })
           }
         >
@@ -1334,7 +1334,7 @@ function ReviewTab({
           onClick={() =>
             toast({
               title: "Challenge configuration saved",
-              description: `${draft.title || type.name} configuration has been saved.`,
+              description: `${draft.title || type.name} configuration has been saved. (demo)`,
             })
           }
         >
@@ -1346,7 +1346,7 @@ function ReviewTab({
           onClick={() =>
             toast({
               title: "Challenge published",
-              description: `${draft.title || type.name} is now available for purchase.`,
+              description: `${draft.title || type.name} is now available for purchase. (demo)`,
             })
           }
         >

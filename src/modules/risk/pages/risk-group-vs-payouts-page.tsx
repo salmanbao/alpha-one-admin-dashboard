@@ -57,6 +57,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { cn } from "@/lib/utils";
 import {
   Layers,
@@ -209,9 +210,23 @@ export function RiskGroupVsPayoutsPage() {
     : 0;
 
   const exportCsv = () => {
+    exportToCsv(
+      filtered,
+      [
+        { key: "challengeName", header: "Challenge", value: (r: GroupRow) => r.challengeName },
+        { key: "challengeType", header: "Type", value: (r) => r.challengeType },
+        { key: "accountSize", header: "Account Size", value: (r) => r.accountSize },
+        { key: "broker", header: "Broker", value: (r) => r.broker },
+        { key: "orderCount", header: "Order Count", value: (r) => r.orderCount },
+        { key: "orderRevenue", header: "Order Revenue", value: (r) => r.orderRevenue },
+        { key: "totalPayouts", header: "Total Payouts", value: (r) => r.totalPayouts },
+        { key: "profitMargin", header: "Profit Margin %", value: (r) => r.profitMargin },
+      ],
+      `risk-group-vs-payouts-${Date.now()}.csv`,
+    );
     toast({
-      title: "Export started (demo)",
-      description: `Would export ${totalGroups} challenge groups as CSV in production.`,
+      title: "Export complete",
+      description: `Exported ${filtered.length} group rows to CSV.`,
     });
   };
 

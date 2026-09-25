@@ -13,6 +13,7 @@
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +64,7 @@ interface AttentionGroup {
 }
 
 export function AttentionCenter() {
-  const { runtime, navigate } = usePlatform();
+  const { runtime, navigate, tenant } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
 
   const groups = buildAttentionGroups(tid, runtime.enabledModules);
@@ -114,14 +115,14 @@ export function AttentionCenter() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="truncate text-sm font-medium text-foreground">{item.title}</span>
+                        <span className="truncate text-sm font-medium text-foreground">{resolveTermsInString(item.title, tenant)}</span>
                         {item.count !== undefined && item.count > 1 ? (
                           <Badge variant="outline" className="text-[9px]">{item.count}</Badge>
                         ) : null}
                       </div>
-                      <p className="truncate text-xs text-muted-foreground">{item.detail}</p>
+                      <p className="truncate text-xs text-muted-foreground">{resolveTermsInString(item.detail, tenant)}</p>
                     </div>
-                    <span className="hidden text-xs font-medium text-primary sm:inline">{item.navigateLabel}</span>
+                    <span className="hidden text-xs font-medium text-primary sm:inline">{resolveTermsInString(item.navigateLabel, tenant)}</span>
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   </button>
                 );

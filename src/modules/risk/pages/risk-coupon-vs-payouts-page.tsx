@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { cn } from "@/lib/utils";
 import {
   Ticket,
@@ -188,9 +189,22 @@ export function RiskCouponVsPayoutsPage() {
     : 0;
 
   const exportCsv = () => {
+    exportToCsv(
+      filtered,
+      [
+        { key: "code", header: "Coupon Code", value: (r: CouponRow) => r.code },
+        { key: "discountPct", header: "Discount %", value: (r) => r.discountPct },
+        { key: "orders", header: "Orders", value: (r) => r.orders },
+        { key: "revenue", header: "Revenue", value: (r) => r.revenue },
+        { key: "fundedAccounts", header: "Funded Accounts", value: (r) => r.fundedAccounts },
+        { key: "totalPayouts", header: "Total Payouts", value: (r) => r.totalPayouts },
+        { key: "profitMargin", header: "Profit Margin %", value: (r) => r.profitMargin },
+      ],
+      `risk-coupon-vs-payouts-${Date.now()}.csv`,
+    );
     toast({
-      title: "Export started (demo)",
-      description: `Would export ${filtered.length} coupon rows as CSV in production.`,
+      title: "Export complete",
+      description: `Exported ${filtered.length} coupon rows to CSV.`,
     });
   };
 

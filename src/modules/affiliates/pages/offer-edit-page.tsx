@@ -352,14 +352,14 @@ export function OfferEditPage() {
   const onSave = () => {
     toast({
       title: "Offer saved",
-      description: `${title || "Untitled offer"} was saved successfully.`,
+      description: `${title || "Untitled offer"} was saved successfully. (demo)`,
     });
   };
 
   const onSaveAndAdd = () => {
     toast({
       title: "Offer saved",
-      description: `${title || "Untitled offer"} saved. Form cleared for the next offer.`,
+      description: `${title || "Untitled offer"} saved. Form cleared for the next offer. (demo)`,
     });
     resetForm();
   };
@@ -367,7 +367,7 @@ export function OfferEditPage() {
   const onSaveAndContinue = () => {
     toast({
       title: "Changes saved",
-      description: `${title || "Untitled offer"} updated. Continuing edits.`,
+      description: `${title || "Untitled offer"} updated. Continuing edits. (demo)`,
     });
   };
 
@@ -375,7 +375,7 @@ export function OfferEditPage() {
     setDeleteOpen(false);
     toast({
       title: "Offer deleted",
-      description: `${title || "Untitled offer"} was permanently deleted.`,
+      description: `${title || "Untitled offer"} was permanently deleted. (demo)`,
     });
     navigate("offer-management");
   };

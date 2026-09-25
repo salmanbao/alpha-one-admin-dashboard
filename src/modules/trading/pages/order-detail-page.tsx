@@ -391,7 +391,7 @@ export function OrderDetailPage() {
     setEditing(false);
     toast({
       title: "Order saved",
-      description: `Changes to ${working.id} were saved.`,
+      description: `Changes to ${working.id} were saved. (demo)`,
     });
   };
 
@@ -409,7 +409,7 @@ export function OrderDetailPage() {
     setDeleteOpen(false);
     toast({
       title: "Order deleted",
-      description: `${working.id} was permanently deleted.`,
+      description: `${working.id} was permanently deleted. (demo)`,
     });
     navigate("dashboard-orders");
   };

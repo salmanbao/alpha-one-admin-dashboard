@@ -138,7 +138,7 @@ export function ChallengeTypesPage() {
           <Button
             size="sm"
             onClick={() =>
-              toast({ title: "Add Challenge Type", description: "The new challenge type form would open here." })
+              toast({ title: "Add Challenge Type", description: "The new challenge type form would open here. (demo)" })
             }
           >
             <Plus className="mr-1 h-4 w-4" /> Add Challenge Type

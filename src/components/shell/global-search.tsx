@@ -23,6 +23,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import {
   getTenantTraders,
@@ -132,7 +133,7 @@ const AUDIT_ENTRIES: Array<{
 ];
 
 export function GlobalSearchDialog() {
-  const { searchOpen, setSearchOpen, runtime, navigate, setTenant } = usePlatform();
+  const { searchOpen, setSearchOpen, runtime, navigate, setTenant, tenant } = usePlatform();
   const [query, setQuery] = useState("");
   const tid = runtime.tenant?.id ?? "platform";
 
@@ -342,7 +343,7 @@ export function GlobalSearchDialog() {
   return (
     <CommandDialog open={searchOpen} onOpenChange={(o) => { setSearchOpen(o); if (!o) setQuery(""); }}>
       <CommandInput
-        placeholder="Search traders, accounts, payouts, settings, audit…"
+        placeholder={resolveTermsInString("Search traders, accounts, payouts, settings, audit…", tenant)}
         value={query}
         onValueChange={setQuery}
       />
@@ -351,7 +352,7 @@ export function GlobalSearchDialog() {
           {query.trim() ? `No results for "${query}"` : "Start typing to search across all entities, settings, and audit…"}
         </CommandEmpty>
         {grouped.map(([group, items]) => (
-          <CommandGroup key={group} heading={`${group} (${items.length})`}>
+          <CommandGroup key={group} heading={`${resolveTermsInString(group, tenant)} (${items.length})`}>
             {items.map((hit) => {
               const Icon = hit.icon;
               return (

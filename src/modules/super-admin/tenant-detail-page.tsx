@@ -19,6 +19,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import {
   getTenantTraders,
   getTenantAccounts,
@@ -142,6 +143,7 @@ export function TenantDetailPage() {
   // Local working copy so module toggles / config edits are reflected
   // immediately in this surface and also pushed to global context.
   const [localTenant, setLocalTenant] = useState<TenantContext | null>(foundTenant ?? null);
+  const term = makeTermResolver(localTenant ?? undefined);
 
   // KPI data — pulled from mock domain functions
   const tenantTraders = useMemo(
@@ -389,7 +391,7 @@ export function TenantDetailPage() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <MetricCard label="Traders" value={tenantTraders.length} icon={Users} />
+        <MetricCard label={plural(term("trader"))} value={tenantTraders.length} icon={Users} />
         <MetricCard label="Active Accounts" value={activeAccounts.length} icon={Package} tone="positive" />
         <MetricCard
           label="MRR"
@@ -404,7 +406,7 @@ export function TenantDetailPage() {
           tone={openBreaches.length > 0 ? "negative" : "default"}
         />
         <MetricCard
-          label="Pending Payouts"
+          label={`Pending ${plural(term("payout"))}`}
           value={pendingPayouts.length}
           icon={Clock}
           tone={pendingPayouts.length > 0 ? "warning" : "default"}
@@ -679,7 +681,7 @@ function UsersTab({ tenantId }: { tenantId: string }) {
             size="sm"
             variant="ghost"
             className="h-7 gap-1 text-xs"
-            onClick={() => toast({ title: "Edit role", description: `Opening role editor for ${u.name}.` })}
+            onClick={() => toast({ title: "Edit role", description: `Opening role editor for ${u.name}. (demo)` })}
           >
             <Pencil className="h-3 w-3" /> Edit role
           </Button>
@@ -687,7 +689,7 @@ function UsersTab({ tenantId }: { tenantId: string }) {
             size="sm"
             variant="ghost"
             className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
-            onClick={() => toast({ title: "User removed", description: `${u.name} removed from tenant.` })}
+            onClick={() => toast({ title: "User removed", description: `${u.name} removed from tenant. (demo)` })}
           >
             <Trash2 className="h-3 w-3" /> Remove
           </Button>
@@ -702,7 +704,7 @@ function UsersTab({ tenantId }: { tenantId: string }) {
         <p className="text-sm font-medium">{tenantUsers.length} users in this tenant</p>
         <Button
           size="sm"
-          onClick={() => toast({ title: "Invite user", description: "Invitation form would open here." })}
+          onClick={() => toast({ title: "Invite user", description: "Invitation form would open here. (demo)" })}
         >
           <UserPlus className="mr-1 h-4 w-4" /> Invite user
         </Button>
@@ -848,7 +850,7 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
             size="sm"
             variant="outline"
             className="gap-1"
-            onClick={() => toast({ title: "Invoice generated", description: `Invoice for ${tenant.name} downloaded.` })}
+            onClick={() => toast({ title: "Invoice generated", description: `Invoice for ${tenant.name} downloaded. (demo)` })}
           >
             <FileText className="h-3.5 w-3.5" /> Generate invoice
           </Button>
@@ -1173,7 +1175,7 @@ function RiskTab({
             size="sm"
             variant="outline"
             className="w-full justify-start gap-1.5"
-            onClick={() => toast({ title: "Opening risk workspace", description: `Navigating to ${tenant.name}'s risk workspace.` })}
+            onClick={() => toast({ title: "Opening risk workspace", description: `Navigating to ${tenant.name}'s risk workspace. (demo)` })}
           >
             <ShieldAlert className="h-3.5 w-3.5" />Open risk workspace
           </Button>
@@ -1181,7 +1183,7 @@ function RiskTab({
             size="sm"
             variant="outline"
             className="w-full justify-start gap-1.5"
-            onClick={() => toast({ title: "Opening breaches", description: `Showing ${open.length} open breaches.` })}
+            onClick={() => toast({ title: "Opening breaches", description: `Showing ${open.length} open breaches. (demo)` })}
           >
             <AlertTriangle className="h-3.5 w-3.5" />View open breaches
           </Button>
@@ -1189,7 +1191,7 @@ function RiskTab({
             size="sm"
             variant="outline"
             className="w-full justify-start gap-1.5"
-            onClick={() => toast({ title: "Export queued", description: "Risk report will be downloaded." })}
+            onClick={() => toast({ title: "Export queued", description: "Risk report will be downloaded. (demo)" })}
           >
             <FileText className="h-3.5 w-3.5" />Export risk report
           </Button>

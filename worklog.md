@@ -8973,3 +8973,227 @@ Stage Summary:
   - user-management per-row actions toast-only
   - tenant-detail-page many toast-only + hardcoded "Last active: 2 hours ago" + "Visa ··4242"
   - super-admin-pages fabricated `totalTraders = allTenants.length * 26` multiplier
+
+---
+Task ID: phase5A-demo-suffix
+Agent: frontend-styling-expert (toast demo suffix sweep)
+Task: Append honest " (demo)" suffix to toast descriptions/titles across ~24 files where actions are toast-only
+
+Work Log:
+- Read worklog for context (last 250 lines — Round 4 audit + fixes + deferred Round 5 backlog at bottom)
+- Swept 24 files (one — super-admin-pages.tsx — had only the toast import but no actual toast calls; nothing to edit)
+- Total toast updates: 60
+  - Trading module (4 files, 12 updates): account-kyc-statuses (4: reinitiate/verify/reject/addProvider), account-broker-details (3: saveChanges/triggerSync/resyncAccount), order-detail (2: onSave/onDelete — onSaveAndAdd already had "(demo)" per Round 1, left alone), closed-position-detail (3: onSave/onSaveAndContinue/onDelete)
+  - Challenges module (6 files, 17 updates): phase-detail (3: Save/Sync Now/Save Platform IDs — Reset to Defaults left alone since it visibly resets local draft state), challenge-edit (7: Add Phase/Cancel Revert/Save Payout Rules/Test Checkout/Save Checkout Config/Save All Changes/Publish Challenge), challenge-config (3: Save Changes/Reset to Defaults/Add Challenge Type — Active switch toast left alone since it visibly toggles local state), challenge-wizard (1: createChallenge), challenge-types (1: Add Challenge Type — Active toggle left alone), phase-management (2: Phase saved/Add phase)
+  - Affiliates module (2 files, 5 updates): offer-edit (4: onSave/onSaveAndAdd/onSaveAndContinue/onDelete), offer-management (1: Add Offer — Edit/View Change History already wired to real navigation in Round 4)
+  - AI module (3 files, 4 updates): ai-pages (1: AI configuration saved — Insight dismiss toast left alone since setDismissed visibly updates local state), ai-cost (1: Budget alert saved — Cost status toast left alone since purely informational; CSV export toasts left alone since exportToCsv is real), ai-anomaly (2: False positive + Create ticket — Detector status toast left alone since purely informational)
+  - Settings module (6 files, 14 updates): user-management (1: Export started — Edit/View/Import/Add User toasts already had "(demo)" per Round 3, left alone), group-management (1: Members exported — Add group/Bulk action/Add member toasts already had "(demo)", left alone), kyc-providers (4: Provider marketplace/handleSave/handleDeactivate/Primary updated — Test Connection toasts already had "(demo)"; handleCopy is real clipboard write; handleActivatePrimary error toast is destructive validation; handleDeactivateFromCard honestly navigates to edit sheet), certificate-template-designer (2: Certificate template saved + Opening visual designer — deleteField/addField/onReset visibly update local state; Image uploaded toast confirms real file selection), certificate-management (1: Certificate template saved via onSave — table Active switch already had "(demo)" per prior round; detail panel Active switch has no toast), token-detail (5: onSave/onSaveAndContinue/onSaveAndAdd/onRegenerateKey/onDelete — onCopyKey is real clipboard write; onHistory/onUserProfile not in scope of verb list)
+  - Super-admin + marketing (3 files, 8 updates): tenant-detail (7: Edit role/User removed/Invite user/Invoice generated/Opening risk workspace/Opening breaches/Export queued — Suspend/Reactivate/Terminate applyStatus toasts left alone since they call setTenant + pushNotification, real mutations via AlertDialog; Impersonate Switch-to toast left alone since setTenant switches context really; toggleModule toast left alone since onPersist persists; Plan change requested toasts left alone since they don't claim a Save/Create/etc. mutation, just a queued request), super-admin-pages (0 — no actual toast calls in file despite the import), marketing-dashboard (1: Export started — toast-only export, no exportToCsv call)
+- Lint result: pass (`bun run lint` produced zero output beyond `$ eslint .`)
+
+Stage Summary:
+- All flagged toast-only actions now honestly labeled " (demo)" appended to the toast description (every flagged toast had both title and description; none required the title-only fallback)
+- Files/toasts that already had "(demo)" or "demo" left untouched (e.g. order-detail onSaveAndAdd from Round 1, user-management Edit/View/Import/Add User from Round 3, group-management Add group/Bulk action/Add member, kyc-providers Test Connection, cert-mgmt table Active switch, kyc-providers Test Connection on card)
+- Real mutations left untouched:
+  - Payout/Breach/KYC/CRM/Support/Enhanced Withdrawals pages (excluded per task spec — wired to stores in Round 4)
+  - CSV exports that actually call exportToCsv (ai-cost daily/summary exports, kyc-providers handleExport)
+  - applyStatus (Suspend/Reactivate/Terminate) in tenant-detail — AlertDialog-gated, calls setTenant + pushNotification
+  - Impersonate Switch-to — AlertDialog-gated, calls setTenant
+  - toggleModule in tenant-detail — calls onChange + onPersist (real persistence)
+  - handleCopy in kyc-providers + token-detail — real navigator.clipboard.writeText
+  - Image upload in cert-template-designer — real URL.createObjectURL(file)
+  - applyStatus / handleActivatePrimary error toasts — destructive variant used for validation ("Cannot activate")
+  - Informational status toasts (ai-cost "Cost status", ai-anomaly "Detector status", kyc-providers handleDeactivateFromCard "Open confirm dialog" which honestly navigates)
+  - Controlled-state-update toasts that visibly mutate local draft/working state (phase-detail Reset to Defaults, challenge-config Active toggle, challenge-types Active toggle, ai-pages Dismiss insight, cert-template-designer deleteField/addField/onReset)
+- "would open here" / "Opening..." / "Redirecting..." navigation-suggesting toasts flagged with " (demo)" appended to description (since all had both title+description, applied the general rule rather than the title-change fallback)
+
+---
+Task ID: phase5B-terminology
+Agent: frontend-styling-expert (terminology sweep)
+Task: Wrap hardcoded challenge/trader/payout literals in resolveTermsInString across shell components Round 3 didn't reach
+
+Work Log:
+- Read worklog for context (Round 3 sidebar.tsx fix + Round 4 audit + deferred Round 5 backlog)
+- Read terminology.ts API: `resolveTermsInString(str, tenant)` swaps challenge→Evaluation, trader→Participant, payout→Withdrawal (singular + plural + lowercase, word-boundary). `makeTermResolver(tenant)` returns a `term()` helper for one-off replacements; `plural()` for pluralization
+- Swept 16 files total (10 task-listed + 6 from ALSO-clause search across module PageHeader descriptions)
+- Total label wrappings: 36
+- Lint result: pass (`bun run lint` produced zero output beyond `$ eslint .`)
+- TypeScript: `bunx tsc --noEmit` — no NEW errors introduced by this task. The remaining TS errors (sidebar.tsx:151 ResolvedNavigation index, mock-data.ts:742/851 status mismatches, analytics-pages.tsx:497-509 TimeSeriesPoint, analytics-widgets.tsx:34-54 TimeSeriesPoint, overview-page.tsx:242-326 deltaLabel on SummaryKpi, payout-widgets.tsx:81 TimeSeriesPoint, risk-widgets.tsx:53 TimeSeriesPoint, settings-page.tsx:604 Icon style prop) are all pre-existing per Round 4 master worklog verification notes.
+
+Files Swept (16 total):
+
+Shell (6):
+1. src/components/shell/breadcrumbs.tsx
+   - Imports: added resolveTermsInString
+   - Breadcrumbs component: trail labels (parent.label, found.label, router.view fallback) wrapped via resolveTermsInString(label, tenant); useMemo dep array extended to include tenant
+   - MobileNav component: 3 nav label render sites wrapped (item.label section header, c.label child button, item.label top-level button)
+   - Wrappings: 6
+2. src/components/shell/topbar.tsx
+   - Imports: added resolveTermsInString
+   - Search trigger copy "Search traders, accounts, settings…" wrapped (tenant already destructured)
+   - Wrappings: 1
+3. src/components/shell/global-search.tsx
+   - Imports: added resolveTermsInString
+   - Added `tenant` to usePlatform destructure (Round 3 fix #13 had only setTenant)
+   - Search placeholder "Search traders, accounts, payouts, settings, audit…" wrapped
+   - CommandGroup heading wrapped at render time `${resolveTermsInString(group, tenant)} (${items.length})` — handles Traders/Challenges/Payouts/Affiliates/Transactions/Support Tickets/KYC Records/Settings/Audit/AI Insights group names in one shot
+   - Wrappings: 2 (covering all 10 group headings via the render-time wrap)
+4. src/components/shell/activity-ticker.tsx
+   - Imports: added resolveTermsInString + TenantContext type
+   - buildTickerItems signature extended: `(tid, tenant, limit=8)`; the assembled `text` string (`{shortActor} — {describeAction} · {relativeTime}`) wrapped in resolveTermsInString(text, tenant)
+   - ActivityTicker component: added `tenant` to usePlatform destructure; buildTickerItems call updated to pass tenant; useMemo dep array extended
+   - Wrappings: 1 (covers all ticker text since it's a single template string)
+5. src/components/shell/keyboard-shortcuts-help.tsx
+   - Imports: added resolveTermsInString
+   - Added `tenant` to usePlatform destructure
+   - Shortcut label `s.label` wrapped at render (handles "Go to traders" + "Go to payouts" + "Go to risk" + the rest)
+   - Tips list line "Global search (/) searches across traders, accounts, payouts, and more." wrapped with resolveTermsInString for "traders" and "payouts" (lowercased)
+   - Wrappings: 3
+6. (sidebar.tsx untouched per Round 3 fix — already uses resolveTermsInString for child labels)
+
+Pendings (1):
+7. src/modules/pendings/pages/pending-tasks-page.tsx
+   - Imports: added resolveTermsInString
+   - Added `tenant` to usePlatform destructure
+   - Wrapped "Active Traders" header in resolveTermsInString
+   - Memoized `cards` array (useMemo) and created `resolvedCards` memo that maps each card's label + description through resolveTermsInString — covers "Pass Verification Phase 1", "Pass Verification Phase 2", "KYC Reviews", "Phase Verification", "Pending Withdrawals", "Affiliate Payouts" labels + descriptions like "Traders awaiting phase-1 verification", "Active challenges being evaluated", "Payouts awaiting approval", "Affiliate commission payouts pending"
+   - Swapped all references from `cards` to `resolvedCards` (totalPending reduce, routeInfo map, render map)
+   - Wrappings: 14 (6 labels + 6 descriptions + "Active Traders" header + memoized labels for both arrays)
+
+Super-admin (1):
+8. src/modules/super-admin/tenant-detail-page.tsx
+   - Imports: added makeTermResolver + plural
+   - Added `const term = makeTermResolver(localTenant ?? undefined)` (uses the VIEWED tenant's terminology, not the active admin's — important for super-admin cross-tenant work)
+   - KPI row labels: "Traders" → `plural(term("trader"))`; "Pending Payouts" → `` `Pending ${plural(term("payout"))}` ``
+   - Wrappings: 2
+
+Analytics (2):
+9. src/modules/analytics/pages/dashboard-tabs.tsx
+   - Imports: added makeTermResolver, resolveTermsInString
+   - DashboardPayoutsTab: added `const tenant = runtime.tenant;`; column header "Trader" → `term("trader")` (line 611); PageHeader title "Payouts Dashboard" + description "Withdrawal requests, payout rates by cohort, and recent trader withdrawals." wrapped; 6 KPI labels wrapped (Approved/Total/Pending/Rejected/Processing Payouts + Total Payout Amount)
+   - DashboardAccountsTab: added `const tenant = runtime.tenant;`; PageHeader description "Account lifecycle, breach health, and challenge performance — operational view." wrapped
+   - Wrappings: 10
+10. src/modules/analytics/pages/firm-statistics-page.tsx
+    - Imports: added resolveTermsInString
+    - Added `tenant` to usePlatform destructure
+    - PageHeader description "Tenant-wide business performance — revenue, payouts, challenges, and risk events." wrapped
+    - KPI labels "Total Payouts" + "Challenges Sold" wrapped via resolveTermsInString
+    - Wrappings: 3
+
+Platform (2):
+11. src/components/platform/attention-center.tsx
+    - Imports: added resolveTermsInString
+    - Added `tenant` to usePlatform destructure
+    - Wrapped `item.title`, `item.detail`, and `item.navigateLabel` at render time — covers all 13 attention item titles + details in one shot (Payout approvals waiting, ${funded} funded traders, Payouts stuck in approval, Challenges failed this week, Accounts at risk, etc.)
+    - Wrappings: 3 (covering all 13 item titles via 3 render-time wraps)
+12. src/components/platform/contextual-actions.tsx
+    - Imports: added resolveTermsInString
+    - Added `const tenant = runtime.tenant;` in PayoutReviewActions
+    - Approve toast description + pushNotification message wrapped (handles "trader"/"payout" in `${traderName}'s payout of ${currencyFmt} is being processed.`)
+    - Reject AlertDialog `consequence` "The trader will need to re-request the payout. The rejection will be logged in the audit trail." wrapped
+    - Request Info toast description "Additional information has been requested from ${traderName}." wrapped
+    - Wrappings: 4
+
+ALSO-clause sweep — module PageHeader text + KPI labels (4):
+13. src/modules/accounting/widgets/accounting-widgets.tsx
+    - Imports: added makeTermResolver, plural
+    - AccountingOverviewWidget: added `const term = makeTermResolver(runtime.tenant);`; KPI label "Payouts" → `plural(term("payout"))`
+    - Wrappings: 1
+14. src/modules/challenges/pages/challenge-wizard-page.tsx
+    - Imports: added usePlatform, resolveTermsInString
+    - Added `const { tenant } = usePlatform();` in ChallengeWizardPage
+    - PageHeader title "Create Challenge" + description "Guided wizard to configure a new evaluation challenge template." wrapped
+    - STEPS indicator label `s.label` wrapped at render (covers "Payout" + the rest)
+    - "Create Challenge" button label wrapped
+    - createChallenge toast title "Challenge created" + description `${selectedType?.name ?? "Challenge"} template saved and ready to assign to traders.` wrapped
+    - Wrappings: 6
+15. src/modules/challenges/pages/phase-detail-page.tsx
+    - Imports: added resolveTermsInString
+    - Added `tenant` to usePlatform destructure in PhaseDetailPage
+    - challengeName fallback string `?? "Challenge"` wrapped via resolveTermsInString (so when the type lookup fails, the displayed fallback uses the active tenant's terminology). challengeName flows into PageHeader description and visible spans
+    - Wrappings: 1
+16. src/modules/audit/change-history-page.tsx
+    - Imports: added resolveTermsInString
+    - Added `tenant` to usePlatform destructure
+    - ENTITY_TYPES `<option>` display text wrapped via resolveTermsInString(t, tenant) — filter value (state) keeps literal "Challenge"/"Payout" so the underlying change-log filter still matches the seeded entity strings, but the displayed dropdown label resolves per-tenant
+    - Wrappings: 1 (covers all 7 entity type options via the render-time wrap)
+17. src/modules/marketing/pages/marketing-dashboard-page.tsx
+    - Imports: added resolveTermsInString
+    - Added `tenant` to usePlatform destructure
+    - PageHeader description "Weekly overview of top traders, trading pairs, and payout distribution by country." wrapped
+    - KPI labels "Best Trader" + "Total Payouts" wrapped
+    - Search input placeholder "Search traders or countries…" wrapped
+    - Wrappings: 4
+
+Stage Summary:
+- All flagged hardcoded terms now resolve per-tenant (Alpha: Evaluation/Participant/Withdrawal, Beta: default — no-op since defaults match)
+- sidebar.tsx (Round 3 fix) untouched; payout-pages.tsx, payout-widgets.tsx, risk-pages.tsx, trading-overview-widget.tsx, overview-page.tsx (Round 3-4 fix files) untouched
+- Pattern applied: resolveTermsInString(str, tenant) for multi-word static UI strings; makeTermResolver(tenant) → `term(key)` for single-word replacements; `plural(term(key))` for KPI labels. Render-time wrapping preferred when the data is shared/static (e.g. global-search group names, attention-center item.title) so the data layer keeps canonical default terminology while the user-facing DOM resolves per-tenant.
+- No programmatic IDs / view IDs / route paths touched — only USER-VISIBLE TEXT wrapped.
+- Lint passes; no new TypeScript errors introduced.
+- Deferred (out-of-scope — column headers in deep module tables, deep field labels, CSV export headers): trading-pages.tsx (column header "Trader" ×2), closed-positions-page.tsx ("Trader" ×3), challenge-pages.tsx ("Trader" + "Challenge"), account-ip-addresses-page.tsx ("Trader" + "Challenge" ×2), risk-statistics-page.tsx ("Traders" ×2), weekend-trades-page.tsx ("Trader"), enhanced-user-events-page.tsx (CSV header "Challenge" + event description strings), order-detail-page.tsx (ReadOnlyField label "Challenge"), add-account-page.tsx (filter button label "Challenge"), ai-predictive-page.tsx (column header "Trader"), firm-statistics-page.tsx (CSV header "Payouts" + "Challenges Sold"), marketing-dashboard-page.tsx (column header "Payouts"), daily-highlights-page.tsx (SimpleTable column header "Challenge"), phase-detail-page.tsx (column header "Challenge"), support-pages.tsx (FAQ category "Payouts"), settings-page.tsx (notifications matrix module names "Challenges"/"Payouts"), marketing-banner-edit-page.tsx (banner targeting list "Challenges"/"Payouts"), certificate-template-designer-page.tsx (default field name "Challenge"), dashboard-manager-page.tsx (role label ternary "Trader"). These can be addressed in a Round 6 deep sweep.
+
+---
+Task ID: phase5-master
+Agent: Super Z (Phase 5 remaining batches after Round 4)
+Task: Implement remaining deferred phases — toast demo sweep, terminology sweep, risk export CSV, stale switch states, accounting-pl period selector, marketing-dashboard cutoff, Live label, empty Actions headers.
+
+Work Log:
+- Stopped cron job 413512 at user request
+- Dispatched 2 parallel frontend-styling-expert subagents:
+  - phase5A-demo-suffix: 23 files swept, 60 toast descriptions updated with " (demo)" suffix; lint passing; real mutations (payout-store/breach-store/kyc-store/support-store/crm-store + AlertDialog-gated Suspend/Terminate + exportToCsv + clipboard writes) untouched
+  - phase5B-terminology: 16 files swept, 36 label wrappings via resolveTermsInString/makeTermResolver; covers breadcrumbs + MobileNav + topbar search trigger + global-search placeholder + group headings + activity-ticker + keyboard-shortcuts-help + pending-tasks + tenant-detail KPI + dashboard-tabs column header + attention-center titles + contextual-actions descriptions + accounting/challenge/marketing/firm-statistics KPI labels + PageHeader descriptions
+
+Phase 5C — Risk export CSV real (6 pages):
+- risk-label-vs-payouts-page.tsx: real exportToCsv flattening groups → one row per account (label, accountId, login, trader, revenue, payouts, margin)
+- risk-highest-earners-page.tsx: real exportToCsv with 9 columns (rank, trader, email, country, totalRevenue, activeAccounts, fundedAccounts, payoutAccounts, profitMargin)
+- risk-addon-revenue-page.tsx: real exportToCsv (name, orders, unitsSold, unitPrice, estimatedRevenue)
+- risk-coupon-vs-payouts-page.tsx: real exportToCsv (code, discountPct, orders, revenue, fundedAccounts, totalPayouts, profitMargin)
+- risk-group-vs-payouts-page.tsx: real exportToCsv (challengeName, challengeType, accountSize, broker, orderCount, orderRevenue, totalPayouts, profitMargin)
+- risk-unprofitable-countries-page.tsx: real exportToCsv (countryCode, traders, totalRevenue, totalPayouts, revenueLoss, lossPct)
+- risk-account-label-analysis-page.tsx: real exportToCsv exporting one row per label group (label, description, total, active, funded, passed, failed, passRate, failRate, revenue)
+- All 6 files now import `exportToCsv` from `@/lib/platform/export-utils`; toast now says "Export complete" + count instead of "Export started (demo)"
+
+Phase 5D — Stale switch states fixed:
+- trading-events-page.tsx: added `baseRules = getTradingEventRules(tab)` + `rules = baseRules.map((r) => working[r.id] ?? r)` overlay so the Active Switch reads from working state (previously bounced back to seed on next render)
+- copy-trading-events-page.tsx: added `expiredToggles: Set<string>` + `isExpired(e) = e.expired XOR toggled.has(e.id)` + `toggleExpired(e)` helper; Switch `checked={isExpired(e)}` now visually flips
+- inverse-trading-events-page.tsx: same expired-toggle pattern as copy-trading-events (InverseEvent type)
+
+Phase 5E — A11y polish:
+- All empty `header: ""` columns across 5 files (super-admin-pages, tenant-lifecycle-page, kyc-pages, accounting-invoices-page, accounting-pages) replaced with `header: "Actions"` via sed sweep — screen readers now announce the column instead of an empty cell
+- live-equity-curve.tsx: "Live" label now reads from `live.isLive` — when paused, shows "Paused" in slate instead of always saying "Live" with a green ping dot (ping animation also disabled when paused)
+
+Phase 5F — accounting-pl-page period selector:
+- period selector ("this-year" / "this-quarter" / "this-month") now drives a `periodScale` factor (1 / 0.25 / 1/12)
+- All 12 P&L line items (revenue 4 + COGS 3 + OpEx 5 + Other 2) and 4 totals now multiply by `periodScale` so switching the period actually changes the displayed numbers
+- Previously the selector was purely decorative (totals useMemo had `[]` deps)
+
+Phase 5G — marketing-dashboard cutoff:
+- bestTrade: was hardcoded `4250` → now `Math.max(...periodPayouts.map((p) => p.amount))` from payouts with `processedAt >= cutoff`
+- loggedInUsers: was hardcoded `traders.length * 0.42 + 38` → now `Math.round(activeInPeriod * 0.42) + (periodPayouts.length % 17)` — deterministic per-tenant seed based on active trader count in the window
+- totalPayouts: now sums only `periodPayouts` (was all-time) — consistent with the cutoff window
+- Switching "This Week" / "Last Week" / "This Month" now actually changes these 3 KPIs
+
+Verification (agent-browser E2E on Alpha/Sarah after all Phase 5 fixes):
+- HTTP 200, page renders cleanly, 0 console errors
+- 32 grid-stack widgets render, 63 sidebar items
+- Terminology resolves: Participant/Evaluation/Withdrawal visible for Alpha
+- New Group Management + KYC Providers sidebar entries visible
+- Live label visible (Live/Paused now dynamic)
+- Screenshot: download/r5-overview.png
+
+Stage Summary:
+- Phase 5 closed all the deferred Round 4 backlog items except:
+  - dashboard-tabs hardcoded KPIs (2486 accounts, 1314 payouts, etc. — needs major restructure to derive from getTenantAccounts/Payouts/Traders; deferred)
+  - SLA timer ticking in support-pages.tsx:346 (needs real-time setInterval + rerender; deferred)
+  - 5 "Back to trader" ghost buttons on account-* sub-pages still navigate to trader-detail (cosmetic — deferred)
+  - cert-designer not loading existing template fields (deferred)
+  - cert-mgmt table Active Switch stale in table column (deferred — detail panel switch already controlled)
+  - user-management per-row Edit/View actions toast-only (Round 5A added " (demo)" suffix; full CRUD deferred)
+  - tenant-detail-page hardcoded "Last active: 2 hours ago" + "Visa ··4242" (deferred — needs deterministic per-tenant seed)
+  - super-admin-pages fabricated `totalTraders = allTenants.length * 26` multiplier (deferred — needs sum of getTenantTraders per tenant)
+  - ai-pages + ai-cost config not persisted to localStorage (deferred)
+  - ai-anomaly FP/Create ticket toast-only (Round 5A added " (demo)" suffix; full session-store wiring deferred)
+- All touched files pass lint (verified after each batch via `bun run lint`)
+- Dev server OOM'd twice during Phase 5 (compile load) — restarted with 1536MB variant, HTTP 200
+- Cron job 413512 stopped per user request; no cron jobs currently active

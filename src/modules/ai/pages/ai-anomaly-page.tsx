@@ -642,7 +642,7 @@ export function AiAnomalyPage() {
                         e.stopPropagation();
                         toast({
                           title: "Marked as false positive",
-                          description: `${r.typeLabel} on ${r.traderName} (${r.accountLogin})`,
+                          description: `${r.typeLabel} on ${r.traderName} (${r.accountLogin}) (demo)`,
                         });
                       }}
                     >
@@ -656,7 +656,7 @@ export function AiAnomalyPage() {
                         e.stopPropagation();
                         toast({
                           title: "Support ticket created",
-                          description: `Ticket T-${hashStr(r.id) % 9000 + 1000} for ${r.typeLabel} on ${r.traderName}`,
+                          description: `Ticket T-${hashStr(r.id) % 9000 + 1000} for ${r.typeLabel} on ${r.traderName} (demo)`,
                         });
                       }}
                     >

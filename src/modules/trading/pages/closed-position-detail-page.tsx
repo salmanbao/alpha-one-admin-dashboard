@@ -364,14 +364,14 @@ export function ClosedPositionDetailPage() {
     setEditing(false);
     toast({
       title: "Position updated",
-      description: `Changes to ${working.id} were saved.`,
+      description: `Changes to ${working.id} were saved. (demo)`,
     });
   };
 
   const onSaveAndContinue = () => {
     toast({
       title: "Changes saved",
-      description: `Position ${working.id} updated. Continuing edits.`,
+      description: `Position ${working.id} updated. Continuing edits. (demo)`,
     });
   };
 
@@ -379,7 +379,7 @@ export function ClosedPositionDetailPage() {
     setDeleteOpen(false);
     toast({
       title: "Closed position deleted",
-      description: `${working.id} was permanently deleted along with its P&L and audit trail.`,
+      description: `${working.id} was permanently deleted along with its P&L and audit trail. (demo)`,
     });
     navigate("closed-positions");
   };

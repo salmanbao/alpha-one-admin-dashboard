@@ -112,7 +112,12 @@ export function TradingEventsPage() {
   const [working, setWorking] = useState<Record<string, TradingEventRule>>({});
 
   const allRules = getTradingEventRules();
-  const rules = getTradingEventRules(tab);
+  const baseRules = getTradingEventRules(tab);
+  // Overlay working state onto the seed rules so the table Switch
+  // visually reflects toggles. Previously the Switch read `checked={r.active}`
+  // from the static seed — toggling updated `working` state but the
+  // Switch visually bounced back to the seed value on next render.
+  const rules: TradingEventRule[] = baseRules.map((r) => working[r.id] ?? r);
   const activeRule = selected
     ? working[selected.id] ??
       allRules.find((r) => r.id === selected.id) ??

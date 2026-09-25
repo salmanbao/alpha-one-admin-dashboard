@@ -20,6 +20,7 @@
 
 import { useMemo } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, resolveTermsInString } from "@/lib/platform/terminology";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { AreaSeries, BarSeries } from "@/components/platform/charts";
@@ -362,6 +363,7 @@ const RETENTION_COHORT: RetentionCohortRow[] = [
 export function DashboardAccountsTab({ params }: { params: Record<string, string> }) {
   const { runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
+  const tenant = runtime.tenant;
   const currency = runtime.tenant?.currency ?? "USD";
 
   void tid; // tenant scoping hook — mock data is static for the demo
@@ -376,7 +378,7 @@ export function DashboardAccountsTab({ params }: { params: Record<string, string
     <Page>
       <PageHeader
         title="Accounts Dashboard"
-        description="Account lifecycle, breach health, and challenge performance — operational view."
+        description={resolveTermsInString("Account lifecycle, breach health, and challenge performance — operational view.", tenant)}
         icon={Users}
       />
       <PageContent>
@@ -574,6 +576,8 @@ export function DashboardPayoutsTab({ params }: { params: Record<string, string>
   const { runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
+  const tenant = runtime.tenant;
+  const term = makeTermResolver(tenant);
 
   void tid;
   void params;
@@ -606,7 +610,7 @@ export function DashboardPayoutsTab({ params }: { params: Record<string, string>
     },
     {
       key: "trader",
-      header: "Trader",
+      header: term("trader"),
       cell: (r) => <span className="font-medium text-foreground">{r.trader}</span>,
       sortValue: (r) => r.trader,
     },
@@ -641,19 +645,19 @@ export function DashboardPayoutsTab({ params }: { params: Record<string, string>
   return (
     <Page>
       <PageHeader
-        title="Payouts Dashboard"
-        description="Withdrawal requests, payout rates by cohort, and recent trader withdrawals."
+        title={resolveTermsInString("Payouts Dashboard", tenant)}
+        description={resolveTermsInString("Withdrawal requests, payout rates by cohort, and recent trader withdrawals.", tenant)}
         icon={Wallet}
       />
       <PageContent>
         {/* KPI strip — 6 cards */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <MetricCard label="Approved Payouts" value={312} delta={6} deltaLabel="vs last 30d" icon={CheckCircle2} tone="positive" />
-          <MetricCard label="Total Payout Amount" value={fmt(totalPayoutAmount)} delta={9} deltaLabel="vs last 30d" icon={DollarSign} tone="positive" />
+          <MetricCard label={resolveTermsInString("Approved Payouts", tenant)} value={312} delta={6} deltaLabel="vs last 30d" icon={CheckCircle2} tone="positive" />
+          <MetricCard label={resolveTermsInString("Total Payout Amount", tenant)} value={fmt(totalPayoutAmount)} delta={9} deltaLabel="vs last 30d" icon={DollarSign} tone="positive" />
           <MetricCard label="Avg Profit Split" value="78%" delta={2} deltaLabel="pts" icon={Percent} tone="positive" />
-          <MetricCard label="Pending Payouts" value={24} delta={-1} deltaLabel="vs last 30d" icon={Clock} tone="warning" />
-          <MetricCard label="Rejected Payouts" value={7} delta={-2} deltaLabel="vs last 30d" icon={XCircle} tone="negative" />
-          <MetricCard label="Processing Payouts" value={14} delta={1} deltaLabel="vs last 30d" icon={Activity} tone="positive" />
+          <MetricCard label={resolveTermsInString("Pending Payouts", tenant)} value={24} delta={-1} deltaLabel="vs last 30d" icon={Clock} tone="warning" />
+          <MetricCard label={resolveTermsInString("Rejected Payouts", tenant)} value={7} delta={-2} deltaLabel="vs last 30d" icon={XCircle} tone="negative" />
+          <MetricCard label={resolveTermsInString("Processing Payouts", tenant)} value={14} delta={1} deltaLabel="vs last 30d" icon={Activity} tone="positive" />
         </div>
 
         {/* Daily payout movement */}

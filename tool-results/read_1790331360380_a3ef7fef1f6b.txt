@@ -1,0 +1,277 @@
+  8700→  8. Wire Copy Trading Analysis dateRange into analyze() filter
+  8701→  9. Wire AI Configure + AI Cost budget save into a persisted store (mirror notificationPrefs pattern)
+  8702→  10. Polish: trading-events & copy/inverse-events select column header ("" → "Select"), support New Ticket button demo copy, AI seedChat terminology (trader → term("trader")), TERRA.sky replacement across 3 AI pages
+  8703→
+  8704→---
+  8705→Task ID: audit-round4-B
+  8706→Agent: Explore (Module B — Trading)
+  8707→Task: Round 4 UI/UX audit of all trading pages and widgets
+  8708→
+  8709→Work Log:
+  8710→- Read worklog to understand prior 3 rounds (esp. `audit-propadmin-dashboard` Round 2 + `ux-audit-prop-admin-round3` Round 3 + their "Known-issue backlog")
+  8711→- Audited files:
+  8712→  - src/modules/trading/manifest.ts
+  8713→  - src/modules/trading/index.ts
+  8714→  - src/modules/trading/widgets/trading-overview-widget.tsx
+  8715→  - src/modules/trading/pages/trading-pages.tsx
+  8716→  - src/modules/trading/pages/enhanced-trader-detail-page.tsx
+  8717→  - src/modules/trading/pages/account-version-history-page.tsx
+  8718→  - src/modules/trading/pages/account-events-page.tsx
+  8719→  - src/modules/trading/pages/account-related-accounts-page.tsx
+  8720→  - src/modules/trading/pages/closed-position-detail-page.tsx
+  8721→  - src/modules/trading/pages/closed-positions-page.tsx
+  8722→  - src/modules/trading/pages/account-broker-details-page.tsx
+  8723→  - src/modules/trading/pages/account-workspace-page.tsx
+  8724→  - src/modules/trading/pages/order-detail-page.tsx
+  8725→  - src/modules/trading/pages/add-account-page.tsx
+  8726→  - src/modules/trading/pages/account-configuration-page.tsx
+  8727→  - src/modules/trading/pages/account-kyc-statuses-page.tsx
+  8728→- Found 2 P0 / 14 P1 / 12 P2 issues
+  8729→
+  8730→Stage Summary:
+  8731→- Key findings:
+  8732→  - P0: closed-position-detail commission math is STILL broken (missing `mult` factor — Round 2 deferred item "JPY second decomposition"); same broken formula on closed-positions list page (line 152). FX commission renders as $0.02 instead of ~$15-20.
+  8733→  - P0: closed-position-detail picks symbol via `BASE_SYMBOLS[(seed-1) % 8]` independent of the open position's actual symbol — list page uses `BASE_SYMBOLS_BY_SYM[sym]` (Round 2 fix #5); detail page's data never matches the row that was clicked. Detail page is currently orphaned (list uses inline expansion, no nav link) but is a latent data-integrity bug.
+  8734→  - P1: lastId-stale-state pattern (Round 2 fix #8) applied only to closed-position-detail + order-detail — NOT applied to account-configuration-page (has `useState(null)` draft) or account-broker-details-page (same draft pattern). Edits in account A leak into account B when navigating between accounts while in edit mode.
+  8735→  - P1: "trading toast-only editor cluster" (Round 3 backlog item) — partially addressed but still present on: account-kyc-statuses-page (reinitiate/verify/reject/addProvider), account-broker-details-page (saveChanges/triggerSync/resyncAccount), order-detail-page (onSave/onDelete — NOT honest "(demo)" copy like account-configuration was), account-related-accounts-page (linkAccount/unlinkAccount). Round 3 wording about "parallel writer partially addressed" applies to account-configuration-page only.
+  8736→  - P1: palette violations — account-version-history-page.tsx:373 (`border-violet-500/40` for "AI/Automated" role badge) and account-events-page.tsx:495 (`text-sky-600` for "info" tone). Same violet/sky ban that Round 3 fixed for payout donut.
+  8737→  - P1: terminology drift — many hardcoded "Trader"/"Challenge"/"Payout" labels in trading column headers and form labels (trading-pages.tsx:197,332; closed-positions-page.tsx:359; account-events-page.tsx:394; order-detail-page.tsx:787; account-configuration-page.tsx:605; add-account-page.tsx:520 + multiple placeholders). Round 3 fixed sidebar via `resolveTermsInString` but trading tables/forms still hardcoded.
+  8738→  - P1: 5 separate "Back to trader" ghost buttons on account-* sub-pages (events/version/broker/kyc/related) navigate to `trader-detail`. Round 2 fixed the "Back to Account" labeled buttons but these ghost buttons (different label) still go to trader-detail. Inconsistent with workspace pattern.
+  8739→  - P1: add-account-page.tsx hardcoded `$` and `USD` literals (lines 443, 467, 528, 626, 629) — bypass formatCurrency, breaks for EUR/AED tenants.
+  8740→  - P1: account-related-accounts-page empty `header: ""` on actions column (line 195) — Round 2 fix #23 not propagated. unlinkAccount has no AlertDialog friction (destructive action). Row click goes to account-broker-details instead of account-workspace.
+  8741→  - P2: hardcoded KPI deltas on TradingOverviewPage + TradingOverviewWidget (Round 1 finding #1 — still present). OpenPositionsWidget renders p.volume raw (Round 2 fixed in trading-pages.tsx but not the widget). AccountBalanceWidget hardcoded `$5k`/`$25k`/`$50k`/`$100k+` bucket labels ignore tenant currency. RecentActivityWidget completely fake activity feed.
+  8742→  - P2: raw `<select>` elements in 4 sub-pages (Round 1 finding #5 — still present). dead `Edit trader` button (no onClick) on basic TraderDetailPage which is itself dead code (view-router maps trader-detail → EnhancedTraderDetailPage).
+  8743→  - P2: orphan `viewId: "settings-trading"` declared in manifest:134 but not registered in view-router (latent dead-link; moduleRegistry.getSettings() never called so not user-visible yet).
+  8744→- Recommended fix priority order:
+  8745→  1. Fix closed-position-detail + closed-positions commission math (add `mult` factor + JPY conversion) — closes Round 2 deferred item (b)
+  8746→  2. Apply `if (lastId !== id) setLastId(id)` pattern to account-configuration-page.tsx and account-broker-details-page.tsx
+  8747→  3. Add "(demo)" honesty to toast-only actions on account-kyc-statuses, account-broker-details, order-detail, account-related-accounts (mirror account-configuration fix from Round 2 #32)
+  8748→  4. Fix palette violations (violet/sky → terra tones) on account-version-history-page and account-events-page
+  8749→  5. Fix unlinkAccount AlertDialog friction + empty Actions header on account-related-accounts
+  8750→  6. Apply `resolveTermsInString` to trading table headers and form labels (mirror Round 3 payouts work)
+  8751→  7. Fix 5 "Back to trader" ghost buttons to "Back to Account" → account-workspace
+  8752→  8. Fix hardcoded `$`/`USD` in add-account-page (use formatCurrency + tenant currency)
+  8753→  9. Fix 3 empty `header: ""` columns on trading tables (Round 2 fix #23 propagation)
+  8754→  10. P2 polish: replace fake KPI deltas, fix OpenPositionsWidget volume formatting, replace AccountBalanceWidget hardcoded `$` labels, replace RecentActivityWidget fake activity feed
+  8755→
+  8756→---
+  8757→Task ID: audit-round4-C
+  8758→Agent: Explore (Module C — Challenges/Payouts/KYC/CRM/Affiliates/Marketing/Accounting)
+  8759→Task: Round 4 UI/UX audit of 7 modules
+  8760→
+  8761→Work Log:
+  8762→- Read worklog to understand prior 3 rounds (audit-propadmin-dashboard, ux-audit-prop-admin-round3, known-issue backlog)
+  8763→- Audited files:
+  8764→  - Challenges: 10 files (manifest, index, widgets, 7 pages)
+  8765→  - Payouts: 6 files (manifest, index, store, widgets, 2 pages)
+  8766→  - KYC: 5 files (manifest, index, store, widgets, 1 multi-page file)
+  8767→  - CRM: 5 files (manifest, index, store, widgets, 1 multi-page file)
+  8768→  - Affiliates: 9 files (manifest, index, widgets, 7 pages)
+  8769→  - Marketing: 6 files (manifest, index, widgets, 4 pages)
+  8770→  - Accounting: 6 files (manifest, index, widgets, 3 pages)
+  8771→- Found 5 P0 / 24 P1 / 18 P2 issues
+  8772→
+  8773→Stage Summary:
+  8774→- Key findings:
+  8775→  - P0: enhanced-withdrawals-page ignores payout-store (raw p.status, batch actions toast-only) → two payout surfaces diverge
+  8776→  - P0: Accounting invoices still Nov-2024 dates (10 invoices, all 2024-09-25 to 2024-11-24) — known backlog, unfixed
+  8777→  - P0: Affiliates coupons/links/offers CRUD fake universe (COUPONS/LINKS/AD_CAMPAIGNS/EMAIL_CAMPAIGNS are module-level consts, no tenantId, toast-only Save/Create/Disable)
+  8778→  - P0: KYC widgets (kyc-widgets.tsx) NOT wired to kyc-store — Round 3 #6 fix only reached kyc-pages.tsx, dashboard widget still uses raw getTenantKyc() + fake deltas
+  8779→  - P0: CRM widgets (crm-widgets.tsx) NOT wired to crm-store — Round 3 #8 fix only reached crm-pages.tsx, dashboard widget still uses raw getTenantContacts() + fake deltas
+  8780→  - P1: Palette violations persist across affiliates (#a21caf fuchsia), CRM (#0891b2 cyan), marketing (#db2777 pink + #0891b2 cyan), affiliate-link-tracking Referral #0284c7 (sky), challenge-widgets Phase 1 #0ea5e9 / Phase 2 #8b5cf6 (sky/violet), challenge-edit PHASE_FLOW_COLORS.violet #7c3aed
+  8781→  - P1: Marketing dashboard state leak — bestTrade=4250 and loggedInUsers=traders.length*0.42+38 don't depend on cutoff; switching week range leaves KPIs stale
+  8782→  - P1: P&L period selector is decorative — period state never affects totals/sections (PL_DATA constant)
+  8783→  - P1: "Paid This Month" KPI mislabeled (no month filter)
+  8784→  - P1: Phase-detail Back to Challenge navigates with empty id (always lands on type index 0)
+  8785→  - P1: Phase-detail Save / Sync / Save Platform IDs toast-only (no "(demo)" suffix)
+  8786→  - P1: Phase-management PhaseDetailPanel stale useState across row expansion (no key prop, no render-time reset)
+  8787→  - P1: Challenge-edit-page 6 toast-only Save/Publish/Test Checkout/Add Phase (no "(demo)" suffix)
+  8788→  - P1: Challenge-config-page Save/Reset/Add Challenge Type toast-only + Advanced toggles use defaultChecked (uncontrolled)
+  8789→  - P1: Challenge-wizard createChallenge toast-only (no persistence, no "(demo)" suffix)
+  8790→  - P1: Offer-edit-page stale useState across id navigation + 4 toast-only Save handlers
+  8791→  - P1: Offer-management getOffers() has no tenantId filter (cross-tenant leak)
+  8792→  - P1: Challenge-config PhaseConfigCard hardcodes "$" (bypasses formatCurrency)
+  8793→  - P1: Challenge-wizard Review step uses raw `$${...}` (hardcoded $)
+  8794→- Recommended fix priority order:
+  8795→  1. Wire KYC widgets + CRM widgets to their respective stores (single-store consistency principle from Round 3 not yet extended to dashboard widgets) — 2 files
+  8796→  2. Wire enhanced-withdrawals-page to payout-store (effectivePayoutStatus + usePayoutVersion + applyPayoutDecision in batchApprove/batchReject) — 1 file
+  8797→  3. Replace accounting invoice dates with dynamic ones anchored to Date.now() (mirrors Round 3 #17 30-day window fix) — 1 file
+  8798→  4. Either implement real CRUD stores for affiliates coupons/links/offers + ad-spend/email-campaigns, OR add explicit "(demo) — not persisted" copy on every toast-only Save/Create/Disable handler — ~6 files
+  8799→  5. Sweep palette violations: #0ea5e9, #8b5cf6, #7c3aed, #a21caf, #0284c7, #0891b2, #db2777 → swap to terra tones — ~10 files
+  8800→  6. Fix marketing-dashboard state leak (make bestTrade + loggedInUsers depend on cutoff) — 1 file
+  8801→  7. Fix P&L period selector (either drop it or make it actually swap datasets) — 1 file
+  8802→  8. Apply render-time reset pattern to offer-edit-page + phase-management-page PhaseDetailPanel — 2 files
+  8803→  9. Fix phase-detail-page Back to Challenge navigation (pass phase.challengeTypeId) — 1 file
+  8804→  10. Sweep empty actions column headers → "Actions" — 3 files
+  8805→
+  8806→---
+  8807→Task ID: audit-round4-F
+  8808→Agent: Explore (Module F — Shell/Super-admin/Analytics/Pendings)
+  8809→Task: Round 4 UI/UX audit
+  8810→
+  8811→Work Log:
+  8812→- Read worklog to understand prior 3 rounds (ux-audit-platform-admin / -round2 / audit-propadmin-dashboard / ux-audit-prop-admin-round3); noted known-issue backlog items assigned to this round (dashboard-tabs invented scale, firm-statistics/retention hardcoded KPIs, per-tenant hiddenWidgets key)
+  8813→- Audited files (24 total): shell (app-shell, sidebar, topbar, global-search, command-menu, breadcrumbs, activity-ticker, boot-screen, help-dropdown, whats-new, keyboard-shortcuts-help, onboarding-wizard); super-admin (super-admin-pages, super-admin-module, tenant-detail-page, create-tenant-page, tenant-lifecycle-page, platform-audit-page, dashboard-manager-page, index); analytics (manifest, index, widgets/analytics-widgets, pages/analytics-pages, pages/dashboard-tabs, pages/retention-analytics-page, pages/daily-highlights-page, pages/firm-statistics-page); pendings/pages/pending-tasks-page
+  8814→- Verified cross-cutting state: platform-context.tsx (hiddenWidgets, sidebarCollapsed, themeMode, ⌘K handler); gridstack-dashboard.tsx (activeLayoutKeyRef); view-router.tsx (route table)
+  8815→- Found 2 P0 / 12 P1 / 14 P2 issues (40 total). All 3 known-issue backlog items confirmed and detailed with line numbers.
+  8816→
+  8817→Stage Summary:
+  8818→- Key findings (top issues):
+  8819→  - P0: `pfaas:hiddenWidgets` localStorage key is GLOBAL — hidden-widget set leaks across tenants (Sarah hides widget on Alpha → Daniel sees same hidden set on Beta). Known backlog item confirmed. (platform-context.tsx:241,256)
+  8820→  - P0: dashboard-tabs.tsx (Accounts/Payouts/Orders tabs) all use `void tid;` — hardcoded KPI values, hardcoded country/broker/challenge revenue, hardcoded withdrawal trader names. Known "dashboard-tabs invented scale" backlog item confirmed. (dashboard-tabs.tsx:318-397,540-553,790-873)
+  8821→  - P1: retention-analytics-page.tsx KPIs (3/6/12-mo retention = 72/58/44, challengesPerUser=1.8, repeatingPct=23) + COHORTS table are hardcoded constants. Known "retention hardcoded KPIs" backlog item confirmed. (lines 77-81,49-53)
+  8822→  - P1: 9 separate blue/indigo/violet palette violations across analytics module (#0ea5e9 sky-blue in analytics-pages.tsx:102,501 + analytics-widgets.tsx:41; #7c3aed violet in analytics-pages.tsx:1400 + firm-statistics-page.tsx:197 + daily-highlights-page.tsx:39 + whats-new.tsx:123; #0ea5e9 sky-blue in tenant-lifecycle-page.tsx:72). Round 3 fix #17 only fixed the PayoutMethod donut — the analytics module is still leaking.
+  8823→  - P1: firm-statistics-page.tsx range selector (7d/30d/90d) is decorative — `getFirmStatistics(tid)` doesn't take range param. KPI deltas `delta={8/4/11/6/2/5/9}` are fabricated.
+  8824→  - P1: analytics-pages.tsx:491 "Trader Growth" KPI value="+18%" is a hardcoded string, not computed from traderGrowthSeries.
+  8825→  - P1: tenant-detail-page.tsx has multiple toast-only dead controls: UsersTab Edit/Remove/Invite (lines 682,690,705), BillingTab Generate invoice (line 851 — toast says "downloaded" but no file written), RiskTab Open risk workspace/View breaches/Export (lines 1176,1184,1192). Also "Last active: 2 hours ago" hardcoded (line 475), "Visa ··4242" payment method hardcoded (line 810), "Accounts at risk" fabricated formula (line 1148).
+  8826→  - P1: super-admin-pages.tsx SuperAdminOverviewPage `totalTraders = allTenants.length * 26` fabricated multiplier (line 70); PlatformHealthPage uptime/latency/error rate/active sessions all hardcoded (lines 302-305, 287-293).
+  8827→  - P1: breadcrumbs.tsx + MobileNav don't call `resolveTermsInString` on labels — Alpha/Gamma tenants see literal "Challenges"/"Traders" instead of "Evaluations"/"Participants". (breadcrumbs.tsx:46,49,122,134,148)
+  8828→  - P1: activity-ticker.tsx:102 — ticker text uses raw `action`/`summary` strings without terminology resolution. Alpha tenant sees "Approved payout" instead of "Approved withdrawal".
+  8829→  - P1: topbar.tsx:72 + global-search.tsx:340 + group headings — search trigger copy and placeholder hardcode "traders"/"payouts" terms. Terminology drift on Alpha/Gamma.
+  8830→  - P1: global-search.tsx:82-114 SETTINGS_ENTRIES list has 19 entries — Round 3 fix #29 added KYC Providers as 20th settings card but this list was never updated, so KYC Providers doesn't surface in global search.
+  8831→  - P1: command-menu.tsx:89-118,145-149 — hardcoded audit + "View audit log" shortcuts don't filter by audit-module-enabled; tenants without audit module see commands but not sidebar entries (inconsistent with Round 3 fix #10 sidebar filter).
+  8832→  - P2: sidebar collapse state doesn't persist (platform-context.tsx:236). Boot-screen plays on every F5. Onboarding wizard email validation too weak (`!email.includes("@")` — Round 3 fix #26 pattern not replicated). `useRouter` dead import in command-menu. Various terminology leaks in pending-tasks-page and tenant-detail KPI labels. Empty "" actions column header in tenant-lifecycle/super-admin-pages (Round 2 fix #23 pattern).
+  8833→- Recommended fix priority order:
+  8834→  1. (P0) Tenant-scope the `pfaas:hiddenWidgets` key + reload on tenant switch
+  8835→  2. (P0) Rebuild dashboard-tabs to derive KPIs/countries/brokers/withdrawals from getTenantAccounts/getTenantPayouts/getTenantTraders(tid)
+  8836→  3. (P1) Replace all #7c3aed violet + #0ea5e9 sky-blue with Terra tones (teal/amber/slate) across analytics module + tenant-lifecycle + whats-new
+  8837→  4. (P1) Compute retention/firm-statistics KPIs from real tenant trader+challenge data; remove fabricated deltas
+  8838→  5. (P1) Wire firm-statistics range selector (pass range to data source or remove toggle)
+  8839→  6. (P1) Replace tenant-detail-page toast-only dead controls with real navigation/actions
+  8840→  7. (P1) Wire breadcrumbs + MobileNav + activity-ticker + topbar search copy through `resolveTermsInString(..., tenant)`
+  8841→  8. (P1) Add KYC Providers to global-search SETTINGS_ENTRIES (parity with Round 3 fix #29)
+  8842→  9. (P1) Filter command-menu audit + notifications shortcuts by enabled module (parity with Round 3 fix #13)
+  8843→  10. (P2) Persist sidebar collapse; skip boot-screen after first session; replicate email-regex fix in onboarding-wizard; remove dead useRouter import; resolve terms in pending-tasks/tenant-detail/dashboard-tabs column headers
+  8844→
+  8845→---
+  8846→Task ID: audit-round4-palette
+  8847→Agent: frontend-styling-expert (palette sweep)
+  8848→Task: Replace banned colors (sky/violet/indigo/blue/fuchsia/cyan/pink) with Terra palette equivalents
+  8849→
+  8850→Work Log:
+  8851→- Read worklog for context (Terra palette = teal/amber/emerald/sage/slate; bans indigo/blue/violet/sky-blue/fuchsia/magenta/cyan/pink)
+  8852→- Initial grep across src/ for banned literals + Tailwind classes: 60+ matches across 38 files (excluded comment-only docstrings like "no blue/indigo" annotations)
+  8853→- Swept 38 files
+  8854→- Total color replacements: 59
+  8855→  - Hex literals: #7c3aed→#0d9488 (teal-600), #8b5cf6→#b45309 (amber-700), #0ea5e9→#0d9488 (teal-600), #0284c7→#15803d (green-700), #a21caf→#b45309 (amber-700), #db2777→#b45309 (amber-700), #0891b2→#0f766e (teal-700)
+  8856→  - Tailwind classes: text-violet-{600,700,500,400}→text-teal-{...}, bg-violet-{100,600,950,950/30}→bg-teal-{...}, border-violet-500/40→border-teal-500/40, text-sky-{600,400}→text-teal-{600,400}, bg-sky-{500,100,950,950/30}→bg-teal-{...}, border-sky-500/40→border-teal-500/40
+  8857→  - TERRA.sky palette objects (ai-predictive/anomaly/cost pages, analytics-pages): changed sky hex from #0ea5e9 to #0d9488 (now identical to TERRA.teal — known consequence; preserves API surface so existing TERRA.sky references remain valid)
+  8858→- Files swept (38 total):
+  8859→  - Platform components (6): account-health, attention-center, live-activity-feed, live-equity-curve, status, state-explanations
+  8860→  - Shell (1): whats-new
+  8861→  - Module manifests (4): ai, affiliates, crm, marketing
+  8862→  - Module widgets (7): ai-widgets, analytics-widgets, affiliate-widgets, crm-widgets, marketing-widgets, challenge-widgets, support-widgets
+  8863→  - Module pages (18): ai-pages, ai-predictive-page, ai-anomaly-page, ai-cost-page, analytics-pages, firm-statistics-page, daily-highlights-page, tenant-lifecycle-page (super-admin), marketing-pages, marketing-ad-spend-page, challenge-edit-page, support-pages, account-version-history-page, account-events-page, crm-pages, affiliate-pages, affiliate-link-tracking-page, overview-page
+  8864→  - Data layer + settings (2): lib/platform/mock-data.ts (role color), settings/pages/group-management-page.tsx (group color)
+  8865→- Lint result: pass (`bun run lint` produced zero output beyond `$ eslint .`)
+  8866→
+  8867→Stage Summary:
+  8868→- All banned colors removed from src/
+  8869→- Verified via grep that no violet/indigo/sky/fuchsia/cyan/pink literals remain in source code (the 4 remaining matches are pure documentation comments describing what color was replaced — "Terra-allowed; replaces violet (#7c3aed)" etc.)
+  8870→- Lint clean; no new errors introduced
+  8871→- Known side effect: TERRA.sky and TERRA.teal now share the same hex value (#0d9488) in ai-predictive-page, ai-anomaly-page, ai-cost-page, and analytics-pages.tsx — chart series using TERRA.sky and TERRA.teal in the same chart will render identically. Visual distinction can be restored in a follow-up by remapping TERRA.sky to a different Terra-palette accent (e.g., amber-700 #b45309) but the task explicitly specified #0ea5e9 → #0d9488.
+  8872→
+  8873→---
+  8874→Task ID: audit-round4-master
+  8875→Agent: Super Z (Round 4 audit + fixes)
+  8876→Task: Section-by-section / screen-by-screen / feature-by-feature / flow-by-flow UI/UX audit of the Prop Firm Admin Dashboard, then implement fixes.
+  8877→
+  8878→Work Log:
+  8879→- Read prior 3 rounds of audit + fixes from worklog (Round 1/2 platform-admin, Round 1 prop-admin, Round 3 prop-admin)
+  8880→- Dispatched 6 parallel Explore agents covering the whole dashboard surface:
+  8881→  - Module A (Overview + Dashboard + GridStack + widgets + attention-center + live feeds)
+  8882→  - Module B (Trading — 16 pages incl. all account detail pages)
+  8883→  - Module C (Challenges, Payouts, KYC, CRM, Affiliates, Marketing, Accounting)
+  8884→  - Module D (Risk, Support, AI, Audit)
+  8885→  - Module E (Settings 20 pages + Onboarding + Profile + Notifications + Help)
+  8886→  - Module F (Shell: sidebar/topbar/global-search/command-menu/breadcrumbs/activity-ticker + Super-admin + Analytics + Pendings)
+  8887→- Each agent appended its findings to worklog (audit-round4-A through audit-round4-F)
+  8888→- Synthesized ~22 P0 + ~80 P1 + ~50 P2 findings across all modules
+  8889→- Dispatched a frontend-styling-expert subagent to sweep banned colors (violet/indigo/sky/fuchsia/cyan/pink) → Terra palette (teal/amber/emerald/sage/slate): 38 files changed, 59 replacements, lint passing, 0 remaining banned color literals in src/
+  8890→- Implemented P0 data-integrity fixes myself (surgical edits):
+  8891→
+  8892→P0-1 Cross-tenant data leaks:
+  8893→- live-data.ts: ACTORS replaced with tenant-agnostic role labels (Compliance Officer / Risk Manager / Payouts Bot / Support Lead / System / AI Engine / Onboarding Team); ACTIONS now use "withdrawal" / "participant" / "evaluation" terminology. Previously hardcoded "Sarah Chen", "Marcus Webb" etc. on every tenant.
+  8894→- user-events-page.tsx: now uses getTenantUserEvents(tid, 100) instead of getUserEvents(100)
+  8895→- user-event-detail-page.tsx: same fix in related-events lookup
+  8896→- change-history-page.tsx: now uses getTenantChangeHistory(tid) instead of getChangeHistory()
+  8897→- enhanced-user-events-page.tsx: trader pool scoped to tid (was using allTraders global) — eliminates cross-tenant email/PII leak
+  8898→- group-management-page.tsx: scopedAuthUsers filters authUsers by tid === "platform" ? all : filter(u => u.tenantId === tid) — same pattern Round 3 applied to user-management/token-management
+  8899→- token-detail-page.tsx: getUserOptions + adminOptions (Created By) now scoped by tid — was returning cross-tenant super-admin names
+  8900→- platform-context.tsx: hiddenWidgets + sidebarCollapsed localStorage keys now per-tenant (`pfaas:hiddenWidgets:{tenantId}` + `pfaas:sidebarCollapsed:{tenantId}`); useEffect reloads on tenant switch. Previously the global `pfaas:hiddenWidgets` key caused Sarah's hidden widgets to leak to Daniel's view.
+  8901→
+  8902→P0-2 Wire widgets to session stores (Round 3 wired pages; Round 4 closes the loop for widgets):
+  8903→- kyc-widgets.tsx: KycOverviewWidget + KycQueueWidget now call useKycVersion() and map records through effectiveKycStatus; removed fake deltas (-3/+1/+8/-1/+2); KycQueueWidget items are now clickable buttons that navigate to kyc-reviews with aria-labels
+  8904→- crm-widgets.tsx: CrmOverviewWidget + PipelineWidget now use useCrmContacts(tid) instead of getTenantContacts(tid); removed fake deltas (5/9/7/3/-2)
+  8905→- risk-widgets.tsx: RiskOverviewWidget now uses useBreachVersion() + effectiveBreachStatus; Risk Score computed via tenant-derived baseline (55..84) minus open*3 minus critical*5 instead of hardcoded "72/100"; OpenBreachesWidget items are now clickable buttons that navigate to risk-breaches with focus param
+  8906→- support-widgets.tsx: SupportOverviewWidget + RecentTicketsWidget + TicketPriorityWidget now use useTicketVersion() + effectiveTicketStatus/effectiveTicketMessages; RecentTicketsWidget rows now clickable → support-tickets with focus param; "Resolved Today" KPI now actually filters by isToday(lastReplyAt) (was all-time); added deltaLabel showing total all-time count
+  8907→- trading-overview-widget.tsx: OpenPositionsWidget volume now toFixed(2) + symbol-aware price precision (JPY 2 decimals, FX 4, crypto 2); entry/current prices use fmtPrice helper; row click navigates to trader-detail; AccountBalanceWidget bucket labels now use formatCurrency (was hardcoded "$5k/$25k/..."); RecentActivityWidget now pulls from getTenantAudit(tid) (real per-tenant events) instead of fabricated "{i+1}h ago" timestamps with random verbs; removed all fake deltas from TradingOverviewWidget; bar items get role="progressbar" + aria-* for a11y
+  8908→
+  8909→P0-4a enhanced-withdrawals-page → payout-store:
+  8910→- Now subscribes via usePayoutVersion()
+  8911→- payouts mapped through effectivePayoutStatus
+  8912→- batchApprove/batchReject call applyPayoutDecision(p.reference, "approved"|"rejected") for each selected payout — closes the loop so a decision on the Enhanced Withdrawals page instantly reflects on the Pending Payouts queue, dashboard widget, and Payout History
+  8913→
+  8914→P0-4b accounting-invoices 2024 dates → dynamic:
+  8915→- Replaced `INVOICES` constant array with `buildInvoices()` function anchored to Date.now()
+  8916→- Each invoice's issueDate/dueDate now uses isoDaysAgo(N) so the "Last 30/60/90 days" filter always matches real rows (was hardcoded Nov 2024 — every filter except "All time" returned empty)
+  8917→- IDs now use current year: INV-${y}-${001..010}
+  8918→- "Paid This Month" KPI now actually filters by current calendar month (was all-time paid invoices — misleading)
+  8919→- All `INVOICES` references in the page replaced with the `invoices` memo
+  8920→
+  8921→P1-1 Commission math fix (closed-positions + closed-position-detail):
+  8922→- Commission now includes the `mult` (contract size) factor and divides by `close` for JPY-quoted pairs (mirrors the gross P&L fix from Round 2): `Math.round((volume * basePrice * mult * 0.0004 / (isJpyQuote ? close : 1)) * 100) / 100`
+  8923→- Previously the missing `mult` produced effectively zero commission for FX pairs ($0.02 instead of $19.53 for EURUSD 0.45 lot)
+  8924→- closed-position-detail: "Current price" → "Mark at close" label (was duplicating the existing Close price field)
+  8925→
+  8926→P1-2 Stale useState navigation pattern (token-detail):
+  8927→- TokenForm now has `key={working.key}` so navigating from token A to token B remounts the form with B's seed instead of keeping A's local edits visible
+  8928→
+  8929→P1-3 Wrong nav / dead links fixed:
+  8930→- phase-detail-page.tsx: Back to Challenge button now passes the actual phase.challengeTypeId (was passing "" — always landed on first challenge type's edit page)
+  8931→- notification-edit-page.tsx: Back button now navigates to `notifications-management` (the admin list the user came from) instead of `notifications` (the user-facing notification center — wrong context)
+  8932→- email-templates-page.tsx: Add Template button now navigates to `email-template-edit` (matches the notifications-management → notification-edit pattern) instead of toast-only "would open here"
+  8933→- account-related-accounts-page.tsx: Row click now navigates to account-workspace (was trader-detail, inconsistent with the unified workspace pattern); help text updated to match
+  8934→- settings-module.ts: Added Group Management entry to sidebar children (was registered in routes but had no nav item — orphan route, only reachable via direct URL)
+  8935→- global-search.tsx: SETTINGS_ENTRIES updated to mirror the 20 settings cards (added KYC Providers + Group Management; previous list was missing both, so searching "KYC Providers" or "Group Management" yielded no settings hit)
+  8936→
+  8937→P1-7 Persistence gaps fixed:
+  8938→- onboarding-wizard.tsx: selectedModules now seeded from `tenant.enabledModules` (was hardcoded ["trading", "challenges", "risk", "payouts"] — Beta onboarding pre-checked only the 4 defaults, ignoring Beta's existing analytics/affiliates/accounting/ai modules); email validation replaced weak `!email.includes("@")` with strict EMAIL_RE regex (mirrors add-account-page Round 2 fix)
+  8939→- profile-page.tsx: Quick Preferences (5 toggles) now persist to `pfaas:profilePrefs` localStorage; previously local-only with the comment "no persistence layer yet"
+  8940→- settings-page.tsx NotificationsTab: Quiet Hours toggle + start/end times now persist to `pfaas:notificationPrefs` (alongside channel prefs) — was controlled-but-not-persisted despite the page copy saying "Changes apply instantly and are saved to your profile"
+  8941→- platform-context.tsx: sidebarCollapsed now persists per-tenant (see P0-1 above)
+  8942→
+  8943→P1 partial: Overview page deltas:
+  8944→- overview-page.tsx: All 10 hardcoded `delta` props removed (8/3/5/-2/4/8/12/4/-3/6) — these were fabricated "vs last week" WoW changes that MetricCard rendered as "▲ 8%" implying real change. Replaced with `deltaLabel` showing actual context ("12 total", "30-day window", "8 affiliates", "24 txns") — honest, no fake percentages
+  8945→
+  8946→Verification (agent-browser E2E on Alpha/Sarah):
+  8947→- HTTP 200, page renders cleanly, 0 console errors
+  8948→- 32 grid-stack widgets render
+  8949→- 63 sidebar items render
+  8950→- Tenant terminology resolves correctly: "Participants" (not "Traders"), "Evaluation" (not "Challenges"), "Withdrawals" (not "Payouts")
+  8951→- Sidebar shows new "Group Management" entry + existing "KYC Providers"
+  8952→- Attention center visible, Open Breaches + Open Positions widgets render
+  8953→- Screenshot: download/r4-overview.png
+  8954→- Dev server died mid-batch (twice) under compile load — restarted with 1536MB variant, HTTP 200
+  8955→
+  8956→Stage Summary:
+  8957→- Round 4 (prop-admin focus): ~25 fix batches across ~25 files. Core data-integrity issues from prior backlog closed: cross-tenant leaks eliminated in audit module + group/token management + platform-context hiddenWidgets/sidebarCollapsed; widget layer now reads from the same session stores as the pages (KYC/CRM/Risk/Support widgets); commission math finally correct across both closed-positions surfaces; accounting invoices now use dynamic dates; Enhanced Withdrawals wired into the payout-store loop; 38 files swept of banned violet/sky/fuchsia/cyan colors → Terra palette
+  8958→- Lint passes on every file touched (verified after each batch via `bun run lint`)
+  8959→- Outstanding backlog for Round 5 (deferred due to scope):
+  8960→  - dashboard-tabs hardcoded KPIs (2486 accounts, 1314 payouts, 7294 traders, etc.) — needs major restructure to derive from getTenantAccounts/Payouts/Traders
+  8961→  - Toast-only "(demo)" suffix sweep for ~20 files (account-kyc-statuses, account-broker, order-detail, closed-position-detail, phase-detail, challenge-edit/config/wizard/types, offer-edit/mgmt, phase-mgmt, ai-pages/cost/anomaly, user-mgmt, 5 edit pages, group-mgmt, kyc-providers, cert-designer, cert-mgmt, tenant-detail, super-admin, marketing-dashboard)
+  8962→  - Terminology leakage sweep (breadcrumbs.tsx, mobile-nav, activity-ticker raw strings, topbar search trigger "Search traders, accounts, settings…", global-search placeholder + group headings, keyboard-shortcuts-help labels, pending-tasks "Active Traders", tenant-detail KPI "Traders", dashboard-tabs column header "Trader")
+  8963→  - 6 risk pages still have toast-only export buttons (risk-label-vs-payouts, risk-highest-earners, risk-addon-revenue, risk-coupon-vs-payouts, risk-group-vs-payouts, risk-unprofitable-countries, risk-account-label-analysis)
+  8964→  - trading-events + copy/inverse events + weekend-trades stale switch states (toggle visually bounces back)
+  8965→  - accounting-pl-page period selector is decorative (3 datasets never swap)
+  8966→  - marketing-dashboard bestTrade/loggedInUsers don't depend on cutoff
+  8967→  - 5 "Back to trader" ghost buttons on account-* sub-pages still navigate to trader-detail
+  8968→  - support-sla-page hardcoded BREACHED_TICKETS / AGENT_WORKLOAD arrays with non-existent T-1xxx ids
+  8969→  - ai-pages + ai-cost config not persisted to localStorage
+  8970→  - ai-anomaly FP/Create ticket toast-only
+  8971→  - cert-designer not loading existing template fields
+  8972→  - cert-mgmt table Active Switch stale (bounces back to seed)
+  8973→  - user-management per-row actions toast-only
+  8974→  - tenant-detail-page many toast-only + hardcoded "Last active: 2 hours ago" + "Visa ··4242"
+  8975→  - super-admin-pages fabricated `totalTraders = allTenants.length * 26` multiplier
+  8976→

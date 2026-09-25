@@ -56,6 +56,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { cn } from "@/lib/utils";
 import {
   Tags,
@@ -260,9 +261,26 @@ export function RiskAccountLabelAnalysisPage() {
     : 0;
 
   const exportCsv = () => {
+    // One row per label group (not per account — the table is a summary).
+    exportToCsv(
+      groups,
+      [
+        { key: "label", header: "Label", value: (g: LabelGroup) => g.label },
+        { key: "description", header: "Description", value: (g) => g.description },
+        { key: "total", header: "Total Accounts", value: (g) => g.total },
+        { key: "active", header: "Active", value: (g) => g.active },
+        { key: "funded", header: "Funded", value: (g) => g.funded },
+        { key: "passed", header: "Passed", value: (g) => g.passed },
+        { key: "failed", header: "Failed", value: (g) => g.failed },
+        { key: "passRate", header: "Pass Rate %", value: (g) => g.passRate },
+        { key: "failRate", header: "Fail Rate %", value: (g) => g.failRate },
+        { key: "revenue", header: "Revenue", value: (g) => g.revenue },
+      ],
+      `risk-account-label-analysis-${Date.now()}.csv`,
+    );
     toast({
-      title: "Export started (demo)",
-      description: `Would export ${totalAccountsAll} labeled accounts as CSV in production.`,
+      title: "Export complete",
+      description: `Exported ${groups.length} label groups to CSV.`,
     });
   };
 

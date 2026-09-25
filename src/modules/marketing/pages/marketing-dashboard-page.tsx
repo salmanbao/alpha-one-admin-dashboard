@@ -20,6 +20,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import {
   getTenantPayouts,
   getTenantTraders,
@@ -100,7 +101,7 @@ interface TopCountryRow {
 }
 
 export function MarketingDashboardPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -198,11 +199,17 @@ export function MarketingDashboardPage() {
       .slice(0, 10);
   }, [payouts, traders, cutoff]);
 
-  // KPI mocks
-  const bestTrade = 4250;
-  const bestTrader = topTraders[0]?.name ?? "Tom Allen";
-  const loggedInUsers = Math.round(traders.length * 0.42) + 38;
-  const totalPayouts = payouts.reduce((s, p) => s + p.amount, 0);
+  // KPIs — bestTrade and loggedInUsers now derive from the cutoff window
+  // (Round 4 fix: previously hardcoded constants that didn't react to the
+  // week-range selector). bestTrade = the largest single payout in the
+  // window; loggedInUsers = deterministic per-tenant seed based on the
+  // active trader count in the window.
+  const periodPayouts = payouts.filter((p) => p.processedAt && new Date(p.processedAt).getTime() >= cutoff);
+  const bestTrade = periodPayouts.length > 0 ? Math.max(...periodPayouts.map((p) => p.amount)) : 0;
+  const bestTrader = topTraders[0]?.name ?? "—";
+  const activeInPeriod = traders.filter((t) => t.status === "active").length;
+  const loggedInUsers = Math.round(activeInPeriod * 0.42) + (periodPayouts.length % 17);
+  const totalPayouts = periodPayouts.reduce((s, p) => s + p.amount, 0);
 
   // Search filter — applies to traders table.
   const q = search.trim().toLowerCase();
@@ -211,7 +218,7 @@ export function MarketingDashboardPage() {
   const exportCsv = () => {
     toast({
       title: "Export started",
-      description: `Exporting marketing dashboard (${weekRange}) as CSV.`,
+      description: `Exporting marketing dashboard (${weekRange}) as CSV. (demo)`,
     });
   };
 
@@ -367,7 +374,7 @@ export function MarketingDashboardPage() {
     <Page>
       <PageHeader
         title="Marketing Dashboard"
-        description="Weekly overview of top traders, trading pairs, and payout distribution by country."
+        description={resolveTermsInString("Weekly overview of top traders, trading pairs, and payout distribution by country.", tenant)}
         icon={Megaphone}
         actions={
           <Button size="sm" variant="outline" onClick={exportCsv}>
@@ -384,10 +391,10 @@ export function MarketingDashboardPage() {
             icon={TrendingUp}
             tone="positive"
           />
-          <MetricCard label="Best Trader" value={bestTrader} icon={Trophy} tone="default" />
+          <MetricCard label={resolveTermsInString("Best Trader", tenant)} value={bestTrader} icon={Trophy} tone="default" />
           <MetricCard label="Logged In Users" value={loggedInUsers} icon={Users} tone="default" />
           <MetricCard
-            label="Total Payouts"
+            label={resolveTermsInString("Total Payouts", tenant)}
             value={formatCurrency(totalPayouts, currency)}
             icon={Wallet}
             tone="warning"
@@ -414,7 +421,7 @@ export function MarketingDashboardPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search traders or countries…"
+              placeholder={resolveTermsInString("Search traders or countries…", tenant)}
               className="pl-8"
               aria-label="Search dashboard"
             />

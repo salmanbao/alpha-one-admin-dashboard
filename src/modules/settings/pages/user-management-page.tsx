@@ -354,7 +354,7 @@ export function UserManagementPage() {
               onClick={() =>
                 toast({
                   title: "Export started",
-                  description: `Exporting ${filtered.length} users as CSV.`,
+                  description: `Exporting ${filtered.length} users as CSV. (demo)`,
                 })
               }
             >

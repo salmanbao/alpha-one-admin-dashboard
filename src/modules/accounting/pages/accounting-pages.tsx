@@ -200,7 +200,7 @@ export function ReconciliationPage() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       cell: (t) =>
         t.status !== "reconciled" ? (
           <Button

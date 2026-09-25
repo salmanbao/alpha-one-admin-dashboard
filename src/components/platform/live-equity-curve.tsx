@@ -81,10 +81,14 @@ export function LiveEquityCurveWidget() {
         </div>
         <div className="flex items-center gap-1.5">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            {live.isLive && (
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            )}
+            <span className={`relative inline-flex h-2 w-2 rounded-full ${live.isLive ? "bg-emerald-500" : "bg-slate-400"}`} />
           </span>
-          <span className="text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Live</span>
+          <span className={`text-[10px] font-medium uppercase tracking-wide ${live.isLive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>
+            {live.isLive ? "Live" : "Paused"}
+          </span>
         </div>
       </div>
       {points.length > 1 ? (

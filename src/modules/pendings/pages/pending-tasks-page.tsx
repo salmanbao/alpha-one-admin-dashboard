@@ -23,6 +23,7 @@
 
 import { useMemo } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import {
   getTenantAiInsights,
   getTenantChallenges,
@@ -77,7 +78,7 @@ function resolveRouteInfo(viewId: string): { label: string; moduleId?: string } 
 }
 
 export function PendingTasksPage() {
-  const { runtime, navigate } = usePlatform();
+  const { runtime, navigate, tenant } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -95,7 +96,7 @@ export function PendingTasksPage() {
   const pendingWithdrawals = payouts.filter((p: Payout) => p.status === "pending").length;
   const affiliatePayouts = 3; // not directly tracked in mock data; surfaced as a small static count
 
-  const cards: SummaryCard[] = [
+  const cards: SummaryCard[] = useMemo(() => [
     {
       id: "phase-1",
       label: "Pass Verification Phase 1",
@@ -144,14 +145,20 @@ export function PendingTasksPage() {
       icon: Users,
       description: "Affiliate commission payouts pending",
     },
-  ];
+  ], [phase1Passed, phase2Passed, kycReviews, phaseVerifications, pendingWithdrawals, affiliatePayouts]);
 
-  const totalPending = cards.reduce((s, c) => s + c.count, 0);
+  const resolvedCards = useMemo(() => cards.map((c) => ({
+    ...c,
+    label: resolveTermsInString(c.label, tenant),
+    description: resolveTermsInString(c.description, tenant),
+  })), [cards, tenant]);
+
+  const totalPending = resolvedCards.reduce((s, c) => s + c.count, 0);
 
   // Resolve target-route info: human-readable labels + module ownership, so
   // cards for modules that are disabled in this tenant can be surfaced
   // honestly instead of navigating into a "module not enabled" dead end.
-  const routeInfo = Object.fromEntries(cards.map((c) => [c.id, resolveRouteInfo(c.viewId)]));
+  const routeInfo = Object.fromEntries(resolvedCards.map((c) => [c.id, resolveRouteInfo(c.viewId)]));
 
   // Forecast bar chart — Tue–Sun expected withdrawal amounts (mock).
   const forecast = useMemo(() => {
@@ -254,7 +261,7 @@ export function PendingTasksPage() {
           <div className="rounded-lg border bg-card p-4">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-medium">Active Traders</p>
+              <p className="text-sm font-medium">{resolveTermsInString("Active Traders", tenant)}</p>
             </div>
             <p className="mt-1 text-3xl font-bold tabular-nums">{formatCompact(traders.length)}</p>
             <p className="text-xs text-muted-foreground">{traders.filter((t) => t.status === "active").length} currently trading</p>
@@ -263,7 +270,9 @@ export function PendingTasksPage() {
 
         {/* Summary cards grid */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {cards.map((c) => {
+          {/* `cards` is mapped through `resolvedCards` (label + description
+              wrapped in resolveTermsInString) below. */}
+          {resolvedCards.map((c) => {
             const isWarning = c.count > 0;
             const tone = isWarning ? "warning" : "success";
             const accentColor = tone === "warning" ? "#d97706" : "#059669";

@@ -17,6 +17,7 @@
 
 import { useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import { getFirmStatistics } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { AreaSeries } from "@/components/platform/charts";
@@ -57,7 +58,7 @@ interface SummaryRow {
 }
 
 export function FirmStatisticsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   const [range, setRange] = useState<RangeId>("30d");
@@ -117,7 +118,7 @@ export function FirmStatisticsPage() {
     <Page>
       <PageHeader
         title="Firm Statistics"
-        description="Tenant-wide business performance — revenue, payouts, challenges, and risk events."
+        description={resolveTermsInString("Tenant-wide business performance — revenue, payouts, challenges, and risk events.", tenant)}
         icon={BarChart3}
         actions={
           <div className="flex items-center gap-2">
@@ -148,9 +149,9 @@ export function FirmStatisticsPage() {
         {/* 1. KPI strip — 10 cards in a 2 / 5 / 5 / 10 responsive grid */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
           <MetricCard label="Total Revenue" value={fmt(stats.totalRevenue)} delta={8} deltaLabel="vs prev period" icon={DollarSign} tone="positive" />
-          <MetricCard label="Total Payouts" value={fmt(stats.totalPayouts)} delta={4} deltaLabel="vs prev period" icon={TrendingDown} tone="warning" />
+          <MetricCard label={resolveTermsInString("Total Payouts", tenant)} value={fmt(stats.totalPayouts)} delta={4} deltaLabel="vs prev period" icon={TrendingDown} tone="warning" />
           <MetricCard label="Net Profit" value={fmt(stats.netProfit)} delta={11} deltaLabel="vs prev period" icon={TrendingUp} tone="positive" />
-          <MetricCard label="Challenges Sold" value={stats.challengesSold} delta={6} deltaLabel="vs prev period" icon={Target} tone="positive" />
+          <MetricCard label={resolveTermsInString("Challenges Sold", tenant)} value={stats.challengesSold} delta={6} deltaLabel="vs prev period" icon={Target} tone="positive" />
           <MetricCard label="Profit Margin" value={`${stats.profitMargin}%`} delta={2} deltaLabel="pts" icon={Percent} tone="positive" />
 
           <MetricCard label="Copy Trading Events" value={formatCompact(stats.copyTradingEvents)} icon={Copy} tone="warning" />

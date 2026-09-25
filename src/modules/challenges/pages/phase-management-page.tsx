@@ -102,7 +102,7 @@ function PhaseDetailPanel({ phase, challengeName }: { phase: ChallengePhaseConfi
           onClick={() =>
             toast({
               title: "Phase saved",
-              description: `${challengeName} · ${phase.phaseName} configuration saved.`,
+              description: `${challengeName} · ${phase.phaseName} configuration saved. (demo)`,
             })
           }
         >
@@ -216,7 +216,7 @@ export function PhaseManagementPage() {
         actions={
           <Button
             size="sm"
-            onClick={() => toast({ title: "Add phase", description: "Add phase form would open here." })}
+            onClick={() => toast({ title: "Add phase", description: "Add phase form would open here. (demo)" })}
           >
             <Plus className="mr-1 h-4 w-4" /> Add Phase
           </Button>

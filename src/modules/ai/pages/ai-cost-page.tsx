@@ -216,7 +216,7 @@ export function AiCostPage() {
   const handleSaveConfig = () => {
     toast({
       title: "Budget alert saved",
-      description: `Budget ${formatCurrency(budget, currency)} · alert at ${alertThreshold}% · ${emailRecipient}`,
+      description: `Budget ${formatCurrency(budget, currency)} · alert at ${alertThreshold}% · ${emailRecipient} (demo)`,
     });
   };
 

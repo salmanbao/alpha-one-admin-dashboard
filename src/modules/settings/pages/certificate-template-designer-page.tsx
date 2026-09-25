@@ -517,7 +517,7 @@ export function CertificateTemplateDesignerPage() {
   const onSave = () => {
     toast({
       title: "Certificate template saved",
-      description: `${name || "Untitled template"} was saved with ${fields.length} fields.`,
+      description: `${name || "Untitled template"} was saved with ${fields.length} fields. (demo)`,
     });
   };
 
@@ -535,7 +535,7 @@ export function CertificateTemplateDesignerPage() {
     toast({
       title: "Opening visual designer",
       description:
-        "Visual designer would open in a new tab — full drag-and-drop layout editor.",
+        "Visual designer would open in a new tab — full drag-and-drop layout editor. (demo)",
     });
   };
 

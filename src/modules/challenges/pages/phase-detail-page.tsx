@@ -21,6 +21,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import {
   getChallengePhaseConfigs,
   getChallengeTypes,
@@ -521,7 +522,7 @@ function GeneralTab({
           onClick={() =>
             toast({
               title: "Phase configuration saved",
-              description: `${draft.title || phase.phaseName} for ${challengeName} has been saved.`,
+              description: `${draft.title || phase.phaseName} for ${challengeName} has been saved. (demo)`,
             })
           }
         >
@@ -737,7 +738,7 @@ function PlatformIdsTab({
           onClick={() =>
             toast({
               title: "Syncing with broker platform",
-              description: "Bridge sync initiated — this may take up to 30 seconds.",
+              description: "Bridge sync initiated — this may take up to 30 seconds. (demo)",
             })
           }
         >
@@ -748,7 +749,7 @@ function PlatformIdsTab({
           onClick={() =>
             toast({
               title: "Platform IDs saved",
-              description: `MT5 group ${draft.mt5Group || "(none)"} mapped to ${phase.phaseName}.`,
+              description: `MT5 group ${draft.mt5Group || "(none)"} mapped to ${phase.phaseName}. (demo)`,
             })
           }
         >
@@ -986,7 +987,7 @@ function ChangeHistoryTab({
 /* ------------------------------------------------------------------ */
 
 export function PhaseDetailPage() {
-  const { router, navigate } = usePlatform();
+  const { router, navigate, tenant } = usePlatform();
 
   const { phase, index } = useMemo(
     () => resolvePhase(router.params.id),
@@ -995,7 +996,7 @@ export function PhaseDetailPage() {
 
   const types = getChallengeTypes();
   const challengeName =
-    types.find((t) => t.id === phase.challengeTypeId)?.name ?? "Challenge";
+    resolveTermsInString(types.find((t) => t.id === phase.challengeTypeId)?.name ?? "Challenge", tenant);
 
   const [draft, setDraft] = useState<PhaseDraft>(() => ({
     title: phase.phaseName,

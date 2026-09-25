@@ -26,6 +26,8 @@
  */
 
 import { useMemo, useState } from "react";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import {
   getChallengeTypes,
   getChallengePhaseConfigs,
@@ -163,6 +165,7 @@ const INITIAL_STATE: WizardState = {
 /* ------------------------------------------------------------------ */
 
 export function ChallengeWizardPage() {
+  const { tenant } = usePlatform();
   const [state, setState] = useState<WizardState>(INITIAL_STATE);
   const [step, setStep] = useState(0);
 
@@ -229,8 +232,8 @@ export function ChallengeWizardPage() {
 
   const createChallenge = () => {
     toast({
-      title: "Challenge created",
-      description: `${selectedType?.name ?? "Challenge"} template saved and ready to assign to traders.`,
+      title: resolveTermsInString("Challenge created", tenant),
+      description: resolveTermsInString(`${selectedType?.name ?? "Challenge"} template saved and ready to assign to traders.`, tenant) + " (demo)",
     });
     setState(INITIAL_STATE);
     setStep(0);
@@ -311,8 +314,8 @@ export function ChallengeWizardPage() {
   return (
     <Page>
       <PageHeader
-        title="Create Challenge"
-        description="Guided wizard to configure a new evaluation challenge template."
+        title={resolveTermsInString("Create Challenge", tenant)}
+        description={resolveTermsInString("Guided wizard to configure a new evaluation challenge template.", tenant)}
         icon={Sparkles}
       />
       <PageContent>
@@ -351,7 +354,7 @@ export function ChallengeWizardPage() {
                       active ? "text-foreground" : "text-muted-foreground",
                     )}
                   >
-                    {s.label}
+                    {resolveTermsInString(s.label, tenant)}
                   </span>
                 </div>
               );
@@ -379,7 +382,7 @@ export function ChallengeWizardPage() {
               </Button>
             ) : (
               <Button size="sm" onClick={createChallenge} className="gap-1.5">
-                <Check className="h-4 w-4" /> Create Challenge
+                <Check className="h-4 w-4" /> {resolveTermsInString("Create Challenge", tenant)}
               </Button>
             )}
           </div>

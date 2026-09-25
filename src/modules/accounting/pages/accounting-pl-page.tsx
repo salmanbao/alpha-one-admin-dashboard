@@ -132,42 +132,48 @@ export function AccountingPlPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const currency = runtime.tenant?.currency ?? "USD";
+  // The period selector drives a simple pro-rata scaling of the annual
+  // P&L figures — previously it was purely decorative (changing the
+  // dropdown changed nothing in the displayed numbers). Round 4 fix.
   const [period, setPeriod] = useState("this-year");
+  const periodScale = period === "this-year" ? 1 : period === "this-quarter" ? 0.25 : period === "this-month" ? 1 / 12 : 1;
 
   // ----- Compute totals (deterministic — pure arithmetic) -----
   const totals = useMemo(() => {
     const revenue =
-      PL_DATA.revenue.challengeSales +
-      PL_DATA.revenue.addonSales +
-      PL_DATA.revenue.subscriptionRevenue +
-      PL_DATA.revenue.otherIncome;
+      (PL_DATA.revenue.challengeSales +
+        PL_DATA.revenue.addonSales +
+        PL_DATA.revenue.subscriptionRevenue +
+        PL_DATA.revenue.otherIncome) * periodScale;
     const cogs =
-      PL_DATA.cogs.payoutsToTraders +
-      PL_DATA.cogs.affiliateCommissions +
-      PL_DATA.cogs.paymentFees;
+      (PL_DATA.cogs.payoutsToTraders +
+        PL_DATA.cogs.affiliateCommissions +
+        PL_DATA.cogs.paymentFees) * periodScale;
     const grossProfit = revenue - cogs;
     const opex =
-      PL_DATA.opex.marketing +
-      PL_DATA.opex.personnel +
-      PL_DATA.opex.software +
-      PL_DATA.opex.kycServices +
-      PL_DATA.opex.officeAdmin;
+      (PL_DATA.opex.marketing +
+        PL_DATA.opex.personnel +
+        PL_DATA.opex.software +
+        PL_DATA.opex.kycServices +
+        PL_DATA.opex.officeAdmin) * periodScale;
     const operatingProfit = grossProfit - opex;
-    const other = PL_DATA.other.interestExpense + PL_DATA.other.taxProvision;
+    const other = (PL_DATA.other.interestExpense + PL_DATA.other.taxProvision) * periodScale;
     const netProfit = operatingProfit - other;
     const margin = revenue ? (netProfit / revenue) * 100 : 0;
     return { revenue, cogs, grossProfit, opex, operatingProfit, other, netProfit, margin };
-  }, []);
+  }, [periodScale]);
 
   // ----- P&L sections (each is a list of rows + a total) -----
+  // Row amounts are scaled by the same factor as the totals so the
+  // displayed numbers stay internally consistent across periods.
   const sections: PnLSection[] = [
     {
       title: "Revenue",
       rows: [
-        { label: `${term("challenge")} Sales`, amount: PL_DATA.revenue.challengeSales, help: "One-time registration fees collected when traders buy a challenge." },
-        { label: "Addon Sales", amount: PL_DATA.revenue.addonSales, help: "Reset tokens, account resets, and other in-cart add-ons purchased with a challenge." },
-        { label: "Subscription Revenue", amount: PL_DATA.revenue.subscriptionRevenue, help: "Recurring monthly platform fees charged to funded traders." },
-        { label: "Other Income", amount: PL_DATA.revenue.otherIncome, help: "Interest on held balances, recovery of disputed charges, and miscellaneous income." },
+        { label: `${term("challenge")} Sales`, amount: PL_DATA.revenue.challengeSales * periodScale, help: "One-time registration fees collected when traders buy a challenge." },
+        { label: "Addon Sales", amount: PL_DATA.revenue.addonSales * periodScale, help: "Reset tokens, account resets, and other in-cart add-ons purchased with a challenge." },
+        { label: "Subscription Revenue", amount: PL_DATA.revenue.subscriptionRevenue * periodScale, help: "Recurring monthly platform fees charged to funded traders." },
+        { label: "Other Income", amount: PL_DATA.revenue.otherIncome * periodScale, help: "Interest on held balances, recovery of disputed charges, and miscellaneous income." },
       ],
       totalLabel: "Total Revenue",
       total: totals.revenue,
@@ -176,9 +182,9 @@ export function AccountingPlPage() {
     {
       title: "Cost of Goods Sold (COGS)",
       rows: [
-        { label: `${plural(term("payout"))} to ${plural(term("trader"))}`, amount: PL_DATA.cogs.payoutsToTraders, help: `Profit splits paid to ${term("trader").toLowerCase()}s who passed their challenges and traded funded accounts.` },
-        { label: "Affiliate Commissions", amount: PL_DATA.cogs.affiliateCommissions, help: "Referral payouts to affiliates based on their attributed trader conversions." },
-        { label: "Payment Processing Fees", amount: PL_DATA.cogs.paymentFees, help: "Gateway + card network fees on inbound challenge purchases and outbound payouts." },
+        { label: `${plural(term("payout"))} to ${plural(term("trader"))}`, amount: PL_DATA.cogs.payoutsToTraders * periodScale, help: `Profit splits paid to ${term("trader").toLowerCase()}s who passed their challenges and traded funded accounts.` },
+        { label: "Affiliate Commissions", amount: PL_DATA.cogs.affiliateCommissions * periodScale, help: "Referral payouts to affiliates based on their attributed trader conversions." },
+        { label: "Payment Processing Fees", amount: PL_DATA.cogs.paymentFees * periodScale, help: "Gateway + card network fees on inbound challenge purchases and outbound payouts." },
       ],
       totalLabel: "Total COGS",
       total: totals.cogs,
@@ -187,11 +193,11 @@ export function AccountingPlPage() {
     {
       title: "Operating Expenses",
       rows: [
-        { label: "Marketing & Ads", amount: PL_DATA.opex.marketing, help: "Paid acquisition, retargeting, sponsorships, and creative production." },
-        { label: "Personnel", amount: PL_DATA.opex.personnel, help: "Salaries, benefits, and contractor fees for ops, risk, support, and engineering." },
-        { label: "Software & Tools", amount: PL_DATA.opex.software, help: "SaaS, hosting, data feeds, and licensing for internal tooling." },
-        { label: "KYC / AML Services", amount: PL_DATA.opex.kycServices, help: "Identity verification vendor costs and sanctions screening per trader." },
-        { label: "Office & Admin", amount: PL_DATA.opex.officeAdmin, help: "Office, legal, accounting, and other administrative overhead." },
+        { label: "Marketing & Ads", amount: PL_DATA.opex.marketing * periodScale, help: "Paid acquisition, retargeting, sponsorships, and creative production." },
+        { label: "Personnel", amount: PL_DATA.opex.personnel * periodScale, help: "Salaries, benefits, and contractor fees for ops, risk, support, and engineering." },
+        { label: "Software & Tools", amount: PL_DATA.opex.software * periodScale, help: "SaaS, hosting, data feeds, and licensing for internal tooling." },
+        { label: "KYC / AML Services", amount: PL_DATA.opex.kycServices * periodScale, help: "Identity verification vendor costs and sanctions screening per trader." },
+        { label: "Office & Admin", amount: PL_DATA.opex.officeAdmin * periodScale, help: "Office, legal, accounting, and other administrative overhead." },
       ],
       totalLabel: "Total OpEx",
       total: totals.opex,
@@ -200,8 +206,8 @@ export function AccountingPlPage() {
     {
       title: "Other (Interest + Tax)",
       rows: [
-        { label: "Interest Expense", amount: PL_DATA.other.interestExpense, help: "Interest on credit facilities and short-term financing." },
-        { label: "Tax Provision", amount: PL_DATA.other.taxProvision, help: "Estimated corporate income tax for the period." },
+        { label: "Interest Expense", amount: PL_DATA.other.interestExpense * periodScale, help: "Interest on credit facilities and short-term financing." },
+        { label: "Tax Provision", amount: PL_DATA.other.taxProvision * periodScale, help: "Estimated corporate income tax for the period." },
       ],
       totalLabel: "Total Other",
       total: totals.other,

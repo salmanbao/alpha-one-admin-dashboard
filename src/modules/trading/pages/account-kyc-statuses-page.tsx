@@ -141,21 +141,21 @@ export function AccountKycStatusesPage() {
   const reinitiate = (provider: KycProviderName) => {
     toast({
       title: "KYC re-initiated",
-      description: `A new verification session was started for ${provider}.`,
+      description: `A new verification session was started for ${provider}. (demo)`,
     });
   };
 
   const verify = (provider: KycProviderName) => {
     toast({
       title: "Provider marked as verified",
-      description: `${provider} status set to approved.`,
+      description: `${provider} status set to approved. (demo)`,
     });
   };
 
   const reject = (provider: KycProviderName) => {
     toast({
       title: "Provider rejected",
-      description: `${provider} status set to rejected.`,
+      description: `${provider} status set to rejected. (demo)`,
       variant: "destructive",
     });
   };
@@ -163,7 +163,7 @@ export function AccountKycStatusesPage() {
   const addProvider = () => {
     toast({
       title: "Add KYC provider",
-      description: "Open the provider marketplace to configure a new KYC source.",
+      description: "Open the provider marketplace to configure a new KYC source. (demo)",
     });
   };
 

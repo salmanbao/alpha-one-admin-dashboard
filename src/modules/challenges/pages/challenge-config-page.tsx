@@ -274,14 +274,14 @@ function ConfigEditor({ type }: { type: ChallengeType }) {
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-3">
         <Button
           size="sm"
-          onClick={() => toast({ title: "Configuration saved", description: `${type.name} phase configuration has been saved.` })}
+          onClick={() => toast({ title: "Configuration saved", description: `${type.name} phase configuration has been saved. (demo)` })}
         >
           <Save className="mr-1 h-3.5 w-3.5" /> Save Changes
         </Button>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => toast({ title: "Reset to defaults", description: `${type.name} restored to platform defaults.` })}
+          onClick={() => toast({ title: "Reset to defaults", description: `${type.name} restored to platform defaults. (demo)` })}
         >
           <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reset to Defaults
         </Button>
@@ -391,7 +391,7 @@ export function ChallengeConfigPage() {
         description="Edit phase parameters, risk limits, and trading rules for each challenge type."
         icon={Settings2}
         actions={
-          <Button size="sm" onClick={() => toast({ title: "Add Challenge Type", description: "The new challenge type form would open here." })}>
+          <Button size="sm" onClick={() => toast({ title: "Add Challenge Type", description: "The new challenge type form would open here. (demo)" })}>
             <Plus className="mr-1 h-4 w-4" /> Add Challenge Type
           </Button>
         }

@@ -226,6 +226,24 @@ export function CopyTradingEventsPage() {
   const [formPosition2, setFormPosition2] = useState<string>("");
   const [formReasons, setFormReasons] = useState("");
   const [formExpired, setFormExpired] = useState(false);
+  // Track in-session Expired overrides so the Switch visually flips when
+  // toggled. Previously the Switch read `e.expired` from static seed —
+  // toggling fired a toast but the Switch visually bounced back. The
+  // effective state is `e.expired XOR toggled.has(e.id)`.
+  const [expiredToggles, setExpiredToggles] = useState<Set<string>>(new Set());
+  const isExpired = (e: CopyEvent) => e.expired !== expiredToggles.has(e.id);
+  const toggleExpired = (e: CopyEvent) => {
+    setExpiredToggles((prev) => {
+      const next = new Set(prev);
+      if (next.has(e.id)) next.delete(e.id);
+      else next.add(e.id);
+      return next;
+    });
+    toast({
+      title: isExpired(e) ? "Event expired" : "Event re-activated",
+      description: `Copy trading event ${e.id} marked as ${isExpired(e) ? "expired" : "active"} (demo).`,
+    });
+  };
 
   const symbolsAvailable = useMemo(
     () => Array.from(new Set(allEvents.map((e) => e.symbol))).sort(),
@@ -439,13 +457,8 @@ export function CopyTradingEventsPage() {
       header: "Expired",
       cell: (e) => (
         <Switch
-          checked={e.expired}
-          onCheckedChange={() => {
-            toast({
-              title: e.expired ? "Event re-activated" : "Event expired",
-              description: `Copy trading event ${e.id} marked as ${e.expired ? "active" : "expired"}.`,
-            });
-          }}
+          checked={isExpired(e)}
+          onCheckedChange={() => toggleExpired(e)}
           onClick={(ev) => ev.stopPropagation()}
           aria-label={`Toggle expired for ${e.id}`}
         />

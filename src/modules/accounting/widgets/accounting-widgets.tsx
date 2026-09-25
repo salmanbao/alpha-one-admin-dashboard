@@ -1,6 +1,7 @@
 "use client";
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantTransactions, type Transaction } from "@/lib/platform/mock-data";
 import { MetricCard } from "@/components/platform/page";
 import { formatCurrency } from "@/components/platform/status";
@@ -26,6 +27,7 @@ export function AccountingOverviewWidget() {
   const { runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
+  const term = makeTermResolver(runtime.tenant);
   const txns = getTenantTransactions(tid);
   const revenue = txns
     .filter((t) => t.type === "challenge-fee" || t.type === "subscription")
@@ -36,7 +38,7 @@ export function AccountingOverviewWidget() {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <MetricCard label="Revenue" value={formatCurrency(revenue, currency)} icon={ArrowUpCircle} tone="positive" />
-      <MetricCard label="Payouts" value={formatCurrency(payouts, currency)} icon={ArrowDownCircle} tone="negative" />
+      <MetricCard label={plural(term("payout"))} value={formatCurrency(payouts, currency)} icon={ArrowDownCircle} tone="negative" />
       <MetricCard label="Fees" value={formatCurrency(fees, currency)} icon={Percent} tone="warning" />
       <MetricCard label="Net" value={formatCurrency(net, currency)} icon={Wallet} tone={net >= 0 ? "positive" : "negative"} />
     </div>

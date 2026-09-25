@@ -334,21 +334,21 @@ export function TokenDetailPage() {
   const onSave = () => {
     toast({
       title: "Token saved",
-      description: `Changes to ${working.key.slice(0, 12)}… were saved.`,
+      description: `Changes to ${working.key.slice(0, 12)}… were saved. (demo)`,
     });
   };
 
   const onSaveAndContinue = () => {
     toast({
       title: "Changes saved",
-      description: `Token ${working.key.slice(0, 12)}… updated. Continuing edits.`,
+      description: `Token ${working.key.slice(0, 12)}… updated. Continuing edits. (demo)`,
     });
   };
 
   const onSaveAndAdd = () => {
     toast({
       title: "Token saved",
-      description: "Token saved. Create another?",
+      description: "Token saved. Create another? (demo)",
     });
     // Reset to a fresh-token form for the operator.
     setWorking(buildTokenDetail("new", tid));
@@ -357,7 +357,7 @@ export function TokenDetailPage() {
   const onRegenerateKey = () => {
     toast({
       title: "New key generated",
-      description: "The old key is immediately invalid.",
+      description: "The old key is immediately invalid. (demo)",
     });
   };
 
@@ -365,7 +365,7 @@ export function TokenDetailPage() {
     setDeleteOpen(false);
     toast({
       title: "Token deleted",
-      description: `Token ${working.key.slice(0, 12)}… was permanently revoked.`,
+      description: `Token ${working.key.slice(0, 12)}… was permanently revoked. (demo)`,
     });
     navigate("token-management");
   };

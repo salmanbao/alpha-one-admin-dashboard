@@ -507,7 +507,7 @@ export function AccountingInvoicesPage() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       cell: (i) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
           <Button

@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import {
   PackagePlus,
   ShoppingCart,
@@ -161,9 +162,20 @@ export function RiskAddonRevenuePage() {
   const totalRevenue = rows.reduce((s, r) => s + r.estimatedRevenue, 0);
 
   const exportCsv = () => {
+    exportToCsv(
+      filtered,
+      [
+        { key: "name", header: "Add-on", value: (r: AddonRow) => r.name },
+        { key: "orders", header: "Orders", value: (r) => r.orders },
+        { key: "unitsSold", header: "Units Sold", value: (r) => r.unitsSold },
+        { key: "unitPrice", header: "Unit Price", value: (r) => r.unitPrice },
+        { key: "estimatedRevenue", header: "Estimated Revenue", value: (r) => r.estimatedRevenue },
+      ],
+      `risk-addon-revenue-${Date.now()}.csv`,
+    );
     toast({
-      title: "Export started (demo)",
-      description: `Would export ${filtered.length} add-on rows as CSV in production.`,
+      title: "Export complete",
+      description: `Exported ${filtered.length} add-on rows to CSV.`,
     });
   };
 
