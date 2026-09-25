@@ -367,6 +367,16 @@ export function OrderDetailPage() {
   const [editing, setEditing] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  // Render-time resync — when the URL `id` changes (in-app navigation
+  // between two orders), the useState initial value is stale. Without
+  // this guard, the page briefly renders the previous order's data until
+  // a field is edited. Mirrors profile-page.tsx pattern.
+  const [lastId, setLastId] = useState(id);
+  if (lastId !== id) {
+    setLastId(id);
+    setWorking(seed);
+  }
+
   const update = (patch: Partial<OrderDetail>) =>
     setWorking((w) => ({ ...w, ...patch }));
 

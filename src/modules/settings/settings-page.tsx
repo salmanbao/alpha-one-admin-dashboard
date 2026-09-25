@@ -4,7 +4,7 @@
  * Settings Page — modular settings with a landing grid + tabbed editor.
  *
  * Spec section 43. The landing grid is the "front door" to Settings —
- * a searchable, categorized grid of all 19 settings sections (Branding,
+ * a searchable, categorized grid of all 20 settings sections (Branding,
  * Security, Communications, Certificates, System). Below the grid is a
  * collapsible "Quick edit" panel containing the 7-tab editor (General,
  * Branding, Terminology, Modules, Roles, Integrations, Notifications).
@@ -12,6 +12,11 @@
  * Tabs are still preserved so the existing demo flows (Modules toggle,
  * Branding presets, Terminology editor) keep working — they are now
  * behind the "Quick edit" disclosure instead of being the primary view.
+ *
+ * Sidebar children that point to one of the Quick-edit tabs use a
+ * deep-linking href like `settings?tab=modules` — parsed by the sidebar
+ * into `navigate("settings", { tab: "modules" })`. Clicking "Modules" in
+ * the sidebar opens the Quick-edit panel with the Modules tab preselected.
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
@@ -86,6 +91,7 @@ const SETTINGS_CARDS: SettingsCardSpec[] = [
   { id: "users", title: "User Management", description: "Tenant users, group membership, role assignments, status.", icon: UsersRound, viewId: "user-management", category: "Security" },
   { id: "tokens", title: "API Tokens", description: "Long-lived API tokens with scoped permissions and rotation.", icon: KeyRound, viewId: "token-management", category: "Security" },
   { id: "device-activities", title: "Device Activities", description: "Login device fingerprinting, IP history, session audit.", icon: Fingerprint, viewId: "device-activities", category: "Security" },
+  { id: "kyc-providers", title: "KYC Providers", description: "Identity verification providers — Sumsub, Onfido, Persona.", icon: ShieldCheck, viewId: "kyc-providers", category: "Security" },
 
   // Communications
   { id: "email-templates", title: "Email Templates", description: "Transactional and marketing email templates with variables.", icon: Mail, viewId: "email-templates", category: "Communications" },
@@ -116,7 +122,9 @@ const CATEGORY_ORDER: SettingsCardSpec["category"][] = [
 export function SettingsPage() {
   const { router, navigate, tenant, runtime } = usePlatform();
   const [query, setQuery] = useState("");
-  const [showQuickEdit, setShowQuickEdit] = useState(false);
+  const [showQuickEdit, setShowQuickEdit] = useState<boolean>(
+    Boolean(router.params.tab),
+  );
 
   // Quick edit's active tab — initialized from the URL `?tab=` param so
   // deep-links like `navigate("settings", { tab: "modules" })` land on
@@ -184,9 +192,9 @@ export function SettingsPage() {
             icon={SettingsIcon}
           />
           <MetricCard
-            label="Recently Modified"
+            label="Tenant Age"
             value={recentlyModified}
-            deltaLabel="tenant creation date"
+            deltaLabel="since tenant created"
             icon={RefreshCw}
           />
           <MetricCard
@@ -197,7 +205,7 @@ export function SettingsPage() {
             tone="positive"
           />
           <MetricCard
-            label="Platform Status"
+            label="Firm Status"
             value={tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
             deltaLabel={`${tenant.plan} plan`}
             icon={ShieldCheck}
@@ -645,6 +653,8 @@ function RolesTab() {
   );
 }
 
+const NOTIF_PREFS_KEY = "pfaas:notificationPrefs";
+
 function NotificationsTab() {
   // Per-module notification preferences with per-channel toggles
   const modules = [
@@ -660,6 +670,33 @@ function NotificationsTab() {
     { id: "inapp", label: "In-app" },
     { id: "slack", label: "Slack" },
   ];
+
+  // Controlled channel prefs — persisted per browser so toggles survive
+  // re-renders and reloads (the copy promises "saved to your profile").
+  const [prefs, setPrefs] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(NOTIF_PREFS_KEY);
+      return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [quietHours, setQuietHours] = useState(true);
+  const [quietStart, setQuietStart] = useState("22:00");
+  const [quietEnd, setQuietEnd] = useState("07:00");
+
+  const prefFor = (modId: string, chId: string) =>
+    prefs[`${modId}:${chId}`] ?? chId !== "slack";
+  const setPref = (modId: string, chId: string, value: boolean) => {
+    setPrefs((prev) => {
+      const next = { ...prev, [`${modId}:${chId}`]: value };
+      try {
+        window.localStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(next));
+      } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -696,7 +733,11 @@ function NotificationsTab() {
                     className="flex cursor-pointer items-center justify-between rounded-md border p-2.5 transition-colors hover:bg-muted/40"
                   >
                     <span className="text-xs font-medium text-foreground">{ch.label}</span>
-                    <Switch defaultChecked={ch.id !== "slack"} aria-label={`${mod.name} ${ch.label} notifications`} />
+                    <Switch
+                      checked={prefFor(mod.id, ch.id)}
+                      onCheckedChange={(v) => setPref(mod.id, ch.id, v)}
+                      aria-label={`${mod.name} ${ch.label} notifications`}
+                    />
                   </label>
                 ))}
               </div>
@@ -712,15 +753,30 @@ function NotificationsTab() {
         <CardContent>
           <p className="mb-3 text-xs text-muted-foreground">Suppress non-critical notifications during these hours.</p>
           <div className="flex flex-wrap items-center gap-2">
-            <Switch defaultChecked id="quiet-hours" aria-label="Enable quiet hours" />
+            <Switch
+              checked={quietHours}
+              onCheckedChange={setQuietHours}
+              id="quiet-hours"
+              aria-label="Enable quiet hours"
+            />
             <label htmlFor="quiet-hours" className="text-xs font-medium">Enable quiet hours</label>
-            <select className="h-8 rounded-md border border-input bg-background px-2 text-xs" aria-label="Quiet hours start">
+            <select
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+              aria-label="Quiet hours start"
+              value={quietStart}
+              onChange={(e) => setQuietStart(e.target.value)}
+            >
               <option>22:00</option>
               <option>23:00</option>
               <option>00:00</option>
             </select>
             <span className="text-xs text-muted-foreground">to</span>
-            <select className="h-8 rounded-md border border-input bg-background px-2 text-xs" aria-label="Quiet hours end">
+            <select
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+              aria-label="Quiet hours end"
+              value={quietEnd}
+              onChange={(e) => setQuietEnd(e.target.value)}
+            >
               <option>07:00</option>
               <option>08:00</option>
               <option>09:00</option>

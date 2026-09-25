@@ -198,8 +198,17 @@ export function ChallengeWizardPage() {
       case 2:
         return !hasPhase2 || phaseValid(state.phase2);
       case 3:
-      case 4:
         return true;
+      case 4:
+        // Payout step — at least one payout method must be selected and
+        // the profit-split % must be a number 0–100. Previously returned
+        // `true` unconditionally, so the operator could click Next with
+        // zero payout methods and an invalid split.
+        return (
+          state.payoutRules.payoutMethods.length > 0 &&
+          Number(state.payoutRules.profitSplitPct) >= 0 &&
+          Number(state.payoutRules.profitSplitPct) <= 100
+        );
       case 5:
         return (
           Number(state.riskRules.maxDailyLossPct) > 0 &&
@@ -913,12 +922,9 @@ function ReviewStep({
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-primary" />
           <p className="text-xs text-foreground">
-            Challenge template will be available to assign to traders immediately after creation.
+            Challenge template will be available to assign to traders immediately after creation. Click <span className="font-medium">Create Challenge</span> in the footer to finalize.
           </p>
         </div>
-        <Button size="sm" onClick={onCreate} className="gap-1.5">
-          <Check className="h-4 w-4" /> Create Challenge
-        </Button>
       </div>
     </div>
   );

@@ -103,10 +103,14 @@ export function OnboardingWizard() {
   };
 
   const completeOnboarding = () => {
-    // Apply module selection to tenant
+    // Apply module selection to tenant. Settings is a protected core module
+    // (the wizard list intentionally excludes it) — always keep it enabled,
+    // otherwise completing setup locks the admin out of Settings entirely.
+    const selected = Array.from(state.selectedModules);
+    if (!selected.includes("settings")) selected.push("settings");
     const updated = {
       ...tenant,
-      enabledModules: Array.from(state.selectedModules),
+      enabledModules: selected,
       branding: {
         ...tenant.branding,
         primaryColor: state.primaryColor,

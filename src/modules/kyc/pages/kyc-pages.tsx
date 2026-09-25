@@ -17,6 +17,7 @@ import { useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantKyc, type KycRecord } from "@/lib/platform/mock-data";
+import { applyKycDecision, effectiveKycStatus, useKycVersion } from "@/modules/kyc/kyc-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, kycStatusTone } from "@/components/platform/status";
@@ -99,7 +100,8 @@ export function KycOverviewPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const records = getTenantKyc(tid);
+  useKycVersion(); // KPIs recompute when decisions change
+  const records = getTenantKyc(tid).map((r) => ({ ...r, status: effectiveKycStatus(r) }));
   const pending = records.filter((r) => r.status === "pending").length;
   const inReview = records.filter((r) => r.status === "review").length;
   const approved = records.filter((r) => r.status === "approved").length;
@@ -172,11 +174,11 @@ export function KycOverviewPage() {
       />
       <PageContent>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <MetricCard label="Pending" value={pending} delta={-3} icon={Clock} tone="warning" />
-          <MetricCard label="In Review" value={inReview} delta={1} icon={FileSearch} />
-          <MetricCard label="Approved" value={approved} delta={8} icon={CheckCircle2} tone="positive" />
-          <MetricCard label="Rejected" value={rejected} delta={-1} icon={XCircle} tone="negative" />
-          <MetricCard label="High Risk" value={highRisk} delta={2} icon={AlertTriangle} tone="negative" />
+          <MetricCard label="Pending" value={pending} icon={Clock} tone="warning" />
+          <MetricCard label="In Review" value={inReview} icon={FileSearch} />
+          <MetricCard label="Approved" value={approved} icon={CheckCircle2} tone="positive" />
+          <MetricCard label="Rejected" value={rejected} icon={XCircle} tone="negative" />
+          <MetricCard label="High Risk" value={highRisk} icon={AlertTriangle} tone="negative" />
         </div>
         <div className="rounded-lg border bg-card p-4">
           <p className="mb-3 text-sm font-medium">Recent Submissions</p>
@@ -231,12 +233,15 @@ function KycRecordActions({ record }: { record: KycRecord }) {
         <Button
           size="sm"
           variant="default"
-          onClick={() =>
+          onClick={() => {
+            // Mutate the shared KYC store — status flips to approved
+            // across the queue, KPIs and risk page instantly.
+            applyKycDecision(record.id, "approved");
             toast({
               title: "Approved",
               description: `${record.traderName} KYC approved.`,
-            })
-          }
+            });
+          }}
         >
           Approve
         </Button>
@@ -263,21 +268,22 @@ function KycRecordActions({ record }: { record: KycRecord }) {
                 from {record.traderName} ({record.country}).
               </AlertDialogDescription>
               <div className="rounded-md border border-rose-500/20 bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
-                <span className="font-medium">Consequence:</span> The applicant will be notified
-                and may re-submit if eligible. Their account will remain in pending status. This
-                action is logged in the audit trail.
+                <span className="font-medium">Consequence:</span> The submission will move to
+                Rejected status and the applicant will be notified. They may re-submit if
+                eligible. This action is logged in the audit trail.
               </div>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                onClick={() =>
+                onClick={() => {
+                  applyKycDecision(record.id, "rejected");
                   toast({
-                    title: "KYC rejected (demo)",
+                    title: "KYC rejected",
                     description: `${record.traderName}'s submission has been rejected.`,
                     variant: "destructive",
-                  })
-                }
+                  });
+                }}
                 className="bg-rose-600 text-white hover:bg-rose-700"
               >
                 Reject
@@ -353,8 +359,9 @@ function KycRecordActions({ record }: { record: KycRecord }) {
                 disabled={selectedDocs.size === 0 && !instructions.trim()}
                 onClick={() => {
                   const docList = Array.from(selectedDocs).join(", ");
+                  applyKycDecision(record.id, "info-requested");
                   toast({
-                    title: "Request sent to applicant (demo)",
+                    title: "Request sent to applicant",
                     description: `${record.traderName} has been asked to provide: ${
                       docList || "as described in instructions"
                     }.`,
@@ -377,7 +384,8 @@ export function KycReviewsPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const records = getTenantKyc(tid);
+  useKycVersion(); // rows react to decisions
+  const records = getTenantKyc(tid).map((r) => ({ ...r, status: effectiveKycStatus(r) }));
 
   const columns: Column<KycRecord>[] = [
     { key: "trader", header: term("trader"), cell: (r) => <span className="font-medium">{r.traderName}</span>, sortValue: (r) => r.traderName },
@@ -453,7 +461,8 @@ export function KycRiskPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const records = getTenantKyc(tid);
+  useKycVersion();
+  const records = getTenantKyc(tid).map((r) => ({ ...r, status: effectiveKycStatus(r) }));
 
   const riskData = (["low", "medium", "high"] as const).map((level) => ({
     label: level,

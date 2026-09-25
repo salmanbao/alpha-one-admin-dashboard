@@ -1,0 +1,1140 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Order Detail Page — purchase / order detail view.
+     5→ *
+     6→ * Reached from the Orders list (admin) or directly via `router.params.id`.
+     7→ * Breadcrumb: "Orders > [Order ID]".
+     8→ *
+     9→ * Layout (UX §12, §25-27 — progressive disclosure + predictable detail):
+    10→ *  - Header section: User (email link), Order ID (mono), Addons (JSON
+    11→ *    code block)
+    12→ *  - Main form (read-only with Edit toggle): Date created (read-only),
+    13→ *    Order type (dropdown), Notes (textarea)
+    14→ *  - Financials grid (2-column key-value): Challenge, Competition,
+    15→ *    Account balance, Amount paid, Quantity, Payment method, Coupon
+    16→ *    code, Bundle ID, Customer IP address
+    17→ *  - 3 collapsible sections (all start collapsed):
+    18→ *    1. Attribution / UTM Tracking (key-value list)
+    19→ *    2. Accounts (DataTable: Account Login, Phase, Broker, Initial
+    20→ *       Balance, Status)
+    21→ *    3. Subscription (DataTable: Billing Date, Amount, Status, Next
+    22→ *       Billing)
+    23→ *  - Footer actions: Save (primary), Save and add another (outline),
+    24→ *    Delete (destructive AlertDialog), Back (ghost)
+    25→ *
+    26→ * Mock data is generated deterministically from the order id (hashSeed)
+    27→ * — same approach used on closed-position-detail-page.
+    28→ *
+    29→ * Terra palette — emerald / amber / rose accents, no blue / indigo.
+    30→ */
+    31→
+    32→import { useMemo, useState } from "react";
+    33→import { usePlatform } from "@/lib/platform/platform-context";
+    34→import { getTenantTraders } from "@/lib/platform/mock-data";
+    35→import { Page, PageContent } from "@/components/platform/page";
+    36→import { DataTable, type Column } from "@/components/platform/data-table";
+    37→import { formatCurrency, StatusBadge } from "@/components/platform/status";
+    38→import { EmptyState } from "@/components/platform/guards";
+    39→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    40→import {
+    41→  Breadcrumb,
+    42→  BreadcrumbItem,
+    43→  BreadcrumbLink,
+    44→  BreadcrumbList,
+    45→  BreadcrumbPage,
+    46→  BreadcrumbSeparator,
+    47→} from "@/components/ui/breadcrumb";
+    48→import { Button } from "@/components/ui/button";
+    49→import { Input } from "@/components/ui/input";
+    50→import { Textarea } from "@/components/ui/textarea";
+    51→import { Badge } from "@/components/ui/badge";
+    52→import { Separator } from "@/components/ui/separator";
+    53→import {
+    54→  Select,
+    55→  SelectContent,
+    56→  SelectItem,
+    57→  SelectTrigger,
+    58→  SelectValue,
+    59→} from "@/components/ui/select";
+    60→import {
+    61→  Accordion,
+    62→  AccordionContent,
+    63→  AccordionItem,
+    64→  AccordionTrigger,
+    65→} from "@/components/ui/accordion";
+    66→import {
+    67→  AlertDialog,
+    68→  AlertDialogAction,
+    69→  AlertDialogCancel,
+    70→  AlertDialogContent,
+    71→  AlertDialogDescription,
+    72→  AlertDialogFooter,
+    73→  AlertDialogHeader,
+    74→  AlertDialogTitle,
+    75→  AlertDialogTrigger,
+    76→} from "@/components/ui/alert-dialog";
+    77→import { toast } from "@/hooks/use-toast";
+    78→import { cn } from "@/lib/utils";
+    79→import {
+    80→  ShoppingCart,
+    81→  ChevronRight,
+    82→  Trash2,
+    83→  Save,
+    84→  Plus,
+    85→  Pencil,
+    86→  Check,
+    87→  ArrowLeft,
+    88→  ArrowUpRight,
+    89→  Mail,
+    90→  Braces,
+    91→  Calendar,
+    92→  CreditCard,
+    93→  Globe,
+    94→  Link2,
+    95→  Repeat,
+    96→  ShieldAlert,
+    97→  User,
+    98→} from "lucide-react";
+    99→
+   100→/* ------------------------------------------------------------------ */
+   101→/* Types & mock data                                                  */
+   102→/* ------------------------------------------------------------------ */
+   103→
+   104→type OrderType =
+   105→  | "Challenge Purchase"
+   106→  | "Activation Fee"
+   107→  | "Add-on"
+   108→  | "Subscription"
+   109→  | "Refund";
+   110→
+   111→type PaymentMethod = "Crypto" | "Card" | "Bank Transfer" | "PayPal";
+   112→
+   113→type SubscriptionStatus = "Active" | "Cancelled" | "Expired";
+   114→
+   115→interface LinkedAccount {
+   116→  id: string;
+   117→  login: string;
+   118→  phase: string;
+   119→  broker: string;
+   120→  initialBalance: number;
+   121→  status: "active" | "breached" | "passed" | "pending";
+   122→}
+   123→
+   124→interface SubscriptionRow {
+   125→  id: string;
+   126→  billingDate: string;
+   127→  amount: number;
+   128→  status: SubscriptionStatus;
+   129→  nextBilling: string | null;
+   130→}
+   131→
+   132→interface OrderDetail {
+   133→  id: string;
+   134→  userId: string;
+   135→  userEmail: string;
+   136→  userFullName: string;
+   137→  addons: Record<string, unknown>;
+   138→  dateCreated: string;
+   139→  orderType: OrderType;
+   140→  notes: string;
+   141→  challenge: string;
+   142→  competition: string | null;
+   143→  accountBalance: number;
+   144→  amountPaid: number;
+   145→  quantity: number;
+   146→  paymentMethod: PaymentMethod;
+   147→  couponCode: string;
+   148→  bundleId: string | null;
+   149→  customerIp: string;
+   150→  // Attribution
+   151→  utm: {
+   152→    source: string;
+   153→    campaign: string;
+   154→    medium: string;
+   155→    term: string;
+   156→    content: string;
+   157→    referrer: string;
+   158→    landing: string;
+   159→  };
+   160→  // Linked accounts
+   161→  accounts: LinkedAccount[];
+   162→  // Subscription rows (for Subscription / Add-on types)
+   163→  subscriptions: SubscriptionRow[];
+   164→}
+   165→
+   166→const ORDER_TYPES: OrderType[] = [
+   167→  "Challenge Purchase",
+   168→  "Activation Fee",
+   169→  "Add-on",
+   170→  "Subscription",
+   171→  "Refund",
+   172→];
+   173→
+   174→const PAYMENT_METHODS: PaymentMethod[] = [
+   175→  "Crypto",
+   176→  "Card",
+   177→  "Bank Transfer",
+   178→  "PayPal",
+   179→];
+   180→
+   181→const CHALLENGES = [
+   182→  "Alpha 100K Two-Phase",
+   183→  "Beta 50K One-Phase",
+   184→  "Gamma 200K Three-Phase",
+   185→  "Delta 25K Instant Funded",
+   186→  "Epsilon 100K Evaluation",
+   187→];
+   188→
+   189→const COMPETITIONS = [
+   190→  "Q4 Traders Cup",
+   191→  "Summer Sprint",
+   192→  "Founders Trophy",
+   193→];
+   194→
+   195→const REFERRERS = [
+   196→  "https://t.co/abc123",
+   197→  "https://www.google.com/",
+   198→  "https://www.facebook.com/",
+   199→  "https://affiliate.alpha.capital",
+   200→  "https://t.me/alphacapital",
+   201→];
+   202→
+   203→const LANDING_PAGES = [
+   204→  "https://alpha.capital/pricing",
+   205→  "https://alpha.capital/challenges/two-phase",
+   206→  "https://alpha.capital/competitions",
+   207→  "https://alpha.capital/checkout",
+   208→];
+   209→
+   210→/** Deterministic pseudo-random generator from a numeric seed. */
+   211→function seededRandom(seed: number): number {
+   212→  const x = Math.sin(seed * 9999.1) * 10000;
+   213→  return x - Math.floor(x);
+   214→}
+   215→
+   216→/** Hash a string id to a stable integer seed. */
+   217→function hashSeed(id: string): number {
+   218→  let h = 0;
+   219→  for (let i = 0; i < id.length; i++) {
+   220→    h = (h * 31 + id.charCodeAt(i)) | 0;
+   221→  }
+   222→  return Math.abs(h) || 1;
+   223→}
+   224→
+   225→const BROKERS = ["MT5", "MT4", "DXTrade"];
+   226→const ACCOUNT_STATUSES: LinkedAccount["status"][] = [
+   227→  "active",
+   228→  "passed",
+   229→  "pending",
+   230→  "breached",
+   231→];
+   232→
+   233→function generateOrderDetail(id: string, tenantId: string): OrderDetail {
+   234→  const seed = hashSeed(id);
+   235→  const traders = getTenantTraders(tenantId);
+   236→  const trader = traders[seed % Math.max(traders.length, 1)] ?? traders[0];
+   237→
+   238→  const r1 = seededRandom(seed + 0.1);
+   239→  const r2 = seededRandom(seed + 0.5);
+   240→  const r3 = seededRandom(seed + 1.7);
+   241→  const r4 = seededRandom(seed + 3.3);
+   242→
+   243→  const orderType = ORDER_TYPES[seed % ORDER_TYPES.length];
+   244→  const challenge = CHALLENGES[seed % CHALLENGES.length];
+   245→  const competition = r4 > 0.7 ? COMPETITIONS[seed % COMPETITIONS.length] : null;
+   246→  const accountBalance = [10000, 25000, 50000, 100000, 200000][
+   247→    seed % 5
+   248→  ];
+   249→  const amountPaid =
+   250→    orderType === "Refund"
+   251→      ? -Math.round(accountBalance * 0.15 * 100) / 100
+   252→      : Math.round(accountBalance * (0.05 + r1 * 0.03) * 100) / 100;
+   253→  const quantity = 1 + (seed % 3);
+   254→  const paymentMethod = PAYMENT_METHODS[seed % PAYMENT_METHODS.length];
+   255→  const couponCode = r2 > 0.5 ? `SAVE${10 + (seed % 30)}` : "";
+   256→  const bundleId = r3 > 0.6 ? `bundle-${(seed % 100) + 1}` : null;
+   257→  const customerIp = `${10 + (seed % 200)}.${seed % 255}.${(seed * 7) % 255}.${(seed * 13) % 255}`;
+   258→
+   259→  // Addons — deterministic small object
+   260→  const addons: Record<string, unknown> = {};
+   261→  if (r4 > 0.4) addons["priority_withdrawal"] = true;
+   262→  if (r4 > 0.6) addons["extended_kyc"] = false;
+   263→  if (r4 > 0.8) addons["addon_quantity"] = 1 + (seed % 3);
+   264→  if (Object.keys(addons).length === 0) addons["none"] = true;
+   265→
+   266→  // Date created — deterministic window from the past 60 days
+   267→  const now = Date.now();
+   268→  const createdMsAgo = Math.floor((1 + r2 * 60 * 24 * 60)) * 60 * 1000;
+   269→  const dateCreated = new Date(now - createdMsAgo).toISOString();
+   270→
+   271→  // Attribution — deterministic UTM values
+   272→  const utm = {
+   273→    source: ["twitter", "google", "affiliate", "telegram", "direct"][seed % 5],
+   274→    campaign:
+   275→      challenge.toLowerCase().replace(/\s+/g, "_") + `_${(seed % 12) + 1}`,
+   276→    medium: ["cpc", "social", "email", "referral"][seed % 4],
+   277→    term: ["forex", "funded", "evaluation", ""][seed % 4],
+   278→    content: `ad_${(seed % 6) + 1}`,
+   279→    referrer: REFERRERS[seed % REFERRERS.length],
+   280→    landing: LANDING_PAGES[seed % LANDING_PAGES.length],
+   281→  };
+   282→
+   283→  // Linked accounts — 1..3 deterministic accounts
+   284→  const accountCount = 1 + (seed % 3);
+   285→  const accounts: LinkedAccount[] = Array.from(
+   286→    { length: accountCount },
+   287→    (_, i) => {
+   288→      const s = seed + i * 17;
+   289→      return {
+   290→        id: `acct-${s}`,
+   291→        login: `${100000 + (s % 90000)}`,
+   292→        phase: ["phase-1", "phase-2", "funded"][i % 3],
+   293→        broker: BROKERS[i % BROKERS.length],
+   294→        initialBalance: accountBalance,
+   295→        status: ACCOUNT_STATUSES[s % ACCOUNT_STATUSES.length],
+   296→      };
+   297→    },
+   298→  );
+   299→
+   300→  // Subscription rows — only meaningful for Subscription type but always
+   301→  // generated so the accordion is never empty.
+   302→  const subCount = orderType === "Subscription" ? 1 + (seed % 3) : 1;
+   303→  const subscriptions: SubscriptionRow[] = Array.from(
+   304→    { length: subCount },
+   305→    (_, i) => {
+   306→      const s = seed + i * 23;
+   307→      const billingOffset = (s % 90) * 24 * 60 * 60 * 1000;
+   308→      const status: SubscriptionStatus =
+   309→        i === 0
+   310→          ? "Active"
+   311→          : (["Active", "Cancelled", "Expired"][s % 3] as SubscriptionStatus);
+   312→      const next =
+   313→        status === "Active"
+   314→          ? new Date(now + (30 - (s % 30)) * 24 * 60 * 60 * 1000).toISOString()
+   315→          : null;
+   316→      return {
+   317→        id: `sub-${s}`,
+   318→        billingDate: new Date(now - billingOffset).toISOString(),
+   319→        amount: Math.round(accountBalance * 0.05 * 100) / 100,
+   320→        status,
+   321→        nextBilling: next,
+   322→      };
+   323→    },
+   324→  );
+   325→
+   326→  return {
+   327→    id,
+   328→    userId: trader?.id ?? "usr-unknown",
+   329→    userEmail: trader?.email ?? "trader@example.com",
+   330→    userFullName: trader?.name ?? "Unknown trader",
+   331→    addons,
+   332→    dateCreated,
+   333→    orderType,
+   334→    notes:
+   335→      orderType === "Refund"
+   336→        ? "Refund issued for duplicate challenge purchase (CS ticket #4231)."
+   337→        : `Customer purchased ${quantity} × ${challenge}.`,
+   338→    challenge,
+   339→    competition,
+   340→    accountBalance,
+   341→    amountPaid,
+   342→    quantity,
+   343→    paymentMethod,
+   344→    couponCode,
+   345→    bundleId,
+   346→    customerIp,
+   347→    utm,
+   348→    accounts,
+   349→    subscriptions,
+   350→  };
+   351→}
+   352→
+   353→/* ------------------------------------------------------------------ */
+   354→/* Page                                                                */
+   355→/* ------------------------------------------------------------------ */
+   356→
+   357→export function OrderDetailPage() {
+   358→  const { runtime, navigate, router } = usePlatform();
+   359→  const tid = runtime.tenant?.id ?? "platform";
+   360→  const currency = runtime.tenant?.currency ?? "USD";
+   361→
+   362→  const id = router.params.id ?? "ord-unknown";
+   363→  const seed = useMemo(() => generateOrderDetail(id, tid), [id, tid]);
+   364→
+   365→  // Working copy — local state so edits don't mutate mock data.
+   366→  const [working, setWorking] = useState<OrderDetail>(seed);
+   367→  const [editing, setEditing] = useState(false);
+   368→  const [deleteOpen, setDeleteOpen] = useState(false);
+   369→
+   370→  const update = (patch: Partial<OrderDetail>) =>
+   371→    setWorking((w) => ({ ...w, ...patch }));
+   372→
+   373→  const onToggleEdit = () => {
+   374→    if (editing) {
+   375→      setWorking(seed); // discard local edits
+   376→    }
+   377→    setEditing((e) => !e);
+   378→  };
+   379→
+   380→  const onSave = () => {
+   381→    setEditing(false);
+   382→    toast({
+   383→      title: "Order saved",
+   384→      description: `Changes to ${working.id} were saved.`,
+   385→    });
+   386→  };
+   387→
+   388→  const onSaveAndAdd = () => {
+   389→    toast({
+   390→      title: "Order saved",
+   391→      description: "Redirecting to a fresh order form (demo).",
+   392→    });
+   393→    // The "new order" view isn't implemented yet — close to nothing is
+   394→    // the closest parent (the orders list lives in the dashboard-tabs).
+   395→    navigate("dashboard-orders");
+   396→  };
+   397→
+   398→  const onDelete = () => {
+   399→    setDeleteOpen(false);
+   400→    toast({
+   401→      title: "Order deleted",
+   402→      description: `${working.id} was permanently deleted.`,
+   403→    });
+   404→    navigate("dashboard-orders");
+   405→  };
+   406→
+   407→  return (
+   408→    <Page>
+   409→      {/* Breadcrumb */}
+   410→      <Breadcrumb>
+   411→        <BreadcrumbList>
+   412→          <BreadcrumbItem>
+   413→            <BreadcrumbLink
+   414→              asChild
+   415→              className="cursor-pointer text-muted-foreground"
+   416→            >
+   417→              <button
+   418→                type="button"
+   419→                onClick={() => navigate("dashboard-orders")}
+   420→              >
+   421→                Orders
+   422→              </button>
+   423→            </BreadcrumbLink>
+   424→          </BreadcrumbItem>
+   425→          <BreadcrumbSeparator>
+   426→            <ChevronRight className="h-3.5 w-3.5" />
+   427→          </BreadcrumbSeparator>
+   428→          <BreadcrumbItem>
+   429→            <BreadcrumbPage className="font-mono text-xs">
+   430→              {working.id}
+   431→            </BreadcrumbPage>
+   432→          </BreadcrumbItem>
+   433→        </BreadcrumbList>
+   434→      </Breadcrumb>
+   435→
+   436→      {/* Header section */}
+   437→      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+   438→        <div className="flex items-start gap-3">
+   439→          <div className="rounded-lg border bg-muted p-2">
+   440→            <ShoppingCart className="h-5 w-5 text-foreground" />
+   441→          </div>
+   442→          <div className="space-y-1.5">
+   443→            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+   444→              Order{" "}
+   445→              <span className="ml-1 font-mono text-base text-muted-foreground">
+   446→                {working.id}
+   447→              </span>
+   448→            </h1>
+   449→            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+   450→              <a
+   451→                href={`mailto:${working.userEmail}`}
+   452→                className="inline-flex items-center gap-1 text-emerald-700 hover:underline dark:text-emerald-400"
+   453→              >
+   454→                <Mail className="h-3 w-3" />
+   455→                {working.userEmail}
+   456→              </a>
+   457→              <span aria-hidden>·</span>
+   458→              <span>
+   459→                {new Date(working.dateCreated).toLocaleString()}
+   460→              </span>
+   461→              <span aria-hidden>·</span>
+   462→              <Button
+   463→                type="button"
+   464→                variant="link"
+   465→                size="sm"
+   466→                // Inline "View Trader" cross-link placed next to the email +
+   467→                // date in the order header (UX §22 — contextual action where
+   468→                // the decision happens, not buried at the bottom). The
+   469→                // variant="link" + size="sm" base is overridden with compact
+   470→                // `h-auto px-2 py-1 text-[11px]` so the badge-style chip
+   471→                // stays visually inline with the surrounding `text-xs`
+   472→                // metadata without inflating the line height. `hover:no-underline`
+   473→                // suppresses the link variant's underline-on-hover so the
+   474→                // emerald chip's bg-color hover state is the only signal.
+   475→                onClick={() =>
+   476→                  navigate("trader-detail", { id: working.userId })
+   477→                }
+   478→                className="inline-flex h-auto items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-50/50 px-2 py-1 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100 hover:no-underline hover:text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/60"
+   479→                aria-label={`View trader ${working.userFullName}`}
+   480→                title={`View trader ${working.userFullName}`}
+   481→              >
+   482→                <User className="h-3 w-3" />
+   483→                View Trader
+   484→                <ArrowUpRight className="h-3 w-3" />
+   485→              </Button>
+   486→            </div>
+   487→          </div>
+   488→        </div>
+   489→        <div className="flex flex-wrap items-center gap-2">
+   490→          <Badge variant="outline" className="text-[10px]">
+   491→            {working.orderType}
+   492→          </Badge>
+   493→          {working.bundleId ? (
+   494→            <Badge variant="secondary" className="text-[10px]">
+   495→              Bundle: {working.bundleId}
+   496→            </Badge>
+   497→          ) : null}
+   498→          <Button
+   499→            size="sm"
+   500→            variant={editing ? "default" : "outline"}
+   501→            onClick={onToggleEdit}
+   502→            aria-pressed={editing}
+   503→          >
+   504→            {editing ? (
+   505→              <>
+   506→                <Check className="h-3.5 w-3.5" /> Done
+   507→              </>
+   508→            ) : (
+   509→              <>
+   510→                <Pencil className="h-3.5 w-3.5" /> Edit
+   511→              </>
+   512→            )}
+   513→          </Button>
+   514→        </div>
+   515→      </div>
+   516→
+   517→      <PageContent>
+   518→        {/* Addons — JSON code block */}
+   519→        <div className="rounded-lg border bg-card p-4">
+   520→          <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-foreground">
+   521→            <Braces className="h-3.5 w-3.5 text-muted-foreground" />
+   522→            Addons
+   523→          </p>
+   524→          <pre className="overflow-x-auto rounded-md border bg-muted/30 p-3 font-mono text-xs text-foreground">
+   525→{JSON.stringify(working.addons, null, 2)}
+   526→          </pre>
+   527→        </div>
+   528→
+   529→        {/* Key remount on id change so local working state resets */}
+   530→        <OrderForm
+   531→          key={seed.id}
+   532→          working={working}
+   533→          editing={editing}
+   534→          currency={currency}
+   535→          onFieldChange={update}
+   536→        />
+   537→
+   538→        {/* Collapsible sections */}
+   539→        <Accordion
+   540→          type="multiple"
+   541→          className="w-full"
+   542→          defaultValue={[]}
+   543→        >
+   544→          {/* 1. Attribution / UTM Tracking */}
+   545→          <AccordionItem
+   546→            value="attribution"
+   547→            className="rounded-md border bg-card px-4"
+   548→          >
+   549→            <AccordionTrigger className="text-sm font-medium text-foreground">
+   550→              <span className="inline-flex items-center gap-2">
+   551→                <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+   552→                Attribution / UTM Tracking
+   553→              </span>
+   554→            </AccordionTrigger>
+   555→            <AccordionContent>
+   556→              <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+   557→                <UtmField label="Source" value={working.utm.source} />
+   558→                <UtmField label="Campaign" value={working.utm.campaign} />
+   559→                <UtmField label="Medium" value={working.utm.medium} />
+   560→                <UtmField label="Term" value={working.utm.term || "—"} />
+   561→                <UtmField label="Content" value={working.utm.content} />
+   562→                <UtmField
+   563→                  label="Referrer URL"
+   564→                  value={working.utm.referrer}
+   565→                  mono
+   566→                  link={working.utm.referrer}
+   567→                />
+   568→                <UtmField
+   569→                  label="Landing page"
+   570→                  value={working.utm.landing}
+   571→                  mono
+   572→                  link={working.utm.landing}
+   573→                />
+   574→              </dl>
+   575→            </AccordionContent>
+   576→          </AccordionItem>
+   577→
+   578→          {/* 2. Accounts */}
+   579→          <AccordionItem
+   580→            value="accounts"
+   581→            className="rounded-md border bg-card px-4"
+   582→          >
+   583→            <AccordionTrigger className="text-sm font-medium text-foreground">
+   584→              <span className="inline-flex items-center gap-2">
+   585→                <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+   586→                Accounts
+   587→                <Badge variant="secondary" className="ml-1 text-[9px]">
+   588→                  {working.accounts.length}
+   589→                </Badge>
+   590→              </span>
+   591→            </AccordionTrigger>
+   592→            <AccordionContent>
+   593→              <AccountsTable
+   594→                accounts={working.accounts}
+   595→                currency={currency}
+   596→              />
+   597→            </AccordionContent>
+   598→          </AccordionItem>
+   599→
+   600→          {/* 3. Subscription */}
+   601→          <AccordionItem
+   602→            value="subscription"
+   603→            className="rounded-md border bg-card px-4"
+   604→          >
+   605→            <AccordionTrigger className="text-sm font-medium text-foreground">
+   606→              <span className="inline-flex items-center gap-2">
+   607→                <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
+   608→                Subscription
+   609→                <Badge variant="secondary" className="ml-1 text-[9px]">
+   610→                  {working.subscriptions.length}
+   611→                </Badge>
+   612→              </span>
+   613→            </AccordionTrigger>
+   614→            <AccordionContent>
+   615→              <SubscriptionTable
+   616→                rows={working.subscriptions}
+   617→                currency={currency}
+   618→              />
+   619→            </AccordionContent>
+   620→          </AccordionItem>
+   621→        </Accordion>
+   622→
+   623→        <Separator />
+   624→
+   625→        {/* Footer actions */}
+   626→        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   627→          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+   628→            <AlertDialogTrigger asChild>
+   629→              <Button
+   630→                size="sm"
+   631→                variant="outline"
+   632→                className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-400 dark:hover:bg-rose-950"
+   633→              >
+   634→                <Trash2 className="h-3.5 w-3.5" /> Delete
+   635→              </Button>
+   636→            </AlertDialogTrigger>
+   637→            <AlertDialogContent>
+   638→              <AlertDialogHeader>
+   639→                <AlertDialogTitle className="flex items-center gap-2">
+   640→                  <ShieldAlert className="h-5 w-5 text-rose-600" />
+   641→                  Delete order?
+   642→                </AlertDialogTitle>
+   643→                <AlertDialogDescription>
+   644→                  This order record will be permanently deleted. Financial
+   645→                  audit trails and linked account references will lose
+   646→                  their purchase attribution. This action cannot be undone.
+   647→                </AlertDialogDescription>
+   648→              </AlertDialogHeader>
+   649→              <AlertDialogFooter>
+   650→                <AlertDialogCancel>Cancel</AlertDialogCancel>
+   651→                <AlertDialogAction
+   652→                  className={cn(
+   653→                    "bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-800",
+   654→                  )}
+   655→                  onClick={onDelete}
+   656→                >
+   657→                  Delete permanently
+   658→                </AlertDialogAction>
+   659→              </AlertDialogFooter>
+   660→            </AlertDialogContent>
+   661→          </AlertDialog>
+   662→
+   663→          <div className="flex flex-wrap items-center gap-2">
+   664→            <Button
+   665→              size="sm"
+   666→              variant="ghost"
+   667→              onClick={() => navigate("dashboard-orders")}
+   668→            >
+   669→              <ArrowLeft className="h-3.5 w-3.5" /> Back
+   670→            </Button>
+   671→            <Button size="sm" variant="outline" onClick={onSaveAndAdd}>
+   672→              <Plus className="h-3.5 w-3.5" /> Save and add another
+   673→            </Button>
+   674→            <Button size="sm" onClick={onSave}>
+   675→              <Save className="h-3.5 w-3.5" /> Save
+   676→            </Button>
+   677→          </div>
+   678→        </div>
+   679→      </PageContent>
+   680→    </Page>
+   681→  );
+   682→}
+   683→
+   684→/* ------------------------------------------------------------------ */
+   685→/* Form sub-component                                                  */
+   686→/* ------------------------------------------------------------------ */
+   687→
+   688→function OrderForm({
+   689→  working,
+   690→  editing,
+   691→  currency,
+   692→  onFieldChange,
+   693→}: {
+   694→  working: OrderDetail;
+   695→  editing: boolean;
+   696→  currency: string;
+   697→  onFieldChange: (patch: Partial<OrderDetail>) => void;
+   698→}) {
+   699→  return (
+   700→    <div className="grid gap-4 lg:grid-cols-2">
+   701→      {/* Main form — date created (read-only), order type, notes */}
+   702→      <FormSection
+   703→        title="Order"
+   704→        icon={Calendar}
+   705→        description="Top-level details about this purchase."
+   706→      >
+   707→        <div className="space-y-3">
+   708→          <div className="space-y-1.5">
+   709→            <LabelWithHelp
+   710→              help="When the order was created. Read-only — set at checkout."
+   711→              className="text-sm font-medium"
+   712→            >
+   713→              Date created
+   714→            </LabelWithHelp>
+   715→            <Input
+   716→              value={new Date(working.dateCreated).toISOString().slice(0, 16)}
+   717→              readOnly
+   718→              disabled
+   719→              className="font-mono text-xs"
+   720→              aria-label="Date created"
+   721→            />
+   722→          </div>
+   723→
+   724→          <div className="space-y-1.5">
+   725→            <LabelWithHelp
+   726→              help="Challenge Purchase = first-time evaluation buy. Activation Fee = re-activation of a breached account. Add-on = supplementary purchase (extra withdrawal, KYC upgrade). Subscription = recurring billing. Refund = reimbursement of a previous order."
+   727→              className="text-sm font-medium"
+   728→            >
+   729→              Order type
+   730→            </LabelWithHelp>
+   731→            <Select
+   732→              value={working.orderType}
+   733→              onValueChange={(v) =>
+   734→                onFieldChange({ orderType: v as OrderType })
+   735→              }
+   736→              disabled={!editing}
+   737→            >
+   738→              <SelectTrigger className="w-full" disabled={!editing}>
+   739→                <SelectValue placeholder="Select order type…" />
+   740→              </SelectTrigger>
+   741→              <SelectContent>
+   742→                {ORDER_TYPES.map((t) => (
+   743→                  <SelectItem key={t} value={t}>
+   744→                    {t}
+   745→                  </SelectItem>
+   746→                ))}
+   747→              </SelectContent>
+   748→            </Select>
+   749→          </div>
+   750→
+   751→          <div className="space-y-1.5">
+   752→            <LabelWithHelp
+   753→              help="Internal notes for finance / ops staff. Visible only inside the admin panel, not to the trader."
+   754→              className="text-sm font-medium"
+   755→            >
+   756→              Notes
+   757→            </LabelWithHelp>
+   758→            <Textarea
+   759→              rows={4}
+   760→              value={working.notes}
+   761→              onChange={(e) => onFieldChange({ notes: e.target.value })}
+   762→              disabled={!editing}
+   763→              placeholder="Add notes about this order…"
+   764→            />
+   765→          </div>
+   766→        </div>
+   767→      </FormSection>
+   768→
+   769→      {/* Financials grid — 2-column key-value */}
+   770→      <FormSection
+   771→        title="Financials"
+   772→        icon={CreditCard}
+   773→        description="Challenge, payment, and attribution identifiers."
+   774→      >
+   775→        <div className="grid gap-3 sm:grid-cols-2">
+   776→          <ReadOnlyField
+   777→            label="Challenge"
+   778→            value={working.challenge}
+   779→          />
+   780→          <ReadOnlyField
+   781→            label="Competition"
+   782→            value={working.competition ?? "None"}
+   783→          />
+   784→          <ReadOnlyField
+   785→            label="Account balance"
+   786→            value={formatCurrency(working.accountBalance, currency)}
+   787→            help="Target account size for this challenge purchase."
+   788→          />
+   789→          <ReadOnlyField
+   790→            label="Amount paid"
+   791→            value={`${working.amountPaid >= 0 ? "" : "−"}${formatCurrency(
+   792→              Math.abs(working.amountPaid),
+   793→              currency,
+   794→            )}`}
+   795→            help="Net amount charged (negative for refunds)."
+   796→          />
+   797→          <ReadOnlyField
+   798→            label="Quantity"
+   799→            value={String(working.quantity)}
+   800→          />
+   801→          <div className="space-y-1.5">
+   802→            <LabelWithHelp
+   803→              help="Payment method the trader used at checkout."
+   804→              className="text-sm font-medium"
+   805→            >
+   806→              Payment method
+   807→            </LabelWithHelp>
+   808→            <Select
+   809→              value={working.paymentMethod}
+   810→              onValueChange={(v) =>
+   811→                onFieldChange({ paymentMethod: v as PaymentMethod })
+   812→              }
+   813→              disabled={!editing}
+   814→            >
+   815→              <SelectTrigger className="w-full" disabled={!editing}>
+   816→                <SelectValue placeholder="Select payment method…" />
+   817→              </SelectTrigger>
+   818→              <SelectContent>
+   819→                {PAYMENT_METHODS.map((m) => (
+   820→                  <SelectItem key={m} value={m}>
+   821→                    {m}
+   822→                  </SelectItem>
+   823→                ))}
+   824→              </SelectContent>
+   825→            </Select>
+   826→          </div>
+   827→          <div className="space-y-1.5">
+   828→            <LabelWithHelp
+   829→              help="Coupon code applied at checkout. Empty if none was used."
+   830→              className="text-sm font-medium"
+   831→            >
+   832→              Coupon code
+   833→            </LabelWithHelp>
+   834→            <Input
+   835→              value={working.couponCode}
+   836→              onChange={(e) =>
+   837→                onFieldChange({ couponCode: e.target.value })
+   838→              }
+   839→              disabled={!editing}
+   840→              placeholder="—"
+   841→              className="font-mono text-xs"
+   842→            />
+   843→          </div>
+   844→          <div className="space-y-1.5">
+   845→            <LabelWithHelp
+   846→              help="Bundle ID if this order was part of a multi-account bundle."
+   847→              className="text-sm font-medium"
+   848→            >
+   849→              Bundle ID
+   850→            </LabelWithHelp>
+   851→            <Input
+   852→              value={working.bundleId ?? ""}
+   853→              onChange={(e) =>
+   854→                onFieldChange({
+   855→                  bundleId: e.target.value || null,
+   856→                })
+   857→              }
+   858→              disabled={!editing}
+   859→              placeholder="None"
+   860→              className="font-mono text-xs"
+   861→            />
+   862→          </div>
+   863→          <div className="space-y-1.5">
+   864→            <LabelWithHelp
+   865→              help="IP address recorded at checkout. Used in fraud detection and device fingerprinting."
+   866→              className="text-sm font-medium"
+   867→            >
+   868→              Customer IP address
+   869→            </LabelWithHelp>
+   870→            <Input
+   871→              value={working.customerIp}
+   872→              onChange={(e) =>
+   873→                onFieldChange({ customerIp: e.target.value })
+   874→              }
+   875→              disabled={!editing}
+   876→              className="font-mono text-xs"
+   877→            />
+   878→          </div>
+   879→        </div>
+   880→      </FormSection>
+   881→    </div>
+   882→  );
+   883→}
+   884→
+   885→/* ------------------------------------------------------------------ */
+   886→/* Sub-tables                                                          */
+   887→/* ------------------------------------------------------------------ */
+   888→
+   889→function AccountsTable({
+   890→  accounts,
+   891→  currency,
+   892→}: {
+   893→  accounts: LinkedAccount[];
+   894→  currency: string;
+   895→}) {
+   896→  if (accounts.length === 0) {
+   897→    return (
+   898→      <EmptyState
+   899→        icon={CreditCard}
+   900→        title="No linked accounts"
+   901→        description="This order did not create or modify any trading accounts."
+   902→      />
+   903→    );
+   904→  }
+   905→  const columns: Column<LinkedAccount>[] = [
+   906→    {
+   907→      key: "login",
+   908→      header: "Account Login",
+   909→      cell: (a) => <span className="font-mono text-xs">{a.login}</span>,
+   910→      sortValue: (a) => a.login,
+   911→    },
+   912→    {
+   913→      key: "phase",
+   914→      header: "Phase",
+   915→      cell: (a) => <Badge variant="outline" className="text-[10px]">{a.phase}</Badge>,
+   916→      sortValue: (a) => a.phase,
+   917→    },
+   918→    {
+   919→      key: "broker",
+   920→      header: "Broker",
+   921→      cell: (a) => <Badge variant="secondary" className="text-[10px]">{a.broker}</Badge>,
+   922→      sortValue: (a) => a.broker,
+   923→    },
+   924→    {
+   925→      key: "initialBalance",
+   926→      header: "Initial Balance",
+   927→      cell: (a) => formatCurrency(a.initialBalance, currency),
+   928→      sortValue: (a) => a.initialBalance,
+   929→      numeric: true,
+   930→    },
+   931→    {
+   932→      key: "status",
+   933→      header: "Status",
+   934→      cell: (a) => (
+   935→        <StatusBadge
+   936→          tone={
+   937→            a.status === "active"
+   938→              ? "success"
+   939→              : a.status === "breached"
+   940→              ? "danger"
+   941→              : a.status === "passed"
+   942→              ? "info"
+   943→              : "warning"
+   944→          }
+   945→        >
+   946→          {a.status}
+   947→        </StatusBadge>
+   948→      ),
+   949→      sortValue: (a) => a.status,
+   950→    },
+   951→  ];
+   952→  return (
+   953→    <DataTable
+   954→      columns={columns}
+   955→      data={accounts}
+   956→      rowKey={(a) => a.id}
+   957→      pageSize={5}
+   958→    />
+   959→  );
+   960→}
+   961→
+   962→function SubscriptionTable({
+   963→  rows,
+   964→  currency,
+   965→}: {
+   966→  rows: SubscriptionRow[];
+   967→  currency: string;
+   968→}) {
+   969→  if (rows.length === 0) {
+   970→    return (
+   971→      <EmptyState
+   972→        icon={Repeat}
+   973→        title="No subscription rows"
+   974→        description="This order is not part of a subscription."
+   975→      />
+   976→    );
+   977→  }
+   978→  const columns: Column<SubscriptionRow>[] = [
+   979→    {
+   980→      key: "billingDate",
+   981→      header: "Billing Date",
+   982→      cell: (r) => (
+   983→        <span className="text-xs text-muted-foreground">
+   984→          {new Date(r.billingDate).toLocaleDateString()}
+   985→        </span>
+   986→      ),
+   987→      sortValue: (r) => r.billingDate,
+   988→    },
+   989→    {
+   990→      key: "amount",
+   991→      header: "Amount",
+   992→      cell: (r) => formatCurrency(r.amount, currency),
+   993→      sortValue: (r) => r.amount,
+   994→      numeric: true,
+   995→    },
+   996→    {
+   997→      key: "status",
+   998→      header: "Status",
+   999→      cell: (r) => (
+  1000→        <StatusBadge
+  1001→          tone={
+  1002→            r.status === "Active"
+  1003→              ? "success"
+  1004→              : r.status === "Cancelled"
+  1005→              ? "danger"
+  1006→              : "muted"
+  1007→          }
+  1008→        >
+  1009→          {r.status}
+  1010→        </StatusBadge>
+  1011→      ),
+  1012→      sortValue: (r) => r.status,
+  1013→    },
+  1014→    {
+  1015→      key: "nextBilling",
+  1016→      header: "Next Billing",
+  1017→      cell: (r) => (
+  1018→        <span className="text-xs text-muted-foreground">
+  1019→          {r.nextBilling ? new Date(r.nextBilling).toLocaleDateString() : "—"}
+  1020→        </span>
+  1021→      ),
+  1022→      sortValue: (r) => r.nextBilling ?? "",
+  1023→    },
+  1024→  ];
+  1025→  return (
+  1026→    <DataTable
+  1027→      columns={columns}
+  1028→      data={rows}
+  1029→      rowKey={(r) => r.id}
+  1030→      pageSize={5}
+  1031→    />
+  1032→  );
+  1033→}
+  1034→
+  1035→/* ------------------------------------------------------------------ */
+  1036→/* Small building blocks                                              */
+  1037→/* ------------------------------------------------------------------ */
+  1038→
+  1039→function FormSection({
+  1040→  title,
+  1041→  icon: Icon,
+  1042→  description,
+  1043→  children,
+  1044→}: {
+  1045→  title: string;
+  1046→  icon: React.ComponentType<{ className?: string }>;
+  1047→  description?: string;
+  1048→  children: React.ReactNode;
+  1049→}) {
+  1050→  return (
+  1051→    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+  1052→      <header className="flex items-start gap-2">
+  1053→        <div className="rounded-md bg-muted p-1.5">
+  1054→          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+  1055→        </div>
+  1056→        <div>
+  1057→          <p className="text-sm font-medium text-foreground">{title}</p>
+  1058→          {description ? (
+  1059→            <p className="text-xs text-muted-foreground">{description}</p>
+  1060→          ) : null}
+  1061→        </div>
+  1062→      </header>
+  1063→      <Separator />
+  1064→      {children}
+  1065→    </section>
+  1066→  );
+  1067→}
+  1068→
+  1069→function ReadOnlyField({
+  1070→  label,
+  1071→  value,
+  1072→  help,
+  1073→  mono,
+  1074→}: {
+  1075→  label: string;
+  1076→  value: string;
+  1077→  help?: string;
+  1078→  mono?: boolean;
+  1079→}) {
+  1080→  return (
+  1081→    <div className="space-y-1.5">
+  1082→      <LabelWithHelp
+  1083→        help={help ?? "Read-only."}
+  1084→        className="text-sm font-medium"
+  1085→      >
+  1086→        {label}
+  1087→      </LabelWithHelp>
+  1088→      <div
+  1089→        className={cn(
+  1090→          "flex h-9 items-center rounded-md border bg-muted/30 px-3 text-sm text-foreground",
+  1091→          mono && "font-mono text-xs",
+  1092→        )}
+  1093→      >
+  1094→        {value}
+  1095→      </div>
+  1096→    </div>
+  1097→  );
+  1098→}
+  1099→
+  1100→function UtmField({
+  1101→  label,
+  1102→  value,
+  1103→  mono,
+  1104→  link,
+  1105→}: {
+  1106→  label: string;
+  1107→  value: string;
+  1108→  mono?: boolean;
+  1109→  link?: string;
+  1110→}) {
+  1111→  return (
+  1112→    <div>
+  1113→      <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">
+  1114→        {label}
+  1115→      </dt>
+  1116→      <dd className="mt-0.5">
+  1117→        {link ? (
+  1118→          <a
+  1119→            href={link}
+  1120→            target="_blank"
+  1121→            rel="noopener noreferrer"
+  1122→            className={cn(
+  1123→              "inline-flex items-center gap-1 text-emerald-700 hover:underline dark:text-emerald-400",
+  1124→              mono && "font-mono text-xs",
+  1125→            )}
+  1126→            title={link}
+  1127→          >
+  1128→            <Globe className="h-3 w-3" />
+  1129→            <span className="truncate">{value}</span>
+  1130→          </a>
+  1131→        ) : (
+  1132→          <span className={cn("text-foreground", mono && "font-mono text-xs")}>
+  1133→            {value}
+  1134→          </span>
+  1135→        )}
+  1136→      </dd>
+  1137→    </div>
+  1138→  );
+  1139→}
+  1140→

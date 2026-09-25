@@ -1,0 +1,877 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * AI Anomaly Detection
+     5→ *
+     6→ * Surfaces unusual trading patterns detected by the AI model:
+     7→ *  - 24h anomaly trend (AreaSeries)
+     8→ *  - Type distribution (DonutSeries)
+     9→ *  - Recent anomalies (DataTable — Investigate / Mark FP / Create ticket)
+    10→ *  - Hour × Day heatmap (custom grid)
+    11→ *  - Top affected accounts (DataTable)
+    12→ *
+    13→ * Deterministic mock data — no Math.random. All values derive from
+    14→ * `hashStr(tenantId + key)` + `Math.sin(i / n)` patterns so the same
+    15→ * tenant renders the same numbers across reloads.
+    16→ *
+    17→ * File ownership: impl-ai-predictive-anomaly-cost
+    18→ */
+    19→
+    20→import { useMemo } from "react";
+    21→import { usePlatform } from "@/lib/platform/platform-context";
+    22→import { makeTermResolver, plural } from "@/lib/platform/terminology";
+    23→import { hashStr, getTenantAccounts, getTenantTraders } from "@/lib/platform/mock-data";
+    24→import type { TradingAccount, Trader } from "@/lib/platform/mock-data";
+    25→import { Page, PageHeader, PageContent } from "@/components/platform/page";
+    26→import { DataTable, type Column } from "@/components/platform/data-table";
+    27→import { StatusBadge } from "@/components/platform/status";
+    28→import { AreaSeries, DonutSeries } from "@/components/platform/charts";
+    29→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    30→import { exportToCsv } from "@/lib/platform/export-utils";
+    31→import { toast } from "@/hooks/use-toast";
+    32→import { Button } from "@/components/ui/button";
+    33→import { Badge } from "@/components/ui/badge";
+    34→import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+    35→import {
+    36→  AlertTriangle,
+    37→  Clock,
+    38→  CheckCircle2,
+    39→  Activity,
+    40→  Download,
+    41→  Ticket,
+    42→  Search,
+    43→  EyeOff,
+    44→} from "lucide-react";
+    45→
+    46→/* ------------------------------------------------------------------ */
+    47→/* Constants                                                           */
+    48→/* ------------------------------------------------------------------ */
+    49→
+    50→const TERRA = {
+    51→  emerald: "#059669",
+    52→  amber: "#d97706",
+    53→  rose: "#e11d48",
+    54→  slate: "#475569",
+    55→  sky: "#0ea5e9",
+    56→  teal: "#0d9488",
+    57→} as const;
+    58→
+    59→const ANOMALY_TYPES = [
+    60→  { key: "trade-size", label: "Unusual Trade Size", color: TERRA.amber },
+    61→  { key: "off-hours", label: "Off-Hours Trading", color: TERRA.sky },
+    62→  { key: "pattern-break", label: "Pattern Break", color: TERRA.rose },
+    63→  { key: "volume-spike", label: "Volume Spike", color: TERRA.teal },
+    64→  { key: "spread", label: "Spread Anomaly", color: TERRA.emerald },
+    65→  { key: "latency", label: "Latency", color: TERRA.slate },
+    66→] as const;
+    67→
+    68→type AnomalyType = (typeof ANOMALY_TYPES)[number]["key"];
+    69→
+    70→const SEVERITY_TONE: Record<string, "default" | "success" | "warning" | "danger" | "info" | "muted"> = {
+    71→  critical: "danger",
+    72→  high: "warning",
+    73→  medium: "info",
+    74→  low: "muted",
+    75→};
+    76→
+    77→const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+    78→
+    79→/* ------------------------------------------------------------------ */
+    80→/* Deterministic helpers                                               */
+    81→/* ------------------------------------------------------------------ */
+    82→
+    83→interface AnomalyRow {
+    84→  id: string;
+    85→  detected: string;
+    86→  typeLabel: string;
+    87→  typeColor: string;
+    88→  traderId: string;
+    89→  traderName: string;
+    90→  accountId: string;
+    91→  accountLogin: string;
+    92→  severity: "critical" | "high" | "medium" | "low";
+    93→  confidence: number; // 0–100
+    94→  description: string;
+    95→}
+    96→
+    97→interface AffectedAccountRow {
+    98→  accountId: string;
+    99→  login: string;
+   100→  traderId: string;
+   101→  traderName: string;
+   102→  anomaliesCount: number;
+   103→  lastAnomaly: string;
+   104→  riskTier: "Critical" | "High" | "Medium" | "Low";
+   105→}
+   106→
+   107→function pickType(seed: number): AnomalyType {
+   108→  return ANOMALY_TYPES[seed % ANOMALY_TYPES.length].key;
+   109→}
+   110→
+   111→function pickSeverity(seed: number): AnomalyRow["severity"] {
+   112→  const r = seed % 100;
+   113→  if (r < 12) return "critical";
+   114→  if (r < 35) return "high";
+   115→  if (r < 70) return "medium";
+   116→  return "low";
+   117→}
+   118→
+   119→function anomalyDescription(type: AnomalyType, trader: string): string {
+   120→  const map: Record<AnomalyType, string> = {
+   121→    "trade-size": `${trader} placed a trade 4.2× larger than their 30d average`,
+   122→    "off-hours": `${trader} traded outside their normal session window (3 AM UTC)`,
+   123→    "pattern-break": `${trader}'s typical symbol rotation broke unexpectedly`,
+   124→    "volume-spike": `${trader} hit 5.1× normal traded volume in a single hour`,
+   125→    spread: `Spread compression detected on ${trader}'s EURUSD position`,
+   126→    latency: `Order acknowledgement latency exceeded 850ms for ${trader}`,
+   127→  };
+   128→  return map[type];
+   129→}
+   130→
+   131→/* ------------------------------------------------------------------ */
+   132→/* Mock data generators                                                */
+   133→/* ------------------------------------------------------------------ */
+   134→
+   135→function buildRecentAnomalies(
+   136→  accounts: TradingAccount[],
+   137→  traders: Trader[],
+   138→  tid: string,
+   139→): AnomalyRow[] {
+   140→  if (!accounts.length || !traders.length) return [];
+   141→  const traderById = new Map(traders.map((t) => [t.id, t]));
+   142→  const out: AnomalyRow[] = [];
+   143→  const N = 14;
+   144→  for (let i = 0; i < N; i++) {
+   145→    const seed = hashStr(tid + "anomaly" + i);
+   146→    const acct = accounts[seed % accounts.length];
+   147→    const trader = traderById.get(acct.traderId) ?? traders[seed % traders.length];
+   148→    const type = pickType(seed);
+   149→    const typeMeta = ANOMALY_TYPES.find((t) => t.key === type)!;
+   150→    const severity = pickSeverity(seed);
+   151→    // Detected between 25h and 5min ago
+   152→    const detectedMin = (i * 95) + (seed % 30);
+   153→    const detected = new Date(Date.now() - detectedMin * 60 * 1000).toISOString();
+   154→    out.push({
+   155→      id: `anom-${tid}-${i}`,
+   156→      detected,
+   157→      typeLabel: typeMeta.label,
+   158→      typeColor: typeMeta.color,
+   159→      traderId: trader.id,
+   160→      traderName: trader.name,
+   161→      accountId: acct.id,
+   162→      accountLogin: acct.login,
+   163→      severity,
+   164→      confidence: Math.max(58, Math.min(99, 70 + (seed % 30))),
+   165→      description: anomalyDescription(type, trader.name),
+   166→    });
+   167→  }
+   168→  return out.sort((a, b) => new Date(b.detected).getTime() - new Date(a.detected).getTime());
+   169→}
+   170→
+   171→function buildTypeDistribution(anomalies: AnomalyRow[]) {
+   172→  return ANOMALY_TYPES.map((t) => ({
+   173→    label: t.label,
+   174→    value: anomalies.filter((a) => a.typeLabel === t.label).length,
+   175→    color: t.color,
+   176→  })).filter((d) => d.value > 0);
+   177→}
+   178→
+   179→function buildHourlyTrend(tid: string) {
+   180→  // 24h anomaly count per hour — deterministic sin pattern with peak hours.
+   181→  const seed = hashStr(tid + "hourly");
+   182→  return Array.from({ length: 24 }, (_, h) => {
+   183→    const baseline = 3 + Math.sin((h + (seed % 6)) / 3) * 2;
+   184→    const peak = h >= 9 && h <= 11 ? 2 : h >= 14 && h <= 16 ? 1.5 : 0;
+   185→    const noise = (seed >> h) & 0x3; // 0–3 deterministic
+   186→    return {
+   187→      hour: `${h.toString().padStart(2, "0")}h`,
+   188→      count: Math.max(0, Math.round(baseline + peak + noise * 0.5)),
+   189→    };
+   190→  });
+   191→}
+   192→
+   193→function buildHeatmap(tid: string): number[][] {
+   194→  // 7 days × 24 hours. Deterministic seeded counts 0–12.
+   195→  const out: number[][] = [];
+   196→  for (let d = 0; d < 7; d++) {
+   197→    const row: number[] = [];
+   198→    for (let h = 0; h < 24; h++) {
+   199→      const seed = hashStr(tid + "hm" + d + h);
+   200→      const peak =
+   201→        (d < 5 && h >= 9 && h <= 16) ? 4 :
+   202→        (d >= 5 && h >= 22) || (d >= 5 && h <= 2) ? 3 :
+   203→        0;
+   204→      const base = (seed % 4);
+   205→      row.push(Math.min(12, Math.max(0, base + peak)));
+   206→    }
+   207→    out.push(row);
+   208→  }
+   209→  return out;
+   210→}
+   211→
+   212→function buildAffectedAccounts(
+   213→  accounts: TradingAccount[],
+   214→  traders: Trader[],
+   215→  anomalies: AnomalyRow[],
+   216→): AffectedAccountRow[] {
+   217→  if (!accounts.length || !traders.length) return [];
+   218→  const traderById = new Map(traders.map((t) => [t.id, t]));
+   219→  const counts = new Map<string, number>();
+   220→  const lastByAccount = new Map<string, number>();
+   221→  for (const a of anomalies) {
+   222→    counts.set(a.accountId, (counts.get(a.accountId) ?? 0) + 1);
+   223→    const t = new Date(a.detected).getTime();
+   224→    if (!lastByAccount.has(a.accountId) || t > lastByAccount.get(a.accountId)!) {
+   225→      lastByAccount.set(a.accountId, t);
+   226→    }
+   227→  }
+   228→  return accounts
+   229→    .map((acct) => {
+   230→      const trader = traderById.get(acct.traderId);
+   231→      const count = counts.get(acct.id) ?? 0;
+   232→      const last = lastByAccount.get(acct.id);
+   233→      const riskTier: AffectedAccountRow["riskTier"] =
+   234→        count >= 5 ? "Critical" : count >= 3 ? "High" : count >= 1 ? "Medium" : "Low";
+   235→      return {
+   236→        accountId: acct.id,
+   237→        login: acct.login,
+   238→        traderId: acct.traderId,
+   239→        traderName: trader?.name ?? acct.traderName,
+   240→        anomaliesCount: count,
+   241→        lastAnomaly: last ? new Date(last).toISOString() : "",
+   242→        riskTier,
+   243→      };
+   244→    })
+   245→    .filter((r) => r.anomaliesCount > 0)
+   246→    .sort((a, b) => b.anomaliesCount - a.anomaliesCount)
+   247→    .slice(0, 8);
+   248→}
+   249→
+   250→function riskTierTone(tier: AffectedAccountRow["riskTier"]): "default" | "success" | "warning" | "danger" | "info" | "muted" {
+   251→  switch (tier) {
+   252→    case "Critical": return "danger";
+   253→    case "High": return "warning";
+   254→    case "Medium": return "info";
+   255→    default: return "muted";
+   256→  }
+   257→}
+   258→
+   259→function relativeTime(iso: string): string {
+   260→  if (!iso) return "—";
+   261→  const diff = Date.now() - new Date(iso).getTime();
+   262→  const min = Math.floor(diff / (1000 * 60));
+   263→  if (min < 1) return "just now";
+   264→  if (min < 60) return `${min}m ago`;
+   265→  const hours = Math.floor(min / 60);
+   266→  if (hours < 24) return `${hours}h ago`;
+   267→  const days = Math.floor(hours / 24);
+   268→  return `${days}d ago`;
+   269→}
+   270→
+   271→/* ------------------------------------------------------------------ */
+   272→/* Heatmap cell color                                                  */
+   273→/* ------------------------------------------------------------------ */
+   274→
+   275→function heatmapColor(v: number): string {
+   276→  if (v === 0) return "var(--muted)";
+   277→  if (v <= 2) return TERRA.emerald;
+   278→  if (v <= 5) return TERRA.amber;
+   279→  if (v <= 8) return TERRA.rose;
+   280→  return TERRA.slate;
+   281→}
+   282→
+   283→function heatmapOpacity(v: number): number {
+   284→  if (v === 0) return 0.15;
+   285→  if (v <= 2) return 0.25 + v * 0.1;
+   286→  if (v <= 5) return 0.4 + (v - 2) * 0.12;
+   287→  if (v <= 8) return 0.55 + (v - 5) * 0.1;
+   288→  return 0.85;
+   289→}
+   290→
+   291→/* ------------------------------------------------------------------ */
+   292→/* Explainable metric card — mirrors `MetricCard` but supports a help  */
+   293→/* tooltip inline next to the label per UX Constitution §33.          */
+   294→/* ------------------------------------------------------------------ */
+   295→
+   296→function ExplainableMetricCard({
+   297→  label,
+   298→  value,
+   299→  delta,
+   300→  deltaLabel,
+   301→  icon: Icon,
+   302→  tone = "default",
+   303→  help,
+   304→}: {
+   305→  label: string;
+   306→  value: string | number;
+   307→  delta?: number;
+   308→  deltaLabel?: string;
+   309→  icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+   310→  tone?: "default" | "positive" | "negative" | "warning";
+   311→  help?: React.ReactNode;
+   312→}) {
+   313→  const toneColor =
+   314→    tone === "positive" ? "#059669"
+   315→    : tone === "negative" ? "#e11d48"
+   316→    : tone === "warning" ? "#d97706"
+   317→    : "var(--brand-primary)";
+   318→  const deltaClass = delta === undefined ? "" : delta >= 0 ? "text-emerald-600" : "text-rose-600";
+   319→  return (
+   320→    <div className="group relative overflow-hidden rounded-lg border bg-card p-4 transition-shadow hover:shadow-sm">
+   321→      <span className="absolute inset-y-0 left-0 w-1" style={{ background: toneColor }} />
+   322→      <div className="flex items-start justify-between pl-2">
+   323→        <div className="min-w-0 flex-1">
+   324→          <p className="flex items-center gap-1 truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+   325→            {help ? <LabelWithHelp help={help}>{label}</LabelWithHelp> : label}
+   326→          </p>
+   327→          <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground tabular-nums">{value}</p>
+   328→          {delta !== undefined || deltaLabel ? (
+   329→            <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
+   330→              {delta !== undefined ? (
+   331→                <span className={`inline-flex items-center gap-0.5 font-semibold ${deltaClass}`}>
+   332→                  {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}%
+   333→                </span>
+   334→              ) : null}
+   335→              {deltaLabel ? <span className="text-muted-foreground/80">{deltaLabel}</span> : null}
+   336→            </div>
+   337→          ) : null}
+   338→        </div>
+   339→        {Icon ? (
+   340→          <div className="ml-2 shrink-0 rounded-md bg-muted/50 p-1.5 transition-colors group-hover:bg-muted">
+   341→            <Icon className="h-4 w-4 text-muted-foreground" style={{ color: toneColor }} />
+   342→          </div>
+   343→        ) : null}
+   344→      </div>
+   345→    </div>
+   346→  );
+   347→}
+   348→
+   349→/* ------------------------------------------------------------------ */
+   350→/* Chart card                                                           */
+   351→/* ------------------------------------------------------------------ */
+   352→
+   353→function ChartCard({
+   354→  title,
+   355→  subtitle,
+   356→  help,
+   357→  children,
+   358→  className,
+   359→}: {
+   360→  title: React.ReactNode;
+   361→  subtitle?: string;
+   362→  help?: React.ReactNode;
+   363→  children: React.ReactNode;
+   364→  className?: string;
+   365→}) {
+   366→  return (
+   367→    <div className={`rounded-lg border bg-card p-4 ${className ?? ""}`}>
+   368→      <div className="mb-3 flex items-start justify-between gap-2">
+   369→        <div>
+   370→          <p className="text-sm font-medium text-foreground">
+   371→            {help ? <LabelWithHelp help={help}>{title}</LabelWithHelp> : title}
+   372→          </p>
+   373→          {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
+   374→        </div>
+   375→      </div>
+   376→      {children}
+   377→    </div>
+   378→  );
+   379→}
+   380→
+   381→/* ------------------------------------------------------------------ */
+   382→/* Page                                                                */
+   383→/* ------------------------------------------------------------------ */
+   384→
+   385→export function AiAnomalyPage() {
+   386→  const { runtime, tenant, navigate } = usePlatform();
+   387→  const term = makeTermResolver(tenant);
+   388→  const tid = runtime.tenant?.id ?? "platform";
+   389→
+   390→  const accounts = useMemo(() => getTenantAccounts(tid), [tid]);
+   391→  const traders = useMemo(() => getTenantTraders(tid), [tid]);
+   392→
+   393→  const anomalies = useMemo(
+   394→    () => buildRecentAnomalies(accounts, traders, tid),
+   395→    [accounts, traders, tid],
+   396→  );
+   397→  const typeDist = useMemo(() => buildTypeDistribution(anomalies), [anomalies]);
+   398→  const hourly = useMemo(() => buildHourlyTrend(tid), [tid]);
+   399→  const heatmap = useMemo(() => buildHeatmap(tid), [tid]);
+   400→  const affected = useMemo(
+   401→    () => buildAffectedAccounts(accounts, traders, anomalies),
+   402→    [accounts, traders, anomalies],
+   403→  );
+   404→
+   405→  // ---- KPI computations (deterministic) ---------------------------------
+   406→  const anomalies24h = anomalies.length;
+   407→  const confirmed = Math.floor(anomalies.length * 0.65);
+   408→  const falsePositiveRate = 8 + (hashStr(tid + "fp") % 6); // 8–13%
+   409→  const avgDetectionMin = 3 + (hashStr(tid + "detection") % 4); // 3–6 min
+   410→
+   411→  // ---- CSV export -------------------------------------------------------
+   412→  const handleExport = () =>
+   413→    exportToCsv(
+   414→      anomalies,
+   415→      [
+   416→        { key: "id", header: "Anomaly ID", value: (r) => r.id },
+   417→        { key: "detected", header: "Detected", value: (r) => r.detected },
+   418→        { key: "type", header: "Type", value: (r) => r.typeLabel },
+   419→        { key: "trader", header: term("trader"), value: (r) => r.traderName },
+   420→        { key: "account", header: "Account", value: (r) => r.accountLogin },
+   421→        { key: "severity", header: "Severity", value: (r) => r.severity },
+   422→        { key: "confidence", header: "Confidence %", value: (r) => r.confidence },
+   423→        { key: "description", header: "Description", value: (r) => r.description },
+   424→      ],
+   425→      `ai-anomalies-${tid}.csv`,
+   426→    );
+   427→
+   428→  return (
+   429→    <Page>
+   430→      <PageHeader
+   431→        title="Anomaly Detection"
+   432→        description={`Detect unusual trading patterns across ${plural(term("trader")).toLowerCase()} and accounts on this tenant.`}
+   433→        icon={AlertTriangle}
+   434→        term={`Last 24 hours · ${anomalies24h} detected · ${confirmed} confirmed`}
+   435→        actions={
+   436→          <Button variant="outline" size="sm" onClick={handleExport}>
+   437→            <Download className="mr-1 h-4 w-4" />
+   438→            Export CSV
+   439→          </Button>
+   440→        }
+   441→      />
+   442→      <PageContent>
+   443→        {/* KPI row */}
+   444→        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+   445→          <ExplainableMetricCard
+   446→            label="Anomalies Detected (24h)"
+   447→            value={anomalies24h}
+   448→            icon={AlertTriangle}
+   449→            tone="warning"
+   450→            deltaLabel={`across ${accounts.length} accounts`}
+   451→            help={
+   452→              <p>
+   453→                Total anomalies flagged by the model in the last 24 hours. Includes both
+   454→                confirmed true-positives and false-positives (see rate below).
+   455→              </p>
+   456→            }
+   457→          />
+   458→          <ExplainableMetricCard
+   459→            label="Anomalies Confirmed"
+   460→            value={confirmed}
+   461→            icon={CheckCircle2}
+   462→            tone="positive"
+   463→            deltaLabel="confirmed by human review"
+   464→          />
+   465→          <ExplainableMetricCard
+   466→            label="False Positive Rate"
+   467→            value={`${falsePositiveRate}%`}
+   468→            icon={EyeOff}
+   469→            tone={falsePositiveRate <= 10 ? "positive" : "warning"}
+   470→            deltaLabel="target: ≤ 10%"
+   471→            help={
+   472→              <p>
+   473→                Percentage of flagged anomalies that turned out to be benign after human review.
+   474→                Lower is better. Target: &lt; 10%.
+   475→              </p>
+   476→            }
+   477→          />
+   478→          <ExplainableMetricCard
+   479→            label="Avg Detection Time"
+   480→            value={`${avgDetectionMin}m`}
+   481→            icon={Clock}
+   482→            deltaLabel="from event → model alert"
+   483→          />
+   484→        </div>
+   485→
+   486→        {/* Charts row: trend + type distribution */}
+   487→        <div className="grid gap-4 lg:grid-cols-2">
+   488→          <ChartCard
+   489→            title="Anomaly Trend (24h)"
+   490→            subtitle="Detections per hour — daily seasonality visible"
+   491→            help={
+   492→              <p>
+   493→                Bars show total anomalies detected per hour over the last 24 hours. Peak hours
+   494→                (09–16 UTC) typically carry higher volume-driven detections.
+   495→              </p>
+   496→            }
+   497→          >
+   498→            <AreaSeries
+   499→              data={hourly}
+   500→              xKey="hour"
+   501→              yKey="count"
+   502→              color={TERRA.amber}
+   503→              height={220}
+   504→              formatValue={(v) => `${v} anomalies`}
+   505→            />
+   506→          </ChartCard>
+   507→          <ChartCard
+   508→            title="Anomaly Type Distribution"
+   509→            subtitle="Slice by detection category — 24h"
+   510→            help={
+   511→              <p>
+   512→                Each slice represents one of six anomaly categories. Hover for absolute counts. Use
+   513→                this to spot systemic issues (e.g. a latency spike from one broker bridge).
+   514→              </p>
+   515→            }
+   516→          >
+   517→            {typeDist.length === 0 ? (
+   518→              <div className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">
+   519→                No anomalies in last 24h
+   520→              </div>
+   521→            ) : (
+   522→              <DonutSeries data={typeDist} height={220} formatValue={(v) => `${v}`} />
+   523→            )}
+   524→          </ChartCard>
+   525→        </div>
+   526→
+   527→        {/* Section 3: Recent Anomalies */}
+   528→        <div className="rounded-lg border bg-card p-4">
+   529→          <div className="mb-3 flex items-start justify-between gap-2">
+   530→            <div>
+   531→              <p className="text-sm font-medium text-foreground">
+   532→                <LabelWithHelp
+   533→                  help={
+   534→                    <p>
+   535→                      Live feed of the latest flagged anomalies. Severity drives the escalation path:
+   536→                      Critical → Slack alert + ticket; High → ticket; Medium → queue; Low → log only.
+   537→                    </p>
+   538→                  }
+   539→                >
+   540→                  Recent Anomalies
+   541→                </LabelWithHelp>
+   542→              </p>
+   543→              <p className="text-xs text-muted-foreground">Investigate, mark as false positive, or create a support ticket</p>
+   544→            </div>
+   545→            <div className="flex flex-wrap gap-1.5">
+   546→              {(["critical", "high", "medium", "low"] as const).map((s) => (
+   547→                <StatusBadge key={s} tone={SEVERITY_TONE[s]}>{anomalies.filter((a) => a.severity === s).length} {s}</StatusBadge>
+   548→              ))}
+   549→            </div>
+   550→          </div>
+   551→          <DataTable
+   552→            data={anomalies}
+   553→            rowKey={(r) => r.id}
+   554→            pageSize={6}
+   555→            searchableText={(r) => `${r.traderName} ${r.typeLabel} ${r.accountLogin} ${r.description}`}
+   556→            searchPlaceholder="Search trader / type / account…"
+   557→            emptyTitle="No anomalies detected"
+   558→            emptyDescription="No anomalies have been flagged in the last 24 hours for this tenant."
+   559→            columns={[
+   560→              {
+   561→                key: "detected",
+   562→                header: "Detected",
+   563→                cell: (r) => <span className="text-xs text-muted-foreground tabular-nums">{relativeTime(r.detected)}</span>,
+   564→                sortValue: (r) => new Date(r.detected).getTime(),
+   565→              },
+   566→              {
+   567→                key: "type",
+   568→                header: "Type",
+   569→                cell: (r) => (
+   570→                  <div className="flex items-center gap-1.5">
+   571→                    <span className="h-2 w-2 rounded-sm" style={{ background: r.typeColor }} />
+   572→                    <span className="text-sm font-medium text-foreground">{r.typeLabel}</span>
+   573→                  </div>
+   574→                ),
+   575→              },
+   576→              {
+   577→                key: "trader",
+   578→                header: term("trader"),
+   579→                cell: (r) => <span className="text-sm font-medium text-foreground">{r.traderName}</span>,
+   580→                sortValue: (r) => r.traderName,
+   581→              },
+   582→              {
+   583→                key: "account",
+   584→                header: "Account",
+   585→                cell: (r) => <span className="font-mono text-xs text-muted-foreground">{r.accountLogin}</span>,
+   586→              },
+   587→              {
+   588→                key: "severity",
+   589→                header: "Severity",
+   590→                cell: (r) => <StatusBadge tone={SEVERITY_TONE[r.severity]}>{r.severity}</StatusBadge>,
+   591→                sortValue: (r) => r.severity,
+   592→              },
+   593→              {
+   594→                key: "confidence",
+   595→                header: "Confidence",
+   596→                numeric: true,
+   597→                cell: (r) => (
+   598→                  <div className="flex flex-col items-end gap-1">
+   599→                    <span className="tabular-nums text-xs font-medium text-foreground">{r.confidence}%</span>
+   600→                    <div className="h-1 w-20 overflow-hidden rounded-full bg-muted">
+   601→                      <div
+   602→                        className="h-full rounded-full"
+   603→                        style={{
+   604→                          width: `${r.confidence}%`,
+   605→                          background:
+   606→                            r.confidence >= 90 ? TERRA.emerald :
+   607→                            r.confidence >= 75 ? TERRA.amber :
+   608→                            TERRA.slate,
+   609→                        }}
+   610→                      />
+   611→                    </div>
+   612→                  </div>
+   613→                ),
+   614→                sortValue: (r) => r.confidence,
+   615→              },
+   616→              {
+   617→                key: "description",
+   618→                header: "Description",
+   619→                cell: (r) => <span className="text-xs text-muted-foreground">{r.description}</span>,
+   620→              },
+   621→              {
+   622→                key: "actions",
+   623→                header: "Actions",
+   624→                width: "240px",
+   625→                cell: (r) => (
+   626→                  <div className="flex flex-wrap gap-1">
+   627→                    <Button
+   628→                      size="sm"
+   629→                      variant="outline"
+   630→                      onClick={(e) => {
+   631→                        e.stopPropagation();
+   632→                        navigate("trader-detail", { id: r.traderId });
+   633→                      }}
+   634→                    >
+   635→                      <Search className="mr-1 h-3 w-3" />
+   636→                      Investigate
+   637→                    </Button>
+   638→                    <Button
+   639→                      size="sm"
+   640→                      variant="ghost"
+   641→                      onClick={(e) => {
+   642→                        e.stopPropagation();
+   643→                        toast({
+   644→                          title: "Marked as false positive",
+   645→                          description: `${r.typeLabel} on ${r.traderName} (${r.accountLogin})`,
+   646→                        });
+   647→                      }}
+   648→                    >
+   649→                      <EyeOff className="mr-1 h-3 w-3" />
+   650→                      False positive
+   651→                    </Button>
+   652→                    <Button
+   653→                      size="sm"
+   654→                      variant="ghost"
+   655→                      onClick={(e) => {
+   656→                        e.stopPropagation();
+   657→                        toast({
+   658→                          title: "Support ticket created",
+   659→                          description: `Ticket T-${hashStr(r.id) % 9000 + 1000} for ${r.typeLabel} on ${r.traderName}`,
+   660→                        });
+   661→                      }}
+   662→                    >
+   663→                      <Ticket className="mr-1 h-3 w-3" />
+   664→                      Create ticket
+   665→                    </Button>
+   666→                  </div>
+   667→                ),
+   668→              },
+   669→            ]}
+   670→          />
+   671→        </div>
+   672→
+   673→        {/* Section 4: Heatmap */}
+   674→        <ChartCard
+   675→          title="Anomaly Heatmap — Hour × Day"
+   676→          subtitle="Color intensity = anomaly count. Useful for spotting systemic time-of-day patterns."
+   677→          help={
+   678→            <p>
+   679→              Each cell shows the deterministic anomaly count for that (day-of-week, hour) bucket.
+   680→              Darker rose cells indicate hotspots. Use this to schedule reviews or staffing during
+   681→              peak windows.
+   682→            </p>
+   683→          }
+   684→        >
+   685→          <div className="overflow-x-auto">
+   686→            <div className="min-w-[640px]">
+   687→              {/* Hour header */}
+   688→              <div className="grid grid-cols-[44px_repeat(24,1fr)] gap-0.5">
+   689→                <div />
+   690→                {Array.from({ length: 24 }, (_, h) => (
+   691→                  <div key={h} className="text-center text-[10px] text-muted-foreground tabular-nums">
+   692→                    {h.toString().padStart(2, "0")}
+   693→                  </div>
+   694→                ))}
+   695→              </div>
+   696→              {/* Day rows */}
+   697→              {heatmap.map((row, d) => (
+   698→                <div key={d} className="grid grid-cols-[44px_repeat(24,1fr)] gap-0.5">
+   699→                  <div className="flex items-center justify-end pr-1 text-[10px] text-muted-foreground">
+   700→                    {DAYS[d]}
+   701→                  </div>
+   702→                  {row.map((v, h) => (
+   703→                    <div
+   704→                      key={h}
+   705→                      title={`${DAYS[d]} ${h.toString().padStart(2, "0")}:00 — ${v} anomalies`}
+   706→                      className="aspect-square rounded-sm"
+   707→                      style={{
+   708→                        background: heatmapColor(v),
+   709→                        opacity: heatmapOpacity(v),
+   710→                      }}
+   711→                    />
+   712→                  ))}
+   713→                </div>
+   714→              ))}
+   715→            </div>
+   716→          </div>
+   717→          <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+   718→            <span className="inline-flex items-center gap-1">
+   719→              <span className="h-2 w-2 rounded-sm" style={{ background: TERRA.emerald, opacity: 0.4 }} />
+   720→              Low (1–2)
+   721→            </span>
+   722→            <span className="inline-flex items-center gap-1">
+   723→              <span className="h-2 w-2 rounded-sm" style={{ background: TERRA.amber, opacity: 0.6 }} />
+   724→              Medium (3–5)
+   725→            </span>
+   726→            <span className="inline-flex items-center gap-1">
+   727→              <span className="h-2 w-2 rounded-sm" style={{ background: TERRA.rose, opacity: 0.7 }} />
+   728→              High (6–8)
+   729→            </span>
+   730→            <span className="inline-flex items-center gap-1">
+   731→              <span className="h-2 w-2 rounded-sm" style={{ background: TERRA.slate, opacity: 0.85 }} />
+   732→              Critical (9+)
+   733→            </span>
+   734→          </div>
+   735→        </ChartCard>
+   736→
+   737→        {/* Section 5: Top Affected Accounts */}
+   738→        <div className="rounded-lg border bg-card p-4">
+   739→          <div className="mb-3 flex items-start justify-between gap-2">
+   740→            <div>
+   741→              <p className="text-sm font-medium text-foreground">
+   742→                <LabelWithHelp
+   743→                  help={
+   744→                    <p>
+   745→                      Accounts with the most anomalies in the last 24 hours. Risk tier drives
+   746→                      the recommended response — Critical accounts should be paused and reviewed.
+   747→                    </p>
+   748→                  }
+   749→                >
+   750→                  Top Affected Accounts
+   751→                </LabelWithHelp>
+   752→              </p>
+   753→              <p className="text-xs text-muted-foreground">Ranked by anomaly count</p>
+   754→            </div>
+   755→          </div>
+   756→          <DataTable
+   757→            data={affected}
+   758→            rowKey={(r) => r.accountId}
+   759→            pageSize={5}
+   760→            searchableText={(r) => `${r.login} ${r.traderName}`}
+   761→            searchPlaceholder="Search account / trader…"
+   762→            emptyTitle="No affected accounts"
+   763→            emptyDescription="No accounts have been linked to anomalies in the last 24 hours."
+   764→            columns={[
+   765→              {
+   766→                key: "account",
+   767→                header: "Account",
+   768→                cell: (r) => (
+   769→                  <div className="flex flex-col">
+   770→                    <span className="font-mono text-xs text-foreground">{r.login}</span>
+   771→                    <span className="text-[10px] text-muted-foreground">{r.accountId}</span>
+   772→                  </div>
+   773→                ),
+   774→              },
+   775→              {
+   776→                key: "trader",
+   777→                header: term("trader"),
+   778→                cell: (r) => <span className="text-sm font-medium text-foreground">{r.traderName}</span>,
+   779→                sortValue: (r) => r.traderName,
+   780→              },
+   781→              {
+   782→                key: "count",
+   783→                header: "Anomalies",
+   784→                numeric: true,
+   785→                cell: (r) => (
+   786→                  <Badge variant="outline" className="border-border bg-muted/40 tabular-nums font-medium">
+   787→                    {r.anomaliesCount}
+   788→                  </Badge>
+   789→                ),
+   790→                sortValue: (r) => r.anomaliesCount,
+   791→              },
+   792→              {
+   793→                key: "last",
+   794→                header: "Last Anomaly",
+   795→                cell: (r) => <span className="text-xs text-muted-foreground">{relativeTime(r.lastAnomaly)}</span>,
+   796→                sortValue: (r) => new Date(r.lastAnomaly).getTime(),
+   797→              },
+   798→              {
+   799→                key: "tier",
+   800→                header: "Risk Tier",
+   801→                cell: (r) => <StatusBadge tone={riskTierTone(r.riskTier)}>{r.riskTier}</StatusBadge>,
+   802→              },
+   803→            ]}
+   804→          />
+   805→        </div>
+   806→
+   807→        {/* Methodology card */}
+   808→        <Card>
+   809→          <CardHeader>
+   810→            <CardTitle className="text-base">
+   811→              <LabelWithHelp
+   812→                help={
+   813→                  <p>
+   814→                    Anomaly detection runs as a continuous background job. Each account&apos;s recent
+   815→                    activity stream is compared against its own 30-day behavioural fingerprint.
+   816→                    Outliers above a configurable threshold are surfaced here.
+   817→                  </p>
+   818→                }
+   819→              >
+   820→                How anomalies are detected
+   821→              </LabelWithHelp>
+   822→            </CardTitle>
+   823→            <CardDescription>Model inputs, severity bands, and escalation paths</CardDescription>
+   824→          </CardHeader>
+   825→          <CardContent className="grid gap-4 md:grid-cols-3">
+   826→            <div className="rounded-lg border bg-muted/30 p-3">
+   827→              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Model inputs</p>
+   828→              <ul className="mt-2 space-y-1 text-xs text-foreground">
+   829→                <li>· Trade size vs 30d average</li>
+   830→                <li>· Session timing fingerprint</li>
+   831→                <li>· Volume per hour baseline</li>
+   832→                <li>· Symbol rotation entropy</li>
+   833→                <li>· Spread + latency signal</li>
+   834→              </ul>
+   835→            </div>
+   836→            <div className="rounded-lg border bg-muted/30 p-3">
+   837→              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Severity bands</p>
+   838→              <ul className="mt-2 space-y-1 text-xs text-foreground">
+   839→                <li>· Critical — Slack alert + ticket</li>
+   840→                <li>· High — Auto-create ticket</li>
+   841→                <li>· Medium — Investigation queue</li>
+   842→                <li>· Low — Log only</li>
+   843→              </ul>
+   844→            </div>
+   845→            <div className="rounded-lg border bg-muted/30 p-3">
+   846→              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Escalation</p>
+   847→              <ul className="mt-2 space-y-1 text-xs text-foreground">
+   848→                <li>· Investigate → trader-detail</li>
+   849→                <li>· False positive → feedback loop</li>
+   850→                <li>· Create ticket → Support module</li>
+   851→                <li>· Re-trains the model on review</li>
+   852→              </ul>
+   853→            </div>
+   854→          </CardContent>
+   855→        </Card>
+   856→
+   857→        {/* Status button */}
+   858→        <div className="flex items-center justify-center">
+   859→          <Button
+   860→            variant="ghost"
+   861→            size="sm"
+   862→            onClick={() =>
+   863→              toast({
+   864→                title: "Anomaly detector status",
+   865→                description: `${anomalies24h} detected (24h) · ${confirmed} confirmed · FP rate ${falsePositiveRate}% · avg detection ${avgDetectionMin}m`,
+   866→              })
+   867→            }
+   868→          >
+   869→            <Activity className="mr-1 h-4 w-4" />
+   870→            Detector status
+   871→          </Button>
+   872→        </div>
+   873→      </PageContent>
+   874→    </Page>
+   875→  );
+   876→}
+   877→

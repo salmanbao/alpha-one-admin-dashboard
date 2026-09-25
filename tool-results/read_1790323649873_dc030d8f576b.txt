@@ -1,0 +1,867 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Settings Page — modular settings with a landing grid + tabbed editor.
+     5→ *
+     6→ * Spec section 43. The landing grid is the "front door" to Settings —
+     7→ * a searchable, categorized grid of all 19 settings sections (Branding,
+     8→ * Security, Communications, Certificates, System). Below the grid is a
+     9→ * collapsible "Quick edit" panel containing the 7-tab editor (General,
+    10→ * Branding, Terminology, Modules, Roles, Integrations, Notifications).
+    11→ *
+    12→ * Tabs are still preserved so the existing demo flows (Modules toggle,
+    13→ * Branding presets, Terminology editor) keep working — they are now
+    14→ * behind the "Quick edit" disclosure instead of being the primary view.
+    15→ */
+    16→
+    17→import { usePlatform } from "@/lib/platform/platform-context";
+    18→import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+    19→import { EmptyState } from "@/components/platform/guards";
+    20→import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    21→import { Card, CardContent, CardHeader } from "@/components/ui/card";
+    22→import { Button } from "@/components/ui/button";
+    23→import { Input } from "@/components/ui/input";
+    24→import { Label } from "@/components/ui/label";
+    25→import { Switch } from "@/components/ui/switch";
+    26→import { Badge } from "@/components/ui/badge";
+    27→import { Textarea } from "@/components/ui/textarea";
+    28→import { Separator } from "@/components/ui/separator";
+    29→import { toast } from "@/hooks/use-toast";
+    30→import { moduleRegistry } from "@/lib/platform/module-registry";
+    31→import { roles as allRoles } from "@/lib/platform/mock-data";
+    32→import {
+    33→  Settings as SettingsIcon,
+    34→  Palette,
+    35→  Users,
+    36→  Package,
+    37→  Bell,
+    38→  Type,
+    39→  Check,
+    40→  RefreshCw,
+    41→  Plug,
+    42→  Zap,
+    43→  CreditCard,
+    44→  ShieldCheck,
+    45→  Brain,
+    46→  Mail,
+    47→  Database,
+    48→  CandlestickChart,
+    49→  Target,
+    50→  Wallet,
+    51→  FileCheck,
+    52→  Archive,
+    53→  Globe,
+    54→  Image,
+    55→  UsersRound,
+    56→  KeyRound,
+    57→  Wrench,
+    58→  Share2,
+    59→  Fingerprint,
+    60→  Award,
+    61→  ChevronRight,
+    62→  Search,
+    63→  Pencil,
+    64→} from "lucide-react";
+    65→import { useMemo, useState } from "react";
+    66→import type { TenantBranding } from "@/lib/platform/types";
+    67→
+    68→interface SettingsCardSpec {
+    69→  id: string;
+    70→  title: string;
+    71→  description: string;
+    72→  icon: React.ComponentType<{ className?: string }>;
+    73→  viewId: string;
+    74→  category: "Branding" | "Security" | "Communications" | "Certificates" | "System";
+    75→}
+    76→
+    77→const SETTINGS_CARDS: SettingsCardSpec[] = [
+    78→  // Branding
+    79→  { id: "branding", title: "Branding Presets", description: "Color presets, primary/accent colors, border radius, live preview.", icon: Palette, viewId: "settings", category: "Branding" },
+    80→  { id: "terminology", title: "Terminology", description: "White-label business terms (challenge, trader, payout, account).", icon: Type, viewId: "settings", category: "Branding" },
+    81→  { id: "banners", title: "Banner Management", description: "Site-wide promotional banners with scheduling and targeting.", icon: Image, viewId: "banner-management", category: "Branding" },
+    82→  { id: "mkt-integrations", title: "Marketing Integrations", description: "External marketing platforms, analytics providers, ad networks.", icon: Plug, viewId: "marketing-integrations", category: "Branding" },
+    83→  { id: "social-media", title: "Social Media Links", description: "Configure footer social links and sharing channels.", icon: Share2, viewId: "social-media-links", category: "Branding" },
+    84→
+    85→  // Security
+    86→  { id: "users", title: "User Management", description: "Tenant users, group membership, role assignments, status.", icon: UsersRound, viewId: "user-management", category: "Security" },
+    87→  { id: "tokens", title: "API Tokens", description: "Long-lived API tokens with scoped permissions and rotation.", icon: KeyRound, viewId: "token-management", category: "Security" },
+    88→  { id: "device-activities", title: "Device Activities", description: "Login device fingerprinting, IP history, session audit.", icon: Fingerprint, viewId: "device-activities", category: "Security" },
+    89→
+    90→  // Communications
+    91→  { id: "email-templates", title: "Email Templates", description: "Transactional and marketing email templates with variables.", icon: Mail, viewId: "email-templates", category: "Communications" },
+    92→  { id: "notifications-mgmt", title: "Notifications Management", description: "Configure notification types, channels, and triggers.", icon: Bell, viewId: "notifications-management", category: "Communications" },
+    93→
+    94→  // Certificates
+    95→  { id: "certificates", title: "Certificate Management", description: "Manage issued certificate templates and the issuer identity.", icon: Award, viewId: "certificate-management", category: "Certificates" },
+    96→  { id: "cert-designer", title: "Certificate Designer", description: "Visual designer for certificate layouts, fonts, and colors.", icon: Palette, viewId: "certificate-template-designer", category: "Certificates" },
+    97→  { id: "font-upload", title: "Font Upload", description: "Upload custom fonts for certificate rendering.", icon: Type, viewId: "certificate-font-upload", category: "Certificates" },
+    98→  { id: "cert-issued", title: "Issued Certificates", description: "Search and revoke issued certificates per trader.", icon: Award, viewId: "certificates-issued", category: "Certificates" },
+    99→
+   100→  // System
+   101→  { id: "general", title: "General", description: "Tenant name, tagline, currency, timezone, plan summary.", icon: SettingsIcon, viewId: "settings", category: "System" },
+   102→  { id: "modules", title: "Modules", description: "Toggle tenant entitlements — sidebar and dashboard recompose live.", icon: Package, viewId: "settings", category: "System" },
+   103→  { id: "roles", title: "Roles & Permissions", description: "Permission-driven role definitions for RBAC visibility.", icon: Users, viewId: "settings", category: "System" },
+   104→  { id: "notifications", title: "Notifications Matrix", description: "Per-module, per-channel notification preferences and quiet hours.", icon: Bell, viewId: "settings", category: "System" },
+   105→  { id: "utilities", title: "Utilities", description: "Bulk data export, cache management, and system diagnostics.", icon: Wrench, viewId: "utilities", category: "System" },
+   106→];
+   107→
+   108→const CATEGORY_ORDER: SettingsCardSpec["category"][] = [
+   109→  "Branding",
+   110→  "Security",
+   111→  "Communications",
+   112→  "Certificates",
+   113→  "System",
+   114→];
+   115→
+   116→export function SettingsPage() {
+   117→  const { router, navigate, tenant, runtime } = usePlatform();
+   118→  const [query, setQuery] = useState("");
+   119→  const [showQuickEdit, setShowQuickEdit] = useState(false);
+   120→
+   121→  // Quick edit's active tab — initialized from the URL `?tab=` param so
+   122→  // deep-links like `navigate("settings", { tab: "modules" })` land on
+   123→  // the right tab when the page first mounts. Subsequent tab clicks
+   124→  // are pure local state — we don't push back to the URL (avoids the
+   125→  // setState-in-effect anti-pattern).
+   126→  const [activeTab, setActiveTab] = useState<string>(
+   127→    (router.params.tab as string) || "general",
+   128→  );
+   129→
+   130→  const openQuickEdit = (tab: string) => {
+   131→    setActiveTab(tab);
+   132→    setShowQuickEdit(true);
+   133→  };
+   134→
+   135→  const filtered = useMemo(() => {
+   136→    if (!query.trim()) return SETTINGS_CARDS;
+   137→    const q = query.toLowerCase();
+   138→    return SETTINGS_CARDS.filter(
+   139→      (c) =>
+   140→        `${c.title} ${c.description} ${c.category}`.toLowerCase().includes(q),
+   141→    );
+   142→  }, [query]);
+   143→
+   144→  const grouped = useMemo(() => {
+   145→    const map = new Map<SettingsCardSpec["category"], SettingsCardSpec[]>();
+   146→    for (const cat of CATEGORY_ORDER) map.set(cat, []);
+   147→    for (const c of filtered) map.get(c.category)!.push(c);
+   148→    return map;
+   149→  }, [filtered]);
+   150→
+   151→  const totalSections = SETTINGS_CARDS.length;
+   152→  const activeModules = tenant.enabledModules.length;
+   153→  const recentlyModified = new Date(tenant.createdAt).toLocaleDateString(
+   154→    "en-US",
+   155→    { year: "numeric", month: "short", day: "numeric" },
+   156→  );
+   157→
+   158→  return (
+   159→    <Page>
+   160→      <PageHeader
+   161→        title="Settings"
+   162→        description="Configure branding, security, communications, and system."
+   163→        icon={SettingsIcon}
+   164→        actions={
+   165→          <Button
+   166→            variant={showQuickEdit ? "default" : "outline"}
+   167→            size="sm"
+   168→            className="gap-1.5"
+   169→            onClick={() => setShowQuickEdit((s) => !s)}
+   170→          >
+   171→            <Pencil className="h-3.5 w-3.5" />
+   172→            {showQuickEdit ? "Hide quick edit" : "Quick edit"}
+   173→          </Button>
+   174→        }
+   175→      />
+   176→
+   177→      <PageContent>
+   178→        {/* KPI row — §9 KPI rules (value + meaning, not bare metrics) */}
+   179→        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+   180→          <MetricCard
+   181→            label="Settings Sections"
+   182→            value={totalSections}
+   183→            deltaLabel="across 5 categories"
+   184→            icon={SettingsIcon}
+   185→          />
+   186→          <MetricCard
+   187→            label="Recently Modified"
+   188→            value={recentlyModified}
+   189→            deltaLabel="tenant creation date"
+   190→            icon={RefreshCw}
+   191→          />
+   192→          <MetricCard
+   193→            label="Active Modules"
+   194→            value={activeModules}
+   195→            deltaLabel={`${runtime.enabledFeatures.length} feature flags`}
+   196→            icon={Package}
+   197→            tone="positive"
+   198→          />
+   199→          <MetricCard
+   200→            label="Platform Status"
+   201→            value={tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
+   202→            deltaLabel={`${tenant.plan} plan`}
+   203→            icon={ShieldCheck}
+   204→            tone={
+   205→              tenant.status === "active"
+   206→                ? "positive"
+   207→                : tenant.status === "trial"
+   208→                  ? "warning"
+   209→                  : "default"
+   210→            }
+   211→          />
+   212→        </div>
+   213→
+   214→        {/* Search bar */}
+   215→        <div className="relative">
+   216→          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+   217→          <Input
+   218→            value={query}
+   219→            onChange={(e) => setQuery(e.target.value)}
+   220→            placeholder="Search settings sections by title or description…"
+   221→            className="pl-9"
+   222→            aria-label="Search settings sections"
+   223→          />
+   224→        </div>
+   225→
+   226→        {/* Landing grid — grouped by category */}
+   227→        {filtered.length === 0 ? (
+   228→          <EmptyState
+   229→            title="No settings match"
+   230→            description={`No settings sections match "${query}". Try a different term.`}
+   231→            icon={Search}
+   232→            hint="Settings are grouped under Branding, Security, Communications, Certificates, and System."
+   233→          />
+   234→        ) : (
+   235→          <div className="space-y-6">
+   236→            {CATEGORY_ORDER.map((cat) => {
+   237→              const items = grouped.get(cat) ?? [];
+   238→              if (items.length === 0) return null;
+   239→              return (
+   240→                <section key={cat} aria-label={`${cat} settings`}>
+   241→                  <div className="mb-3 flex items-center gap-2">
+   242→                    <h2 className="text-sm font-semibold tracking-tight text-foreground">
+   243→                      {cat}
+   244→                    </h2>
+   245→                    <Badge variant="outline" className="text-[10px]">
+   246→                      {items.length}
+   247→                    </Badge>
+   248→                  </div>
+   249→                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   250→                    {items.map((card) => {
+   251→                      const Icon = card.icon;
+   252→                      const isQuickEdit = card.viewId === "settings";
+   253→                      return (
+   254→                        <button
+   255→                          key={card.id}
+   256→                          onClick={() =>
+   257→                            isQuickEdit
+   258→                              ? openQuickEdit(card.id)
+   259→                              : navigate(card.viewId)
+   260→                          }
+   261→                          className="group flex h-full flex-col gap-2 rounded-lg border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-accent/40"
+   262→                          aria-label={`Open ${card.title}`}
+   263→                        >
+   264→                          <div className="flex items-start justify-between">
+   265→                            <div className="rounded-md border bg-muted p-1.5">
+   266→                              <Icon className="h-4 w-4 text-foreground" />
+   267→                            </div>
+   268→                            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+   269→                          </div>
+   270→                          <div className="flex-1">
+   271→                            <p className="text-sm font-medium text-foreground">
+   272→                              {card.title}
+   273→                            </p>
+   274→                            <p className="mt-0.5 text-xs text-muted-foreground">
+   275→                              {card.description}
+   276→                            </p>
+   277→                          </div>
+   278→                          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
+   279→                            Open →
+   280→                          </span>
+   281→                        </button>
+   282→                      );
+   283→                    })}
+   284→                  </div>
+   285→                </section>
+   286→              );
+   287→            })}
+   288→          </div>
+   289→        )}
+   290→
+   291→        {/* Quick edit (collapsible 7-tab editor) */}
+   292→        {showQuickEdit ? (
+   293→          <Card>
+   294→            <CardHeader className="pb-3">
+   295→              <div className="flex items-center justify-between">
+   296→                <div>
+   297→                  <span className="text-sm font-medium">Quick edit</span>
+   298→                  <p className="text-xs text-muted-foreground">
+   299→                    Inline editors for the 7 most-changed settings groups.
+   300→                    Each card above links to its full-page editor.
+   301→                  </p>
+   302→                </div>
+   303→                <Button
+   304→                  variant="ghost"
+   305→                  size="sm"
+   306→                  onClick={() => setShowQuickEdit(false)}
+   307→                  aria-label="Hide quick edit"
+   308→                >
+   309→                  Hide
+   310→                </Button>
+   311→              </div>
+   312→            </CardHeader>
+   313→            <CardContent>
+   314→              <Tabs
+   315→                value={activeTab}
+   316→                onValueChange={setActiveTab}
+   317→                className="w-full"
+   318→              >
+   319→                <TabsList className="flex flex-wrap justify-start">
+   320→                  <TabsTrigger value="general" className="gap-1">
+   321→                    <SettingsIcon className="h-3 w-3" /> General
+   322→                  </TabsTrigger>
+   323→                  <TabsTrigger value="branding" className="gap-1">
+   324→                    <Palette className="h-3 w-3" /> Branding
+   325→                  </TabsTrigger>
+   326→                  <TabsTrigger value="terminology" className="gap-1">
+   327→                    <Type className="h-3 w-3" /> Terminology
+   328→                  </TabsTrigger>
+   329→                  <TabsTrigger value="modules" className="gap-1">
+   330→                    <Package className="h-3 w-3" /> Modules
+   331→                  </TabsTrigger>
+   332→                  <TabsTrigger value="roles" className="gap-1">
+   333→                    <Users className="h-3 w-3" /> Roles
+   334→                  </TabsTrigger>
+   335→                  <TabsTrigger value="integrations" className="gap-1">
+   336→                    <Plug className="h-3 w-3" /> Integrations
+   337→                  </TabsTrigger>
+   338→                  <TabsTrigger value="notifications" className="gap-1">
+   339→                    <Bell className="h-3 w-3" /> Notifications
+   340→                  </TabsTrigger>
+   341→                </TabsList>
+   342→                <TabsContent value="general">
+   343→                  <GeneralTab />
+   344→                </TabsContent>
+   345→                <TabsContent value="branding">
+   346→                  <BrandingTab />
+   347→                </TabsContent>
+   348→                <TabsContent value="terminology">
+   349→                  <TerminologyTab />
+   350→                </TabsContent>
+   351→                <TabsContent value="modules">
+   352→                  <ModulesTab />
+   353→                </TabsContent>
+   354→                <TabsContent value="roles">
+   355→                  <RolesTab />
+   356→                </TabsContent>
+   357→                <TabsContent value="integrations">
+   358→                  <IntegrationsTab />
+   359→                </TabsContent>
+   360→                <TabsContent value="notifications">
+   361→                  <NotificationsTab />
+   362→                </TabsContent>
+   363→              </Tabs>
+   364→            </CardContent>
+   365→          </Card>
+   366→        ) : null}
+   367→      </PageContent>
+   368→    </Page>
+   369→  );
+   370→}
+   371→
+   372→function GeneralTab() {
+   373→  const { tenant, setTenant, runtime } = usePlatform();
+   374→  const [name, setName] = useState(tenant.branding.name);
+   375→  const [tagline, setTagline] = useState(tenant.branding.tagline ?? "");
+   376→  const [currency, setCurrency] = useState(tenant.currency);
+   377→  const [timezone, setTimezone] = useState(tenant.timezone);
+   378→
+   379→  const save = () => {
+   380→    setTenant({
+   381→      ...tenant,
+   382→      name,
+   383→      branding: { ...tenant.branding, name, tagline },
+   384→      currency,
+   385→      timezone,
+   386→    });
+   387→    toast({ title: "Settings saved", description: "General settings updated." });
+   388→  };
+   389→
+   390→  return (
+   391→    <Card>
+   392→      <CardHeader><span className="text-sm font-medium">General</span></CardHeader>
+   393→      <CardContent className="space-y-4">
+   394→        <div className="grid gap-4 md:grid-cols-2">
+   395→          <div className="space-y-1.5">
+   396→            <Label htmlFor="name">Tenant name</Label>
+   397→            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+   398→          </div>
+   399→          <div className="space-y-1.5">
+   400→            <Label htmlFor="tagline">Tagline</Label>
+   401→            <Input id="tagline" value={tagline} onChange={(e) => setTagline(e.target.value)} />
+   402→          </div>
+   403→          <div className="space-y-1.5">
+   404→            <Label htmlFor="currency">Currency</Label>
+   405→            <select id="currency" value={currency} onChange={(e) => setCurrency(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+   406→              <option value="USD">USD</option>
+   407→              <option value="GBP">GBP</option>
+   408→              <option value="EUR">EUR</option>
+   409→              <option value="AED">AED</option>
+   410→            </select>
+   411→          </div>
+   412→          <div className="space-y-1.5">
+   413→            <Label htmlFor="timezone">Timezone</Label>
+   414→            <Input id="timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} />
+   415→          </div>
+   416→        </div>
+   417→        <div className="flex gap-2">
+   418→          <Button size="sm" onClick={save}><Check className="mr-1 h-4 w-4" /> Save changes</Button>
+   419→          <Button
+   420→            size="sm"
+   421→            variant="outline"
+   422→            onClick={async () => {
+   423→              const { exportAllAsZip } = await import("@/lib/platform/bulk-export");
+   424→              exportAllAsZip(runtime);
+   425→            }}
+   426→            className="gap-1.5"
+   427→          >
+   428→            <Archive className="mr-1 h-4 w-4" /> Export all data (ZIP)
+   429→          </Button>
+   430→        </div>
+   431→        <Separator />
+   432→        <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+   433→          <div><p className="text-xs text-muted-foreground">Plan</p><p className="font-medium">{tenant.plan}</p></div>
+   434→          <div><p className="text-xs text-muted-foreground">Status</p><p className="font-medium">{tenant.status}</p></div>
+   435→          <div><p className="text-xs text-muted-foreground">Modules</p><p className="font-medium">{tenant.enabledModules.length}</p></div>
+   436→          <div><p className="text-xs text-muted-foreground">Features</p><p className="font-medium">{tenant.enabledFeatures.length}</p></div>
+   437→        </div>
+   438→      </CardContent>
+   439→    </Card>
+   440→  );
+   441→}
+   442→
+   443→function BrandingTab() {
+   444→  const { tenant, setTenant } = usePlatform();
+   445→  const [branding, setBranding] = useState<TenantBranding>(tenant.branding);
+   446→  const presets = [
+   447→    { name: "Forest", primary: "#4a7c59", accent: "#705c30", surface: "#f5efe6" },
+   448→    { name: "Sage", primary: "#5a7c4a", accent: "#8a6d30", surface: "#f5efe6" },
+   449→    { name: "Deep Green", primary: "#4a6c59", accent: "#705c30", surface: "#f5efe6" },
+   450→    { name: "Golden Brown", primary: "#705c30", accent: "#4a7c59", surface: "#f5efe6" },
+   451→    { name: "Warm Taupe", primary: "#8a7560", accent: "#4a7c59", surface: "#f5efe6" },
+   452→    { name: "Slate Green", primary: "#5a7060", accent: "#705c30", surface: "#f5efe6" },
+   453→  ];
+   454→
+   455→  const save = () => {
+   456→    setTenant({ ...tenant, branding });
+   457→    toast({ title: "Branding applied", description: "Theme updated instantly — no rebuild required." });
+   458→  };
+   459→
+   460→  return (
+   461→    <Card>
+   462→      <CardHeader><span className="text-sm font-medium">Branding & White-label</span></CardHeader>
+   463→      <CardContent className="space-y-4">
+   464→        <div>
+   465→          <Label className="mb-2 block text-xs">Color presets</Label>
+   466→          <div className="flex flex-wrap gap-2">
+   467→            {presets.map((p) => (
+   468→              <button
+   469→                key={p.name}
+   470→                onClick={() => setBranding({ ...branding, primaryColor: p.primary, accentColor: p.accent, surfaceColor: p.surface })}
+   471→                className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs hover:bg-muted"
+   472→                style={{ borderColor: branding.primaryColor === p.primary ? p.primary : undefined }}
+   473→              >
+   474→                <span className="h-3 w-3 rounded-sm" style={{ background: p.primary }} />
+   475→                <span className="h-3 w-3 rounded-sm" style={{ background: p.accent }} />
+   476→                {p.name}
+   477→              </button>
+   478→            ))}
+   479→          </div>
+   480→        </div>
+   481→        <Separator />
+   482→        <div className="grid gap-4 md:grid-cols-2">
+   483→          <div className="space-y-1.5">
+   484→            <Label htmlFor="primary">Primary color</Label>
+   485→            <div className="flex gap-2">
+   486→              <input type="color" value={branding.primaryColor} onChange={(e) => setBranding({ ...branding, primaryColor: e.target.value })} className="h-9 w-12 rounded-md border" />
+   487→              <Input value={branding.primaryColor} onChange={(e) => setBranding({ ...branding, primaryColor: e.target.value })} />
+   488→            </div>
+   489→          </div>
+   490→          <div className="space-y-1.5">
+   491→            <Label htmlFor="accent">Accent color</Label>
+   492→            <div className="flex gap-2">
+   493→              <input type="color" value={branding.accentColor} onChange={(e) => setBranding({ ...branding, accentColor: e.target.value })} className="h-9 w-12 rounded-md border" />
+   494→              <Input value={branding.accentColor} onChange={(e) => setBranding({ ...branding, accentColor: e.target.value })} />
+   495→            </div>
+   496→          </div>
+   497→          <div className="space-y-1.5">
+   498→            <Label htmlFor="radius">Border radius</Label>
+   499→            <select id="radius" value={branding.radius} onChange={(e) => setBranding({ ...branding, radius: e.target.value })} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+   500→              <option value="0.25rem">Sharp (0.25rem)</option>
+   501→              <option value="0.5rem">Subtle (0.5rem)</option>
+   502→              <option value="0.625rem">Default (0.625rem)</option>
+   503→              <option value="0.75rem">Rounded (0.75rem)</option>
+   504→              <option value="1rem">Pill (1rem)</option>
+   505→            </select>
+   506→          </div>
+   507→          <div className="space-y-1.5">
+   508→            <Label htmlFor="initials">Initials</Label>
+   509→            <Input id="initials" value={branding.initials} maxLength={3} onChange={(e) => setBranding({ ...branding, initials: e.target.value.toUpperCase() })} />
+   510→          </div>
+   511→        </div>
+   512→        <div className="rounded-lg border p-4" style={{ background: branding.surfaceColor }}>
+   513→          <p className="mb-2 text-xs font-medium text-muted-foreground">Live preview</p>
+   514→          <div className="flex items-center gap-3">
+   515→            <span className="flex h-10 w-10 items-center justify-center rounded-md text-sm font-bold text-white" style={{ background: branding.primaryColor }}>{branding.initials}</span>
+   516→            <div>
+   517→              <p className="text-sm font-semibold" style={{ color: branding.primaryColor }}>{branding.name}</p>
+   518→              <p className="text-xs text-muted-foreground">{branding.tagline}</p>
+   519→            </div>
+   520→            <Button size="sm" className="ml-auto text-white" style={{ background: branding.primaryColor }}>Brand button</Button>
+   521→          </div>
+   522→        </div>
+   523→        <Button size="sm" onClick={save}><Check className="mr-1 h-4 w-4" /> Apply branding</Button>
+   524→      </CardContent>
+   525→    </Card>
+   526→  );
+   527→}
+   528→
+   529→function TerminologyTab() {
+   530→  const { tenant, setTenant } = usePlatform();
+   531→  const [terms, setTerms] = useState<Record<string, string>>(tenant.terminology);
+   532→  const keys = ["challenge", "trader", "payout", "account", "evaluation", "participant", "withdrawal", "disbursement"];
+   533→
+   534→  const save = () => {
+   535→    setTenant({ ...tenant, terminology: terms });
+   536→    toast({ title: "Terminology saved", description: "Custom terms applied across the platform." });
+   537→  };
+   538→
+   539→  return (
+   540→    <Card>
+   541→      <CardHeader><span className="text-sm font-medium">Terminology</span></CardHeader>
+   542→      <CardContent className="space-y-4">
+   543→        <p className="text-xs text-muted-foreground">Customize business terminology for this tenant. Only terms that need white-label customization are configurable.</p>
+   544→        <div className="grid gap-3 md:grid-cols-2">
+   545→          {keys.map((k) => (
+   546→            <div key={k} className="space-y-1.5">
+   547→              <Label className="text-xs capitalize">{k}</Label>
+   548→              <Input value={terms[k] ?? ""} placeholder={`Default: ${k.charAt(0).toUpperCase() + k.slice(1)}`} onChange={(e) => setTerms({ ...terms, [k]: e.target.value })} />
+   549→            </div>
+   550→          ))}
+   551→        </div>
+   552→        <Button size="sm" onClick={save}><Check className="mr-1 h-4 w-4" /> Save terminology</Button>
+   553→      </CardContent>
+   554→    </Card>
+   555→  );
+   556→}
+   557→
+   558→function ModulesTab() {
+   559→  const { tenant, setTenant, runtime, user } = usePlatform();
+   560→  const allModules = moduleRegistry.getAll().filter((m) => {
+   561→    // Only show modules that support the current application
+   562→    if (!m.manifest.supportedApplications || m.manifest.supportedApplications.length === 0) return true;
+   563→    return m.manifest.supportedApplications.includes(user.application);
+   564→  });
+   565→  const isPlatform = tenant.id === "platform";
+   566→
+   567→  const toggle = (moduleId: string) => {
+   568→    const enabled = new Set(tenant.enabledModules);
+   569→    if (enabled.has(moduleId)) enabled.delete(moduleId);
+   570→    else enabled.add(moduleId);
+   571→    setTenant({ ...tenant, enabledModules: Array.from(enabled) });
+   572→    const mod = allModules.find((m) => m.manifest.id === moduleId);
+   573→    toast({
+   574→      title: enabled.has(moduleId) ? "Module enabled" : "Module disabled",
+   575→      description: `${mod?.manifest.name} is now ${enabled.has(moduleId) ? "visible" : "hidden"} in navigation.`,
+   576→    });
+   577→  };
+   578→
+   579→  return (
+   580→    <Card>
+   581→      <CardHeader>
+   582→        <div className="flex items-center justify-between">
+   583→          <span className="text-sm font-medium">Module Catalog</span>
+   584→          <Badge variant="secondary">{tenant.enabledModules.length} enabled</Badge>
+   585→        </div>
+   586→      </CardHeader>
+   587→      <CardContent className="space-y-2">
+   588→        <p className="text-xs text-muted-foreground">Toggle modules to see the sidebar and dashboard re-compose live. This demonstrates the plug-and-play architecture (spec section 67).</p>
+   589→        <Separator />
+   590→        {allModules.map((m) => {
+   591→          const enabled = isPlatform || tenant.enabledModules.includes(m.manifest.id);
+   592→          const Icon = m.manifest.icon;
+   593→          return (
+   594→            <div key={m.manifest.id} className="flex items-center gap-3 rounded-md border p-3">
+   595→              <div className="rounded-md p-2" style={{ background: `${m.manifest.accentColor}1a` }}>
+   596→                {Icon ? <Icon className="h-4 w-4" style={{ color: m.manifest.accentColor }} /> : null}
+   597→              </div>
+   598→              <div className="min-w-0 flex-1">
+   599→                <div className="flex items-center gap-2">
+   600→                  <p className="text-sm font-medium">{m.manifest.name}</p>
+   601→                  {m.manifest.optional ? <Badge variant="outline" className="text-[9px]">optional</Badge> : null}
+   602→                  <Badge variant="outline" className="text-[9px]">{m.manifest.category}</Badge>
+   603→                </div>
+   604→                <p className="text-xs text-muted-foreground">{m.manifest.description}</p>
+   605→                {m.manifest.dependencies?.length ? (
+   606→                  <p className="text-[10px] text-muted-foreground/70">Depends on: {m.manifest.dependencies.join(", ")}</p>
+   607→                ) : null}
+   608→              </div>
+   609→              <Switch checked={enabled} onCheckedChange={() => toggle(m.manifest.id)} disabled={isPlatform} />
+   610→            </div>
+   611→          );
+   612→        })}
+   613→      </CardContent>
+   614→    </Card>
+   615→  );
+   616→}
+   617→
+   618→function RolesTab() {
+   619→  const roles = allRoles.filter((r) => r.application === "prop-admin" || r.application === "super-admin");
+   620→  return (
+   621→    <Card>
+   622→      <CardHeader><span className="text-sm font-medium">Roles & Permissions</span></CardHeader>
+   623→      <CardContent className="space-y-3">
+   624→        <p className="text-xs text-muted-foreground">Roles map to explicit permissions. Visibility is controlled by permissions, not role names (spec section 12).</p>
+   625→        <div className="space-y-2">
+   626→          {roles.map((r) => (
+   627→            <div key={r.id} className="rounded-md border p-3">
+   628→              <div className="mb-2 flex items-center gap-2">
+   629→                <span className="h-2.5 w-2.5 rounded-full" style={{ background: r.color }} />
+   630→                <span className="text-sm font-medium">{r.name}</span>
+   631→                <Badge variant="outline" className="text-[10px]">{r.application}</Badge>
+   632→              </div>
+   633→              <p className="mb-2 text-xs text-muted-foreground">{r.description}</p>
+   634→              <div className="flex flex-wrap gap-1">
+   635→                {r.permissions.slice(0, 15).map((p) => (
+   636→                  <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>
+   637→                ))}
+   638→                {r.permissions.length > 15 ? <Badge variant="outline" className="text-[10px]">+{r.permissions.length - 15} more</Badge> : null}
+   639→              </div>
+   640→            </div>
+   641→          ))}
+   642→        </div>
+   643→      </CardContent>
+   644→    </Card>
+   645→  );
+   646→}
+   647→
+   648→function NotificationsTab() {
+   649→  // Per-module notification preferences with per-channel toggles
+   650→  const modules = [
+   651→    { id: "trading", name: "Trading", icon: CandlestickChart, events: ["New trader", "Account breach", "Large P&L"] },
+   652→    { id: "challenges", name: "Challenges", icon: Target, events: ["Phase passed", "Challenge failed", "Profit target hit"] },
+   653→    { id: "risk", name: "Risk", icon: ShieldCheck, events: ["Drawdown breach", "Daily limit hit", "Risk score change"] },
+   654→    { id: "payouts", name: "Payouts", icon: Wallet, events: ["Payout requested", "Payout approved", "Payout rejected"] },
+   655→    { id: "kyc", name: "KYC", icon: FileCheck, events: ["KYC submitted", "KYC approved", "High-risk flag"] },
+   656→    { id: "ai", name: "AI / LLM", icon: Brain, events: ["New insight", "Critical alert", "Opportunity flagged"] },
+   657→  ];
+   658→  const channels = [
+   659→    { id: "email", label: "Email" },
+   660→    { id: "inapp", label: "In-app" },
+   661→    { id: "slack", label: "Slack" },
+   662→  ];
+   663→
+   664→  return (
+   665→    <div className="space-y-4">
+   666→      <Card>
+   667→        <CardHeader><span className="text-sm font-medium">Notification Preferences</span></CardHeader>
+   668→        <CardContent>
+   669→          <p className="text-xs text-muted-foreground">
+   670→            Configure which notification channels each module uses. Toggle per-module, per-channel.
+   671→            Changes apply instantly and are saved to your profile.
+   672→          </p>
+   673→        </CardContent>
+   674→      </Card>
+   675→
+   676→      {modules.map((mod) => {
+   677→        const Icon = mod.icon;
+   678→        return (
+   679→          <Card key={mod.id}>
+   680→            <CardHeader className="pb-2">
+   681→              <div className="flex items-center gap-2.5">
+   682→                <div className="rounded-md bg-muted p-1.5">
+   683→                  <Icon className="h-4 w-4" />
+   684→                </div>
+   685→                <div>
+   686→                  <span className="text-sm font-medium">{mod.name}</span>
+   687→                  <p className="text-[11px] text-muted-foreground">{mod.events.join(" · ")}</p>
+   688→                </div>
+   689→              </div>
+   690→            </CardHeader>
+   691→            <CardContent>
+   692→              <div className="grid grid-cols-3 gap-2">
+   693→                {channels.map((ch) => (
+   694→                  <label
+   695→                    key={ch.id}
+   696→                    className="flex cursor-pointer items-center justify-between rounded-md border p-2.5 transition-colors hover:bg-muted/40"
+   697→                  >
+   698→                    <span className="text-xs font-medium text-foreground">{ch.label}</span>
+   699→                    <Switch defaultChecked={ch.id !== "slack"} aria-label={`${mod.name} ${ch.label} notifications`} />
+   700→                  </label>
+   701→                ))}
+   702→              </div>
+   703→            </CardContent>
+   704→          </Card>
+   705→        );
+   706→      })}
+   707→
+   708→      <Card>
+   709→        <CardHeader className="pb-2">
+   710→          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quiet Hours</span>
+   711→        </CardHeader>
+   712→        <CardContent>
+   713→          <p className="mb-3 text-xs text-muted-foreground">Suppress non-critical notifications during these hours.</p>
+   714→          <div className="flex flex-wrap items-center gap-2">
+   715→            <Switch defaultChecked id="quiet-hours" aria-label="Enable quiet hours" />
+   716→            <label htmlFor="quiet-hours" className="text-xs font-medium">Enable quiet hours</label>
+   717→            <select className="h-8 rounded-md border border-input bg-background px-2 text-xs" aria-label="Quiet hours start">
+   718→              <option>22:00</option>
+   719→              <option>23:00</option>
+   720→              <option>00:00</option>
+   721→            </select>
+   722→            <span className="text-xs text-muted-foreground">to</span>
+   723→            <select className="h-8 rounded-md border border-input bg-background px-2 text-xs" aria-label="Quiet hours end">
+   724→              <option>07:00</option>
+   725→              <option>08:00</option>
+   726→              <option>09:00</option>
+   727→            </select>
+   728→          </div>
+   729→        </CardContent>
+   730→      </Card>
+   731→    </div>
+   732→  );
+   733→}
+   734→
+   735→/**
+   736→ * Integrations Tab (spec §44). Pluggable integrations panel with
+   737→ * provider status, configuration, health, sync status, last sync.
+   738→ * Grouped by category: Trading Platform, Payments, KYC, Accounting, CRM,
+   739→ * Notifications, Marketing. Never exposes secret credentials after save.
+   740→ */
+   741→function IntegrationsTab() {
+   742→  const integrationCategories = [
+   743→    {
+   744→      name: "Trading Platform",
+   745→      integrations: [
+   746→        { id: "mt5", name: "MetaTrader 5", status: "connected", icon: Zap, lastSync: "2m ago", health: "healthy", description: "Live trading bridge for MT5 accounts" },
+   747→        { id: "mt4", name: "MetaTrader 4", status: "available", icon: Zap, lastSync: null, health: null, description: "Legacy MT4 bridge (deprecated)" },
+   748→        { id: "dxtrade", name: "DXTrade", status: "connected", icon: Globe, lastSync: "5m ago", health: "healthy", description: "DXTrade platform integration" },
+   749→      ],
+   750→    },
+   751→    {
+   752→      name: "Payments",
+   753→      integrations: [
+   754→        { id: "stripe", name: "Stripe", status: "connected", icon: CreditCard, lastSync: "1h ago", health: "healthy", description: "Card payments & payouts" },
+   755→        { id: "wise", name: "Wise (TransferWise)", status: "connected", icon: CreditCard, lastSync: "3h ago", health: "degraded", description: "Bank transfer payouts" },
+   756→        { id: "crypto", name: "Crypto Payments", status: "available", icon: CreditCard, lastSync: null, health: null, description: "USDT/BTC/ETH payout support" },
+   757→        { id: "paypal", name: "PayPal", status: "disconnected", icon: CreditCard, lastSync: null, health: null, description: "PayPal payout integration" },
+   758→      ],
+   759→    },
+   760→    {
+   761→      name: "KYC / AML",
+   762→      integrations: [
+   763→        { id: "sumsub", name: "Sumsub", status: "connected", icon: ShieldCheck, lastSync: "12m ago", health: "healthy", description: "Automated KYC verification" },
+   764→        { id: "onfido", name: "Onfido", status: "available", icon: ShieldCheck, lastSync: null, health: null, description: "Identity verification provider" },
+   765→      ],
+   766→    },
+   767→    {
+   768→      name: "Notifications",
+   769→      integrations: [
+   770→        { id: "sendgrid", name: "SendGrid", status: "connected", icon: Mail, lastSync: "8m ago", health: "healthy", description: "Email notification delivery" },
+   771→        { id: "slack", name: "Slack", status: "connected", icon: Mail, lastSync: "15m ago", health: "healthy", description: "Critical alerts to Slack channels" },
+   772→        { id: "twilio", name: "Twilio SMS", status: "available", icon: Mail, lastSync: null, health: null, description: "SMS alerts for high-priority events" },
+   773→      ],
+   774→    },
+   775→    {
+   776→      name: "AI & Analytics",
+   777→      integrations: [
+   778→        { id: "openai", name: "OpenAI", status: "connected", icon: Brain, lastSync: "5m ago", health: "healthy", description: "AI insights & chat assistant" },
+   779→        { id: "segment", name: "Segment", status: "available", icon: Database, lastSync: null, health: null, description: "Customer data platform" },
+   780→      ],
+   781→    },
+   782→  ];
+   783→
+   784→  const statusTone = (s: string) =>
+   785→    s === "connected" ? "success" : s === "available" ? "info" : "muted";
+   786→  const healthTone = (h: string | null) =>
+   787→    h === "healthy" ? "success" : h === "degraded" ? "warning" : h === "down" ? "danger" : "muted";
+   788→
+   789→  return (
+   790→    <div className="space-y-4">
+   791→      <Card>
+   792→        <CardHeader>
+   793→          <div className="flex items-center justify-between">
+   794→            <div>
+   795→              <span className="text-sm font-medium">Integrations</span>
+   796→              <p className="text-xs text-muted-foreground">External service providers and their status. Secret credentials are never shown after initial save.</p>
+   797→            </div>
+   798→            <Badge variant="secondary">
+   799→              {integrationCategories.reduce((s, c) => s + c.integrations.filter((i) => i.status === "connected").length, 0)} connected
+   800→            </Badge>
+   801→          </div>
+   802→        </CardHeader>
+   803→      </Card>
+   804→
+   805→      {integrationCategories.map((cat) => (
+   806→        <Card key={cat.name}>
+   807→          <CardHeader className="pb-2">
+   808→            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{cat.name}</span>
+   809→          </CardHeader>
+   810→          <CardContent className="space-y-2">
+   811→            {cat.integrations.map((int) => {
+   812→              const Icon = int.icon;
+   813→              return (
+   814→                <div key={int.id} className="flex items-center gap-3 rounded-md border p-3">
+   815→                  <div className={`rounded-md p-2 ${int.status === "connected" ? "bg-emerald-100 dark:bg-emerald-950" : "bg-muted"}`}>
+   816→                    <Icon className={`h-4 w-4 ${int.status === "connected" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`} />
+   817→                  </div>
+   818→                  <div className="min-w-0 flex-1">
+   819→                    <div className="flex items-center gap-2">
+   820→                      <span className="truncate text-sm font-medium text-foreground">{int.name}</span>
+   821→                      <Badge variant="outline" className={`text-[9px] ${int.status === "connected" ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400" : ""}`}>
+   822→                        {int.status}
+   823→                      </Badge>
+   824→                      {int.health ? (
+   825→                        <Badge variant="outline" className={`text-[9px] ${int.health === "healthy" ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400" : int.health === "degraded" ? "border-amber-500/40 text-amber-700 dark:text-amber-400" : "border-rose-500/40 text-rose-700 dark:text-rose-400"}`}>
+   826→                          {int.health}
+   827→                        </Badge>
+   828→                      ) : null}
+   829→                    </div>
+   830→                    <p className="truncate text-xs text-muted-foreground">{int.description}</p>
+   831→                    {int.lastSync ? (
+   832→                      <p className="text-[10px] text-muted-foreground/70">Last sync: {int.lastSync}</p>
+   833→                    ) : null}
+   834→                  </div>
+   835→                  <Button
+   836→                    size="sm"
+   837→                    variant={int.status === "connected" ? "outline" : "default"}
+   838→                    onClick={() => toast({
+   839→                      title: int.status === "connected" ? "Configure integration" : "Connect integration",
+   840→                      description: `${int.name} configuration dialog (demo).`,
+   841→                    })}
+   842→                  >
+   843→                    {int.status === "connected" ? "Configure" : int.status === "available" ? "Connect" : "Reconnect"}
+   844→                  </Button>
+   845→                </div>
+   846→              );
+   847→            })}
+   848→          </CardContent>
+   849→        </Card>
+   850→      ))}
+   851→
+   852→      <Card>
+   853→        <CardHeader className="pb-2">
+   854→          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Security Note</span>
+   855→        </CardHeader>
+   856→        <CardContent>
+   857→          <p className="text-xs text-muted-foreground">
+   858→            Per spec §44, the frontend never exposes secret credentials after initial save.
+   859→            Configuration forms accept credentials once, store them server-side encrypted,
+   860→            and subsequent views show only masked indicators (e.g. <code className="rounded bg-muted px-1">sk_••••••••••••4231</code>).
+   861→          </p>
+   862→        </CardContent>
+   863→      </Card>
+   864→    </div>
+   865→  );
+   866→}
+   867→

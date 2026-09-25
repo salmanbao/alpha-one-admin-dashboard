@@ -12,7 +12,8 @@ import { useMemo, useState } from "react";
 import { ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { resolveNavigation, type ResolvedNavigation } from "@/lib/platform/navigation-engine";
-import { makeTermResolver, type TermKey } from "@/lib/platform/terminology";
+import { makeTermResolver, resolveTermsInString, type TermKey } from "@/lib/platform/terminology";
+import type { TenantContext } from "@/lib/platform/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -20,10 +21,36 @@ import { Badge } from "@/components/ui/badge";
 
 type TermFn = (k: string) => string;
 
+/**
+ * Parse a navigation href that may include a query string (e.g.
+ * `"settings?tab=branding"`) into the view id + params object expected by
+ * `navigate(view, params)`. Lets sidebar items deep-link to a specific
+ * tab/section without requiring a separate `params` field on
+ * NavigationItem. Hrefs without `?` are passed through unchanged.
+ */
+function parseHref(href: string): { view: string; params?: Record<string, string> } {
+  const qIdx = href.indexOf("?");
+  if (qIdx === -1) return { view: href };
+  const view = href.slice(0, qIdx);
+  const params: Record<string, string> = {};
+  const search = new URLSearchParams(href.slice(qIdx + 1));
+  search.forEach((v, k) => { params[k] = v; });
+  return { view, params: Object.keys(params).length ? params : undefined };
+}
+
 export function Sidebar() {
   const { runtime, router, navigate, sidebarCollapsed, setSidebarCollapsed, tenant, user } = usePlatform();
   const t = makeTermResolver(tenant);
   const items = useMemo(() => resolveNavigation(runtime), [runtime]);
+
+  // Wrapper that accepts hrefs with optional `?key=value` query strings
+  // (e.g. "settings?tab=branding") and forwards the parsed params to
+  // navigate(view, params).
+  const go = (href: string | undefined) => {
+    if (!href) return;
+    const { view, params } = parseHref(href);
+    navigate(view, params);
+  };
 
   if (sidebarCollapsed) {
     return (
@@ -45,7 +72,7 @@ export function Sidebar() {
               variant={active ? "secondary" : "ghost"}
               size="icon"
               className="h-9 w-9"
-              onClick={() => item.effectiveHref && navigate(item.effectiveHref)}
+              onClick={() => go(item.effectiveHref)}
               title={item.label}
             >
               {Icon ? <Icon className="h-4 w-4" /> : <span className="text-xs">{item.label.slice(0, 1)}</span>}
@@ -63,7 +90,7 @@ export function Sidebar() {
       <nav className="scrollbar-thin flex-1 overflow-y-auto px-2 py-2">
         <ul className="space-y-0.5">
           {items.map((item) => (
-            <SidebarItem key={item.id} item={item} t={t} />
+            <SidebarItem key={item.id} item={item} t={t} tenant={tenant} />
           ))}
         </ul>
       </nav>
@@ -119,11 +146,21 @@ function SidebarBrand({
 function SidebarItem({
   item,
   t,
+  tenant,
 }: {
   item: ResolvedNavigation[number];
   t: TermFn;
+  tenant: Pick<TenantContext, "terminology"> | undefined;
 }) {
   const { router, navigate } = usePlatform();
+  // Local href handler — resolves optional "?key=value" query strings
+  // (e.g. "settings?tab=branding") into navigate(view, params). Defined
+  // here because `go` in the parent Sidebar scope is not visible below.
+  const go = (href: string | undefined) => {
+    if (!href) return;
+    const { view, params } = parseHref(href);
+    navigate(view, params);
+  };
   const [open, setOpen] = useState(true);
   const active = router.view === item.effectiveHref ||
     (item.children?.some((c) => router.view === c.href) ?? false);
@@ -175,14 +212,14 @@ function SidebarItem({
                       </div>
                     ) : null}
                     <button
-                      onClick={() => c.href && navigate(c.href)}
+                      onClick={() => go(c.href)}
                       className={cn(
                         "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors",
                         cActive ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground",
                       )}
                     >
                       {CIcon ? <CIcon className="h-3.5 w-3.5" /> : <span className="h-1 w-1 rounded-full bg-current opacity-60" />}
-                      <span className="flex-1 text-left">{c.label}</span>
+                      <span className="flex-1 text-left">{resolveTermsInString(c.label, tenant)}</span>
                       {c.badge ? (
                         <Badge variant="secondary" className="h-4 px-1 text-[9px]">{c.badge}</Badge>
                       ) : null}
@@ -200,7 +237,7 @@ function SidebarItem({
   return (
     <li>
       <button
-        onClick={() => item.effectiveHref && navigate(item.effectiveHref)}
+        onClick={() => go(item.effectiveHref)}
         className={cn(
           "group relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-all",
           active

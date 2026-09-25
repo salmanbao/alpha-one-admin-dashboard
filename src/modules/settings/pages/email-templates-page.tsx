@@ -95,9 +95,12 @@ export function EmailTemplatesPage() {
   };
 
   const onDelete = (t: EmailTemplate) => {
+    // Demo-only — template row stays in the table because there's no
+    // persistence layer. Honest copy makes the demo state explicit.
     toast({
-      title: "Template deleted",
-      description: `“${t.name}” was removed (demo).`,
+      title: "Template deleted (demo)",
+      description: `"${t.name}" would be removed in production.`,
+      variant: "destructive",
     });
     setSelected(null);
   };

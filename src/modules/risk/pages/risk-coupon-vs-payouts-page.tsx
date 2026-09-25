@@ -189,8 +189,8 @@ export function RiskCouponVsPayoutsPage() {
 
   const exportCsv = () => {
     toast({
-      title: "Export started",
-      description: `Exporting ${filtered.length} coupon rows as CSV.`,
+      title: "Export started (demo)",
+      description: `Would export ${filtered.length} coupon rows as CSV in production.`,
     });
   };
 

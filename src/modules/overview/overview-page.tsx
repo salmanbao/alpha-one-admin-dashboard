@@ -27,6 +27,8 @@ import {
 } from "@/lib/platform/mock-data";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
 import { AnimatedNumber } from "@/components/platform/animated-number";
+import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
+import { roles } from "@/lib/platform/mock-data";
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 
@@ -35,11 +37,19 @@ export function OverviewPage() {
   const enabled = moduleRegistry.getEnabledModules(runtime);
   const live = useLiveData();
   const [refreshing, setRefreshing] = useState(false);
-  const [range, setRange] = useState<"7" | "30" | "90">("30");
+  const [refreshKey, setRefreshKey] = useState(0);
+  // Revenue range — wired into the Analytics revenue KPI below (7/30 days,
+  // matching the 30-day revenueSeries window). Hidden when analytics is off.
+  const [range, setRange] = useState<"7" | "30">("30");
+  const term = makeTermResolver(tenant);
+  const hasAnalytics = enabled.some((m) => m.manifest.id === "analytics");
 
   const refresh = useCallback(() => {
     setRefreshing(true);
     setTimeout(() => {
+      // Remount the dashboard grid + widgets and re-run live-stat sync so the
+      // action actually re-derives current data (not a toast-only fake).
+      setRefreshKey((k) => k + 1);
       setRefreshing(false);
       toast({ title: "Dashboard refreshed", description: "Latest data loaded." });
     }, 600);
@@ -47,7 +57,7 @@ export function OverviewPage() {
 
   // Aggregate the single most important KPI from each enabled module
   const tid = tenant.id;
-  const summary = buildSummary(tid, tenant.currency, enabled.map((m) => m.manifest.id));
+  const summary = buildSummary(tid, tenant.currency, enabled.map((m) => m.manifest.id), term, range);
 
   // Sync live stats to actual tenant values so the live sidebar
   // matches the KPI row (prevents data inconsistency).
@@ -62,30 +72,34 @@ export function OverviewPage() {
       pendingPayouts: payouts.filter((p) => p.status === "pending").length,
       openBreaches: breaches.filter((b) => b.status === "open").length,
     });
-  }, [tid]);
+  }, [tid, refreshKey]);
+
+  const roleName = roles.find((r) => r.id === user.roles[0])?.name ?? user.roles[0]?.replace(/-/g, " ");
 
   return (
     <Page>
       <PageHeader
         title={`Welcome, ${user.name.split(" ")[0]}`}
-        description={`${tenant.branding.name} · ${enabled.length} modules active · ${user.roles[0]?.replace("-", " ")}`}
+        description={`${tenant.branding.name} · ${enabled.length} modules active · ${roleName}`}
         icon={LayoutDashboard}
         actions={
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="gap-1">
               <Sparkles className="h-3 w-3" /> {tenant.plan} plan
             </Badge>
-            <div className="hidden items-center gap-1 rounded-md border bg-card p-0.5 text-xs sm:flex">
-              {(["7", "30", "90"] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRange(r)}
-                  className={`rounded px-2 py-1 text-xs font-medium transition-colors ${range === r ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  {r}d
-                </button>
-              ))}
-            </div>
+            {hasAnalytics ? (
+              <div className="hidden items-center gap-1 rounded-md border bg-card p-0.5 text-xs sm:flex">
+                {(["7", "30"] as const).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setRange(r)}
+                    className={`rounded px-2 py-1 text-xs font-medium transition-colors ${range === r ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {r}d
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <Button size="sm" variant="outline" onClick={refresh} disabled={refreshing} className="gap-1.5">
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh</span>
@@ -120,7 +134,7 @@ export function OverviewPage() {
 
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
           <div className="min-w-0">
-            <DashboardGrid />
+            <DashboardGrid key={refreshKey} />
           </div>
           <aside className="lg:sticky lg:top-20 lg:h-fit">
             <div className="rounded-lg border bg-card p-4 shadow-sm">
@@ -163,7 +177,7 @@ export function OverviewPage() {
             {/* Live stats mini-panel */}
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-lg border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active Traders</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{resolveTermsInString("Active Traders", tenant)}</p>
                 <p className="text-lg font-bold tabular-nums text-foreground">
                   <AnimatedNumber value={live.activeTraders} />
                 </p>
@@ -175,7 +189,7 @@ export function OverviewPage() {
                 </p>
               </div>
               <div className="rounded-lg border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pending Payouts</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{resolveTermsInString("Pending Payouts", tenant)}</p>
                 <p className="text-lg font-bold tabular-nums text-foreground">
                   <AnimatedNumber value={live.pendingPayouts} />
                 </p>
@@ -206,7 +220,13 @@ interface SummaryKpi {
   href?: string;
 }
 
-function buildSummary(tid: string, currency: string, enabledModuleIds: string[]): SummaryKpi[] {
+function buildSummary(
+  tid: string,
+  currency: string,
+  enabledModuleIds: string[],
+  term: (key: "challenge" | "trader" | "payout" | "account" | "evaluation" | "participant" | "withdrawal" | "disbursement") => string,
+  range: "7" | "30",
+): SummaryKpi[] {
   const out: SummaryKpi[] = [];
   const has = (id: string) => enabledModuleIds.includes(id);
 
@@ -216,7 +236,7 @@ function buildSummary(tid: string, currency: string, enabledModuleIds: string[])
     out.push({
       moduleId: "trading",
       moduleName: "Trading",
-      label: "Active Traders",
+      label: `Active ${plural(term("trader"))}`,
       value: formatCompact(traders.filter((t) => t.status === "active").length),
       delta: 8,
       icon: Users,
@@ -238,7 +258,7 @@ function buildSummary(tid: string, currency: string, enabledModuleIds: string[])
     out.push({
       moduleId: "challenges",
       moduleName: "Challenges",
-      label: "Funded Traders",
+      label: `Funded ${plural(term("trader"))}`,
       value: formatCompact(getTenantTraders(tid).filter((t) => t.challengePhase === "funded").length),
       delta: 5,
       icon: TrendingUp,
@@ -264,7 +284,7 @@ function buildSummary(tid: string, currency: string, enabledModuleIds: string[])
     out.push({
       moduleId: "payouts",
       moduleName: "Payouts",
-      label: "Pending Payouts",
+      label: `Pending ${plural(term("payout"))}`,
       value: pending,
       delta: pending > 0 ? 4 : 0,
       icon: Wallet,
@@ -273,11 +293,11 @@ function buildSummary(tid: string, currency: string, enabledModuleIds: string[])
     });
   }
   if (has("analytics")) {
-    const rev = revenueSeries(tid).slice(-7).reduce((s, r) => s + r.value, 0);
+    const rev = revenueSeries(tid).slice(-Number(range)).reduce((s, r) => s + r.value, 0);
     out.push({
       moduleId: "analytics",
       moduleName: "Analytics",
-      label: "Revenue (7d)",
+      label: `Revenue (${range}d)`,
       value: formatCurrency(rev, currency),
       delta: 8,
       icon: TrendingUp,

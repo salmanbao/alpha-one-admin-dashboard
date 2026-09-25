@@ -18,6 +18,7 @@ import {
   Users as UsersIcon,
 } from "lucide-react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { moduleRegistry } from "@/lib/platform/module-registry";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -44,6 +45,7 @@ export function Topbar() {
     tenant,
     setTenant,
     availableTenants,
+    runtime,
     themeMode,
     setThemeMode,
     notifications,
@@ -196,12 +198,24 @@ export function Topbar() {
               {notifications.length === 0 ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
               ) : (
-                notifications.slice(0, 10).map((n) => (
+                notifications.slice(0, 10).map((n) => {
+                  // Only follow the deep-link if the destination view's owning
+                  // module is enabled for this tenant — otherwise navigating
+                  // would dead-end in a "module not enabled" ForbiddenState.
+                  const viewModule = moduleRegistry
+                    .getAll()
+                    .flatMap((m) => (m.routes ?? []).map((r) => ({ viewId: r.viewId, moduleId: m.manifest.id })))
+                    .find((r) => r.viewId === n.actionHref)?.moduleId;
+                  const moduleEnabled =
+                    !viewModule ||
+                    moduleRegistry.getEnabledModules(runtime).some((m) => m.manifest.id === viewModule);
+                  const dest = moduleEnabled ? n.actionHref : undefined;
+                  return (
                   <button
                     key={n.id}
                     onClick={() => {
                       markRead(n.id);
-                      if (n.actionHref) navigate(n.actionHref);
+                      if (dest) navigate(dest);
                     }}
                     className={cn(
                       "flex w-full flex-col gap-1 border-b px-3 py-2 text-left transition-colors hover:bg-muted/60",
@@ -225,7 +239,8 @@ export function Topbar() {
                     </div>
                     <p className="text-xs text-muted-foreground">{n.message}</p>
                   </button>
-                ))
+                  );
+                })
               )}
             </div>
             <button

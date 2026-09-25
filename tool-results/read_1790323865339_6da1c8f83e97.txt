@@ -1,0 +1,669 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * AI Cost Tracking
+     5→ *
+     6→ * Tracks AI model usage and cost across the tenant (or platform-wide
+     7→ * when super-admin): 30d cost trend, cost by model, cost by use case,
+     8→ * per-tenant breakdown, budget alerts, and a 30d forecast.
+     9→ *
+    10→ * Deterministic mock data — no Math.random. All values derive from
+    11→ * `hashStr(tenantId + key)` + `Math.sin(i / n)` patterns so the same
+    12→ * tenant renders the same numbers across reloads.
+    13→ *
+    14→ * File ownership: impl-ai-predictive-anomaly-cost
+    15→ */
+    16→
+    17→import { useMemo, useState } from "react";
+    18→import { usePlatform } from "@/lib/platform/platform-context";
+    19→import { makeTermResolver, plural } from "@/lib/platform/terminology";
+    20→import { hashStr, tenants, platformTenant } from "@/lib/platform/mock-data";
+    21→import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+    22→import { DataTable, type Column } from "@/components/platform/data-table";
+    23→import { StatusBadge, formatCurrency } from "@/components/platform/status";
+    24→import { AreaSeries, BarSeries, DonutSeries, type SeriesPoint } from "@/components/platform/charts";
+    25→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    26→import { exportToCsv } from "@/lib/platform/export-utils";
+    27→import { toast } from "@/hooks/use-toast";
+    28→import { Button } from "@/components/ui/button";
+    29→import { Input } from "@/components/ui/input";
+    30→import { Slider } from "@/components/ui/slider";
+    31→import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+    32→import { Badge } from "@/components/ui/badge";
+    33→import {
+    34→  DollarSign,
+    35→  TrendingUp,
+    36→  TrendingDown,
+    37→  Save,
+    38→  Download,
+    39→  Brain,
+    40→  Wallet,
+    41→  Receipt,
+    42→  PiggyBank,
+    43→  Bell,
+    44→} from "lucide-react";
+    45→
+    46→/* ------------------------------------------------------------------ */
+    47→/* Constants                                                           */
+    48→/* ------------------------------------------------------------------ */
+    49→
+    50→const TERRA = {
+    51→  emerald: "#059669",
+    52→  amber: "#d97706",
+    53→  rose: "#e11d48",
+    54→  slate: "#475569",
+    55→  sky: "#0ea5e9",
+    56→  teal: "#0d9488",
+    57→} as const;
+    58→
+    59→interface ModelCost extends SeriesPoint {
+    60→  label: string;
+    61→  cost: number;
+    62→}
+    63→
+    64→const MODELS: ModelCost[] = [
+    65→  { label: "GPT-4o", cost: 1180 },
+    66→  { label: "Claude 3.5", cost: 720 },
+    67→  { label: "Gemini 1.5", cost: 410 },
+    68→  { label: "Llama 3.1", cost: 280 },
+    69→  { label: "Internal", cost: 257 },
+    70→];
+    71→
+    72→const USE_CASES = [
+    73→  { label: "Chat Assistant", value: 980, color: TERRA.emerald },
+    74→  { label: "Insights Generation", value: 720, color: TERRA.amber },
+    75→  { label: "Anomaly Detection", value: 460, color: TERRA.rose },
+    76→  { label: "Predictive Analytics", value: 410, color: TERRA.sky },
+    77→  { label: "Document Parsing", value: 277, color: TERRA.teal },
+    78→];
+    79→
+    80→interface TenantCostRow {
+    81→  tenantId: string;
+    82→  tenantName: string;
+    83→  requests: number;
+    84→  tokens: number;
+    85→  cost: number;
+    86→  costPerRequest: number;
+    87→  trend: number; // signed % delta
+    88→}
+    89→
+    90→const ALL_TENANTS = [platformTenant, ...tenants];
+    91→
+    92→/* ------------------------------------------------------------------ */
+    93→/* Deterministic helpers                                               */
+    94→/* ------------------------------------------------------------------ */
+    95→
+    96→function buildDailyCostSeries(tid: string) {
+    97→  // 30d daily spend — deterministic sin pattern + weekly dip.
+    98→  const seed = hashStr(tid + "daily-cost");
+    99→  const baseline = 78 + (seed % 20); // $78–$97
+   100→  return Array.from({ length: 30 }, (_, i) => {
+   101→    const day = i + 1;
+   102→    const seasonal = Math.sin((i + (seed % 5)) / 3) * 14;
+   103→    const weekly = i % 7 === 5 || i % 7 === 6 ? -18 : 0;
+   104→    const growth = i * 0.6;
+   105→    const value = Math.max(20, Math.round((baseline + seasonal + weekly + growth) * 100) / 100);
+   106→    return { day: `D${day}`, cost: value };
+   107→  });
+   108→}
+   109→
+   110→function buildPerTenantCosts(): TenantCostRow[] {
+   111→  return ALL_TENANTS.map((t) => {
+   112→    const seed = hashStr(t.id + "tenant-cost");
+   113→    const requests = 8000 + (seed % 4000);
+   114→    const tokens = requests * (140 + (seed % 60)); // 140–199 tokens/req
+   115→    const cost = Math.round((tokens / 1000) * (0.6 + (seed % 40) / 100));
+   116→    const trend = ((seed % 41) - 20); // -20 to +20
+   117→    return {
+   118→      tenantId: t.id,
+   119→      tenantName: t.name,
+   120→      requests,
+   121→      tokens,
+   122→      cost,
+   123→      costPerRequest: Math.round((cost / requests) * 1000) / 1000,
+   124→      trend,
+   125→    };
+   126→  }).sort((a, b) => b.cost - a.cost);
+   127→}
+   128→
+   129→function buildForecastSeries(tid: string, dailySeries: { day: string; cost: number }[]) {
+   130→  // 30d forward forecast — deterministic sin pattern + growth.
+   131→  const seed = hashStr(tid + "cost-forecast");
+   132→  const baseline = dailySeries[dailySeries.length - 1]?.cost ?? 95;
+   133→  return Array.from({ length: 30 }, (_, i) => {
+   134→    const day = i + 1;
+   135→    const seasonal = Math.sin((i + (seed % 4)) / 3) * 11;
+   136→    const growth = i * 0.9;
+   137→    const predicted = Math.max(30, Math.round((baseline + seasonal + growth) * 100) / 100);
+   138→    const band = Math.max(2, Math.round(predicted * 0.18));
+   139→    return {
+   140→      day: `D${day}`,
+   141→      predicted,
+   142→      low: Math.max(0, predicted - band),
+   143→      high: predicted + band,
+   144→    };
+   145→  });
+   146→}
+   147→
+   148→function trendTone(trend: number): "default" | "success" | "warning" | "danger" | "info" | "muted" {
+   149→  if (trend > 15) return "danger";
+   150→  if (trend > 5) return "warning";
+   151→  if (trend > 0) return "info";
+   152→  if (trend < -10) return "success";
+   153→  return "muted";
+   154→}
+   155→
+   156→/* ------------------------------------------------------------------ */
+   157→/* Chart card                                                           */
+   158→/* ------------------------------------------------------------------ */
+   159→
+   160→function ChartCard({
+   161→  title,
+   162→  subtitle,
+   163→  help,
+   164→  children,
+   165→  className,
+   166→}: {
+   167→  title: React.ReactNode;
+   168→  subtitle?: string;
+   169→  help?: React.ReactNode;
+   170→  children: React.ReactNode;
+   171→  className?: string;
+   172→}) {
+   173→  return (
+   174→    <div className={`rounded-lg border bg-card p-4 ${className ?? ""}`}>
+   175→      <div className="mb-3 flex items-start justify-between gap-2">
+   176→        <div>
+   177→          <p className="text-sm font-medium text-foreground">
+   178→            {help ? <LabelWithHelp help={help}>{title}</LabelWithHelp> : title}
+   179→          </p>
+   180→          {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
+   181→        </div>
+   182→      </div>
+   183→      {children}
+   184→    </div>
+   185→  );
+   186→}
+   187→
+   188→/* ------------------------------------------------------------------ */
+   189→/* Page                                                                */
+   190→/* ------------------------------------------------------------------ */
+   191→
+   192→export function AiCostPage() {
+   193→  const { runtime, tenant } = usePlatform();
+   194→  const term = makeTermResolver(tenant);
+   195→  const tid = runtime.tenant?.id ?? "platform";
+   196→  const currency = runtime.tenant?.currency ?? "USD";
+   197→  const isPlatform = tid === "platform";
+   198→
+   199→  const dailySeries = useMemo(() => buildDailyCostSeries(tid), [tid]);
+   200→  const forecastSeries = useMemo(() => buildForecastSeries(tid, dailySeries), [tid, dailySeries]);
+   201→  const perTenantRows = useMemo(() => buildPerTenantCosts(), []);
+   202→
+   203→  // ---- KPI computations (deterministic) ---------------------------------
+   204→  const totalSpend30d = dailySeries.reduce((s, d) => s + d.cost, 0);
+   205→  const dailyAvg = totalSpend30d / 30;
+   206→  const totalRequests30d = 24000 + (hashStr(tid + "reqs") % 9000);
+   207→  const costPerPrediction = Math.round((totalSpend30d / totalRequests30d) * 100) / 100;
+   208→  const monthlyBudget = 5000;
+   209→  const budgetUsedPct = Math.round((totalSpend30d / monthlyBudget) * 100);
+   210→
+   211→  // ---- Budget alert config (local state — demo) ------------------------
+   212→  const [budget, setBudget] = useState(monthlyBudget);
+   213→  const [alertThreshold, setAlertThreshold] = useState(75);
+   214→  const [emailRecipient, setEmailRecipient] = useState("alerts@pfaas.io");
+   215→
+   216→  const handleSaveConfig = () => {
+   217→    toast({
+   218→      title: "Budget alert saved",
+   219→      description: `Budget ${formatCurrency(budget, currency)} · alert at ${alertThreshold}% · ${emailRecipient}`,
+   220→    });
+   221→  };
+   222→
+   223→  // ---- CSV export -------------------------------------------------------
+   224→  const handleExportDaily = () =>
+   225→    exportToCsv(
+   226→      dailySeries,
+   227→      [
+   228→        { key: "day", header: "Day", value: (r) => r.day },
+   229→        { key: "cost", header: `Cost (${currency})`, value: (r) => r.cost },
+   230→      ],
+   231→      `ai-cost-daily-${tid}.csv`,
+   232→    );
+   233→
+   234→  const handleExportTenants = () =>
+   235→    exportToCsv(
+   236→      perTenantRows,
+   237→      [
+   238→        { key: "tenantId", header: "Tenant ID", value: (r) => r.tenantId },
+   239→        { key: "tenantName", header: "Tenant", value: (r) => r.tenantName },
+   240→        { key: "requests", header: "Requests", value: (r) => r.requests },
+   241→        { key: "tokens", header: "Tokens", value: (r) => r.tokens },
+   242→        { key: "cost", header: `Cost (${currency})`, value: (r) => r.cost },
+   243→        { key: "costPerRequest", header: "Cost/Request", value: (r) => r.costPerRequest },
+   244→        { key: "trend", header: "Trend %", value: (r) => r.trend },
+   245→      ],
+   246→      `ai-cost-by-tenant.csv`,
+   247→    );
+   248→
+   249→  return (
+   250→    <Page>
+   251→      <PageHeader
+   252→        title="AI Cost Tracking"
+   253→        description={`Monitor AI model usage and cost across ${isPlatform ? "all tenants" : `this ${term("trader").toLowerCase()} tenant`}.`}
+   254→        icon={DollarSign}
+   255→        term={`30d spend ${formatCurrency(totalSpend30d, currency)} · ${budgetUsedPct}% of monthly budget`}
+   256→        actions={
+   257→          <>
+   258→            <Button variant="outline" size="sm" onClick={handleExportDaily}>
+   259→              <Download className="mr-1 h-4 w-4" />
+   260→              Export daily
+   261→            </Button>
+   262→            {isPlatform ? (
+   263→              <Button variant="outline" size="sm" onClick={handleExportTenants}>
+   264→                <Download className="mr-1 h-4 w-4" />
+   265→                Export tenants
+   266→              </Button>
+   267→            ) : null}
+   268→          </>
+   269→        }
+   270→      />
+   271→      <PageContent>
+   272→        {/* KPI row */}
+   273→        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+   274→          <MetricCard
+   275→            label="Total Spend (30d)"
+   276→            value={formatCurrency(totalSpend30d, currency)}
+   277→            icon={Wallet}
+   278→            tone={budgetUsedPct >= 80 ? "negative" : "default"}
+   279→            deltaLabel={`of ${formatCurrency(monthlyBudget, currency)} monthly budget`}
+   280→          />
+   281→          <MetricCard
+   282→            label="Daily Avg"
+   283→            value={formatCurrency(dailyAvg, currency)}
+   284→            icon={Receipt}
+   285→            deltaLabel="across last 30 days"
+   286→          />
+   287→          <MetricCard
+   288→            label="Cost per Prediction"
+   289→            value={formatCurrency(costPerPrediction, currency)}
+   290→            icon={Brain}
+   291→            tone="positive"
+   292→            delta={-3}
+   293→            deltaLabel="vs prior 30d"
+   294→          />
+   295→          <MetricCard
+   296→            label="Budget Used"
+   297→            value={`${budgetUsedPct}%`}
+   298→            icon={PiggyBank}
+   299→            tone={budgetUsedPct >= 90 ? "negative" : budgetUsedPct >= 75 ? "warning" : "positive"}
+   300→            deltaLabel={`of ${formatCurrency(monthlyBudget, currency)} monthly budget`}
+   301→          />
+   302→        </div>
+   303→
+   304→        {/* Section 1: Cost Trend (30d) */}
+   305→        <ChartCard
+   306→          title="Cost Trend (30d)"
+   307→          subtitle={`Daily AI spend — last 30 days (${currency})`}
+   308→          help={
+   309→            <p>
+   310→              Sum of all model invocations charged to this tenant&apos;s AI ledger. Dips on weekends
+   311→              reflect reduced assistant traffic; growth is driven by predictive model retraining
+   312→              cycles.
+   313→            </p>
+   314→          }
+   315→        >
+   316→          <AreaSeries
+   317→            data={dailySeries}
+   318→            xKey="day"
+   319→            yKey="cost"
+   320→            color={TERRA.emerald}
+   321→            height={240}
+   322→            formatValue={(v) => formatCurrency(Number(v), currency)}
+   323→          />
+   324→        </ChartCard>
+   325→
+   326→        {/* Section 2 + 3: by Model + by Use Case */}
+   327→        <div className="grid gap-4 lg:grid-cols-2">
+   328→          <ChartCard
+   329→            title="Cost by Model"
+   330→            subtitle="30d spend per LLM provider"
+   331→            help={
+   332→              <p>
+   333→                Each bar shows total 30d spend on a single model. Use this to decide when to
+   334→                downgrade a high-cost model (e.g. GPT-4o → GPT-4o mini) for low-stakes workflows.
+   335→              </p>
+   336→            }
+   337→          >
+   338→            <BarSeries
+   339→              data={MODELS}
+   340→              xKey="label"
+   341→              yKey="cost"
+   342→              color={TERRA.teal}
+   343→              height={240}
+   344→              formatValue={(v) => formatCurrency(Number(v), currency)}
+   345→            />
+   346→          </ChartCard>
+   347→          <ChartCard
+   348→            title="Cost by Use Case"
+   349→            subtitle="30d spend per AI workflow"
+   350→            help={
+   351→              <p>
+   352→                Each slice is a workflow powered by the AI layer. Chat Assistant is typically the
+   353→                largest slice; anomaly detection and predictive analytics are smaller but higher
+   354→                value per call.
+   355→              </p>
+   356→            }
+   357→          >
+   358→            <DonutSeries
+   359→              data={USE_CASES}
+   360→              height={240}
+   361→              formatValue={(v) => formatCurrency(Number(v), currency)}
+   362→            />
+   363→          </ChartCard>
+   364→        </div>
+   365→
+   366→        {/* Section 4: Cost by Tenant (super-admin only) */}
+   367→        {isPlatform ? (
+   368→          <div className="rounded-lg border bg-card p-4">
+   369→            <div className="mb-3 flex items-start justify-between gap-2">
+   370→              <div>
+   371→                <p className="text-sm font-medium text-foreground">
+   372→                  <LabelWithHelp
+   373→                    help={
+   374→                      <p>
+   375→                        Cross-tenant AI cost breakdown. Super-admins can use this to spot tenants
+   376→                        whose AI usage is disproportionately high relative to their plan tier.
+   377→                      </p>
+   378→                    }
+   379→                  >
+   380→                    Cost by Tenant
+   381→                  </LabelWithHelp>
+   382→                </p>
+   383→                <p className="text-xs text-muted-foreground">Platform-wide view · ranked by spend</p>
+   384→              </div>
+   385→              <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+   386→                super-admin
+   387→              </Badge>
+   388→            </div>
+   389→            <DataTable
+   390→              data={perTenantRows}
+   391→              rowKey={(r) => r.tenantId}
+   392→              pageSize={6}
+   393→              searchableText={(r) => r.tenantName}
+   394→              searchPlaceholder="Search tenant…"
+   395→              emptyTitle="No tenants"
+   396→              emptyDescription="No tenant cost data available."
+   397→              columns={[
+   398→                {
+   399→                  key: "tenant",
+   400→                  header: "Tenant",
+   401→                  cell: (r) => (
+   402→                    <div className="flex flex-col">
+   403→                      <span className="font-medium text-foreground">{r.tenantName}</span>
+   404→                      <span className="text-[10px] text-muted-foreground">{r.tenantId}</span>
+   405→                    </div>
+   406→                  ),
+   407→                  sortValue: (r) => r.tenantName,
+   408→                },
+   409→                {
+   410→                  key: "requests",
+   411→                  header: "Requests",
+   412→                  numeric: true,
+   413→                  cell: (r) => <span className="tabular-nums">{r.requests.toLocaleString()}</span>,
+   414→                  sortValue: (r) => r.requests,
+   415→                },
+   416→                {
+   417→                  key: "tokens",
+   418→                  header: "Tokens",
+   419→                  numeric: true,
+   420→                  cell: (r) => <span className="tabular-nums">{r.tokens.toLocaleString()}</span>,
+   421→                  sortValue: (r) => r.tokens,
+   422→                },
+   423→                {
+   424→                  key: "cost",
+   425→                  header: "Cost",
+   426→                  numeric: true,
+   427→                  cell: (r) => <span className="tabular-nums font-medium">{formatCurrency(r.cost, currency)}</span>,
+   428→                  sortValue: (r) => r.cost,
+   429→                },
+   430→                {
+   431→                  key: "costPerRequest",
+   432→                  header: "Cost/Request",
+   433→                  numeric: true,
+   434→                  cell: (r) => <span className="tabular-nums">{formatCurrency(r.costPerRequest, currency)}</span>,
+   435→                  sortValue: (r) => r.costPerRequest,
+   436→                },
+   437→                {
+   438→                  key: "trend",
+   439→                  header: "Trend",
+   440→                  numeric: true,
+   441→                  cell: (r) => (
+   442→                    <div className="flex items-center justify-end gap-1">
+   443→                      {r.trend >= 0 ? (
+   444→                        <TrendingUp className="h-3 w-3 text-rose-600" />
+   445→                      ) : (
+   446→                        <TrendingDown className="h-3 w-3 text-emerald-600" />
+   447→                      )}
+   448→                      <StatusBadge tone={trendTone(r.trend)}>
+   449→                        {r.trend >= 0 ? "+" : ""}{r.trend}%
+   450→                      </StatusBadge>
+   451→                    </div>
+   452→                  ),
+   453→                  sortValue: (r) => r.trend,
+   454→                },
+   455→              ]}
+   456→            />
+   457→          </div>
+   458→        ) : null}
+   459→
+   460→        {/* Section 5: Budget Alert Configuration */}
+   461→        <Card>
+   462→          <CardHeader>
+   463→            <CardTitle className="text-base">
+   464→              <LabelWithHelp
+   465→                help={
+   466→                  <p>
+   467→                    Configure the monthly AI spend budget and the alert threshold. When the threshold
+   468→                    is crossed, an email is sent to the configured recipient. Demo only — no real
+   469→                    email is dispatched.
+   470→                  </p>
+   471→                }
+   472→              >
+   473→                Budget Alert Configuration
+   474→              </LabelWithHelp>
+   475→            </CardTitle>
+   476→            <CardDescription>Set monthly budget, alert threshold, and email recipient</CardDescription>
+   477→          </CardHeader>
+   478→          <CardContent className="grid gap-6 md:grid-cols-3">
+   479→            <div className="flex flex-col gap-2">
+   480→              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="budget-input">
+   481→                Monthly budget ({currency})
+   482→              </label>
+   483→              <Input
+   484→                id="budget-input"
+   485→                type="number"
+   486→                min={100}
+   487→                step={100}
+   488→                value={budget}
+   489→                onChange={(e) => setBudget(Math.max(100, Number(e.target.value) || 0))}
+   490→                aria-label="Monthly budget"
+   491→              />
+   492→              <p className="text-[10px] text-muted-foreground">
+   493→                Current projected: {formatCurrency(totalSpend30d, currency)} ({budgetUsedPct}%)
+   494→              </p>
+   495→            </div>
+   496→
+   497→            <div className="flex flex-col gap-2">
+   498→              <div className="flex items-center justify-between">
+   499→                <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="threshold-slider">
+   500→                  Alert threshold
+   501→                </label>
+   502→                <Badge
+   503→                  variant="outline"
+   504→                  className={
+   505→                    alertThreshold >= 90 ? "border-rose-300 bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400" :
+   506→                    alertThreshold >= 75 ? "border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400" :
+   507→                    "border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+   508→                  }
+   509→                >
+   510→                  {alertThreshold}%
+   511→                </Badge>
+   512→              </div>
+   513→              <Slider
+   514→                id="threshold-slider"
+   515→                value={[alertThreshold]}
+   516→                min={25}
+   517→                max={100}
+   518→                step={5}
+   519→                onValueChange={(v) => setAlertThreshold(v[0])}
+   520→                aria-label="Alert threshold percentage"
+   521→              />
+   522→              <div className="flex justify-between text-[10px] text-muted-foreground">
+   523→                <span>25%</span>
+   524→                <span>50%</span>
+   525→                <span>75%</span>
+   526→                <span>100%</span>
+   527→              </div>
+   528→              <p className="text-[10px] text-muted-foreground">
+   529→                Alert fires when monthly spend crosses this percentage of the budget.
+   530→              </p>
+   531→            </div>
+   532→
+   533→            <div className="flex flex-col gap-2">
+   534→              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground" htmlFor="email-input">
+   535→                Email recipient
+   536→              </label>
+   537→              <Input
+   538→                id="email-input"
+   539→                type="email"
+   540→                value={emailRecipient}
+   541→                onChange={(e) => setEmailRecipient(e.target.value)}
+   542→                placeholder="alerts@yourfirm.com"
+   543→                aria-label="Email recipient"
+   544→              />
+   545→              <p className="text-[10px] text-muted-foreground">
+   546→                A test alert is sent on save to verify the address.
+   547→              </p>
+   548→            </div>
+   549→          </CardContent>
+   550→          <CardFooter className="flex flex-col items-start gap-3 border-t pt-4 md:flex-row md:items-center md:justify-between">
+   551→            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   552→              <Bell className="h-4 w-4" />
+   553→              <span>
+   554→                Projected month-end: <strong className="text-foreground">{formatCurrency(totalSpend30d * (30 / 30), currency)}</strong>
+   555→                {" "}— projected {budgetUsedPct >= alertThreshold ? "will trigger" : "will not trigger"} the alert.
+   556→              </span>
+   557→            </div>
+   558→            <Button onClick={handleSaveConfig}>
+   559→              <Save className="mr-1 h-4 w-4" />
+   560→              Save configuration
+   561→            </Button>
+   562→          </CardFooter>
+   563→        </Card>
+   564→
+   565→        {/* Section 6: Cost Forecast */}
+   566→        <ChartCard
+   567→          title="Cost Forecast — Next 30 Days"
+   568→          subtitle={`Predicted daily spend (${currency}) · ±18% confidence band`}
+   569→          help={
+   570→            <p>
+   571→              The forecast extends the 30d trend forward using a deterministic seasonal model.
+   572→              Use this to plan budget reallocations or model downgrades before the budget is
+   573→              exhausted.
+   574→            </p>
+   575→          }
+   576→        >
+   577→          <AreaSeries
+   578→            data={forecastSeries}
+   579→            xKey="day"
+   580→            yKey="predicted"
+   581→            color={TERRA.amber}
+   582→            height={240}
+   583→            formatValue={(v) => formatCurrency(Number(v), currency)}
+   584→          />
+   585→          <p className="mt-1 text-[10px] text-muted-foreground">
+   586→            Confidence band: ±18% of predicted value · seasonal model seeded by tenant ID
+   587→          </p>
+   588→        </ChartCard>
+   589→
+   590→        {/* Methodology card */}
+   591→        <Card>
+   592→          <CardHeader>
+   593→            <CardTitle className="text-base">
+   594→              <LabelWithHelp
+   595→                help={
+   596→                  <p>
+   597→                    Cost is calculated by summing per-call token usage × the model&apos;s price per
+   598→                    1k tokens. All figures are deterministic for the demo; production deployments
+   599→                    pull invoices from the model provider API every hour.
+   600→                  </p>
+   601→                }
+   602→              >
+   603→                How cost is calculated
+   604→              </LabelWithHelp>
+   605→            </CardTitle>
+   606→            <CardDescription>Inputs, refresh cadence, and pricing assumptions</CardDescription>
+   607→          </CardHeader>
+   608→          <CardContent className="grid gap-4 md:grid-cols-3">
+   609→            <div className="rounded-lg border bg-muted/30 p-3">
+   610→              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cost inputs</p>
+   611→              <ul className="mt-2 space-y-1 text-xs text-foreground">
+   612→                <li>· Input + output tokens</li>
+   613→                <li>· Per-model price per 1k</li>
+   614→                <li>· Caching discount (when applied)</li>
+   615→                <li>· Batch vs real-time</li>
+   616→                <li>· Tenant seed multiplier</li>
+   617→              </ul>
+   618→            </div>
+   619→            <div className="rounded-lg border bg-muted/30 p-3">
+   620→              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Refresh cadence</p>
+   621→              <ul className="mt-2 space-y-1 text-xs text-foreground">
+   622→                <li>· Hourly invoice pull</li>
+   623→                <li>· Daily KPI roll-up</li>
+   624→                <li>· 30d trend refreshed hourly</li>
+   625→                <li>· Forecast re-run nightly</li>
+   626→                <li>· Budget alert real-time</li>
+   627→              </ul>
+   628→            </div>
+   629→            <div className="rounded-lg border bg-muted/30 p-3">
+   630→              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pricing tiers</p>
+   631→              <ul className="mt-2 space-y-1 text-xs text-foreground">
+   632→                <li>· GPT-4o: $0.005 / 1k</li>
+   633→                <li>· Claude 3.5: $0.003 / 1k</li>
+   634→                <li>· Gemini 1.5: $0.0015 / 1k</li>
+   635→                <li>· Llama 3.1: $0.0008 / 1k</li>
+   636→                <li>· Internal: marginal cost</li>
+   637→              </ul>
+   638→            </div>
+   639→          </CardContent>
+   640→        </Card>
+   641→
+   642→        {/* Status button */}
+   643→        <div className="flex items-center justify-center">
+   644→          <Button
+   645→            variant="ghost"
+   646→            size="sm"
+   647→            onClick={() =>
+   648→              toast({
+   649→                title: "AI cost status",
+   650→                description: `30d spend ${formatCurrency(totalSpend30d, currency)} · daily avg ${formatCurrency(dailyAvg, currency)} · ${budgetUsedPct}% of ${formatCurrency(budget, currency)} budget`,
+   651→              })
+   652→            }
+   653→          >
+   654→            <DollarSign className="mr-1 h-4 w-4" />
+   655→            Cost status
+   656→          </Button>
+   657→        </div>
+   658→
+   659→        {/* Terminology-aware summary (renders for any tenant) */}
+   660→        <p className="sr-only">
+   661→          AI cost tracking summary for {plural(term("trader")).toLowerCase()} tenant {tid}: total spend
+   662→          {formatCurrency(totalSpend30d, currency)} over the last 30 days at {formatCurrency(costPerPrediction, currency)}
+   663→          {" "}per prediction against a monthly budget of {formatCurrency(budget, currency)}.
+   664→        </p>
+   665→      </PageContent>
+   666→    </Page>
+   667→  );
+   668→}
+   669→

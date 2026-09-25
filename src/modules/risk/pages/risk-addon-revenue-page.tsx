@@ -162,8 +162,8 @@ export function RiskAddonRevenuePage() {
 
   const exportCsv = () => {
     toast({
-      title: "Export started",
-      description: `Exporting ${filtered.length} add-on rows as CSV.`,
+      title: "Export started (demo)",
+      description: `Would export ${filtered.length} add-on rows as CSV in production.`,
     });
   };
 

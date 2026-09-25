@@ -1,0 +1,998 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Marketing — Email Campaigns Page
+     5→ *
+     6→ * Spec: tracking email marketing performance, templates, audiences,
+     7→ * scheduling, send metrics (open / click / conversion) and top
+     8→ * performing templates. Targets traders in a tenant-aware way via
+     9→ * makeTermResolver.
+    10→ *
+    11→ * Sections:
+    12→ *   1. KPI row — Total Sent, Avg Open Rate, Avg Click Rate, Conversion Rate
+    13→ *   2. Filter bar — status Select / template Select + Export CSV
+    14→ *   3. Campaigns DataTable — full lifecycle view per campaign
+    15→ *   4. Create Campaign button + Sheet drawer (shared form, view + create)
+    16→ *   5. Email Performance Trend (12-week AreaSeries)
+    17→ *   6. Top Performing Templates DataTable
+    18→ *
+    19→ * Terra palette only — emerald / amber / rose / slate / sky.
+    20→ * No Math.random — deterministic Math.sin patterns.
+    21→ */
+    22→
+    23→import { useMemo, useState } from "react";
+    24→import { usePlatform } from "@/lib/platform/platform-context";
+    25→import { makeTermResolver } from "@/lib/platform/terminology";
+    26→import { exportToCsv } from "@/lib/platform/export-utils";
+    27→import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+    28→import { DataTable, type Column } from "@/components/platform/data-table";
+    29→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    30→import { AreaSeries, BarSeries } from "@/components/platform/charts";
+    31→import { StatusBadge, formatCompact } from "@/components/platform/status";
+    32→import { Button } from "@/components/ui/button";
+    33→import { Input } from "@/components/ui/input";
+    34→import { Label } from "@/components/ui/label";
+    35→import { Textarea } from "@/components/ui/textarea";
+    36→import { Separator } from "@/components/ui/separator";
+    37→import {
+    38→  Sheet,
+    39→  SheetContent,
+    40→  SheetHeader,
+    41→  SheetTitle,
+    42→  SheetDescription,
+    43→  SheetFooter,
+    44→} from "@/components/ui/sheet";
+    45→import {
+    46→  Select,
+    47→  SelectContent,
+    48→  SelectItem,
+    49→  SelectTrigger,
+    50→  SelectValue,
+    51→} from "@/components/ui/select";
+    52→import {
+    53→  Tabs,
+    54→  TabsList,
+    55→  TabsTrigger,
+    56→  TabsContent,
+    57→} from "@/components/ui/tabs";
+    58→import { toast } from "@/hooks/use-toast";
+    59→import {
+    60→  Mail,
+    61→  Send,
+    62→  Plus,
+    63→  Download,
+    64→  Eye,
+    65→  MousePointerClick,
+    66→  Target,
+    67→  Calendar,
+    68→  Save,
+    69→  Clock,
+    70→  FileText,
+    71→  TestTube2,
+    72→  Users,
+    73→  TrendingUp,
+    74→} from "lucide-react";
+    75→
+    76→/* ------------------------------------------------------------------ */
+    77→/* Types & mock data                                                  */
+    78→/* ------------------------------------------------------------------ */
+    79→
+    80→type EmailStatus =
+    81→  | "draft"
+    82→  | "scheduled"
+    83→  | "sending"
+    84→  | "sent"
+    85→  | "completed"
+    86→  | "paused"
+    87→  | "failed";
+    88→
+    89→type EmailTemplate =
+    90→  | "Welcome"
+    91→  | "Newsletter"
+    92→  | "Promotional"
+    93→  | "Re-engagement"
+    94→  | "Phase-Passed"
+    95→  | "Payout-Approved";
+    96→
+    97→interface EmailCampaign {
+    98→  id: string;
+    99→  name: string;
+   100→  template: EmailTemplate;
+   101→  status: EmailStatus;
+   102→  sent: number;
+   103→  opened: number;
+   104→  clicked: number;
+   105→  converted: number;
+   106→  scheduledAt?: string;
+   107→  audience: string;
+   108→  subject: string;
+   109→}
+   110→
+   111→const EMAIL_CAMPAIGNS: EmailCampaign[] = [
+   112→  {
+   113→    id: "EC-001",
+   114→    name: "Welcome Series — New Traders",
+   115→    template: "Welcome",
+   116→    status: "completed",
+   117→    sent: 1248,
+   118→    opened: 812,
+   119→    clicked: 184,
+   120→    converted: 47,
+   121→    audience: "Active Traders (New)",
+   122→    subject: "Welcome aboard — let's get you funded",
+   123→  },
+   124→  {
+   125→    id: "EC-002",
+   126→    name: "Phase 2 Launch Announcement",
+   127→    template: "Promotional",
+   128→    status: "sent",
+   129→    sent: 3840,
+   130→    opened: 1458,
+   131→    clicked: 412,
+   132→    converted: 89,
+   133→    audience: "All Traders",
+   134→    subject: "Phase 2 evaluation is live — 40% off this week",
+   135→  },
+   136→  {
+   137→    id: "EC-003",
+   138→    name: "Weekly Newsletter — Issue #14",
+   139→    template: "Newsletter",
+   140→    status: "scheduled",
+   141→    sent: 0,
+   142→    opened: 0,
+   143→    clicked: 0,
+   144→    converted: 0,
+   145→    scheduledAt: "2026-04-22T09:00",
+   146→    audience: "All Traders",
+   147→    subject: "Market roundup — what moved this week",
+   148→  },
+   149→  {
+   150→    id: "EC-004",
+   151→    name: "Payout Approved — Congrats",
+   152→    template: "Payout-Approved",
+   153→    status: "completed",
+   154→    sent: 524,
+   155→    opened: 488,
+   156→    clicked: 121,
+   157→    converted: 38,
+   158→    audience: "Funded Traders",
+   159→    subject: "Your payout is on the way",
+   160→  },
+   161→  {
+   162→    id: "EC-005",
+   163→    name: "Re-engage Dormant Traders",
+   164→    template: "Re-engagement",
+   165→    status: "paused",
+   166→    sent: 642,
+   167→    opened: 184,
+   168→    clicked: 22,
+   169→    converted: 3,
+   170→    audience: "Inactive 30d+",
+   171→    subject: "We miss you — here's 25% off your next challenge",
+   172→  },
+   173→  {
+   174→    id: "EC-006",
+   175→    name: "Phase 1 Passed — Well Done",
+   176→    template: "Phase-Passed",
+   177→    status: "sending",
+   178→    sent: 218,
+   179→    opened: 142,
+   180→    clicked: 28,
+   181→    converted: 6,
+   182→    audience: "Phase-1 Passers",
+   183→    subject: "You passed Phase 1 — Phase 2 awaits",
+   184→  },
+   185→  {
+   186→    id: "EC-007",
+   187→    name: "Q1 Promo — 40% Off",
+   188→    template: "Promotional",
+   189→    status: "failed",
+   190→    sent: 124,
+   191→    opened: 38,
+   192→    clicked: 4,
+   193→    converted: 0,
+   194→    audience: "All Traders",
+   195→    subject: "Q1 kickoff — 40% off all challenges",
+   196→  },
+   197→  {
+   198→    id: "EC-008",
+   199→    name: "Monthly Newsletter — Issue #15",
+   200→    template: "Newsletter",
+   201→    status: "draft",
+   202→    sent: 0,
+   203→    opened: 0,
+   204→    clicked: 0,
+   205→    converted: 0,
+   206→    audience: "All Traders",
+   207→    subject: "April market preview + platform updates",
+   208→  },
+   209→];
+   210→
+   211→const TEMPLATE_PERF: {
+   212→  template: EmailTemplate;
+   213→  sent: number;
+   214→  openRate: number;
+   215→  clickRate: number;
+   216→  conversion: number;
+   217→  revenue: number;
+   218→}[] = [
+   219→  { template: "Welcome", sent: 4280, openRate: 65.1, clickRate: 14.8, conversion: 3.8, revenue: 38400 },
+   220→  { template: "Newsletter", sent: 8420, openRate: 32.4, clickRate: 4.8, conversion: 1.2, revenue: 18200 },
+   221→  { template: "Promotional", sent: 5240, openRate: 38.1, clickRate: 11.2, conversion: 2.4, revenue: 42600 },
+   222→  { template: "Re-engagement", sent: 1840, openRate: 22.6, clickRate: 3.4, conversion: 0.4, revenue: 2100 },
+   223→  { template: "Phase-Passed", sent: 1280, openRate: 78.4, clickRate: 22.6, conversion: 8.4, revenue: 56400 },
+   224→  { template: "Payout-Approved", sent: 624, openRate: 92.4, clickRate: 28.2, conversion: 14.2, revenue: 42100 },
+   225→];
+   226→
+   227→const WEEKLY_OPEN_TREND = Array.from({ length: 12 }, (_, i) => ({
+   228→  label: `W${i + 1}`,
+   229→  openRate: Math.round((28 + Math.sin(i / 2) * 6 + i * 0.4) * 10) / 10,
+   230→}));
+   231→
+   232→const STATUS_OPTIONS: { value: string; label: string }[] = [
+   233→  { value: "all", label: "All statuses" },
+   234→  { value: "draft", label: "Draft" },
+   235→  { value: "scheduled", label: "Scheduled" },
+   236→  { value: "sending", label: "Sending" },
+   237→  { value: "sent", label: "Sent" },
+   238→  { value: "completed", label: "Completed" },
+   239→  { value: "paused", label: "Paused" },
+   240→  { value: "failed", label: "Failed" },
+   241→];
+   242→
+   243→const TEMPLATE_OPTIONS: { value: string; label: string }[] = [
+   244→  { value: "all", label: "All templates" },
+   245→  { value: "Welcome", label: "Welcome" },
+   246→  { value: "Newsletter", label: "Newsletter" },
+   247→  { value: "Promotional", label: "Promotional" },
+   248→  { value: "Re-engagement", label: "Re-engagement" },
+   249→  { value: "Phase-Passed", label: "Phase-Passed" },
+   250→  { value: "Payout-Approved", label: "Payout-Approved" },
+   251→];
+   252→
+   253→/* ------------------------------------------------------------------ */
+   254→/* Status helpers (inline — do not touch shared status.tsx)          */
+   255→/* ------------------------------------------------------------------ */
+   256→
+   257→function emailStatusTone(status: EmailStatus): "default" | "success" | "warning" | "danger" | "info" | "muted" {
+   258→  switch (status) {
+   259→    case "draft": return "muted";
+   260→    case "scheduled": return "info";
+   261→    case "sending": return "warning";
+   262→    case "sent": return "success";
+   263→    case "completed": return "success";
+   264→    case "paused": return "warning";
+   265→    case "failed": return "danger";
+   266→    default: return "muted";
+   267→  }
+   268→}
+   269→
+   270→/* ------------------------------------------------------------------ */
+   271→/* Page                                                                */
+   272→/* ------------------------------------------------------------------ */
+   273→
+   274→type SheetState =
+   275→  | { mode: "create" }
+   276→  | { mode: "view"; campaign: EmailCampaign }
+   277→  | null;
+   278→
+   279→export function MarketingEmailCampaignsPage() {
+   280→  const { tenant, runtime } = usePlatform();
+   281→  const term = makeTermResolver(tenant);
+   282→  const currency = runtime.tenant?.currency ?? "USD";
+   283→
+   284→  const [statusFilter, setStatusFilter] = useState<string>("all");
+   285→  const [templateFilter, setTemplateFilter] = useState<string>("all");
+   286→  const [sheetState, setSheetState] = useState<SheetState>(null);
+   287→
+   288→  const filtered = useMemo(() => {
+   289→    return EMAIL_CAMPAIGNS.filter((c) => {
+   290→      const statusOk = statusFilter === "all" || c.status === statusFilter;
+   291→      const templateOk = templateFilter === "all" || c.template === templateFilter;
+   292→      return statusOk && templateOk;
+   293→    });
+   294→  }, [statusFilter, templateFilter]);
+   295→
+   296→  // KPI computations — derived from full dataset (30d window)
+   297→  const totalSent = EMAIL_CAMPAIGNS.reduce((s, c) => s + c.sent, 0);
+   298→  const totalOpened = EMAIL_CAMPAIGNS.reduce((s, c) => s + c.opened, 0);
+   299→  const totalClicked = EMAIL_CAMPAIGNS.reduce((s, c) => s + c.clicked, 0);
+   300→  const totalConverted = EMAIL_CAMPAIGNS.reduce((s, c) => s + c.converted, 0);
+   301→  const avgOpenRate = totalSent > 0 ? (totalOpened / totalSent) * 100 : 0;
+   302→  const avgClickRate = totalOpened > 0 ? (totalClicked / totalOpened) * 100 : 0;
+   303→  const conversionRate = totalClicked > 0 ? (totalConverted / totalClicked) * 100 : 0;
+   304→
+   305→  const handleExport = () => {
+   306→    exportToCsv(
+   307→      filtered,
+   308→      [
+   309→        { key: "id", header: "ID", value: (c) => c.id },
+   310→        { key: "name", header: "Campaign", value: (c) => c.name },
+   311→        { key: "template", header: "Template", value: (c) => c.template },
+   312→        { key: "status", header: "Status", value: (c) => c.status },
+   313→        { key: "sent", header: "Sent", value: (c) => c.sent },
+   314→        { key: "opened", header: "Opened", value: (c) => c.opened },
+   315→        { key: "clicked", header: "Clicked", value: (c) => c.clicked },
+   316→        { key: "converted", header: "Converted", value: (c) => c.converted },
+   317→        {
+   318→          key: "openRate",
+   319→          header: "Open Rate %",
+   320→          value: (c) => (c.sent > 0 ? Math.round((c.opened / c.sent) * 1000) / 10 : 0),
+   321→        },
+   322→        {
+   323→          key: "clickRate",
+   324→          header: "Click Rate %",
+   325→          value: (c) => (c.opened > 0 ? Math.round((c.clicked / c.opened) * 1000) / 10 : 0),
+   326→        },
+   327→        { key: "audience", header: "Audience", value: (c) => c.audience },
+   328→        { key: "subject", header: "Subject", value: (c) => c.subject },
+   329→      ],
+   330→      `email-campaigns-${Date.now()}.csv`,
+   331→    );
+   332→  };
+   333→
+   334→  const columns: Column<EmailCampaign>[] = [
+   335→    {
+   336→      key: "name",
+   337→      header: "Campaign",
+   338→      cell: (c) => (
+   339→        <div className="min-w-0">
+   340→          <p className="truncate font-medium">{c.name}</p>
+   341→          <p className="truncate text-[11px] text-muted-foreground">
+   342→            <span className="font-mono">{c.id}</span> · {c.subject}
+   343→          </p>
+   344→        </div>
+   345→      ),
+   346→      sortValue: (c) => c.name,
+   347→      width: "280px",
+   348→    },
+   349→    {
+   350→      key: "template",
+   351→      header: "Template",
+   352→      cell: (c) => <span className="text-muted-foreground">{c.template}</span>,
+   353→      sortValue: (c) => c.template,
+   354→    },
+   355→    {
+   356→      key: "status",
+   357→      header: "Status",
+   358→      cell: (c) => (
+   359→        <StatusBadge tone={emailStatusTone(c.status)}>
+   360→          <span className="capitalize">{c.status}</span>
+   361→        </StatusBadge>
+   362→      ),
+   363→      sortValue: (c) => c.status,
+   364→    },
+   365→    { key: "sent", header: "Sent", cell: (c) => formatCompact(c.sent), sortValue: (c) => c.sent, numeric: true },
+   366→    { key: "opened", header: "Opened", cell: (c) => formatCompact(c.opened), sortValue: (c) => c.opened, numeric: true },
+   367→    { key: "clicked", header: "Clicked", cell: (c) => formatCompact(c.clicked), sortValue: (c) => c.clicked, numeric: true },
+   368→    { key: "converted", header: "Converted", cell: (c) => c.converted, sortValue: (c) => c.converted, numeric: true },
+   369→    {
+   370→      key: "openRate",
+   371→      header: "Open Rate",
+   372→      cell: (c) => (
+   373→        <span className={c.sent > 0 && (c.opened / c.sent) >= 0.3 ? "text-emerald-600" : ""}>
+   374→          {c.sent > 0 ? `${Math.round((c.opened / c.sent) * 1000) / 10}%` : "—"}
+   375→        </span>
+   376→      ),
+   377→      sortValue: (c) => (c.sent > 0 ? c.opened / c.sent : 0),
+   378→      numeric: true,
+   379→    },
+   380→    {
+   381→      key: "clickRate",
+   382→      header: "Click Rate",
+   383→      cell: (c) => (
+   384→        <span className={c.opened > 0 && (c.clicked / c.opened) >= 0.05 ? "text-emerald-600" : ""}>
+   385→          {c.opened > 0 ? `${Math.round((c.clicked / c.opened) * 1000) / 10}%` : "—"}
+   386→        </span>
+   387→      ),
+   388→      sortValue: (c) => (c.opened > 0 ? c.clicked / c.opened : 0),
+   389→      numeric: true,
+   390→    },
+   391→    {
+   392→      key: "actions",
+   393→      header: "",
+   394→      cell: (c) => (
+   395→        <Button
+   396→          size="sm"
+   397→          variant="ghost"
+   398→          className="h-7 px-2 text-xs"
+   399→          onClick={(e) => {
+   400→            e.stopPropagation();
+   401→            setSheetState({ mode: "view", campaign: c });
+   402→          }}
+   403→          aria-label={`View ${c.name}`}
+   404→        >
+   405→          View
+   406→        </Button>
+   407→      ),
+   408→      width: "80px",
+   409→    },
+   410→  ];
+   411→
+   412→  return (
+   413→    <Page>
+   414→      <PageHeader
+   415→        title="Email Campaigns"
+   416→        description={`Plan, send and track email campaigns targeting this ${term("trader").toLowerCase()} tenant's audience.`}
+   417→        icon={Mail}
+   418→        actions={
+   419→          <Button
+   420→            size="sm"
+   421→            onClick={() => setSheetState({ mode: "create" })}
+   422→          >
+   423→            <Plus className="mr-1 h-4 w-4" /> Create Campaign
+   424→          </Button>
+   425→        }
+   426→      />
+   427→
+   428→      <PageContent>
+   429→        {/* KPI row */}
+   430→        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+   431→          <MetricCard
+   432→            label="Total Emails Sent (30d)"
+   433→            value={formatCompact(totalSent)}
+   434→            delta={4}
+   435→            deltaLabel="across 8 campaigns"
+   436→            icon={Send}
+   437→            tone="default"
+   438→          />
+   439→          <MetricCard
+   440→            label="Avg Open Rate"
+   441→            value={`${avgOpenRate.toFixed(1)}%`}
+   442→            delta={6}
+   443→            deltaLabel="industry avg: 21.5%"
+   444→            icon={Eye}
+   445→            tone="positive"
+   446→          />
+   447→          <MetricCard
+   448→            label="Avg Click Rate"
+   449→            value={`${avgClickRate.toFixed(1)}%`}
+   450→            delta={2}
+   451→            deltaLabel="industry avg: 2.6%"
+   452→            icon={MousePointerClick}
+   453→            tone="positive"
+   454→          />
+   455→          <MetricCard
+   456→            label="Conversion Rate"
+   457→            value={`${conversionRate.toFixed(1)}%`}
+   458→            delta={-3}
+   459→            deltaLabel={`clicked → became ${term("trader").toLowerCase()}`}
+   460→            icon={Target}
+   461→            tone="warning"
+   462→          />
+   463→        </div>
+   464→
+   465→        {/* Filter bar + Export */}
+   466→        <div className="rounded-lg border bg-card p-3">
+   467→          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+   468→            <div className="flex flex-wrap items-center gap-2">
+   469→              <Select value={statusFilter} onValueChange={setStatusFilter}>
+   470→                <SelectTrigger size="sm" className="h-8 w-[150px]" aria-label="Filter by status">
+   471→                  <SelectValue placeholder="Status" />
+   472→                </SelectTrigger>
+   473→                <SelectContent>
+   474→                  {STATUS_OPTIONS.map((s) => (
+   475→                    <SelectItem key={s.value} value={s.value}>
+   476→                      {s.label}
+   477→                    </SelectItem>
+   478→                  ))}
+   479→                </SelectContent>
+   480→              </Select>
+   481→              <Select value={templateFilter} onValueChange={setTemplateFilter}>
+   482→                <SelectTrigger size="sm" className="h-8 w-[170px]" aria-label="Filter by template">
+   483→                  <SelectValue placeholder="Template" />
+   484→                </SelectTrigger>
+   485→                <SelectContent>
+   486→                  {TEMPLATE_OPTIONS.map((t) => (
+   487→                    <SelectItem key={t.value} value={t.value}>
+   488→                      {t.label}
+   489→                    </SelectItem>
+   490→                  ))}
+   491→                </SelectContent>
+   492→              </Select>
+   493→              {(statusFilter !== "all" || templateFilter !== "all") && (
+   494→                <Button
+   495→                  size="sm"
+   496→                  variant="ghost"
+   497→                  className="h-8"
+   498→                  onClick={() => {
+   499→                    setStatusFilter("all");
+   500→                    setTemplateFilter("all");
+   501→                  }}
+   502→                >
+   503→                  Reset
+   504→                </Button>
+   505→              )}
+   506→            </div>
+   507→            <Button size="sm" variant="outline" onClick={handleExport}>
+   508→              <Download className="mr-1 h-4 w-4" /> Export CSV
+   509→            </Button>
+   510→          </div>
+   511→        </div>
+   512→
+   513→        {/* Campaigns table */}
+   514→        <div className="rounded-lg border bg-card p-4">
+   515→          <p className="mb-3 text-sm font-medium">
+   516→            Campaigns ({filtered.length})
+   517→          </p>
+   518→          <DataTable
+   519→            columns={columns}
+   520→            data={filtered}
+   521→            rowKey={(c) => c.id}
+   522→            searchableText={(c) => `${c.id} ${c.name} ${c.template} ${c.status} ${c.subject}`}
+   523→            searchPlaceholder="Search campaigns…"
+   524→            pageSize={8}
+   525→            emptyTitle="No campaigns match your filters"
+   526→            emptyDescription="Try changing the status or template filter, or reset to see all campaigns."
+   527→            onRowClick={(c) => setSheetState({ mode: "view", campaign: c })}
+   528→          />
+   529→        </div>
+   530→
+   531→        {/* Email performance trend */}
+   532→        <div className="grid gap-4 lg:grid-cols-3">
+   533→          <div className="rounded-lg border bg-card p-4 lg:col-span-2">
+   534→            <p className="mb-1 flex items-center gap-1 text-sm font-medium">
+   535→              Email Performance Trend
+   536→              <span className="text-xs font-normal text-muted-foreground">— 12-week open rate</span>
+   537→            </p>
+   538→            <AreaSeries
+   539→              data={WEEKLY_OPEN_TREND}
+   540→              xKey="label"
+   541→              yKey="openRate"
+   542→              color="#059669"
+   543→              height={220}
+   544→              formatValue={(v) => `${v.toFixed(1)}%`}
+   545→            />
+   546→          </div>
+   547→          <div className="rounded-lg border bg-card p-4">
+   548→            <p className="mb-2 text-sm font-medium">Quick Stats</p>
+   549→            <ul className="space-y-2 text-sm">
+   550→              <li className="flex items-center justify-between">
+   551→                <span className="text-muted-foreground">Best performing</span>
+   552→                <span className="font-medium text-emerald-600">Payout-Approved</span>
+   553→              </li>
+   554→              <li className="flex items-center justify-between">
+   555→                <span className="text-muted-foreground">Best open rate</span>
+   556→                <span className="font-medium">92.4%</span>
+   557→              </li>
+   558→              <li className="flex items-center justify-between">
+   559→                <span className="text-muted-foreground">Active campaigns</span>
+   560→                <span className="font-medium">
+   561→                  {EMAIL_CAMPAIGNS.filter((c) => c.status === "sending" || c.status === "scheduled").length}
+   562→                </span>
+   563→              </li>
+   564→              <li className="flex items-center justify-between">
+   565→                <span className="text-muted-foreground">Conversion (click → {term("trader").toLowerCase()})</span>
+   566→                <span className="font-medium">{conversionRate.toFixed(1)}%</span>
+   567→              </li>
+   568→            </ul>
+   569→          </div>
+   570→        </div>
+   571→
+   572→        {/* Top performing templates */}
+   573→        <div className="rounded-lg border bg-card p-4">
+   574→          <p className="mb-3 flex items-center gap-1 text-sm font-medium">
+   575→            <TrendingUp className="h-4 w-4 text-emerald-600" /> Top Performing Templates
+   576→          </p>
+   577→          <DataTable
+   578→            columns={TEMPLATE_COLUMNS(currency)}
+   579→            data={TEMPLATE_PERF}
+   580→            rowKey={(t) => t.template}
+   581→            searchableText={(t) => t.template}
+   582→            searchPlaceholder="Search templates…"
+   583→            pageSize={10}
+   584→            emptyTitle="No templates yet"
+   585→            emptyDescription="Once you start sending email campaigns, performance by template will appear here."
+   586→          />
+   587→        </div>
+   588→      </PageContent>
+   589→
+   590→      {/* Create / Edit Sheet drawer (shared form) */}
+   591→      <EmailCampaignSheet
+   592→        state={sheetState}
+   593→        onClose={() => setSheetState(null)}
+   594→        defaultAudienceLabel={`All ${term("trader").toLowerCase()}s`}
+   595→      />
+   596→    </Page>
+   597→  );
+   598→}
+   599→
+   600→/* ------------------------------------------------------------------ */
+   601→/* Top templates columns                                              */
+   602→/* ------------------------------------------------------------------ */
+   603→
+   604→function TEMPLATE_COLUMNS(currency: string): Column<typeof TEMPLATE_PERF[number]>[] {
+   605→  return [
+   606→    {
+   607→      key: "template",
+   608→      header: "Template",
+   609→      cell: (t) => <span className="font-medium">{t.template}</span>,
+   610→      sortValue: (t) => t.template,
+   611→    },
+   612→    { key: "sent", header: "Sent", cell: (t) => formatCompact(t.sent), sortValue: (t) => t.sent, numeric: true },
+   613→    {
+   614→      key: "openRate",
+   615→      header: "Open Rate",
+   616→      cell: (t) => (
+   617→        <span className={t.openRate >= 50 ? "text-emerald-600 font-medium" : ""}>
+   618→          {t.openRate.toFixed(1)}%
+   619→        </span>
+   620→      ),
+   621→      sortValue: (t) => t.openRate,
+   622→      numeric: true,
+   623→    },
+   624→    {
+   625→      key: "clickRate",
+   626→      header: "Click Rate",
+   627→      cell: (t) => (
+   628→        <span className={t.clickRate >= 10 ? "text-emerald-600 font-medium" : ""}>
+   629→          {t.clickRate.toFixed(1)}%
+   630→        </span>
+   631→      ),
+   632→      sortValue: (t) => t.clickRate,
+   633→      numeric: true,
+   634→    },
+   635→    {
+   636→      key: "conversion",
+   637→      header: "Conversion",
+   638→      cell: (t) => `${t.conversion.toFixed(1)}%`,
+   639→      sortValue: (t) => t.conversion,
+   640→      numeric: true,
+   641→    },
+   642→    {
+   643→      key: "revenue",
+   644→      header: "Revenue Attributed",
+   645→      cell: (t) => (
+   646→        <span className="font-semibold text-emerald-600">
+   647→          {new Intl.NumberFormat("en-US", {
+   648→            style: "currency",
+   649→            currency,
+   650→            maximumFractionDigits: 0,
+   651→          }).format(t.revenue)}
+   652→        </span>
+   653→      ),
+   654→      sortValue: (t) => t.revenue,
+   655→      numeric: true,
+   656→    },
+   657→  ];
+   658→}
+   659→
+   660→/* ------------------------------------------------------------------ */
+   661→/* Sheet drawer — create / view / edit shared form                    */
+   662→/* ------------------------------------------------------------------ */
+   663→
+   664→interface EmailCampaignSheetProps {
+   665→  state: SheetState;
+   666→  onClose: () => void;
+   667→  defaultAudienceLabel: string;
+   668→}
+   669→
+   670→function EmailCampaignSheet({ state, onClose, defaultAudienceLabel }: EmailCampaignSheetProps) {
+   671→  const isCreate = state?.mode === "create";
+   672→  const campaign = state?.mode === "view" ? state.campaign : undefined;
+   673→
+   674→  const [name, setName] = useState("");
+   675→  const [template, setTemplate] = useState<EmailTemplate>("Welcome");
+   676→  const [audience, setAudience] = useState("all");
+   677→  const [scheduledAt, setScheduledAt] = useState("");
+   678→  const [subject, setSubject] = useState("");
+   679→  const [preview, setPreview] = useState("");
+   680→
+   681→  // Sync form with the open campaign
+   682→  // (use a key on the form element below to reset state per campaign)
+   683→  const formKey = campaign?.id ?? "create";
+   684→
+   685→  // Pre-fill when viewing an existing campaign
+   686→  const initialName = campaign?.name ?? "";
+   687→  const initialTemplate = campaign?.template ?? "Welcome";
+   688→  const initialAudience = audienceFor(campaign?.audience, defaultAudienceLabel);
+   689→  const initialSubject = campaign?.subject ?? "";
+   690→  const initialScheduledAt = campaign?.scheduledAt ?? "";
+   691→
+   692→  return (
+   693→    <Sheet
+   694→      open={state !== null}
+   695→      onOpenChange={(open) => {
+   696→        if (!open) onClose();
+   697→      }}
+   698→    >
+   699→      <SheetContent className="sm:max-w-[560px] overflow-y-auto" side="right">
+   700→        {state && (
+   701→          <div className="flex h-full flex-col">
+   702→            <SheetHeader>
+   703→              <SheetTitle className="text-lg">
+   704→                {isCreate ? "New Email Campaign" : campaign!.name}
+   705→              </SheetTitle>
+   706→              <SheetDescription className="mt-1">
+   707→                {isCreate ? (
+   708→                  <>
+   709→                    Compose a new campaign and schedule it to your{" "}
+   710→                    {defaultAudienceLabel} audience.
+   711→                  </>
+   712→                ) : (
+   713→                  <>
+   714→                    <span className="font-mono">{campaign!.id}</span> ·{" "}
+   715→                    <span className="capitalize">{campaign!.status}</span> ·{" "}
+   716→                    {campaign!.sent > 0
+   717→                      ? `${formatCompact(campaign!.sent)} sent · ${formatCompact(campaign!.opened)} opened`
+   718→                      : "Not yet sent"}
+   719→                  </>
+   720→                )}
+   721→              </SheetDescription>
+   722→            </SheetHeader>
+   723→
+   724→            {/* KPI strip — only in view mode */}
+   725→            {campaign && campaign.sent > 0 && (
+   726→              <div className="grid grid-cols-4 gap-2 px-4 py-2">
+   727→                <KpiPill label="Open Rate" value={`${Math.round((campaign.opened / campaign.sent) * 1000) / 10}%`} tone="emerald" />
+   728→                <KpiPill label="Click Rate" value={campaign.opened > 0 ? `${Math.round((campaign.clicked / campaign.opened) * 1000) / 10}%` : "—"} tone="emerald" />
+   729→                <KpiPill label="Converted" value={String(campaign.converted)} tone="amber" />
+   730→                <KpiPill label="Conv. Rate" value={campaign.clicked > 0 ? `${Math.round((campaign.converted / campaign.clicked) * 1000) / 10}%` : "—"} tone="amber" />
+   731→              </div>
+   732→            )}
+   733→
+   734→            <div className="flex-1 overflow-y-auto px-4 pb-4">
+   735→              <Tabs defaultValue="compose" key={formKey}>
+   736→                <TabsList className="grid w-full grid-cols-3">
+   737→                  <TabsTrigger value="compose" className="text-xs">Compose</TabsTrigger>
+   738→                  <TabsTrigger value="preview" className="text-xs">Preview</TabsTrigger>
+   739→                  <TabsTrigger value="schedule" className="text-xs">Schedule</TabsTrigger>
+   740→                </TabsList>
+   741→
+   742→                {/* Compose tab */}
+   743→                <TabsContent value="compose" className="mt-3 space-y-3">
+   744→                  <div className="space-y-1.5">
+   745→                    <LabelWithHelp help="Internal name shown only to your team. Recipients see the subject line, not this name.">
+   746→                      <Label htmlFor="ec-name" className="text-xs font-medium">Campaign Name</Label>
+   747→                    </LabelWithHelp>
+   748→                    <Input
+   749→                      id="ec-name"
+   750→                      value={name || initialName}
+   751→                      onChange={(e) => setName(e.target.value)}
+   752→                      placeholder="e.g. Welcome Series — New Traders"
+   753→                    />
+   754→                  </div>
+   755→
+   756→                  <div className="space-y-1.5">
+   757→                    <Label htmlFor="ec-template" className="text-xs font-medium">Template</Label>
+   758→                    <Select
+   759→                      value={template || initialTemplate}
+   760→                      onValueChange={(v) => setTemplate(v as EmailTemplate)}
+   761→                    >
+   762→                      <SelectTrigger id="ec-template" className="w-full">
+   763→                        <SelectValue placeholder="Choose a template" />
+   764→                      </SelectTrigger>
+   765→                      <SelectContent>
+   766→                        {TEMPLATE_OPTIONS.filter((t) => t.value !== "all").map((t) => (
+   767→                          <SelectItem key={t.value} value={t.value}>
+   768→                            {t.label}
+   769→                          </SelectItem>
+   770→                        ))}
+   771→                      </SelectContent>
+   772→                    </Select>
+   773→                  </div>
+   774→
+   775→                  <div className="space-y-1.5">
+   776→                    <LabelWithHelp help={`Define which ${defaultAudienceLabel} segment receives this campaign. "Specific Segment" lets you target a saved audience.`}>
+   777→                      <Label htmlFor="ec-audience" className="text-xs font-medium">Audience</Label>
+   778→                    </LabelWithHelp>
+   779→                    <Select
+   780→                      value={audience !== "all" ? audience : initialAudience}
+   781→                      onValueChange={setAudience}
+   782→                    >
+   783→                      <SelectTrigger id="ec-audience" className="w-full">
+   784→                        <SelectValue placeholder="Choose an audience" />
+   785→                      </SelectTrigger>
+   786→                      <SelectContent>
+   787→                        <SelectItem value="all">All {defaultAudienceLabel}</SelectItem>
+   788→                        <SelectItem value="active">Active Traders</SelectItem>
+   789→                        <SelectItem value="funded">Funded Traders</SelectItem>
+   790→                        <SelectItem value="failed">Failed Traders</SelectItem>
+   791→                        <SelectItem value="segment">Specific Segment…</SelectItem>
+   792→                      </SelectContent>
+   793→                    </Select>
+   794→                  </div>
+   795→
+   796→                  <Separator />
+   797→
+   798→                  <div className="space-y-1.5">
+   799→                    <LabelWithHelp help="The subject line recipients see in their inbox. Keep it under 60 characters for best open rates.">
+   800→                      <Label htmlFor="ec-subject" className="text-xs font-medium">Subject Line</Label>
+   801→                    </LabelWithHelp>
+   802→                    <Input
+   803→                      id="ec-subject"
+   804→                      value={subject || initialSubject}
+   805→                      onChange={(e) => setSubject(e.target.value)}
+   806→                      placeholder="e.g. Welcome aboard — let's get you funded"
+   807→                      maxLength={120}
+   808→                    />
+   809→                    <p className="text-[11px] text-muted-foreground">
+   810→                      {(subject || initialSubject).length}/120 characters
+   811→                    </p>
+   812→                  </div>
+   813→
+   814→                  <div className="space-y-1.5">
+   815→                    <LabelWithHelp help="A short preview shown next to the subject in most email clients. Think of it as a second subject line.">
+   816→                      <Label htmlFor="ec-preview" className="text-xs font-medium">Preview Text</Label>
+   817→                    </LabelWithHelp>
+   818→                    <Textarea
+   819→                      id="ec-preview"
+   820→                      value={preview}
+   821→                      onChange={(e) => setPreview(e.target.value)}
+   822→                      placeholder="Add a one-line preview that appears after the subject in inbox previews…"
+   823→                      className="min-h-[60px]"
+   824→                      maxLength={140}
+   825→                    />
+   826→                  </div>
+   827→                </TabsContent>
+   828→
+   829→                {/* Preview tab — renders the email body preview */}
+   830→                <TabsContent value="preview" className="mt-3">
+   831→                  <div className="rounded-lg border bg-muted/30 p-4">
+   832→                    <div className="mb-3 border-b pb-3">
+   833→                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Subject</p>
+   834→                      <p className="font-medium">
+   835→                        {subject || initialSubject || "—"}
+   836→                      </p>
+   837→                      {preview && (
+   838→                        <p className="mt-1 text-xs text-muted-foreground">{preview}</p>
+   839→                      )}
+   840→                    </div>
+   841→                    <div className="space-y-2">
+   842→                      <p className="text-xs text-muted-foreground">
+   843→                        Hi [First Name],
+   844→                      </p>
+   845→                      <p className="text-sm leading-relaxed">
+   846→                        {templateOrDefault(template || initialTemplate).body}
+   847→                      </p>
+   848→                      <p className="text-xs text-muted-foreground">— The Team</p>
+   849→                    </div>
+   850→                  </div>
+   851→                  <Button
+   852→                    size="sm"
+   853→                    variant="outline"
+   854→                    className="mt-3 w-full"
+   855→                    onClick={() =>
+   856→                      toast({
+   857→                        title: "Test email sent (demo)",
+   858→                        description: `A test send was triggered to your address for "${subject || initialSubject || "Untitled"}".`,
+   859→                      })
+   860→                    }
+   861→                  >
+   862→                    <TestTube2 className="mr-1 h-4 w-4" /> Send Test Email
+   863→                  </Button>
+   864→                </TabsContent>
+   865→
+   866→                {/* Schedule tab */}
+   867→                <TabsContent value="schedule" className="mt-3 space-y-3">
+   868→                  <div className="space-y-1.5">
+   869→                    <LabelWithHelp help="Schedule in your local time. The campaign will be queued and sent at the chosen moment. Leave empty to send immediately.">
+   870→                      <Label htmlFor="ec-schedule" className="text-xs font-medium">Schedule Send</Label>
+   871→                    </LabelWithHelp>
+   872→                    <Input
+   873→                      id="ec-schedule"
+   874→                      type="datetime-local"
+   875→                      value={scheduledAt || initialScheduledAt}
+   876→                      onChange={(e) => setScheduledAt(e.target.value)}
+   877→                    />
+   878→                  </div>
+   879→                  <div className="rounded-md border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
+   880→                    <p className="mb-1 flex items-center gap-1 font-medium text-foreground">
+   881→                      <Users className="h-3 w-3" /> Estimated recipients
+   882→                    </p>
+   883→                    {audience === "segment"
+   884→                      ? "Depends on the selected segment size."
+   885→                      : `Approximately ${formatCompact(estimatedReach(audience || initialAudience))} ${defaultAudienceLabel}.`}
+   886→                  </div>
+   887→                </TabsContent>
+   888→              </Tabs>
+   889→            </div>
+   890→
+   891→            <SheetFooter className="mt-auto flex-row gap-2 border-t pt-4">
+   892→              <Button
+   893→                variant="outline"
+   894→                size="sm"
+   895→                onClick={() => {
+   896→                  toast({
+   897→                    title: "Draft saved (demo)",
+   898→                    description: `Campaign "${name || initialName || "Untitled"}" saved as draft.`,
+   899→                  });
+   900→                  onClose();
+   901→                }}
+   902→              >
+   903→                <Save className="mr-1 h-3.5 w-3.5" /> Save Draft
+   904→              </Button>
+   905→              <Button
+   906→                variant="outline"
+   907→                size="sm"
+   908→                disabled={!scheduledAt && !initialScheduledAt}
+   909→                onClick={() => {
+   910→                  toast({
+   911→                    title: "Campaign scheduled (demo)",
+   912→                    description: `Will send at ${scheduledAt || initialScheduledAt || "the selected time"}.`,
+   913→                  });
+   914→                  onClose();
+   915→                }}
+   916→              >
+   917→                <Calendar className="mr-1 h-3.5 w-3.5" /> Schedule
+   918→              </Button>
+   919→              <Button
+   920→                size="sm"
+   921→                onClick={() => {
+   922→                  toast({
+   923→                    title: "Campaign sent (demo)",
+   924→                    description: `${name || initialName || "Untitled"} is now sending to the selected audience.`,
+   925→                  });
+   926→                  onClose();
+   927→                }}
+   928→              >
+   929→                <Send className="mr-1 h-3.5 w-3.5" /> Send Now
+   930→              </Button>
+   931→            </SheetFooter>
+   932→          </div>
+   933→        )}
+   934→      </SheetContent>
+   935→    </Sheet>
+   936→  );
+   937→}
+   938→
+   939→/* ------------------------------------------------------------------ */
+   940→/* Sheet helpers                                                       */
+   941→/* ------------------------------------------------------------------ */
+   942→
+   943→function audienceFor(audience: string | undefined, defaultLabel: string): string {
+   944→  if (!audience) return "all";
+   945→  if (audience.startsWith("All")) return "all";
+   946→  if (audience.startsWith("Active")) return "active";
+   947→  if (audience.startsWith("Funded")) return "funded";
+   948→  if (audience.startsWith("Failed")) return "failed";
+   949→  if (audience.startsWith("Inactive") || audience.startsWith("Phase")) return "segment";
+   950→  return "all";
+   951→}
+   952→
+   953→function estimatedReach(audience: string): number {
+   954→  switch (audience) {
+   955→    case "all": return 8420;
+   956→    case "active": return 3840;
+   957→    case "funded": return 642;
+   958→    case "failed": return 1210;
+   959→    case "segment": return 0;
+   960→    default: return 0;
+   961→  }
+   962→}
+   963→
+   964→function templateOrDefault(template: EmailTemplate): { body: string } {
+   965→  const map: Record<EmailTemplate, { body: string }> = {
+   966→    Welcome: { body: "Welcome aboard! Your evaluation account is ready. Here's everything you need to start trading and reach your profit target." },
+   967→    Newsletter: { body: "Here's your weekly market roundup. Top movers, platform updates and this week's featured strategy." },
+   968→    Promotional: { body: "For a limited time, get 40% off all challenge bundles. Use code LAUNCH40 at checkout." },
+   969→    "Re-engagement": { body: "We noticed you haven't traded in a while. Here's 25% off your next challenge to help you get back on track." },
+   970→    "Phase-Passed": { body: "Congratulations — you've passed Phase 1! Phase 2 is now unlocked and ready for you." },
+   971→    "Payout-Approved": { body: "Good news — your payout has been approved and is being processed. Funds should arrive within 2-3 business days." },
+   972→  };
+   973→  return map[template] ?? { body: "" };
+   974→}
+   975→
+   976→function KpiPill({
+   977→  label,
+   978→  value,
+   979→  tone,
+   980→}: {
+   981→  label: string;
+   982→  value: string;
+   983→  tone: "emerald" | "amber" | "rose";
+   984→}) {
+   985→  const toneClass =
+   986→    tone === "emerald"
+   987→      ? "text-emerald-600"
+   988→      : tone === "amber"
+   989→      ? "text-amber-600"
+   990→      : "text-rose-600";
+   991→  return (
+   992→    <div className="rounded-lg border p-2 text-center">
+   993→      <div className="text-[10px] text-muted-foreground">{label}</div>
+   994→      <div className={`text-sm font-semibold ${toneClass} tabular-nums`}>{value}</div>
+   995→    </div>
+   996→  );
+   997→}
+   998→

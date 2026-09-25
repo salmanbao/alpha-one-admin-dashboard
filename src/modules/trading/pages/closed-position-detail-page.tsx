@@ -139,10 +139,12 @@ const CLOSE_REASONS: CloseReason[] = [
 ];
 
 const BASE_SYMBOLS: Array<[string, number, number, string]> = [
-  // symbol, base price, contract multiplier, description
-  ["EURUSD", 1.085, 10000, "Euro vs US Dollar — Major FX pair"],
-  ["GBPUSD", 1.271, 10000, "British Pound vs US Dollar — Major FX pair (Cable)"],
-  ["USDJPY", 151.4, 1000, "US Dollar vs Japanese Yen — Major FX pair"],
+  // symbol, base price, contract multiplier (units per 1.0 volume), description.
+  // FX majors: 1 lot = 100,000 units (was 10,000 — under-stated FX P&L by 10x).
+  // JPY pairs need /currentPrice conversion to land in USD (see grossPnl below).
+  ["EURUSD", 1.085, 100_000, "Euro vs US Dollar — Major FX pair"],
+  ["GBPUSD", 1.271, 100_000, "British Pound vs US Dollar — Major FX pair (Cable)"],
+  ["USDJPY", 151.4, 100_000, "US Dollar vs Japanese Yen — Major FX pair"],
   ["XAUUSD", 2348.5, 100, "Spot Gold vs US Dollar — precious metal"],
   ["BTCUSD", 67250, 1, "Bitcoin vs US Dollar — flagship cryptocurrency"],
   ["ETHUSD", 3480, 1, "Ethereum vs US Dollar — smart-contract crypto"],
@@ -196,11 +198,19 @@ function generateClosedPositionDetail(
   const close = entry * (1 + movePct);
   const pnlPerUnit = side === "buy" ? close - entry : entry - close;
   const volume = base.volume;
-  const grossPnl = pnlPerUnit * mult * volume;
+  // JPY-quoted pairs (USDJPY, …) need /currentPrice conversion to land
+  // in USD — otherwise P&L was 150x too high for USDJPY (the raw value
+  // is in JPY, not USD).
+  const isJpyQuote = sym.endsWith("JPY");
+  const grossPnlRaw = pnlPerUnit * mult * volume;
+  const grossPnl = isJpyQuote ? grossPnlRaw / close : grossPnlRaw;
   const commission = Math.round((volume * basePrice * 0.0004) * 100) / 100;
   const swap = Math.round(Math.sin(seed) * 5 * 100) / 100;
+  // Net profit = gross - commission - swap. Previously `profit` already
+  // subtracted commission+swap, then `netProfit` subtracted them AGAIN —
+  // displaying a value that was off by exactly (commission + swap).
   const profit = Math.round((grossPnl - commission - swap) * 100) / 100;
-  const netProfit = Math.round((profit - commission - swap) * 100) / 100;
+  const netProfit = profit;
 
   // Determine close reason from P&L direction
   let closeReason: CloseReason;
@@ -320,6 +330,17 @@ export function ClosedPositionDetailPage() {
   const [working, setWorking] = useState<ClosedPositionDetail>(seed);
   const [editing, setEditing] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Render-time resync — when the URL `id` changes (in-app navigation
+  // between two closed positions), the useState initial value above is
+  // already stale. Without this guard, the page briefly renders the
+  // previous position's data until the user edits a field. Mirrors the
+  // pattern in profile-page.tsx.
+  const [lastId, setLastId] = useState(id);
+  if (lastId !== id) {
+    setLastId(id);
+    setWorking(seed);
+  }
 
   // Recompute working when the seed changes (navigating to another id).
   // Use a key-based remount of the inner form below to flush stale edits.
@@ -771,7 +792,7 @@ function ClosedPositionForm({
             value={working.netProfit}
             currency={currency}
             strong
-            help="Calculated as profit - commission - swap."
+            help="Net of commission and swap — what the trader actually realizes."
           />
         </div>
       </FormSection>

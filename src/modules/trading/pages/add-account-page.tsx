@@ -130,12 +130,15 @@ export function AddAccountPage() {
     setState((s) => ({ ...s, [field]: value }));
 
   /* ---- Validation per step ---- */
+  // Email regex mirrors profile-page.tsx — previously only checked for
+  // an `@` which accepted garbage like `@`, `foo@`, `@bar`.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const stepValid = (i: number): boolean => {
     switch (i) {
       case 0:
         return (
           state.email.trim().length > 0 &&
-          state.email.includes("@") &&
+          EMAIL_RE.test(state.email.trim()) &&
           state.fullName.trim().length > 0
         );
       case 1:

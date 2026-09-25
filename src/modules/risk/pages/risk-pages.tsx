@@ -4,9 +4,10 @@ import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantBreaches, type Breach } from "@/lib/platform/mock-data";
+import { resolveBreach, effectiveBreachStatus, useBreachVersion } from "@/modules/risk/breach-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
-import { StatusBadge, breachSeverityTone } from "@/components/platform/status";
+import { StatusBadge, breachSeverityTone, formatCurrency } from "@/components/platform/status";
 import { AttentionCenter } from "@/components/platform/attention-center";
 import { ShieldAlert, ShieldCheck, AlertTriangle, Activity, Users, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -42,10 +43,12 @@ function hashStr(s: string): number {
 /* ------------------------------------------------------------------ */
 
 export function RiskOverviewPage() {
-  const { runtime, tenant } = usePlatform();
+  const { runtime, tenant, navigate } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const breaches = getTenantBreaches(tid);
+  const currency = runtime.tenant?.currency ?? "USD";
+  useBreachVersion(); // KPIs recompute when a breach is resolved
+  const breaches = getTenantBreaches(tid).map((b) => ({ ...b, status: effectiveBreachStatus(b) }));
   const open = breaches.filter((b) => b.status === "open").length;
   const critical = breaches.filter((b) => b.severity === "critical").length;
   const resolved = breaches.filter((b) => b.status === "resolved").length;
@@ -72,10 +75,12 @@ export function RiskOverviewPage() {
         description={`Monitor drawdown, risk scores, and breaches across all ${plural(term("trader")).toLowerCase()}.`}
         icon={ShieldCheck}
         actions={
+          // Wire the primary action to the real risk-rule configuration view
+          // (trading-events) instead of a fake "demo" toast.
           <Button
             size="sm"
             variant="outline"
-            onClick={() => toast({ title: "Risk config", description: "Risk rules saved (demo)." })}
+            onClick={() => navigate("trading-events")}
           >
             Configure rules
           </Button>
@@ -87,7 +92,7 @@ export function RiskOverviewPage() {
           <MetricCard label="Critical" value={critical} icon={AlertTriangle} tone={critical > 0 ? "negative" : "positive"} />
           <MetricCard label="Resolved (30d)" value={resolved} icon={ShieldCheck} tone="positive" />
           <MetricCard
-            label="Platform Risk Score"
+            label="Firm Risk Score"
             value={`${riskScore}/100`}
             icon={Activity}
             tone={riskScore >= 80 ? "negative" : riskScore >= 70 ? "warning" : "positive"}
@@ -102,7 +107,7 @@ export function RiskOverviewPage() {
           />
           <MetricCard
             label="Total Exposure"
-            value={`$${exposure.toLocaleString()}`}
+            value={formatCurrency(exposure, currency)}
             icon={DollarSign}
             tone="warning"
             deltaLabel="across all open breaches"
@@ -125,20 +130,17 @@ export function RiskOverviewPage() {
 /* Breaches list (with filters + drill-to-trader + empty state)       */
 /* ------------------------------------------------------------------ */
 
+// Only types that actually exist in the data — offering impossible filter
+// values silently yields "No breaches" and reads as a broken filter.
 const BREACH_TYPES = [
   "daily-drawdown",
   "max-drawdown",
-  "trailing-drawdown",
-  "margin-call",
-  "news-trading",
-  "weekend-holding",
-  "copy-trading",
   "profit-target-miss",
   "time-limit",
 ] as const;
 
-const SEVERITIES = ["critical", "warning", "info"] as const;
-const STATUSES = ["open", "resolved", "dismissed"] as const;
+const SEVERITIES = ["critical", "warning"] as const;
+const STATUSES = ["open", "resolved"] as const;
 const DATE_RANGES = ["24h", "7d", "30d"] as const;
 
 export function BreachesPage() {
@@ -165,8 +167,10 @@ function BreachesTable({
   filter: (b: Breach) => boolean;
   showFilters?: boolean;
 }) {
-  const { runtime, navigate } = usePlatform();
+  const { runtime, navigate, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
+  useBreachVersion(); // rows react to resolutions from any surface
 
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sevFilter, setSevFilter] = useState<string>("all");
@@ -180,7 +184,9 @@ function BreachesTable({
     return 0;
   }, [rangeFilter]);
 
-  const breaches = getTenantBreaches(tid).filter((b) => {
+  const breaches = getTenantBreaches(tid)
+    .map((b) => ({ ...b, status: effectiveBreachStatus(b) }))
+    .filter((b) => {
     if (!filter(b)) return false;
     if (typeFilter !== "all" && b.type !== typeFilter) return false;
     if (sevFilter !== "all" && b.severity !== sevFilter) return false;
@@ -192,7 +198,7 @@ function BreachesTable({
   const columns: Column<Breach>[] = [
     {
       key: "trader",
-      header: "Trader",
+      header: term("trader"),
       cell: (b) => (
         <button
           type="button"
@@ -221,10 +227,10 @@ function BreachesTable({
       cell: (b) => <StatusBadge tone={b.status === "open" ? "warning" : "success"}>{b.status}</StatusBadge>,
       sortValue: (b) => b.status,
     },
-    { key: "triggered", header: "Triggered", cell: (b) => <span className="text-xs text-muted-foreground">{new Date(b.triggeredAt).toLocaleString()}</span>, sortValue: (b) => b.triggeredAt },
+    { key: "triggered", header: "Triggered", cell: (b) => <span className="text-xs text-muted-foreground">{new Date(b.triggeredAt).toLocaleString("en-US")}</span>, sortValue: (b) => b.triggeredAt },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       cell: (b) =>
         b.status === "open" ? (
           <Button
@@ -232,6 +238,9 @@ function BreachesTable({
             variant="ghost"
             onClick={(e) => {
               e.stopPropagation();
+              // Mutate the shared breach store — the row flips to resolved
+              // and every breach KPI recomputes.
+              resolveBreach(b.id);
               toast({ title: "Breach resolved", description: `${b.traderName}'s breach marked resolved.` });
             }}
           >

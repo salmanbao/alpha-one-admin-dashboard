@@ -212,7 +212,7 @@ export function NotificationCenterPage() {
                   const severityColor =
                     item.severity === "critical" ? "bg-rose-500" :
                     item.severity === "warning" ? "bg-amber-500" :
-                    item.severity === "success" ? "bg-emerald-500" : "bg-sky-500";
+                    item.severity === "success" ? "bg-emerald-500" : "bg-teal-500";
                   const isSelected = selected.has(item.id);
                   return (
                     <div

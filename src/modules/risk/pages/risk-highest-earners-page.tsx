@@ -266,9 +266,12 @@ export function RiskHighestEarnersPage() {
   ];
 
   const exportCsv = () => {
+    // Demo-only — would call exportToCsv(filtered, [...], file) in
+    // production. Honest copy prevents the operator thinking a file
+    // was downloaded when nothing happened.
     toast({
-      title: "Export started",
-      description: `Exporting ${filtered.length} earners as CSV.`,
+      title: "Export started (demo)",
+      description: `Would export ${filtered.length} earners as CSV in production.`,
     });
   };
 

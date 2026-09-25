@@ -20,6 +20,7 @@ import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver } from "@/lib/platform/terminology";
 import { getTenantContacts, hashStr, type CrmContact } from "@/lib/platform/mock-data";
+import { updateCrmContact, deleteCrmContact, useCrmContacts } from "@/modules/crm/crm-store";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -336,6 +337,8 @@ function CrmContactSheetBody({
   term: ReturnType<typeof makeTermResolver>;
   onClose: () => void;
 }) {
+  const { runtime } = usePlatform();
+  const tid = runtime.tenant?.id ?? "platform";
   // Initialise from the contact's notes on mount only — the parent passes
   // a fresh `key` per contact.id, so this component remounts for each new
   // contact and the initial state is read once per contact.
@@ -492,12 +495,15 @@ function CrmContactSheetBody({
                     size="sm"
                     variant="outline"
                     disabled={notes === (contact.notes ?? "")}
-                    onClick={() =>
+                    onClick={() => {
+                      // Persist to the shared CRM store — reopening the
+                      // contact (or viewing Contacts/Pipeline) shows it.
+                      updateCrmContact(tid, contact.id, { notes });
                       toast({
-                        title: "Notes saved (demo)",
+                        title: "Notes saved",
                         description: `Notes updated for ${contact.name}.`,
-                      })
-                    }
+                      });
+                    }}
                   >
                     Save Notes
                   </Button>
@@ -510,9 +516,12 @@ function CrmContactSheetBody({
                 variant="default"
                 size="sm"
                 onClick={() => {
+                  // Convert = promote the contact to the customer stage in
+                  // the shared store — Pipeline/Contacts reflect it instantly.
+                  updateCrmContact(tid, contact.id, { stage: "customer" });
                   toast({
-                    title: "Convert to Trader (demo)",
-                    description: `${contact.name} would be promoted to a ${term("trader")} account.`,
+                    title: `Converted to ${term("trader")}`,
+                    description: `${contact.name} moved to the customer stage.`,
                   });
                 }}
               >
@@ -552,8 +561,11 @@ function CrmContactSheetBody({
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => {
+                        // Mutate the shared store — the contact disappears
+                        // from Contacts, Pipeline and overview stats.
+                        deleteCrmContact(tid, contact.id);
                         toast({
-                          title: "Contact deleted (demo)",
+                          title: "Contact deleted",
                           description: `${contact.name} has been removed.`,
                           variant: "destructive",
                         });
@@ -580,7 +592,7 @@ export function CrmOverviewPage() {
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
-  const contacts = getTenantContacts(tid);
+  const contacts = useCrmContacts(tid);
   const leads = contacts.filter((c) => c.stage === "lead").length;
   const qualified = contacts.filter((c) => c.stage === "qualified").length;
   const customers = contacts.filter((c) => c.stage === "customer").length;
@@ -679,7 +691,7 @@ export function CrmContactsPage() {
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
-  const contacts = getTenantContacts(tid);
+  const contacts = useCrmContacts(tid);
 
   const [selectedContact, setSelectedContact] = useState<CrmContact | null>(null);
 
@@ -1006,12 +1018,10 @@ export function CrmPipelinePage() {
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
+  // Shared store — Contacts page, Pipeline kanban and the drawer all read
+  // the same effective list, so stage moves/notes/deletes stay in sync.
+  const contacts = useCrmContacts(tid);
 
-  // Local copy of contacts so drag-and-drop / Move menu can mutate the
-  // stage assignment client-side (mock data — no persistence layer).
-  const [localContacts, setLocalContacts] = useState<CrmContact[]>(() =>
-    getTenantContacts(tid),
-  );
   const [selectedContact, setSelectedContact] = useState<CrmContact | null>(null);
   const [draggedContact, setDraggedContact] = useState<CrmContact | null>(null);
   const [draggedOverStage, setDraggedOverStage] = useState<CrmContact["stage"] | null>(
@@ -1020,25 +1030,25 @@ export function CrmPipelinePage() {
 
   /* KPI computations ------------------------------------------------ */
   const totalPipelineValue = useMemo(
-    () => localContacts.reduce((s, c) => s + c.value, 0),
-    [localContacts],
+    () => contacts.reduce((s, c) => s + c.value, 0),
+    [contacts],
   );
   const openDealsCount = useMemo(
     () =>
-      localContacts.filter(
+      contacts.filter(
         (c) =>
           c.stage === "lead" || c.stage === "qualified" || c.stage === "opportunity",
       ).length,
-    [localContacts],
+    [contacts],
   );
-  const avgDealSize = localContacts.length > 0 ? totalPipelineValue / localContacts.length : 0;
+  const avgDealSize = contacts.length > 0 ? totalPipelineValue / contacts.length : 0;
   const wonCount = useMemo(
-    () => localContacts.filter((c) => c.stage === "customer").length,
-    [localContacts],
+    () => contacts.filter((c) => c.stage === "customer").length,
+    [contacts],
   );
   const lostCount = useMemo(
-    () => localContacts.filter((c) => c.stage === "churned").length,
-    [localContacts],
+    () => contacts.filter((c) => c.stage === "churned").length,
+    [contacts],
   );
   const winRate =
     wonCount + lostCount > 0 ? (wonCount / (wonCount + lostCount)) * 100 : 0;
@@ -1046,9 +1056,8 @@ export function CrmPipelinePage() {
   /* Mutations ------------------------------------------------------- */
   const moveContact = (contact: CrmContact, newStage: CrmContact["stage"]) => {
     if (contact.stage === newStage) return;
-    setLocalContacts((prev) =>
-      prev.map((c) => (c.id === contact.id ? { ...c, stage: newStage } : c)),
-    );
+    // Mutate the shared CRM store so Contacts/Pipeline stay in sync.
+    updateCrmContact(tid, contact.id, { stage: newStage });
     // Keep the open Sheet drawer in sync if the moved contact is currently selected.
     setSelectedContact((prev) =>
       prev && prev.id === contact.id ? { ...prev, stage: newStage } : prev,
@@ -1075,7 +1084,7 @@ export function CrmPipelinePage() {
         icon={GitBranch}
         actions={
           <Badge variant="secondary" className="text-xs">
-            {localContacts.length} contacts
+            {contacts.length} contacts
           </Badge>
         }
       />
@@ -1124,7 +1133,7 @@ export function CrmPipelinePage() {
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2">
             {KANBAN_STAGES.map((stage) => {
-              const stageContacts = localContacts.filter((c) => c.stage === stage);
+              const stageContacts = contacts.filter((c) => c.stage === stage);
               return (
                 <KanbanColumn
                   key={stage}

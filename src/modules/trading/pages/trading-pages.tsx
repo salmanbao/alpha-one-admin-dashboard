@@ -278,8 +278,8 @@ export function TradersPage() {
           onRowClick={(t) => navigate("trader-detail", { id: t.id })}
           searchableText={(t) => `${t.name} ${t.email} ${t.country} ${t.status}`}
           searchPlaceholder={`Search ${plural(term("trader")).toLowerCase()}…`}
-          emptyTitle="No traders match"
-          emptyDescription="Try clearing one of the filters above or search by a different name."
+          emptyTitle={`No ${plural(term("trader")).toLowerCase()} match`}
+          emptyDescription={`Try clearing one of the filters above or search by a different name.`}
         />
       </PageContent>
     </Page>
@@ -475,7 +475,7 @@ export function PositionsPage() {
       sortValue: (p) => p.symbol,
     },
     { key: "side", header: "Side", cell: (p) => <span className={p.side === "buy" ? "text-emerald-600" : "text-rose-600"} role="img" aria-label={`Position side: ${p.side}`}>{p.side.toUpperCase()}</span>, sortValue: (p) => p.side },
-    { key: "volume", header: "Volume", cell: (p) => p.volume, sortValue: (p) => p.volume, numeric: true },
+    { key: "volume", header: "Volume", cell: (p) => <span className="font-mono text-xs">{p.volume.toFixed(2)}</span>, sortValue: (p) => p.volume, numeric: true },
     { key: "entry", header: "Entry", cell: (p) => p.entryPrice, sortValue: (p) => p.entryPrice, numeric: true },
     { key: "current", header: "Current", cell: (p) => p.currentPrice, sortValue: (p) => p.currentPrice, numeric: true },
     { key: "pnl", header: "P&L", cell: (p) => <span className={p.pnl >= 0 ? "text-emerald-600" : "text-rose-600"} role="img" aria-label={`Profit and loss: ${p.pnl >= 0 ? "profit" : "loss"} of ${formatCurrency(Math.abs(p.pnl), currency)}`}>{p.pnl >= 0 ? "+" : ""}{formatCurrency(p.pnl, currency)}</span>, sortValue: (p) => p.pnl, numeric: true },
@@ -644,7 +644,9 @@ export function TraderDetailPage() {
         </TabsContent>
         <TabsContent value="history">
           <div className="rounded-lg border bg-card p-4">
-            <EntityChangeHistory entries={getTenantAudit(tid).filter((a) => a.entity === "trader")} />
+            {/* Filter by entityId === traderId so we only show THIS trader's
+                audit entries, not every trader in the tenant. */}
+            <EntityChangeHistory entries={getTenantAudit(tid).filter((a) => a.entity === "trader" && a.entityId === traderId)} />
           </div>
         </TabsContent>
       </Tabs>

@@ -22,7 +22,8 @@ import {
   Brain,
   Zap,
 } from "lucide-react";
-import { auditLog } from "@/lib/platform/mock-data";
+import { getTenantAudit } from "@/lib/platform/mock-data";
+import { usePlatform } from "@/lib/platform/platform-context";
 import type { AuditEntry } from "@/lib/platform/types";
 
 /** Render an actor name as "First L." (Tom Allen → "Tom A."). */
@@ -86,11 +87,16 @@ interface TickerItem {
   tone: "info" | "success" | "warning";
 }
 
-/** Build ticker items from the most recent audit entries (across tenants). */
-function buildTickerItems(limit = 8): TickerItem[] {
+/** Build ticker items from the most recent audit entries for the active tenant. */
+function buildTickerItems(tid: string, limit = 8): TickerItem[] {
   // Take the most recent entries by timestamp (auditLog is seeded
   // chronologically ascending — newest first is `reverse()`).
-  const recent = [...auditLog].reverse().slice(0, limit);
+  // Filtered to the current tenant so a tenant admin never sees
+  // platform-scope events ("(platform-wide)" suffix) or other tenants'
+  // entries leaking into the ticker. Super-admin (tid === "platform")
+  // intentionally sees the full cross-tenant stream.
+  const scoped = getTenantAudit(tid);
+  const recent = [...scoped].reverse().slice(0, limit);
   return recent.map((a) => {
     const Icon = ICON_FOR_ACTION[a.entity ?? a.action] ?? TrendingUp;
     const text = `${shortActor(a.actor)} — ${describeAction(a.action, a.summary)} · ${relativeTime(a.timestamp)}`;
@@ -99,7 +105,9 @@ function buildTickerItems(limit = 8): TickerItem[] {
 }
 
 export function ActivityTicker() {
-  const items = useMemo(() => buildTickerItems(8), []);
+  const { runtime } = usePlatform();
+  const tid = runtime.tenant?.id ?? "platform";
+  const items = useMemo(() => buildTickerItems(tid, 8), [tid]);
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {

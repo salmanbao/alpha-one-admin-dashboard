@@ -88,8 +88,15 @@ export function UserManagementPage() {
   const accounts = useMemo(() => getTenantAccounts(tid), [tid]);
   const payouts = useMemo(() => getTenantPayouts(tid), [tid]);
   const kyc = useMemo(() => getTenantKyc(tid), [tid]);
-  // Also include global auth users (admin staff), regardless of tenant.
-  const authUserList = useMemo<AuthUser[]>(() => authUsers, []);
+  // Auth users scoped to THIS tenant only — previously showed all platform
+  // staff (Sarah Chen Alpha, Marcus Beta, Priya Gamma, Alex Platform super-
+  // admin) on every tenant's User Management page. A tenant admin should
+  // only see their own staff + their traders; super-admin (tid === "platform")
+  // intentionally sees everyone.
+  const authUserList = useMemo<AuthUser[]>(
+    () => (tid === "platform" ? authUsers : authUsers.filter((u) => u.tenantId === tid)),
+    [tid],
+  );
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -103,7 +110,10 @@ export function UserManagementPage() {
     // 2FA is enabled for all admins, revenue is N/A (0), accounts = 0.
     for (const u of authUserList) {
       const lastActive = u.lastActiveAt;
-      const status: UserStatus = u.application === "trader" ? "active" : "active";
+      // Auth-user "status" is always active — they're staff who just logged
+      // in. (Previously had a `u.application === "trader" ? "active" : "active"`
+      // dead ternary that always returned "active".)
+      const status: UserStatus = "active";
       rows.push({
         id: u.id,
         name: u.name,
@@ -166,7 +176,10 @@ export function UserManagementPage() {
 
   // KPI totals — use the unfiltered set.
   const totalUsers = allRows.length;
-  const verifiedKyc = allRows.filter((r) => r.kyc === "approved" || r.kyc === "verified").length;
+  // "Verified KYC" should only count real traders who completed KYC —
+  // admin staff have a synthetic "verified" status that doesn't reflect
+  // an actual KYC submission, so exclude them.
+  const verifiedKyc = allRows.filter((r) => !r.isAdmin && r.kyc === "approved").length;
   const twoFactorEnabled = allRows.filter((r) => r.twoFactor).length;
   const suspendedUsers = allRows.filter((r) => r.status === "suspended").length;
 

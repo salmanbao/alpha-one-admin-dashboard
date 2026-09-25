@@ -28,6 +28,9 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { Check, X, FileQuestion, ChevronRight, ShieldAlert, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/components/platform/status";
+import { applyPayoutDecision } from "@/modules/payouts/payout-store";
+import { resolveBreach } from "@/modules/risk/breach-store";
 import type { ComponentType } from "react";
 
 interface ContextualAction {
@@ -157,7 +160,8 @@ export function PayoutReviewActions({
   amount: number;
   currency: string;
 }) {
-  const { pushNotification } = usePlatform();
+  const { pushNotification, runtime } = usePlatform();
+  const currencyFmt = formatCurrency(amount, currency || runtime.tenant?.currency || "USD");
 
   const actions: ContextualAction[] = [
     {
@@ -167,13 +171,15 @@ export function PayoutReviewActions({
       variant: "primary",
       isPrimary: true,
       onAction: () => {
-        toast({ title: "Payout approved", description: `${traderName}'s payout of ${amount} ${currency} is being processed.` });
+        // Mutate the shared decision store — the pending queue (table,
+        // dashboard widget) drops this payout everywhere, instantly.
+        applyPayoutDecision(payoutId, "approved");
+        toast({ title: "Payout approved", description: `${traderName}'s payout of ${currencyFmt} is being processed.` });
         pushNotification({
           title: "Payout approved",
-          message: `${traderName} — ${amount} ${currency}`,
+          message: `${traderName} — ${currencyFmt}`,
           severity: "success",
           module: "payouts",
-          read: false,
           actionLabel: "View",
           actionHref: "payouts",
         });
@@ -186,10 +192,11 @@ export function PayoutReviewActions({
       variant: "destructive",
       destructive: {
         title: "Reject this payout?",
-        description: `You are about to reject the payout of ${amount} ${currency} for ${traderName}.`,
+        description: `You are about to reject the payout of ${currencyFmt} for ${traderName}.`,
         consequence: "The trader will need to re-request the payout. The rejection will be logged in the audit trail.",
       },
       onAction: () => {
+        applyPayoutDecision(payoutId, "rejected");
         toast({ title: "Payout rejected", description: `${traderName}'s payout was rejected.`, variant: "destructive" });
       },
     },
@@ -199,6 +206,7 @@ export function PayoutReviewActions({
       icon: FileQuestion,
       variant: "secondary",
       onAction: () => {
+        applyPayoutDecision(payoutId, "info-requested");
         toast({ title: "Information requested", description: `Additional information has been requested from ${traderName}.` });
       },
     },
@@ -207,7 +215,7 @@ export function PayoutReviewActions({
   return (
     <ContextualActionPanel
       contextLabel={payoutId}
-      contextDetail={`${traderName} · ${amount} ${currency}`}
+      contextDetail={`${traderName} · ${currencyFmt}`}
       actions={actions}
       compact
     />
@@ -218,10 +226,13 @@ export function BreachResolutionActions({
   breachId,
   traderName,
   rule,
+  traderId,
 }: {
   breachId: string;
   traderName: string;
   rule: string;
+  /** Real trader id — navigate needs an id, not the display name. */
+  traderId?: string;
 }) {
   const { navigate } = usePlatform();
 
@@ -232,7 +243,10 @@ export function BreachResolutionActions({
       icon: ChevronRight,
       variant: "primary",
       isPrimary: true,
-      onAction: () => navigate("trader-detail", { id: traderName }),
+      onAction: () => {
+        if (traderId) navigate("trader-detail", { id: traderId });
+        else toast({ title: "Trader unavailable", description: "No trader record is linked to this breach.", variant: "destructive" });
+      },
     },
     {
       id: "resolve",
@@ -240,6 +254,7 @@ export function BreachResolutionActions({
       icon: Check,
       variant: "secondary",
       onAction: () => {
+        resolveBreach(breachId);
         toast({ title: "Breach resolved", description: `${traderName}'s breach has been marked as resolved.` });
       },
     },
@@ -249,7 +264,8 @@ export function BreachResolutionActions({
       icon: MessageCircle,
       variant: "secondary",
       onAction: () => {
-        toast({ title: "Contact trader", description: `Opening message thread with ${traderName}.` });
+        if (traderId) navigate("trader-detail", { id: traderId });
+        else toast({ title: "Contact trader", description: `Opening message thread with ${traderName}.` });
       },
     },
   ];

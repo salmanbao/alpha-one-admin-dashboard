@@ -752,7 +752,32 @@ export const tradingAccounts: TradingAccount[] = seedAccounts();
 const symbols = [
   ["EURUSD", 1.085], ["GBPUSD", 1.271], ["USDJPY", 151.4], ["XAUUSD", 2348.5],
   ["BTCUSD", 67250], ["ETHUSD", 3480], ["SP500", 5230], ["NAS100", 18420],
-];
+] as const;
+
+/**
+ * Per-symbol contract size (units per 1.0 lot / 1.0 volume).
+ *
+ * FX majors: 1 lot = 100,000 units of base currency.
+ * XAUUSD: 1 lot = 100 oz of gold.
+ * Crypto: 1 unit = 1 BTC / 1 ETH (volume is in coin units, not lots).
+ * Indices: 1 unit = $1 per index point.
+ *
+ * The previous seed used 1000 for JPY pairs and 10000 for everything else,
+ * which produced absurd P&L on crypto ($2.29M on a 0.45 BTC position) and
+ * indices. With correct contract sizes, P&L on a 0.10 lot FX position with a
+ * 50-pip move is ~$50 — realistic.
+ */
+const CONTRACT_SIZE: Record<string, number> = {
+  EURUSD: 100_000,
+  GBPUSD: 100_000,
+  USDJPY: 100_000,
+  XAUUSD: 100,
+  BTCUSD: 1,
+  ETHUSD: 1,
+  SP500: 1,
+  NAS100: 1,
+};
+
 function seedPositions(): Position[] {
   const out: Position[] = [];
   let n = 0;
@@ -763,20 +788,41 @@ function seedPositions(): Position[] {
       const [sym, price] = symbols[(n + i) % symbols.length];
       const entry = price * (1 + (Math.sin(n) * 0.01));
       const current = price;
-      const volume = 0.05 + (n % 5) * 0.1;
-      const pnl = (current - entry) * volume * (sym.includes("JPY") ? 1000 : 10000) * (n % 2 === 0 ? 1 : -1);
+      // Round volume to 2 decimals to avoid float artifacts like
+      // 0.15000000000000002 in the UI.
+      const volume = Math.round((0.05 + (n % 5) * 0.1) * 100) / 100;
+      const side: "buy" | "sell" = n % 2 === 0 ? "buy" : "sell";
+      const contract = CONTRACT_SIZE[sym] ?? 1;
+      // P&L = (current - entry) * volume * contractSize, sign-flipped for
+      // SELL (price drop profits shorts). Previously the sign was a separate
+      // `n % 2` flip uncorrelated with side, producing wrong-direction P&L.
+      const dir = side === "buy" ? 1 : -1;
+      // JPY-quoted pairs (USDJPY, EURJPY, …) need to be converted to the
+      // account's display currency (USD). The raw P&L is in JPY; dividing
+      // by currentPrice converts JPY→USD. Without this, a 138-pip USDJPY
+      // move on 0.25 lot showed as -$34,417 (the JPY amount) instead of
+      // the correct ~-$228 (USD amount). Apply only when the quote
+      // currency is JPY; the symbols array currently only has USDJPY, but
+      // the rule generalizes to any *JPY pair.
+      const isJpyQuote = sym.endsWith("JPY");
+      const pnlRaw = (current - entry) * volume * contract * dir;
+      const pnl = isJpyQuote ? pnlRaw / current : pnlRaw;
+      // P&L % is the price-move percentage (volume cancels). Previously
+      // divided by (entry * volume) which inflated the % for low-volume
+      // positions. Capped to 2 decimals.
+      const pnlPct = ((current - entry) / entry) * 100 * dir;
       out.push({
         id: `pos-${n}`,
         tenantId: a.tenantId,
         accountId: a.id,
         traderId: a.traderId,
         symbol: sym,
-        side: n % 2 === 0 ? "buy" : "sell",
+        side,
         volume,
         entryPrice: Math.round(entry * 100) / 100,
         currentPrice: current,
         pnl: Math.round(pnl),
-        pnlPct: Math.round((pnl / (entry * volume)) * 10000) / 100,
+        pnlPct: Math.round(pnlPct * 100) / 100,
         swap: Math.round(Math.sin(n) * 5),
         openedAt: hoursAgo(n % 48),
       });

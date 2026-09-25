@@ -776,7 +776,7 @@ export function SupportSlaPage() {
               data={BREACHED_TICKETS}
               rowKey={(t) => t.id}
               pageSize={8}
-              onRowClick={(t) => navigate("support-tickets", { breached: t.id })}
+              onRowClick={() => navigate("support-tickets")}
               searchPlaceholder="Search breached tickets…"
               searchableText={(t) => `${t.id} ${t.subject} ${t.assignee}`}
               emptyTitle="No breached tickets"

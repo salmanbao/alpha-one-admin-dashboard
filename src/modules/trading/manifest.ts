@@ -25,7 +25,6 @@ const navigation: NavigationItem[] = [
   {
     id: "trading",
     label: "Trading",
-    termKey: "trading",
     icon: CandlestickChart,
     order: 10,
     children: [

@@ -1,0 +1,1056 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Account Configuration Page — comprehensive account admin form with 5
+     5→ * collapsible sections, account-health widget, KPI roll-up, and
+     6→ * destructive Block/Reset actions guarded by AlertDialog (UX §24, §25).
+     7→ *
+     8→ * Sections (progressive disclosure §12):
+     9→ *  1. Account Configuration          (starts expanded)
+    10→ *  2. Balance & Drawdown Metrics     (starts expanded, read-only)
+    11→ *  3. Broker Details                 (starts collapsed)
+    12→ *  4. Account Status Details         (starts collapsed)
+    13→ *  5. Extra Settings                 (starts collapsed)
+    14→ *
+    15→ * Uses deterministic derivation from the trading account so the demo is
+    16→ * stable across reloads — no Math.random anywhere.
+    17→ */
+    18→
+    19→import { useMemo, useState } from "react";
+    20→import { usePlatform } from "@/lib/platform/platform-context";
+    21→import { getTenantAccounts, type TradingAccount } from "@/lib/platform/mock-data";
+    22→import {
+    23→  Page,
+    24→  PageHeader,
+    25→  PageContent,
+    26→  MetricCard,
+    27→  EntityHeader,
+    28→} from "@/components/platform/page";
+    29→import { StatusBadge, formatCurrency } from "@/components/platform/status";
+    30→import { ExplainableStateBadge } from "@/components/platform/state-explanations";
+    31→import { AccountHealthWidget } from "@/components/platform/account-health";
+    32→import { LabelWithHelp, ContextualHelp } from "@/components/platform/contextual-help";
+    33→import { Button } from "@/components/ui/button";
+    34→import { Input } from "@/components/ui/input";
+    35→import { Textarea } from "@/components/ui/textarea";
+    36→import { Label } from "@/components/ui/label";
+    37→import { Switch } from "@/components/ui/switch";
+    38→import { Badge } from "@/components/ui/badge";
+    39→import { Separator } from "@/components/ui/separator";
+    40→import { Checkbox } from "@/components/ui/checkbox";
+    41→import {
+    42→  Collapsible,
+    43→  CollapsibleTrigger,
+    44→  CollapsibleContent,
+    45→} from "@/components/ui/collapsible";
+    46→import {
+    47→  AlertDialog,
+    48→  AlertDialogAction,
+    49→  AlertDialogCancel,
+    50→  AlertDialogContent,
+    51→  AlertDialogDescription,
+    52→  AlertDialogFooter,
+    53→  AlertDialogHeader,
+    54→  AlertDialogTitle,
+    55→  AlertDialogTrigger,
+    56→} from "@/components/ui/alert-dialog";
+    57→import { toast } from "@/hooks/use-toast";
+    58→import { cn } from "@/lib/utils";
+    59→import {
+    60→  ArrowLeft,
+    61→  Save,
+    62→  Ban,
+    63→  RotateCcw,
+    64→  Link2,
+    65→  RefreshCw,
+    66→  Send,
+    67→  ChevronDown,
+    68→  Settings2,
+    69→  Wallet,
+    70→  TrendingUp,
+    71→  TrendingDown,
+    72→  Percent,
+    73→  CalendarClock,
+    74→  ShieldCheck,
+    75→  AlertTriangle,
+    76→  Server,
+    77→  Lock,
+    78→  CircleDollarSign,
+    79→} from "lucide-react";
+    80→
+    81→/* ------------------------------------------------------------------ */
+    82→/* Constants                                                          */
+    83→/* ------------------------------------------------------------------ */
+    84→
+    85→const PAYOUT_FREQUENCIES = ["Weekly", "Bi-Weekly", "Monthly", "Quarterly"] as const;
+    86→const ACCOUNT_LABELS = ["Paid", "Giveaway", "Third Party", "Standard"] as const;
+    87→const BROKER_TYPES = ["MetaTrader5", "MetaTrader4", "DXTrade", "MatchTrader"] as const;
+    88→const STATUS_REASONS = [
+    89→  "None",
+    90→  "Manual Review",
+    91→  "Policy Violation",
+    92→  "Risk Concern",
+    93→  "Documentation Issue",
+    94→  "Payment Failed",
+    95→] as const;
+    96→
+    97→const SOURCE_OPTIONS = ["Webhook", "Manual"] as const;
+    98→
+    99→/* ------------------------------------------------------------------ */
+   100→/* Derive deterministic account config                                */
+   101→/* ------------------------------------------------------------------ */
+   102→
+   103→interface AccountConfig {
+   104→  userEmail: string;
+   105→  phase: string;
+   106→  startDate: string;
+   107→  endDate: string; // "" → no end date
+   108→  profitSplit: number;
+   109→  payoutFrequency: string;
+   110→  firstWithdrawalDelay: string;
+   111→  order: string;
+   112→  nextWithdrawalDate: string;
+   113→  source: string;
+   114→  accountLabel: string;
+   115→
+   116→  initialBalance: number;
+   117→  liveBalance: number;
+   118→  liveEquity: number;
+   119→  profitLoss: number;
+   120→  dailyStartingBalance: number;
+   121→  dailyDrawdownAmount: number;
+   122→  dailyDrawdownPct: number;
+   123→  profitTargetAmount: number;
+   124→  globalDrawdownAmount: number;
+   125→  globalDrawdownPct: number;
+   126→  dailyDrawdownExpiry: string;
+   127→  drawdownLocked: boolean;
+   128→
+   129→  login: string;
+   130→  brokerType: string;
+   131→  mtTradingAccount: string;
+   132→  matchTraderTradingAccount: string;
+   133→
+   134→  status: string;
+   135→  statusReason: string;
+   136→  statusFinalisedAt: string;
+   137→  customStatusReason: string;
+   138→  copyTradingDetected: boolean;
+   139→  failedReviewReason: string;
+   140→
+   141→  hideAccount: boolean;
+   142→  publicTrackRecord: boolean;
+   143→  publicBalance: boolean;
+   144→  publicTradeHistory: boolean;
+   145→  publicLots: boolean;
+   146→}
+   147→
+   148→function hashStr(s: string): number {
+   149→  let h = 0;
+   150→  for (let i = 0; i < s.length; i++) {
+   151→    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+   152→  }
+   153→  return h;
+   154→}
+   155→
+   156→function toLocalInputValue(iso: string): string {
+   157→  if (!iso) return "";
+   158→  // datetime-local expects YYYY-MM-DDTHH:mm
+   159→  return iso.slice(0, 16);
+   160→}
+   161→
+   162→function deriveAccountConfig(account: TradingAccount): AccountConfig {
+   163→  const seed = hashStr(account.id) || 1;
+   164→  const userEmail = `${account.traderName.toLowerCase().replace(/\s+/g, ".")}@example.com`;
+   165→  const phase = account.phase === "phase-1" ? "Phase 1" : account.phase === "phase-2" ? "Phase 2" : "Funded";
+   166→
+   167→  const startDaysAgo = (seed % 60) + 5;
+   168→  const startDateIso = new Date(Date.now() - startDaysAgo * 24 * 60 * 60 * 1000).toISOString();
+   169→  // 60% of accounts have end date, 40% leave empty
+   170→  const hasEnd = seed % 5 !== 0;
+   171→  const endDays = (seed % 30) + 30;
+   172→  const endDateIso = hasEnd
+   173→    ? new Date(Date.now() + endDays * 24 * 60 * 60 * 1000).toISOString()
+   174→    : "";
+   175→
+   176→  const profitSplit = 60 + (seed % 21); // 60..80
+   177→  const payoutFrequency = PAYOUT_FREQUENCIES[seed % PAYOUT_FREQUENCIES.length];
+   178→  const firstWithdrawalDelay = `${7 + (seed % 21)} days`;
+   179→  // Order id pattern
+   180→  const orderNum = 10000 + (seed % 9999);
+   181→  const order = `ORD-${orderNum}`;
+   182→  const nextWithdrawalDateIso = new Date(Date.now() + (seed % 14 + 3) * 24 * 60 * 60 * 1000).toISOString();
+   183→  const source = SOURCE_OPTIONS[seed % SOURCE_OPTIONS.length];
+   184→  const accountLabel = ACCOUNT_LABELS[seed % ACCOUNT_LABELS.length];
+   185→
+   186→  // Balance & drawdown
+   187→  const initialBalance = account.balance;
+   188→  const liveBalance = account.balance + Math.round((account.equity - account.balance));
+   189→  const liveEquity = account.equity;
+   190→  const profitLoss = liveEquity - initialBalance;
+   191→  const dailyStartingBalance = initialBalance + Math.round(profitLoss * 0.4);
+   192→  const dailyDrawdownAmount = Math.round(initialBalance * 0.03 + (seed % 200));
+   193→  const dailyDrawdownPct = Math.round((dailyDrawdownAmount / initialBalance) * 1000) / 10;
+   194→  const profitTargetAmount = Math.round(initialBalance * (0.08 + (seed % 5) * 0.005));
+   195→  const globalDrawdownAmount = Math.round(initialBalance * 0.05 + (seed % 350));
+   196→  const globalDrawdownPct = Math.round((globalDrawdownAmount / initialBalance) * 1000) / 10;
+   197→  const expiryMs = Date.now() - ((seed % 8) + 1) * 60 * 60 * 1000;
+   198→  const dailyDrawdownExpiry = new Date(expiryMs).toISOString();
+   199→  const drawdownLocked = seed % 7 === 0;
+   200→
+   201→  // Broker details
+   202→  const login = account.login;
+   203→  const brokerType = BROKER_TYPES[seed % BROKER_TYPES.length];
+   204→  const mtTradingAccount = `${account.login}@mt5-acmebroker`;
+   205→  const matchTraderTradingAccount = `mt_${account.login}@matchtrader`;
+   206→
+   207→  // Account status details
+   208→  const status = account.status;
+   209→  const statusReason = STATUS_REASONS[seed % STATUS_REASONS.length];
+   210→  const finalisedMs = Date.now() - ((seed % 24) + 1) * 60 * 60 * 1000;
+   211→  const statusFinalisedAt = new Date(finalisedMs).toISOString();
+   212→  const customStatusReason = seed % 3 === 0 ? "Trader requested manual review during KYC." : "";
+   213→  const copyTradingDetected = seed % 11 === 0;
+   214→  const failedReviewReason = seed % 9 === 0 ? "Risk team flagged for inverse-trading pattern with account 530012." : "";
+   215→
+   216→  // Extra settings
+   217→  const hideAccount = seed % 5 === 0;
+   218→  const publicTrackRecord = seed % 3 !== 0;
+   219→  const publicBalance = seed % 4 !== 0;
+   220→  const publicTradeHistory = seed % 6 !== 0;
+   221→  const publicLots = seed % 7 !== 0;
+   222→
+   223→  return {
+   224→    userEmail,
+   225→    phase,
+   226→    startDate: startDateIso,
+   227→    endDate: endDateIso,
+   228→    profitSplit,
+   229→    payoutFrequency,
+   230→    firstWithdrawalDelay,
+   231→    order,
+   232→    nextWithdrawalDate: nextWithdrawalDateIso,
+   233→    source,
+   234→    accountLabel,
+   235→    initialBalance,
+   236→    liveBalance,
+   237→    liveEquity,
+   238→    profitLoss,
+   239→    dailyStartingBalance,
+   240→    dailyDrawdownAmount,
+   241→    dailyDrawdownPct,
+   242→    profitTargetAmount,
+   243→    globalDrawdownAmount,
+   244→    globalDrawdownPct,
+   245→    dailyDrawdownExpiry,
+   246→    drawdownLocked,
+   247→    login,
+   248→    brokerType,
+   249→    mtTradingAccount,
+   250→    matchTraderTradingAccount,
+   251→    status,
+   252→    statusReason,
+   253→    statusFinalisedAt,
+   254→    customStatusReason,
+   255→    copyTradingDetected,
+   256→    failedReviewReason,
+   257→    hideAccount,
+   258→    publicTrackRecord,
+   259→    publicBalance,
+   260→    publicTradeHistory,
+   261→    publicLots,
+   262→  };
+   263→}
+   264→
+   265→/* ------------------------------------------------------------------ */
+   266→/* Section helper                                                     */
+   267→/* ------------------------------------------------------------------ */
+   268→
+   269→function SectionCard({
+   270→  title,
+   271→  description,
+   272→  icon: Icon,
+   273→  defaultOpen = false,
+   274→  children,
+   275→}: {
+   276→  title: string;
+   277→  description?: string;
+   278→  icon: React.ComponentType<{ className?: string }>;
+   279→  defaultOpen?: boolean;
+   280→  children: React.ReactNode;
+   281→}) {
+   282→  const [open, setOpen] = useState(defaultOpen);
+   283→  return (
+   284→    <Collapsible
+   285→      open={open}
+   286→      onOpenChange={setOpen}
+   287→      className="rounded-lg border bg-card"
+   288→    >
+   289→      <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 p-4 text-left hover:bg-muted/30">
+   290→        <div className="flex items-center gap-2">
+   291→          <Icon className="h-4 w-4 text-muted-foreground" />
+   292→          <div>
+   293→            <p className="text-sm font-medium text-foreground">{title}</p>
+   294→            {description ? (
+   295→              <p className="text-xs text-muted-foreground">{description}</p>
+   296→            ) : null}
+   297→          </div>
+   298→        </div>
+   299→        <ChevronDown
+   300→          className={cn(
+   301→            "h-4 w-4 text-muted-foreground transition-transform",
+   302→            open && "rotate-180",
+   303→          )}
+   304→        />
+   305→      </CollapsibleTrigger>
+   306→      <CollapsibleContent>
+   307→        <Separator />
+   308→        <div className="p-4">{children}</div>
+   309→      </CollapsibleContent>
+   310→    </Collapsible>
+   311→  );
+   312→}
+   313→
+   314→function Field({
+   315→  label,
+   316→  children,
+   317→  hint,
+   318→}: {
+   319→  label: React.ReactNode;
+   320→  children: React.ReactNode;
+   321→  hint?: string;
+   322→}) {
+   323→  return (
+   324→    <div className="flex flex-col gap-1.5">
+   325→      <Label className="text-xs font-medium text-muted-foreground">
+   326→        {label}
+   327→        {hint ? <ContextualHelp label={typeof label === "string" ? label : "Info"}>{hint}</ContextualHelp> : null}
+   328→      </Label>
+   329→      {children}
+   330→    </div>
+   331→  );
+   332→}
+   333→
+   334→function ReadonlyField({
+   335→  label,
+   336→  value,
+   337→  mono,
+   338→}: {
+   339→  label: React.ReactNode;
+   340→  value: string;
+   341→  mono?: boolean;
+   342→}) {
+   343→  return (
+   344→    <div className="flex flex-col gap-1.5">
+   345→      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+   346→      <div
+   347→        className={cn(
+   348→          "flex h-9 items-center rounded-md border border-input bg-muted/30 px-3 text-sm",
+   349→          mono && "font-mono text-xs",
+   350→        )}
+   351→      >
+   352→        {value}
+   353→      </div>
+   354→    </div>
+   355→  );
+   356→}
+   357→
+   358→/* ------------------------------------------------------------------ */
+   359→/* Page                                                                */
+   360→/* ------------------------------------------------------------------ */
+   361→
+   362→export function AccountConfigurationPage() {
+   363→  const { runtime, router, navigate } = usePlatform();
+   364→  const tid = runtime.tenant?.id ?? "platform";
+   365→  const accountId = router.params.id;
+   366→  const currency = runtime.tenant?.currency ?? "USD";
+   367→
+   368→  const account = useMemo(
+   369→    () => getTenantAccounts(tid).find((a) => a.id === accountId),
+   370→    [tid, accountId],
+   371→  );
+   372→
+   373→  const derived = useMemo(
+   374→    () => (account ? deriveAccountConfig(account) : null),
+   375→    [account],
+   376→  );
+   377→
+   378→  // Order dropdown options (mock with deterministic IDs)
+   379→  const orderOptions = useMemo(() => {
+   380→    if (!account) return [];
+   381→    const seedBase = hashStr(account.id);
+   382→    return Array.from({ length: 6 }, (_, i) => {
+   383→      const num = 10000 + ((seedBase + i * 137) % 9999);
+   384→      return `ORD-${num}`;
+   385→    });
+   386→  }, [account]);
+   387→
+   388→  // Local editable draft state — mirrors derived on first paint
+   389→  const [draft, setDraft] = useState<AccountConfig | null>(null);
+   390→  const draftReady = draft ?? derived;
+   391→  const update = <K extends keyof AccountConfig>(key: K, value: AccountConfig[K]) =>
+   392→    setDraft((d) => ({ ...(d ?? derived!), [key]: value }));
+   393→
+   394→  if (!account || !derived || !draftReady) {
+   395→    return (
+   396→      <Page>
+   397→        <Button variant="ghost" size="sm" onClick={() => navigate("trading-accounts")} className="w-fit">
+   398→          <ArrowLeft className="mr-1 h-4 w-4" /> Back
+   399→        </Button>
+   400→        <p className="text-muted-foreground">Account not found.</p>
+   401→      </Page>
+   402→    );
+   403→  }
+   404→
+   405→  // Days remaining computation
+   406→  const daysRemaining = derived.endDate
+   407→    ? Math.max(0, Math.ceil((new Date(derived.endDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+   408→    : Infinity;
+   409→
+   410→  const drawdownPct = derived.globalDrawdownPct;
+   411→
+   412→  // Toast handlers
+   413→  const handleSave = () =>
+   414→    toast({
+   415→      title: "Account configuration saved",
+   416→      description: `Login ${account.login} configuration committed.`,
+   417→    });
+   418→  const handleSaveContinue = () =>
+   419→    toast({
+   420→      title: "Saved — keep editing",
+   421→      description: "Changes saved; staying on this screen.",
+   422→    });
+   423→  const handleSync = () =>
+   424→    toast({
+   425→      title: "Syncing with broker platform",
+   426→      description: "Pulling live balance, equity and positions from the bridge.",
+   427→    });
+   428→  const handleResend = () =>
+   429→    toast({
+   430→      title: "Credentials resent to trader",
+   431→      description: `Login link + temp password sent to ${derived.userEmail}.`,
+   432→    });
+   433→  const handleReset = () =>
+   434→    toast({
+   435→      title: "Account reset to initial state",
+   436→      description: "All progress lost. Balance restored to initial capital.",
+   437→      variant: "destructive",
+   438→    });
+   439→  const handleBlock = () =>
+   440→    toast({
+   441→      title: "Account blocked",
+   442→      description: `Login ${account.login} can no longer trade. Logged in audit trail.`,
+   443→      variant: "destructive",
+   444→    });
+   445→
+   446→  return (
+   447→    <Page>
+   448→      <Button
+   449→        variant="ghost"
+   450→        size="sm"
+   451→        className="w-fit"
+   452→        onClick={() => navigate("trader-detail", { id: account.traderId })}
+   453→      >
+   454→        <ArrowLeft className="mr-1 h-4 w-4" /> Back to Account
+   455→      </Button>
+   456→
+   457→      <PageHeader
+   458→        title="Account Configuration"
+   459→        description="Comprehensive configuration, balances, drawdown, broker details, status and extra settings."
+   460→        icon={Settings2}
+   461→      />
+   462→
+   463→      {/* Entity header — concise identity */}
+   464→      <EntityHeader
+   465→        title={`Login ${account.login}`}
+   466→        subtitle={`${account.traderName} · ${account.platform} · ${derived.phase}`}
+   467→        badges={
+   468→          <>
+   469→            <Badge variant="outline" className="text-[10px]">{account.type}</Badge>
+   470→            <ExplainableStateBadge status={account.status} entityType="account" />
+   471→            <StatusBadge
+   472→              tone={
+   473→                derived.source === "Webhook" ? "info" : "muted"
+   474→              }
+   475→            >
+   476→              {derived.source}
+   477→            </StatusBadge>
+   478→            <StatusBadge tone="default">{derived.accountLabel}</StatusBadge>
+   479→          </>
+   480→        }
+   481→      />
+   482→
+   483→      {/* KPI row */}
+   484→      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+   485→        <MetricCard
+   486→          label="Equity"
+   487→          value={formatCurrency(derived.liveEquity, currency)}
+   488→          icon={Wallet}
+   489→        />
+   490→        <MetricCard
+   491→          label="Balance"
+   492→          value={formatCurrency(derived.liveBalance, currency)}
+   493→          icon={CircleDollarSign}
+   494→        />
+   495→        <MetricCard
+   496→          label="P&L"
+   497→          value={`${derived.profitLoss >= 0 ? "+" : ""}${formatCurrency(derived.profitLoss, currency)}`}
+   498→          tone={derived.profitLoss >= 0 ? "positive" : "negative"}
+   499→          icon={derived.profitLoss >= 0 ? TrendingUp : TrendingDown}
+   500→        />
+   501→        <MetricCard
+   502→          label="Drawdown %"
+   503→          value={`${drawdownPct}%`}
+   504→          tone={drawdownPct >= 8 ? "negative" : drawdownPct >= 5 ? "warning" : "default"}
+   505→          icon={Percent}
+   506→        />
+   507→        <MetricCard
+   508→          label="Days Remaining"
+   509→          value={daysRemaining === Infinity ? "∞" : `${daysRemaining}`}
+   510→          deltaLabel={daysRemaining === Infinity ? "no limit" : "to end date"}
+   511→          icon={CalendarClock}
+   512→          tone={daysRemaining === Infinity ? "default" : daysRemaining <= 7 ? "negative" : daysRemaining <= 14 ? "warning" : "default"}
+   513→        />
+   514→      </div>
+   515→
+   516→      {/* Account Health widget */}
+   517→      <div className="rounded-lg border bg-card p-4">
+   518→        <AccountHealthWidget
+   519→          dailyLoss={{ current: derived.dailyDrawdownAmount, limit: Math.round(derived.initialBalance * 0.05) }}
+   520→          maxDrawdown={{ current: derived.globalDrawdownAmount, limit: Math.round(derived.initialBalance * 0.1) }}
+   521→          profitTarget={{ current: Math.max(0, derived.profitLoss), limit: derived.profitTargetAmount }}
+   522→          accountBalance={derived.liveBalance}
+   523→        />
+   524→      </div>
+   525→
+   526→      <PageContent className="gap-4">
+   527→        {/* Section 1 — Account Configuration */}
+   528→        <SectionCard
+   529→          title="Account Configuration"
+   530→          description="Core account parameters — trading window, profit split, payout schedule, source."
+   531→          icon={Settings2}
+   532→          defaultOpen={true}
+   533→        >
+   534→          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   535→            {/* User email (read-only, link icon) */}
+   536→            <ReadonlyField
+   537→              label={
+   538→                <LabelWithHelp help="Trader's email on file. To change it, edit the trader record, not the account.">
+   539→                  User email
+   540→                </LabelWithHelp>
+   541→              }
+   542→              value={derived.userEmail}
+   543→            />
+   544→            {/* Phase */}
+   545→            <ReadonlyField label="Phase" value={derived.phase} />
+   546→            {/* Start date */}
+   547→            <Field
+   548→              label={
+   549→                <LabelWithHelp help="When the account became active. Reset to re-open trading windows.">
+   550→                  Start date
+   551→                </LabelWithHelp>
+   552→              }
+   553→            >
+   554→              <Input
+   555→                type="datetime-local"
+   556→                value={toLocalInputValue(draftReady.startDate)}
+   557→                onChange={(e) =>
+   558→                  update("startDate", new Date(e.target.value).toISOString())
+   559→                }
+   560→                className="h-9 text-xs"
+   561→              />
+   562→            </Field>
+   563→            {/* End date */}
+   564→            <Field
+   565→              label={
+   566→                <LabelWithHelp help="Account expiry. Leave empty for accounts without time limits (e.g. Funded accounts).">
+   567→                  End date
+   568→                </LabelWithHelp>
+   569→              }
+   570→            >
+   571→              <Input
+   572→                type="datetime-local"
+   573→                value={toLocalInputValue(draftReady.endDate)}
+   574→                onChange={(e) =>
+   575→                  update("endDate", e.target.value ? new Date(e.target.value).toISOString() : "")
+   576→                }
+   577→                className="h-9 text-xs"
+   578→              />
+   579→              <p className="text-[10px] text-amber-600 dark:text-amber-400">
+   580→                Leave empty for accounts without time limits.
+   581→              </p>
+   582→            </Field>
+   583→            {/* Profit split */}
+   584→            <Field
+   585→              label={
+   586→                <LabelWithHelp help="Trader's share of profits. The remainder goes to the prop firm. Range 0-100.">
+   587→                  Profit split (%)
+   588→                </LabelWithHelp>
+   589→              }
+   590→            >
+   591→              <Input
+   592→                type="number"
+   593→                min={0}
+   594→                max={100}
+   595→                value={draftReady.profitSplit}
+   596→                onChange={(e) => update("profitSplit", Number(e.target.value))}
+   597→                className="h-9 text-xs"
+   598→              />
+   599→            </Field>
+   600→            {/* Payout frequency */}
+   601→            <Field label="Payout frequency">
+   602→              <select
+   603→                value={draftReady.payoutFrequency}
+   604→                onChange={(e) => update("payoutFrequency", e.target.value)}
+   605→                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+   606→              >
+   607→                {PAYOUT_FREQUENCIES.map((f) => (
+   608→                  <option key={f} value={f}>{f}</option>
+   609→                ))}
+   610→              </select>
+   611→            </Field>
+   612→            {/* First withdrawal delay */}
+   613→            <Field
+   614→              label={
+   615→                <LabelWithHelp help="Delay before the first withdrawal can be requested. Expressed as a duration like '14 days'.">
+   616→                  First withdrawal delay
+   617→                </LabelWithHelp>
+   618→              }
+   619→            >
+   620→              <Input
+   621→                value={draftReady.firstWithdrawalDelay}
+   622→                onChange={(e) => update("firstWithdrawalDelay", e.target.value)}
+   623→                className="h-9 text-xs"
+   624→              />
+   625→            </Field>
+   626→            {/* Order (searchable dropdown — mock) */}
+   627→            <Field
+   628→              label={
+   629→                <LabelWithHelp help="The order that triggered the account creation. Linked back to billing.">
+   630→                  Order
+   631→                </LabelWithHelp>
+   632→              }
+   633→            >
+   634→              <select
+   635→                value={draftReady.order}
+   636→                onChange={(e) => update("order", e.target.value)}
+   637→                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+   638→              >
+   639→                {orderOptions.map((o) => (
+   640→                  <option key={o} value={o}>{o}</option>
+   641→                ))}
+   642→              </select>
+   643→            </Field>
+   644→            {/* Next withdrawal date */}
+   645→            <Field
+   646→              label={
+   647→                <LabelWithHelp help="Date the next payout will be eligible to process.">
+   648→                  Next withdrawal date
+   649→                </LabelWithHelp>
+   650→              }
+   651→            >
+   652→              <Input
+   653→                type="datetime-local"
+   654→                value={toLocalInputValue(draftReady.nextWithdrawalDate)}
+   655→                onChange={(e) =>
+   656→                  update("nextWithdrawalDate", new Date(e.target.value).toISOString())
+   657→                }
+   658→                className="h-9 text-xs"
+   659→              />
+   660→            </Field>
+   661→            {/* Source */}
+   662→            <ReadonlyField label="Source" value={derived.source} />
+   663→            {/* Account label */}
+   664→            <Field label="Account label">
+   665→              <select
+   666→                value={draftReady.accountLabel}
+   667→                onChange={(e) => update("accountLabel", e.target.value)}
+   668→                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+   669→              >
+   670→                {ACCOUNT_LABELS.map((l) => (
+   671→                  <option key={l} value={l}>{l}</option>
+   672→                ))}
+   673→              </select>
+   674→            </Field>
+   675→          </div>
+   676→          {/* Email link row */}
+   677→          <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+   678→            <Link2 className="h-3 w-3" />
+   679→            <span>
+   680→              Email is linked to the trader record —{" "}
+   681→              <button
+   682→                type="button"
+   683→                className="text-primary hover:underline"
+   684→                onClick={() => navigate("trader-detail", { id: account.traderId })}
+   685→              >
+   686→                open trader profile
+   687→              </button>
+   688→              .
+   689→            </span>
+   690→          </div>
+   691→        </SectionCard>
+   692→
+   693→        {/* Section 2 — Balance & Drawdown Metrics */}
+   694→        <SectionCard
+   695→          title="Balance & Drawdown Metrics"
+   696→          description="Live balance, equity, P&L and drawdown limits. Read-only — sourced from broker sync."
+   697→          icon={Wallet}
+   698→          defaultOpen={true}
+   699→        >
+   700→          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   701→            <ReadonlyField label="Initial balance" value={formatCurrency(derived.initialBalance, currency)} mono />
+   702→            <ReadonlyField label="Live account balance" value={formatCurrency(derived.liveBalance, currency)} mono />
+   703→            <ReadonlyField label="Live account equity" value={formatCurrency(derived.liveEquity, currency)} mono />
+   704→            <Field label="Profit / loss">
+   705→              <div
+   706→                className={cn(
+   707→                  "flex h-9 items-center rounded-md border border-input bg-muted/30 px-3 text-sm font-medium tabular-nums",
+   708→                  derived.profitLoss >= 0
+   709→                    ? "text-emerald-600 dark:text-emerald-400"
+   710→                    : "text-rose-600 dark:text-rose-400",
+   711→                )}
+   712→              >
+   713→                {derived.profitLoss >= 0 ? "+" : ""}
+   714→                {formatCurrency(derived.profitLoss, currency)}
+   715→              </div>
+   716→            </Field>
+   717→            <ReadonlyField label="Daily starting balance" value={formatCurrency(derived.dailyStartingBalance, currency)} mono />
+   718→            <Field label="Daily drawdown amount">
+   719→              <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-muted/30 px-3 text-sm tabular-nums">
+   720→                <span>{formatCurrency(derived.dailyDrawdownAmount, currency)}</span>
+   721→                <Badge variant="outline" className="text-[10px] border-rose-500/40 text-rose-700 dark:text-rose-400">
+   722→                  {derived.dailyDrawdownPct}%
+   723→                </Badge>
+   724→              </div>
+   725→            </Field>
+   726→            <ReadonlyField label="Profit target amount" value={formatCurrency(derived.profitTargetAmount, currency)} mono />
+   727→            <Field label="Global drawdown amount">
+   728→              <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-muted/30 px-3 text-sm tabular-nums">
+   729→                <span>{formatCurrency(derived.globalDrawdownAmount, currency)}</span>
+   730→                <Badge variant="outline" className="text-[10px] border-rose-500/40 text-rose-700 dark:text-rose-400">
+   731→                  {derived.globalDrawdownPct}%
+   732→                </Badge>
+   733→              </div>
+   734→            </Field>
+   735→            <ReadonlyField
+   736→              label={
+   737→                <LabelWithHelp help="Timestamp when the daily drawdown window resets.">
+   738→                  Daily drawdown expiry
+   739→                </LabelWithHelp>
+   740→              }
+   741→              value={new Date(derived.dailyDrawdownExpiry).toLocaleString()}
+   742→            />
+   743→            {/* Drawdown locked */}
+   744→            <Field
+   745→              label={
+   746→                <LabelWithHelp help="When locked, the daily drawdown calculation is frozen and will not reset at midnight server time.">
+   747→                  Drawdown locked
+   748→                </LabelWithHelp>
+   749→              }
+   750→            >
+   751→              <div className="flex h-9 items-center gap-2">
+   752→                <Switch
+   753→                  checked={draftReady.drawdownLocked}
+   754→                  onCheckedChange={(v) => update("drawdownLocked", v)}
+   755→                  className={cn(
+   756→                    draftReady.drawdownLocked &&
+   757→                      "data-[state=checked]:bg-rose-500 data-[state=unchecked]:bg-input",
+   758→                  )}
+   759→                />
+   760→                {draftReady.drawdownLocked ? (
+   761→                  <Badge variant="outline" className="text-[10px] border-rose-500/40 text-rose-700 dark:text-rose-400">
+   762→                    <Lock className="mr-1 h-3 w-3" /> Locked
+   763→                  </Badge>
+   764→                ) : (
+   765→                  <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-700 dark:text-emerald-400">
+   766→                    Unlocked
+   767→                  </Badge>
+   768→                )}
+   769→              </div>
+   770→              <p className="text-[10px] text-muted-foreground">
+   771→                When locked, the daily drawdown calculation is frozen and will not reset.
+   772→              </p>
+   773→            </Field>
+   774→          </div>
+   775→        </SectionCard>
+   776→
+   777→        {/* Section 3 — Broker Details */}
+   778→        <SectionCard
+   779→          title="Broker Details"
+   780→          description="Login credentials, broker type and linked trading accounts."
+   781→          icon={Server}
+   782→          defaultOpen={false}
+   783→        >
+   784→          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   785→            <ReadonlyField label="Login" value={derived.login} mono />
+   786→            <Field label="Broker type">
+   787→              <select
+   788→                value={draftReady.brokerType}
+   789→                onChange={(e) => update("brokerType", e.target.value)}
+   790→                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+   791→              >
+   792→                {BROKER_TYPES.map((b) => (
+   793→                  <option key={b} value={b}>{b}</option>
+   794→                ))}
+   795→              </select>
+   796→            </Field>
+   797→            <Field
+   798→              label={
+   799→                <LabelWithHelp help="The MetaTrader trading account reference linked to this account.">
+   800→                  MetaTrader trading account
+   801→                </LabelWithHelp>
+   802→              }
+   803→            >
+   804→              <Input
+   805→                value={draftReady.mtTradingAccount}
+   806→                onChange={(e) => update("mtTradingAccount", e.target.value)}
+   807→                className="h-9 text-xs font-mono"
+   808→              />
+   809→            </Field>
+   810→            <Field
+   811→              label={
+   812→                <LabelWithHelp help="The MatchTrader trading account reference linked to this account.">
+   813→                  Match trader trading account
+   814→                </LabelWithHelp>
+   815→              }
+   816→            >
+   817→              <Input
+   818→                value={draftReady.matchTraderTradingAccount}
+   819→                onChange={(e) => update("matchTraderTradingAccount", e.target.value)}
+   820→                className="h-9 text-xs font-mono"
+   821→              />
+   822→            </Field>
+   823→          </div>
+   824→          <div className="mt-4 flex flex-wrap gap-2 border-t pt-3">
+   825→            <Button size="sm" variant="outline" onClick={handleSync} className="gap-1.5">
+   826→              <RefreshCw className="h-3.5 w-3.5" /> Sync Account
+   827→            </Button>
+   828→            <Button size="sm" variant="outline" onClick={handleResend} className="gap-1.5">
+   829→              <Send className="h-3.5 w-3.5" /> Resend Credentials
+   830→            </Button>
+   831→          </div>
+   832→        </SectionCard>
+   833→
+   834→        {/* Section 4 — Account Status Details */}
+   835→        <SectionCard
+   836→          title="Account Status Details"
+   837→          description="Status, reason, finalised timestamp and reviewer notes."
+   838→          icon={ShieldCheck}
+   839→          defaultOpen={false}
+   840→        >
+   841→          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   842→            <Field label="Status">
+   843→              <div className="flex h-9 items-center">
+   844→                <ExplainableStateBadge status={derived.status} entityType="account" />
+   845→              </div>
+   846→            </Field>
+   847→            <Field label="Status reason">
+   848→              <select
+   849→                value={draftReady.statusReason}
+   850→                onChange={(e) => update("statusReason", e.target.value)}
+   851→                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+   852→              >
+   853→                {STATUS_REASONS.map((r) => (
+   854→                  <option key={r} value={r}>{r}</option>
+   855→                ))}
+   856→              </select>
+   857→            </Field>
+   858→            <Field
+   859→              label={
+   860→                <LabelWithHelp help="Backdate status changes if needed. Audit trail will show actual vs finalised timestamp.">
+   861→                  Status finalised timestamp
+   862→                </LabelWithHelp>
+   863→              }
+   864→            >
+   865→              <Input
+   866→                type="datetime-local"
+   867→                value={toLocalInputValue(draftReady.statusFinalisedAt)}
+   868→                onChange={(e) =>
+   869→                  update("statusFinalisedAt", new Date(e.target.value).toISOString())
+   870→                }
+   871→                className="h-9 text-xs"
+   872→              />
+   873→              <p className="text-[10px] text-muted-foreground">Backdate status changes if needed.</p>
+   874→            </Field>
+   875→            <Field
+   876→              label={
+   877→                <LabelWithHelp help="Free-form reason recorded against the status. Visible to other admins.">
+   878→                  Custom status reason
+   879→                </LabelWithHelp>
+   880→              }
+   881→            >
+   882→              <Textarea
+   883→                rows={2}
+   884→                value={draftReady.customStatusReason}
+   885→                onChange={(e) => update("customStatusReason", e.target.value)}
+   886→                className="text-xs"
+   887→                placeholder="Add notes for the audit trail…"
+   888→              />
+   889→            </Field>
+   890→            <Field
+   891→              label={
+   892→                <LabelWithHelp help="Toggle on when copy-trading patterns have been detected by the risk engine. Triggers a manual review.">
+   893→                  Copy trading detected
+   894→                </LabelWithHelp>
+   895→              }
+   896→            >
+   897→              <div className="flex h-9 items-center gap-2">
+   898→                <Switch
+   899→                  checked={draftReady.copyTradingDetected}
+   900→                  onCheckedChange={(v) => update("copyTradingDetected", v)}
+   901→                  className={cn(
+   902→                    draftReady.copyTradingDetected &&
+   903→                      "data-[state=checked]:bg-amber-500 data-[state=unchecked]:bg-input",
+   904→                  )}
+   905→                />
+   906→                {draftReady.copyTradingDetected ? (
+   907→                  <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-400">
+   908→                    <AlertTriangle className="mr-1 h-3 w-3" /> Flagged
+   909→                  </Badge>
+   910→                ) : (
+   911→                  <Badge variant="outline" className="text-[10px]">Not flagged</Badge>
+   912→                )}
+   913→              </div>
+   914→              <p className="text-[10px] text-muted-foreground">
+   915→                Flag this account if copy trading patterns have been detected.
+   916→              </p>
+   917→            </Field>
+   918→            <Field
+   919→              label={
+   920→                <LabelWithHelp help="Reason captured when the risk team fails the account during manual review.">
+   921→                  Failed review reason
+   922→                </LabelWithHelp>
+   923→              }
+   924→            >
+   925→              <Textarea
+   926→                rows={2}
+   927→                value={draftReady.failedReviewReason}
+   928→                onChange={(e) => update("failedReviewReason", e.target.value)}
+   929→                className="text-xs"
+   930→                placeholder="Describe the failure reason…"
+   931→              />
+   932→            </Field>
+   933→          </div>
+   934→        </SectionCard>
+   935→
+   936→        {/* Section 5 — Extra Settings */}
+   937→        <SectionCard
+   938→          title="Extra Settings"
+   939→          description="Account flags controlling public visibility."
+   940→          icon={Lock}
+   941→          defaultOpen={false}
+   942→        >
+   943→          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+   944→            <FlagRow
+   945→              checked={draftReady.hideAccount}
+   946→              onCheckedChange={(v) => update("hideAccount", v)}
+   947→              label="HIDE_ACCOUNT"
+   948→              description="Hide this account from public leaderboards"
+   949→            />
+   950→            <FlagRow
+   951→              checked={draftReady.publicTrackRecord}
+   952→              onCheckedChange={(v) => update("publicTrackRecord", v)}
+   953→              label="PUBLIC_TRACK_RECORD"
+   954→              description="Allow public viewing of track record"
+   955→            />
+   956→            <FlagRow
+   957→              checked={draftReady.publicBalance}
+   958→              onCheckedChange={(v) => update("publicBalance", v)}
+   959→              label="PUBLIC_BALANCE"
+   960→              description="Allow public viewing of account balance"
+   961→            />
+   962→            <FlagRow
+   963→              checked={draftReady.publicTradeHistory}
+   964→              onCheckedChange={(v) => update("publicTradeHistory", v)}
+   965→              label="PUBLIC_TRADE_HISTORY"
+   966→              description="Allow public viewing of trade history"
+   967→            />
+   968→            <FlagRow
+   969→              checked={draftReady.publicLots}
+   970→              onCheckedChange={(v) => update("publicLots", v)}
+   971→              label="PUBLIC_LOTS"
+   972→              description="Allow public viewing of lot sizes"
+   973→            />
+   974→          </div>
+   975→        </SectionCard>
+   976→
+   977→        {/* Footer actions */}
+   978→        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card p-4">
+   979→          <div className="flex flex-wrap items-center gap-2">
+   980→            <Button size="sm" onClick={handleSave} className="gap-1.5">
+   981→              <Save className="h-3.5 w-3.5" /> Save Changes
+   982→            </Button>
+   983→            <Button size="sm" variant="outline" onClick={handleSaveContinue} className="gap-1.5">
+   984→              <Save className="h-3.5 w-3.5" /> Save and continue editing
+   985→            </Button>
+   986→          </div>
+   987→          <div className="flex flex-wrap items-center gap-2">
+   988→            <AlertDialog>
+   989→              <AlertDialogTrigger asChild>
+   990→                <Button size="sm" variant="destructive" className="gap-1.5">
+   991→                  <Ban className="h-3.5 w-3.5" /> Block Account
+   992→                </Button>
+   993→              </AlertDialogTrigger>
+   994→              <AlertDialogContent>
+   995→                <AlertDialogHeader>
+   996→                  <AlertDialogTitle>Block this account?</AlertDialogTitle>
+   997→                  <AlertDialogDescription>
+   998→                    The account will be immediately blocked. The trader will lose all
+   999→                    trading access. This action is logged in the audit trail.
+  1000→                  </AlertDialogDescription>
+  1001→                </AlertDialogHeader>
+  1002→                <AlertDialogFooter>
+  1003→                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+  1004→                  <AlertDialogAction
+  1005→                    className={cn("bg-destructive text-destructive-foreground hover:bg-destructive/90")}
+  1006→                    onClick={handleBlock}
+  1007→                  >
+  1008→                    Block account
+  1009→                  </AlertDialogAction>
+  1010→                </AlertDialogFooter>
+  1011→              </AlertDialogContent>
+  1012→            </AlertDialog>
+  1013→            <Button size="sm" variant="outline" onClick={handleReset} className="gap-1.5">
+  1014→              <RotateCcw className="h-3.5 w-3.5" /> Reset Account
+  1015→            </Button>
+  1016→          </div>
+  1017→        </div>
+  1018→      </PageContent>
+  1019→    </Page>
+  1020→  );
+  1021→}
+  1022→
+  1023→/* ------------------------------------------------------------------ */
+  1024→/* Flag row helper                                                    */
+  1025→/* ------------------------------------------------------------------ */
+  1026→
+  1027→function FlagRow({
+  1028→  checked,
+  1029→  onCheckedChange,
+  1030→  label,
+  1031→  description,
+  1032→}: {
+  1033→  checked: boolean;
+  1034→  onCheckedChange: (v: boolean) => void;
+  1035→  label: string;
+  1036→  description: string;
+  1037→}) {
+  1038→  return (
+  1039→    <label
+  1040→      htmlFor={`flag-${label}`}
+  1041→      className="flex cursor-pointer items-start gap-2 rounded-md border bg-muted/20 p-3 hover:bg-muted/40"
+  1042→    >
+  1043→      <Checkbox
+  1044→        id={`flag-${label}`}
+  1045→        checked={checked}
+  1046→        onCheckedChange={(v) => onCheckedChange(v === true)}
+  1047→        className="mt-0.5"
+  1048→      />
+  1049→      <div className="space-y-0.5">
+  1050→        <p className="text-xs font-mono font-medium text-foreground">{label}</p>
+  1051→        <p className="text-[11px] text-muted-foreground">{description}</p>
+  1052→      </div>
+  1053→    </label>
+  1054→  );
+  1055→}
+  1056→

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantTickets, hashStr } from "@/lib/platform/mock-data";
+import { resolveTicket, escalateTicket, appendTicketReply, effectiveTicketStatus, effectiveTicketMessages, useTicketVersion } from "@/modules/support/support-store";
 import type { SupportTicket } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -186,7 +187,8 @@ export function SupportOverviewPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const tickets = getTenantTickets(tid);
+  useTicketVersion(); // KPIs recompute after resolve/escalate
+  const tickets = getTenantTickets(tid).map((t) => ({ ...t, status: effectiveTicketStatus(t) }));
   const open = tickets.filter((t) => t.status === "open" || t.status === "in-progress").length;
   const urgent = tickets.filter((t) => t.priority === "urgent" && t.status !== "closed" && t.status !== "resolved").length;
   const resolvedToday = tickets.filter((t) => t.status === "resolved").length;
@@ -252,9 +254,17 @@ export function SupportTicketsPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const tickets = getTenantTickets(tid);
+  useTicketVersion(); // table reacts to drawer actions
+  const tickets = getTenantTickets(tid).map((t) => ({
+    ...t,
+    status: effectiveTicketStatus(t),
+    messages: effectiveTicketMessages(t),
+  }));
 
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  // Replies sent this session — appended to the thread so "Send" has an
+  // observable effect in the conversation.
+  const [sentReplies, setSentReplies] = useState<Array<{ body: string; timestamp: string }>>([]);
   const [reply, setReply] = useState("");
   const [notesOpen, setNotesOpen] = useState(false);
 
@@ -294,18 +304,20 @@ export function SupportTicketsPage() {
             setSelectedTicket(t);
             setReply("");
             setNotesOpen(false);
+            setSentReplies([]);
           }}
           pageSize={12}
         />
       </PageContent>
 
       {/* Detail Sheet drawer (§27 — quick inspection + small contextual actions) */}
-      <Sheet
+        <Sheet
         open={!!selectedTicket}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedTicket(null);
             setReply("");
+            setSentReplies([]);
           }
         }}
       >
@@ -320,8 +332,8 @@ export function SupportTicketsPage() {
                       <span className="font-mono">#{selectedTicket.id}</span> · Opened {relativeTime(selectedTicket.createdAt)}
                     </SheetDescription>
                   </div>
-                  <StatusBadge tone={ticketStatusTone(selectedTicket.status)} className="shrink-0">
-                    {selectedTicket.status}
+                  <StatusBadge tone={ticketStatusTone(effectiveTicketStatus(selectedTicket))} className="shrink-0">
+                    {effectiveTicketStatus(selectedTicket)}
                   </StatusBadge>
                 </div>
               </SheetHeader>
@@ -341,7 +353,7 @@ export function SupportTicketsPage() {
                 <div className="rounded-lg border p-2 text-center">
                   <MessageSquare className="h-3 w-3 mx-auto text-rose-600 mb-1" />
                   <div className="text-[10px] text-muted-foreground">Messages</div>
-                  <div className="text-xs font-medium">{selectedTicket.messages}</div>
+                  <div className="text-xs font-medium">{effectiveTicketMessages(selectedTicket)}</div>
                 </div>
               </div>
 
@@ -351,7 +363,7 @@ export function SupportTicketsPage() {
                   <h4 className="text-sm font-medium">Conversation</h4>
                   {conversation.map((msg, i) => (
                     <div
-                      key={i}
+                      key={`seed-${i}`}
                       className={`flex gap-2 ${msg.fromTrader ? "flex-row" : "flex-row-reverse"}`}
                     >
                       <Avatar className="h-7 w-7 shrink-0">
@@ -377,6 +389,22 @@ export function SupportTicketsPage() {
                           </span>
                         </div>
                         <p className="text-sm leading-relaxed">{msg.body}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {sentReplies.map((r, i) => (
+                    <div key={`sent-${i}`} className="flex gap-2 flex-row-reverse">
+                      <Avatar className="h-7 w-7 shrink-0">
+                        <AvatarFallback className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                          You
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 rounded-lg p-3 bg-emerald-50 dark:bg-emerald-950/20">
+                        <div className="flex items-center justify-between mb-1 gap-2">
+                          <span className="text-xs font-medium truncate">You (agent)</span>
+                          <span className="text-[10px] text-muted-foreground shrink-0">just now</span>
+                        </div>
+                        <p className="text-sm leading-relaxed">{r.body}</p>
                       </div>
                     </div>
                   ))}
@@ -438,9 +466,16 @@ export function SupportTicketsPage() {
                       size="sm"
                       disabled={!reply.trim()}
                       onClick={() => {
+                        // Record the reply in the store (message count) and
+                        // append it to the visible thread.
+                        appendTicketReply(selectedTicket.id);
+                        setSentReplies((r) => [
+                          ...r,
+                          { body: reply.trim(), timestamp: new Date().toISOString() },
+                        ]);
                         toast({
                           title: "Reply sent",
-                          description: `Reply posted to ${selectedTicket.id} (demo).`,
+                          description: `Reply posted to ${selectedTicket.id}.`,
                         });
                         setReply("");
                       }}
@@ -455,13 +490,16 @@ export function SupportTicketsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
+                  onClick={() => {
+                    // Escalate moves the ticket to the in-progress (Tier 2)
+                    // state — visible in the drawer badge and the table.
+                    escalateTicket(selectedTicket.id);
                     toast({
-                      title: "Escalated (demo)",
+                      title: "Escalated",
                       description: `Ticket ${selectedTicket.id} moved to Tier 2 queue.`,
                       variant: "default",
-                    })
-                  }
+                    });
+                  }}
                 >
                   <AlertCircle className="h-3 w-3" /> Escalate
                 </Button>
@@ -469,8 +507,11 @@ export function SupportTicketsPage() {
                   variant="default"
                   size="sm"
                   onClick={() => {
+                    // Mutate the shared store — the row flips to resolved and
+                    // every ticket KPI recomputes.
+                    resolveTicket(selectedTicket.id);
                     toast({
-                      title: "Resolved (demo)",
+                      title: "Resolved",
                       description: `Ticket ${selectedTicket.id} marked as resolved.`,
                     });
                     setSelectedTicket(null);

@@ -363,7 +363,10 @@ export function AccountEventsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => navigate("trader-detail", { id: account.traderId })}
+              // "Back to Account" now actually navigates to the account
+              // workspace (the parent view of this sub-page) — previously
+              // mislabeled and went to trader-detail (a different entity).
+              onClick={() => navigate("account-workspace", { id: account.id })}
               className="gap-1.5"
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Back to Account

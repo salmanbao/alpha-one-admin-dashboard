@@ -23,6 +23,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { moduleRegistry } from "@/lib/platform/module-registry";
 import {
   getTenantTraders,
   getTenantAccounts,
@@ -293,14 +294,30 @@ export function GlobalSearchDialog() {
       }
     }
 
+    // Drop hits whose destination view belongs to a module that is not enabled
+    // for this tenant — navigating there would dead-end in a ForbiddenState
+    // ("module is not enabled"), the same dead-end class fixed on Pendings.
+    const enabledModuleIds = new Set(
+      moduleRegistry.getEnabledModules(runtime).map((m) => m.manifest.id),
+    );
+    const viewModule = new Map<string, string>();
+    for (const m of moduleRegistry.getAll()) {
+      for (const r of m.routes ?? []) viewModule.set(r.viewId, m.manifest.id);
+    }
+    const moduleAware = out.filter((h) => {
+      const mod = viewModule.get(h.navigateTo);
+      // No owning module (shell views) or module enabled → keep
+      return !mod || enabledModuleIds.has(mod);
+    });
+
     // Sort by relevance (label match first, then description match)
-    return out.sort((a, b) => {
+    return moduleAware.sort((a, b) => {
       const aLabel = a.label.toLowerCase().includes(q) ? 0 : 1;
       const bLabel = b.label.toLowerCase().includes(q) ? 0 : 1;
       if (aLabel !== bLabel) return aLabel - bLabel;
       return a.label.localeCompare(b.label);
     }).slice(0, 30);
-  }, [query, tid]);
+  }, [query, tid, runtime]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, SearchHit[]>();

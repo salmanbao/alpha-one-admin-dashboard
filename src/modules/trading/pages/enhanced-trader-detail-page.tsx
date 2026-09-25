@@ -127,8 +127,14 @@ export function EnhancedTraderDetailPage() {
     [traderId],
   );
   const traderAudit = useMemo(
-    () => getTenantAudit(tid).filter((a) => a.entity === "trader").slice(0, 12),
-    [tid],
+    // Filter by entityId === traderId so we only show THIS trader's audit
+    // entries, not every trader in the tenant (previously showed mixed
+    // entries across all traders — confusing and a data-scope leak).
+    () =>
+      getTenantAudit(tid)
+        .filter((a) => a.entity === "trader" && a.entityId === traderId)
+        .slice(0, 12),
+    [tid, traderId],
   );
 
   if (!trader) {

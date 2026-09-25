@@ -322,4 +322,13 @@ export interface AuditEntry {
   summary: string;
   severity: "info" | "warning" | "critical";
   module?: string;
+  /**
+   * Tenant scope of this audit entry. Tenant entries carry their own
+   * `tenantId`; entries that should only be visible to platform operators
+   * carry `"platform"`. Entries without a `tenantId` are legacy unscoped
+   * entries (visible to everyone). The Activity Ticker uses this to filter
+   * out platform-scoped entries from tenant admins — previously every
+   * tenant admin saw the full cross-tenant stream.
+   */
+  tenantId?: string;
 }

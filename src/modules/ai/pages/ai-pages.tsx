@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantAiInsights } from "@/lib/platform/mock-data";
@@ -139,7 +139,11 @@ export function AiInsightsPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
+  // Dismissed insight ids for this session — dismissing actually removes
+  // the card and updates the counts.
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const insights = getTenantAiInsights(tid)
+    .filter((i) => !dismissed.has(i.id))
     .slice()
     .sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime());
   return (
@@ -189,7 +193,14 @@ export function AiInsightsPage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" size="sm" onClick={() => toast({ title: "Insight dismissed", description: i.title })}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setDismissed((prev) => new Set(prev).add(i.id));
+                      toast({ title: "Insight dismissed", description: i.title });
+                    }}
+                  >
                     Dismiss
                   </Button>
                 </CardFooter>
@@ -240,24 +251,71 @@ const seedChat: ChatMessage[] = [
   },
 ];
 
+// Keyword-matched demo responses so the assistant always answers in-band
+// (footer already discloses demo mode). Production would call a real LLM.
+const CANNED_RESPONSES: Array<{ match: RegExp; reply: string }> = [
+  {
+    match: /payout|withdraw/i,
+    reply: "Payout requests are up 38% week-over-week, concentrated in funded traders. Average processing time is 18.5h. Recommend reviewing payout reserves before the next cycle. Confidence 87%.",
+  },
+  {
+    match: /risk|breach|drawdown/i,
+    reply: "Open breaches are concentrated in daily-drawdown rules. Three funded traders are within 5% of their max drawdown limit — I'd flag them for a risk review. Confidence 92%.",
+  },
+  {
+    match: /trader|participant|performance|leaderboard/i,
+    reply: "Top performers this month are concentrated in the 100k accounts with a 68% pass rate. Equity is trending up 12% across the book. Ask me about a specific account for a deeper drill-down. Confidence 84%.",
+  },
+  {
+    match: /challenge|evaluation|pass rate/i,
+    reply: "Phase 1 pass rate is holding at 41%, Phase 2 at 63%. Most failures occur within the first 10 trading days — consider adjusting the min trading day rule. Confidence 81%.",
+  },
+  {
+    match: /revenue|profit|analytics/i,
+    reply: "Revenue is trending up 8% versus the previous period, driven by challenge fee volume. Payout ratio remains within the healthy band. Confidence 86%.",
+  },
+  {
+    match: /kyc|compliance|document/i,
+    reply: "KYC queue has a handful of submissions pending for over 24h. Median review time is 6.2h and no high-risk flags are outstanding. Confidence 89%.",
+  },
+];
+
+const FALLBACK_RESPONSE =
+  "Here's what I can see: KPIs across trading, risk and payouts are within normal bands this week. Try asking about payout trends, trader performance, risk breaches, or evaluation pass rates for a deeper answer. (Demo assistant — production wires a real LLM.)";
+
 export function AiAssistantPage() {
   const { tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const [messages, setMessages] = useState<ChatMessage[]>(seedChat);
   const [input, setInput] = useState("");
+  const [thinking, setThinking] = useState(false);
   const counter = useRef(seedChat.length);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll the transcript to the newest message.
+  useEffect(() => {
+    const el = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]");
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, thinking]);
 
   const send = () => {
     const text = input.trim();
-    if (!text) return;
+    if (!text || thinking) return;
     counter.current += 1;
     const userMsg: ChatMessage = { id: `m-${counter.current}`, role: "user", content: text };
     setMessages((m) => [...m, userMsg]);
     setInput("");
-    toast({
-      title: "AI response",
-      description: "This is a demo assistant — a full LLM integration will be wired up in production.",
-    });
+    // Simulate a short think-time, then answer with a keyword-matched
+    // canned response so the conversation never dead-ends.
+    setThinking(true);
+    setTimeout(() => {
+      const canned =
+        CANNED_RESPONSES.find((c) => c.match.test(text))?.reply ?? FALLBACK_RESPONSE;
+      counter.current += 1;
+      const botMsg: ChatMessage = { id: `m-${counter.current}`, role: "assistant", content: canned };
+      setMessages((m) => [...m, botMsg]);
+      setThinking(false);
+    }, 700);
   };
 
   return (
@@ -276,7 +334,7 @@ export function AiAssistantPage() {
               <p className="text-[10px] text-muted-foreground">Powered by tenant LLM · demo mode</p>
             </div>
           </div>
-          <ScrollArea className="flex-1 px-4 py-4">
+          <ScrollArea ref={scrollRef} className="flex-1 px-4 py-4">
             <div className="flex flex-col gap-3">
               {messages.map((m) => (
                 <div
@@ -309,6 +367,24 @@ export function AiAssistantPage() {
                   </div>
                 </div>
               ))}
+              {thinking ? (
+                <div className="flex justify-start">
+                  <div className="flex max-w-[80%] items-start gap-2">
+                    <Avatar className="mt-0.5 h-6 w-6">
+                      <AvatarFallback className="bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400">
+                        <Bot className="h-3 w-3" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="rounded-2xl rounded-tl-sm border bg-card px-3 py-2 text-sm text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:0ms]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:120ms]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:240ms]" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </ScrollArea>
           <div className="border-t p-3">

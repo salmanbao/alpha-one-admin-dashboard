@@ -47,8 +47,8 @@ const navigation: NavigationItem[] = [
     application: ["prop-admin", "super-admin"],
     children: [
       // ───────── Branding & White-label ─────────
-      { id: "settings.branding", label: "Branding", href: "settings", icon: Palette, permission: "settings.manage", group: "Branding & White-label" },
-      { id: "settings.terminology", label: "Terminology", href: "settings", icon: Type, permission: "settings.manage", group: "Branding & White-label" },
+      { id: "settings.branding", label: "Branding", href: "settings?tab=branding", icon: Palette, permission: "settings.manage", group: "Branding & White-label" },
+      { id: "settings.terminology", label: "Terminology", href: "settings?tab=terminology", icon: Type, permission: "settings.manage", group: "Branding & White-label" },
       { id: "settings.banners", label: "Banners", href: "banner-management", icon: Image, permission: "settings.manage", group: "Branding & White-label" },
       { id: "settings.mkt-integrations", label: "Marketing Integrations", href: "marketing-integrations", icon: Plug, permission: "settings.manage", group: "Branding & White-label" },
       { id: "settings.social-media", label: "Social Media Links", href: "social-media-links", icon: Share2, permission: "settings.manage", group: "Branding & White-label" },
@@ -70,10 +70,10 @@ const navigation: NavigationItem[] = [
       { id: "settings.cert-issued", label: "Issued Certificates", href: "certificates-issued", icon: Award, permission: "settings.manage", group: "Certificates" },
 
       // ───────── System ─────────
-      { id: "settings.general", label: "General", href: "settings", icon: SettingsIcon, permission: "settings.manage", group: "System" },
-      { id: "settings.modules", label: "Modules", href: "settings", icon: Package, permission: "settings.manage", group: "System" },
-      { id: "settings.roles", label: "Roles & Permissions", href: "settings", icon: Users, permission: "settings.manage", group: "System" },
-      { id: "settings.notifications", label: "Notifications Matrix", href: "settings", icon: Bell, permission: "settings.manage", group: "System" },
+      { id: "settings.general", label: "General", href: "settings?tab=general", icon: SettingsIcon, permission: "settings.manage", group: "System" },
+      { id: "settings.modules", label: "Modules", href: "settings?tab=modules", icon: Package, permission: "settings.manage", group: "System" },
+      { id: "settings.roles", label: "Roles & Permissions", href: "settings?tab=roles", icon: Users, permission: "settings.manage", group: "System" },
+      { id: "settings.notifications", label: "Notifications Matrix", href: "settings?tab=notifications", icon: Bell, permission: "settings.manage", group: "System" },
       { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage", group: "System" },
     ],
   },

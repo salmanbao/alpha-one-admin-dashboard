@@ -69,6 +69,8 @@ type GridStackInstance = {
 
 // Layout storage key per tenant
 const LAYOUT_KEY = (tenantId: string) => `pfaas:gridLayout:${tenantId}`;
+// Dashboard-Manager layout key per tenant+role (takes priority when present)
+const DM_LAYOUT_KEY = (tenantId: string, roleId: string) => `pfaas:dashboardLayout:${tenantId}:${roleId}`;
 
 function loadLayout(tenantId: string): GridStackNode[] | null {
   if (typeof window === "undefined") return null;
@@ -79,10 +81,19 @@ function loadLayout(tenantId: string): GridStackNode[] | null {
   return null;
 }
 
-function saveLayout(tenantId: string, layout: GridStackNode[]) {
+function loadDmLayout(tenantId: string, roleId: string): GridStackNode[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = window.localStorage.getItem(DM_LAYOUT_KEY(tenantId, roleId));
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveLayoutTo(key: string, layout: GridStackNode[]) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(LAYOUT_KEY(tenantId), JSON.stringify(layout));
+    window.localStorage.setItem(key, JSON.stringify(layout));
   } catch { /* ignore */ }
 }
 
@@ -125,19 +136,19 @@ export function DashboardGrid() {
   // Build initial GridStack nodes from resolved widgets or saved layout
   // Use the per-tenant+role layout key if a Dashboard Manager layout exists,
   // otherwise fall back to the per-tenant grid layout key.
+  // activeLayoutKeyRef tracks WHICH key the visible layout came from so that
+  // drag/resize saves are written back to the same key (otherwise edits are
+  // silently discarded whenever a Dashboard-Manager layout exists).
+  const activeLayoutKeyRef = useRef<string>(LAYOUT_KEY(tenantId));
   const buildNodes = useCallback((): GridStackNode[] => {
     // Try Dashboard Manager layout first (per-tenant+role)
-    const dmSaved = (() => {
-      if (typeof window === "undefined") return null;
-      try {
-        const stored = window.localStorage.getItem(`pfaas:dashboardLayout:${tenantId}:${roleId}`);
-        return stored ? JSON.parse(stored) : null;
-      } catch { return null; }
-    })();
+    const dmSaved = loadDmLayout(tenantId, roleId);
     if (dmSaved && dmSaved.length > 0) {
+      activeLayoutKeyRef.current = DM_LAYOUT_KEY(tenantId, roleId);
       const visibleIds = new Set(widgets.map((w) => w.definition.id));
       return dmSaved.filter((n: GridStackNode) => visibleIds.has(n.id));
     }
+    activeLayoutKeyRef.current = LAYOUT_KEY(tenantId);
     // Fall back to per-tenant grid layout
     const saved = loadLayout(tenantId);
     if (saved && saved.length > 0) {
@@ -153,7 +164,7 @@ export function DashboardGrid() {
       w: p.w,
       h: p.h,
     }));
-  }, [layout, widgets, tenantId]);
+  }, [layout, widgets, tenantId, roleId]);
 
   // Initialize GridStack on mount + when widgets change
   useEffect(() => {
@@ -208,12 +219,13 @@ export function DashboardGrid() {
 
       gridInstanceRef.current = grid;
 
-      // Save layout on change events
+      // Save layout on change events — back to the SAME key the visible
+      // layout was loaded from (DM key when present, tenant key otherwise)
       grid.on("change", () => {
         if (grid) {
           try {
             const currentLayout = grid.save(false, false) as GridStackNode[];
-            saveLayout(tenantId, currentLayout);
+            saveLayoutTo(activeLayoutKeyRef.current, currentLayout);
           } catch {}
         }
       });
@@ -222,7 +234,7 @@ export function DashboardGrid() {
         if (grid) {
           try {
             const currentLayout = grid.save(false, false) as GridStackNode[];
-            saveLayout(tenantId, currentLayout);
+            saveLayoutTo(activeLayoutKeyRef.current, currentLayout);
           } catch {}
         }
       });
@@ -231,7 +243,7 @@ export function DashboardGrid() {
         if (grid) {
           try {
             const currentLayout = grid.save(false, false) as GridStackNode[];
-            saveLayout(tenantId, currentLayout);
+            saveLayoutTo(activeLayoutKeyRef.current, currentLayout);
           } catch {}
         }
       });
@@ -284,7 +296,10 @@ export function DashboardGrid() {
 
   const resetLayout = () => {
     if (typeof window !== "undefined") {
+      // Clear both layout sources so the default re-composes
+      window.localStorage.removeItem(activeLayoutKeyRef.current);
       window.localStorage.removeItem(LAYOUT_KEY(tenantId));
+      window.localStorage.removeItem(DM_LAYOUT_KEY(tenantId, roleId));
     }
     toast({
       title: "Layout reset",
@@ -466,9 +481,9 @@ export function DashboardGrid() {
 }
 
 /**
- * Re-export the CustomizeDashboardDialog for backward compatibility.
- * This is now a no-op wrapper since layout editing is handled by GridStack.
+ * Re-export the real Customize Dashboard dialog (presets, per-widget toggles,
+ * export/import) so the Overview page's "Customize" button opens it.
+ * The dialog itself lives in dashboard-grid.tsx and operates on the
+ * hiddenWidgets set from PlatformContext, which the GridStack grid also honors.
  */
-export function CustomizeDashboardDialog() {
-  return null;
-}
+export { CustomizeDashboardDialog } from "@/components/platform/dashboard-grid";

@@ -213,8 +213,8 @@ export function RiskUnprofitableCountriesPage() {
 
   const exportCsv = () => {
     toast({
-      title: "Export started",
-      description: `Exporting ${filtered.length} unprofitable countries as CSV.`,
+      title: "Export started (demo)",
+      description: `Would export ${filtered.length} unprofitable countries as CSV in production.`,
     });
   };
 

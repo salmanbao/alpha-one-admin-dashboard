@@ -90,17 +90,22 @@ function seededRandom(seed: number): number {
   return x - Math.floor(x);
 }
 
-const BASE_SYMBOLS: Array<[string, number, number]> = [
-  // symbol, base price, contract multiplier used by pnl formula
-  ["EURUSD", 1.085, 10000],
-  ["GBPUSD", 1.271, 10000],
-  ["USDJPY", 151.4, 1000],
-  ["XAUUSD", 2348.5, 100],
-  ["BTCUSD", 67250, 1],
-  ["ETHUSD", 3480, 1],
-  ["SP500", 5230, 1],
-  ["NAS100", 18420, 1],
-];
+// Lookup table indexed by symbol — lets us preserve the open position's
+// actual symbol & contract size when generating the corresponding closed
+// position (previously the seed picked a DIFFERENT symbol via
+// `BASE_SYMBOLS[idx % len]` and paired it with the open position's
+// mismatched entry price — e.g. a USDJPY price of 152.78 labeled as
+// "GBPUSD", producing absurd P&L).
+const BASE_SYMBOLS_BY_SYM: Record<string, { basePrice: number; mult: number; description: string }> = {
+  EURUSD: { basePrice: 1.085, mult: 100_000, description: "Euro vs US Dollar — Major FX pair" },
+  GBPUSD: { basePrice: 1.271, mult: 100_000, description: "British Pound vs US Dollar — Major FX pair (Cable)" },
+  USDJPY: { basePrice: 151.4, mult: 100_000, description: "US Dollar vs Japanese Yen — Major FX pair" },
+  XAUUSD: { basePrice: 2348.5, mult: 100, description: "Spot Gold vs US Dollar — precious metal" },
+  BTCUSD: { basePrice: 67250, mult: 1, description: "Bitcoin vs US Dollar — flagship cryptocurrency" },
+  ETHUSD: { basePrice: 3480, mult: 1, description: "Ethereum vs US Dollar — smart-contract crypto" },
+  SP500:  { basePrice: 5230, mult: 1, description: "S&P 500 Index — US large-cap equity benchmark" },
+  NAS100: { basePrice: 18420, mult: 1, description: "Nasdaq 100 Index — US tech equity benchmark" },
+};
 
 /**
  * Generate a deterministic set of closed positions per tenant by taking
@@ -115,7 +120,13 @@ function generateClosedPositions(tenantId: string): ClosedPosition[] {
 
   return Array.from({ length: openPositions.length }, (_, idx) => {
     const base = openPositions[idx];
-    const [sym, basePrice, mult] = BASE_SYMBOLS[idx % BASE_SYMBOLS.length];
+    // Use the OPEN position's actual symbol & contract — previously
+    // picked a different symbol via BASE_SYMBOLS[idx % len] which
+    // mismatched price/symbol (e.g. USDJPY price labeled "GBPUSD",
+    // absurd P&L).
+    const sym = base.symbol;
+    const spec = BASE_SYMBOLS_BY_SYM[sym] ?? { basePrice: base.entryPrice, mult: 1, description: sym };
+    const { basePrice, mult } = spec;
     // Use deterministic seeding so the same input always produces the
     // same closed position.
     const seed = idx + 1;
@@ -133,11 +144,18 @@ function generateClosedPositions(tenantId: string): ClosedPosition[] {
     // For sell positions, "up" in price = loss; align sign with side
     const pnlPerUnit = side === "buy" ? close - entry : entry - close;
     const volume = base.volume;
-    const grossPnl = pnlPerUnit * mult * volume;
+    // JPY-quoted pairs (USDJPY, EURJPY, …) need /currentPrice conversion
+    // to land in USD — otherwise P&L was 150x too high for USDJPY.
+    const isJpyQuote = sym.endsWith("JPY");
+    const grossPnlRaw = pnlPerUnit * mult * volume;
+    const grossPnl = isJpyQuote ? grossPnlRaw / close : grossPnlRaw;
     const commission = Math.round((volume * basePrice * 0.0004) * 100) / 100; // 4 bps
     const swap = Math.round(Math.sin(seed) * 5 * 100) / 100;
     const pnl = Math.round((grossPnl - commission - swap) * 100) / 100;
-    const pnlPct = Math.round((pnl / (entry * volume)) * 10000) / 100;
+    // P&L % is the price-move percentage (volume cancels). Previously
+    // divided by (entry × volume), producing absurd numbers like +18,235%
+    // for FX pairs where (entry × volume) is tiny (e.g. 1.085 × 0.45 ≈ 0.5).
+    const pnlPct = Math.round((pnlPerUnit / entry) * 10000) / 100;
 
     // Determine close reason from P&L direction
     let closeReason: CloseReason;
@@ -472,20 +490,16 @@ export function ClosedPositionsPage() {
         }
       />
 
-      {/* KPI row */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
+      {/* KPI row — 5 cards across two tiers so each card has room at
+          narrow breakpoints. Previously 7 cards crammed into one xl row,
+          causing labels like "Total Clos…" / "Avg Durat…" to clip. */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         <MetricCard label="Total Closed" value={totalClosed} icon={Activity} />
         <MetricCard
-          label="Total Profit"
-          value={formatCurrency(totalProfit, currency)}
-          tone="positive"
-          icon={TrendingUp}
-        />
-        <MetricCard
-          label="Total Loss"
-          value={formatCurrency(Math.abs(totalLoss), currency)}
-          tone="negative"
-          icon={TrendingDown}
+          label="Net P&L"
+          value={formatCurrency(totalProfit + totalLoss, currency)}
+          tone={(totalProfit + totalLoss) >= 0 ? "positive" : "negative"}
+          icon={(totalProfit + totalLoss) >= 0 ? TrendingUp : TrendingDown}
         />
         <MetricCard
           label="Win Rate"
@@ -499,16 +513,9 @@ export function ClosedPositionsPage() {
           icon={Clock}
         />
         <MetricCard
-          label="Best Trade"
-          value={best ? formatCurrency(best.pnl, currency) : "—"}
-          tone="positive"
+          label="Best / Worst"
+          value={best && worst ? `${formatCurrency(best.pnl, currency)} / ${formatCurrency(worst.pnl, currency)}` : "—"}
           icon={Trophy}
-        />
-        <MetricCard
-          label="Worst Trade"
-          value={worst ? formatCurrency(worst.pnl, currency) : "—"}
-          tone="negative"
-          icon={AlertTriangle}
         />
       </div>
 

@@ -4,6 +4,7 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { getTenantPayouts, payoutSeries, type Payout } from "@/lib/platform/mock-data";
 import { MetricCard } from "@/components/platform/page";
 import { StatusBadge, payoutStatusTone, formatCurrency, formatCompact } from "@/components/platform/status";
+import { applyPayoutDecision, effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { Wallet, Banknote, Clock, CheckCircle2, DollarSign } from "lucide-react";
 import { AreaSeries, DonutSeries } from "@/components/platform/charts";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,15 @@ import { toast } from "@/hooks/use-toast";
 export function PayoutOverviewWidget() {
   const { runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
-  const pays = getTenantPayouts(tid);
   const currency = runtime.tenant?.currency ?? "USD";
+  usePayoutVersion(); // stay in sync with approve/reject decisions
+  const pays = getTenantPayouts(tid).map((p) => ({ ...p, status: effectivePayoutStatus(p) }));
   const pending = pays.filter((p) => p.status === "pending").length;
-  const totalPaid = pays.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+  // Label says (30d) — actually filter to the 30-day window.
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const totalPaid = pays
+    .filter((p) => p.status === "paid" && new Date(p.createdAt).getTime() >= thirtyDaysAgo)
+    .reduce((s, p) => s + p.amount, 0);
   const avgSplit = pays.length ? Math.round(pays.reduce((s, p) => s + p.profitSplit, 0) / pays.length) : 0;
 
   return (
@@ -32,7 +38,11 @@ export function PayoutQueueWidget() {
   const { runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
-  const pending = getTenantPayouts(tid).filter((p) => p.status === "pending").slice(0, 5);
+  usePayoutVersion(); // approved items leave the queue instantly
+  const pending = getTenantPayouts(tid)
+    .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
+    .filter((p) => p.status === "pending")
+    .slice(0, 5);
   if (pending.length === 0) {
     return <div className="p-4 text-sm text-emerald-600">No pending payouts. Queue is clear.</div>;
   }
@@ -51,7 +61,10 @@ export function PayoutQueueWidget() {
           <Button
             size="sm"
             variant="default"
-            onClick={() => toast({ title: "Payout approved", description: `${p.traderName} — ${formatCurrency(p.amount, currency)}` })}
+            onClick={() => {
+              applyPayoutDecision(p.reference, "approved");
+              toast({ title: "Payout approved", description: `${p.traderName} — ${formatCurrency(p.amount, currency)}` });
+            }}
           >
             Approve
           </Button>
@@ -72,9 +85,16 @@ export function PayoutMethodWidget() {
   const { runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const pays = getTenantPayouts(tid);
-  const colors = ["#0f766e", "#7c2d12", "#6d28d9", "#c2410c"];
+  // Terra palette (no violet) + human-readable method labels.
+  const colors = ["#0f766e", "#7c2d12", "#b45309", "#4d7c0f"];
+  const labels: Record<string, string> = {
+    "bank-transfer": "Bank Transfer",
+    crypto: "Crypto",
+    paypal: "PayPal",
+    skrill: "Skrill",
+  };
   const data = ["bank-transfer", "crypto", "paypal", "skrill"].map((m, i) => ({
-    label: m,
+    label: labels[m] ?? m,
     value: pays.filter((p) => p.method === m).length,
     color: colors[i],
   }));

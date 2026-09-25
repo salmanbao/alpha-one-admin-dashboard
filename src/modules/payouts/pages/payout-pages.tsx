@@ -1,9 +1,10 @@
 "use client";
 
 import { usePlatform } from "@/lib/platform/platform-context";
-import { makeTermResolver, plural } from "@/lib/platform/terminology";
+import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import { getTenantPayouts, type Payout } from "@/lib/platform/mock-data";
 import { exportToCsv } from "@/lib/platform/export-utils";
+import { applyPayoutDecision, effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency } from "@/components/platform/status";
@@ -26,10 +27,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 
-/** Shared payout CSV column spec — used by Overview / Pending / History exports. */
-const payoutExportColumns = [
+const payoutExportColumns = (
+  traderTerm: string,
+): Array<{ key: string; header: string; value: (p: Payout) => string | number }> => [
   { key: "reference", header: "Reference", value: (p: Payout) => p.reference },
-  { key: "traderName", header: "Trader", value: (p: Payout) => p.traderName },
+  { key: "traderName", header: traderTerm, value: (p: Payout) => p.traderName },
   { key: "amount", header: "Amount", value: (p: Payout) => p.amount },
   { key: "currency", header: "Currency", value: (p: Payout) => p.currency },
   { key: "method", header: "Method", value: (p: Payout) => p.method },
@@ -37,16 +39,22 @@ const payoutExportColumns = [
   { key: "status", header: "Status", value: (p: Payout) => p.status },
   { key: "createdAt", header: "Requested", value: (p: Payout) => p.createdAt },
   { key: "processedAt", header: "Processed", value: (p: Payout) => p.processedAt ?? "" },
-] as const;
+];
 
 function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const pays = getTenantPayouts(tid).filter(filter);
+  // Subscribe to in-session decisions so approve/reject from any surface
+  // (review cards, dashboard widget, other tables) re-renders here.
+  usePayoutVersion();
+  const pays = getTenantPayouts(tid)
+    .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
+    .filter(filter);
 
   const columns: Column<Payout>[] = [
     { key: "reference", header: "Reference", cell: (p) => <span className="font-mono text-xs">{p.reference}</span>, sortValue: (p) => p.reference },
-    { key: "trader", header: "Trader", cell: (p) => <span className="font-medium">{p.traderName}</span>, sortValue: (p) => p.traderName },
+    { key: "trader", header: term("trader"), cell: (p) => <span className="font-medium">{p.traderName}</span>, sortValue: (p) => p.traderName },
     { key: "amount", header: "Amount", cell: (p) => <span className="font-semibold">{formatCurrency(p.amount, p.currency)}</span>, sortValue: (p) => p.amount },
     { key: "method", header: "Method", cell: (p) => p.method, sortValue: (p) => p.method },
     { key: "split", header: "Split", cell: (p) => `${p.profitSplit}%`, sortValue: (p) => p.profitSplit },
@@ -56,17 +64,22 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
       cell: (p) => <ExplainableStateBadge status={p.status} entityType="payout" />,
       sortValue: (p) => p.status,
     },
-    { key: "created", header: "Requested", cell: (p) => <span className="text-xs text-muted-foreground">{new Date(p.createdAt).toLocaleDateString()}</span>, sortValue: (p) => p.createdAt },
+    { key: "created", header: "Requested", cell: (p) => <span className="text-xs text-muted-foreground">{new Date(p.createdAt).toLocaleDateString("en-US")}</span>, sortValue: (p) => p.createdAt },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       cell: (p) =>
         p.status === "pending" ? (
           <div className="flex gap-1">
             <Button
               size="sm"
               variant="default"
-              onClick={() => toast({ title: "Approved", description: `${p.traderName} payout approved.` })}
+              onClick={() => {
+                // Mutate the shared decision store — the row leaves the
+                // pending queue everywhere (table, cards, widget).
+                applyPayoutDecision(p.reference, "approved");
+                toast({ title: "Approved", description: `${p.traderName} payout approved.` });
+              }}
             >
               Approve
             </Button>
@@ -93,13 +106,14 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     className="bg-rose-600 text-white hover:bg-rose-700"
-                    onClick={() =>
+                    onClick={() => {
+                      applyPayoutDecision(p.reference, "rejected");
                       toast({
                         title: "Payout rejected",
                         description: `${p.traderName}'s payout was rejected.`,
                         variant: "destructive",
-                      })
-                    }
+                      });
+                    }}
                   >
                     Reject
                   </AlertDialogAction>
@@ -117,7 +131,7 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
       data={pays}
       rowKey={(p) => p.id}
       searchableText={(p) => `${p.reference} ${p.traderName} ${p.method} ${p.status}`}
-      searchPlaceholder="Search payouts…"
+      searchPlaceholder={resolveTermsInString("Search payouts…", tenant)}
     />
   );
 }
@@ -130,11 +144,17 @@ export function PayoutsOverviewPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const pays = getTenantPayouts(tid);
+  usePayoutVersion(); // KPIs recompute when decisions change
   const currency = runtime.tenant?.currency ?? "USD";
+  const pays = getTenantPayouts(tid).map((p) => ({ ...p, status: effectivePayoutStatus(p) }));
   const pending = pays.filter((p) => p.status === "pending").length;
   const paid = pays.filter((p) => p.status === "paid");
   const totalPaid = paid.reduce((s, p) => s + p.amount, 0);
+  // Real average profit split — was hardcoded "80%", contradicting the data.
+  const avgSplit = pays.length ? Math.round(pays.reduce((s, p) => s + p.profitSplit, 0) / pays.length) : 0;
+  // Paid within the last 30 days, so the label matches the number.
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const paid30d = paid.filter((p) => new Date(p.createdAt).getTime() >= thirtyDaysAgo);
 
   // Avg Processing Time — hours between request and approval for paid payouts.
   // Falls back to a deterministic baseline if no processedAt exists.
@@ -150,7 +170,7 @@ export function PayoutsOverviewPage() {
   const handleExport = () => {
     exportToCsv(
       pays,
-      [...payoutExportColumns],
+      payoutExportColumns(term("trader")),
       `payouts-overview-${Date.now()}.csv`,
     );
   };
@@ -166,9 +186,9 @@ export function PayoutsOverviewPage() {
       <PageContent>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
           <MetricCard label="Pending" value={pending} icon={Clock} tone="warning" />
-          <MetricCard label="Paid (30d)" value={paid.length} icon={CheckCircle2} tone="positive" />
+          <MetricCard label="Paid (30d)" value={paid30d.length} icon={CheckCircle2} tone="positive" />
           <MetricCard label={`Total ${term("payout")}`} value={formatCurrency(totalPaid, currency)} icon={Banknote} tone="positive" />
-          <MetricCard label="Avg Split" value="80%" icon={Wallet} />
+          <MetricCard label="Avg Split" value={`${avgSplit}%`} icon={Wallet} />
           <MetricCard
             label="Avg Processing Time"
             value={`${avgHours.toFixed(1)}h`}
@@ -194,13 +214,22 @@ export function PendingPayoutsPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const pendingPayouts = getTenantPayouts(tid).filter((p) => p.status === "pending");
+  usePayoutVersion(); // review cards + table react to decisions
+  const pendingPayouts = getTenantPayouts(tid)
+    .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
+    .filter((p) => p.status === "pending");
 
   return (
     <Page>
       <PageHeader title={`Pending ${plural(term("payout"))}`} description="Awaiting approval." icon={Clock} />
       <PageContent>
-        {/* Contextual Action Panel — inline approve/reject with one primary action (§22-23) */}
+        {/* Contextual Action Panel — inline approve/reject with one primary action (§22-23).
+            Previously the SAME pending payouts were ALSO rendered in the
+            PayoutsTable below — duplicating data on one screen. The
+            contextual cards already have Approve/Reject buttons, so the
+            table is now redundant. Kept the EmptyState when there are no
+            pending payouts so the operator sees a clean "nothing to do"
+            state instead of an empty list. */}
         {pendingPayouts.length > 0 ? (
           <div className="space-y-2">
             {pendingPayouts.map((p) => (
@@ -221,7 +250,6 @@ export function PendingPayoutsPage() {
             hint={`Enable ${plural(term("payout")).toLowerCase()} requests from your ${term("challenge").toLowerCase()} settings`}
           />
         )}
-        <PayoutsTable filter={(p) => p.status === "pending"} />
       </PageContent>
     </Page>
   );
@@ -231,12 +259,15 @@ export function PayoutHistoryPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const historyPayouts = getTenantPayouts(tid).filter((p) => p.status === "paid" || p.status === "rejected");
+  usePayoutVersion();
+  const historyPayouts = getTenantPayouts(tid)
+    .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
+    .filter((p) => p.status === "paid" || p.status === "rejected");
 
   const handleExport = () => {
     exportToCsv(
       historyPayouts,
-      [...payoutExportColumns],
+      payoutExportColumns(term("trader")),
       `payout-history-${Date.now()}.csv`,
     );
   };

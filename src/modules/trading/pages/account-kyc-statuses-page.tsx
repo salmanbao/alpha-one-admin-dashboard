@@ -47,11 +47,11 @@ import { ChevronDown } from "lucide-react";
 /* ------------------------------------------------------------------ */
 
 type KycProviderName = "MANUAL" | "VERIFF" | "SUMSUB" | "ONFIDO";
-type KycProviderStatus = "approved" | "pending" | "review" | "rejected" | "expired";
+type KycProviderStatusName = "approved" | "pending" | "review" | "rejected" | "expired";
 
 interface KycProviderStatus {
   provider: KycProviderName;
-  status: KycProviderStatus;
+  status: KycProviderStatusName;
   lastCheckedAt: string;
   documentsCount: number;
 }
@@ -80,7 +80,7 @@ function deriveProviderKyc(kyc: KycRecord | undefined): KycProviderStatus[] {
   return ALL_PROVIDERS.map((p, i) => {
     // Deterministic pseudo-random distribution across statuses
     const v = (seed + i * 7) % 5;
-    const status: KycProviderStatus =
+    const status: KycProviderStatusName =
       v === 0 ? "approved" : v === 1 ? "pending" : v === 2 ? "review" : v === 3 ? "approved" : "rejected";
     const lastCheckedHoursAgo = (seed + i * 11) % 96;
     const documentsCount = (seed + i) % 4;

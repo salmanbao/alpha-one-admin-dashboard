@@ -38,6 +38,16 @@ export function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatarUrl ?? null);
   const [displayName, setDisplayName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
+  // Quick-preferences are local-only state — no persistence layer yet,
+  // but at least the toggle reflects the actual stored value (previously
+  // `defaultChecked` was uncontrolled: toggling did nothing visible).
+  const [prefs, setPrefs] = useState<Record<string, boolean>>({
+    "Email notifications": true,
+    "In-app notifications": true,
+    "Desktop notifications": false,
+    "Weekly digest": true,
+    "AI insight alerts": true,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Resync local edits when the active user changes (user switcher).
@@ -229,7 +239,11 @@ export function ProfilePage() {
                   <p className="text-sm font-medium text-foreground">{p.label}</p>
                   <p className="text-xs text-muted-foreground">{p.desc}</p>
                 </div>
-                <Switch defaultChecked={p.defaultOn} aria-label={p.label} />
+                <Switch
+                  checked={prefs[p.label] ?? p.defaultOn}
+                  onCheckedChange={(v) => setPrefs((s) => ({ ...s, [p.label]: v }))}
+                  aria-label={p.label}
+                />
               </div>
             ))}
           </CardContent>
@@ -258,7 +272,7 @@ export function ProfilePage() {
                     <p className="text-[10px] text-muted-foreground/70">{s.lastActive}</p>
                   </div>
                   {!s.current ? (
-                    <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700" onClick={() => toast({ title: "Session revoked", description: `${s.device} session ended.` })}>
+                    <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700" onClick={() => toast({ title: "Session revoked (demo)", description: `${s.device} session would be ended in production.`, variant: "destructive" })}>
                       Revoke
                     </Button>
                   ) : null}

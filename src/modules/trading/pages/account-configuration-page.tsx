@@ -409,37 +409,39 @@ export function AccountConfigurationPage() {
 
   const drawdownPct = derived.globalDrawdownPct;
 
-  // Toast handlers
+  // Toast handlers — demo-only (no persistence layer yet). Honest
+  // copy: "(demo)" so the operator isn't misled into thinking the
+  // changes were committed to the broker bridge.
   const handleSave = () =>
     toast({
-      title: "Account configuration saved",
-      description: `Login ${account.login} configuration committed.`,
+      title: "Account configuration saved (demo)",
+      description: `Login ${account.login} configuration would be committed in production.`,
     });
   const handleSaveContinue = () =>
     toast({
-      title: "Saved — keep editing",
+      title: "Saved — keep editing (demo)",
       description: "Changes saved; staying on this screen.",
     });
   const handleSync = () =>
     toast({
-      title: "Syncing with broker platform",
-      description: "Pulling live balance, equity and positions from the bridge.",
+      title: "Syncing with broker platform (demo)",
+      description: "Would pull live balance, equity and positions from the bridge.",
     });
   const handleResend = () =>
     toast({
-      title: "Credentials resent to trader",
-      description: `Login link + temp password sent to ${derived.userEmail}.`,
+      title: "Credentials resent to trader (demo)",
+      description: `Login link + temp password would be sent to ${derived.userEmail}.`,
     });
   const handleReset = () =>
     toast({
-      title: "Account reset to initial state",
-      description: "All progress lost. Balance restored to initial capital.",
+      title: "Account reset to initial state (demo)",
+      description: "Would discard all progress and restore initial capital.",
       variant: "destructive",
     });
   const handleBlock = () =>
     toast({
-      title: "Account blocked",
-      description: `Login ${account.login} can no longer trade. Logged in audit trail.`,
+      title: "Account blocked (demo)",
+      description: `Login ${account.login} would be blocked from trading. Logged in audit trail.`,
       variant: "destructive",
     });
 
@@ -449,7 +451,9 @@ export function AccountConfigurationPage() {
         variant="ghost"
         size="sm"
         className="w-fit"
-        onClick={() => navigate("trader-detail", { id: account.traderId })}
+        // "Back to Account" → actually navigate to the account workspace
+        // (the parent view). Previously mislabeled and went to trader-detail.
+        onClick={() => navigate("account-workspace", { id: account.id })}
       >
         <ArrowLeft className="mr-1 h-4 w-4" /> Back to Account
       </Button>

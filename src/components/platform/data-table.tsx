@@ -99,6 +99,9 @@ export function DataTable<T>({
     } else {
       setSortKey(null);
     }
+    // New ordering can shrink the result set — reset to the first page so
+    // the user isn't left on a near-empty page position.
+    setPage(1);
   };
 
   return (

@@ -109,7 +109,15 @@ export function TokenManagementPage() {
   const tid = runtime.tenant?.id ?? "platform";
 
   const tenantTraders = useMemo(() => getTenantTraders(tid), [tid]);
-  const allUsers = useMemo<(AuthUser | Trader)[]>(() => [...authUsers, ...tenantTraders], [tenantTraders]);
+  // Auth users scoped to THIS tenant only — previously showed all platform
+  // staff (Sarah, Marcus, Priya, Alex) on every tenant's Token Management
+  // page, mixing super-admin platform tokens into a tenant admin's view.
+  // Super-admin (tid === "platform") intentionally sees everyone.
+  const scopedAuthUsers = useMemo(
+    () => (tid === "platform" ? authUsers : authUsers.filter((u) => u.tenantId === tid)),
+    [tid],
+  );
+  const allUsers = useMemo<(AuthUser | Trader)[]>(() => [...scopedAuthUsers, ...tenantTraders], [scopedAuthUsers, tenantTraders]);
 
   const tokens = useMemo(() => buildTokens(allUsers), [allUsers]);
   const [search, setSearch] = useState("");
@@ -142,9 +150,13 @@ export function TokenManagementPage() {
   };
 
   const revokeToken = (t: ApiToken) => {
+    // Demo-only — token row stays "active" in the table because there's
+    // no persistence layer. Honest copy prevents the operator thinking
+    // the token was actually disabled.
     toast({
-      title: "Token revoked",
-      description: `Token ${t.keyPreview} can no longer authenticate.`,
+      title: "Token revoked (demo)",
+      description: `Token ${t.keyPreview} would no longer authenticate in production.`,
+      variant: "destructive",
     });
   };
 

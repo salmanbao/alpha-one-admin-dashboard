@@ -210,8 +210,8 @@ export function RiskGroupVsPayoutsPage() {
 
   const exportCsv = () => {
     toast({
-      title: "Export started",
-      description: `Exporting ${totalGroups} challenge groups as CSV.`,
+      title: "Export started (demo)",
+      description: `Would export ${totalGroups} challenge groups as CSV in production.`,
     });
   };
 

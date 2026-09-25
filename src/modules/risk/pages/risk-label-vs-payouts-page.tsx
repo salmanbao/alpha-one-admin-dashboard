@@ -211,8 +211,8 @@ export function RiskLabelVsPayoutsPage() {
 
   const exportCsv = () => {
     toast({
-      title: "Export started",
-      description: `Exporting ${totalAccounts} labeled accounts as CSV.`,
+      title: "Export started (demo)",
+      description: `Would export ${totalAccounts} labeled accounts as CSV in production.`,
     });
   };
 

@@ -15,6 +15,7 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import {
   getTenantPayouts,
 } from "@/lib/platform/mock-data";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { AreaSeries } from "@/components/platform/charts";
@@ -231,9 +232,22 @@ export function RiskRevenueLossPage() {
   ];
 
   const exportCsv = () => {
+    // Previously fired a "started" toast but never wrote a file — dead
+    // control. Now mirrors `closed-positions-page.tsx`'s working export.
+    exportToCsv(
+      weeklyRows,
+      [
+        { key: "period", header: "Period", value: (r: PeriodRow) => r.period },
+        { key: "currentRevenue", header: "Current Revenue", value: (r: PeriodRow) => r.currentRevenue },
+        { key: "previousRevenue", header: "Previous Revenue", value: (r: PeriodRow) => r.previousRevenue },
+        { key: "revenueLoss", header: "Revenue Loss", value: (r: PeriodRow) => r.revenueLoss },
+        { key: "changePct", header: "Change %", value: (r: PeriodRow) => r.changePct },
+      ],
+      `risk-revenue-loss-${Date.now()}.csv`,
+    );
     toast({
-      title: "Export started",
-      description: "Exporting revenue-loss report as CSV.",
+      title: "Export complete",
+      description: `Exported ${weeklyRows.length} periods to CSV.`,
     });
   };
 
