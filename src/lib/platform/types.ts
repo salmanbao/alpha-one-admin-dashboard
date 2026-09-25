@@ -120,6 +120,14 @@ export interface NavigationItem {
   order?: number;
   /** Badge label (e.g. "New") */
   badge?: string;
+  /**
+   * Optional sub-group label rendered as a small uppercase muted header
+   * inside the parent section's children list. When two adjacent children
+   * have different `group` values, the Sidebar inserts a divider header
+   * above the second one. Leave undefined for legacy / single-group lists
+   * (renders exactly as before — backward compatible).
+   */
+  group?: string;
 }
 
 export interface RouteDefinition {

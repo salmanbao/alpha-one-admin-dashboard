@@ -16,13 +16,18 @@ const navigation: NavigationItem[] = [
     icon: Brain,
     order: 85,
     children: [
-      { id: "ai.overview", label: "Overview", href: "ai", icon: Brain, permission: "ai.read" },
-      { id: "ai.insights", label: "Insights", href: "ai-insights", icon: Sparkles, permission: "ai.read" },
-      { id: "ai.assistant", label: "Assistant", href: "ai-assistant", icon: Bot, permission: "ai.read" },
-      { id: "ai.configure", label: "Configure", href: "ai-configure", icon: Settings2, permission: "ai.read" },
-      { id: "ai.predictive", label: "Predictive Analytics", href: "ai-predictive", icon: TrendingUp, permission: "ai.read", order: 86 },
-      { id: "ai.anomaly", label: "Anomaly Detection", href: "ai-anomaly", icon: AlertTriangle, permission: "ai.read", order: 87 },
-      { id: "ai.cost", label: "Cost Tracking", href: "ai-cost", icon: DollarSign, permission: "ai.read", order: 88 },
+      // ───────── Insights ─────────
+      { id: "ai.overview", label: "Overview", href: "ai", icon: Brain, permission: "ai.read", group: "Insights" },
+      { id: "ai.insights", label: "Insights", href: "ai-insights", icon: Sparkles, permission: "ai.read", group: "Insights" },
+      { id: "ai.assistant", label: "Assistant", href: "ai-assistant", icon: Bot, permission: "ai.read", group: "Insights" },
+
+      // ───────── Configuration ─────────
+      { id: "ai.configure", label: "Configure", href: "ai-configure", icon: Settings2, permission: "ai.read", group: "Configuration" },
+
+      // ───────── Advanced Analytics ─────────
+      { id: "ai.predictive", label: "Predictive Analytics", href: "ai-predictive", icon: TrendingUp, permission: "ai.read", order: 86, group: "Advanced Analytics" },
+      { id: "ai.anomaly", label: "Anomaly Detection", href: "ai-anomaly", icon: AlertTriangle, permission: "ai.read", order: 87, group: "Advanced Analytics" },
+      { id: "ai.cost", label: "Cost Tracking", href: "ai-cost", icon: DollarSign, permission: "ai.read", order: 88, group: "Advanced Analytics" },
     ],
   },
 ];

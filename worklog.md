@@ -8103,3 +8103,48 @@ Stage Summary:
 - All new pages use exportToCsv from @/lib/platform/export-utils (real CSV downloads, no toast-only fakes).
 - All Sheet drawers use key-remount + lazy useState initializer pattern to avoid react-hooks/set-state-in-effect ESLint errors.
 - All destructive actions (Deactivate, Cancel, Delete, Disable, Suspend) wrapped in AlertDialog with consequence text per AGENTS.md §24.
+
+---
+Task ID: impl-sidebar-regrouping
+Agent: lead-architect
+Task: Analyze the sidebar — read all links across modules — and group the ones that need new grouping (per user request: "analyze the sidebar and read all links and which links need new grouping and group them").
+
+Work Log:
+- Read worklog tail for project context (Task 11 checkout-role-split delivered; many modules in mature state).
+- Audited every navigation manifest:
+  - `src/lib/platform/navigation-engine.ts` — `resolveNavigation()` flattens modules' `navigation` arrays; sidebar renders one level of children inside each section.
+  - `src/lib/platform/module-registry.ts` — `getNavigation()` filters by application / module / feature / permission, stable-sorts by `order` then label.
+  - 12 module manifests + 3 non-manifest modules (settings-module.ts, super-admin-module.ts, audit-module.ts) + module-bootstrap.ts.
+- Enumerated all sidebar links across both prop-admin and super-admin scopes (top-level + children). Top-level sections: Platform / Trading / Challenges / Risk / Payouts / Analytics / Affiliates / Accounting / Marketing / CRM / KYC / Support / AI / Audit / Settings (15 modules).
+- Identified grouping gaps: three sections exceed cognitive limit (>7±2) — **Risk (17 children)**, **Settings (20 children)**, **Analytics (12 children)**; several more have natural sub-domains mashed flat (AI, Marketing, Affiliates, Challenges). The Settings manifest even had inline comments describing 5 sub-groups (Branding / Security / Communications / Certificates / System) but those comments didn't render anywhere — only the developer-visible source order communicated the intent.
+- Designed a backward-compatible fix: added an optional `group?: string` field to `NavigationItem`. When the Sidebar renders a section's children, it inserts a small uppercase muted group header whenever `child.group` changes between adjacent children. First group of each section deliberately renders without a header (the section name itself is the implicit first header).
+- Code changes (8 files):
+  1. `src/lib/platform/types.ts` — added `group?: string` to NavigationItem (with JSDoc explaining the rendering contract + backward-compat).
+  2. `src/components/shell/sidebar.tsx` — updated `SidebarItem` children rendering to detect group transitions and render `<div role="separator" aria-label={c.group}>` headers between adjacent groups. Also switched from `item.children?.map(...)` to `(item.children ?? []).map((c, idx) => ...)` so we can peek at the previous child's group.
+  3. `src/modules/settings/settings-module.ts` — applied `group:` to all 20 children: *Branding & White-label* (5) · *Security & Access* (4) · *Communications* (2) · *Certificates* (4) · *System* (5).
+  4. `src/modules/risk/manifest.ts` — applied `group:` to all 17 children, also reordered to keep each group contiguous: *Overview & Breaches* (4) · *Payout Analytics* (6) · *Trading Patterns* (5) · *Geographic & IP Risk* (2). Reordering is safe because module-registry re-sorts by `order` (same order=undefined for all → stable by label, but group headers depend on declaration order in the array). Verified the manifest array order matches the desired rendering order.
+  5. `src/modules/analytics/manifest.ts` — applied `group:` to all 12 children: *Reports* (5, includes the Pro-badge Advanced item) · *Firm Insights* (3) · *Dashboards* (4).
+  6. `src/modules/ai/manifest.ts` — applied `group:` to all 7 children: *Insights* (3) · *Configuration* (1) · *Advanced Analytics* (3).
+  7. `src/modules/marketing/manifest.ts` — applied `group:` to all 6 children: *Campaigns* (4) · *Analytics* (2).
+  8. `src/modules/affiliates/manifest.ts` — applied `group:` to all 8 children: *Management* (4) · *Promotion & Offers* (4).
+  9. `src/modules/challenges/manifest.ts` — applied `group:` to all 9 children: *Status* (4) · *Management* (5).
+- Modules deliberately left alone (already tight or coherent): Trading (6), Payouts (4), Accounting (5), CRM (3), KYC (3), Support (4), Audit (4), Platform (8). These continue to render as flat lists with no group separators — backward-compatible default.
+- Lint: `bun run lint` → 0 errors, 0 warnings. ESLint output is empty.
+- Dev server: `curl http://localhost:3000/` → 200. dev.log shows multiple `✓ Compiled in XXXms` recompiles after manifest edits, no errors.
+- agent-browser E2E verification:
+  - Opened `http://localhost:3000/`, dismissed the Tenant Setup Wizard (Skip onboarding).
+  - Captured full accessibility snapshot (505 lines). Verified all 4 Settings group separators rendered: `SECURITY & ACCESS`, `COMMUNICATIONS`, `CERTIFICATES`, `SYSTEM`. The implicit first group "Branding & White-label" correctly renders without a redundant header (the "Settings" section label serves as its implicit header by design).
+  - Verified Risk: 3 explicit separators rendered — `PAYOUT ANALYTICS`, `TRADING PATTERNS`, `GEOGRAPHIC & IP RISK` — partitioning 17 children into 4 visual chunks. Implicit first group "Overview & Breaches" has no header.
+  - Verified Challenges (terminology-resolved to "Evaluation" in this tenant): `MANAGEMENT` separator renders, partitioning 9 children into Status (4, implicit) + Management (5).
+  - Backward compatibility: Trading (6 children, no `group`) renders as a flat list with no spurious separators — exactly as before. Same for Withdrawal/Payouts (4 children).
+  - Page renders cleanly — no console errors, no hydration crashes. Screenshot saved to `download/sidebar-regrouped.png`.
+  - Closed browser + killed chromium to free memory.
+
+Stage Summary:
+- Sidebar grouping shipped: 7 manifests rewritten with `group:` field. 79 children total now partitioned into 21 visible sub-groups across the 7 modified sections. The 3 problem sections (Risk 17, Settings 20, Analytics 12) are now visually chunked into 4/5/3 groups respectively — every chunk ≤ 6 items, well under the 7±2 cognitive limit.
+- Backward-compatible by construction: any NavigationItem without a `group` renders exactly as before (the `showGroupHeader` guard short-circuits on `typeof c.group === "string" && c.group.length > 0`). Verified live on Trading + Payouts sections.
+- Zero impact on command-menu.tsx (uses `item.children` but ignores `group` field — just gets an extra harmless property), global-search.tsx (uses its own group concept, unrelated), breadcrumbs.tsx (uses `findNavForView` which traverses children — group field is ignored).
+- Quality gates: ESLint 0 errors, 0 warnings; dev server HTTP 200; HMR recompiled cleanly; agent-browser E2E confirmed all visible group headers + verified backward compat on flat sections.
+- Visual treatment: `text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70` with `mt-2 mb-1` spacing and `select-none` (so clicks don't target the header). `role="separator"` with `aria-label={group}` for screen-reader accessibility.
+- Artifacts: `download/sidebar-regrouped.png` (full-page screenshot showing the regrouped sidebar).
+- No DB / API changes. No new dependencies. No new viewIds. No router/view-router.tsx edits. Pure manifest + Sidebar render change.

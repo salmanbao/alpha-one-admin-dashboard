@@ -14,23 +14,30 @@ const navigation: NavigationItem[] = [
     icon: ShieldCheck,
     order: 30,
     children: [
-      { id: "risk.overview", label: "Overview", href: "risk", icon: ShieldCheck, permission: "risk.read" },
-      { id: "risk.breaches", label: "Breaches", href: "breaches", icon: ShieldAlert, permission: "breach.read" },
-      { id: "risk.statistics", label: "Statistics", href: "risk-statistics", icon: BarChart3, permission: "risk.read" },
-      { id: "risk.events", label: "Trading Events", href: "trading-events", icon: Radar, permission: "risk.read" },
-      { id: "risk.unprofitable", label: "Unprofitable Countries", href: "risk-unprofitable-countries", icon: Globe2, permission: "risk.read" },
-      { id: "risk.revenue-loss", label: "Revenue Loss", href: "risk-revenue-loss", icon: TrendingDown, permission: "risk.read" },
-      { id: "risk.label-payouts", label: "Label vs Payouts", href: "risk-label-vs-payouts", icon: Tag, permission: "risk.read" },
-      { id: "risk.highest-earners", label: "Highest Earners", href: "risk-highest-earners", icon: TrendingUp, permission: "risk.read" },
-      { id: "risk.group-payouts", label: "Group vs Payouts", href: "risk-group-vs-payouts", icon: BarChart3, permission: "risk.read" },
-      { id: "risk.coupon-payouts", label: "Coupon vs Payouts", href: "risk-coupon-vs-payouts", icon: Tag, permission: "risk.read" },
-      { id: "risk.label-analysis", label: "Label Analysis", href: "risk-account-label-analysis", icon: Activity, permission: "risk.read" },
-      { id: "risk.addon-revenue", label: "Addon Revenue", href: "risk-addon-revenue", icon: DollarSign, permission: "risk.read" },
-      { id: "risk.copy-events", label: "Copy Trading Events", href: "copy-trading-events", icon: Copy, permission: "risk.read" },
-      { id: "risk.copy-analysis", label: "Copy Trading Analysis", href: "copy-trading-analysis", icon: BarChart3, permission: "risk.read" },
-      { id: "risk.inverse-events", label: "Inverse Trading Events", href: "inverse-trading-events", icon: ArrowLeftRight, permission: "risk.read" },
-      { id: "risk.ip-addresses", label: "Account IP Addresses", href: "account-ip-addresses", icon: MapPin, permission: "risk.read" },
-      { id: "risk.weekend-trades", label: "Weekend Trades", href: "weekend-trades", icon: CalendarClock, permission: "risk.read" },
+      // ───────── Overview & Breaches ─────────
+      { id: "risk.overview", label: "Overview", href: "risk", icon: ShieldCheck, permission: "risk.read", group: "Overview & Breaches" },
+      { id: "risk.breaches", label: "Breaches", href: "breaches", icon: ShieldAlert, permission: "breach.read", group: "Overview & Breaches" },
+      { id: "risk.statistics", label: "Statistics", href: "risk-statistics", icon: BarChart3, permission: "risk.read", group: "Overview & Breaches" },
+      { id: "risk.revenue-loss", label: "Revenue Loss", href: "risk-revenue-loss", icon: TrendingDown, permission: "risk.read", group: "Overview & Breaches" },
+
+      // ───────── Payout Analytics ─────────
+      { id: "risk.label-payouts", label: "Label vs Payouts", href: "risk-label-vs-payouts", icon: Tag, permission: "risk.read", group: "Payout Analytics" },
+      { id: "risk.highest-earners", label: "Highest Earners", href: "risk-highest-earners", icon: TrendingUp, permission: "risk.read", group: "Payout Analytics" },
+      { id: "risk.group-payouts", label: "Group vs Payouts", href: "risk-group-vs-payouts", icon: BarChart3, permission: "risk.read", group: "Payout Analytics" },
+      { id: "risk.coupon-payouts", label: "Coupon vs Payouts", href: "risk-coupon-vs-payouts", icon: Tag, permission: "risk.read", group: "Payout Analytics" },
+      { id: "risk.label-analysis", label: "Label Analysis", href: "risk-account-label-analysis", icon: Activity, permission: "risk.read", group: "Payout Analytics" },
+      { id: "risk.addon-revenue", label: "Addon Revenue", href: "risk-addon-revenue", icon: DollarSign, permission: "risk.read", group: "Payout Analytics" },
+
+      // ───────── Trading Patterns ─────────
+      { id: "risk.events", label: "Trading Events", href: "trading-events", icon: Radar, permission: "risk.read", group: "Trading Patterns" },
+      { id: "risk.copy-events", label: "Copy Trading Events", href: "copy-trading-events", icon: Copy, permission: "risk.read", group: "Trading Patterns" },
+      { id: "risk.copy-analysis", label: "Copy Trading Analysis", href: "copy-trading-analysis", icon: BarChart3, permission: "risk.read", group: "Trading Patterns" },
+      { id: "risk.inverse-events", label: "Inverse Trading Events", href: "inverse-trading-events", icon: ArrowLeftRight, permission: "risk.read", group: "Trading Patterns" },
+      { id: "risk.weekend-trades", label: "Weekend Trades", href: "weekend-trades", icon: CalendarClock, permission: "risk.read", group: "Trading Patterns" },
+
+      // ───────── Geographic & IP Risk ─────────
+      { id: "risk.unprofitable", label: "Unprofitable Countries", href: "risk-unprofitable-countries", icon: Globe2, permission: "risk.read", group: "Geographic & IP Risk" },
+      { id: "risk.ip-addresses", label: "Account IP Addresses", href: "account-ip-addresses", icon: MapPin, permission: "risk.read", group: "Geographic & IP Risk" },
     ],
   },
 ];

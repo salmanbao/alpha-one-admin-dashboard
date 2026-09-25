@@ -47,34 +47,34 @@ const navigation: NavigationItem[] = [
     application: ["prop-admin", "super-admin"],
     children: [
       // ───────── Branding & White-label ─────────
-      { id: "settings.branding", label: "Branding", href: "settings", icon: Palette, permission: "settings.manage" },
-      { id: "settings.terminology", label: "Terminology", href: "settings", icon: Type, permission: "settings.manage" },
-      { id: "settings.banners", label: "Banners", href: "banner-management", icon: Image, permission: "settings.manage" },
-      { id: "settings.mkt-integrations", label: "Marketing Integrations", href: "marketing-integrations", icon: Plug, permission: "settings.manage" },
-      { id: "settings.social-media", label: "Social Media Links", href: "social-media-links", icon: Share2, permission: "settings.manage" },
+      { id: "settings.branding", label: "Branding", href: "settings", icon: Palette, permission: "settings.manage", group: "Branding & White-label" },
+      { id: "settings.terminology", label: "Terminology", href: "settings", icon: Type, permission: "settings.manage", group: "Branding & White-label" },
+      { id: "settings.banners", label: "Banners", href: "banner-management", icon: Image, permission: "settings.manage", group: "Branding & White-label" },
+      { id: "settings.mkt-integrations", label: "Marketing Integrations", href: "marketing-integrations", icon: Plug, permission: "settings.manage", group: "Branding & White-label" },
+      { id: "settings.social-media", label: "Social Media Links", href: "social-media-links", icon: Share2, permission: "settings.manage", group: "Branding & White-label" },
 
       // ───────── Security & Access ─────────
-      { id: "settings.users", label: "User Management", href: "user-management", icon: UsersRound, permission: "settings.manage" },
-      { id: "settings.tokens", label: "API Tokens", href: "token-management", icon: KeyRound, permission: "settings.manage" },
-      { id: "settings.device-activities", label: "Device Activities", href: "device-activities", icon: Fingerprint, permission: "settings.manage" },
-      { id: "settings.kyc-providers", label: "KYC Providers", href: "kyc-providers", icon: ShieldCheck, permission: "settings.manage", order: 75 },
+      { id: "settings.users", label: "User Management", href: "user-management", icon: UsersRound, permission: "settings.manage", group: "Security & Access" },
+      { id: "settings.tokens", label: "API Tokens", href: "token-management", icon: KeyRound, permission: "settings.manage", group: "Security & Access" },
+      { id: "settings.device-activities", label: "Device Activities", href: "device-activities", icon: Fingerprint, permission: "settings.manage", group: "Security & Access" },
+      { id: "settings.kyc-providers", label: "KYC Providers", href: "kyc-providers", icon: ShieldCheck, permission: "settings.manage", order: 75, group: "Security & Access" },
 
       // ───────── Communications ─────────
-      { id: "settings.email-templates", label: "Email Templates", href: "email-templates", icon: Mail, permission: "settings.manage" },
-      { id: "settings.notifications-mgmt", label: "Notifications Mgmt", href: "notifications-management", icon: Bell, permission: "settings.manage" },
+      { id: "settings.email-templates", label: "Email Templates", href: "email-templates", icon: Mail, permission: "settings.manage", group: "Communications" },
+      { id: "settings.notifications-mgmt", label: "Notifications Mgmt", href: "notifications-management", icon: Bell, permission: "settings.manage", group: "Communications" },
 
       // ───────── Certificates ─────────
-      { id: "settings.certificates", label: "Certificates", href: "certificate-management", icon: Award, permission: "settings.manage" },
-      { id: "settings.cert-designer", label: "Certificate Designer", href: "certificate-template-designer", icon: Palette, permission: "settings.manage" },
-      { id: "settings.font-upload", label: "Font Upload", href: "certificate-font-upload", icon: Type, permission: "settings.manage" },
-      { id: "settings.cert-issued", label: "Issued Certificates", href: "certificates-issued", icon: Award, permission: "settings.manage" },
+      { id: "settings.certificates", label: "Certificates", href: "certificate-management", icon: Award, permission: "settings.manage", group: "Certificates" },
+      { id: "settings.cert-designer", label: "Certificate Designer", href: "certificate-template-designer", icon: Palette, permission: "settings.manage", group: "Certificates" },
+      { id: "settings.font-upload", label: "Font Upload", href: "certificate-font-upload", icon: Type, permission: "settings.manage", group: "Certificates" },
+      { id: "settings.cert-issued", label: "Issued Certificates", href: "certificates-issued", icon: Award, permission: "settings.manage", group: "Certificates" },
 
       // ───────── System ─────────
-      { id: "settings.general", label: "General", href: "settings", icon: SettingsIcon, permission: "settings.manage" },
-      { id: "settings.modules", label: "Modules", href: "settings", icon: Package, permission: "settings.manage" },
-      { id: "settings.roles", label: "Roles & Permissions", href: "settings", icon: Users, permission: "settings.manage" },
-      { id: "settings.notifications", label: "Notifications Matrix", href: "settings", icon: Bell, permission: "settings.manage" },
-      { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage" },
+      { id: "settings.general", label: "General", href: "settings", icon: SettingsIcon, permission: "settings.manage", group: "System" },
+      { id: "settings.modules", label: "Modules", href: "settings", icon: Package, permission: "settings.manage", group: "System" },
+      { id: "settings.roles", label: "Roles & Permissions", href: "settings", icon: Users, permission: "settings.manage", group: "System" },
+      { id: "settings.notifications", label: "Notifications Matrix", href: "settings", icon: Bell, permission: "settings.manage", group: "System" },
+      { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage", group: "System" },
     ],
   },
 ];

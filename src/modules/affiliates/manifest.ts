@@ -16,14 +16,17 @@ const navigation: NavigationItem[] = [
     icon: Megaphone,
     order: 55,
     children: [
-      { id: "affiliates.overview", label: "Overview", href: "affiliates", icon: BarChart3, permission: "affiliate.read" },
-      { id: "affiliates.list", label: "Affiliates", href: "affiliates-list", icon: Users, permission: "affiliate.read" },
-      { id: "affiliates.campaigns", label: "Campaigns", href: "affiliates-campaigns", icon: Megaphone, permission: "affiliate.read" },
-      { id: "affiliates.commissions", label: "Commissions", href: "affiliates-commissions", icon: DollarSign, permission: "affiliate.read" },
-      { id: "affiliates.coupons", label: "Coupons", href: "affiliate-coupons", icon: Ticket, permission: "affiliate.read" },
-      { id: "affiliates.link-tracking", label: "Link Tracking", href: "affiliate-link-tracking", icon: Link, permission: "affiliate.read" },
-      { id: "affiliates.offers", label: "Offers", href: "offer-management", icon: Tag, permission: "affiliate.read" },
-      { id: "affiliates.offer-edit", label: "Edit Offer", href: "offer-edit", icon: Settings2, permission: "affiliate.configure" },
+      // ───────── Management ─────────
+      { id: "affiliates.overview", label: "Overview", href: "affiliates", icon: BarChart3, permission: "affiliate.read", group: "Management" },
+      { id: "affiliates.list", label: "Affiliates", href: "affiliates-list", icon: Users, permission: "affiliate.read", group: "Management" },
+      { id: "affiliates.campaigns", label: "Campaigns", href: "affiliates-campaigns", icon: Megaphone, permission: "affiliate.read", group: "Management" },
+      { id: "affiliates.commissions", label: "Commissions", href: "affiliates-commissions", icon: DollarSign, permission: "affiliate.read", group: "Management" },
+
+      // ───────── Promotion & Offers ─────────
+      { id: "affiliates.coupons", label: "Coupons", href: "affiliate-coupons", icon: Ticket, permission: "affiliate.read", group: "Promotion & Offers" },
+      { id: "affiliates.link-tracking", label: "Link Tracking", href: "affiliate-link-tracking", icon: Link, permission: "affiliate.read", group: "Promotion & Offers" },
+      { id: "affiliates.offers", label: "Offers", href: "offer-management", icon: Tag, permission: "affiliate.read", group: "Promotion & Offers" },
+      { id: "affiliates.offer-edit", label: "Edit Offer", href: "offer-edit", icon: Settings2, permission: "affiliate.configure", group: "Promotion & Offers" },
     ],
   },
 ];

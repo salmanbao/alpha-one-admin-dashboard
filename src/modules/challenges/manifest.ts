@@ -14,15 +14,18 @@ const navigation: NavigationItem[] = [
     icon: Target,
     order: 20,
     children: [
-      { id: "challenges.overview", label: "Overview", href: "challenges", icon: Target, permission: "challenge.read" },
-      { id: "challenges.active", label: "Active", href: "challenges-active", icon: Flame, permission: "challenge.read" },
-      { id: "challenges.passed", label: "Passed", href: "challenges-passed", icon: Trophy, permission: "challenge.read" },
-      { id: "challenges.failed", label: "Failed", href: "challenges-failed", icon: AlertCircle, permission: "challenge.read" },
-      { id: "challenges.wizard", label: "Create Challenge", href: "challenge-wizard", icon: Plus, permission: "challenge.create" },
-      { id: "challenges.types", label: "Challenge Types", href: "challenge-types", icon: Layers, permission: "challenge.read" },
-      { id: "challenges.config", label: "Configuration", href: "challenge-config", icon: Settings2, permission: "challenge.update" },
-      { id: "challenges.phases", label: "Phase Management", href: "phase-management", icon: GitBranch, permission: "challenge.read" },
-      { id: "challenges.edit", label: "Edit Challenge", href: "challenge-edit", icon: Edit3, permission: "challenge.update" },
+      // ───────── Status ─────────
+      { id: "challenges.overview", label: "Overview", href: "challenges", icon: Target, permission: "challenge.read", group: "Status" },
+      { id: "challenges.active", label: "Active", href: "challenges-active", icon: Flame, permission: "challenge.read", group: "Status" },
+      { id: "challenges.passed", label: "Passed", href: "challenges-passed", icon: Trophy, permission: "challenge.read", group: "Status" },
+      { id: "challenges.failed", label: "Failed", href: "challenges-failed", icon: AlertCircle, permission: "challenge.read", group: "Status" },
+
+      // ───────── Management ─────────
+      { id: "challenges.wizard", label: "Create Challenge", href: "challenge-wizard", icon: Plus, permission: "challenge.create", group: "Management" },
+      { id: "challenges.types", label: "Challenge Types", href: "challenge-types", icon: Layers, permission: "challenge.read", group: "Management" },
+      { id: "challenges.config", label: "Configuration", href: "challenge-config", icon: Settings2, permission: "challenge.update", group: "Management" },
+      { id: "challenges.phases", label: "Phase Management", href: "phase-management", icon: GitBranch, permission: "challenge.read", group: "Management" },
+      { id: "challenges.edit", label: "Edit Challenge", href: "challenge-edit", icon: Edit3, permission: "challenge.update", group: "Management" },
     ],
   },
 ];

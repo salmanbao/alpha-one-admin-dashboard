@@ -16,10 +16,11 @@ const navigation: NavigationItem[] = [
     icon: BarChart3,
     order: 50,
     children: [
-      { id: "analytics.overview", label: "Overview", href: "analytics", icon: BarChart3, permission: "analytics.read" },
-      { id: "analytics.traders", label: "Traders", href: "analytics-traders", icon: Users, permission: "analytics.read" },
-      { id: "analytics.performance", label: "Performance", href: "analytics-performance", icon: TrendingUp, permission: "analytics.read" },
-      { id: "analytics.risk", label: "Risk", href: "analytics-risk", icon: Activity, permission: "analytics.read" },
+      // ───────── Reports ─────────
+      { id: "analytics.overview", label: "Overview", href: "analytics", icon: BarChart3, permission: "analytics.read", group: "Reports" },
+      { id: "analytics.traders", label: "Traders", href: "analytics-traders", icon: Users, permission: "analytics.read", group: "Reports" },
+      { id: "analytics.performance", label: "Performance", href: "analytics-performance", icon: TrendingUp, permission: "analytics.read", group: "Reports" },
+      { id: "analytics.risk", label: "Risk", href: "analytics-risk", icon: Activity, permission: "analytics.read", group: "Reports" },
       {
         id: "analytics.advanced",
         label: "Advanced",
@@ -28,14 +29,19 @@ const navigation: NavigationItem[] = [
         permission: "analytics.advanced.read",
         feature: "analytics.advanced",
         badge: "Pro",
+        group: "Reports",
       },
-      { id: "analytics.firm-stats", label: "Firm Statistics", href: "analytics-firm-statistics", icon: Building2, permission: "analytics.read" },
-      { id: "analytics.daily-highlights", label: "Daily Highlights", href: "analytics-daily-highlights", icon: CalendarClock, permission: "analytics.read" },
-      { id: "analytics.retention", label: "Retention", href: "analytics-retention", icon: Repeat, permission: "analytics.read" },
-      { id: "analytics.accounts", label: "Dashboard: Accounts", href: "dashboard-accounts", icon: CreditCard, permission: "analytics.read" },
-      { id: "analytics.payouts", label: "Dashboard: Payouts", href: "dashboard-payouts", icon: DollarSign, permission: "analytics.read" },
-      { id: "analytics.orders", label: "Dashboard: Orders", href: "dashboard-orders", icon: ShoppingBag, permission: "analytics.read" },
-      { id: "analytics.positions", label: "Dashboard: Positions", href: "dashboard-positions", icon: CandlestickChart, permission: "analytics.read" },
+
+      // ───────── Firm Insights ─────────
+      { id: "analytics.firm-stats", label: "Firm Statistics", href: "analytics-firm-statistics", icon: Building2, permission: "analytics.read", group: "Firm Insights" },
+      { id: "analytics.daily-highlights", label: "Daily Highlights", href: "analytics-daily-highlights", icon: CalendarClock, permission: "analytics.read", group: "Firm Insights" },
+      { id: "analytics.retention", label: "Retention", href: "analytics-retention", icon: Repeat, permission: "analytics.read", group: "Firm Insights" },
+
+      // ───────── Dashboards ─────────
+      { id: "analytics.accounts", label: "Dashboard: Accounts", href: "dashboard-accounts", icon: CreditCard, permission: "analytics.read", group: "Dashboards" },
+      { id: "analytics.payouts", label: "Dashboard: Payouts", href: "dashboard-payouts", icon: DollarSign, permission: "analytics.read", group: "Dashboards" },
+      { id: "analytics.orders", label: "Dashboard: Orders", href: "dashboard-orders", icon: ShoppingBag, permission: "analytics.read", group: "Dashboards" },
+      { id: "analytics.positions", label: "Dashboard: Positions", href: "dashboard-positions", icon: CandlestickChart, permission: "analytics.read", group: "Dashboards" },
     ],
   },
 ];

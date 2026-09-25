@@ -154,11 +154,26 @@ function SidebarItem({
           </CollapsibleTrigger>
           <CollapsibleContent>
             <ul className="ml-4 mt-0.5 space-y-0.5 border-l pl-2">
-              {item.children?.map((c) => {
+              {(item.children ?? []).map((c, idx) => {
                 const CIcon = c.icon;
                 const cActive = router.view === c.href;
+                const prev = idx > 0 ? item.children?.[idx - 1] : undefined;
+                const showGroupHeader =
+                  idx > 0 &&
+                  typeof c.group === "string" &&
+                  c.group.length > 0 &&
+                  c.group !== prev?.group;
                 return (
                   <li key={c.id}>
+                    {showGroupHeader ? (
+                      <div
+                        role="separator"
+                        aria-label={c.group}
+                        className="mt-2 mb-1 select-none px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70"
+                      >
+                        {c.group}
+                      </div>
+                    ) : null}
                     <button
                       onClick={() => c.href && navigate(c.href)}
                       className={cn(
