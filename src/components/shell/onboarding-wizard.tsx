@@ -82,13 +82,18 @@ export function OnboardingWizard() {
   // Check if onboarding should show (first visit for this tenant)
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // The platform pseudo-tenant IS the operator's own org — it is already
+    // "set up" by definition. Super-admins administer tenants rather than
+    // onboard them, so the wizard is meaningless in that context too.
+    if (tenant.id === "platform") return;
+    if (runtime.application === "super-admin") return;
     const onboarded = window.localStorage.getItem(`${ONBOARDED_KEY}:${tenant.id}`);
     if (!onboarded) {
       // Show onboarding after a short delay so the dashboard loads first
       const timer = setTimeout(() => setOpen(true), 1500);
       return () => clearTimeout(timer);
     }
-  }, [tenant.id]);
+  }, [tenant.id, runtime.application]);
 
   const skipOnboarding = () => {
     if (typeof window !== "undefined") {

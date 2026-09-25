@@ -198,7 +198,8 @@ export function PlatformAuditPage() {
       key: "summary",
       header: "Summary",
       cell: (e) => (
-        <span className="text-sm text-muted-foreground">{e.summary}</span>
+        // Clamp to two lines instead of clipping mid-word at the table edge
+        <span className="line-clamp-2 max-w-[260px] text-sm text-muted-foreground">{e.summary}</span>
       ),
       sortValue: (e) => e.summary,
     },

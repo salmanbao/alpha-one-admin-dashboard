@@ -91,7 +91,8 @@ interface GridStackNode {
 }
 
 interface GridStackStatic {
-  init(el: HTMLElement, opts: Record<string, unknown>): GridStackInstance;
+  // GridStack v11+ signature: options first, element (or selector) second
+  init(opts?: Record<string, unknown>, elOrString?: HTMLElement | string): GridStackInstance;
 }
 
 interface GridStackInstance {
@@ -445,16 +446,22 @@ export function DashboardManagerPage() {
         gridRef.current.appendChild(el);
       }
 
-      grid = GridStack.init(gridRef.current, {
-        column: 12,
-        cellHeight: 80,
-        margin: 12,
-        staticGrid: previewMode,
-        disableResize: previewMode,
-        disableDrag: previewMode,
-        animate: true,
-        float: false,
-      });
+      // GridStack v11+ signature: init(options, el) — options FIRST.
+      // Reversed args crash with "el.classList is undefined" (same fix as
+      // gridstack-dashboard.tsx).
+      grid = GridStack.init(
+        {
+          column: 12,
+          cellHeight: 80,
+          margin: 12,
+          staticGrid: previewMode,
+          disableResize: previewMode,
+          disableDrag: previewMode,
+          animate: true,
+          float: false,
+        },
+        gridRef.current,
+      );
       gridInstanceRef.current = grid;
 
       // Auto-persist layout on any change (drag/resize/add/remove)

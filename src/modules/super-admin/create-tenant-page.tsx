@@ -10,7 +10,7 @@
  * per step (§22), warm Terra palette only (§6).
  *
  * On Create: builds a new TenantContext, persists it to global context
- * via setTenant, fires a success toast, and navigates to the new
+ * via registerTenant (no context hijack), fires a success toast, and navigates to the new
  * tenant's detail page.
  */
 
@@ -190,7 +190,7 @@ function FieldRow({
 /* ------------------------------------------------------------------ */
 
 export function CreateTenantPage() {
-  const { navigate, setTenant, pushNotification } = usePlatform();
+  const { navigate, registerTenant, pushNotification } = usePlatform();
   const [state, setState] = useState<WizardState>(INITIAL_STATE);
   const [step, setStep] = useState(0);
 
@@ -250,16 +250,21 @@ export function CreateTenantPage() {
       status: "trial",
       createdAt: new Date().toISOString(),
     };
-    setTenant(newTenant);
+    // Register the tenant in the platform roster WITHOUT hijacking the
+    // operator's context — the super-admin stays in the Platform shell and
+    // is taken to the tenant detail page as the wizard promises. Previously
+    // this called setTenant(), which swapped the whole sidebar into the new
+    // tenant's module set and yanked the operator out of the admin flow.
+    registerTenant(newTenant);
     pushNotification({
       title: "Tenant created",
-      message: `${state.name} is ready for onboarding.`,
+      message: `${state.name} is ready for configuration.`,
       severity: "success",
       module: "super-admin",
     });
     toast({
       title: "Tenant created",
-      description: `${state.name} is ready for onboarding.`,
+      description: `${state.name} is ready for configuration.`,
     });
     setState(INITIAL_STATE);
     setStep(0);
@@ -300,7 +305,7 @@ export function CreateTenantPage() {
         icon={Sparkles}
         actions={
           <Button variant="ghost" size="sm" onClick={() => navigate("tenants")}>
-            <ChevronLeft className="mr-1 h-4 w-4" />Cancel
+            Cancel
           </Button>
         }
       />
@@ -810,7 +815,9 @@ function ReviewStep({
   return (
     <div className="space-y-4">
       <div>
-        <RequiredLabel>Review &amp; create</RequiredLabel>
+        <Label className="text-xs font-medium text-muted-foreground">
+          Review &amp; create
+        </Label>
         <p className="text-xs text-muted-foreground">
           Confirm the configuration below. You can change everything later from the tenant detail page.
         </p>

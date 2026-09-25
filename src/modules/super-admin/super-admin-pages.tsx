@@ -70,6 +70,8 @@ export function SuperAdminOverviewPage() {
   const totalTraders = allTenants.length * 26; // approx from mock
   const totalRevenue = allTenants.reduce((s, t) => s + (t.plan === "enterprise" ? 4900 : t.plan === "scale" ? 1900 : 890), 0);
   const allModules = moduleRegistry.getAll();
+  // Only tenant-facing modules belong in a per-tenant adoption metric
+  const tenantFacingModules = allModules.filter((m) => m.manifest.id !== "super-admin");
 
   return (
     <Page>
@@ -101,7 +103,9 @@ export function SuperAdminOverviewPage() {
             <CardHeader className="pb-2"><span className="text-sm font-medium">Module adoption</span></CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {allModules.map((m) => {
+                {/* Platform-only modules (super-admin) can never be enabled for
+                    tenants — showing them as "0/N adoption" reads like a bug. */}
+                {tenantFacingModules.map((m) => {
                   const count = allTenants.filter((t) => t.enabledModules.includes(m.manifest.id)).length;
                   const pct = Math.round((count / allTenants.length) * 100);
                   return (

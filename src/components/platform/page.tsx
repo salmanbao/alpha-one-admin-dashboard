@@ -119,7 +119,7 @@ export function MetricCard({
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: toneColor }} />
       <div className="flex items-start justify-between pl-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="line-clamp-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             {label}
           </p>
           <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground tabular-nums">

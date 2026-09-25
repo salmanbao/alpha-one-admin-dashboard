@@ -8,6 +8,7 @@
  * formatting. Modules consume these instead of building their own.
  */
 
+import { useEffect, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -44,12 +45,40 @@ const tooltipStyle = {
   color: "var(--popover-foreground)",
 };
 
+function useHasSize(ref: React.RefObject<HTMLDivElement | null>): boolean {
+  const [hasSize, setHasSize] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") {
+      // Fallback: assume size exists (avoids permanently hidden charts).
+      // Deferred to a rAF so we don't setState synchronously in the effect.
+      const raf = requestAnimationFrame(() => setHasSize(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    const ro = new ResizeObserver((entries) => {
+      const box = entries[0]?.contentRect;
+      setHasSize(!!box && box.width > 0 && box.height > 0);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return hasSize;
+}
+
 function ChartFrame({ height = 200, children }: { height?: number; children: React.ReactNode }) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const hasSize = useHasSize(frameRef);
   return (
-    <div style={{ width: "100%", height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        {children}
-      </ResponsiveContainer>
+    <div ref={frameRef} style={{ width: "100%", height }}>
+      {/* Mounting ResponsiveContainer inside a zero-size parent (hidden tab,
+          unsized GridStack item, collapsed panel) makes recharts spam
+          "width(0) and height(0)" warnings and can render invisible charts.
+          Wait for a real box before mounting. */}
+      {hasSize ? (
+        <ResponsiveContainer width="100%" height="100%">
+          {children}
+        </ResponsiveContainer>
+      ) : null}
     </div>
   );
 }
