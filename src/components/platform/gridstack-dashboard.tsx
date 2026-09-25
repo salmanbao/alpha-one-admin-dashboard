@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { resolveDashboardLayout, resolveWidgets, type ResolvedWidget } from "@/lib/platform/dashboard-engine";
 import { moduleRegistry } from "@/lib/platform/module-registry";
@@ -49,7 +50,8 @@ interface GridStackNode {
 }
 
 interface GridStackStatic {
-  init(el: HTMLElement, opts: Record<string, unknown>): GridStackInstance;
+  // GridStack v11+ signature: options first, element (or selector) second
+  init(opts?: Record<string, unknown>, elOrString?: HTMLElement | string): GridStackInstance;
 }
 type GridStackInstance = {
   on(event: string, cb: (event: Event, items: GridStackNode[]) => void): void;
@@ -111,6 +113,14 @@ export function DashboardGrid() {
   const gridInstanceRef = useRef<GridStackInstance | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  // Map of widgetId → DOM container element that GridStack created.
+  // We render React widgets into these containers via createPortal so that
+  // PlatformContext (and any other React context from the parent tree) flows
+  // through correctly. Using createRoot here would create an isolated React
+  // tree that loses all parent context, causing usePlatform() to throw.
+  const [widgetMounts, setWidgetMounts] = useState<
+    Array<{ widgetId: string; container: HTMLElement }>
+  >([]);
 
   // Build initial GridStack nodes from resolved widgets or saved layout
   // Use the per-tenant+role layout key if a Dashboard Manager layout exists,
@@ -178,16 +188,23 @@ export function DashboardGrid() {
       }
 
       // NOW init GridStack — it will auto-detect the gs-* children
-      grid = GridStack.init(gridRef.current, {
-        column: 12,
-        cellHeight: 80,
-        margin: 12,
-        staticGrid: !canEdit,
-        disableResize: !canEdit,
-        disableDrag: !canEdit,
-        animate: true,
-        float: false,
-      });
+      // NOTE: GridStack v11+ signature is `init(options, el)` — options FIRST,
+      // element (or selector) SECOND. Passing them in the wrong order causes
+      // `el.classList is undefined` because GridStack internally treats the
+      // options object as the grid element.
+      grid = GridStack.init(
+        {
+          column: 12,
+          cellHeight: 80,
+          margin: 12,
+          staticGrid: !canEdit,
+          disableResize: !canEdit,
+          disableDrag: !canEdit,
+          animate: true,
+          float: false,
+        },
+        gridRef.current,
+      );
 
       gridInstanceRef.current = grid;
 
@@ -219,18 +236,23 @@ export function DashboardGrid() {
         }
       });
 
-      // After grid init, render React widgets into each item's content div
+      // After grid init, collect the DOM containers GridStack created for each
+      // widget. We render React widgets into these via createPortal in the JSX
+      // below (rather than imperatively via createRoot), so that React context
+      // (PlatformProvider, theme, toast, etc.) propagates into each widget.
+      const mounts: Array<{ widgetId: string; container: HTMLElement }> = [];
       const items = gridRef.current.querySelectorAll(".grid-stack-item");
       items.forEach((item) => {
         const widgetId = item.getAttribute("gs-id");
         if (!widgetId) return;
-        const widgetDef = widgets.find((w) => w.definition.id === widgetId);
-        if (!widgetDef) return;
-        const contentEl = item.querySelector(".grid-stack-item-content");
+        const contentEl = item.querySelector(
+          ".grid-stack-item-content",
+        ) as HTMLElement | null;
         if (contentEl) {
-          renderWidgetInto(contentEl as HTMLElement, widgetDef);
+          mounts.push({ widgetId, container: contentEl });
         }
       });
+      setWidgetMounts(mounts);
 
       setIsLoaded(true);
     });
@@ -240,6 +262,7 @@ export function DashboardGrid() {
         grid.destroy(true);
       }
       gridInstanceRef.current = null;
+      setWidgetMounts([]);
     };
   }, [tenantId, canEdit, widgets.length]);
 
@@ -358,6 +381,44 @@ export function DashboardGrid() {
         style={{ minHeight: 200 }}
       />
 
+      {/* Portal each React widget into the DOM container GridStack created.
+          Portals stay inside this React tree, so PlatformContext (and any
+          other parent context) propagates into every widget. This is what
+          makes usePlatform(), useToast(), next-themes, etc. work inside
+          widgets mounted into GridStack-managed DOM nodes. */}
+      {widgetMounts.map(({ widgetId, container }) => {
+        const widgetDef = widgets.find((w) => w.definition.id === widgetId);
+        if (!widgetDef) return null;
+        const Comp = widgetDef.definition.component;
+        const accent = moduleRegistry.get(widgetDef.definition.module)?.manifest.accentColor;
+        return createPortal(
+          <ModuleErrorBoundary name={widgetDef.definition.title}>
+            <div className="flex h-full flex-col overflow-hidden">
+              <div className="flex items-center justify-between gap-2 border-b border-terra-soft bg-terra-surface/30 px-4 py-2.5">
+                <h3 className="text-[13px] font-medium text-foreground">{widgetDef.definition.title}</h3>
+                <span
+                  className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
+                  style={{
+                    background: `${accent}14`,
+                    color: accent,
+                  }}
+                >
+                  {widgetDef.definition.category}
+                </span>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <Comp
+                  instanceId={`${widgetDef.definition.id}-${widgetDef.placement.x}-${widgetDef.placement.y}`}
+                  widgetId={widgetDef.definition.id}
+                />
+              </div>
+            </div>
+          </ModuleErrorBoundary>,
+          container,
+          `widget-${widgetId}`,
+        );
+      })}
+
       {/* Inline CSS for GridStack widget styling (Terra theme) */}
       <style jsx global>{`
         .grid-stack {
@@ -402,42 +463,6 @@ export function DashboardGrid() {
       `}</style>
     </div>
   );
-}
-
-/**
- * Render a React widget component into a DOM element.
- * Uses createRoot to independently mount each widget.
- */
-function renderWidgetInto(container: HTMLElement, widget: ResolvedWidget) {
-  // Dynamic import of React DOM client (keeps initial bundle clean)
-  import("react-dom/client").then(({ createRoot }) => {
-    const Comp = widget.definition.component;
-    const root = createRoot(container);
-    root.render(
-      <ModuleErrorBoundary name={widget.definition.title}>
-        <div className="flex h-full flex-col overflow-hidden">
-          <div className="flex items-center justify-between gap-2 border-b border-terra-soft bg-terra-surface/30 px-4 py-2.5">
-            <h3 className="text-[13px] font-medium text-foreground">{widget.definition.title}</h3>
-            <span
-              className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
-              style={{
-                background: `${moduleRegistry.get(widget.definition.module)?.manifest.accentColor}14`,
-                color: moduleRegistry.get(widget.definition.module)?.manifest.accentColor,
-              }}
-            >
-              {widget.definition.category}
-            </span>
-          </div>
-          <div className="flex-1 overflow-auto p-4">
-            <Comp
-              instanceId={`${widget.definition.id}-${widget.placement.x}-${widget.placement.y}`}
-              widgetId={widget.definition.id}
-            />
-          </div>
-        </div>
-      </ModuleErrorBoundary>,
-    );
-  });
 }
 
 /**

@@ -8174,3 +8174,28 @@ Stage Summary:
 - Sidebar regrouping is now COMPLETE and VERIFIED across both roles: 8 grouped sections (Platform 8→3 groups, Trading left flat by design, all others per lead-architect), 87 children partitioned into 23 visible sub-groups, every chunk ≤ 6 items.
 - Contract unchanged from lead-architect: optional `NavigationItem.group`, header renders only on adjacent-group transitions, first group implicit. Zero breaking changes; flat sections unaffected.
 - Changes remain uncommitted in worktree alongside the lead-architect's (cron housekeeping will commit).
+
+---
+Task ID: fix-gridstack-dashboard-rendering
+Agent: main (cron-loop 14:00 round)
+Task: Fix runtime TypeError "can't access property 'contains', el.classList is undefined" at gridstack-dashboard.tsx:181 (GridStack.init call)
+
+Work Log:
+- Diagnosed root cause #1: GridStack v11 changed its `init()` signature to `init(options, elOrString)` — options FIRST, element SECOND. The code was calling `GridStack.init(gridRef.current, {...opts})` (wrong order), so GridStack internally treated the opts object as the grid element → `el.classList.contains('grid-stack')` threw on a plain object.
+- Fixed by swapping arg order to `GridStack.init({...opts}, gridRef.current)` and updating the `GridStackStatic` TS interface to match v11's real signature.
+- Diagnosed root cause #2 (masked by #1): `renderWidgetInto` used `react-dom/client` `createRoot(container)` to mount each widget into its own React root. React context DOES NOT cross root boundaries, so every widget calling `usePlatform()` threw `usePlatform must be used within PlatformProvider` — caught by `ModuleErrorBoundary` and shown as "Something went wrong loading {widget}". Verified: all 16 widgets showed the error fallback.
+- Refactored widget mounting from imperative `createRoot` to React `createPortal` (imported from `react-dom`):
+  - Added `widgetMounts` state: `Array<{widgetId, container}>` collected after GridStack init from `.grid-stack-item-content` divs.
+  - Render `<ModuleErrorBoundary><widget/></ModuleErrorBoundary>` via `createPortal(jsx, container, key)` inside the main JSX tree — stays in the parent React tree so `PlatformContext`, `ThemeProvider`, `ToastProvider` all flow through.
+  - Removed the now-obsolete `renderWidgetInto` helper and its `react-dom/client` dynamic import.
+- ESLint: clean (0 errors) after refactor.
+- Dev server crashed during verification (OOM at 1024MB — same as 5 prior incidents) → restarted with 1536MB safe heap variant; HTTP 200 restored.
+- agent-browser E2E verification: grid initialized (`grid-stack gs-12 grid-stack-static grid-stack-animate` classes applied, `grid.gridstack` truthy), 16 widgets rendered, **0 errors, 16 OK** with real content (KPI cards, charts, leaderboard, positions table).
+- Screenshot archived at `/home/z/my-project/download/gridstack-dashboard-fixed.png` (92KB, content rendered).
+- Released browser + chromium memory after verification.
+
+Stage Summary:
+- Two coupled bugs fixed: (1) GridStack v11 init arg-order mismatch, (2) widget rendering used isolated `createRoot` losing React context → switched to `createPortal` so all parent contexts (PlatformProvider, theme, toast) propagate into GridStack-mounted widgets.
+- Dashboard now fully functional: 16 widgets render real data end-to-end (was 0/16 before fix).
+- Architecture note for future agents: any time a widget needs to be mounted into an imperative DOM container (e.g. inside GridStack items), prefer `createPortal` from `react-dom` over `createRoot` — context propagation is mandatory for `usePlatform()` / `useToast()` / `useRouter()` to work.
+- Still outstanding (no regression introduced): cron restart template hardcodes 1024MB; until that's fixed, any restart will need manual swap to 1536MB.
