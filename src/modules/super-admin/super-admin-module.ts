@@ -31,6 +31,13 @@ import {
   Bell,
   ShieldAlert,
   Globe,
+  Users,
+  DollarSign,
+  Eye,
+  BookOpen,
+  Settings2,
+  Lock,
+  UserCheck,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -69,6 +76,23 @@ const navigation: NavigationItem[] = [
       { id: "super.catalog", label: "Service Catalog", href: "module-catalog", icon: Package, application: ["super-admin"], group: "Platform Config" },
       { id: "super.dashboard-manager", label: "Dashboard Manager", href: "dashboard-manager", icon: LayoutDashboard, application: ["super-admin"], group: "Platform Config" },
       { id: "super.feature-flags", label: "Feature Flags", href: "feature-flags", icon: Flag, application: ["super-admin"], group: "Platform Config" },
+      { id: "super.global-defaults", label: "Global Defaults", href: "global-defaults", icon: Settings2, application: ["super-admin"], group: "Platform Config" },
+      { id: "super.reference-data", label: "Reference Data", href: "reference-data", icon: BookOpen, application: ["super-admin"], group: "Platform Config" },
+      { id: "super.announcements", label: "Announcements", href: "announcements", icon: Bell, application: ["super-admin"], group: "Platform Config" },
+
+      // ───────── Security ─────────
+      { id: "super.security", label: "Security Overview", href: "security-overview", icon: Lock, application: ["super-admin"], group: "Security" },
+      { id: "super.sessions", label: "My Sessions", href: "my-sessions", icon: ShieldCheck, application: ["super-admin"], group: "Security" },
+      { id: "super.operators", label: "Operator Directory", href: "operator-directory", icon: Users, application: ["super-admin"], group: "Security" },
+      { id: "super.roles", label: "Role Management", href: "role-management", icon: UserCheck, application: ["super-admin"], group: "Security" },
+      { id: "super.view-as", label: "Tenant View-As", href: "tenant-view-as", icon: Eye, application: ["super-admin"], group: "Security" },
+      { id: "super.abuse", label: "Abuse Signals", href: "abuse-signals", icon: AlertTriangle, application: ["super-admin"], group: "Security" },
+
+      // ───────── Finance ─────────
+      { id: "super.financials", label: "Financial Overview", href: "platform-financials", icon: DollarSign, application: ["super-admin"], group: "Finance" },
+
+      // ───────── Analytics ─────────
+      { id: "super.analytics", label: "Platform Analytics", href: "platform-analytics", icon: BarChart3, application: ["super-admin"], group: "Analytics" },
     ],
   },
 ];
@@ -92,6 +116,17 @@ const routes: RouteDefinition[] = [
   { path: "module-catalog", viewId: "module-catalog", label: "Service Catalog", application: ["super-admin"] },
   { path: "dashboard-manager", viewId: "dashboard-manager", label: "Dashboard Manager", application: ["super-admin"] },
   { path: "feature-flags", viewId: "feature-flags", label: "Feature Flags", application: ["super-admin"] },
+  { path: "global-defaults", viewId: "global-defaults", label: "Global Defaults", application: ["super-admin"] },
+  { path: "reference-data", viewId: "reference-data", label: "Reference Data", application: ["super-admin"] },
+  { path: "announcements", viewId: "announcements", label: "Announcements", application: ["super-admin"] },
+  { path: "security-overview", viewId: "security-overview", label: "Security Overview", application: ["super-admin"] },
+  { path: "my-sessions", viewId: "my-sessions", label: "My Sessions", application: ["super-admin"] },
+  { path: "operator-directory", viewId: "operator-directory", label: "Operator Directory", application: ["super-admin"] },
+  { path: "role-management", viewId: "role-management", label: "Role Management", application: ["super-admin"] },
+  { path: "tenant-view-as", viewId: "tenant-view-as", label: "Tenant View-As", application: ["super-admin"] },
+  { path: "abuse-signals", viewId: "abuse-signals", label: "Abuse Signals", application: ["super-admin"] },
+  { path: "platform-financials", viewId: "platform-financials", label: "Platform Financials", application: ["super-admin"] },
+  { path: "platform-analytics", viewId: "platform-analytics", label: "Platform Analytics", application: ["super-admin"] },
   { path: "platform-audit", viewId: "platform-audit", label: "Platform Audit Log", application: ["super-admin"], permission: "platform.audit.read" },
 ];
 

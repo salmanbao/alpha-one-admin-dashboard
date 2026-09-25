@@ -84,6 +84,17 @@ import { BackupsDrPage } from "@/modules/super-admin/backups-dr-page";
 import { ApprovalCenterPage } from "@/modules/super-admin/approval-center-page";
 import { IncidentCenterPage } from "@/modules/super-admin/incident-center-page";
 import { FeatureFlagsPage } from "@/modules/super-admin/feature-flags-page";
+import { MySessionsPage } from "@/modules/super-admin/my-sessions-page";
+import { SecurityOverviewPage } from "@/modules/super-admin/security-overview-page";
+import { PlatformFinancialsPage } from "@/modules/super-admin/platform-financials-page";
+import { GlobalDefaultsPage } from "@/modules/super-admin/global-defaults-page";
+import { ReferenceDataPage } from "@/modules/super-admin/reference-data-page";
+import { OperatorDirectoryPage } from "@/modules/super-admin/operator-directory-page";
+import { RoleManagementPage } from "@/modules/super-admin/role-management-page";
+import { TenantViewAsPage } from "@/modules/super-admin/tenant-view-as-page";
+import { AbuseSignalsPage } from "@/modules/super-admin/abuse-signals-page";
+import { AnnouncementsPage } from "@/modules/super-admin/announcements-page";
+import { PlatformAnalyticsPage } from "@/modules/super-admin/platform-analytics-page";
 import { TenantDetailPage } from "@/modules/super-admin/tenant-detail-page";
 import { CreateTenantPage } from "@/modules/super-admin/create-tenant-page";
 import { TenantLifecyclePage } from "@/modules/super-admin/tenant-lifecycle-page";
@@ -229,6 +240,17 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "approval-center": ApprovalCenterPage,
   "incident-center": IncidentCenterPage,
   "feature-flags": FeatureFlagsPage,
+  "my-sessions": MySessionsPage,
+  "security-overview": SecurityOverviewPage,
+  "platform-financials": PlatformFinancialsPage,
+  "global-defaults": GlobalDefaultsPage,
+  "reference-data": ReferenceDataPage,
+  "operator-directory": OperatorDirectoryPage,
+  "role-management": RoleManagementPage,
+  "tenant-view-as": TenantViewAsPage,
+  "abuse-signals": AbuseSignalsPage,
+  announcements: AnnouncementsPage,
+  "platform-analytics": PlatformAnalyticsPage,
 
   /* trading */
   trading: TradingOverviewPage,

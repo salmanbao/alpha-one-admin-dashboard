@@ -9644,3 +9644,113 @@ Stage Summary:
   - #34 Tenant View-As (impersonation — partial via Tenant Detail "Login as" button)
   - #35-36 Platform Analytics + Usage Analytics
   - #37-39 Platform Role Management + Operator Directory + Support Assist
+
+---
+Task ID: platform-admin-round8b-master
+Agent: Super Z (Platform Admin Dashboard — Deferred Screens Implementation)
+Task: Implement all remaining deferred V2/V3 screens from the 39-screen research inventory.
+
+Work Log:
+- Implemented 11 new screens covering the remaining deferred items from the research inventory:
+
+1. my-sessions-page.tsx — #2 My Sessions:
+   - Active sessions list with device/browser/location/IP/age/anomaly indicator
+   - Current session cannot be revoked (must use Log out)
+   - "Revoke all other" button for bulk revocation
+   - Anomaly-flagged sessions highlighted with amber border
+   - 4 KPIs: Active Sessions / Anomalies / 2FA Status / Last Password Change
+
+2. security-overview-page.tsx — #21 Security Overview:
+   - Failed logins, suspicious logins, anomaly blocks KPIs
+   - Credential rotation status (5 provider keys + SSL cert)
+   - MFA status dashboard (100% platform operators, 89% tenant admin avg)
+   - Security events DataTable with type/severity/actor/detail/IP/timestamp
+
+3. platform-financials-page.tsx — #25 Platform Financial Overview:
+   - MRR / ARR / Plan Revenue / Pass-Through Margin KPIs
+   - Revenue breakdown bar chart (plan / usage / pass-through)
+   - Invoice status summary (paid/pending/past due)
+   - Per-tenant revenue table with plan/usage/pass-through/total columns
+   - Billing mode notice (V1/V2 manual contract, V3 productized billing)
+
+4. global-defaults-page.tsx — #29 Global Defaults:
+   - 14 platform-wide defaults organized by category (Tenant/Trading/Risk/Finance/Security/Notifications)
+   - Each with text/number/toggle/select input
+   - "Platform default" badge distinguishes from tenant overrides
+   - Notice: "Changes here do NOT retroactively modify existing tenants"
+
+5. reference-data-page.tsx — #30 Master Reference Data:
+   - Controlled reference data: Currencies (from CURRENCIES constant), Countries, Trading Platforms, Rule Types, Account Types
+   - DataTable with code/name/category/description columns
+   - 4 KPIs: Currencies / Countries / Platforms / Rule Types
+   - Data governance notice: "administrative data-governance workspace, do not casually modify"
+
+6. operator-directory-page.tsx — #38 Platform Operator Directory:
+   - All platform staff (super-admin + prop-admin users) in a DataTable
+   - Columns: Operator (avatar+name+email), Role badges, Application, MFA status, Last Active, Status, Actions (Edit/Suspend)
+   - 4 KPIs: Total Operators / With MFA / Active Sessions / Suspended
+   - Invite operator button
+
+7. role-management-page.tsx — #37 Platform Role Management:
+   - All roles from mock data (super-admin, prop-admin, risk, support, trader)
+   - Per-role card: name, application badge, description, permissions (first 8 shown + "more")
+   - Role color indicator
+   - 4 KPIs: Total Roles / Super Admin / Prop Admin / Trader
+   - Role governance notice
+
+8. tenant-view-as-page.tsx — #34 Tenant View-As:
+   - Identity type selector: Tenant Admin or Trader
+   - Tenant + user dropdown selection
+   - Read-only restrictions panel (no payout approval, no credentials, no settings changes)
+   - AlertDialog launch with 2FA + audit notice
+   - Active view-as banner when impersonating (amber, "READ ONLY" bold red)
+   - "Exit View-As" button returns to super-admin
+   - View-As vs Support Assist distinction notice
+
+9. abuse-signals-page.tsx — #19 Cross-Tenant Abuse Signals:
+   - 5 abuse signals: Shared IP cluster, Device cluster, Cross-tenant pattern, Suspicious relationship, Repeated fraud pattern
+   - DataTable with type/severity/detail/affected-tenants/evidence/detected columns
+   - 4 KPIs: Total / Critical / High / Tenants Affected
+   - "Observation only" notice: platform observes, tenant risk domain decides
+
+10. announcements-page.tsx — #32 Announcements:
+    - 4 existing announcements with lifecycle: Draft → Scheduled → Visible → Expired
+    - Create form with title/message/scope
+    - "Expire now" button on visible announcements
+    - 4 KPIs: Visible / Scheduled / Drafts / Expired
+
+11. platform-analytics-page.tsx — #35 Platform Analytics:
+    - 4 KPIs: Total Traders / Total Accounts / Funded Accounts / Payout Volume
+    - Monthly revenue trend (12 months, AreaSeries)
+    - Trader count by tenant (BarSeries)
+    - Cross-tenant comparison DataTable (traders/accounts/funded/payout-volume/conversion%)
+    - "Key questions this view answers" card (which tenants approaching limits, API traffic, provider costs, conversion rate, payout comparison)
+
+- Updated super-admin-module.ts: added 11 new nav items + 11 new routes in Security / Finance / Analytics / Platform Config groups
+- Updated super-admin-pages.tsx: re-exports all 11 new page components
+- Updated view-router.tsx: imported + registered 11 new viewId → component mappings
+
+Verification (agent-browser E2E as Alex Morgan — user-super, platform tenant):
+- HTTP 200, page renders cleanly, 0 console errors
+- Sidebar now shows 30 platform-admin nav items organized into 7 groups:
+  PLATFORM → Overview / Tenants / Create Tenant / Lifecycle
+  OPERATIONS → Operations Home / Emergency Controls / Incidents / Jobs / Approval Center
+  OBSERVABILITY → Platform Health / Provider Registry / Cross-Tenant Queues / Platform Audit
+  INFRASTRUCTURE → Deployments / Backups & DR
+  PLATFORM CONFIG → Service Catalog / Dashboard Manager / Feature Flags / Global Defaults / Reference Data / Announcements
+  SECURITY → Security Overview / My Sessions / Operator Directory / Role Management / Tenant View-As / Abuse Signals
+  FINANCE → Financial Overview
+  ANALYTICS → Platform Analytics
+- Clicked all 11 new screens — every one renders with hasError=false
+- Screenshot: download/platform-security-overview.png
+
+Stage Summary:
+- Platform Admin Dashboard now has 29 screens (was 8 in Round 8a + 11 in Round 8b = 29 total) covering all V1/V2 must-haves and most V3 items from the 39-screen research inventory
+- Still NOT implemented (out of scope for the demo — would need backend infrastructure):
+  - #1 Platform Login (2FA) — app uses demo user switcher, no real login flow
+  - #7 Provisioning Progress (saga state visualization) — would need real provisioning backend
+  - #33 Notification Center (platform operators) — partially covered by existing notifications-page.tsx
+  - #36 Usage Analytics (detailed metering) — partially covered by Platform Analytics
+  - #39 Cross-Tenant Support Assist — future capability distinct from View-As
+- All 11 new files pass lint (verified after each batch)
+- Server healthy at HTTP 200 with 1536MB variant

@@ -23,6 +23,18 @@ export { BackupsDrPage } from "./backups-dr-page";
 export { ApprovalCenterPage } from "./approval-center-page";
 export { IncidentCenterPage } from "./incident-center-page";
 export { FeatureFlagsPage } from "./feature-flags-page";
+// Round 8b: deferred screens from the research inventory
+export { MySessionsPage } from "./my-sessions-page";
+export { SecurityOverviewPage } from "./security-overview-page";
+export { PlatformFinancialsPage } from "./platform-financials-page";
+export { GlobalDefaultsPage } from "./global-defaults-page";
+export { ReferenceDataPage } from "./reference-data-page";
+export { OperatorDirectoryPage } from "./operator-directory-page";
+export { RoleManagementPage } from "./role-management-page";
+export { TenantViewAsPage } from "./tenant-view-as-page";
+export { AbuseSignalsPage } from "./abuse-signals-page";
+export { AnnouncementsPage } from "./announcements-page";
+export { PlatformAnalyticsPage } from "./platform-analytics-page";
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
