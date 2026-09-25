@@ -51,6 +51,7 @@ const routes: RouteDefinition[] = [
   { path: "analytics-traders", viewId: "analytics-traders", label: "Trader Analytics", permission: "analytics.read", module: "analytics" },
   { path: "analytics-performance", viewId: "analytics-performance", label: "Performance Analytics", permission: "analytics.read", module: "analytics" },
   { path: "analytics-risk", viewId: "analytics-risk", label: "Risk Analytics", permission: "analytics.read", module: "analytics" },
+  { path: "reports", viewId: "reports", label: "Reports", permission: "analytics.read", module: "analytics" },
   { path: "analytics-advanced", viewId: "analytics-advanced", label: "Advanced Analytics", permission: "analytics.advanced.read", module: "analytics", feature: "analytics.advanced" },
   { path: "analytics-firm-statistics", viewId: "analytics-firm-statistics", label: "Firm Statistics", permission: "analytics.read", module: "analytics" },
   { path: "analytics-daily-highlights", viewId: "analytics-daily-highlights", label: "Daily Highlights", permission: "analytics.read", module: "analytics" },

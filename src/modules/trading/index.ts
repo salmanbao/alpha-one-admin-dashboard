@@ -6,3 +6,4 @@ export {
   PositionsPage,
   TraderDetailPage,
 } from "./pages/trading-pages";
+export { OrdersPage } from "./pages/orders-page";

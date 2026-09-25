@@ -27,6 +27,7 @@ const routes: RouteDefinition[] = [
   { path: "payouts-pending", viewId: "payouts-pending", label: "Pending Payouts", permission: "payout.approve", module: "payouts" },
   { path: "payouts-history", viewId: "payouts-history", label: "Payout History", permission: ["payout.read", "payout.self"], module: "payouts" },
   { path: "payouts-enhanced-withdrawals", viewId: "payouts-enhanced-withdrawals", label: "Enhanced Withdrawals", permission: ["payout.read", "payout.self"], module: "payouts" },
+  { path: "payout-provider-status", viewId: "payout-provider-status", label: "Provider Status", permission: "payout.read", module: "payouts" },
 ];
 
 const widgets: WidgetDefinition[] = [

@@ -27,6 +27,7 @@ const routes: RouteDefinition[] = [
   { path: "kyc", viewId: "kyc", label: "KYC Overview", permission: "kyc.read", module: "kyc" },
   { path: "kyc-reviews", viewId: "kyc-reviews", label: "KYC Reviews", permission: "kyc.read", module: "kyc" },
   { path: "kyc-risk", viewId: "kyc-risk", label: "KYC Risk", permission: "kyc.read", module: "kyc" },
+  { path: "kyc-document-requests", viewId: "kyc-document-requests", label: "Document Requests", permission: "kyc.read", module: "kyc" },
 ];
 
 const widgets: WidgetDefinition[] = [

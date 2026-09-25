@@ -17,18 +17,21 @@ import {
   AccountsPage,
   PositionsPage,
   TraderDetailPage,
+  OrdersPage,
 } from "@/modules/trading";
 import {
   ChallengesOverviewPage,
   ActiveChallengesPage,
   PassedChallengesPage,
   FailedChallengesPage,
+  CompetitionsPage,
 } from "@/modules/challenges";
-import { RiskOverviewPage, BreachesPage } from "@/modules/risk";
+import { RiskOverviewPage, BreachesPage, RiskCasesPage } from "@/modules/risk";
 import {
   PayoutsOverviewPage,
   PendingPayoutsPage,
   PayoutHistoryPage,
+  PayoutProviderStatusPage,
 } from "@/modules/payouts";
 import {
   AnalyticsOverviewPage,
@@ -36,6 +39,7 @@ import {
   PerformanceAnalyticsPage,
   RiskAnalyticsPage,
   AdvancedAnalyticsPage,
+  ReportsPage,
 } from "@/modules/analytics";
 import {
   AffiliatesOverviewPage,
@@ -54,7 +58,7 @@ import {
   MarketingPerformancePage,
 } from "@/modules/marketing";
 import { CrmOverviewPage, CrmContactsPage, CrmPipelinePage } from "@/modules/crm";
-import { KycOverviewPage, KycReviewsPage, KycRiskPage } from "@/modules/kyc";
+import { KycOverviewPage, KycReviewsPage, KycRiskPage, KycDocumentRequestsPage } from "@/modules/kyc";
 import {
   SupportOverviewPage,
   SupportTicketsPage,
@@ -269,6 +273,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "closed-positions": ClosedPositionsPage,
   "closed-position-detail": ClosedPositionDetailPage,
   "order-detail": OrderDetailPage,
+  orders: OrdersPage,
 
   /* challenges */
   challenges: ChallengesOverviewPage,
@@ -278,6 +283,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "challenge-wizard": ChallengeWizardPage,
   "challenge-config": ChallengeConfigPage,
   "challenge-types": ChallengeTypesPage,
+  competitions: CompetitionsPage,
   "phase-management": PhaseManagementPage,
   "challenge-edit": ChallengeEditPage,
   "phase-detail": PhaseDetailPage,
@@ -285,6 +291,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   /* risk */
   risk: RiskOverviewPage,
   breaches: BreachesPage,
+  "risk-cases": RiskCasesPage,
   "risk-statistics": RiskStatisticsPage,
   "trading-events": TradingEventsPage,
   "copy-trading-events": CopyTradingEventsPage,
@@ -306,6 +313,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "payouts-pending": PendingPayoutsPage,
   "payouts-history": PayoutHistoryPage,
   "payouts-enhanced-withdrawals": EnhancedWithdrawalsPage,
+  "payout-provider-status": PayoutProviderStatusPage,
 
   /* analytics */
   analytics: AnalyticsOverviewPage,
@@ -313,6 +321,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "analytics-performance": PerformanceAnalyticsPage,
   "analytics-risk": RiskAnalyticsPage,
   "analytics-advanced": AdvancedAnalyticsPage,
+  reports: ReportsPage,
   "analytics-firm-statistics": FirmStatisticsPage,
   "analytics-daily-highlights": DailyHighlightsPage,
   "analytics-retention": RetentionAnalyticsPage,
@@ -357,6 +366,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   kyc: KycOverviewPage,
   "kyc-reviews": KycReviewsPage,
   "kyc-risk": KycRiskPage,
+  "kyc-document-requests": KycDocumentRequestsPage,
 
   /* support */
   support: SupportOverviewPage,

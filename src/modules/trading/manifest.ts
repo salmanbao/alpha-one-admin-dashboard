@@ -14,6 +14,7 @@ import {
   UserPlus,
   Archive,
   User,
+  ShoppingCart,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { TradingOverviewWidget } from "./widgets/trading-overview-widget";
@@ -35,6 +36,7 @@ const navigation: NavigationItem[] = [
       { id: "trading.positions", label: "Open Positions", href: "trading-positions", icon: Activity, permission: "account.read", application: ["prop-admin", "super-admin"] },
       { id: "trading.add-account", label: "Add Account", href: "trading-add-account", icon: UserPlus, permission: "account.write", application: ["prop-admin", "super-admin"] },
       { id: "trading.closed-positions", label: "Closed Positions", href: "closed-positions", icon: Archive, permission: "account.read", application: ["prop-admin", "super-admin"] },
+      { id: "trading.orders", label: "Orders", href: "orders", icon: ShoppingCart, permission: "account.read", application: ["prop-admin", "super-admin"] },
       // Round 7: trader-scoped nav items — Tom lands on his own workspace
       // / positions / closed positions / withdraw / support, not the
       // admin views that list every trader on the tenant.
@@ -61,6 +63,7 @@ const routes: RouteDefinition[] = [
   { path: "account-events", viewId: "account-events", label: "Account Events", permission: ["account.read", "account.self"], module: "trading" },
   { path: "account-version-history", viewId: "account-version-history", label: "Account Version History", permission: ["account.read", "account.self"], module: "trading" },
   { path: "closed-position-detail", viewId: "closed-position-detail", label: "Closed Position Detail", permission: ["account.read", "account.self"], module: "trading" },
+  { path: "orders", viewId: "orders", label: "Orders", permission: ["account.read", "account.self"], module: "trading" },
   { path: "order-detail", viewId: "order-detail", label: "Order Detail", permission: ["account.read", "account.self"], module: "trading" },
 ];
 

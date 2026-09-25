@@ -4,3 +4,4 @@ export {
   KycReviewsPage,
   KycRiskPage,
 } from "./pages/kyc-pages";
+export { KycDocumentRequestsPage } from "./pages/kyc-document-requests-page";

@@ -6,3 +6,4 @@ export {
   RiskAnalyticsPage,
   AdvancedAnalyticsPage,
 } from "./pages/analytics-pages";
+export { ReportsPage } from "./pages/reports-page";

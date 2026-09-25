@@ -17,6 +17,7 @@ const navigation: NavigationItem[] = [
       // ───────── Overview & Breaches ─────────
       { id: "risk.overview", label: "Overview", href: "risk", icon: ShieldCheck, permission: ["risk.read", "risk.self", "breach.self"], group: "Overview & Breaches" },
       { id: "risk.breaches", label: "My Breaches", href: "breaches", icon: ShieldAlert, permission: ["breach.read", "breach.self"], group: "Overview & Breaches" },
+      { id: "risk.cases", label: "Risk Cases", href: "risk-cases", icon: ShieldAlert, permission: ["risk.read", "breach.self"], group: "Overview & Breaches" },
       { id: "risk.statistics", label: "Statistics", href: "risk-statistics", icon: BarChart3, permission: "risk.read", group: "Overview & Breaches" },
       { id: "risk.revenue-loss", label: "Revenue Loss", href: "risk-revenue-loss", icon: TrendingDown, permission: "risk.read", group: "Overview & Breaches" },
 
@@ -48,6 +49,7 @@ const routes: RouteDefinition[] = [
   // access his own risk overview + breaches. Analytics-style pages stay
   // admin-only (risk.read).
   { path: "risk", viewId: "risk", label: "Risk Overview", permission: ["risk.read", "breach.self"], module: "risk" },
+  { path: "risk-cases", viewId: "risk-cases", label: "Risk Cases", permission: ["risk.read", "breach.self"], module: "risk" },
   { path: "breaches", viewId: "breaches", label: "Breaches", permission: ["breach.read", "breach.self"], module: "risk" },
   { path: "risk-statistics", viewId: "risk-statistics", label: "Risk Statistics", permission: "risk.read", module: "risk" },
   { path: "trading-events", viewId: "trading-events", label: "Trading Events", permission: "risk.read", module: "risk" },

@@ -5,3 +5,4 @@ export {
   PassedChallengesPage,
   FailedChallengesPage,
 } from "./pages/challenge-pages";
+export { CompetitionsPage } from "./pages/competitions-page";
