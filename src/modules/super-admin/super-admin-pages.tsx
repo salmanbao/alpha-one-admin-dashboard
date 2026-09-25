@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { tenants as allTenants } from "@/lib/platform/mock-data";
+import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
 import type { TenantContext } from "@/lib/platform/types";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import {
@@ -67,7 +67,12 @@ const tenantStatusTone = (s: string) =>
 
 export function SuperAdminOverviewPage() {
   const { setTenant, setUser, navigate } = usePlatform();
-  const totalTraders = allTenants.length * 26; // approx from mock
+  // Round 4 fix: derive the trader count by summing each tenant's actual
+  // trader list (was `allTenants.length * 26` — a fabricated multiplier
+  // that didn't reflect any real data, especially since Alpha has 26
+  // traders, Beta has 17, Gamma has 8, etc. — the fabricated "x26" was
+  // never right except by accident for Alpha).
+  const totalTraders = allTenants.reduce((s, t) => s + getTenantTraders(t.id).length, 0);
   const totalRevenue = allTenants.reduce((s, t) => s + (t.plan === "enterprise" ? 4900 : t.plan === "scale" ? 1900 : 890), 0);
   const allModules = moduleRegistry.getAll();
   // Only tenant-facing modules belong in a per-tenant adoption metric

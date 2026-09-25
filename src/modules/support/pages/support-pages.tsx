@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantTickets, hashStr } from "@/lib/platform/mock-data";
@@ -84,6 +84,65 @@ function slaHoursFor(priority: SupportTicket["priority"]): number {
     case "medium": return 24;
     case "low": return 48;
   }
+}
+
+/**
+ * Live SLA countdown hook. Returns a formatted "Hh Mm" / "Xh ago" string
+ * that ticks every 60 seconds so the drawer's SLA cell reflects the
+ * real time remaining until the deadline (createdAt + slaHoursFor)
+ * instead of a static "{slaHoursFor}h" placeholder. Round 4 fix.
+ *
+ * If the ticket is already resolved/closed, returns the elapsed time
+ * since deadline (positive number formatted as "Xh ago") so the operator
+ * sees how late the response was.
+ */
+function useSlaRemaining(createdAt: string, priority: SupportTicket["priority"], status: SupportTicket["status"]): string {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+  // Re-evaluate on every render (hook re-subscribes via the ticker).
+  const slaMs = slaHoursFor(priority) * 60 * 60 * 1000;
+  const created = new Date(createdAt).getTime();
+  const deadline = created + slaMs;
+  const now = Date.now();
+  const isClosed = status === "resolved" || status === "closed";
+  if (isClosed) {
+    // Show how long after deadline the ticket sat (or "on time" if before)
+    const closed = Date.now();
+    const delta = closed - deadline;
+    if (delta <= 0) return "On time";
+    const hours = Math.floor(delta / (60 * 60 * 1000));
+    const mins = Math.floor((delta % (60 * 60 * 1000)) / (60 * 1000));
+    return hours > 0 ? `${hours}h ${mins}m late` : `${mins}m late`;
+  }
+  const remaining = deadline - now;
+  if (remaining <= 0) {
+    const overdue = -remaining;
+    const hours = Math.floor(overdue / (60 * 60 * 1000));
+    const mins = Math.floor((overdue % (60 * 60 * 1000)) / (60 * 1000));
+    return hours > 0 ? `${hours}h ${mins}m over` : `${mins}m over`;
+  }
+  const hours = Math.floor(remaining / (60 * 60 * 1000));
+  const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+  return hours > 0 ? `${hours}h ${mins}m left` : `${mins}m left`;
+}
+
+/**
+ * Live SLA countdown cell — wraps the useSlaRemaining hook so it can be
+ * rendered inside the conditional Sheet drawer without breaking rules of
+ * hooks (the parent <Sheet> only renders its body when open).
+ */
+function SlaTimerCell({ ticket, status }: { ticket: SupportTicket; status: SupportTicket["status"] }) {
+  const remaining = useSlaRemaining(ticket.createdAt, ticket.priority, status);
+  return (
+    <div className="rounded-lg border p-2 text-center">
+      <Clock className="h-3 w-3 mx-auto text-amber-600 mb-1" />
+      <div className="text-[10px] text-muted-foreground">SLA</div>
+      <div className="text-xs font-medium tabular-nums">{remaining}</div>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -340,11 +399,7 @@ export function SupportTicketsPage() {
 
               {/* KPI strip */}
               <div className="grid grid-cols-3 gap-2 px-4 py-3">
-                <div className="rounded-lg border p-2 text-center">
-                  <Clock className="h-3 w-3 mx-auto text-amber-600 mb-1" />
-                  <div className="text-[10px] text-muted-foreground">SLA</div>
-                  <div className="text-xs font-medium">{slaHoursFor(selectedTicket.priority)}h</div>
-                </div>
+                <SlaTimerCell ticket={selectedTicket} status={effectiveTicketStatus(selectedTicket)} />
                 <div className="rounded-lg border p-2 text-center">
                   <User className="h-3 w-3 mx-auto text-emerald-600 mb-1" />
                   <div className="text-[10px] text-muted-foreground">Assignee</div>

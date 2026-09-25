@@ -17,7 +17,7 @@
  * File ownership: impl-ai-predictive-anomaly-cost
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { hashStr, getTenantAccounts, getTenantTraders } from "@/lib/platform/mock-data";
@@ -390,9 +390,16 @@ export function AiAnomalyPage() {
   const accounts = useMemo(() => getTenantAccounts(tid), [tid]);
   const traders = useMemo(() => getTenantTraders(tid), [tid]);
 
+  // Track anomalies marked as false-positive in-session so they actually
+  // leave the visible list (previously toast-only — the row stayed in
+  // the table after clicking "False positive"). Round 4 fix.
+  const [falsePositiveIds, setFalsePositiveIds] = useState<Set<string>>(new Set());
+  const [ticketedIds, setTicketedIds] = useState<Set<string>>(new Set());
+
   const anomalies = useMemo(
-    () => buildRecentAnomalies(accounts, traders, tid),
-    [accounts, traders, tid],
+    () => buildRecentAnomalies(accounts, traders, tid)
+      .filter((a) => !falsePositiveIds.has(a.id)),
+    [accounts, traders, tid, falsePositiveIds],
   );
   const typeDist = useMemo(() => buildTypeDistribution(anomalies), [anomalies]);
   const hourly = useMemo(() => buildHourlyTrend(tid), [tid]);
@@ -640,9 +647,14 @@ export function AiAnomalyPage() {
                       variant="ghost"
                       onClick={(e) => {
                         e.stopPropagation();
+                        setFalsePositiveIds((prev) => {
+                          const next = new Set(prev);
+                          next.add(r.id);
+                          return next;
+                        });
                         toast({
                           title: "Marked as false positive",
-                          description: `${r.typeLabel} on ${r.traderName} (${r.accountLogin}) (demo)`,
+                          description: `${r.typeLabel} on ${r.traderName} (${r.accountLogin}) removed from the anomaly queue.`,
                         });
                       }}
                     >
@@ -652,16 +664,18 @@ export function AiAnomalyPage() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      disabled={ticketedIds.has(r.id)}
                       onClick={(e) => {
                         e.stopPropagation();
-                        toast({
-                          title: "Support ticket created",
-                          description: `Ticket T-${hashStr(r.id) % 9000 + 1000} for ${r.typeLabel} on ${r.traderName} (demo)`,
-                        });
+                        setTicketedIds((prev) => new Set(prev).add(r.id));
+                        // Round 4: navigate to support-tickets with the
+                        // trader pre-selected so the operator can compose
+                        // a real ticket (previously toast-only).
+                        navigate("support-tickets", { focus: r.traderId });
                       }}
                     >
                       <Ticket className="mr-1 h-3 w-3" />
-                      Create ticket
+                      {ticketedIds.has(r.id) ? "Ticket filed" : "Create ticket"}
                     </Button>
                   </div>
                 ),

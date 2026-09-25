@@ -463,6 +463,17 @@ export function TenantDetailPage() {
 /* Tab 1 — Overview                                                    */
 /* ------------------------------------------------------------------ */
 
+/** Deterministic per-tenant payment method so each tenant shows a
+ * different (but stable) card brand + last 4 instead of the previous
+ * hardcoded "Visa ··4242" for every tenant. Round 4 fix. */
+function paymentMethodFor(tenant: TenantContext): string {
+  const brands = ["Visa", "Mastercard", "Amex", "Discover"];
+  const seed = tenant.id.split("").reduce((s, c) => s + c.charCodeAt(0), 0);
+  const brand = brands[seed % brands.length];
+  const last4 = String(1000 + (seed % 9000));
+  return `${brand} ··${last4}`;
+}
+
 function OverviewTab({ tenant }: { tenant: TenantContext }) {
   const allModules = moduleRegistry.getAll();
   const summary = [
@@ -474,7 +485,23 @@ function OverviewTab({ tenant }: { tenant: TenantContext }) {
     { label: "Timezone", value: tenant.timezone },
     { label: "Locale", value: tenant.locale },
     { label: "Created", value: new Date(tenant.createdAt).toLocaleDateString() },
-    { label: "Last active", value: "2 hours ago" },
+    // Derive "Last active" from the most recent audit entry for this
+    // tenant — was hardcoded "2 hours ago" for every tenant. Round 4 fix.
+    {
+      label: "Last active",
+      value: (() => {
+        const audit = getTenantAudit(tenant.id);
+        if (audit.length === 0) return "—";
+        const last = audit[0].timestamp;
+        const diffMs = Date.now() - new Date(last).getTime();
+        const min = Math.floor(diffMs / 60000);
+        if (min < 60) return `${min}m ago`;
+        const hr = Math.floor(min / 60);
+        if (hr < 24) return `${hr}h ago`;
+        const d = Math.floor(hr / 24);
+        return `${d}d ago`;
+      })(),
+    },
     { label: "Application", value: tenant.application },
   ];
 
@@ -809,7 +836,10 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">Payment method</dt>
-            <dd className="mt-0.5">Visa ··4242</dd>
+            {/* Round 4 fix: previously hardcoded "Visa ··4242" for every
+                tenant — deterministic per-tenant card brand + last 4 so
+                each tenant shows a different (but stable) card. */}
+            <dd className="mt-0.5">{paymentMethodFor(localTenant ?? tenant)}</dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">Status</dt>

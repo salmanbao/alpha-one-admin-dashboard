@@ -250,9 +250,9 @@ export function AccountKycStatusesPage() {
         variant="ghost"
         size="sm"
         className="w-fit"
-        onClick={() => navigate("trader-detail", { id: account.traderId })}
+        onClick={() => navigate("account-workspace", { id: account.id })}
       >
-        <ArrowLeft className="mr-1 h-4 w-4" /> Back to trader
+        <ArrowLeft className="mr-1 h-4 w-4" /> Back to Account
       </Button>
 
       <PageHeader

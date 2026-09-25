@@ -9197,3 +9197,82 @@ Stage Summary:
 - All touched files pass lint (verified after each batch via `bun run lint`)
 - Dev server OOM'd twice during Phase 5 (compile load) — restarted with 1536MB variant, HTTP 200
 - Cron job 413512 stopped per user request; no cron jobs currently active
+
+---
+Task ID: phase6-master
+Agent: Super Z (Phase 6 remaining batches after Phase 5)
+Task: Implement the remaining deferred phases — dashboard-tabs hardcoded KPIs, SLA timer, Back-to-trader ghost buttons, super-admin totalTraders, AI config persistence, AI anomaly FP/Create ticket, tenant-detail hardcoded Last-active + payment method, cert-mgmt Active Switch, support-sla breached tickets + agent workload, weekend-trades dead buttons.
+
+Work Log:
+- Stopped cron job 413512 at user request (no cron jobs currently active)
+- Phase 6A — dashboard-tabs hardcoded KPIs → derived from real per-tenant data:
+  - AccountsDashboardTab (13 KPIs): Total/Phase1/Phase2/Funded/MT5-Active/DailyDD/MaxDD/Blocked/Passed/Total Users/Avg-Accounts-Per-User. Avg Pass Time + Avg Breach Time left as estimates (no data source for time-series pass/breach durations)
+  - PayoutsDashboardTab (6 KPIs): Approved/Pending/Rejected/Processing payouts from getTenantPayouts(tid) status filters; Total Payout Amount from payouts.reduce; Avg Profit Split from average of paid payouts' profitSplit field
+  - OrdersDashboardTab (5 KPIs): Total Orders from getTenantTransactions(tid).length; Total Revenue from sum of non-payout transactions; Avg Order Value = total / count; Conversion Rate derived from funded-trader / total-trader ratio (capped 0.1–10%); Refund Rate left as estimate
+  - Chart series + TRADER_NAMES + PAYOUT_COHORT + country tiers remain synthetic (separate task — would need restructuring all chart data)
+
+- Phase 6B — SLA timer ticking in support drawer:
+  - Added `useSlaRemaining(createdAt, priority, status)` hook with 60s setInterval ticker
+  - Returns "Xh Ym left" / "Xh Ym over" / "Xh Ym late" / "On time" based on remaining/overdue time
+  - Extracted `<SlaTimerCell>` sub-component so the hook can be rendered inside the conditional Sheet drawer without breaking rules of hooks
+  - Previously the SLA cell showed static "4h" / "8h" placeholders — never reflected actual time pressure
+
+- Phase 6C — 5 "Back to trader" ghost buttons → account-workspace:
+  - account-events-page, account-version-history-page, account-broker-details-page, account-kyc-statuses-page, account-related-accounts-page: nav target changed from `navigate("trader-detail", { id: account.traderId })` → `navigate("account-workspace", { id: account.id })`; label changed from "Back to trader" → "Back to Account" via sed sweep
+
+- Phase 6E — super-admin-pages totalTraders derived:
+  - Was `allTenants.length * 26` (fabricated multiplier that only matched Alpha by accident — Beta has 17 traders, Gamma has 8)
+  - Now `allTenants.reduce((s, t) => s + getTenantTraders(t.id).length, 0)` — accurate sum across all tenants
+
+- Phase 6F — AI config persisted to localStorage:
+  - ai-pages.tsx AiConfigurePage: insights/predictions/anomaly toggles + model select now persist to `pfaas:aiConfig` localStorage; controlled useState initializers read from storage; toast no longer says "(demo)" since persistence is real
+  - ai-cost-page.tsx: budget/alertThreshold/emailRecipient persist to `pfaas:aiBudgetConfig`; controlled useState initializers read from storage
+
+- Phase 6G — ai-anomaly FP/Create ticket session store:
+  - Added `falsePositiveIds: Set<string>` state; "False positive" button adds r.id to the set, anomalies useMemo filters them out so the row actually leaves the visible list (previously toast-only — row stayed in table)
+  - Added `ticketedIds: Set<string>` state; "Create ticket" button now navigates to `support-tickets` with the traderId prefilled (was toast-only claiming "Ticket T-XXXX created"); button label changes to "Ticket filed" when already ticketed + disabled
+
+- Phase 6H — tenant-detail-page Last active + payment method:
+  - "Last active" KPI: was hardcoded "2 hours ago" for every tenant → now derived from the most recent audit entry timestamp (via getTenantAudit(tenant.id)[0].timestamp); formats as "Xm ago / Xh ago / Xd ago" or "—" if no audit entries
+  - "Payment method" BillingTab: was hardcoded "Visa ··4242" for every tenant → now `paymentMethodFor(tenant)` deterministic per-tenant (brand from a 4-item array seeded by tenant.id, last4 from 1000-9999 range)
+
+- Phase 6I — cert-mgmt table Active Switch controlled:
+  - Table cell `checked={t.active}` was reading from the immutable templates array — toggling bounced back to the seed value on next render
+  - Now binds to `working[t.id]?.active ?? t.active` and calls `updateField(t.id, { active: checked })` so the toggle visibly sticks; toast now says "save to commit" to be honest about persistence
+  - Also fixed the empty Actions column header at the same file via `header: "" → header: "Actions"` (missed in Phase 5E sweep)
+
+- Phase 6J — support-sla-page BREACHED_TICKETS + AGENT_WORKLOAD derived:
+  - Removed the global BREACHED_TICKETS constant array (T-1042/T-1037/.../T-0998) — those ids never matched real tenant ticket ids, so clicking a row dead-ended into an unfetchable ticket
+  - Added `buildBreachedTickets(tid)` function: filters getTenantTickets(tid) for non-resolved/closed tickets whose (createdAt + slaHours(priority)) has elapsed, maps to BreachedTicket shape, sorts by hours-over descending, caps at 6
+  - Removed the global AGENT_WORKLOAD constant array (Sarah K./Marcus L./Elena R./David T./Priya M.) — every tenant saw the same 5 agents regardless of their actual ticket assignees
+  - Added `buildAgentWorkload(tid)` function: groups getTenantTickets(tid) by assignee, computes open count, avg response, avg resolution, and compliance from the actual ticket data; caps at 6 agents
+  - Page now calls both via useMemo + uses derived values for the breachedCount KPI + exportToCsv data prop + DataTable data prop
+  - Also added the slaHoursFor + relativeHours helpers; SupportTicket type now imported
+
+- Phase 6K — weekend-trades dead buttons:
+  - Added `deletedIds: Set<string>` state + `liveTrades = allTrades.filter(...)` useMemo so the Delete button actually removes the row from the visible table + KPI roll-ups now use liveTrades (deleted rows stop counting)
+  - Account button (was `onClick={() => {}}`): now `onClick={() => onSelectTrader(trade.traderId)}` → `navigate("trader-detail", { id: traderId })`
+  - Next button (was `onClick={() => {}}`): now `onClick={onSelectNext}` which calls `setSelectedId(filtered[idx + 1].id)` to advance to the next visible row
+  - onSaveChanges/onSave + onDelete now have observable effects (onDelete mutates deletedIds set; onSaveChanges still toast-only since closeReason is in working state already)
+
+Phase 6D (cert-designer load existing template fields) deferred — the CertificateTemplate type doesn't have a `fields` field, so loading existing field configuration requires a schema extension. Marked as Round 7 candidate.
+
+Verification (agent-browser E2E on Alpha/Sarah after all Phase 6 fixes):
+- HTTP 200, page renders cleanly, 0 console errors
+- 32 grid-stack widgets render, 63 sidebar items
+- Terminology resolves: Participant/Evaluation/Withdrawal for Alpha
+- Group Management + KYC Providers sidebar entries visible
+- Screenshot: download/r6-overview.png
+- Dev server died twice during Phase 6 (compile load) — restarted with 1536MB variant, HTTP 200
+
+Stage Summary:
+- Phase 6 closed all the remaining Round 5 deferred items except:
+  - cert-designer not loading existing template fields (needs CertificateTemplate type extension — deferred to Round 7)
+  - account-* sub-pages "Back to Account" buttons still inconsistent with the 5 ghost buttons I just fixed (those were separate, the labeled ones already correct)
+  - SLA timer hooks only wired into the support drawer — the support-sla-page breached tickets table still shows static "Xh ago" strings (buildBreachedTickets returns that shape — could be upgraded to live ticker but lower priority)
+  - user-management per-row Edit/View actions — full CRUD deferred (got "(demo)" suffix in Phase 5A)
+  - TenantDetailPage UsersTab "Edit role" / "Remove user" / "Invite user" / "Generate invoice" toast-only (got "(demo)" suffix in Phase 5A; full CRUD deferred)
+  - TenantDetailPage RiskTab "Open risk workspace" / "View open breaches" / "Export risk report" toast-only (deferred — would need real navigation calls)
+- All touched files pass lint (verified after each batch via `bun run lint`)
+- Dev server OOM'd twice during Phase 6 (compile load) — 1536MB restart applied, HTTP 200
+- No active cron jobs (413512 was stopped per user request earlier; 15-min webDevReview was not recreated since the user said "proceed to implement the remaining phases" implying hands-on work, not background cron)

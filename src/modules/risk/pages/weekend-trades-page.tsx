@@ -263,6 +263,16 @@ export function WeekendTradesPage() {
 
   const allTrades = useMemo(() => buildWeekendTrades(tid), [tid]);
 
+  // Track in-session deletions so the "Delete" button actually removes
+  // the row from the visible table (previously toast-only — the row
+  // stayed in the table after the toast said "permanently removed").
+  // Round 4 fix.
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const liveTrades = useMemo(
+    () => allTrades.filter((t) => !deletedIds.has(t.id)),
+    [allTrades, deletedIds],
+  );
+
   // Filters
   const [search, setSearch] = useState("");
   const [symbolFilter, setSymbolFilter] = useState<string>("all");
@@ -282,7 +292,7 @@ export function WeekendTradesPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const cutoff = dateRange === "all" ? 0 : Date.now() - (DATE_RANGES[dateRange] ?? 0);
-    return allTrades.filter((t) => {
+    return liveTrades.filter((t) => {
       if (cutoff > 0 && new Date(t.closeTime).getTime() < cutoff) return false;
       if (symbolFilter !== "all" && t.symbol !== symbolFilter) return false;
       if (directionFilter !== "all" && t.direction !== directionFilter) return false;
@@ -294,15 +304,16 @@ export function WeekendTradesPage() {
         return false;
       return true;
     });
-  }, [allTrades, search, symbolFilter, directionFilter, stateFilter, dateRange]);
+  }, [liveTrades, search, symbolFilter, directionFilter, stateFilter, dateRange]);
 
-  // KPI roll-ups from the unfiltered set
-  const totalTrades = allTrades.length;
-  const longTrades = allTrades.filter((t) => t.direction === "buy").length;
-  const shortTrades = allTrades.filter((t) => t.direction === "sell").length;
-  const totalProfit = allTrades.filter((t) => t.profit > 0).reduce((s, t) => s + t.profit, 0);
-  const totalLoss = allTrades.filter((t) => t.profit < 0).reduce((s, t) => s + t.profit, 0);
-  const closedTrades = allTrades.filter((t) => t.state === "CLOSED").length;
+  // KPI roll-ups from the unfiltered set (use liveTrades so deleted rows
+  // stop counting toward totals)
+  const totalTrades = liveTrades.length;
+  const longTrades = liveTrades.filter((t) => t.direction === "buy").length;
+  const shortTrades = liveTrades.filter((t) => t.direction === "sell").length;
+  const totalProfit = liveTrades.filter((t) => t.profit > 0).reduce((s, t) => s + t.profit, 0);
+  const totalLoss = liveTrades.filter((t) => t.profit < 0).reduce((s, t) => s + t.profit, 0);
+  const closedTrades = liveTrades.filter((t) => t.state === "CLOSED").length;
 
   const activeFilters =
     (search ? 1 : 0) +
@@ -374,6 +385,7 @@ export function WeekendTradesPage() {
   };
 
   const onDelete = (t: WeekendTrade) => {
+    setDeletedIds((prev) => new Set(prev).add(t.id));
     setSelectedId(null);
     toast({
       title: "Weekend trade deleted",
@@ -687,6 +699,13 @@ export function WeekendTradesPage() {
             onSave={() => onSaveChanges(selectedTrade)}
             onDelete={() => onDelete(selectedTrade)}
             onClose={() => setSelectedId(null)}
+            onSelectTrader={(traderId) => navigate("trader-detail", { id: traderId })}
+            onSelectNext={() => {
+              // Pick the next visible trade after the current selection.
+              const idx = filtered.findIndex((t) => t.id === selectedTrade.id);
+              const next = filtered[idx + 1];
+              if (next) setSelectedId(next.id);
+            }}
           />
         ) : null}
       </PageContent>
@@ -706,6 +725,8 @@ function WeekendTradeDetail({
   onSave,
   onDelete,
   onClose,
+  onSelectTrader,
+  onSelectNext,
 }: {
   trade: WeekendTrade;
   currency: string;
@@ -714,6 +735,8 @@ function WeekendTradeDetail({
   onSave: () => void;
   onDelete: () => void;
   onClose: () => void;
+  onSelectTrader: (traderId: string) => void;
+  onSelectNext: () => void;
 }) {
   return (
     <div className="rounded-lg border bg-card p-4">
@@ -740,7 +763,8 @@ function WeekendTradeDetail({
           <dd>
             <button
               type="button"
-              onClick={() => {}}
+              onClick={() => onSelectTrader(trade.traderId)}
+              aria-label={`Open account ${trade.accountLogin} trader detail`}
               className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
             >
               {trade.accountLogin}
@@ -919,7 +943,7 @@ function WeekendTradeDetail({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {}}
+            onClick={onSelectNext}
             className="gap-1"
           >
             Next <ArrowRight className="h-3.5 w-3.5" />

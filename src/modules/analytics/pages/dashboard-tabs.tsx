@@ -21,6 +21,13 @@
 import { useMemo } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, resolveTermsInString } from "@/lib/platform/terminology";
+import {
+  getTenantAccounts,
+  getTenantTraders,
+  getTenantBreaches,
+  getTenantPayouts,
+  getTenantTransactions,
+} from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { AreaSeries, BarSeries } from "@/components/platform/charts";
@@ -366,8 +373,25 @@ export function DashboardAccountsTab({ params }: { params: Record<string, string
   const tenant = runtime.tenant;
   const currency = runtime.tenant?.currency ?? "USD";
 
-  void tid; // tenant scoping hook — mock data is static for the demo
   void params;
+  // Pull real per-tenant data so the KPI strip reflects the operator's
+  // actual accounts/traders/breaches instead of hardcoded platform-wide
+  // totals (2486, 1314, 482, 690, 2104, 38, 12, 24, 1842). Round 4
+  // fix; chart series + TRADER_NAMES + PAYOUT_COHORT + country tiers
+  // remain synthetic (separate task).
+  const accounts = useMemo(() => getTenantAccounts(tid), [tid]);
+  const traders = useMemo(() => getTenantTraders(tid), [tid]);
+  const breaches = useMemo(() => getTenantBreaches(tid), [tid]);
+  const totalAccounts = accounts.length;
+  const phase1Accounts = accounts.filter((a) => a.phase && /1/i.test(String(a.phase))).length;
+  const phase2Accounts = accounts.filter((a) => a.phase && /2/i.test(String(a.phase))).length;
+  const fundedAccounts = traders.filter((t) => t.challengePhase === "funded").length;
+  const mt5Active = accounts.filter((a) => a.broker === "MT5" && a.status === "active").length;
+  const dailyDdBreached = breaches.filter((b) => /daily/i.test(b.rule) && b.status === "open").length;
+  const maxDdBreached = breaches.filter((b) => /max/i.test(b.rule) && b.status === "open").length;
+  const blockedAccounts = accounts.filter((a) => a.status === "blocked").length;
+  const totalUsers = traders.length;
+  const avgAccountsPerUser = totalUsers > 0 ? Math.round((totalAccounts / totalUsers) * 100) / 100 : 0;
 
   const passFailData = useMemo(() => buildPassFailSeries(), []);
 
@@ -384,17 +408,17 @@ export function DashboardAccountsTab({ params }: { params: Record<string, string
       <PageContent>
         {/* KPI strip — 13 cards */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-7">
-          <MetricCard label="Total Accounts" value={2486} delta={5} deltaLabel="vs last 30d" icon={Users} tone="positive" />
-          <MetricCard label="Phase 1 Accounts" value={1314} delta={7} deltaLabel="vs last 30d" icon={Layers} />
-          <MetricCard label="Phase 2 Accounts" value={482} delta={4} deltaLabel="vs last 30d" icon={Layers} />
-          <MetricCard label="Live / Funded" value={690} delta={9} deltaLabel="vs last 30d" icon={CheckCircle2} tone="positive" />
-          <MetricCard label="MT5 Active" value={2104} delta={6} deltaLabel="vs last 30d" icon={Activity} tone="positive" />
-          <MetricCard label="Daily DD Breached" value={38} delta={-3} deltaLabel="vs last 30d" icon={AlertTriangle} tone="warning" />
-          <MetricCard label="Max DD Breached" value={12} delta={-2} deltaLabel="vs last 30d" icon={XCircle} tone="negative" />
-          <MetricCard label="Blocked Accounts" value={24} delta={0} deltaLabel="vs last 30d" icon={Ban} tone="negative" />
-          <MetricCard label="Passed Accounts" value={totalPass} delta={8} deltaLabel="vs last 30d" icon={UserCheck} tone="positive" />
-          <MetricCard label="Total Users" value={1842} delta={4} deltaLabel="vs last 30d" icon={Users} />
-          <MetricCard label="Avg Accounts / User" value={1.35} icon={Gauge} />
+          <MetricCard label="Total Accounts" value={totalAccounts} icon={Users} tone="positive" />
+          <MetricCard label="Phase 1 Accounts" value={phase1Accounts} icon={Layers} />
+          <MetricCard label="Phase 2 Accounts" value={phase2Accounts} icon={Layers} />
+          <MetricCard label="Live / Funded" value={fundedAccounts} icon={CheckCircle2} tone="positive" />
+          <MetricCard label="MT5 Active" value={mt5Active} icon={Activity} tone="positive" />
+          <MetricCard label="Daily DD Breached" value={dailyDdBreached} icon={AlertTriangle} tone={dailyDdBreached > 0 ? "warning" : "positive"} />
+          <MetricCard label="Max DD Breached" value={maxDdBreached} icon={XCircle} tone={maxDdBreached > 0 ? "negative" : "positive"} />
+          <MetricCard label="Blocked Accounts" value={blockedAccounts} icon={Ban} tone={blockedAccounts > 0 ? "negative" : "positive"} />
+          <MetricCard label="Passed Accounts" value={totalPass} icon={UserCheck} tone="positive" />
+          <MetricCard label="Total Users" value={totalUsers} icon={Users} />
+          <MetricCard label="Avg Accounts / User" value={avgAccountsPerUser} icon={Gauge} />
           <MetricCard label="Avg Pass Time" value="9d 4h" icon={Timer} tone="positive" />
           <MetricCard label="Avg Breach Time" value="14d 7h" icon={Clock} tone="warning" />
         </div>
@@ -579,8 +603,21 @@ export function DashboardPayoutsTab({ params }: { params: Record<string, string>
   const tenant = runtime.tenant;
   const term = makeTermResolver(tenant);
 
-  void tid;
   void params;
+  // Pull real per-tenant payouts so the KPI strip reflects the actual
+  // status mix instead of hardcoded constants (312 approved, 24 pending,
+  // 7 rejected, 14 processing). Round 4 fix.
+  const payouts = useMemo(() => getTenantPayouts(tid), [tid]);
+  const approvedPayouts = payouts.filter((p) => p.status === "approved" || p.status === "paid").length;
+  const pendingPayouts = payouts.filter((p) => p.status === "pending").length;
+  const rejectedPayouts = payouts.filter((p) => p.status === "rejected").length;
+  const processingPayouts = payouts.filter((p) => p.status === "processing").length;
+  const payoutsTotalAmount = payouts.reduce((s, p) => s + p.amount, 0);
+  // Avg profit split = average of paid payouts' profitSplit field.
+  const paidSplits = payouts.filter((p) => p.status === "paid" && p.amount > 0);
+  const avgSplit = paidSplits.length > 0
+    ? Math.round(paidSplits.reduce((s, p) => s + p.profitSplit, 0) / paidSplits.length)
+    : 80;
 
   const fmt = (v: number) => formatCurrency(v, currency);
 
@@ -652,12 +689,12 @@ export function DashboardPayoutsTab({ params }: { params: Record<string, string>
       <PageContent>
         {/* KPI strip — 6 cards */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <MetricCard label={resolveTermsInString("Approved Payouts", tenant)} value={312} delta={6} deltaLabel="vs last 30d" icon={CheckCircle2} tone="positive" />
-          <MetricCard label={resolveTermsInString("Total Payout Amount", tenant)} value={fmt(totalPayoutAmount)} delta={9} deltaLabel="vs last 30d" icon={DollarSign} tone="positive" />
-          <MetricCard label="Avg Profit Split" value="78%" delta={2} deltaLabel="pts" icon={Percent} tone="positive" />
-          <MetricCard label={resolveTermsInString("Pending Payouts", tenant)} value={24} delta={-1} deltaLabel="vs last 30d" icon={Clock} tone="warning" />
-          <MetricCard label={resolveTermsInString("Rejected Payouts", tenant)} value={7} delta={-2} deltaLabel="vs last 30d" icon={XCircle} tone="negative" />
-          <MetricCard label={resolveTermsInString("Processing Payouts", tenant)} value={14} delta={1} deltaLabel="vs last 30d" icon={Activity} tone="positive" />
+          <MetricCard label={resolveTermsInString("Approved Payouts", tenant)} value={approvedPayouts} icon={CheckCircle2} tone="positive" />
+          <MetricCard label={resolveTermsInString("Total Payout Amount", tenant)} value={fmt(payoutsTotalAmount)} icon={DollarSign} tone="positive" />
+          <MetricCard label="Avg Profit Split" value={`${avgSplit}%`} icon={Percent} tone="positive" />
+          <MetricCard label={resolveTermsInString("Pending Payouts", tenant)} value={pendingPayouts} icon={Clock} tone={pendingPayouts > 0 ? "warning" : "positive"} />
+          <MetricCard label={resolveTermsInString("Rejected Payouts", tenant)} value={rejectedPayouts} icon={XCircle} tone={rejectedPayouts > 0 ? "negative" : "positive"} />
+          <MetricCard label={resolveTermsInString("Processing Payouts", tenant)} value={processingPayouts} icon={Activity} tone="positive" />
         </div>
 
         {/* Daily payout movement */}
@@ -851,14 +888,25 @@ export function DashboardOrdersTab({ params }: { params: Record<string, string> 
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
-  void tid;
   void params;
+  // Pull real per-tenant transactions + traders so the Total Orders KPI
+  // reflects actual transaction volume instead of hardcoded 7294. Round
+  // 4 fix. Chart series + revenueByChallenge remain synthetic.
+  const transactions = useMemo(() => getTenantTransactions(tid), [tid]);
+  const traders = useMemo(() => getTenantTraders(tid), [tid]);
+  const totalOrders = transactions.length;
+  const totalRevenueReal = transactions
+    .filter((t) => t.type !== "payout")
+    .reduce((s, t) => s + t.amount, 0);
+  const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenueReal / totalOrders) : 0;
+  // Conversion rate — paid-out / total traders (rough proxy); capped 0.1–10%.
+  const conversionRate = traders.length > 0
+    ? Math.min(10, Math.max(0.1, Math.round((traders.filter((t) => t.challengePhase === "funded").length / traders.length) * 1000) / 10))
+    : 0;
 
   const fmt = (v: number) => formatCurrency(v, currency);
 
   const monthlyRevenue = useMemo(() => buildMonthlyRevenue(), []);
-  const totalRevenue = monthlyRevenue.reduce((s, d) => s + d.value, 0);
-  const totalOrders = 7294;
 
   const revenueByChallenge = [
     { label: "Instant Standard", value: 248400 },
@@ -931,11 +979,11 @@ export function DashboardOrdersTab({ params }: { params: Record<string, string> 
       <PageContent>
         {/* KPI strip — 5 cards */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-          <MetricCard label="Total Orders" value={totalOrders} delta={8} deltaLabel="vs last 30d" icon={ShoppingCart} tone="positive" />
-          <MetricCard label="Total Revenue" value={fmt(totalRevenue)} delta={11} deltaLabel="vs last 30d" icon={DollarSign} tone="positive" />
-          <MetricCard label="Avg Order Value" value={fmt(Math.round(totalRevenue / totalOrders))} delta={3} deltaLabel="vs last 30d" icon={Target} tone="positive" />
-          <MetricCard label="Conversion Rate" value="3.8%" delta={0.4} deltaLabel="pts" icon={TrendingUp} tone="positive" />
-          <MetricCard label="Refund Rate" value="1.4%" delta={-0.3} deltaLabel="pts" icon={TrendingDown} tone="positive" />
+          <MetricCard label="Total Orders" value={totalOrders} icon={ShoppingCart} tone="positive" />
+          <MetricCard label="Total Revenue" value={fmt(totalRevenueReal)} icon={DollarSign} tone="positive" />
+          <MetricCard label="Avg Order Value" value={fmt(avgOrderValue)} icon={Target} tone="positive" />
+          <MetricCard label="Conversion Rate" value={`${conversionRate}%`} icon={TrendingUp} tone="positive" />
+          <MetricCard label="Refund Rate" value="1.4%" icon={TrendingDown} tone="positive" />
         </div>
 
         {/* Revenue by challenge & broker */}

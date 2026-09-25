@@ -423,15 +423,55 @@ export function AiAssistantPage() {
 export function AiConfigurePage() {
   const { tenant } = usePlatform();
   const term = makeTermResolver(tenant);
-  const [insights, setInsights] = useState(true);
-  const [predictions, setPredictions] = useState(true);
-  const [anomaly, setAnomaly] = useState(false);
-  const [model, setModel] = useState("gpt-4o-mini");
+  // Persist AI configuration to localStorage so reloads keep the operator's
+  // choices. Mirrors the NotificationsTab pattern in settings-page.tsx.
+  // Round 4 fix: previously controlled-but-not-persisted, so F5 reset
+  // every toggle and the model dropdown despite the "Save configuration"
+  // button implying persistence.
+  const AI_CONFIG_KEY = "pfaas:aiConfig";
+  const [insights, setInsights] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const stored = window.localStorage.getItem(AI_CONFIG_KEY);
+      if (stored) return (JSON.parse(stored) as { insights?: boolean }).insights ?? true;
+    } catch { /* ignore */ }
+    return true;
+  });
+  const [predictions, setPredictions] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const stored = window.localStorage.getItem(AI_CONFIG_KEY);
+      if (stored) return (JSON.parse(stored) as { predictions?: boolean }).predictions ?? true;
+    } catch { /* ignore */ }
+    return true;
+  });
+  const [anomaly, setAnomaly] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const stored = window.localStorage.getItem(AI_CONFIG_KEY);
+      if (stored) return (JSON.parse(stored) as { anomaly?: boolean }).anomaly ?? false;
+    } catch { /* ignore */ }
+    return false;
+  });
+  const [model, setModel] = useState<string>(() => {
+    if (typeof window === "undefined") return "gpt-4o-mini";
+    try {
+      const stored = window.localStorage.getItem(AI_CONFIG_KEY);
+      if (stored) return (JSON.parse(stored) as { model?: string }).model ?? "gpt-4o-mini";
+    } catch { /* ignore */ }
+    return "gpt-4o-mini";
+  });
 
   const save = () => {
+    try {
+      window.localStorage.setItem(
+        AI_CONFIG_KEY,
+        JSON.stringify({ insights, predictions, anomaly, model }),
+      );
+    } catch { /* ignore quota */ }
     toast({
       title: "AI configuration saved",
-      description: `Model: ${model} · Insights: ${insights ? "on" : "off"} · Predictions: ${predictions ? "on" : "off"} · Anomaly: ${anomaly ? "on" : "off"} (demo)`,
+      description: `Model: ${model} · Insights: ${insights ? "on" : "off"} · Predictions: ${predictions ? "on" : "off"} · Anomaly: ${anomaly ? "on" : "off"}`,
     });
   };
 

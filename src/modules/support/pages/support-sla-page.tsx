@@ -38,7 +38,7 @@ import {
 } from "recharts";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
-import { hashStr } from "@/lib/platform/mock-data";
+import { hashStr, getTenantTickets, type SupportTicket } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { AreaSeries } from "@/components/platform/charts";
@@ -161,71 +161,11 @@ interface BreachedTicket {
   assignee: string;
 }
 
-const BREACHED_TICKETS: BreachedTicket[] = [
-  {
-    id: "T-1042",
-    subject: "Cannot withdraw funds",
-    priority: "urgent",
-    created: "2h ago",
-    slaDue: "1h ago",
-    hoursOver: 1,
-    assignee: "Sarah K.",
-  },
-  {
-    id: "T-1037",
-    subject: "MT5 connection error",
-    priority: "high",
-    created: "10h ago",
-    slaDue: "6h ago",
-    hoursOver: 4,
-    assignee: "Marcus L.",
-  },
-  {
-    id: "T-1029",
-    subject: "Payout confirmation stuck",
-    priority: "high",
-    created: "14h ago",
-    slaDue: "2h ago",
-    hoursOver: 12,
-    assignee: "Elena R.",
-  },
-  {
-    id: "T-1018",
-    subject: "KYC docs not uploading",
-    priority: "medium",
-    created: "1d ago",
-    slaDue: "6h ago",
-    hoursOver: 6,
-    assignee: "Sarah K.",
-  },
-  {
-    id: "T-1011",
-    subject: "Challenge rules question",
-    priority: "low",
-    created: "3d ago",
-    slaDue: "1d ago",
-    hoursOver: 24,
-    assignee: "David T.",
-  },
-  {
-    id: "T-1003",
-    subject: "Account reset request delayed",
-    priority: "urgent",
-    created: "5h ago",
-    slaDue: "2h ago",
-    hoursOver: 3,
-    assignee: "Elena R.",
-  },
-  {
-    id: "T-0998",
-    subject: "Email notifications not sending",
-    priority: "medium",
-    created: "2d ago",
-    slaDue: "1d ago",
-    hoursOver: 8,
-    assignee: "Marcus L.",
-  },
-];
+// Module-level static arrays (BREACHED_TICKETS / AGENT_WORKLOAD) were
+// removed in Round 4 — they had hardcoded T-1xxx ids that never matched
+// real tenant ticket ids, and the same 5 agents appeared on every tenant.
+// They are now derived per-tenant via buildBreachedTickets(tid) +
+// buildAgentWorkload(tid) at the bottom of the file.
 
 interface AgentRow {
   agent: string;
@@ -234,14 +174,6 @@ interface AgentRow {
   avgResolution: string;
   compliance: number;
 }
-
-const AGENT_WORKLOAD: AgentRow[] = [
-  { agent: "Sarah K.", open: 12, avgResponse: "1.8h", avgResolution: "6.4h", compliance: 94 },
-  { agent: "Marcus L.", open: 8, avgResponse: "2.1h", avgResolution: "7.2h", compliance: 91 },
-  { agent: "Elena R.", open: 15, avgResponse: "1.5h", avgResolution: "5.8h", compliance: 96 },
-  { agent: "David T.", open: 6, avgResponse: "3.2h", avgResolution: "9.1h", compliance: 85 },
-  { agent: "Priya M.", open: 9, avgResponse: "2.0h", avgResolution: "6.9h", compliance: 89 },
-];
 
 /* ------------------------------------------------------------------ */
 /* Compliance color helpers                                            */
@@ -300,6 +232,93 @@ function deriveTotalTickets30d(tenantId: string): number {
   return 80 + h;
 }
 
+/**
+ * Build breached tickets from the tenant's actual ticket list. Tickets
+ * are "breached" if their SLA window (priority-based: urgent 4h, high 8h,
+ * medium 24h, low 48h) has elapsed since `createdAt` and they're not yet
+ * resolved/closed. Round 4 fix: previously breachedTickets was a global
+ * constant array with hardcoded T-1xxx ids that never matched real
+ * tenant ticket ids — clicking a row dead-ended into an unfetchable ticket.
+ */
+function slaHours(priority: Priority): number {
+  switch (priority) {
+    case "urgent": return 4;
+    case "high": return 8;
+    case "medium": return 24;
+    case "low": return 48;
+  }
+}
+
+function relativeHours(iso: string): number {
+  return Math.max(0, (Date.now() - new Date(iso).getTime()) / (60 * 60 * 1000));
+}
+
+function buildBreachedTickets(tid: string): BreachedTicket[] {
+  const tickets = getTenantTickets(tid);
+  const out: BreachedTicket[] = [];
+  for (const t of tickets) {
+    if (t.status === "resolved" || t.status === "closed") continue;
+    const elapsed = relativeHours(t.createdAt);
+    const sla = slaHours(t.priority);
+    if (elapsed <= sla) continue; // not breached yet
+    const hoursOver = Math.round((elapsed - sla) * 10) / 10;
+    out.push({
+      id: t.id,
+      subject: t.subject,
+      priority: t.priority,
+      created: `${Math.round(elapsed)}h ago`,
+      slaDue: `${Math.round(sla - elapsed)}h ago`,
+      hoursOver,
+      assignee: t.assignee ?? "Unassigned",
+    });
+  }
+  // Sort by hours-over descending so worst breaches come first.
+  out.sort((a, b) => b.hoursOver - a.hoursOver);
+  // Cap at 6 to match the previous hardcoded count.
+  return out.slice(0, 6);
+}
+
+/**
+ * Build per-agent workload from the tenant's actual ticket list.
+ * Previously agentWorkload was a global constant — every tenant saw the
+ * same 5 agents (Sarah K. / Marcus L. / Elena R. / David T. / Priya M.)
+ * regardless of their actual ticket assignees. Round 4 fix: derive
+ * agent list from `assignee` field on the tenant's tickets.
+ */
+function buildAgentWorkload(tid: string): AgentRow[] {
+  const tickets = getTenantTickets(tid);
+  const map = new Map<string, SupportTicket[]>();
+  for (const t of tickets) {
+    const a = t.assignee ?? "Unassigned";
+    if (!map.has(a)) map.set(a, []);
+    map.get(a)!.push(t);
+  }
+  const rows: AgentRow[] = [];
+  let i = 0;
+  for (const [agent, ts] of map.entries()) {
+    const open = ts.filter((t) => t.status === "open" || t.status === "in-progress").length;
+    const withReplies = ts.filter((t) => t.lastReplyAt);
+    const avgResponseH = withReplies.length > 0
+      ? withReplies.reduce((s, t) => s + Math.max(0.5, (new Date(t.lastReplyAt!).getTime() - new Date(t.createdAt).getTime()) / (60 * 60 * 1000)), 0) / withReplies.length
+      : 0;
+    // Compliance: resolved-tickets / total-tickets ratio, deterministic
+    // per-tenant seed for variety.
+    const resolved = ts.filter((t) => t.status === "resolved" || t.status === "closed").length;
+    const baseCompliance = ts.length > 0 ? Math.round((resolved / ts.length) * 100) : 90;
+    const seed = hashStr(tid + agent) % 12;
+    const compliance = Math.max(80, Math.min(99, baseCompliance + (seed - 6)));
+    rows.push({
+      agent,
+      open,
+      avgResponse: `${Math.round(avgResponseH * 10) / 10}h`,
+      avgResolution: `${Math.round((avgResponseH * 3 + (hashStr(tid + agent) % 5)) * 10) / 10}h`,
+      compliance,
+    });
+    i++;
+  }
+  return rows.slice(0, 6);
+}
+
 /* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
@@ -314,7 +333,11 @@ export function SupportSlaPage() {
   const [draft, setDraft] = useState<SlaPolicy | null>(null);
 
   const totalTickets30d = deriveTotalTickets30d(tid);
-  const breachedCount = BREACHED_TICKETS.length;
+  // Round 4: derive breached tickets + agent workload from the tenant's
+  // real ticket list (was hardcoded global arrays with non-existent ids).
+  const breachedTickets = useMemo(() => buildBreachedTickets(tid), [tid]);
+  const agentWorkload = useMemo(() => buildAgentWorkload(tid), [tid]);
+  const breachedCount = breachedTickets.length;
   const avgFirstResponse = "2.4h";
   const avgResolution = "8.1h";
   const activePolicyCount = policies.filter((p) => p.active).length;
@@ -574,7 +597,7 @@ export function SupportSlaPage() {
               variant="outline"
               onClick={() =>
                 exportToCsv<BreachedTicket>(
-                  BREACHED_TICKETS,
+                  breachedTickets,
                   [
                     { key: "id", header: "Ticket ID", value: (t) => t.id },
                     { key: "subject", header: "Subject", value: (t) => t.subject },
@@ -773,7 +796,7 @@ export function SupportSlaPage() {
           <CardContent>
             <DataTable
               columns={breachedColumns}
-              data={BREACHED_TICKETS}
+              data={breachedTickets}
               rowKey={(t) => t.id}
               pageSize={8}
               onRowClick={() => navigate("support-tickets")}
@@ -800,7 +823,7 @@ export function SupportSlaPage() {
           <CardContent>
             <DataTable
               columns={agentColumns}
-              data={AGENT_WORKLOAD}
+              data={agentWorkload}
               rowKey={(a) => a.agent}
               pageSize={8}
               searchPlaceholder="Search agents…"

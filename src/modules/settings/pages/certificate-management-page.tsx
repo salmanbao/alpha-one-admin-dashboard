@@ -171,24 +171,31 @@ export function CertificateManagementPage() {
     {
       key: "active",
       header: "Active",
-      cell: (t) => (
-        <Switch
-          checked={t.active}
-          onCheckedChange={(checked) =>
-            toast({
-              title: checked ? "Template enabled" : "Template disabled",
-              description: `“${t.name}” is now ${checked ? "active" : "inactive"} (demo).`,
-            })
-          }
-          onClick={(e) => e.stopPropagation()}
-          aria-label={`Toggle active state for ${t.name}`}
-        />
-      ),
+      cell: (t) => {
+        // Bind the table Switch to working state (Round 4 fix: previously
+        // read `t.active` from the immutable templates array, so the
+        // toggle visually bounced back to the seed value on next render).
+        const effectiveActive = working[t.id]?.active ?? t.active;
+        return (
+          <Switch
+            checked={effectiveActive}
+            onCheckedChange={(checked) => {
+              updateField(t.id, { active: checked });
+              toast({
+                title: checked ? "Template enabled" : "Template disabled",
+                description: `“${t.name}” is now ${checked ? "active" : "inactive"} (demo) — save to commit.`,
+              });
+            }}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Toggle active state for ${t.name}`}
+          />
+        );
+      },
       width: "80px",
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       cell: (t) => (
         <div className="flex items-center justify-end gap-1">
           <Button

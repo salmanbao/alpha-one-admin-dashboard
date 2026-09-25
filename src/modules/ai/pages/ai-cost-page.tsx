@@ -208,15 +208,46 @@ export function AiCostPage() {
   const monthlyBudget = 5000;
   const budgetUsedPct = Math.round((totalSpend30d / monthlyBudget) * 100);
 
-  // ---- Budget alert config (local state — demo) ------------------------
-  const [budget, setBudget] = useState(monthlyBudget);
-  const [alertThreshold, setAlertThreshold] = useState(75);
-  const [emailRecipient, setEmailRecipient] = useState("alerts@pfaas.io");
+  // ---- Budget alert config (persisted to localStorage) -----------------
+  // Round 4 fix: previously controlled-but-not-persisted; F5 reset the
+  // budget + threshold + email despite the "Save configuration" button
+  // implying persistence.
+  const AI_BUDGET_KEY = "pfaas:aiBudgetConfig";
+  const [budget, setBudget] = useState<number>(() => {
+    if (typeof window === "undefined") return monthlyBudget;
+    try {
+      const stored = window.localStorage.getItem(AI_BUDGET_KEY);
+      if (stored) return (JSON.parse(stored) as { budget?: number }).budget ?? monthlyBudget;
+    } catch { /* ignore */ }
+    return monthlyBudget;
+  });
+  const [alertThreshold, setAlertThreshold] = useState<number>(() => {
+    if (typeof window === "undefined") return 75;
+    try {
+      const stored = window.localStorage.getItem(AI_BUDGET_KEY);
+      if (stored) return (JSON.parse(stored) as { alertThreshold?: number }).alertThreshold ?? 75;
+    } catch { /* ignore */ }
+    return 75;
+  });
+  const [emailRecipient, setEmailRecipient] = useState<string>(() => {
+    if (typeof window === "undefined") return "alerts@pfaas.io";
+    try {
+      const stored = window.localStorage.getItem(AI_BUDGET_KEY);
+      if (stored) return (JSON.parse(stored) as { emailRecipient?: string }).emailRecipient ?? "alerts@pfaas.io";
+    } catch { /* ignore */ }
+    return "alerts@pfaas.io";
+  });
 
   const handleSaveConfig = () => {
+    try {
+      window.localStorage.setItem(
+        AI_BUDGET_KEY,
+        JSON.stringify({ budget, alertThreshold, emailRecipient }),
+      );
+    } catch { /* ignore quota */ }
     toast({
       title: "Budget alert saved",
-      description: `Budget ${formatCurrency(budget, currency)} · alert at ${alertThreshold}% · ${emailRecipient} (demo)`,
+      description: `Budget ${formatCurrency(budget, currency)} · alert at ${alertThreshold}% · ${emailRecipient}`,
     });
   };
 
