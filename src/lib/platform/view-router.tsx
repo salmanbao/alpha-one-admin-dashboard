@@ -18,6 +18,10 @@ import {
   PositionsPage,
   TraderDetailPage,
   OrdersPage,
+  ObjectivesProgressPage,
+  RulesPage,
+  TradingCredentialsPage,
+  AccountBreachPage,
 } from "@/modules/trading";
 import {
   ChallengesOverviewPage,
@@ -25,6 +29,7 @@ import {
   PassedChallengesPage,
   FailedChallengesPage,
   CompetitionsPage,
+  ChallengeMarketplacePage,
 } from "@/modules/challenges";
 import { RiskOverviewPage, BreachesPage, RiskCasesPage } from "@/modules/risk";
 import {
@@ -32,6 +37,8 @@ import {
   PendingPayoutsPage,
   PayoutHistoryPage,
   PayoutProviderStatusPage,
+  PayoutEligibilityPage,
+  PayoutRequestFormPage,
 } from "@/modules/payouts";
 import {
   AnalyticsOverviewPage,
@@ -51,6 +58,7 @@ import {
   AccountingOverviewPage,
   TransactionsPage,
   ReconciliationPage,
+  DocumentsPage,
 } from "@/modules/accounting";
 import {
   MarketingOverviewPage,
@@ -274,6 +282,10 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "closed-position-detail": ClosedPositionDetailPage,
   "order-detail": OrderDetailPage,
   orders: OrdersPage,
+  objectives: ObjectivesProgressPage,
+  rules: RulesPage,
+  "trading-credentials": TradingCredentialsPage,
+  "account-breach": AccountBreachPage,
 
   /* challenges */
   challenges: ChallengesOverviewPage,
@@ -284,6 +296,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "challenge-config": ChallengeConfigPage,
   "challenge-types": ChallengeTypesPage,
   competitions: CompetitionsPage,
+  "challenge-marketplace": ChallengeMarketplacePage,
   "phase-management": PhaseManagementPage,
   "challenge-edit": ChallengeEditPage,
   "phase-detail": PhaseDetailPage,
@@ -314,6 +327,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "payouts-history": PayoutHistoryPage,
   "payouts-enhanced-withdrawals": EnhancedWithdrawalsPage,
   "payout-provider-status": PayoutProviderStatusPage,
+  "payout-eligibility": PayoutEligibilityPage,
+  "payout-request": PayoutRequestFormPage,
 
   /* analytics */
   analytics: AnalyticsOverviewPage,

@@ -36,6 +36,7 @@ const routes: RouteDefinition[] = [
   { path: "challenges-passed", viewId: "challenges-passed", label: "Passed Challenges", permission: ["challenge.read", "challenge.self"], module: "challenges" },
   { path: "challenges-failed", viewId: "challenges-failed", label: "Failed Challenges", permission: ["challenge.read", "challenge.self"], module: "challenges" },
   { path: "challenge-wizard", viewId: "challenge-wizard", label: "Create Challenge", permission: "challenge.create", module: "challenges" },
+  { path: "challenge-marketplace", viewId: "challenge-marketplace", label: "Challenge Marketplace", permission: ["challenge.read", "challenge.self"], module: "challenges" },
   { path: "competitions", viewId: "competitions", label: "Competitions", permission: ["challenge.read", "challenge.self"], module: "challenges" },
   { path: "challenge-types", viewId: "challenge-types", label: "Challenge Types", permission: "challenge.read", module: "challenges" },
   { path: "challenge-config", viewId: "challenge-config", label: "Challenge Configuration", permission: "challenge.update", module: "challenges" },

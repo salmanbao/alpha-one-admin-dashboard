@@ -63,6 +63,10 @@ const routes: RouteDefinition[] = [
   { path: "account-events", viewId: "account-events", label: "Account Events", permission: ["account.read", "account.self"], module: "trading" },
   { path: "account-version-history", viewId: "account-version-history", label: "Account Version History", permission: ["account.read", "account.self"], module: "trading" },
   { path: "closed-position-detail", viewId: "closed-position-detail", label: "Closed Position Detail", permission: ["account.read", "account.self"], module: "trading" },
+  { path: "objectives", viewId: "objectives", label: "Objectives & Progress", permission: ["trader.read", "trader.self"], module: "trading" },
+  { path: "rules", viewId: "rules", label: "Rules & Trading Conditions", permission: ["trader.read", "trader.self"], module: "trading" },
+  { path: "trading-credentials", viewId: "trading-credentials", label: "Trading Credentials", permission: ["trader.read", "trader.self"], module: "trading" },
+  { path: "account-breach", viewId: "account-breach", label: "Account Breach", permission: ["trader.read", "trader.self"], module: "trading" },
   { path: "orders", viewId: "orders", label: "Orders", permission: ["account.read", "account.self"], module: "trading" },
   { path: "order-detail", viewId: "order-detail", label: "Order Detail", permission: ["account.read", "account.self"], module: "trading" },
 ];

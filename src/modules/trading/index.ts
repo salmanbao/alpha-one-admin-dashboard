@@ -7,3 +7,7 @@ export {
   TraderDetailPage,
 } from "./pages/trading-pages";
 export { OrdersPage } from "./pages/orders-page";
+export { ObjectivesProgressPage } from "./pages/objectives-progress-page";
+export { RulesPage } from "./pages/rules-page";
+export { TradingCredentialsPage } from "./pages/trading-credentials-page";
+export { AccountBreachPage } from "./pages/account-breach-page";

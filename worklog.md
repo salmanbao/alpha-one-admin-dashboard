@@ -9874,3 +9874,135 @@ Stage Summary:
   * #44 Admin User & Role Management — partial (user-management + group-management + settings)
 - All 6 new files pass lint (verified after each fix)
 - Server healthy at HTTP 200 with 1536MB variant
+
+---
+Task ID: trader-portal-round10-master
+Agent: Super Z (Trader Portal — Gap Analysis + Deferred Implementation)
+Task: Analyze the trader portal against the 46-screen research inventory, identify what exists vs what's missing, and implement the missing screens.
+
+Work Log:
+- Analyzed the 46-screen research inventory against the existing trader-facing views
+- Found 7 of 20 "core" screens already existed (Trader Dashboard, My Accounts, Account Detail, Trade History, Support, Help Center, Notification Center)
+- Identified 8 high-impact missing screens and implemented them:
+
+1. objectives-progress-page.tsx — #18 Objectives & Progress:
+   - Profit target with progress bar (X% toward target, remaining amount)
+   - Daily loss limit with gauge (used vs remaining)
+   - Maximum drawdown with gauge (current vs limit)
+   - Trading days progress (completed vs required)
+   - Time limit countdown (elapsed vs deadline)
+   - Important alerts: "72% toward profit target" / "approaching max drawdown"
+   - Account summary KPIs: balance/equity/P&L/return%
+
+2. rules-page.tsx — #19 Rules & Trading Conditions:
+   - 10 rules with plain-language explanations:
+     Profit Target, Daily Loss, Max Drawdown, Min Trading Days, Max Duration,
+     Leverage, Weekend Trading, News Trading, EA/Bot, Copy Trading
+   - Each rule shows: limit, current value, status (safe/warning/breached/info)
+   - "What it means" explanation box
+   - "If violated" consequence box (red-highlighted)
+   - Trader should never guess why something happened
+
+3. trading-credentials-page.tsx — #16 Trading Credentials:
+   - Connection details: platform, server, login (copyable)
+   - Trading password with reveal/hide (AlertDialog confirmation — "This action is logged")
+   - Investor password (read-only access) with reveal/hide
+   - Copy buttons for all fields
+   - Download credentials (PDF) button
+   - Platform download links (Desktop / Web Terminal / Connection Guide)
+   - Security notice: "Never share credentials. Reveal actions are logged."
+
+4. account-breach-page.tsx — #22 Account Breach / Failed Evaluation:
+   - "Your account breached the [rule] rule" explanatory header
+   - What happened: plain-language explanation of the violation
+   - Evidence: rule, timestamp, account, status
+   - "What happens next" section: account failed, can't trade, can buy new challenge
+   - Actions: Purchase new challenge / View trade history / Contact support
+   - Positive state when no breach: "Your account is in good standing"
+
+5. payout-request-page.tsx (PayoutEligibilityPage) — #26 Payout Eligibility:
+   - 5-item eligibility checklist: Funded account, KYC, No risk hold, Min trading period, Profit available
+   - Each check shows passed/failed with explanation
+   - When all pass: green "You're eligible!" card with "Request payout" CTA
+   - When some fail: "Not yet eligible" with actionable guidance
+   - KPIs: Eligible Profit / Your Share (80%) / Previous Payouts
+
+6. payout-request-form-page.tsx (PayoutRequestFormPage) — #27 Payout Request:
+   - Calculation breakdown: eligible profit → trader share (80%) → fee → net payout
+   - Payout method selector (bank/crypto/PayPal/Skrill)
+   - Processing notice (1-3 business days after approval)
+   - Submit → toast confirmation + navigate to payout history
+   - Empty state when no profit available
+
+7. challenge-marketplace-page.tsx — #4 Challenge Marketplace:
+   - 4 challenge cards: 2-Step Standard ($100K, popular), 1-Step Turbo ($50K), 2-Step Gen Z ($25K), Instant Funded ($100K)
+   - Each card: account size, price, profit target, daily loss, max DD, min days, time limit, platform
+   - "What's included" explanation (phase structure or instant funding)
+   - Buy button with checkout trigger
+   - FAQ section: What happens after buy, refunds, failure, earning potential
+   - Hero: "Trade. Prove. Earn."
+
+8. documents-page.tsx — #33 Documents:
+   - DataTable with 8 documents: invoices, agreements, receipts, certificates, KYC, tax, terms
+   - Each with: name, category, date, format, status (available/pending)
+   - Download action on available documents
+   - KPIs: Total / Available / Pending / Certificates
+   - Documents vary based on trader's state (funded → funded trader agreement + completion certificate; payouts → payout receipts)
+
+- Updated 4 module manifests with new routes:
+  * trading: objectives, rules, trading-credentials, account-breach
+  * payouts: payout-eligibility, payout-request
+  * challenges: challenge-marketplace
+  * accounting: documents
+- Updated 4 module index.ts with new exports
+- Updated view-router.tsx with 8 new imports + 8 viewId → component mappings
+- Fixed 2 bugs during implementation:
+  1. rules-page.tsx missing closing brace on RuleDef interface (parse error)
+  2. payouts/index.ts had wrong filename for PayoutEligibilityPage export (payout-eligibility-page → payout-request-page)
+
+Verification (agent-browser E2E as Tom Allen — user-trader-1, tenant-beta):
+- HTTP 200, 0 console errors
+- All 8 new screens render with hasError=false:
+  * objectives: shows profit target 62%, daily loss, max DD, trading days, time limit with progress bars
+  * rules: shows 10 rules with explanations and "if violated" consequences
+  * trading-credentials: shows connection details + password reveal (AlertDialog gated)
+  * account-breach: shows breach explanation with evidence + "what next" + "purchase new challenge" CTA
+  * payout-eligibility: shows 5-item checklist with passed/failed status
+  * payout-request: shows calculation breakdown + method selector + submit
+  * challenge-marketplace: shows 4 challenge cards with rules + FAQ
+  * documents: shows 8 documents with download actions
+- Screenshot: download/prop-admin-risk-cases.png (from previous round)
+
+Stage Summary:
+- Trader Portal now has 15 of 20 "core" screens from the research inventory (was 7, added 8)
+- The Discover → Purchase → Verify → Provision → Trade → Monitor → Pass/Fund → Request Payout → Track Payout → Manage Account journey is now much more complete:
+  * Discover: Challenge Marketplace ✓
+  * Purchase: (checkout flow — partial via marketplace Buy button → toast)
+  * Verify: KYC Onboarding (partial — admin KYC review exists)
+  * Provision: (account provisioning — partial via trader-detail)
+  * Trade: Trading Credentials ✓, Live Trading (partial via positions page)
+  * Monitor: Objectives & Progress ✓, Rules & Trading Conditions ✓
+  * Pass/Fund: (evaluation passed — not yet implemented as dedicated page)
+  * Account Breach ✓
+  * Request Payout: Payout Eligibility ✓, Payout Request ✓
+  * Track Payout: Payout History ✓ (from Round 7)
+  * Manage Account: My Workspace ✓, My Accounts ✓, My Open/Closed Positions ✓
+- Still missing from the 46-screen inventory:
+  * #1 Trader Login (demo user switcher, no real login)
+  * #2 Forgot Password (N/A)
+  * #5 Challenge Detail (trader-facing — partial via challenge-edit admin page)
+  * #6-8 Checkout / Payment Processing / Purchase Completed
+  * #9-10 KYC Onboarding / Verification Status (trader-facing)
+  * #11-12 Account Provisioning (trader-facing)
+  * #17 Live Trading Account (full margin/level view)
+  * #21 Performance Analytics (trader-facing)
+  * #23-25 Evaluation Passed / Funded Activation / Funded Home
+  * #28-29 Payout Confirmation / Payout Status Detail
+  * #31-32 Purchase History / Order Detail (trader-facing)
+  * #34 Certificates/Achievements (partial)
+  * #39-40 Referral Dashboard / History
+  * #42 Competition Detail (trader-facing — exists in admin)
+  * #44-45 Security Settings / Notification Preferences (partial)
+  * #46 Terms & Policies
+- All 8 new files pass lint (verified after each fix)
+- Server healthy at HTTP 200 with 1536MB variant
