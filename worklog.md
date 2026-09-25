@@ -9506,3 +9506,141 @@ Stage Summary:
   - SupportTicket has no traderId field — filter by trader.name is a workaround; cleaner would be to extend the type
   - Customize Dashboard dialog still lists admin widgets (Payout Queue / KYC Queue / CRM Pipeline) in the customize list for traders (Phase T-I from Round 7 deferred)
   - Risk Overview KPI strip on trader view uses tenant-derived risk score (hashStr(tid) % 30 + 60) — should be trader-personal
+
+---
+Task ID: platform-admin-round8-master
+Agent: Super Z (Platform Admin Dashboard Gap Analysis + Implementation)
+Task: Analyze the existing platform admin dashboard against the 39-screen research inventory, identify what exists vs what's missing, and implement the missing screens.
+
+Work Log:
+- Analyzed the research inventory (39 screens across 15 areas) against the existing super-admin module
+- Found 8 existing screens: Overview, Tenants, Create Tenant, Tenant Detail (7 tabs), Tenant Lifecycle, Service Catalog, System Health, Platform Audit, Dashboard Manager
+- Identified 10 major missing screens from V1/V2 must-haves:
+  1. #3 Platform Operations Home (with attention center, health signals, infra)
+  2. #12 Provider/Integration Registry
+  3. #13 Incident Control Center
+  4. #14 Emergency Controls (tenant halt, maintenance mode, relay pause, kill switches, platform halt)
+  5. #16 Approval Center (two-operator approval queue)
+  6. #18 Cross-Tenant Queue Overview
+  7. #22 Job/Scheduler Dashboard
+  8. #23 Deployment/Version Visibility
+  9. #24 Backup & Disaster Recovery
+  10. #31 Feature Flags
+
+- Implemented all 10 missing screens:
+
+1. platform-operations-page.tsx — Platform Operations Home:
+   - Attention Center: 4 items (MT5 degraded, payouts stuck, notification delay, backup stale) — each navigates to the relevant workspace
+   - Platform health KPIs: services operational count, degraded count, active/suspended tenants
+   - Service health grid: 12 services with status + latency + last heartbeat
+   - Real-time signals: relay lag, event sync lag, DLQ depth, failed jobs, queue depth, provider degradation
+   - Cross-tenant queues summary: pending KYC / payouts / breaches / tickets
+   - Infrastructure: current version, last deployment, last backup, RPO status
+
+2. emergency-controls-page.tsx — Emergency Controls:
+   - 6 controls: Tenant Halt, Maintenance Mode, Relay Pause, Evaluation Pause, Auto-Approval Force-Off, Platform Halt
+   - Each with: what-stops / what-continues visualization, runbook reference, severity badge (high/critical/extreme)
+   - AlertDialog confirmation with: reason (required), target tenant selector, blast-radius display, 2FA notice
+   - Platform Halt flagged as "last-resort, requires two-operator approval"
+   - Active controls banner shows count + names when any are activated
+
+3. cross-tenant-queues-page.tsx — Cross-Tenant Queue Overview:
+   - Per-tenant KYC / Risk / Payouts / Support queue counts
+   - Highlights aging queues (>5 KYC, >3 risk, >2 payouts, >5 support)
+   - Sorted by total queue depth descending
+   - 5 KPIs: total KYC pending, open breaches, pending payouts, open tickets, tenants with alerts
+
+4. provider-registry-page.tsx — Provider/Integration Registry:
+   - 6 providers: MetaApi, Veriff, NOWPayments, Postmark, Match2Pay, Twilio
+   - Per-provider card: status indicator, latency, error rate, tenants using, credential fingerprint (••••8A42 — never the actual key)
+   - Click to see provider detail: service type, status, latency, error rate, tenants, last success, credential fingerprint, last rotated
+   - Security notice: "API credentials are never displayed — only fingerprints"
+
+5. jobs-dashboard-page.tsx — Job/Scheduler Dashboard:
+   - 10 jobs: Metering Rollup, Payout Reconciliation, Notification Batch, Document Generation, Data Cleanup, WAL Backup, Provider Health Check, Account Sync, Evaluation Engine Sweep, Audit Archive
+   - Columns: Job, Last Run, Duration, Next Run, Status, Lock Holder, Failures, Last Failure
+   - 4 KPIs: Succeeded / Running / Failed / Paused
+   - Failed jobs warning banner when count > 0
+
+6. deployments-page.tsx — Deployment/Version Visibility:
+   - Current deployment card: version v1.8.0, deployed 3h ago, 12 services, git commit a4f2c9b, image digest
+   - Deployment history: 5 versions with status badges (CURRENT / ROLLBACK / FAILED)
+   - Rollback buttons on non-current successful deployments
+   - Notice about elevated permissions + two-operator approval for production deploys
+
+7. backups-dr-page.tsx — Backup & Disaster Recovery:
+   - 4 KPIs: Last WAL Backup (18h ago), Last Full Backup (2d ago), RPO Target (24h), Last Restore Drill (14d ago — overdue)
+   - Backup status card: WAL backup / Full backup / Integrity / RPO compliance / Restore drill
+   - Restore drill history: 3 past drills with date/type/duration/note/status
+   - Actions: Verify backup now + Start restore drill
+   - Overdue restore drill warning
+
+8. approval-center-page.tsx — Approval Center:
+   - 4 pending approvals: Suspend Tenant, Relay Pause, Credit Note, Platform Halt
+   - Each with: action, requested by, target, risk (high/critical/extreme), age, reason, blast radius
+   - Approve button → AlertDialog with blast-radius + 2FA notice + permanent audit log
+   - Reject button → AlertDialog with audited rejection
+   - Resolved items disappear from the queue
+   - Self-approval rule notice: "Actions requested by the current operator cannot be self-approved"
+
+9. incident-center-page.tsx — Incident Control Center:
+   - 3 incidents: MT5 Bridge latency degradation (high), Postmark email slow (medium), Payment provider timeout (resolved)
+   - Master-detail layout: incident list + incident detail
+   - Detail shows: affected tenants, affected services, owner, runbook, current impact, related alerts
+   - Actions: Assign operator, Escalate, Resolve
+   - Add note textarea (audited)
+
+10. feature-flags-page.tsx — Feature Flags:
+    - 8 flags: Evaluation Pause (kill switch), Auto-Approval, Payment Rail Override, New Onboarding Flow, AI Insights Beta, Experimental Chart Library, Mobile App Access, Developer API
+    - Each with: name, description, scope (global/tenant-override/environment), enabled toggle, kill-switch badge
+    - 4 KPIs: Total / Enabled / Disabled / Active Kill Switches
+    - Kill switches with destructive toast variant when activated
+    - Dangerous flags notice
+
+- Updated super-admin-module.ts: added 10 new nav items + 10 new routes organized into 5 groups (Tenant Management, Operations, Observability, Infrastructure, Platform Config)
+- Updated super-admin-pages.tsx: re-exports all 10 new page components
+- Updated view-router.tsx: registered 10 new viewId → component mappings
+- Added new permission: platform.emergency.manage
+
+Verification (agent-browser E2E as Alex Morgan — user-super, platform tenant):
+- HTTP 200, page renders cleanly, 0 console errors
+- Sidebar shows all new screens organized into proper groups:
+  PLATFORM → Overview / Tenants / Create Tenant / Lifecycle
+  OPERATIONS → Operations Home / Emergency Controls / Incidents / Jobs / Approval Center
+  OBSERVABILITY → Platform Health / Provider Registry / Cross-Tenant Queues / Platform Audit
+  INFRASTRUCTURE → Deployments / Backups & DR
+  PLATFORM CONFIG → Service Catalog / Dashboard Manager / Feature Flags
+- Clicked all 9 new nav items — every screen renders with hasError=false
+- Screenshot: download/platform-ops-home.png
+
+Stage Summary:
+- Platform Admin Dashboard now has 18 screens (was 8) covering the V1 must-haves from the research inventory:
+  - Platform Operations Home (with attention center + health + infra)
+  - Emergency Controls (6 controls with blast-radius + 2FA + what-stops/what-continues)
+  - Incident Control Center (with master-detail + runbook + escalate/resolve)
+  - Approval Center (two-operator queue with 2FA + audited)
+  - Cross-Tenant Queues (per-tenant KYC/Risk/Payouts/Support)
+  - Provider Registry (6 providers with credential fingerprints)
+  - Jobs Dashboard (10 jobs with status + lock holder + failures)
+  - Deployments (current + history + rollback)
+  - Backups & DR (WAL/full + RPO + restore drills)
+  - Feature Flags (8 flags with kill switches)
+- All 10 new files pass lint (verified after each batch)
+- Server healthy at HTTP 200 with 1536MB variant
+- Still missing from the research inventory (V2/V3 deferred):
+  - #1 Platform Login (2FA) — the app uses a demo user switcher, no real login flow
+  - #2 My Sessions — active session management
+  - #7 Provisioning Progress (saga state visualization)
+  - #8 Entitlement Management (per-tenant module limits/usage — partial via Tenant Detail Modules tab)
+  - #11 Tenant Health (per-tenant service health matrix — partial via Tenant Detail Risk tab)
+  - #17 Global Search (cross-tenant — partial via existing global-search.tsx)
+  - #19 Cross-Tenant Abuse Signals
+  - #21 Security Overview
+  - #25-28 Platform Financials (billing, contracts, invoices, metering — partial via Accounting module)
+  - #29 Global Defaults
+  - #30 Master Reference Data
+  - #32 Announcements (partial via Banner management)
+  - #33 Notification Center (for platform operators)
+  - #34 Tenant View-As (impersonation — partial via Tenant Detail "Login as" button)
+  - #35-36 Platform Analytics + Usage Analytics
+  - #37-39 Platform Role Management + Operator Directory + Support Assist

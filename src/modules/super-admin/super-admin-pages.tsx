@@ -12,6 +12,17 @@
 export { TenantDetailPage } from "./tenant-detail-page";
 export { CreateTenantPage } from "./create-tenant-page";
 export { TenantLifecyclePage } from "./tenant-lifecycle-page";
+// Round 8: new platform operations screens
+export { PlatformOperationsPage } from "./platform-operations-page";
+export { EmergencyControlsPage } from "./emergency-controls-page";
+export { CrossTenantQueuesPage } from "./cross-tenant-queues-page";
+export { ProviderRegistryPage } from "./provider-registry-page";
+export { JobsDashboardPage } from "./jobs-dashboard-page";
+export { DeploymentsPage } from "./deployments-page";
+export { BackupsDrPage } from "./backups-dr-page";
+export { ApprovalCenterPage } from "./approval-center-page";
+export { IncidentCenterPage } from "./incident-center-page";
+export { FeatureFlagsPage } from "./feature-flags-page";
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";

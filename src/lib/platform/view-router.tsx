@@ -74,6 +74,16 @@ import { NotificationsPage } from "@/modules/notifications/notifications-page";
 import { HelpPage } from "@/modules/help/help-page";
 import { SettingsPage } from "@/modules/settings/settings-page";
 import { SuperAdminOverviewPage, TenantsPage, ModuleCatalogPage, PlatformHealthPage } from "@/modules/super-admin/super-admin-pages";
+import { PlatformOperationsPage } from "@/modules/super-admin/platform-operations-page";
+import { EmergencyControlsPage } from "@/modules/super-admin/emergency-controls-page";
+import { CrossTenantQueuesPage } from "@/modules/super-admin/cross-tenant-queues-page";
+import { ProviderRegistryPage } from "@/modules/super-admin/provider-registry-page";
+import { JobsDashboardPage } from "@/modules/super-admin/jobs-dashboard-page";
+import { DeploymentsPage } from "@/modules/super-admin/deployments-page";
+import { BackupsDrPage } from "@/modules/super-admin/backups-dr-page";
+import { ApprovalCenterPage } from "@/modules/super-admin/approval-center-page";
+import { IncidentCenterPage } from "@/modules/super-admin/incident-center-page";
+import { FeatureFlagsPage } from "@/modules/super-admin/feature-flags-page";
 import { TenantDetailPage } from "@/modules/super-admin/tenant-detail-page";
 import { CreateTenantPage } from "@/modules/super-admin/create-tenant-page";
 import { TenantLifecyclePage } from "@/modules/super-admin/tenant-lifecycle-page";
@@ -208,6 +218,17 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "tenant-lifecycle": TenantLifecyclePage,
   "dashboard-manager": DashboardManagerPage,
   "platform-audit": PlatformAuditPage,
+  /* Round 8: new platform operations screens */
+  "platform-operations": PlatformOperationsPage,
+  "emergency-controls": EmergencyControlsPage,
+  "cross-tenant-queues": CrossTenantQueuesPage,
+  "provider-registry": ProviderRegistryPage,
+  "jobs-dashboard": JobsDashboardPage,
+  deployments: DeploymentsPage,
+  "backups-dr": BackupsDrPage,
+  "approval-center": ApprovalCenterPage,
+  "incident-center": IncidentCenterPage,
+  "feature-flags": FeatureFlagsPage,
 
   /* trading */
   trading: TradingOverviewPage,
