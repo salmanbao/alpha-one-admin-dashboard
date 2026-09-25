@@ -271,7 +271,14 @@ export function DashboardGrid() {
 
     return () => {
       if (grid) {
-        grid.destroy(true);
+        try {
+          grid.destroy(true);
+        } catch {
+          // GridStack.destroy(true) tries to removeChild on the grid
+          // element, but React may have already removed the parent
+          // container during unmount. Safe to ignore — the DOM is
+          // already gone and React will clean up the rest.
+        }
       }
       gridInstanceRef.current = null;
       setWidgetMounts([]);
