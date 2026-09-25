@@ -41,7 +41,10 @@ export function resolveDashboardLayout(
   let x = 0;
   let y = 0;
   for (const w of widgets) {
-    const colW = Math.min(w.defaultSize.w, COLS);
+    // Defensive: some widget definitions may not declare defaultSize
+    const dw = w.defaultSize?.w ?? 6;
+    const dh = w.defaultSize?.h ?? 2;
+    const colW = Math.min(dw, COLS);
     if (x + colW > COLS) {
       x = 0;
       y += 1;
@@ -51,7 +54,7 @@ export function resolveDashboardLayout(
       x,
       y,
       w: colW,
-      h: w.defaultSize.h,
+      h: dh,
     });
     x += colW;
   }

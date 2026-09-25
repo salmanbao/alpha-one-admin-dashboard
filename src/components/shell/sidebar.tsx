@@ -63,12 +63,12 @@ export function Sidebar() {
         >
           <PanelLeftOpen className="h-4 w-4" />
         </Button>
-        {items.slice(0, 10).map((item) => {
+        {items.slice(0, 10).map((item, idx) => {
           const Icon = item.icon;
           const active = router.view === item.effectiveHref;
           return (
             <Button
-              key={item.id}
+              key={`${item.id}-${idx}`}
               variant={active ? "secondary" : "ghost"}
               size="icon"
               className="h-9 w-9"
@@ -89,8 +89,8 @@ export function Sidebar() {
       <SidebarBrand tenantName={tenant.branding.name} tagline={tenant.branding.tagline} initials={tenant.branding.initials} primaryColor={tenant.branding.primaryColor} />
       <nav className="scrollbar-thin flex-1 overflow-y-auto px-2 py-2">
         <ul className="space-y-0.5">
-          {items.map((item) => (
-            <SidebarItem key={item.id} item={item} t={t} tenant={tenant} />
+          {items.map((item, idx) => (
+            <SidebarItem key={`${item.id}-${idx}`} item={item} t={t} tenant={tenant} />
           ))}
         </ul>
       </nav>
@@ -201,7 +201,7 @@ function SidebarItem({
                   c.group.length > 0 &&
                   c.group !== prev?.group;
                 return (
-                  <li key={c.id}>
+                  <li key={`${c.id}-${idx}`}>
                     {showGroupHeader ? (
                       <div
                         role="separator"
