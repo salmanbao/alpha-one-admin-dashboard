@@ -17,14 +17,19 @@ const navigation: NavigationItem[] = [
     order: 5,
     application: ["super-admin"],
     children: [
-      { id: "super.overview", label: "Overview", href: "super-overview", icon: BarChart3, application: ["super-admin"] },
-      { id: "super.tenants", label: "Tenants", href: "tenants", icon: Building2, application: ["super-admin"] },
-      { id: "super.create-tenant", label: "Create Tenant", href: "create-tenant", icon: Plus, application: ["super-admin"] },
-      { id: "super.lifecycle", label: "Lifecycle", href: "tenant-lifecycle", icon: GitBranch, application: ["super-admin"] },
-      { id: "super.catalog", label: "Service Catalog", href: "module-catalog", icon: Package, application: ["super-admin"] },
-      { id: "super.health", label: "System Health", href: "platform-health", icon: Server, application: ["super-admin"] },
-      { id: "super.dashboard-manager", label: "Dashboard Manager", href: "dashboard-manager", icon: LayoutDashboard, application: ["super-admin"] },
-      { id: "super.platform-audit", label: "Platform Audit", href: "platform-audit", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 65 },
+      // ───────── Tenant Management (implicit first group — no header) ─────────
+      { id: "super.overview", label: "Overview", href: "super-overview", icon: BarChart3, application: ["super-admin"], group: "Tenant Management" },
+      { id: "super.tenants", label: "Tenants", href: "tenants", icon: Building2, application: ["super-admin"], group: "Tenant Management" },
+      { id: "super.create-tenant", label: "Create Tenant", href: "create-tenant", icon: Plus, application: ["super-admin"], group: "Tenant Management" },
+      { id: "super.lifecycle", label: "Lifecycle", href: "tenant-lifecycle", icon: GitBranch, application: ["super-admin"], group: "Tenant Management" },
+
+      // ───────── Platform Services ─────────
+      { id: "super.catalog", label: "Service Catalog", href: "module-catalog", icon: Package, application: ["super-admin"], group: "Platform Services" },
+      { id: "super.dashboard-manager", label: "Dashboard Manager", href: "dashboard-manager", icon: LayoutDashboard, application: ["super-admin"], group: "Platform Services" },
+
+      // ───────── Observability & Governance ─────────
+      { id: "super.health", label: "System Health", href: "platform-health", icon: Server, application: ["super-admin"], group: "Observability & Governance" },
+      { id: "super.platform-audit", label: "Platform Audit", href: "platform-audit", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 65, group: "Observability & Governance" },
     ],
   },
 ];

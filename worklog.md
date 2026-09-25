@@ -8148,3 +8148,29 @@ Stage Summary:
 - Visual treatment: `text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70` with `mt-2 mb-1` spacing and `select-none` (so clicks don't target the header). `role="separator"` with `aria-label={group}` for screen-reader accessibility.
 - Artifacts: `download/sidebar-regrouped.png` (full-page screenshot showing the regrouped sidebar).
 - No DB / API changes. No new dependencies. No new viewIds. No router/view-router.tsx edits. Pure manifest + Sidebar render change.
+
+---
+Task ID: impl-sidebar-regrouping-verify
+Agent: main-agent (session web-255f3264)
+Task: Independently verify the concurrent lead-architect's sidebar regrouping work (uncommitted in worktree) and fill any remaining gaps per user request "analyze the sidebar and read all links and which links need new grouping and group them".
+
+Work Log:
+- Detected uncommitted changes from concurrent agent (Task impl-sidebar-regrouping): types.ts `group?: string` field + sidebar.tsx group-header renderer + 7 grouped manifests (risk/settings/analytics/ai/marketing/affiliates/challenges). Adopted contract, no conflicts.
+- Independently re-audited ALL 15 registered modules' navigation: confirmed 7 already grouped, 8 left flat (Trading 6, Payouts 4, Accounting 5, CRM 3, KYC 3, Support 4, Audit 4, Platform 8).
+- Identified genuine gap: super-admin "Platform" section (order 5, 8 children) was the largest ungrouped section — larger than AI (7) which the other agent DID group. Grouped it in super-admin-module.ts: Tenant Management (4, implicit) | Platform Services (2: Service Catalog, Dashboard Manager) | Observability & Governance (2: System Health, Platform Audit). Reordered children for group contiguity (children render in manifest declaration order; module-registry only sorts top-level items).
+- Honored the other agent's deliberate skip-list for small single-domain sections (Payouts/CRM/KYC/Support/Audit/Trading/Accounting): grouping 3-4-item coherent flows adds header noise without navigation value.
+- Quality gates: `bun run lint` → 0 errors (before AND after my edit); HMR recompiled cleanly (`✓ Compiled in 286ms`, no dev.log errors).
+- agent-browser E2E (prop-admin = Sarah Chen):
+  - Verified group headers: Evaluation → MANAGEMENT; Risk → PAYOUT ANALYTICS / TRADING PATTERNS / GEOGRAPHIC & IP RISK; Settings → SECURITY & ACCESS / COMMUNICATIONS / CERTIFICATES / SYSTEM.
+  - Verified backward compat: Trading (6) + Withdrawal (4) render flat with zero spurious separators.
+- agent-browser E2E (super-admin = Alex Morgan, via Switch user menu):
+  - Platform section renders: Overview/Tenants/Create Tenant/Lifecycle (implicit) → PLATFORM SERVICES → Service Catalog/Dashboard Manager → OBSERVABILITY & GOVERNANCE → System Health/Platform Audit. Exact intended order.
+  - All other groups confirmed in super-admin scope: FIRM INSIGHTS / DASHBOARDS (Analytics), PROMOTION & OFFERS (Affiliates), ANALYTICS (Marketing), CONFIGURATION / ADVANCED ANALYTICS (AI) — completing verification of all 7 previously-grouped manifests which the Alpha Capital tenant could not show.
+- Console/errors: clean (agent-browser errors → empty; no console errors/warnings).
+- Memory hygiene: browser closed + chromium killed immediately; dev server re-verified HTTP 200 after teardown.
+- Artifacts: download/sidebar-platform-grouped.png (super-admin sidebar showing new Platform groups).
+
+Stage Summary:
+- Sidebar regrouping is now COMPLETE and VERIFIED across both roles: 8 grouped sections (Platform 8→3 groups, Trading left flat by design, all others per lead-architect), 87 children partitioned into 23 visible sub-groups, every chunk ≤ 6 items.
+- Contract unchanged from lead-architect: optional `NavigationItem.group`, header renders only on adjacent-group transitions, first group implicit. Zero breaking changes; flat sections unaffected.
+- Changes remain uncommitted in worktree alongside the lead-architect's (cron housekeeping will commit).
