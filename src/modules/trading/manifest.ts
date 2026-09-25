@@ -13,6 +13,7 @@ import {
   Activity,
   UserPlus,
   Archive,
+  User,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { TradingOverviewWidget } from "./widgets/trading-overview-widget";
@@ -29,11 +30,17 @@ const navigation: NavigationItem[] = [
     order: 10,
     children: [
       { id: "trading.overview", label: "Overview", href: "trading", icon: LineChart, permission: "trader.read" },
-      { id: "trading.traders", label: "Traders", href: "trading-traders", icon: Users, permission: "trader.read" },
-      { id: "trading.accounts", label: "Accounts", href: "trading-accounts", icon: CreditCard, permission: "account.read" },
-      { id: "trading.positions", label: "Open Positions", href: "trading-positions", icon: Activity, permission: "account.read" },
-      { id: "trading.add-account", label: "Add Account", href: "trading-add-account", icon: UserPlus, permission: "account.write" },
-      { id: "trading.closed-positions", label: "Closed Positions", href: "closed-positions", icon: Archive, permission: "account.read" },
+      { id: "trading.traders", label: "Traders", href: "trading-traders", icon: Users, permission: "trader.read", application: ["prop-admin", "super-admin"] },
+      { id: "trading.accounts", label: "Accounts", href: "trading-accounts", icon: CreditCard, permission: "account.read", application: ["prop-admin", "super-admin"] },
+      { id: "trading.positions", label: "Open Positions", href: "trading-positions", icon: Activity, permission: "account.read", application: ["prop-admin", "super-admin"] },
+      { id: "trading.add-account", label: "Add Account", href: "trading-add-account", icon: UserPlus, permission: "account.write", application: ["prop-admin", "super-admin"] },
+      { id: "trading.closed-positions", label: "Closed Positions", href: "closed-positions", icon: Archive, permission: "account.read", application: ["prop-admin", "super-admin"] },
+      // Round 7: trader-scoped nav items — Tom lands on his own workspace
+      // / positions / closed positions / withdraw / support, not the
+      // admin views that list every trader on the tenant.
+      { id: "trading.my-workspace", label: "My Workspace", href: "trader-detail", icon: User, permission: "trader.self", application: ["trader"] },
+      { id: "trading.my-positions", label: "My Open Positions", href: "trading-positions", icon: Activity, permission: "trader.self", application: ["trader"] },
+      { id: "trading.my-closed", label: "My Closed Positions", href: "closed-positions", icon: Archive, permission: "trader.self", application: ["trader"] },
     ],
   },
 ];

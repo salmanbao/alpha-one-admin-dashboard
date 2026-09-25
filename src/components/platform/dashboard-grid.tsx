@@ -45,15 +45,24 @@ function spanClass(span: number): string {
 }
 
 export function DashboardGrid() {
-  const { runtime, hiddenWidgets } = usePlatform();
+  const { runtime, hiddenWidgets, user } = usePlatform();
   const layout = resolveDashboardLayout(runtime, hiddenWidgets);
   const widgets = resolveWidgets(runtime, layout);
 
   if (widgets.length === 0) {
+    // Round 7: when the operator is a trader application user, the
+    // Settings → Modules CTA is a dead-end (Settings module doesn't
+    // support trader application). Show a trader-specific empty state
+    // pointing at the trader-detail workspace instead.
+    const isTrader = user.application === "trader";
     return (
       <EmptyState
-        title="No widgets available"
-        description="Enable modules in Settings → Modules to populate your dashboard with widgets."
+        title={isTrader ? "Your workspace is ready" : "No widgets available"}
+        description={
+          isTrader
+            ? "Open My Workspace to view your accounts, open positions, recent trades, withdrawal requests, and challenge phase progress."
+            : "Enable modules in Settings → Modules to populate your dashboard with widgets."
+        }
         icon={LayoutGrid}
       />
     );
@@ -160,10 +169,18 @@ export function DashboardSkeleton() {
 }
 
 export function EmptyDashboard() {
+  // Round 7: trader-specific empty state — same reasoning as the main
+  // grid's empty state above (Settings CTA is a dead-end for traders).
+  const { user } = usePlatform();
+  const isTrader = user.application === "trader";
   return (
     <EmptyState
-      title="Your dashboard is empty"
-      description="Enable modules in Settings to see widgets here. The dashboard will re-compose instantly."
+      title={isTrader ? "Your workspace is ready" : "Your dashboard is empty"}
+      description={
+        isTrader
+          ? "Open My Workspace to view your accounts, open positions, recent trades, withdrawal requests, and challenge phase progress."
+          : "Enable modules in Settings to see widgets here. The dashboard will re-compose instantly."
+      }
       icon={PackageOpen}
     />
   );

@@ -9346,3 +9346,88 @@ Stage Summary:
 - All touched files pass lint (verified after each batch via `bun run lint`)
 - Dev server OOM'd twice during Phase 7 — 1536MB restart applied, HTTP 200
 - No active cron jobs (413512 was stopped earlier; user did not request recreation)
+
+---
+Task ID: trader-dashboard-master
+Agent: Super Z (Trader Dashboard Audit + Fixes)
+Task: Analyze the trader-facing dashboard (Tom Allen, application: "trader", tenant-beta) section by section / screen by screen / feature by feature / flow by flow, find UI/UX gaps, and implement fixes.
+
+Work Log:
+- Visual audit via agent-browser (logged in as Tom Allen — user-trader-1, tenant-beta)
+- Major findings:
+  - Overview page showed tenant-wide admin KPIs (26 active traders, £1M total equity, 6 funded traders, 7 open breaches, 2 pending payouts) — wrong context for a trader; should be Tom's own personal stats
+  - Attention Center showed admin concerns (Payout approvals waiting / At-risk accounts / Payouts stuck in approval / Urgent support tickets needing triage / AI opportunities) — every CTA dead-ended into admin views Tom can't access
+  - Empty state CTA "Enable modules in Settings → Modules" — dead-end for traders (Settings module doesn't support trader application)
+  - Live Activity showed tenant-wide audit feed ("Elena R. — Created challenge on challenge") — Tom saw other traders' actions
+  - Live Equity Curve showed tenant-wide equity (£999,757) — admin-grade data leak
+  - Topbar search trigger "Search traders, accounts, settings…" — leaks trader terminology
+  - Sidebar showed admin nav items (Traders list, Add Account, all-tenant Accounts) without trader-scoped entries (My Workspace, My Positions, etc.)
+
+- Implementation (Phase T-A through T-H, plus gridstack-dashboard empty state):
+
+Phase T-B: Trader-personal Overview
+- Extended AuthUser type with optional `traderId?: string` field
+- Seeded Tom Allen (user-trader-1) with `traderId: "trader-tenant-beta-1"`
+- Added trader-personal helpers in mock-data.ts: getTraderForUser / getTraderAccounts / getTraderPositions / getTraderPayouts / getTraderBreaches / getTraderAudit
+- overview-page.tsx: when `user.application === "trader"`, calls new `buildTraderSummary(traderId, currency, enabledModules, term)` instead of buildSummary
+- buildTraderSummary renders Tom's personal KPIs: My Account Equity, My Open Positions, My Challenge Phase, My Open Breaches, My Pending Withdrawal
+- syncLiveStats useEffect now syncs to Tom's own counts (his accounts, his positions, his payouts, his breaches) — KPI strip matches the live sidebar
+- Live stats mini-panel labels switch per-application: "My Accounts / My Open Positions / My Pending Withdrawals / My Open Breaches" for traders (vs "Active Traders / Open Positions / Pending Payouts / Open Breaches" for admins)
+
+Phase T-C: Attention Center — trader-personal items
+- attention-center.tsx: added `trader = user.application === "trader" ? getTraderForUser(user) : null`
+- New `buildTraderAttentionGroups(traderId, tid, enabledModules, currency)` function returns Tom's personal items:
+  - Action Required: "Withdrawals awaiting approval" (Tom's pending payouts) → navigate trader-detail
+  - Action Required: "Your urgent support tickets" (Tom's own urgent tickets) → support-tickets
+  - Warnings: "Your account has open breaches" (Tom's breaches) → risk-breaches
+  - Warnings: "Your accounts need attention" (Tom's breached/pending accounts) → trader-detail
+  - Information: "You have N account(s) (N funded)" → trader-detail
+- All CTAs say "my" / "your" and route to trader-facing views
+
+Phase T-D: Live Activity Feed — trader-personal feed
+- live-activity-feed.tsx: when trader, reads from `getTraderAudit(trader.id, tid)` (Tom's own audit entries) instead of the singleton live feed
+- Pause/clear controls hidden for traders (their feed is a static snapshot, not a ticking simulation)
+- Empty state copy: "No recent activity on your account." (trader) vs "Waiting for activity…" (admin)
+- Header label: "My Activity" for traders, "Live" for admins
+
+Phase T-E: Live Equity Curve — trader's own equity
+- live-equity-curve.tsx: when trader, baseEquity is computed from getTraderAccounts(trader.id) instead of getTenantAccounts(tid)
+- Subtitle label: "My equity · live" (trader) vs "Total equity · live" (admin)
+- Falls back to 5000 if the trader has no accounts (defensive)
+
+Phase T-F: Sidebar trader nav
+- Added 3 trader-scoped nav items to the Trading module manifest: "My Workspace" (href=trader-detail), "My Open Positions" (trading-positions), "My Closed Positions" (closed-positions) — all gated to application=["trader"]
+- Restricted the admin nav items (Traders list / Accounts / Open Positions / Add Account / Closed Positions) to application=["prop-admin", "super-admin"] so Tom no longer sees admin views
+- EnhancedTraderDetailPage: if no id is passed in URL, defaults to `user.traderId` when trader application — lets the "My Workspace" nav item work without Tom having to know his own traderId
+
+Phase T-G: Empty state CTA — trader-specific
+- dashboard-grid.tsx EmptyState (main grid + EmptyDashboard component): when trader application, shows "Your workspace is ready / Open My Workspace to view your accounts, open positions, recent trades, withdrawal requests, and challenge phase progress." instead of the admin "No widgets available / Enable modules in Settings → Modules"
+- gridstack-dashboard.tsx empty state: same trader-specific copy
+
+Phase T-H: Topbar search trigger copy
+- topbar.tsx: search trigger now resolves per-application: "Search my accounts, withdrawals, support…" for traders vs "Search traders, accounts, settings…" for admins (both then run through resolveTermsInString for tenant terminology)
+
+Verification (agent-browser E2E as Tom Allen — user-trader-1, tenant-beta):
+- HTTP 200, page renders cleanly, 0 console errors
+- Sidebar shows: Trading → My Workspace / My Open Positions / My Closed Positions, plus Challenge / Risk / Payout
+- Search trigger: "Search my accounts, withdrawals, support…"
+- Attention Center: Warnings (Your account has open breaches / Your accounts need attention) + Information (You have 1 account (1 funded)) — all Tom's own data
+- KPI strip: MY ACCOUNT EQUITY £25,000 / MY OPEN POSITIONS 4 / MY CHALLENGE PHASE Funded / MY OPEN BREACHES 1 / MY PENDING WITHDRAWAL 0
+- Live Activity: "MY ACTIVITY 0 / No recent activity on your account."
+- Live Equity: "My equity · live" + £24,996 (Tom's own equity, not whole-tenant £1M)
+- Live stats mini-panel: MY ACCOUNTS 1 / MY OPEN POSITIONS 4 / MY PENDING WITHDRAWALS 0 / MY OPEN BREACHES 1
+- Screenshot: download/trader-dashboard-fixed.png
+- Dev server OOM'd once during the audit — 1536MB restart applied, HTTP 200
+
+Stage Summary:
+- Trader dashboard now correctly renders Tom Allen's personal data across all surfaces (Overview, Attention Center, Live Activity, Live Equity, sidebar nav, topbar search)
+- Tom sees his own accounts (1 funded account), his own positions (4 open), his own breaches (1 open), his own pending withdrawals (0), his own challenge phase (Funded)
+- Admin-grade widgets/views no longer leak to trader application users (sidebar admin items restricted to prop-admin/super-admin; empty state CTA no longer dead-ends into Settings)
+- 8 batches across 9 files: types.ts, mock-data.ts, overview-page.tsx, attention-center.tsx, live-activity-feed.tsx, live-equity-curve.tsx, trading/manifest.ts, enhanced-trader-detail-page.tsx, dashboard-grid.tsx, gridstack-dashboard.tsx, topbar.tsx
+- All touched files pass lint (verified after each batch via `bun run lint`)
+- Outstanding (deferred Round 8):
+  - Customize Dashboard dialog (Phase T-I): trader still sees admin-grade widgets (Payout Queue, KYC Queue, CRM Pipeline) in the customize list — would need application filter on the widget registry
+  - Live Prices widget shows market prices (OK for traders, no change needed)
+  - Trader-detail page (My Workspace) renders fine when no id is passed but the navigation target uses `navigate("trader-detail")` without params — page works because of the new fallback to user.traderId
+  - "Customize" button in PageHeader still opens the dialog that includes admin widgets — same deferred Phase T-I
+  - Other trader-facing views (Risk → My Breaches, Payout → My Withdrawals, Support → My Tickets) still navigate to admin views when clicked from the sidebar — would need additional view-router logic to route traders to filtered versions

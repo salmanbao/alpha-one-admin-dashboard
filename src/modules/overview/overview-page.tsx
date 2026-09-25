@@ -23,6 +23,11 @@ import {
   getTenantTickets,
   getTenantAiInsights,
   getTenantKyc,
+  getTraderForUser,
+  getTraderAccounts,
+  getTraderPositions,
+  getTraderPayouts,
+  getTraderBreaches,
   revenueSeries,
 } from "@/lib/platform/mock-data";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
@@ -57,11 +62,32 @@ export function OverviewPage() {
 
   // Aggregate the single most important KPI from each enabled module
   const tid = tenant.id;
-  const summary = buildSummary(tid, tenant.currency, enabled.map((m) => m.manifest.id), term, range);
+  // Round 7: when the operator is a trader, render their PERSONAL KPIs
+  // (their accounts, their payouts, their breaches, their challenge
+  // phase) instead of whole-tenant totals. Previously Tom Allen saw
+  // "26 active traders / £1M total equity" — admin-grade KPIs that
+  // leaked other traders' data and had no relevance to Tom.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
+  const summary = trader
+    ? buildTraderSummary(trader.id, tenant.currency, enabled.map((m) => m.manifest.id), term)
+    : buildSummary(tid, tenant.currency, enabled.map((m) => m.manifest.id), term, range);
 
-  // Sync live stats to actual tenant values so the live sidebar
-  // matches the KPI row (prevents data inconsistency).
+  // Sync live stats to actual values so the live sidebar matches the KPI row.
+  // Trader: sync to Tom's own counts; admin: sync to tenant-wide counts.
   useEffect(() => {
+    if (trader) {
+      const traderAccts = getTraderAccounts(trader.id);
+      const traderPos = getTraderPositions(trader.id);
+      const traderPays = getTraderPayouts(trader.id);
+      const traderBreach = getTraderBreaches(trader.id);
+      syncLiveStats({
+        activeTraders: traderAccts.filter((a) => a.status === "active").length,
+        openPositions: traderPos.length,
+        pendingPayouts: traderPays.filter((p) => p.status === "pending").length,
+        openBreaches: traderBreach.filter((b) => b.status === "open").length,
+      });
+      return;
+    }
     const traders = getTenantTraders(tid);
     const positions = getTenantPositions(tid);
     const payouts = getTenantPayouts(tid);
@@ -72,7 +98,7 @@ export function OverviewPage() {
       pendingPayouts: payouts.filter((p) => p.status === "pending").length,
       openBreaches: breaches.filter((b) => b.status === "open").length,
     });
-  }, [tid, refreshKey]);
+  }, [tid, refreshKey, trader]);
 
   const roleName = roles.find((r) => r.id === user.roles[0])?.name ?? user.roles[0]?.replace(/-/g, " ");
 
@@ -174,28 +200,38 @@ export function OverviewPage() {
               </div>
               <LivePriceFeedWidget />
             </div>
-            {/* Live stats mini-panel */}
+            {/* Live stats mini-panel — labels switch when trader application
+                so Tom sees "My Accounts / My Positions / My Withdrawals / My Breaches"
+                instead of the admin "Active Traders / Pending Payouts" labels. */}
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-lg border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{resolveTermsInString("Active Traders", tenant)}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {trader ? "My Accounts" : resolveTermsInString("Active Traders", tenant)}
+                </p>
                 <p className="text-lg font-bold tabular-nums text-foreground">
                   <AnimatedNumber value={live.activeTraders} />
                 </p>
               </div>
               <div className="rounded-lg border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Open Positions</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {trader ? "My Open Positions" : "Open Positions"}
+                </p>
                 <p className="text-lg font-bold tabular-nums text-foreground">
                   <AnimatedNumber value={live.openPositions} />
                 </p>
               </div>
               <div className="rounded-lg border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{resolveTermsInString("Pending Payouts", tenant)}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {trader ? "My Pending Withdrawals" : resolveTermsInString("Pending Payouts", tenant)}
+                </p>
                 <p className="text-lg font-bold tabular-nums text-foreground">
                   <AnimatedNumber value={live.pendingPayouts} />
                 </p>
               </div>
               <div className="rounded-lg border bg-card p-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Open Breaches</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {trader ? "My Open Breaches" : "Open Breaches"}
+                </p>
                 <p className="text-lg font-bold tabular-nums text-rose-600">
                   <AnimatedNumber value={live.openBreaches} className="text-rose-600" />
                 </p>
@@ -363,6 +399,85 @@ function buildSummary(
       icon: Brain,
       tone: "positive",
       href: "ai-insights",
+    });
+  }
+  return out;
+}
+
+/**
+ * Round 7: trader-personal KPI strip. Renders the operator's OWN data
+ * (their accounts, payouts, breaches, challenge phase) instead of
+ * whole-tenant totals. Previously Tom Allen saw "26 active traders /
+ * £1M total equity" — admin-grade KPIs that leaked other traders' data.
+ */
+function buildTraderSummary(
+  traderId: string,
+  currency: string,
+  enabledModuleIds: string[],
+  term: (key: "challenge" | "trader" | "payout" | "account" | "evaluation" | "participant" | "withdrawal" | "disbursement") => string,
+): SummaryKpi[] {
+  const out: SummaryKpi[] = [];
+  const has = (id: string) => enabledModuleIds.includes(id);
+
+  if (has("trading")) {
+    const accts = getTraderAccounts(traderId);
+    const positions = getTraderPositions(traderId);
+    const myEquity = accts.reduce((s, a) => s + a.equity, 0);
+    out.push({
+      moduleId: "trading",
+      moduleName: "Trading",
+      label: "My Account Equity",
+      value: formatCurrency(myEquity, currency),
+      icon: Wallet,
+      tone: "positive",
+      href: "trader-detail",
+    });
+    out.push({
+      moduleId: "trading",
+      moduleName: "Trading",
+      label: "My Open Positions",
+      value: positions.length,
+      icon: Activity,
+      tone: positions.length > 0 ? "positive" : "default",
+      href: "trader-detail",
+    });
+  }
+  if (has("challenges")) {
+    // Find Tom's challenge phase from his trader record (seeded).
+    const traderRow = getTraderAccounts(traderId)[0];
+    const phase = traderRow?.phase ?? "—";
+    out.push({
+      moduleId: "challenges",
+      moduleName: "Challenges",
+      label: `My ${term("challenge")} Phase`,
+      value: phase === "phase-1" ? "Phase 1" : phase === "phase-2" ? "Phase 2" : phase === "funded" ? "Funded" : "—",
+      icon: TrendingUp,
+      tone: phase === "funded" ? "positive" : "default",
+      href: "trader-detail",
+    });
+  }
+  if (has("risk")) {
+    const breaches = getTraderBreaches(traderId).filter((b) => b.status === "open");
+    out.push({
+      moduleId: "risk",
+      moduleName: "Risk",
+      label: "My Open Breaches",
+      value: breaches.length,
+      icon: AlertTriangle,
+      tone: breaches.length > 0 ? "warning" : "positive",
+      href: "risk-breaches",
+    });
+  }
+  if (has("payouts")) {
+    const pending = getTraderPayouts(traderId).filter((p) => p.status === "pending").length;
+    out.push({
+      moduleId: "payouts",
+      moduleName: "Payouts",
+      label: `My Pending ${term("withdrawal")}`,
+      value: pending,
+      icon: Wallet,
+      tone: pending > 0 ? "warning" : "positive",
+      href: "payouts-pending",
     });
   }
   return out;

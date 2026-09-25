@@ -70,7 +70,17 @@ export function Topbar() {
         className="group flex h-9 w-full max-w-md items-center gap-2 rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted md:max-w-sm"
       >
         <Search className="h-4 w-4" />
-        <span className="flex-1 text-left">{resolveTermsInString("Search traders, accounts, settings…", tenant)}</span>
+        <span className="flex-1 text-left">
+          {/* Round 7: trader-specific search trigger copy — admin's
+              "Search traders, accounts, settings" leaks trader terminology
+              that's wrong context for Tom. */}
+          {resolveTermsInString(
+            user.application === "trader"
+              ? "Search my accounts, withdrawals, support…"
+              : "Search traders, accounts, settings…",
+            tenant,
+          )}
+        </span>
         <kbd className="hidden rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
           /
         </kbd>

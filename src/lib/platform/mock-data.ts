@@ -432,6 +432,10 @@ export const users: AuthUser[] = [
   {
     id: "user-trader-1",
     tenantId: "tenant-beta",
+    // Round 7: link Tom Allen to a specific trader record on his tenant
+    // so the trader-personal Overview can pull his own accounts, payouts,
+    // breaches, challenge phase, etc.
+    traderId: "trader-tenant-beta-1",
     name: "Tom Allen",
     email: "tom@example.com",
     initials: "TA",
@@ -1298,6 +1302,50 @@ export function getTenantAudit(tenantId: string): AuditEntry[] {
 }
 export function getTenantPositions(tenantId: string): Position[] {
   return positions.filter((p) => p.tenantId === tenantId);
+}
+
+/* ------------------------------------------------------------------ */
+/* Trader-personal helpers (Round 7 addition)                          */
+/* Used by the trader-facing Overview / Attention Center / Live Equity  */
+/* to render the operator's own data instead of whole-tenant totals.   */
+/* ------------------------------------------------------------------ */
+
+/** Find the Trader record linked to a user (returns null for non-trader users). */
+export function getTraderForUser(user: { traderId?: string; application?: string }): Trader | null {
+  if (!user.traderId) return null;
+  return traders.find((t) => t.id === user.traderId) ?? null;
+}
+
+/** All trading accounts owned by this trader (across phases / brokers). */
+export function getTraderAccounts(traderId: string): TradingAccount[] {
+  return tradingAccounts.filter((a) => a.traderId === traderId);
+}
+
+/** Open positions on this trader's accounts. */
+export function getTraderPositions(traderId: string): Position[] {
+  const acctIds = new Set(tradingAccounts.filter((a) => a.traderId === traderId).map((a) => a.id));
+  return positions.filter((p) => acctIds.has(p.accountId));
+}
+
+/** Payout / withdrawal requests submitted by this trader. */
+export function getTraderPayouts(traderId: string): Payout[] {
+  return payouts.filter((p) => p.traderId === traderId);
+}
+
+/** Breaches recorded on this trader's accounts. */
+export function getTraderBreaches(traderId: string): Breach[] {
+  return breaches.filter((b) => b.traderId === traderId);
+}
+
+/** Audit entries that mention this trader's id (Round 7: for the trader's
+ *  own live activity feed — the tenant-wide feed leaks other traders'
+ *  actions to Tom, which is wrong context). */
+export function getTraderAudit(traderId: string, tenantId: string): AuditEntry[] {
+  return auditLog.filter(
+    (a) =>
+      (a.tenantId === tenantId || a.tenantId === undefined) &&
+      (a.entityId === traderId || (a.summary && a.summary.includes(traderId))),
+  );
 }
 
 /* ------------------------------------------------------------------ */

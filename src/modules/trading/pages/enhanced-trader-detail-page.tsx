@@ -84,9 +84,13 @@ import {
 import { cn } from "@/lib/utils";
 
 export function EnhancedTraderDetailPage() {
-  const { runtime, router, navigate } = usePlatform();
+  const { runtime, router, navigate, user } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
-  const traderId = router.params.id;
+  // Round 7: if no id is passed in the URL, default to the current user's
+  // traderId when they're a trader application user. Lets us expose a
+  // "My Workspace" nav item that just navigates to `trader-detail`
+  // without requiring the operator to know their own id.
+  const traderId = router.params.id ?? (user.application === "trader" ? user.traderId : undefined);
   const currency = runtime.tenant?.currency ?? "USD";
 
   const trader = useMemo(

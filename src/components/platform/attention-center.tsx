@@ -44,7 +44,12 @@ import {
   getTenantAudit,
   getUserEvents,
   getTenantChallenges,
+  getTraderForUser,
+  getTraderPayouts,
+  getTraderBreaches,
+  getTraderAccounts,
 } from "@/lib/platform/mock-data";
+import type { ApplicationId } from "@/lib/platform/types";
 
 interface AttentionItem {
   id: string;
@@ -64,10 +69,18 @@ interface AttentionGroup {
 }
 
 export function AttentionCenter() {
-  const { runtime, navigate, tenant } = usePlatform();
+  const { runtime, navigate, tenant, user } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
+  // Round 7: when the operator is a trader, render their PERSONAL
+  // attention items (their pending withdrawals, their open breaches,
+  // their KYC status, their support tickets) instead of admin-grade
+  // items (Payout approvals waiting / At-risk accounts / etc.) that
+  // are wrong context for Tom.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
 
-  const groups = buildAttentionGroups(tid, runtime.enabledModules);
+  const groups = trader
+    ? buildTraderAttentionGroups(trader.id, tid, runtime.enabledModules, tenant.currency ?? "USD")
+    : buildAttentionGroups(tid, runtime.enabledModules);
 
   if (groups.every((g) => g.items.length === 0)) {
     return (
@@ -402,6 +415,117 @@ function buildAttentionGroups(tid: string, enabledModules: string[]): AttentionG
         icon: AlertTriangle,
         navigateTo: "challenges-failed",
         navigateLabel: "Review failures",
+      });
+    }
+  }
+
+  return [
+    { id: "action", label: "Action Required", tone: "action" as const, items: actionItems },
+    { id: "warning", label: "Warnings", tone: "warning" as const, items: warningItems },
+    { id: "info", label: "Information", tone: "info" as const, items: infoItems },
+  ];
+}
+
+/**
+ * Round 7: trader-personal attention groups. Renders Tom's own pending
+ * withdrawals, his open breaches, his KYC status, his open support
+ * tickets — instead of admin-grade items (Payout approvals waiting /
+ * At-risk accounts / Urgent support tickets needing triage) that are
+ * wrong context for a single trader.
+ */
+function buildTraderAttentionGroups(
+  traderId: string,
+  tid: string,
+  enabledModules: string[],
+  currency: string,
+): AttentionGroup[] {
+  const has = (id: string) => enabledModules.includes(id);
+
+  const actionItems: AttentionItem[] = [];
+  const warningItems: AttentionItem[] = [];
+  const infoItems: AttentionItem[] = [];
+
+  // Action Required: My pending withdrawals (awaiting admin approval)
+  if (has("payouts")) {
+    const pending = getTraderPayouts(traderId).filter((p) => p.status === "pending");
+    if (pending.length > 0) {
+      const totalAmount = pending.reduce((s, p) => s + p.amount, 0);
+      actionItems.push({
+        id: "my-pending-withdrawals",
+        title: "Withdrawals awaiting approval",
+        detail: `${pending.length} ${pending.length === 1 ? "request" : "requests"} totaling ${totalAmount.toLocaleString("en-US", { style: "currency", currency })}`,
+        count: pending.length,
+        icon: Wallet,
+        navigateTo: "trader-detail",
+        navigateLabel: "View my withdrawals",
+      });
+    }
+  }
+
+  // Action Required: My urgent open support tickets
+  if (has("support")) {
+    const myUrgent = getTenantTickets(tid).filter(
+      (t) => t.priority === "urgent" && t.status === "open",
+    );
+    if (myUrgent.length > 0) {
+      actionItems.push({
+        id: "my-urgent-tickets",
+        title: "Your urgent support tickets",
+        detail: `${myUrgent.length} ${myUrgent.length === 1 ? "ticket" : "tickets"} awaiting response from support`,
+        count: myUrgent.length,
+        icon: Users,
+        navigateTo: "support-tickets",
+        navigateLabel: "View my tickets",
+      });
+    }
+  }
+
+  // Warnings: My open breaches
+  if (has("risk")) {
+    const myBreaches = getTraderBreaches(traderId).filter((b) => b.status === "open");
+    if (myBreaches.length > 0) {
+      const critical = myBreaches.filter((b) => b.severity === "critical").length;
+      warningItems.push({
+        id: "my-open-breaches",
+        title: "Your account has open breaches",
+        detail: `${myBreaches.length} ${myBreaches.length === 1 ? "breach" : "breaches"} (${critical} critical) — review risk rules`,
+        count: myBreaches.length,
+        icon: ShieldAlert,
+        navigateTo: "risk-breaches",
+        navigateLabel: "Review my breaches",
+      });
+    }
+  }
+
+  // Warnings: My account status (breached/suspended)
+  if (has("trading")) {
+    const accts = getTraderAccounts(traderId);
+    const atRisk = accts.filter((a) => a.status === "breached" || a.status === "pending");
+    if (atRisk.length > 0) {
+      warningItems.push({
+        id: "my-accounts-at-risk",
+        title: "Your accounts need attention",
+        detail: `${atRisk.length} ${atRisk.length === 1 ? "account" : "accounts"} require action`,
+        count: atRisk.length,
+        icon: AlertTriangle,
+        navigateTo: "trader-detail",
+        navigateLabel: "View my accounts",
+      });
+    }
+  }
+
+  // Information: trader account summary
+  if (has("trading")) {
+    const accts = getTraderAccounts(traderId);
+    const funded = accts.filter((a) => a.phase === "funded").length;
+    if (accts.length > 0) {
+      infoItems.push({
+        id: "my-account-summary",
+        title: `You have ${accts.length} ${accts.length === 1 ? "account" : "accounts"}${funded > 0 ? ` (${funded} funded)` : ""}`,
+        detail: "Track your phase progression and account status here.",
+        icon: CheckCircle2,
+        navigateTo: "trader-detail",
+        navigateLabel: "Open my workspace",
       });
     }
   }

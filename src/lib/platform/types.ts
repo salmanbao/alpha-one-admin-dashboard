@@ -67,6 +67,10 @@ export interface TenantContext {
 export interface AuthUser {
   id: string;
   tenantId?: string;
+  /** For trader-application users, the linked Trader record id. Optional
+   * because prop-admin/super-admin users don't map to a Trader. Round 7
+   * addition — drives trader-personal KPIs on the overview page. */
+  traderId?: string;
   name: string;
   email: string;
   avatarUrl?: string;

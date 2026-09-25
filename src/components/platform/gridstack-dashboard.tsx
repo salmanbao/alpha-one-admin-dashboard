@@ -308,12 +308,19 @@ export function DashboardGrid() {
     setTimeout(() => window.location.reload(), 500);
   };
 
-  // Empty state
+  // Empty state — Round 7: trader-specific copy (Settings CTA is a
+  // dead-end for traders since the Settings module doesn't support
+  // trader application).
   if (widgets.length === 0) {
+    const isTrader = runtime.user.application === "trader";
     return (
       <EmptyState
-        title="No widgets available"
-        description="Enable modules in Settings → Modules to populate your dashboard with widgets."
+        title={isTrader ? "Your workspace is ready" : "No widgets available"}
+        description={
+          isTrader
+            ? "Open My Workspace to view your accounts, open positions, recent trades, withdrawal requests, and challenge phase progress."
+            : "Enable modules in Settings → Modules to populate your dashboard with widgets."
+        }
         icon={LayoutGrid}
       />
     );

@@ -10,6 +10,7 @@
 
 import { useLiveData } from "@/lib/platform/live-data";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { getTraderForUser } from "@/lib/platform/mock-data";
 import { AreaSeries } from "@/components/platform/charts";
 import { formatCurrency } from "@/components/platform/status";
 import { useEffect, useState, useRef } from "react";
@@ -24,19 +25,30 @@ interface Point {
 const MAX_POINTS = 30;
 
 export function LiveEquityCurveWidget() {
-  const { runtime } = usePlatform();
+  const { runtime, user } = usePlatform();
   const live = useLiveData();
   const currency = runtime.tenant?.currency ?? "USD";
   const baseEquity = useRef<number>(0);
   const [points, setPoints] = useState<Point[]>([]);
 
-  // Initialize base equity from tenant accounts
+  // Round 7: when trader application, base equity is the trader's OWN
+  // account equity (their accounts), not the whole-tenant total.
+  // Previously Tom saw £999,757 (whole tenant's equity) — admin-grade
+  // data he shouldn't see and that has no relevance to his own account.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
+
+  // Initialize base equity from tenant accounts (admin) or trader's own (trader)
   useEffect(() => {
     // Lazy import to avoid circular deps
-    import("@/lib/platform/mock-data").then(({ getTenantAccounts }) => {
+    import("@/lib/platform/mock-data").then(({ getTenantAccounts, getTraderAccounts: gtAccts }) => {
       const tid = runtime.tenant?.id ?? "platform";
-      const accounts = getTenantAccounts(tid);
-      baseEquity.current = accounts.reduce((s, a) => s + a.equity, 0);
+      if (trader) {
+        const accts = gtAccts(trader.id);
+        baseEquity.current = accts.reduce((s, a) => s + a.equity, 0) || 5000;
+      } else {
+        const accounts = getTenantAccounts(tid);
+        baseEquity.current = accounts.reduce((s, a) => s + a.equity, 0);
+      }
       // Seed initial points
       const now = Date.now();
       const seed: Point[] = Array.from({ length: 10 }, (_, i) => ({
@@ -45,7 +57,7 @@ export function LiveEquityCurveWidget() {
       }));
       setPoints(seed);
     });
-  }, [runtime.tenant?.id]);
+  }, [runtime.tenant?.id, trader?.id]);
 
   // Append a new point on each tick
   useEffect(() => {
@@ -77,7 +89,7 @@ export function LiveEquityCurveWidget() {
               {delta >= 0 ? "▲" : "▼"} {Math.abs(deltaPct).toFixed(2)}%
             </Badge>
           </div>
-          <p className="text-[10px] text-muted-foreground">Total equity · live</p>
+          <p className="text-[10px] text-muted-foreground">{trader ? "My equity · live" : "Total equity · live"}</p>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="relative flex h-2 w-2">
