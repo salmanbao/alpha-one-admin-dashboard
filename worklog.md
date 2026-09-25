@@ -8199,3 +8199,23 @@ Stage Summary:
 - Dashboard now fully functional: 16 widgets render real data end-to-end (was 0/16 before fix).
 - Architecture note for future agents: any time a widget needs to be mounted into an imperative DOM container (e.g. inside GridStack items), prefer `createPortal` from `react-dom` over `createRoot` — context propagation is mandatory for `usePlatform()` / `useToast()` / `useRouter()` to work.
 - Still outstanding (no regression introduced): cron restart template hardcodes 1024MB; until that's fixed, any restart will need manual swap to 1536MB.
+
+---
+Task ID: fix-gridstack-init-classlist
+Agent: Super Z (main)
+Task: Fix runtime TypeError "can't access property 'contains', el.classList is undefined" at gridstack-dashboard.tsx GridStack.init + 14:00 cron health check
+
+Work Log:
+- 14:00 cron check: HTTP 200 (round 51)
+- Root cause analysis: user-reported error code frame showed `GridStack.init(gridRef.current, {...options})` — arguments REVERSED. Installed gridstack@11.5.1 signature is `static init(options = {}, elOrString = '.grid-stack')` (verified in node_modules/dist/gridstack.js line 50). With reversed args, GridStack treats the options object as the grid element → el.classList undefined → crash on .contains
+- Found the fix ALREADY APPLIED in working tree (uncommitted, by concurrent agent): args swapped to `init(options, gridRef.current)` + TS interface `GridStackStatic.init` corrected + explanatory comment added; git diff confirms only this change
+- Runtime verification attempt 1: dev server found CRASHED (curl 000, process gone, silent death after 14:00 check) → restarted with 1536MB SAFE variant (not 1024MB template) → HTTP 200, Ready in 1707ms
+- Browser E2E (prop-admin Sarah Chen, /): gridstackInit=true, 16 grid items, widget content rendered (Trading Overview 6.5KB, Account Balances 1.8KB, Trader Performance 17.7KB, Open Positions 3KB HTML), console 0 errors, classList error GONE
+- Note: transient "usePlatform must be used within PlatformProvider" errors seen during first failed load were artifacts of the server-down state; clean reload shows zero errors
+- Screenshot archived: download/dashboard-gridstack-fixed.png (shows app shell + fresh-profile Tenant Setup Wizard modal, dashboard behind)
+- agent-browser close + pkill chromium (memory hygiene); server re-verified 200 after cleanup
+
+Stage Summary:
+- REPORTED BUG FIXED (verified at runtime): GridStack.init argument order now matches v11+ API (options first, element second); fix was present in uncommitted working tree changes — left uncommitted per project practice
+- Dev server survived a silent crash mid-task; restarted with 1536MB safe variant — reinforces the 1024MB template risk (ops priority)
+- Artifact: download/dashboard-gridstack-fixed.png
