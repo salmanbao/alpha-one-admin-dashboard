@@ -1,0 +1,1112 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Phase Detail page (UX Constitution §12-13, §25-27, §28 audit trail).
+     5→ *
+     6→ * 3-tab editor for a single phase configuration:
+     7→ *   1. General               — phase metadata + risk rules; Save / Reset
+     8→ *   2. Trading Platform IDs  — broker group mappings (MT5 / MT4 / DXTrade);
+     9→ *                              bridge status; sync action; per-phase summary
+    10→ *   3. Change History        — per-object audit trail DataTable with strikethrough
+    11→ *                              old values (red) and new values (green), search,
+    12→ *                              filter by field, CSV export
+    13→ *
+    14→ * Pre-fills from `getChallengePhaseConfigs()` using `router.params.id` as an
+    15→ * index (the demo convention — IDs are unstable mock strings, indices are
+    16→ * stable for navigation). Falls back to actual mock id or index 0.
+    17→ *
+    18→ * Terra palette — forest green primary, warm cream surface, emerald/amber/
+    19→ * rose accents. No blue/indigo.
+    20→ */
+    21→
+    22→import { useEffect, useMemo, useState } from "react";
+    23→import { usePlatform } from "@/lib/platform/platform-context";
+    24→import {
+    25→  getChallengePhaseConfigs,
+    26→  getChallengeTypes,
+    27→  type ChallengePhaseConfig,
+    28→} from "@/lib/platform/mock-data";
+    29→import { Page, PageHeader, PageContent } from "@/components/platform/page";
+    30→import { DataTable, type Column } from "@/components/platform/data-table";
+    31→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    32→import { StatusBadge } from "@/components/platform/status";
+    33→import { Button } from "@/components/ui/button";
+    34→import { Input } from "@/components/ui/input";
+    35→import { Label } from "@/components/ui/label";
+    36→import { Switch } from "@/components/ui/switch";
+    37→import { Badge } from "@/components/ui/badge";
+    38→import { Checkbox } from "@/components/ui/checkbox";
+    39→import { Separator } from "@/components/ui/separator";
+    40→import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    41→import {
+    42→  Select,
+    43→  SelectContent,
+    44→  SelectItem,
+    45→  SelectTrigger,
+    46→  SelectValue,
+    47→} from "@/components/ui/select";
+    48→import { toast } from "@/hooks/use-toast";
+    49→import { cn } from "@/lib/utils";
+    50→import {
+    51→  Settings2,
+    52→  Save,
+    53→  ChevronLeft,
+    54→  RotateCcw,
+    55→  GitBranch,
+    56→  Plug,
+    57→  RefreshCw,
+    58→  History,
+    59→  Download,
+    60→  Search,
+    61→  ArrowLeft,
+    62→  Server,
+    63→  Clock,
+    64→  ShieldCheck,
+    65→  Radio,
+    66→} from "lucide-react";
+    67→
+    68→/* ------------------------------------------------------------------ */
+    69→/* Types                                                               */
+    70→/* ------------------------------------------------------------------ */
+    71→
+    72→interface PhaseDraft {
+    73→  title: string;
+    74→  step: number;
+    75→  leverage: string;
+    76→  isLive: boolean;
+    77→  scalingPlan: boolean;
+    78→  profitTargetPct: number;
+    79→  dailyDrawdownPct: number;
+    80→  maxDrawdownPct: number;
+    81→  minTradingDays: number;
+    82→  maxDays: number;
+    83→  tradingDayThreshold: number;
+    84→  autoPass: boolean;
+    85→}
+    86→
+    87→interface PlatformIdsDraft {
+    88→  mt5Group: string;
+    89→  mt4Group: string;
+    90→  dxTradeGroup: string;
+    91→}
+    92→
+    93→interface PhaseChangeEntry {
+    94→  id: string;
+    95→  timestamp: string;
+    96→  user: string;
+    97→  field: string;
+    98→  oldValue: string;
+    99→  newValue: string;
+   100→  reason: string;
+   101→}
+   102→
+   103→/* ------------------------------------------------------------------ */
+   104→/* ID resolution — use index as mock ID, fallback to actual id         */
+   105→/* ------------------------------------------------------------------ */
+   106→
+   107→function resolvePhase(id: string | undefined): {
+   108→  phase: ChallengePhaseConfig;
+   109→  index: number;
+   110→} {
+   111→  const all = getChallengePhaseConfigs();
+   112→  if (!id) return { phase: all[0], index: 0 };
+   113→  const numeric = Number(id);
+   114→  if (Number.isInteger(numeric) && numeric >= 0 && numeric < all.length) {
+   115→    return { phase: all[numeric], index: numeric };
+   116→  }
+   117→  const byId = all.findIndex((p) => p.id === id);
+   118→  if (byId >= 0) return { phase: all[byId], index: byId };
+   119→  return { phase: all[0], index: 0 };
+   120→}
+   121→
+   122→/* ------------------------------------------------------------------ */
+   123→/* Deterministic per-phase mock generators                             */
+   124→/* ------------------------------------------------------------------ */
+   125→
+   126→const ACTORS = [
+   127→  "Sarah Chen",
+   128→  "Marcus Webb",
+   129→  "Priya Nair",
+   130→  "System",
+   131→  "AI Engine",
+   132→] as const;
+   133→
+   134→const REASONS = [
+   135→  "Policy update",
+   136→  "Configuration change",
+   137→  "Manual adjustment",
+   138→  "Risk committee decision",
+   139→  "Quarterly review",
+   140→] as const;
+   141→
+   142→const FIELD_TEMPLATES: Array<{
+   143→  field: string;
+   144→  oldV: string;
+   145→  newV: string;
+   146→}> = [
+   147→  { field: "Profit Target", oldV: "8%", newV: "10%" },
+   148→  { field: "Maximum Drawdown", oldV: "10%", newV: "8%" },
+   149→  { field: "Daily Drawdown", oldV: "5%", newV: "4%" },
+   150→  { field: "Min Trading Days", oldV: "0", newV: "3" },
+   151→  { field: "Max Days", oldV: "30", newV: "45" },
+   152→  { field: "Leverage", oldV: "1:30", newV: "1:100" },
+   153→  { field: "Profit Split", oldV: "75%", newV: "80%" },
+   154→  { field: "MT5 Group", oldV: "funderblu\\phase1", newV: "funderblu\\phase1-v2" },
+   155→  { field: "Auto Pass", oldV: "Disabled", newV: "Enabled" },
+   156→  { field: "Trading-day Threshold", oldV: "0 lots", newV: "0.5 lots" },
+   157→];
+   158→
+   159→function generateChangeHistory(phaseId: string, index: number): PhaseChangeEntry[] {
+   160→  // Deterministic per phase — use index as seed, no Math.random
+   161→  const count = 8 + (index % 3); // 8, 9, or 10 entries
+   162→  const out: PhaseChangeEntry[] = [];
+   163→  const baseTs = new Date("2026-01-15T10:30:00.000Z").getTime();
+   164→  for (let i = 0; i < count; i++) {
+   165→    // Per-phase offset to keep entries distinct across phases
+   166→    const t = new Date(baseTs - i * 36 * 3600 * 1000 - index * 3600 * 1000);
+   167→    const tpl = FIELD_TEMPLATES[(i + index) % FIELD_TEMPLATES.length];
+   168→    out.push({
+   169→      id: `${phaseId}-ch-${i}`,
+   170→      timestamp: t.toISOString(),
+   171→      user: ACTORS[(i + index) % ACTORS.length],
+   172→      field: tpl.field,
+   173→      oldValue: tpl.oldV,
+   174→      newValue: tpl.newV,
+   175→      reason: REASONS[(i + index) % REASONS.length],
+   176→    });
+   177→  }
+   178→  return out;
+   179→}
+   180→
+   181→function generatePlatformIds(phase: ChallengePhaseConfig, index: number) {
+   182→  // Deterministic mock per phase index
+   183→  const slug =
+   184→    phase.phaseName.toLowerCase().replace(/\s+/g, "") ?? `phase${index}`;
+   185→  return {
+   186→    mt5Group: `funderblu\\${slug}`,
+   187→    mt4Group: index % 2 === 0 ? "" : `funderblu\\${slug}-mt4`,
+   188→    dxTradeGroup: index % 3 === 0 ? `dx\\${slug}` : "",
+   189→    bridgeStatus: (index % 4 === 0 ? "disconnected" : "connected") as
+   190→      | "connected"
+   191→      | "disconnected",
+   192→    lastSync: new Date(Date.now() - (index + 1) * 1800 * 1000).toISOString(),
+   193→  };
+   194→}
+   195→
+   196→/* ------------------------------------------------------------------ */
+   197→/* Section card primitive                                              */
+   198→/* ------------------------------------------------------------------ */
+   199→
+   200→function SectionCard({
+   201→  title,
+   202→  description,
+   203→  icon: Icon,
+   204→  children,
+   205→  className,
+   206→}: {
+   207→  title: string;
+   208→  description?: string;
+   209→  icon?: React.ComponentType<{ className?: string }>;
+   210→  children: React.ReactNode;
+   211→  className?: string;
+   212→}) {
+   213→  return (
+   214→    <section className={cn("rounded-lg border bg-card p-4", className)}>
+   215→      <div className="mb-4 flex items-start gap-2">
+   216→        {Icon ? (
+   217→          <div className="mt-0.5 rounded-md bg-muted/60 p-1.5">
+   218→            <Icon className="h-4 w-4 text-foreground" />
+   219→          </div>
+   220→        ) : null}
+   221→        <div>
+   222→          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+   223→          {description ? (
+   224→            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+   225→          ) : null}
+   226→        </div>
+   227→      </div>
+   228→      {children}
+   229→    </section>
+   230→  );
+   231→}
+   232→
+   233→function FieldRow({
+   234→  label,
+   235→  htmlFor,
+   236→  help,
+   237→  children,
+   238→}: {
+   239→  label: string;
+   240→  htmlFor?: string;
+   241→  help?: React.ReactNode;
+   242→  children: React.ReactNode;
+   243→}) {
+   244→  return (
+   245→    <div className="flex flex-col gap-1.5">
+   246→      <Label htmlFor={htmlFor} className="text-xs text-muted-foreground">
+   247→        {help ? <LabelWithHelp help={help}>{label}</LabelWithHelp> : label}
+   248→      </Label>
+   249→      {children}
+   250→    </div>
+   251→  );
+   252→}
+   253→
+   254→function ToggleRow({
+   255→  label,
+   256→  description,
+   257→  checked,
+   258→  onChange,
+   259→}: {
+   260→  label: string;
+   261→  description: string;
+   262→  checked: boolean;
+   263→  onChange: (next: boolean) => void;
+   264→}) {
+   265→  return (
+   266→    <div className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2.5">
+   267→      <div>
+   268→        <p className="text-sm font-medium text-foreground">{label}</p>
+   269→        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+   270→      </div>
+   271→      <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
+   272→    </div>
+   273→  );
+   274→}
+   275→
+   276→/* ------------------------------------------------------------------ */
+   277→/* TAB 1 — General                                                     */
+   278→/* ------------------------------------------------------------------ */
+   279→
+   280→function GeneralTab({
+   281→  phase,
+   282→  draft,
+   283→  setDraft,
+   284→  challengeName,
+   285→}: {
+   286→  phase: ChallengePhaseConfig;
+   287→  draft: PhaseDraft;
+   288→  setDraft: (next: PhaseDraft) => void;
+   289→  challengeName: string;
+   290→}) {
+   291→  const setField = <K extends keyof PhaseDraft>(
+   292→    key: K,
+   293→    value: PhaseDraft[K],
+   294→  ) => setDraft({ ...draft, [key]: value });
+   295→
+   296→  return (
+   297→    <div className="flex flex-col gap-4">
+   298→      <SectionCard
+   299→        title="Phase Metadata"
+   300→        description={`Part of ${challengeName}. ${phase.isFunded ? "This is the funded phase — profit target is informational." : "Evaluation phase — risk rules apply throughout."}`}
+   301→        icon={GitBranch}
+   302→      >
+   303→        <div className="grid gap-4 md:grid-cols-2">
+   304→          <FieldRow label="Title" htmlFor="pd-title">
+   305→            <Input
+   306→              id="pd-title"
+   307→              value={draft.title}
+   308→              onChange={(e) => setField("title", e.target.value)}
+   309→              placeholder="e.g. Phase 1"
+   310→            />
+   311→          </FieldRow>
+   312→          <FieldRow
+   313→            label="Step Number"
+   314→            htmlFor="pd-step"
+   315→            help="The order of this phase in the challenge flow. Step 1 is the entry phase; the highest step is the funded phase."
+   316→          >
+   317→            <Input
+   318→              id="pd-step"
+   319→              type="number"
+   320→              min={1}
+   321→              value={String(draft.step)}
+   322→              onChange={(e) => setField("step", Number(e.target.value) || 0)}
+   323→              className="tabular-nums"
+   324→            />
+   325→          </FieldRow>
+   326→          <FieldRow
+   327→            label="Leverage"
+   328→            htmlFor="pd-leverage"
+   329→            help="Maximum leverage offered to traders on this phase. Format is broker notation, e.g. 1:100 means 100× the account balance."
+   330→          >
+   331→            <Input
+   332→              id="pd-leverage"
+   333→              value={draft.leverage}
+   334→              onChange={(e) => setField("leverage", e.target.value)}
+   335→              placeholder="e.g. 1:100"
+   336→              className="tabular-nums"
+   337→            />
+   338→          </FieldRow>
+   339→          <div className="grid gap-3 md:grid-cols-1">
+   340→            <ToggleRow
+   341→              label="Live Status"
+   342→              description="Mark this phase as a live / funded account phase. Live phases don't have a profit target."
+   343→              checked={draft.isLive}
+   344→              onChange={(v) => setField("isLive", v)}
+   345→            />
+   346→            <ToggleRow
+   347→              label="Scaling Plan"
+   348→              description="Enable account-size scaling on this phase (size grows as the trader meets performance milestones)."
+   349→              checked={draft.scalingPlan}
+   350→              onChange={(v) => setField("scalingPlan", v)}
+   351→            />
+   352→          </div>
+   353→        </div>
+   354→      </SectionCard>
+   355→
+   356→      <SectionCard
+   357→        title="Risk Rules"
+   358→        description="Limits applied to every trader account in this phase."
+   359→        icon={ShieldCheck}
+   360→      >
+   361→        <div className="grid gap-4 md:grid-cols-3">
+   362→          <FieldRow
+   363→            label="Target Profit"
+   364→            htmlFor="pd-profit"
+   365→            help="Profit percentage required to pass this phase. Set to 0 for funded phases."
+   366→          >
+   367→            <div className="flex items-center gap-1">
+   368→              <Input
+   369→                id="pd-profit"
+   370→                type="number"
+   371→                min={0}
+   372→                max={100}
+   373→                value={String(draft.profitTargetPct)}
+   374→                onChange={(e) =>
+   375→                  setField("profitTargetPct", Number(e.target.value) || 0)
+   376→                }
+   377→                className="tabular-nums"
+   378→              />
+   379→              <span className="text-xs text-muted-foreground">%</span>
+   380→            </div>
+   381→          </FieldRow>
+   382→          <FieldRow
+   383→            label="Daily Drawdown"
+   384→            htmlFor="pd-daily-dd"
+   385→            help="Maximum loss permitted in a single trading day, measured from the day's opening equity. Resets at 00:00 server time."
+   386→          >
+   387→            <div className="flex items-center gap-1">
+   388→              <Input
+   389→                id="pd-daily-dd"
+   390→                type="number"
+   391→                min={0}
+   392→                max={100}
+   393→                value={String(draft.dailyDrawdownPct)}
+   394→                onChange={(e) =>
+   395→                  setField("dailyDrawdownPct", Number(e.target.value) || 0)
+   396→                }
+   397→                className="tabular-nums"
+   398→              />
+   399→              <span className="text-xs text-muted-foreground">%</span>
+   400→            </div>
+   401→          </FieldRow>
+   402→          <FieldRow
+   403→            label="Maximum Drawdown"
+   404→            htmlFor="pd-max-dd"
+   405→            help="Maximum cumulative loss from the highest equity peak. Does not reset. Exceeding this breaches the phase."
+   406→          >
+   407→            <div className="flex items-center gap-1">
+   408→              <Input
+   409→                id="pd-max-dd"
+   410→                type="number"
+   411→                min={0}
+   412→                max={100}
+   413→                value={String(draft.maxDrawdownPct)}
+   414→                onChange={(e) =>
+   415→                  setField("maxDrawdownPct", Number(e.target.value) || 0)
+   416→                }
+   417→                className="tabular-nums"
+   418→              />
+   419→              <span className="text-xs text-muted-foreground">%</span>
+   420→            </div>
+   421→          </FieldRow>
+   422→          <FieldRow
+   423→            label="Minimum Trading Days"
+   424→            htmlFor="pd-min-days"
+   425→            help="Distinct trading days required before the phase can be marked as passed. Traders cannot pass early."
+   426→          >
+   427→            <Input
+   428→              id="pd-min-days"
+   429→              type="number"
+   430→              min={0}
+   431→              value={String(draft.minTradingDays)}
+   432→              onChange={(e) =>
+   433→                setField("minTradingDays", Number(e.target.value) || 0)
+   434→              }
+   435→              className="tabular-nums"
+   436→            />
+   437→          </FieldRow>
+   438→          <FieldRow
+   439→            label="Maximum Days / Time Limit"
+   440→            htmlFor="pd-max-days"
+   441→            help="Calendar days allotted for this phase. 0 means no expiry. Exceeding the limit auto-fails the phase."
+   442→          >
+   443→            <Input
+   444→              id="pd-max-days"
+   445→              type="number"
+   446→              min={0}
+   447→              value={String(draft.maxDays)}
+   448→              onChange={(e) =>
+   449→                setField("maxDays", Number(e.target.value) || 0)
+   450→              }
+   451→              className="tabular-nums"
+   452→            />
+   453→          </FieldRow>
+   454→          <FieldRow
+   455→            label="Trading-day Threshold"
+   456→            htmlFor="pd-threshold"
+   457→            help="Minimum trading volume (in lots) per trading day for the day to count toward the minimum trading days requirement."
+   458→          >
+   459→            <div className="flex items-center gap-1">
+   460→              <Input
+   461→                id="pd-threshold"
+   462→                type="number"
+   463→                min={0}
+   464→                step="0.01"
+   465→                value={String(draft.tradingDayThreshold)}
+   466→                onChange={(e) =>
+   467→                  setField("tradingDayThreshold", Number(e.target.value) || 0)
+   468→                }
+   469→                className="tabular-nums"
+   470→              />
+   471→              <span className="text-xs text-muted-foreground">lots</span>
+   472→            </div>
+   473→          </FieldRow>
+   474→        </div>
+   475→
+   476→        <div className="mt-3 flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2.5">
+   477→          <div>
+   478→            <p className="text-sm font-medium text-foreground">Auto Pass</p>
+   479→            <p className="mt-0.5 text-xs text-muted-foreground">
+   480→              Automatically advance the trader to the next phase as soon as the
+   481→              profit target and minimum trading days are both met.
+   482→            </p>
+   483→          </div>
+   484→          <Checkbox
+   485→            checked={draft.autoPass}
+   486→            onCheckedChange={(v) => setField("autoPass", v === true)}
+   487→            aria-label="Auto pass"
+   488→          />
+   489→        </div>
+   490→      </SectionCard>
+   491→
+   492→      <div className="flex flex-wrap items-center justify-end gap-2">
+   493→        <Button
+   494→          variant="outline"
+   495→          size="sm"
+   496→          onClick={() => {
+   497→            setDraft({
+   498→              title: phase.phaseName,
+   499→              step: phase.phaseOrder,
+   500→              leverage: "1:100",
+   501→              isLive: phase.isFunded,
+   502→              scalingPlan: false,
+   503→              profitTargetPct: phase.profitTargetPct,
+   504→              dailyDrawdownPct: phase.dailyDrawdownPct,
+   505→              maxDrawdownPct: phase.maxDrawdownPct,
+   506→              minTradingDays: phase.minTradingDays,
+   507→              maxDays: phase.maxDays,
+   508→              tradingDayThreshold: 0,
+   509→              autoPass: false,
+   510→            });
+   511→            toast({
+   512→              title: "Reverted",
+   513→              description: "Phase form reverted to default values.",
+   514→            });
+   515→          }}
+   516→        >
+   517→          <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reset to Defaults
+   518→        </Button>
+   519→        <Button
+   520→          size="sm"
+   521→          onClick={() =>
+   522→            toast({
+   523→              title: "Phase configuration saved",
+   524→              description: `${draft.title || phase.phaseName} for ${challengeName} has been saved.`,
+   525→            })
+   526→          }
+   527→        >
+   528→          <Save className="mr-1 h-3.5 w-3.5" /> Save Changes
+   529→        </Button>
+   530→      </div>
+   531→    </div>
+   532→  );
+   533→}
+   534→
+   535→/* ------------------------------------------------------------------ */
+   536→/* TAB 2 — Trading Platform IDs                                        */
+   537→/* ------------------------------------------------------------------ */
+   538→
+   539→function PlatformIdsTab({
+   540→  phase,
+   541→  index,
+   542→  challengeName,
+   543→}: {
+   544→  phase: ChallengePhaseConfig;
+   545→  index: number;
+   546→  challengeName: string;
+   547→}) {
+   548→  const mock = useMemo(() => generatePlatformIds(phase, index), [phase, index]);
+   549→  const [draft, setDraft] = useState<PlatformIdsDraft>({
+   550→    mt5Group: mock.mt5Group,
+   551→    mt4Group: mock.mt4Group,
+   552→    dxTradeGroup: mock.dxTradeGroup,
+   553→  });
+   554→
+   555→  // Re-seed if the underlying phase changes
+   556→  const [lastPhaseId, setLastPhaseId] = useState<string>(phase.id);
+   557→  if (phase.id !== lastPhaseId) {
+   558→    setLastPhaseId(phase.id);
+   559→    setDraft({
+   560→      mt5Group: mock.mt5Group,
+   561→      mt4Group: mock.mt4Group,
+   562→      dxTradeGroup: mock.dxTradeGroup,
+   563→    });
+   564→  }
+   565→
+   566→  const setField = <K extends keyof PlatformIdsDraft>(
+   567→    key: K,
+   568→    value: PlatformIdsDraft[K],
+   569→  ) => setDraft({ ...draft, [key]: value });
+   570→
+   571→  // All phases summary table for comparison
+   572→  const allPhases = getChallengePhaseConfigs();
+   573→  const types = getChallengeTypes();
+   574→  const typeLookup = useMemo(
+   575→    () => Object.fromEntries(types.map((t) => [t.id, t.name])),
+   576→    [types],
+   577→  );
+   578→
+   579→  const summaryColumns: Column<ChallengePhaseConfig>[] = [
+   580→    {
+   581→      key: "challenge",
+   582→      header: "Challenge",
+   583→      cell: (p) => typeLookup[p.challengeTypeId] ?? "—",
+   584→      sortValue: (p) => typeLookup[p.challengeTypeId] ?? "",
+   585→    },
+   586→    {
+   587→      key: "phase",
+   588→      header: "Phase",
+   589→      cell: (p) => (
+   590→        <div className="flex items-center gap-1.5">
+   591→          <Badge variant="outline" className="text-[10px] tabular-nums">
+   592→            {p.phaseOrder}
+   593→          </Badge>
+   594→          <span>{p.phaseName}</span>
+   595→        </div>
+   596→      ),
+   597→      sortValue: (p) => p.phaseOrder,
+   598→    },
+   599→    {
+   600→      key: "mt5",
+   601→      header: "MT5 Group",
+   602→      cell: (p) => {
+   603→        const m = generatePlatformIds(p, allPhases.indexOf(p));
+   604→        return (
+   605→          <span className="font-mono text-xs">{m.mt5Group || "—"}</span>
+   606→        );
+   607→      },
+   608→    },
+   609→    {
+   610→      key: "mt4",
+   611→      header: "MT4 Group",
+   612→      cell: (p) => {
+   613→        const m = generatePlatformIds(p, allPhases.indexOf(p));
+   614→        return m.mt4Group ? (
+   615→          <span className="font-mono text-xs">{m.mt4Group}</span>
+   616→        ) : (
+   617→          <span className="text-xs text-muted-foreground">—</span>
+   618→        );
+   619→      },
+   620→    },
+   621→    {
+   622→      key: "dx",
+   623→      header: "DXTrade",
+   624→      cell: (p) => {
+   625→        const m = generatePlatformIds(p, allPhases.indexOf(p));
+   626→        return m.dxTradeGroup ? (
+   627→          <span className="font-mono text-xs">{m.dxTradeGroup}</span>
+   628→        ) : (
+   629→          <span className="text-xs text-muted-foreground">—</span>
+   630→        );
+   631→      },
+   632→    },
+   633→    {
+   634→      key: "status",
+   635→      header: "Bridge",
+   636→      cell: (p) => {
+   637→        const m = generatePlatformIds(p, allPhases.indexOf(p));
+   638→        return m.bridgeStatus === "connected" ? (
+   639→          <StatusBadge tone="success">Connected</StatusBadge>
+   640→        ) : (
+   641→          <StatusBadge tone="muted">Disconnected</StatusBadge>
+   642→        );
+   643→      },
+   644→      sortValue: (p) =>
+   645→        generatePlatformIds(p, allPhases.indexOf(p)).bridgeStatus === "connected"
+   646→          ? 1
+   647→          : 0,
+   648→    },
+   649→  ];
+   650→
+   651→  return (
+   652→    <div className="flex flex-col gap-4">
+   653→      <div className="flex items-start gap-3 rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-muted-foreground">
+   654→        <Server className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+   655→        <p>
+   656→          Configure the mapping between this phase and your broker&apos;s
+   657→          trading platform groups. When a trader enters this phase, the system
+   658→          will create a trading account in the specified group.
+   659→        </p>
+   660→      </div>
+   661→
+   662→      <SectionCard
+   663→        title="Platform Group Mapping"
+   664→        description={`Broker group IDs for ${phase.phaseName} (Step ${phase.phaseOrder} of ${challengeName}).`}
+   665→        icon={Plug}
+   666→      >
+   667→        <div className="grid gap-4 md:grid-cols-2">
+   668→          <FieldRow
+   669→            label="MT5 Group ID"
+   670→            htmlFor="pd-mt5"
+   671→            help="MetaTrader 5 server group. Format is broker-specific, e.g. funderblu\\phase1. Required — every phase must have an MT5 group."
+   672→          >
+   673→            <Input
+   674→              id="pd-mt5"
+   675→              value={draft.mt5Group}
+   676→              onChange={(e) => setField("mt5Group", e.target.value)}
+   677→              placeholder="e.g. funderblu\\phase1"
+   678→              className="font-mono text-sm"
+   679→            />
+   680→          </FieldRow>
+   681→          <FieldRow
+   682→            label="MT4 Group ID (Optional)"
+   683→            htmlFor="pd-mt4"
+   684→            help="Legacy MetaTrader 4 server group. Leave blank if your broker no longer offers MT4 accounts."
+   685→          >
+   686→            <Input
+   687→              id="pd-mt4"
+   688→              value={draft.mt4Group}
+   689→              onChange={(e) => setField("mt4Group", e.target.value)}
+   690→              placeholder="Legacy platform — optional"
+   691→              className="font-mono text-sm"
+   692→            />
+   693→          </FieldRow>
+   694→          <FieldRow
+   695→            label="DXTrade Group ID (Optional)"
+   696→            htmlFor="pd-dx"
+   697→            help="DXTrade server group for brokers that offer the DXTrade platform alongside MT5/MT4."
+   698→          >
+   699→            <Input
+   700→              id="pd-dx"
+   701→              value={draft.dxTradeGroup}
+   702→              onChange={(e) => setField("dxTradeGroup", e.target.value)}
+   703→              placeholder="Optional — DXTrade brokers only"
+   704→              className="font-mono text-sm"
+   705→            />
+   706→          </FieldRow>
+   707→          <div className="flex flex-col gap-2 rounded-md border bg-background p-3">
+   708→            <div className="flex items-center justify-between">
+   709→              <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+   710→                <Radio className="h-3.5 w-3.5" />
+   711→                Bridge Status
+   712→              </span>
+   713→              {mock.bridgeStatus === "connected" ? (
+   714→                <StatusBadge tone="success">Connected</StatusBadge>
+   715→              ) : (
+   716→                <StatusBadge tone="warning">Disconnected</StatusBadge>
+   717→              )}
+   718→            </div>
+   719→            <Separator />
+   720→            <div className="flex items-center justify-between text-xs">
+   721→              <span className="flex items-center gap-1.5 text-muted-foreground">
+   722→                <Clock className="h-3.5 w-3.5" />
+   723→                Last sync
+   724→              </span>
+   725→              <span className="font-mono text-foreground">
+   726→                {new Date(mock.lastSync).toLocaleString()}
+   727→              </span>
+   728→            </div>
+   729→          </div>
+   730→        </div>
+   731→      </SectionCard>
+   732→
+   733→      <div className="flex flex-wrap items-center justify-end gap-2">
+   734→        <Button
+   735→          variant="outline"
+   736→          size="sm"
+   737→          onClick={() =>
+   738→            toast({
+   739→              title: "Syncing with broker platform",
+   740→              description: "Bridge sync initiated — this may take up to 30 seconds.",
+   741→            })
+   742→          }
+   743→        >
+   744→          <RefreshCw className="mr-1 h-3.5 w-3.5" /> Sync Now
+   745→        </Button>
+   746→        <Button
+   747→          size="sm"
+   748→          onClick={() =>
+   749→            toast({
+   750→              title: "Platform IDs saved",
+   751→              description: `MT5 group ${draft.mt5Group || "(none)"} mapped to ${phase.phaseName}.`,
+   752→            })
+   753→          }
+   754→        >
+   755→          <Save className="mr-1 h-3.5 w-3.5" /> Save Platform IDs
+   756→        </Button>
+   757→      </div>
+   758→
+   759→      <SectionCard
+   760→        title="Phases Summary"
+   761→        description="Compare group IDs across all phases for consistency."
+   762→        icon={GitBranch}
+   763→      >
+   764→        <DataTable
+   765→          columns={summaryColumns}
+   766→          data={allPhases}
+   767→          rowKey={(p) => p.id}
+   768→          pageSize={6}
+   769→          searchPlaceholder="Search phases…"
+   770→          searchableText={(p) =>
+   771→            `${typeLookup[p.challengeTypeId] ?? ""} ${p.phaseName} ${
+   772→              generatePlatformIds(p, allPhases.indexOf(p)).mt5Group
+   773→            }`
+   774→          }
+   775→          emptyTitle="No phases"
+   776→          emptyDescription="No phases have been configured yet."
+   777→        />
+   778→      </SectionCard>
+   779→    </div>
+   780→  );
+   781→}
+   782→
+   783→/* ------------------------------------------------------------------ */
+   784→/* TAB 3 — Change History                                              */
+   785→/* ------------------------------------------------------------------ */
+   786→
+   787→function ChangeHistoryTab({
+   788→  phase,
+   789→  index,
+   790→  navigate,
+   791→}: {
+   792→  phase: ChallengePhaseConfig;
+   793→  index: number;
+   794→  navigate: (view: string, params?: Record<string, string>) => void;
+   795→}) {
+   796→  const history = useMemo(
+   797→    () => generateChangeHistory(phase.id, index),
+   798→    [phase.id, index],
+   799→  );
+   800→
+   801→  // Local filter state
+   802→  const [search, setSearch] = useState("");
+   803→  const [fieldFilter, setFieldFilter] = useState<string>("all");
+   804→
+   805→  const fieldOptions = useMemo(() => {
+   806→    const set = new Set<string>();
+   807→    history.forEach((h) => set.add(h.field));
+   808→    return Array.from(set).sort();
+   809→  }, [history]);
+   810→
+   811→  const filtered = useMemo(() => {
+   812→    const q = search.trim().toLowerCase();
+   813→    return history.filter((h) => {
+   814→      if (fieldFilter !== "all" && h.field !== fieldFilter) return false;
+   815→      if (!q) return true;
+   816→      return (
+   817→        h.user.toLowerCase().includes(q) ||
+   818→        h.field.toLowerCase().includes(q) ||
+   819→        h.oldValue.toLowerCase().includes(q) ||
+   820→        h.newValue.toLowerCase().includes(q) ||
+   821→        h.reason.toLowerCase().includes(q)
+   822→      );
+   823→    });
+   824→  }, [history, search, fieldFilter]);
+   825→
+   826→  const exportCsv = () => {
+   827→    const header = ["Date/Time", "User", "Field Changed", "Old Value", "New Value", "Reason"];
+   828→    const rows = filtered.map((h) => [
+   829→      new Date(h.timestamp).toISOString(),
+   830→      h.user,
+   831→      h.field,
+   832→      h.oldValue,
+   833→      h.newValue,
+   834→      h.reason,
+   835→    ]);
+   836→    const csv = [header, ...rows]
+   837→      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+   838→      .join("\n");
+   839→    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+   840→    const url = URL.createObjectURL(blob);
+   841→    const a = document.createElement("a");
+   842→    a.href = url;
+   843→    a.download = `${phase.id}-change-history.csv`;
+   844→    document.body.appendChild(a);
+   845→    a.click();
+   846→    document.body.removeChild(a);
+   847→    URL.revokeObjectURL(url);
+   848→    toast({
+   849→      title: "CSV exported",
+   850→      description: `${filtered.length} change record${filtered.length === 1 ? "" : "s"} exported.`,
+   851→    });
+   852→  };
+   853→
+   854→  const columns: Column<PhaseChangeEntry>[] = [
+   855→    {
+   856→      key: "timestamp",
+   857→      header: "Date / Time",
+   858→      cell: (h) => (
+   859→        <span className="font-mono text-xs text-muted-foreground">
+   860→          {new Date(h.timestamp).toLocaleString()}
+   861→        </span>
+   862→      ),
+   863→      sortValue: (h) => h.timestamp,
+   864→    },
+   865→    {
+   866→      key: "user",
+   867→      header: "User",
+   868→      cell: (h) => (
+   869→        <div className="flex items-center gap-1.5">
+   870→          <span className="text-foreground">{h.user}</span>
+   871→          {h.user === "System" || h.user === "AI Engine" ? (
+   872→            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+   873→              Automated
+   874→            </Badge>
+   875→          ) : null}
+   876→        </div>
+   877→      ),
+   878→      sortValue: (h) => h.user,
+   879→    },
+   880→    {
+   881→      key: "field",
+   882→      header: "Field Changed",
+   883→      cell: (h) => <span className="font-medium text-foreground">{h.field}</span>,
+   884→      sortValue: (h) => h.field,
+   885→    },
+   886→    {
+   887→      key: "oldValue",
+   888→      header: "Old Value",
+   889→      cell: (h) => (
+   890→        <span className="text-rose-700 line-through dark:text-rose-400">
+   891→          {h.oldValue}
+   892→        </span>
+   893→      ),
+   894→    },
+   895→    {
+   896→      key: "newValue",
+   897→      header: "New Value",
+   898→      cell: (h) => (
+   899→        <span className="font-medium text-emerald-700 dark:text-emerald-400">
+   900→          {h.newValue}
+   901→        </span>
+   902→      ),
+   903→    },
+   904→    {
+   905→      key: "reason",
+   906→      header: "Reason",
+   907→      cell: (h) => <span className="text-xs text-muted-foreground">{h.reason}</span>,
+   908→      sortValue: (h) => h.reason,
+   909→    },
+   910→  ];
+   911→
+   912→  return (
+   913→    <div className="flex flex-col gap-4">
+   914→      <div className="flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
+   915→        <div>
+   916→          <h2 className="text-sm font-semibold text-foreground">
+   917→            Change History for {phase.phaseName}
+   918→          </h2>
+   919→          <p className="mt-0.5 text-xs text-muted-foreground">
+   920→            Per-object audit trail (§28) — every change made to this phase
+   921→            configuration. Strikethrough red shows the prior value, green shows
+   922→            the value it was changed to.
+   923→          </p>
+   924→        </div>
+   925→        <div className="flex flex-wrap items-center gap-2">
+   926→          <Button
+   927→            size="sm"
+   928→            variant="outline"
+   929→            onClick={() => navigate("challenge-edit", { id: "" })}
+   930→          >
+   931→            <ArrowLeft className="mr-1 h-3.5 w-3.5" /> Back to Challenge
+   932→          </Button>
+   933→          <Button
+   934→            size="sm"
+   935→            variant="outline"
+   936→            onClick={exportCsv}
+   937→            disabled={filtered.length === 0}
+   938→          >
+   939→            <Download className="mr-1 h-3.5 w-3.5" /> Export CSV
+   940→          </Button>
+   941→        </div>
+   942→      </div>
+   943→
+   944→      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+   945→        <div className="relative w-full md:max-w-xs">
+   946→          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+   947→          <Input
+   948→            value={search}
+   949→            onChange={(e) => setSearch(e.target.value)}
+   950→            placeholder="Search by user, field, value…"
+   951→            className="pl-8"
+   952→          />
+   953→        </div>
+   954→        <div className="flex items-center gap-2">
+   955→          <span className="text-xs text-muted-foreground">Filter by field</span>
+   956→          <Select value={fieldFilter} onValueChange={setFieldFilter}>
+   957→            <SelectTrigger size="sm" className="h-8 w-56 text-xs">
+   958→              <SelectValue placeholder="All fields" />
+   959→            </SelectTrigger>
+   960→            <SelectContent>
+   961→              <SelectItem value="all">All fields</SelectItem>
+   962→              {fieldOptions.map((f) => (
+   963→                <SelectItem key={f} value={f}>
+   964→                  {f}
+   965→                </SelectItem>
+   966→              ))}
+   967→            </SelectContent>
+   968→          </Select>
+   969→        </div>
+   970→      </div>
+   971→
+   972→      <DataTable
+   973→        columns={columns}
+   974→        data={filtered}
+   975→        rowKey={(h) => h.id}
+   976→        pageSize={10}
+   977→        emptyTitle="No change records"
+   978→        emptyDescription="No changes match the current search or filter."
+   979→      />
+   980→    </div>
+   981→  );
+   982→}
+   983→
+   984→/* ------------------------------------------------------------------ */
+   985→/* Page                                                                 */
+   986→/* ------------------------------------------------------------------ */
+   987→
+   988→export function PhaseDetailPage() {
+   989→  const { router, navigate } = usePlatform();
+   990→
+   991→  const { phase, index } = useMemo(
+   992→    () => resolvePhase(router.params.id),
+   993→    [router.params.id],
+   994→  );
+   995→
+   996→  const types = getChallengeTypes();
+   997→  const challengeName =
+   998→    types.find((t) => t.id === phase.challengeTypeId)?.name ?? "Challenge";
+   999→
+  1000→  const [draft, setDraft] = useState<PhaseDraft>(() => ({
+  1001→    title: phase.phaseName,
+  1002→    step: phase.phaseOrder,
+  1003→    leverage: "1:100",
+  1004→    isLive: phase.isFunded,
+  1005→    scalingPlan: false,
+  1006→    profitTargetPct: phase.profitTargetPct,
+  1007→    dailyDrawdownPct: phase.dailyDrawdownPct,
+  1008→    maxDrawdownPct: phase.maxDrawdownPct,
+  1009→    minTradingDays: phase.minTradingDays,
+  1010→    maxDays: phase.maxDays,
+  1011→    tradingDayThreshold: 0,
+  1012→    autoPass: false,
+  1013→  }));
+  1014→  const [tab, setTab] = useState<string>("general");
+  1015→
+  1016→  // Re-seed when the underlying phase changes
+  1017→  const [lastPhaseId, setLastPhaseId] = useState<string>(phase.id);
+  1018→  if (phase.id !== lastPhaseId) {
+  1019→    setLastPhaseId(phase.id);
+  1020→    setDraft({
+  1021→      title: phase.phaseName,
+  1022→      step: phase.phaseOrder,
+  1023→      leverage: "1:100",
+  1024→      isLive: phase.isFunded,
+  1025→      scalingPlan: false,
+  1026→      profitTargetPct: phase.profitTargetPct,
+  1027→      dailyDrawdownPct: phase.dailyDrawdownPct,
+  1028→      maxDrawdownPct: phase.maxDrawdownPct,
+  1029→      minTradingDays: phase.minTradingDays,
+  1030→      maxDays: phase.maxDays,
+  1031→      tradingDayThreshold: 0,
+  1032→      autoPass: false,
+  1033→    });
+  1034→  }
+  1035→
+  1036→  return (
+  1037→    <Page>
+  1038→      <PageHeader
+  1039→        title={`Phase Detail — ${phase.phaseName}`}
+  1040→        description={`Step ${phase.phaseOrder} of ${challengeName}. ${phase.isFunded ? "Funded (live) phase." : "Evaluation phase."} Configure risk rules, broker mappings, and review change history.`}
+  1041→        icon={GitBranch}
+  1042→        actions={
+  1043→          <Button
+  1044→            size="sm"
+  1045→            variant="outline"
+  1046→            onClick={() => navigate("phase-management")}
+  1047→          >
+  1048→            <ChevronLeft className="mr-1 h-4 w-4" /> Back to Phase Management
+  1049→          </Button>
+  1050→        }
+  1051→      />
+  1052→
+  1053→      <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+  1054→        <GitBranch className="h-3.5 w-3.5 text-primary" />
+  1055→        <span className="font-medium text-foreground">{challengeName}</span>
+  1056→        <span>·</span>
+  1057→        <span>Phase {phase.phaseOrder}</span>
+  1058→        {phase.isFunded ? (
+  1059→          <>
+  1060→            <span>·</span>
+  1061→            <StatusBadge tone="success">Funded</StatusBadge>
+  1062→          </>
+  1063→        ) : null}
+  1064→        <span>·</span>
+  1065→        <span>Profit target {phase.profitTargetPct === 0 ? "none" : `${phase.profitTargetPct}%`}</span>
+  1066→        <span>·</span>
+  1067→        <span>Max DD {phase.maxDrawdownPct}%</span>
+  1068→        <span>·</span>
+  1069→        <span>Daily DD {phase.dailyDrawdownPct}%</span>
+  1070→      </div>
+  1071→
+  1072→      <PageContent>
+  1073→        <Tabs value={tab} onValueChange={setTab}>
+  1074→          <TabsList className="w-fit">
+  1075→            <TabsTrigger value="general" className="text-xs">
+  1076→              <Settings2 className="h-3.5 w-3.5" /> General
+  1077→            </TabsTrigger>
+  1078→            <TabsTrigger value="platform-ids" className="text-xs">
+  1079→              <Plug className="h-3.5 w-3.5" /> Trading Platform IDs
+  1080→            </TabsTrigger>
+  1081→            <TabsTrigger value="history" className="text-xs">
+  1082→              <History className="h-3.5 w-3.5" /> Change History
+  1083→            </TabsTrigger>
+  1084→          </TabsList>
+  1085→          <TabsContent value="general" className="mt-4">
+  1086→            <GeneralTab
+  1087→              phase={phase}
+  1088→              draft={draft}
+  1089→              setDraft={setDraft}
+  1090→              challengeName={challengeName}
+  1091→            />
+  1092→          </TabsContent>
+  1093→          <TabsContent value="platform-ids" className="mt-4">
+  1094→            <PlatformIdsTab
+  1095→              phase={phase}
+  1096→              index={index}
+  1097→              challengeName={challengeName}
+  1098→            />
+  1099→          </TabsContent>
+  1100→          <TabsContent value="history" className="mt-4">
+  1101→            <ChangeHistoryTab
+  1102→              phase={phase}
+  1103→              index={index}
+  1104→              navigate={navigate}
+  1105→            />
+  1106→          </TabsContent>
+  1107→        </Tabs>
+  1108→      </PageContent>
+  1109→    </Page>
+  1110→  );
+  1111→}
+  1112→

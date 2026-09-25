@@ -73,7 +73,14 @@ export function OnboardingWizard() {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<WizardState>({
     step: 0,
-    selectedModules: new Set(["trading", "challenges", "risk", "payouts"]),
+    // Seed from the tenant's currently-enabled modules so an existing
+    // tenant re-running onboarding (e.g. after a settings reset) starts
+    // with the modules they already have, not the 4-module default seed.
+    // Settings is intentionally excluded from the wizard toggle list
+    // (see `allModules` filter) so it won't appear here either way.
+    selectedModules: new Set(
+      tenant.enabledModules?.filter((id) => id !== "settings") ?? ["trading", "challenges", "risk", "payouts"],
+    ),
     primaryColor: tenant.branding.primaryColor,
     invitedEmails: [],
     emailInput: "",
@@ -142,7 +149,11 @@ export function OnboardingWizard() {
 
   const addEmail = () => {
     const email = state.emailInput.trim();
-    if (!email || !email.includes("@")) return;
+    // Round 4: replace the weak `!email.includes("@")` check with the
+    // same strict regex used in add-account-page so "foo@", "@bar" and
+    // other malformed inputs are rejected.
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !EMAIL_RE.test(email)) return;
     setState((s) => ({ ...s, invitedEmails: [...s.invitedEmails, email], emailInput: "" }));
   };
 

@@ -53,8 +53,8 @@ export function ChallengePhasesWidget() {
   const tid = runtime.tenant?.id ?? "platform";
   const chs = getTenantChallenges(tid);
   const data = [
-    { label: "Phase 1", value: chs.filter((c) => c.phase === "phase-1").length, color: "#0ea5e9" },
-    { label: "Phase 2", value: chs.filter((c) => c.phase === "phase-2").length, color: "#8b5cf6" },
+    { label: "Phase 1", value: chs.filter((c) => c.phase === "phase-1").length, color: "#0d9488" },
+    { label: "Phase 2", value: chs.filter((c) => c.phase === "phase-2").length, color: "#b45309" },
     { label: "Funded", value: chs.filter((c) => c.phase === "funded").length, color: "#16a34a" },
     { label: "Failed", value: chs.filter((c) => c.phase === "failed").length, color: "#dc2626" },
   ];

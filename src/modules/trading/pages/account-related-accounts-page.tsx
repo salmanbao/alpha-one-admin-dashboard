@@ -279,7 +279,7 @@ export function AccountRelatedAccountsPage() {
             data={relatedAccounts}
             rowKey={(row) => row.id}
             onRowClick={(row) =>
-              navigate("account-broker-details", { id: row.id })
+              navigate("account-workspace", { id: row.id })
             }
             searchableText={(row) =>
               `${row.login} ${row.platform} ${row.phase} ${row.source} ${row.status}`
@@ -293,9 +293,9 @@ export function AccountRelatedAccountsPage() {
 
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
           <span className="font-medium text-foreground">Note:</span>{" "}
-          Row click opens the broker details for that account. Use the
-          "Link Account" action to attach a new broker login to this trader
-          — you'll need the broker login id and the trader's verified email.
+          Row click opens the account workspace. Use the "Link Account"
+          action to attach a new broker login to this trader — you'll need
+          the broker login id and the trader's verified email.
         </div>
       </PageContent>
     </Page>

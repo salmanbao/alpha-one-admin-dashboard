@@ -68,7 +68,7 @@ export const affiliatesModule: FrontendModule = {
       { id: "affiliate.configure", label: "Configure affiliate settings" },
     ],
     icon: Megaphone,
-    accentColor: "#a21caf",
+    accentColor: "#b45309",
   },
   navigation,
   routes,

@@ -64,7 +64,7 @@ export const aiModule: FrontendModule = {
       { id: "ai.configure", label: "Configure AI" },
     ],
     icon: Brain,
-    accentColor: "#7c3aed",
+    accentColor: "#0d9488",
   },
   navigation,
   routes,

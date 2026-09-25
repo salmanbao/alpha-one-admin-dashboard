@@ -162,7 +162,7 @@ export function OverviewPage() {
             {/* Live price feed */}
             <div className="mt-3 rounded-lg border bg-card p-4 shadow-sm">
               <div className="mb-2 flex items-center gap-2 border-b pb-2">
-                <Activity className="h-4 w-4 text-violet-500" />
+                <Activity className="h-4 w-4 text-teal-500" />
                 <span className="text-sm font-semibold text-foreground">Live Prices</span>
                 <Badge variant="outline" className="ml-auto gap-1 text-[9px]">
                   <span className="relative flex h-1.5 w-1.5">
@@ -233,12 +233,13 @@ function buildSummary(
   if (has("trading")) {
     const traders = getTenantTraders(tid);
     const accounts = getTenantAccounts(tid);
+    const activeCount = traders.filter((t) => t.status === "active").length;
     out.push({
       moduleId: "trading",
       moduleName: "Trading",
       label: `Active ${plural(term("trader"))}`,
-      value: formatCompact(traders.filter((t) => t.status === "active").length),
-      delta: 8,
+      value: formatCompact(activeCount),
+      deltaLabel: `${traders.length} total`,
       icon: Users,
       tone: "positive",
       href: "trading-traders",
@@ -248,19 +249,18 @@ function buildSummary(
       moduleName: "Trading",
       label: "Total Equity",
       value: formatCurrency(accounts.reduce((s, a) => s + a.equity, 0), currency),
-      delta: 3,
       icon: Wallet,
       tone: "positive",
       href: "trading-accounts",
     });
   }
   if (has("challenges")) {
+    const fundedCount = getTenantTraders(tid).filter((t) => t.challengePhase === "funded").length;
     out.push({
       moduleId: "challenges",
       moduleName: "Challenges",
       label: `Funded ${plural(term("trader"))}`,
-      value: formatCompact(getTenantTraders(tid).filter((t) => t.challengePhase === "funded").length),
-      delta: 5,
+      value: formatCompact(fundedCount),
       icon: TrendingUp,
       tone: "positive",
       href: "challenges-passed",
@@ -273,7 +273,6 @@ function buildSummary(
       moduleName: "Risk",
       label: "Open Breaches",
       value: breaches,
-      delta: breaches > 0 ? -2 : 0,
       icon: AlertTriangle,
       tone: breaches > 0 ? "warning" : "positive",
       href: "breaches",
@@ -286,7 +285,6 @@ function buildSummary(
       moduleName: "Payouts",
       label: `Pending ${plural(term("payout"))}`,
       value: pending,
-      delta: pending > 0 ? 4 : 0,
       icon: Wallet,
       tone: pending > 0 ? "warning" : "positive",
       href: "payouts-pending",
@@ -299,7 +297,7 @@ function buildSummary(
       moduleName: "Analytics",
       label: `Revenue (${range}d)`,
       value: formatCurrency(rev, currency),
-      delta: 8,
+      deltaLabel: `${range}-day window`,
       icon: TrendingUp,
       tone: "positive",
       href: "analytics",
@@ -312,7 +310,7 @@ function buildSummary(
       moduleName: "Affiliates",
       label: "Affiliate Revenue",
       value: formatCurrency(aff.reduce((s, a) => s + a.commissionEarned, 0), currency),
-      delta: 12,
+      deltaLabel: `${aff.length} affiliates`,
       icon: Users,
       tone: "positive",
       href: "affiliates",
@@ -325,7 +323,7 @@ function buildSummary(
       moduleName: "Accounting",
       label: "Net Flow (30d)",
       value: formatCurrency(txns.reduce((s, t) => s + (t.type === "payout" ? -t.amount : t.amount), 0), currency),
-      delta: 4,
+      deltaLabel: `${txns.length} txns`,
       icon: Activity,
       tone: "positive",
       href: "accounting",
@@ -338,7 +336,6 @@ function buildSummary(
       moduleName: "KYC",
       label: "KYC Pending",
       value: pendingKyc,
-      delta: pendingKyc > 5 ? -3 : 0,
       icon: ShieldCheck,
       tone: pendingKyc > 5 ? "warning" : "positive",
       href: "kyc-reviews",
@@ -363,7 +360,6 @@ function buildSummary(
       moduleName: "AI",
       label: "AI Insights",
       value: insights.length,
-      delta: 6,
       icon: Brain,
       tone: "positive",
       href: "ai-insights",

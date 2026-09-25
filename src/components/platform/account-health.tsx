@@ -45,7 +45,7 @@ const statusConfig: Record<HealthStatus, { label: string; color: string; barColo
   safe: { label: "Safe", color: "text-emerald-600 dark:text-emerald-400", barColor: "bg-emerald-500", badgeClass: "border-emerald-500/40 text-emerald-700 dark:text-emerald-400" },
   warning: { label: "At Risk", color: "text-amber-600 dark:text-amber-400", barColor: "bg-amber-500", badgeClass: "border-amber-500/40 text-amber-700 dark:text-amber-400" },
   critical: { label: "Critical", color: "text-rose-600 dark:text-rose-400", barColor: "bg-rose-500", badgeClass: "border-rose-500/40 text-rose-700 dark:text-rose-400" },
-  progress: { label: "Progress", color: "text-sky-600 dark:text-sky-400", barColor: "bg-sky-500", badgeClass: "border-sky-500/40 text-sky-700 dark:text-sky-400" },
+  progress: { label: "Progress", color: "text-teal-600 dark:text-teal-400", barColor: "bg-teal-500", badgeClass: "border-teal-500/40 text-teal-700 dark:text-teal-400" },
 };
 
 function formatValue(v: number, unit: HealthMetric["unit"]): string {

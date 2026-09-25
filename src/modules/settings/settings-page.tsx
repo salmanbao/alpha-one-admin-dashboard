@@ -682,9 +682,46 @@ function NotificationsTab() {
       return {};
     }
   });
-  const [quietHours, setQuietHours] = useState(true);
-  const [quietStart, setQuietStart] = useState("22:00");
-  const [quietEnd, setQuietEnd] = useState("07:00");
+  // Quiet-hours settings also persist to localStorage (Round 4 fix:
+  // previously controlled-but-not-persisted, so reloads reset the
+  // toggle and the time selections despite the page copy saying
+  // "Changes apply instantly and are saved to your profile").
+  const [quietHours, setQuietHours] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const stored = window.localStorage.getItem(NOTIF_PREFS_KEY);
+      if (stored) return (JSON.parse(stored) as { quietHours?: boolean }).quietHours ?? true;
+    } catch { /* ignore */ }
+    return true;
+  });
+  const [quietStart, setQuietStart] = useState<string>(() => {
+    if (typeof window === "undefined") return "22:00";
+    try {
+      const stored = window.localStorage.getItem(NOTIF_PREFS_KEY);
+      if (stored) return (JSON.parse(stored) as { quietStart?: string }).quietStart ?? "22:00";
+    } catch { /* ignore */ }
+    return "22:00";
+  });
+  const [quietEnd, setQuietEnd] = useState<string>(() => {
+    if (typeof window === "undefined") return "07:00";
+    try {
+      const stored = window.localStorage.getItem(NOTIF_PREFS_KEY);
+      if (stored) return (JSON.parse(stored) as { quietEnd?: string }).quietEnd ?? "07:00";
+    } catch { /* ignore */ }
+    return "07:00";
+  });
+
+  // Persist quiet-hours changes alongside the channel prefs.
+  const persistQuietHours = (patch: Partial<{ quietHours: boolean; quietStart: string; quietEnd: string }>) => {
+    try {
+      const stored = window.localStorage.getItem(NOTIF_PREFS_KEY);
+      const base = stored ? JSON.parse(stored) as Record<string, unknown> : {};
+      window.localStorage.setItem(
+        NOTIF_PREFS_KEY,
+        JSON.stringify({ ...base, ...patch }),
+      );
+    } catch { /* ignore */ }
+  };
 
   const prefFor = (modId: string, chId: string) =>
     prefs[`${modId}:${chId}`] ?? chId !== "slack";
@@ -755,7 +792,7 @@ function NotificationsTab() {
           <div className="flex flex-wrap items-center gap-2">
             <Switch
               checked={quietHours}
-              onCheckedChange={setQuietHours}
+              onCheckedChange={(v) => { setQuietHours(v); persistQuietHours({ quietHours: v }); }}
               id="quiet-hours"
               aria-label="Enable quiet hours"
             />
@@ -764,7 +801,7 @@ function NotificationsTab() {
               className="h-8 rounded-md border border-input bg-background px-2 text-xs"
               aria-label="Quiet hours start"
               value={quietStart}
-              onChange={(e) => setQuietStart(e.target.value)}
+              onChange={(e) => { setQuietStart(e.target.value); persistQuietHours({ quietStart: e.target.value }); }}
             >
               <option>22:00</option>
               <option>23:00</option>
@@ -775,7 +812,7 @@ function NotificationsTab() {
               className="h-8 rounded-md border border-input bg-background px-2 text-xs"
               aria-label="Quiet hours end"
               value={quietEnd}
-              onChange={(e) => setQuietEnd(e.target.value)}
+              onChange={(e) => { setQuietEnd(e.target.value); persistQuietHours({ quietEnd: e.target.value }); }}
             >
               <option>07:00</option>
               <option>08:00</option>

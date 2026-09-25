@@ -14,7 +14,7 @@
 
 import { useMemo } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { getUserEvents, type UserEvent } from "@/lib/platform/mock-data";
+import { getUserEvents, getTenantUserEvents, type UserEvent } from "@/lib/platform/mock-data";
 import { Page, PageContent } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge } from "@/components/platform/status";
@@ -93,10 +93,14 @@ interface DetailField {
 }
 
 export function UserEventDetailPage() {
-  const { router, navigate } = usePlatform();
+  const { router, navigate, runtime } = usePlatform();
   const eventId = router.params.id;
+  const tid = runtime.tenant?.id ?? "platform";
 
-  const allEvents = useMemo(() => getUserEvents(200), []);
+  const allEvents = useMemo(
+    () => (tid === "platform" ? getUserEvents(200) : getTenantUserEvents(tid, 200)),
+    [tid],
+  );
   const event = useMemo(
     () => allEvents.find((e) => e.id === eventId) ?? null,
     [allEvents, eventId],

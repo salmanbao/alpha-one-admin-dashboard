@@ -55,7 +55,7 @@ function truncate(text: string, max = 48): string {
 }
 
 export function EmailTemplatesPage() {
-  usePlatform();
+  const { navigate } = usePlatform();
   const templates = getEmailTemplates();
   const [selected, setSelected] = useState<EmailTemplate | null>(null);
 
@@ -199,12 +199,7 @@ export function EmailTemplatesPage() {
         actions={
           <Button
             size="sm"
-            onClick={() =>
-              toast({
-                title: "Add template",
-                description: "Template editor would open here (demo).",
-              })
-            }
+            onClick={() => navigate("email-template-edit")}
           >
             <Plus className="h-4 w-4" />
             Add Template

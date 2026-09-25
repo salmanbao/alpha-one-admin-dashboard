@@ -69,7 +69,7 @@ const STAGES: {
   icon: typeof Mail;
   description: string;
 }[] = [
-  { id: "invited", label: "Invited", tone: "info", color: "#0ea5e9", icon: Mail, description: "Invitation sent, awaiting first login." },
+  { id: "invited", label: "Invited", tone: "info", color: "#0d9488", icon: Mail, description: "Invitation sent, awaiting first login." },
   { id: "trial", label: "Trial", tone: "warning", color: "#d97706", icon: Clock, description: "Active trial — limited features." },
   { id: "active", label: "Active", tone: "success", color: "#059669", icon: CheckCircle2, description: "Full platform access, billed normally." },
   { id: "suspended", label: "Suspended", tone: "danger", color: "#e11d48", icon: Pause, description: "Access paused — reversible." },

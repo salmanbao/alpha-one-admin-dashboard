@@ -150,11 +150,11 @@ const toneConfig = {
     badge: "border-amber-500/40 text-amber-700 dark:text-amber-400",
   },
   info: {
-    headerBg: "bg-sky-50 dark:bg-sky-950/30",
+    headerBg: "bg-teal-50 dark:bg-teal-950/30",
     icon: Info,
-    iconColor: "text-sky-600 dark:text-sky-400",
-    itemIconBg: "bg-sky-100 dark:bg-sky-950",
-    badge: "border-sky-500/40 text-sky-700 dark:text-sky-400",
+    iconColor: "text-teal-600 dark:text-teal-400",
+    itemIconBg: "bg-teal-100 dark:bg-teal-950",
+    badge: "border-teal-500/40 text-teal-700 dark:text-teal-400",
   },
 };
 

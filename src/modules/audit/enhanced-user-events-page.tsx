@@ -29,6 +29,7 @@ import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import {
   traders as allTraders,
+  getTenantTraders,
   type Trader,
 } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -386,10 +387,16 @@ function buildEnhancedEvents(traderPool: Trader[]): EnhancedUserEvent[] {
 
 export function EnhancedUserEventsPage() {
   const { runtime, navigate } = usePlatform();
-  void runtime; // tenant runtime unused here; events are platform-wide
+  const tid = runtime.tenant?.id ?? "platform";
+  // Platform tenant sees the full cross-tenant stream; a regular tenant
+  // only sees events built from its own trader pool (no email/PII leak).
+  const traderPool = useMemo(
+    () => (tid === "platform" ? allTraders : getTenantTraders(tid)),
+    [tid],
+  );
 
   // Build the full event set once — deterministic, no reseed on render.
-  const allEvents = useMemo(() => buildEnhancedEvents(allTraders), []);
+  const allEvents = useMemo(() => buildEnhancedEvents(traderPool), [traderPool]);
 
   // ----- Filter state (panel inputs) -----
   const [filtersOpen, setFiltersOpen] = useState(false);

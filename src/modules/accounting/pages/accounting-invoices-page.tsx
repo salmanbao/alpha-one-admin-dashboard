@@ -94,162 +94,175 @@ interface Invoice {
 }
 
 /* ---------------------------------------------------------------- */
-/* Mock data (deterministic — no Math.random)                       */
+/* Mock data (deterministic — no Math.random).                       */
+/* Dates are anchored to Date.now() so the "Last 30/60/90 days"     */
+/* filter always matches real rows (was previously hardcoded to     */
+/* Nov 2024 — known-issue backlog item, fixed in Round 4).           */
 /* ---------------------------------------------------------------- */
 
-const INVOICES: Invoice[] = [
-  {
-    id: "INV-2024-001",
-    trader: "Liam Smith",
-    email: "liam@example.com",
-    issueDate: "2024-11-01",
-    dueDate: "2024-11-15",
-    amount: 1200,
-    tax: 120,
-    total: 1320,
-    status: "paid",
-    lineItems: [
-      { desc: "2-Step Challenge", qty: 1, unit: 1000, tax: 100 },
-      { desc: "Addon: Reset Token", qty: 2, unit: 100, tax: 20 },
-    ],
-    notes: "Payment received via bank transfer. Thank you.",
-  },
-  {
-    id: "INV-2024-002",
-    trader: "Olivia Brown",
-    email: "olivia@example.com",
-    issueDate: "2024-11-03",
-    dueDate: "2024-11-17",
-    amount: 500,
-    tax: 50,
-    total: 550,
-    status: "sent",
-    lineItems: [
-      { desc: "1-Step Challenge", qty: 1, unit: 500, tax: 50 },
-    ],
-  },
-  {
-    id: "INV-2024-003",
-    trader: "Noah Davis",
-    email: "noah@example.com",
-    issueDate: "2024-10-20",
-    dueDate: "2024-11-03",
-    amount: 2400,
-    tax: 240,
-    total: 2640,
-    status: "overdue",
-    lineItems: [
-      { desc: "2-Step Challenge", qty: 2, unit: 1000, tax: 200 },
-      { desc: "Addon: Account Reset", qty: 4, unit: 100, tax: 40 },
-    ],
-    notes: "Two reminder emails sent. Awaiting trader response.",
-  },
-  {
-    id: "INV-2024-004",
-    trader: "Emma Wilson",
-    email: "emma@example.com",
-    issueDate: "2024-11-05",
-    dueDate: "2024-11-19",
-    amount: 1500,
-    tax: 150,
-    total: 1650,
-    status: "paid",
-    lineItems: [
-      { desc: "2-Step Challenge", qty: 1, unit: 1000, tax: 100 },
-      { desc: "Addon: Reset Token", qty: 5, unit: 100, tax: 50 },
-    ],
-  },
-  {
-    id: "INV-2024-005",
-    trader: "James Taylor",
-    email: "james@example.com",
-    issueDate: "2024-11-06",
-    dueDate: "2024-11-20",
-    amount: 1000,
-    tax: 100,
-    total: 1100,
-    status: "draft",
-    lineItems: [
-      { desc: "2-Step Challenge", qty: 1, unit: 1000, tax: 100 },
-    ],
-  },
-  {
-    id: "INV-2024-006",
-    trader: "Sophia Miller",
-    email: "sophia@example.com",
-    issueDate: "2024-10-28",
-    dueDate: "2024-11-11",
-    amount: 3200,
-    tax: 320,
-    total: 3520,
-    status: "paid",
-    lineItems: [
-      { desc: "2-Step Challenge", qty: 2, unit: 1000, tax: 200 },
-      { desc: "Addon: Account Reset", qty: 12, unit: 100, tax: 120 },
-    ],
-  },
-  {
-    id: "INV-2024-007",
-    trader: "Mason Anderson",
-    email: "mason@example.com",
-    issueDate: "2024-11-08",
-    dueDate: "2024-11-22",
-    amount: 800,
-    tax: 80,
-    total: 880,
-    status: "sent",
-    lineItems: [
-      { desc: "1-Step Challenge", qty: 1, unit: 500, tax: 50 },
-      { desc: "Addon: Reset Token", qty: 3, unit: 100, tax: 30 },
-    ],
-  },
-  {
-    id: "INV-2024-008",
-    trader: "Ava Thomas",
-    email: "ava@example.com",
-    issueDate: "2024-09-25",
-    dueDate: "2024-10-09",
-    amount: 1800,
-    tax: 180,
-    total: 1980,
-    status: "cancelled",
-    lineItems: [
-      { desc: "2-Step Challenge", qty: 1, unit: 1000, tax: 100 },
-      { desc: "Addon: Account Reset", qty: 8, unit: 100, tax: 80 },
-    ],
-    notes: "Cancelled at trader request — challenge refunded.",
-  },
-  {
-    id: "INV-2024-009",
-    trader: "Lucas Moore",
-    email: "lucas@example.com",
-    issueDate: "2024-11-09",
-    dueDate: "2024-11-23",
-    amount: 1100,
-    tax: 110,
-    total: 1210,
-    status: "overdue",
-    lineItems: [
-      { desc: "1-Step Challenge", qty: 1, unit: 500, tax: 50 },
-      { desc: "Addon: Reset Token", qty: 6, unit: 100, tax: 60 },
-    ],
-  },
-  {
-    id: "INV-2024-010",
-    trader: "Isabella Jackson",
-    email: "bella@example.com",
-    issueDate: "2024-11-10",
-    dueDate: "2024-11-24",
-    amount: 2200,
-    tax: 220,
-    total: 2420,
-    status: "draft",
-    lineItems: [
-      { desc: "2-Step Challenge", qty: 1, unit: 1000, tax: 100 },
-      { desc: "Addon: Account Reset", qty: 12, unit: 100, tax: 120 },
-    ],
-  },
-];
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function isoDaysAgo(daysAgo: number): string {
+  return new Date(Date.now() - daysAgo * DAY_MS).toISOString().slice(0, 10);
+}
+
+function buildInvoices(): Invoice[] {
+  const y = new Date().getFullYear();
+  const num = (n: number) => String(n).padStart(3, "0");
+  return [
+    {
+      id: `INV-${y}-${num(1)}`,
+      trader: "Liam Smith",
+      email: "liam@example.com",
+      issueDate: isoDaysAgo(24),
+      dueDate: isoDaysAgo(10),
+      amount: 1200,
+      tax: 120,
+      total: 1320,
+      status: "paid",
+      lineItems: [
+        { desc: "2-Step Challenge", qty: 1, unit: 1000, tax: 100 },
+        { desc: "Addon: Reset Token", qty: 2, unit: 100, tax: 20 },
+      ],
+      notes: "Payment received via bank transfer. Thank you.",
+    },
+    {
+      id: `INV-${y}-${num(2)}`,
+      trader: "Olivia Brown",
+      email: "olivia@example.com",
+      issueDate: isoDaysAgo(22),
+      dueDate: isoDaysAgo(8),
+      amount: 500,
+      tax: 50,
+      total: 550,
+      status: "sent",
+      lineItems: [
+        { desc: "1-Step Challenge", qty: 1, unit: 500, tax: 50 },
+      ],
+    },
+    {
+      id: `INV-${y}-${num(3)}`,
+      trader: "Noah Davis",
+      email: "noah@example.com",
+      issueDate: isoDaysAgo(36),
+      dueDate: isoDaysAgo(22),
+      amount: 2400,
+      tax: 240,
+      total: 2640,
+      status: "overdue",
+      lineItems: [
+        { desc: "2-Step Challenge", qty: 2, unit: 1000, tax: 200 },
+        { desc: "Addon: Account Reset", qty: 4, unit: 100, tax: 40 },
+      ],
+      notes: "Two reminder emails sent. Awaiting trader response.",
+    },
+    {
+      id: `INV-${y}-${num(4)}`,
+      trader: "Emma Wilson",
+      email: "emma@example.com",
+      issueDate: isoDaysAgo(20),
+      dueDate: isoDaysAgo(6),
+      amount: 1500,
+      tax: 150,
+      total: 1650,
+      status: "paid",
+      lineItems: [
+        { desc: "2-Step Challenge", qty: 1, unit: 1000, tax: 100 },
+        { desc: "Addon: Reset Token", qty: 5, unit: 100, tax: 50 },
+      ],
+    },
+    {
+      id: `INV-${y}-${num(5)}`,
+      trader: "James Taylor",
+      email: "james@example.com",
+      issueDate: isoDaysAgo(19),
+      dueDate: isoDaysAgo(5),
+      amount: 1000,
+      tax: 100,
+      total: 1100,
+      status: "draft",
+      lineItems: [
+        { desc: "2-Step Challenge", qty: 1, unit: 1000, tax: 100 },
+      ],
+    },
+    {
+      id: `INV-${y}-${num(6)}`,
+      trader: "Sophia Miller",
+      email: "sophia@example.com",
+      issueDate: isoDaysAgo(28),
+      dueDate: isoDaysAgo(14),
+      amount: 3200,
+      tax: 320,
+      total: 3520,
+      status: "paid",
+      lineItems: [
+        { desc: "2-Step Challenge", qty: 2, unit: 1000, tax: 200 },
+        { desc: "Addon: Account Reset", qty: 12, unit: 100, tax: 120 },
+      ],
+    },
+    {
+      id: `INV-${y}-${num(7)}`,
+      trader: "Mason Anderson",
+      email: "mason@example.com",
+      issueDate: isoDaysAgo(17),
+      dueDate: isoDaysAgo(3),
+      amount: 800,
+      tax: 80,
+      total: 880,
+      status: "sent",
+      lineItems: [
+        { desc: "1-Step Challenge", qty: 1, unit: 500, tax: 50 },
+        { desc: "Addon: Reset Token", qty: 3, unit: 100, tax: 30 },
+      ],
+    },
+    {
+      id: `INV-${y}-${num(8)}`,
+      trader: "Ava Thomas",
+      email: "ava@example.com",
+      issueDate: isoDaysAgo(91),
+      dueDate: isoDaysAgo(77),
+      amount: 1800,
+      tax: 180,
+      total: 1980,
+      status: "cancelled",
+      lineItems: [
+        { desc: "2-Step Challenge", qty: 1, unit: 1000, tax: 100 },
+        { desc: "Addon: Account Reset", qty: 8, unit: 100, tax: 80 },
+      ],
+      notes: "Cancelled at trader request — challenge refunded.",
+    },
+    {
+      id: `INV-${y}-${num(9)}`,
+      trader: "Lucas Moore",
+      email: "lucas@example.com",
+      issueDate: isoDaysAgo(16),
+      dueDate: isoDaysAgo(2),
+      amount: 1100,
+      tax: 110,
+      total: 1210,
+      status: "overdue",
+      lineItems: [
+        { desc: "1-Step Challenge", qty: 1, unit: 500, tax: 50 },
+        { desc: "Addon: Reset Token", qty: 6, unit: 100, tax: 60 },
+      ],
+    },
+    {
+      id: `INV-${y}-${num(10)}`,
+      trader: "Isabella Jackson",
+      email: "bella@example.com",
+      issueDate: isoDaysAgo(15),
+      dueDate: isoDaysAgo(1),
+      amount: 2200,
+      tax: 220,
+      total: 2420,
+      status: "draft",
+      lineItems: [
+        { desc: "2-Step Challenge", qty: 1, unit: 1000, tax: 100 },
+        { desc: "Addon: Account Reset", qty: 12, unit: 100, tax: 120 },
+      ],
+    },
+  ];
+}
 
 const STATUS_TONE: Record<InvoiceStatus, "muted" | "info" | "success" | "danger"> = {
   draft: "muted",
@@ -315,18 +328,27 @@ export function AccountingInvoicesPage() {
   const [draftNotes, setDraftNotes] = useState("");
   const [cancelTarget, setCancelTarget] = useState<Invoice | null>(null);
 
-  // ----- Derived KPIs (deterministic — pure reduce over constant array) -----
+  // Build invoices once per mount — dates are anchored to today so the
+  // "Last 30/60/90 days" filter always matches real rows.
+  const invoices = useMemo(() => buildInvoices(), []);
+
+  // ----- Derived KPIs (deterministic — pure reduce over the array) -----
   const kpis = useMemo(() => {
-    const outstanding = INVOICES.filter(
-      (i) => i.status === "sent" || i.status === "overdue",
-    ).reduce((s, i) => s + i.total, 0);
-    const paidThisMonth = INVOICES.filter((i) => i.status === "paid").reduce(
-      (s, i) => s + i.total,
-      0,
-    );
-    const overdue = INVOICES.filter((i) => i.status === "overdue");
+    const outstanding = invoices
+      .filter((i) => i.status === "sent" || i.status === "overdue")
+      .reduce((s, i) => s + i.total, 0);
+    // "Paid This Month" — only invoices issued in the current calendar month.
+    const now = new Date();
+    const isThisMonth = (iso: string) => {
+      const d = new Date(iso);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    };
+    const paidThisMonth = invoices
+      .filter((i) => i.status === "paid" && isThisMonth(i.issueDate))
+      .reduce((s, i) => s + i.total, 0);
+    const overdue = invoices.filter((i) => i.status === "overdue");
     const avgDaysToPay = (() => {
-      const paid = INVOICES.filter((i) => i.status === "paid");
+      const paid = invoices.filter((i) => i.status === "paid");
       if (!paid.length) return 0;
       const total = paid.reduce((s, i) => s + daysBetween(i.issueDate, i.dueDate), 0);
       return Math.round(total / paid.length);
@@ -338,7 +360,7 @@ export function AccountingInvoicesPage() {
   const filtered = useMemo(() => {
     const now = Date.now();
     const rangeMs = dateRange === "all" ? null : Number(dateRange) * 86_400_000;
-    return INVOICES.filter((i) => {
+    return invoices.filter((i) => {
       if (statusFilter !== "all" && i.status !== statusFilter) return false;
       if (rangeMs !== null) {
         const issued = new Date(i.issueDate).getTime();
@@ -551,7 +573,7 @@ export function AccountingInvoicesPage() {
         title="Invoices"
         description={`Generate, send, and track ${term("trader").toLowerCase()} invoices.`}
         icon={FileText}
-        term={`${plural(term("trader"))} · ${INVOICES.length} total invoices`}
+        term={`${plural(term("trader"))} · ${invoices.length} total invoices`}
         actions={
           <Button size="sm" onClick={() => setCreating(true)}>
             <Plus className="mr-1 h-4 w-4" /> Create Invoice
@@ -566,14 +588,14 @@ export function AccountingInvoicesPage() {
             value={formatCurrency(kpis.outstanding, currency)}
             icon={Wallet}
             tone="warning"
-            deltaLabel={`${INVOICES.filter((i) => i.status === "sent" || i.status === "overdue").length} unpaid`}
+            deltaLabel={`${invoices.filter((i) => i.status === "sent" || i.status === "overdue").length} unpaid`}
           />
           <MetricCard
             label="Paid This Month"
             value={formatCurrency(kpis.paidThisMonth, currency)}
             icon={CheckCircle2}
             tone="positive"
-            deltaLabel={`${INVOICES.filter((i) => i.status === "paid").length} invoices cleared`}
+            deltaLabel={`${invoices.filter((i) => i.status === "paid").length} invoices cleared`}
           />
           <MetricCard
             label="Overdue"
@@ -614,7 +636,7 @@ export function AccountingInvoicesPage() {
               </SelectContent>
             </Select>
             <span className="text-xs text-muted-foreground">
-              {filtered.length} of {INVOICES.length} invoices
+              {filtered.length} of {invoices.length} invoices
             </span>
           </div>
           <Button size="sm" variant="outline" onClick={exportInvoices}>
@@ -870,7 +892,7 @@ export function AccountingInvoicesPage() {
             </div>
 
             <SheetFooter className="flex-row flex-wrap gap-2 border-t pt-4">
-              <Button size="sm" variant="outline" onClick={() => handleDownloadPdf({ ...INVOICES[0], id: "INV-DRAFT" })}>
+              <Button size="sm" variant="outline" onClick={() => handleDownloadPdf({ ...invoices[0], id: "INV-DRAFT" })}>
                 <Download className="mr-1 h-4 w-4" /> Download PDF
               </Button>
               <Button size="sm" variant="outline" disabled={!draftTrader.trim()}>

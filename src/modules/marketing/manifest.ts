@@ -63,7 +63,7 @@ export const marketingModule: FrontendModule = {
       { id: "marketing.configure", label: "Configure campaigns" },
     ],
     icon: Target,
-    accentColor: "#db2777",
+    accentColor: "#b45309",
   },
   navigation,
   routes,

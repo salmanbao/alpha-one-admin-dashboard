@@ -1,0 +1,920 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Create Tenant Page — 5-step onboarding wizard for new tenants.
+     5→ *
+     6→ * Spec §6, §15. Mirrors OnboardingWizard / ChallengeWizard pattern:
+     7→ * step indicator (done/active/inactive circles + connecting bars),
+     8→ * Back/Next nav, required fields marked with asterisks, smart defaults
+     9→ * (core modules pre-selected), review summary, single primary action
+    10→ * per step (§22), warm Terra palette only (§6).
+    11→ *
+    12→ * On Create: builds a new TenantContext, persists it to global context
+    13→ * via registerTenant (no context hijack), fires a success toast, and navigates to the new
+    14→ * tenant's detail page.
+    15→ */
+    16→
+    17→import { useMemo, useState } from "react";
+    18→import { usePlatform } from "@/lib/platform/platform-context";
+    19→import { moduleRegistry } from "@/lib/platform/module-registry";
+    20→import type { TenantContext } from "@/lib/platform/types";
+    21→import { Page, PageHeader, PageContent } from "@/components/platform/page";
+    22→import { Button } from "@/components/ui/button";
+    23→import { Input } from "@/components/ui/input";
+    24→import { Label } from "@/components/ui/label";
+    25→import { Badge } from "@/components/ui/badge";
+    26→import { Separator } from "@/components/ui/separator";
+    27→import { Card, CardContent } from "@/components/ui/card";
+    28→import { Checkbox } from "@/components/ui/checkbox";
+    29→import {
+    30→  Select,
+    31→  SelectContent,
+    32→  SelectItem,
+    33→  SelectTrigger,
+    34→  SelectValue,
+    35→} from "@/components/ui/select";
+    36→import { toast } from "@/hooks/use-toast";
+    37→import { cn } from "@/lib/utils";
+    38→import {
+    39→  Building2,
+    40→  Palette,
+    41→  Package,
+    42→  UserPlus,
+    43→  ScrollText,
+    44→  Check,
+    45→  ChevronLeft,
+    46→  ChevronRight,
+    47→  Sparkles,
+    48→  type LucideIcon,
+    49→} from "lucide-react";
+    50→
+    51→/* ------------------------------------------------------------------ */
+    52→/* Constants                                                          */
+    53→/* ------------------------------------------------------------------ */
+    54→
+    55→const STEPS: { id: string; label: string; icon: LucideIcon }[] = [
+    56→  { id: "basics", label: "Basics", icon: Building2 },
+    57→  { id: "branding", label: "Branding", icon: Palette },
+    58→  { id: "modules", label: "Modules", icon: Package },
+    59→  { id: "admin", label: "Admin", icon: UserPlus },
+    60→  { id: "review", label: "Review", icon: ScrollText },
+    61→];
+    62→
+    63→const COLOR_PRESETS = [
+    64→  { name: "Forest", primary: "#4a7c59", accent: "#705c30", surface: "#f5efe6" },
+    65→  { name: "Sage", primary: "#5a7c4a", accent: "#8a6d30", surface: "#f5efe6" },
+    66→  { name: "Deep Green", primary: "#4a6c59", accent: "#705c30", surface: "#f5efe6" },
+    67→  { name: "Golden Brown", primary: "#705c30", accent: "#4a7c59", surface: "#f5efe6" },
+    68→  { name: "Warm Taupe", primary: "#8a7560", accent: "#4a7c59", surface: "#f5efe6" },
+    69→  { name: "Slate Green", primary: "#5a7060", accent: "#705c30", surface: "#f5efe6" },
+    70→];
+    71→
+    72→const CORE_MODULE_IDS = ["trading", "challenges", "risk", "payouts", "settings"];
+    73→
+    74→const PLAN_COST: Record<TenantContext["plan"], string> = {
+    75→  starter: "$890/mo",
+    76→  growth: "$1,900/mo",
+    77→  scale: "$4,900/mo",
+    78→  enterprise: "Custom",
+    79→};
+    80→
+    81→const TIMEZONES = [
+    82→  "UTC",
+    83→  "America/New_York",
+    84→  "America/Chicago",
+    85→  "America/Los_Angeles",
+    86→  "Europe/London",
+    87→  "Europe/Berlin",
+    88→  "Asia/Dubai",
+    89→  "Asia/Singapore",
+    90→  "Australia/Sydney",
+    91→];
+    92→
+    93→/* ------------------------------------------------------------------ */
+    94→/* Wizard state                                                       */
+    95→/* ------------------------------------------------------------------ */
+    96→
+    97→interface WizardState {
+    98→  name: string;
+    99→  slug: string;
+   100→  tagline: string;
+   101→  plan: TenantContext["plan"];
+   102→  currency: string;
+   103→  timezone: string;
+   104→  // Branding
+   105→  primaryColor: string;
+   106→  accentColor: string;
+   107→  surfaceColor: string;
+   108→  radius: string;
+   109→  initials: string;
+   110→  logoUrl: string;
+   111→  // Modules
+   112→  enabledModules: string[];
+   113→  // Admin user
+   114→  adminEmail: string;
+   115→  adminName: string;
+   116→}
+   117→
+   118→const INITIAL_STATE: WizardState = {
+   119→  name: "",
+   120→  slug: "",
+   121→  tagline: "",
+   122→  plan: "growth",
+   123→  currency: "USD",
+   124→  timezone: "UTC",
+   125→  primaryColor: "#4a7c59",
+   126→  accentColor: "#705c30",
+   127→  surfaceColor: "#f5efe6",
+   128→  radius: "0.625rem",
+   129→  initials: "",
+   130→  logoUrl: "",
+   131→  enabledModules: [...CORE_MODULE_IDS],
+   132→  adminEmail: "",
+   133→  adminName: "",
+   134→};
+   135→
+   136→/* ------------------------------------------------------------------ */
+   137→/* Helpers                                                            */
+   138→/* ------------------------------------------------------------------ */
+   139→
+   140→function slugify(s: string): string {
+   141→  return s
+   142→    .toLowerCase()
+   143→    .trim()
+   144→    .replace(/[^a-z0-9]+/g, "-")
+   145→    .replace(/^-+|-+$/g, "")
+   146→    .slice(0, 32);
+   147→}
+   148→
+   149→function initialsFromName(name: string): string {
+   150→  const parts = name.trim().split(/\s+/).filter(Boolean);
+   151→  if (parts.length === 0) return "";
+   152→  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+   153→  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+   154→}
+   155→
+   156→const REQUIRED_ASTERISK = <span className="text-rose-500" aria-hidden>*</span>;
+   157→
+   158→function RequiredLabel({ children }: { children: React.ReactNode }) {
+   159→  return (
+   160→    <Label className="text-xs font-medium text-muted-foreground">
+   161→      {children} {REQUIRED_ASTERISK}
+   162→    </Label>
+   163→  );
+   164→}
+   165→
+   166→function FieldRow({
+   167→  label,
+   168→  hint,
+   169→  required,
+   170→  children,
+   171→}: {
+   172→  label: string;
+   173→  hint?: string;
+   174→  required?: boolean;
+   175→  children: React.ReactNode;
+   176→}) {
+   177→  return (
+   178→    <div className="space-y-1.5">
+   179→      {required ? <RequiredLabel>{label}</RequiredLabel> : (
+   180→        <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+   181→      )}
+   182→      {children}
+   183→      {hint ? <p className="text-[10px] text-muted-foreground/80">{hint}</p> : null}
+   184→    </div>
+   185→  );
+   186→}
+   187→
+   188→/* ------------------------------------------------------------------ */
+   189→/* Component                                                          */
+   190→/* ------------------------------------------------------------------ */
+   191→
+   192→export function CreateTenantPage() {
+   193→  const { navigate, registerTenant, pushNotification } = usePlatform();
+   194→  const [state, setState] = useState<WizardState>(INITIAL_STATE);
+   195→  const [step, setStep] = useState(0);
+   196→
+   197→  const allModules = moduleRegistry.getAll();
+   198→
+   199→  /* ---- Validation per step ---- */
+   200→  const stepValid = (i: number): boolean => {
+   201→    switch (i) {
+   202→      case 0:
+   203→        return state.name.trim().length > 1 && state.slug.trim().length > 0;
+   204→      case 1:
+   205→        return state.initials.trim().length > 0 && state.primaryColor.length > 0;
+   206→      case 2:
+   207→        return state.enabledModules.length > 0;
+   208→      case 3:
+   209→        return (
+   210→          state.adminName.trim().length > 1 &&
+   211→          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.adminEmail)
+   212→        );
+   213→      case 4:
+   214→        return true;
+   215→      default:
+   216→        return false;
+   217→    }
+   218→  };
+   219→
+   220→  const canNext = stepValid(step) && step < STEPS.length - 1;
+   221→  const canBack = step > 0;
+   222→  const next = () => setStep((s) => Math.min(STEPS.length - 1, s + 1));
+   223→  const back = () => setStep((s) => Math.max(0, s - 1));
+   224→
+   225→  /* ---- Create tenant ---- */
+   226→  const createTenant = () => {
+   227→    const id = `tenant-${state.slug}-${Math.random().toString(36).slice(2, 6)}`;
+   228→    const newTenant: TenantContext = {
+   229→      id,
+   230→      slug: state.slug,
+   231→      name: state.name,
+   232→      application: "prop-admin",
+   233→      branding: {
+   234→        name: state.name,
+   235→        tagline: state.tagline,
+   236→        logoUrl: state.logoUrl || undefined,
+   237→        initials: state.initials.toUpperCase(),
+   238→        primaryColor: state.primaryColor,
+   239→        accentColor: state.accentColor,
+   240→        surfaceColor: state.surfaceColor,
+   241→        radius: state.radius,
+   242→      },
+   243→      locale: "en-US",
+   244→      timezone: state.timezone,
+   245→      currency: state.currency,
+   246→      enabledModules: state.enabledModules,
+   247→      enabledFeatures: [],
+   248→      terminology: {},
+   249→      plan: state.plan,
+   250→      status: "trial",
+   251→      createdAt: new Date().toISOString(),
+   252→    };
+   253→    // Register the tenant in the platform roster WITHOUT hijacking the
+   254→    // operator's context — the super-admin stays in the Platform shell and
+   255→    // is taken to the tenant detail page as the wizard promises. Previously
+   256→    // this called setTenant(), which swapped the whole sidebar into the new
+   257→    // tenant's module set and yanked the operator out of the admin flow.
+   258→    registerTenant(newTenant);
+   259→    pushNotification({
+   260→      title: "Tenant created",
+   261→      message: `${state.name} is ready for configuration.`,
+   262→      severity: "success",
+   263→      module: "super-admin",
+   264→    });
+   265→    toast({
+   266→      title: "Tenant created",
+   267→      description: `${state.name} is ready for configuration.`,
+   268→    });
+   269→    setState(INITIAL_STATE);
+   270→    setStep(0);
+   271→    navigate("tenant-detail", { id });
+   272→  };
+   273→
+   274→  /* ---- Step content renderer ---- */
+   275→  const renderStep = () => {
+   276→    switch (step) {
+   277→      case 0:
+   278→        return (
+   279→          <BasicsStep state={state} setState={setState} />
+   280→        );
+   281→      case 1:
+   282→        return <BrandingStep state={state} setState={setState} />;
+   283→      case 2:
+   284→        return <ModulesStep state={state} setState={setState} allModules={allModules} />;
+   285→      case 3:
+   286→        return <AdminStep state={state} setState={setState} />;
+   287→      case 4:
+   288→        return (
+   289→          <ReviewStep
+   290→            state={state}
+   291→            allModules={allModules}
+   292→            onCreate={createTenant}
+   293→          />
+   294→        );
+   295→      default:
+   296→        return null;
+   297→    }
+   298→  };
+   299→
+   300→  return (
+   301→    <Page>
+   302→      <PageHeader
+   303→        title="Create Tenant"
+   304→        description="Guided wizard to provision a new tenant on the platform."
+   305→        icon={Sparkles}
+   306→        actions={
+   307→          <Button variant="ghost" size="sm" onClick={() => navigate("tenants")}>
+   308→            Cancel
+   309→          </Button>
+   310→        }
+   311→      />
+   312→      <PageContent>
+   313→        {/* Step indicator */}
+   314→        <div className="rounded-lg border bg-card p-4">
+   315→          <div className="flex items-center justify-between">
+   316→            {STEPS.map((s, i) => {
+   317→              const Icon = s.icon;
+   318→              const done = i < step;
+   319→              const active = i === step;
+   320→              return (
+   321→                <div key={s.id} className="flex flex-1 flex-col items-center gap-1">
+   322→                  <div className="flex w-full items-center">
+   323→                    {i > 0 ? (
+   324→                      <div className={cn("h-0.5 flex-1", i <= step ? "bg-primary" : "bg-muted")} />
+   325→                    ) : null}
+   326→                    <div
+   327→                      className={cn(
+   328→                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all",
+   329→                        done
+   330→                          ? "border-primary bg-primary text-primary-foreground"
+   331→                          : active
+   332→                            ? "border-primary text-primary"
+   333→                            : "border-muted text-muted-foreground",
+   334→                      )}
+   335→                    >
+   336→                      {done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+   337→                    </div>
+   338→                    {i < STEPS.length - 1 ? (
+   339→                      <div className={cn("h-0.5 flex-1", i < step ? "bg-primary" : "bg-muted")} />
+   340→                    ) : null}
+   341→                  </div>
+   342→                  <span
+   343→                    className={cn(
+   344→                      "text-[10px] font-medium",
+   345→                      active ? "text-foreground" : "text-muted-foreground",
+   346→                    )}
+   347→                  >
+   348→                    {s.label}
+   349→                  </span>
+   350→                </div>
+   351→              );
+   352→            })}
+   353→          </div>
+   354→        </div>
+   355→
+   356→        {/* Step content */}
+   357→        <div className="rounded-lg border bg-card p-4 md:p-6">
+   358→          <div className="min-h-[320px]">{renderStep()}</div>
+   359→
+   360→          <Separator className="my-4" />
+   361→
+   362→          <div className="flex items-center justify-between">
+   363→            <Button variant="ghost" size="sm" disabled={!canBack} onClick={back} className="gap-1">
+   364→              <ChevronLeft className="h-4 w-4" />Back
+   365→            </Button>
+   366→            <span className="text-xs text-muted-foreground">
+   367→              Step {step + 1} of {STEPS.length}
+   368→            </span>
+   369→            {step < STEPS.length - 1 ? (
+   370→              <Button size="sm" disabled={!canNext} onClick={next} className="gap-1">
+   371→                Next <ChevronRight className="h-4 w-4" />
+   372→              </Button>
+   373→            ) : (
+   374→              <Button size="sm" onClick={createTenant} className="gap-1.5">
+   375→                <Check className="h-4 w-4" /> Create tenant
+   376→              </Button>
+   377→            )}
+   378→          </div>
+   379→        </div>
+   380→      </PageContent>
+   381→    </Page>
+   382→  );
+   383→}
+   384→
+   385→/* ------------------------------------------------------------------ */
+   386→/* Step 1 — Basics                                                    */
+   387→/* ------------------------------------------------------------------ */
+   388→
+   389→function BasicsStep({
+   390→  state,
+   391→  setState,
+   392→}: {
+   393→  state: WizardState;
+   394→  setState: React.Dispatch<React.SetStateAction<WizardState>>;
+   395→}) {
+   396→  const update = (patch: Partial<WizardState>) =>
+   397→    setState((s) => ({ ...s, ...patch }));
+   398→
+   399→  return (
+   400→    <div className="space-y-4">
+   401→      <div>
+   402→        <RequiredLabel>Tenant basics</RequiredLabel>
+   403→        <p className="text-xs text-muted-foreground">
+   404→          Set the tenant's identity and plan tier. You can change the plan later from the
+   405→          Billing tab.
+   406→        </p>
+   407→      </div>
+   408→      <div className="grid gap-4 md:grid-cols-2">
+   409→        <FieldRow label="Tenant name" required hint="Display name shown across the platform.">
+   410→          <Input
+   411→            value={state.name}
+   412→            onChange={(e) => {
+   413→              const name = e.target.value;
+   414→              update({
+   415→                name,
+   416→                slug: slugify(name),
+   417→                initials: initialsFromName(name),
+   418→              });
+   419→            }}
+   420→            placeholder="Acme Trading"
+   421→          />
+   422→        </FieldRow>
+   423→        <FieldRow label="Slug" required hint="URL-safe identifier; auto-generated from the name.">
+   424→          <Input
+   425→            value={state.slug}
+   426→            onChange={(e) => update({ slug: slugify(e.target.value) })}
+   427→            placeholder="acme-trading"
+   428→          />
+   429→        </FieldRow>
+   430→        <FieldRow label="Tagline" hint="Short marketing descriptor shown in the shell.">
+   431→          <Input
+   432→            value={state.tagline}
+   433→            onChange={(e) => update({ tagline: e.target.value })}
+   434→            placeholder="Funded traders, faster."
+   435→          />
+   436→        </FieldRow>
+   437→        <FieldRow label="Plan" required hint="Determines monthly cost and feature ceilings.">
+   438→          <Select
+   439→            value={state.plan}
+   440→            onValueChange={(v) => update({ plan: v as TenantContext["plan"] })}
+   441→          >
+   442→            <SelectTrigger className="w-full">
+   443→              <SelectValue />
+   444→            </SelectTrigger>
+   445→            <SelectContent>
+   446→              <SelectItem value="starter">Starter — {PLAN_COST.starter}</SelectItem>
+   447→              <SelectItem value="growth">Growth — {PLAN_COST.growth}</SelectItem>
+   448→              <SelectItem value="scale">Scale — {PLAN_COST.scale}</SelectItem>
+   449→              <SelectItem value="enterprise">Enterprise — {PLAN_COST.enterprise}</SelectItem>
+   450→            </SelectContent>
+   451→          </Select>
+   452→        </FieldRow>
+   453→        <FieldRow label="Currency" required hint="Default reporting currency for this tenant.">
+   454→          <Select
+   455→            value={state.currency}
+   456→            onValueChange={(v) => update({ currency: v })}
+   457→          >
+   458→            <SelectTrigger className="w-full">
+   459→              <SelectValue />
+   460→            </SelectTrigger>
+   461→            <SelectContent>
+   462→              <SelectItem value="USD">USD — US Dollar</SelectItem>
+   463→              <SelectItem value="GBP">GBP — British Pound</SelectItem>
+   464→              <SelectItem value="EUR">EUR — Euro</SelectItem>
+   465→              <SelectItem value="AED">AED — UAE Dirham</SelectItem>
+   466→            </SelectContent>
+   467→          </Select>
+   468→        </FieldRow>
+   469→        <FieldRow label="Timezone" required hint="Used for daily-loss reset and reporting.">
+   470→          <Select
+   471→            value={state.timezone}
+   472→            onValueChange={(v) => update({ timezone: v })}
+   473→          >
+   474→            <SelectTrigger className="w-full">
+   475→              <SelectValue />
+   476→            </SelectTrigger>
+   477→            <SelectContent>
+   478→              {TIMEZONES.map((tz) => (
+   479→                <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+   480→              ))}
+   481→            </SelectContent>
+   482→          </Select>
+   483→        </FieldRow>
+   484→      </div>
+   485→    </div>
+   486→  );
+   487→}
+   488→
+   489→/* ------------------------------------------------------------------ */
+   490→/* Step 2 — Branding                                                  */
+   491→/* ------------------------------------------------------------------ */
+   492→
+   493→function BrandingStep({
+   494→  state,
+   495→  setState,
+   496→}: {
+   497→  state: WizardState;
+   498→  setState: React.Dispatch<React.SetStateAction<WizardState>>;
+   499→}) {
+   500→  const update = (patch: Partial<WizardState>) =>
+   501→    setState((s) => ({ ...s, ...patch }));
+   502→
+   503→  return (
+   504→    <div className="grid gap-6 lg:grid-cols-2">
+   505→      <div className="space-y-4">
+   506→        <div>
+   507→          <RequiredLabel>Branding</RequiredLabel>
+   508→          <p className="text-xs text-muted-foreground">
+   509→            White-label colors and visuals. Apply instantly across the tenant's dashboard.
+   510→          </p>
+   511→        </div>
+   512→        <div>
+   513→          <Label className="mb-2 block text-xs">Color presets</Label>
+   514→          <div className="flex flex-wrap gap-2">
+   515→            {COLOR_PRESETS.map((p) => (
+   516→              <button
+   517→                key={p.name}
+   518→                type="button"
+   519→                onClick={() =>
+   520→                  update({
+   521→                    primaryColor: p.primary,
+   522→                    accentColor: p.accent,
+   523→                    surfaceColor: p.surface,
+   524→                  })
+   525→                }
+   526→                className={cn(
+   527→                  "flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs hover:bg-muted",
+   528→                  state.primaryColor === p.primary && "ring-1 ring-primary/40",
+   529→                )}
+   530→                style={{ borderColor: state.primaryColor === p.primary ? p.primary : undefined }}
+   531→              >
+   532→                <span className="h-3 w-3 rounded-sm" style={{ background: p.primary }} />
+   533→                <span className="h-3 w-3 rounded-sm" style={{ background: p.accent }} />
+   534→                {p.name}
+   535→              </button>
+   536→            ))}
+   537→          </div>
+   538→        </div>
+   539→        <Separator />
+   540→        <div className="grid gap-4 md:grid-cols-2">
+   541→          <FieldRow label="Primary color" required>
+   542→            <div className="flex gap-2">
+   543→              <input
+   544→                type="color"
+   545→                value={state.primaryColor}
+   546→                onChange={(e) => update({ primaryColor: e.target.value })}
+   547→                className="h-9 w-12 rounded-md border"
+   548→              />
+   549→              <Input
+   550→                value={state.primaryColor}
+   551→                onChange={(e) => update({ primaryColor: e.target.value })}
+   552→              />
+   553→            </div>
+   554→          </FieldRow>
+   555→          <FieldRow label="Accent color" required>
+   556→            <div className="flex gap-2">
+   557→              <input
+   558→                type="color"
+   559→                value={state.accentColor}
+   560→                onChange={(e) => update({ accentColor: e.target.value })}
+   561→                className="h-9 w-12 rounded-md border"
+   562→              />
+   563→              <Input
+   564→                value={state.accentColor}
+   565→                onChange={(e) => update({ accentColor: e.target.value })}
+   566→              />
+   567→            </div>
+   568→          </FieldRow>
+   569→          <FieldRow label="Border radius" required>
+   570→            <Select
+   571→              value={state.radius}
+   572→              onValueChange={(v) => update({ radius: v })}
+   573→            >
+   574→              <SelectTrigger className="w-full">
+   575→                <SelectValue />
+   576→              </SelectTrigger>
+   577→              <SelectContent>
+   578→                <SelectItem value="0.25rem">Sharp (0.25rem)</SelectItem>
+   579→                <SelectItem value="0.5rem">Subtle (0.5rem)</SelectItem>
+   580→                <SelectItem value="0.625rem">Default (0.625rem)</SelectItem>
+   581→                <SelectItem value="0.75rem">Rounded (0.75rem)</SelectItem>
+   582→                <SelectItem value="1rem">Pill (1rem)</SelectItem>
+   583→              </SelectContent>
+   584→            </Select>
+   585→          </FieldRow>
+   586→          <FieldRow label="Initials" required hint="Auto-generated from name; editable.">
+   587→            <Input
+   588→              value={state.initials}
+   589→              maxLength={3}
+   590→              onChange={(e) => update({ initials: e.target.value.toUpperCase() })}
+   591→            />
+   592→          </FieldRow>
+   593→          <FieldRow label="Logo URL (optional)" hint="Leave blank to use initials.">
+   594→            <Input
+   595→              value={state.logoUrl}
+   596→              onChange={(e) => update({ logoUrl: e.target.value })}
+   597→              placeholder="https://..."
+   598→            />
+   599→          </FieldRow>
+   600→        </div>
+   601→      </div>
+   602→
+   603→      {/* Live preview */}
+   604→      <div>
+   605→        <Label className="mb-2 block text-xs">Live preview</Label>
+   606→        <div
+   607→          className="rounded-lg border p-6"
+   608→          style={{ background: state.surfaceColor }}
+   609→        >
+   610→          <div className="flex items-center gap-3">
+   611→            <span
+   612→              className="flex h-12 w-12 items-center justify-center rounded-md text-base font-bold text-white shadow-sm"
+   613→              style={{ background: state.primaryColor, borderRadius: state.radius }}
+   614→            >
+   615→              {state.initials || "TN"}
+   616→            </span>
+   617→            <div>
+   618→              <p className="text-base font-semibold" style={{ color: state.primaryColor }}>
+   619→                {state.name || "Tenant Name"}
+   620→              </p>
+   621→              <p className="text-sm text-muted-foreground">
+   622→                {state.tagline || "Tagline preview"}
+   623→              </p>
+   624→            </div>
+   625→          </div>
+   626→          <div className="mt-4 flex gap-2">
+   627→            <Button
+   628→              size="sm"
+   629→              className="text-white"
+   630→              style={{
+   631→                background: state.primaryColor,
+   632→                borderColor: state.primaryColor,
+   633→                borderRadius: state.radius,
+   634→              }}
+   635→            >
+   636→              Primary button
+   637→            </Button>
+   638→            <Button
+   639→              size="sm"
+   640→              variant="outline"
+   641→              style={{
+   642→                color: state.accentColor,
+   643→                borderColor: state.accentColor,
+   644→                borderRadius: state.radius,
+   645→              }}
+   646→            >
+   647→              Accent button
+   648→            </Button>
+   649→          </div>
+   650→        </div>
+   651→      </div>
+   652→    </div>
+   653→  );
+   654→}
+   655→
+   656→/* ------------------------------------------------------------------ */
+   657→/* Step 3 — Modules                                                   */
+   658→/* ------------------------------------------------------------------ */
+   659→
+   660→function ModulesStep({
+   661→  state,
+   662→  setState,
+   663→  allModules,
+   664→}: {
+   665→  state: WizardState;
+   666→  setState: React.Dispatch<React.SetStateAction<WizardState>>;
+   667→  allModules: ReturnType<typeof moduleRegistry.getAll>;
+   668→}) {
+   669→  const toggle = (moduleId: string) => {
+   670→    setState((s) => {
+   671→      const set = new Set(s.enabledModules);
+   672→      if (set.has(moduleId)) set.delete(moduleId);
+   673→      else set.add(moduleId);
+   674→      return { ...s, enabledModules: Array.from(set) };
+   675→    });
+   676→  };
+   677→
+   678→  return (
+   679→    <div className="space-y-4">
+   680→      <div className="flex items-center justify-between">
+   681→        <div>
+   682→          <RequiredLabel>Module selection</RequiredLabel>
+   683→          <p className="text-xs text-muted-foreground">
+   684→            Pick which modules this tenant can access. Core modules are pre-selected.
+   685→          </p>
+   686→        </div>
+   687→        <Badge variant="secondary">
+   688→          {state.enabledModules.length} of {allModules.length} selected
+   689→        </Badge>
+   690→      </div>
+   691→      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   692→        {allModules.map((m) => {
+   693→          const selected = state.enabledModules.includes(m.manifest.id);
+   694→          const Icon = m.manifest.icon;
+   695→          const accent = m.manifest.accentColor ?? state.primaryColor;
+   696→          const isCore = CORE_MODULE_IDS.includes(m.manifest.id);
+   697→          return (
+   698→            <button
+   699→              key={m.manifest.id}
+   700→              type="button"
+   701→              onClick={() => toggle(m.manifest.id)}
+   702→              className={cn(
+   703→                "flex flex-col items-start gap-2 rounded-lg border p-3 text-left transition-all hover:shadow-sm",
+   704→                selected
+   705→                  ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+   706→                  : "border-border hover:border-primary/40",
+   707→              )}
+   708→              aria-pressed={selected}
+   709→            >
+   710→              <div className="flex w-full items-start justify-between">
+   711→                <div className="flex items-center gap-2">
+   712→                  <div className="rounded-md p-1.5" style={{ background: `${accent}1a`, color: accent }}>
+   713→                    {Icon ? <Icon className="h-4 w-4" /> : null}
+   714→                  </div>
+   715→                  <div>
+   716→                    <p className="text-sm font-medium leading-tight">{m.manifest.name}</p>
+   717→                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+   718→                      {m.manifest.category ?? "module"}
+   719→                    </p>
+   720→                  </div>
+   721→                </div>
+   722→                <Checkbox checked={selected} className="pointer-events-none" />
+   723→              </div>
+   724→              <p className="text-xs text-muted-foreground line-clamp-2">
+   725→                {m.manifest.description ?? "No description available."}
+   726→              </p>
+   727→              {isCore ? (
+   728→                <Badge variant="secondary" className="text-[9px]">Core</Badge>
+   729→              ) : null}
+   730→            </button>
+   731→          );
+   732→        })}
+   733→      </div>
+   734→    </div>
+   735→  );
+   736→}
+   737→
+   738→/* ------------------------------------------------------------------ */
+   739→/* Step 4 — Admin user                                                */
+   740→/* ------------------------------------------------------------------ */
+   741→
+   742→function AdminStep({
+   743→  state,
+   744→  setState,
+   745→}: {
+   746→  state: WizardState;
+   747→  setState: React.Dispatch<React.SetStateAction<WizardState>>;
+   748→}) {
+   749→  const update = (patch: Partial<WizardState>) =>
+   750→    setState((s) => ({ ...s, ...patch }));
+   751→  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.adminEmail);
+   752→
+   753→  return (
+   754→    <div className="space-y-4">
+   755→      <div>
+   756→        <RequiredLabel>Administrator</RequiredLabel>
+   757→        <p className="text-xs text-muted-foreground">
+   758→          The first prop-admin user for this tenant. They will receive an invitation email
+   759→          and can configure the rest of their team.
+   760→        </p>
+   761→      </div>
+   762→      <div className="grid gap-4 md:grid-cols-2">
+   763→        <FieldRow label="Admin name" required>
+   764→          <Input
+   765→            value={state.adminName}
+   766→            onChange={(e) => update({ adminName: e.target.value })}
+   767→            placeholder="Sarah Chen"
+   768→          />
+   769→        </FieldRow>
+   770→        <FieldRow
+   771→          label="Admin email"
+   772→          required
+   773→          hint={state.adminEmail && !emailValid ? "Enter a valid email address." : undefined}
+   774→        >
+   775→          <Input
+   776→            type="email"
+   777→            value={state.adminEmail}
+   778→            onChange={(e) => update({ adminEmail: e.target.value })}
+   779→            placeholder="sarah@acme.io"
+   780→          />
+   781→        </FieldRow>
+   782→      </div>
+   783→      <Card className="bg-muted/20">
+   784→        <CardContent className="space-y-2 pt-6 text-xs text-muted-foreground">
+   785→          <p>
+   786→            <strong className="text-foreground">What happens next?</strong> After you click
+   787→            Create, the tenant is provisioned in <Badge variant="outline" className="text-[9px]">trial</Badge> status,
+   788→            the admin user is invited, and you'll be taken to the tenant detail page where you
+   789→            can refine configuration, billing, and modules.
+   790→          </p>
+   791→        </CardContent>
+   792→      </Card>
+   793→    </div>
+   794→  );
+   795→}
+   796→
+   797→/* ------------------------------------------------------------------ */
+   798→/* Step 5 — Review                                                    */
+   799→/* ------------------------------------------------------------------ */
+   800→
+   801→function ReviewStep({
+   802→  state,
+   803→  allModules,
+   804→  onCreate,
+   805→}: {
+   806→  state: WizardState;
+   807→  allModules: ReturnType<typeof moduleRegistry.getAll>;
+   808→  onCreate: () => void;
+   809→}) {
+   810→  const selectedModules = useMemo(
+   811→    () => allModules.filter((m) => state.enabledModules.includes(m.manifest.id)),
+   812→    [allModules, state.enabledModules],
+   813→  );
+   814→
+   815→  return (
+   816→    <div className="space-y-4">
+   817→      <div>
+   818→        <Label className="text-xs font-medium text-muted-foreground">
+   819→          Review &amp; create
+   820→        </Label>
+   821→        <p className="text-xs text-muted-foreground">
+   822→          Confirm the configuration below. You can change everything later from the tenant detail page.
+   823→        </p>
+   824→      </div>
+   825→      <div className="grid gap-4 md:grid-cols-2">
+   826→        <ReviewCard title="Basics">
+   827→          <ReviewRow label="Name" value={state.name} />
+   828→          <ReviewRow label="Slug" value={state.slug} mono />
+   829→          <ReviewRow label="Tagline" value={state.tagline || "—"} />
+   830→          <ReviewRow label="Plan" value={<Badge variant="outline" className="text-[10px] capitalize">{state.plan}</Badge>} />
+   831→          <ReviewRow label="Currency" value={state.currency} />
+   832→          <ReviewRow label="Timezone" value={state.timezone} />
+   833→        </ReviewCard>
+   834→        <ReviewCard title="Branding">
+   835→          <ReviewRow
+   836→            label="Initials"
+   837→            value={
+   838→              <span
+   839→                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[10px] font-bold text-white"
+   840→                style={{ background: state.primaryColor }}
+   841→              >
+   842→                {state.initials || "TN"}
+   843→              </span>
+   844→            }
+   845→          />
+   846→          <ReviewRow
+   847→            label="Primary"
+   848→            value={
+   849→              <span className="inline-flex items-center gap-1.5">
+   850→                <span className="h-3 w-3 rounded-sm" style={{ background: state.primaryColor }} />
+   851→                <span className="font-mono text-xs">{state.primaryColor}</span>
+   852→              </span>
+   853→            }
+   854→          />
+   855→          <ReviewRow
+   856→            label="Accent"
+   857→            value={
+   858→              <span className="inline-flex items-center gap-1.5">
+   859→                <span className="h-3 w-3 rounded-sm" style={{ background: state.accentColor }} />
+   860→                <span className="font-mono text-xs">{state.accentColor}</span>
+   861→              </span>
+   862→            }
+   863→          />
+   864→          <ReviewRow label="Radius" value={state.radius} />
+   865→        </ReviewCard>
+   866→        <ReviewCard title="Administrator">
+   867→          <ReviewRow label="Name" value={state.adminName} />
+   868→          <ReviewRow label="Email" value={state.adminEmail} mono />
+   869→        </ReviewCard>
+   870→        <ReviewCard title={`Modules (${selectedModules.length})`}>
+   871→          <div className="flex flex-wrap gap-1">
+   872→            {selectedModules.map((m) => (
+   873→              <Badge key={m.manifest.id} variant="secondary" className="text-[9px]">
+   874→                {m.manifest.name}
+   875→              </Badge>
+   876→            ))}
+   877→          </div>
+   878→        </ReviewCard>
+   879→      </div>
+   880→      <Separator />
+   881→      <div className="flex items-center justify-between">
+   882→        <p className="text-xs text-muted-foreground">
+   883→          Tenant will be created in <Badge variant="outline" className="text-[9px]">trial</Badge> status.
+   884→        </p>
+   885→        <Button size="sm" onClick={onCreate} className="gap-1.5">
+   886→          <Check className="h-4 w-4" /> Create tenant
+   887→        </Button>
+   888→      </div>
+   889→    </div>
+   890→  );
+   891→}
+   892→
+   893→function ReviewCard({ title, children }: { title: string; children: React.ReactNode }) {
+   894→  return (
+   895→    <div className="rounded-lg border bg-muted/20 p-4">
+   896→      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+   897→        {title}
+   898→      </p>
+   899→      <div className="space-y-1.5">{children}</div>
+   900→    </div>
+   901→  );
+   902→}
+   903→
+   904→function ReviewRow({
+   905→  label,
+   906→  value,
+   907→  mono,
+   908→}: {
+   909→  label: string;
+   910→  value: React.ReactNode;
+   911→  mono?: boolean;
+   912→}) {
+   913→  return (
+   914→    <div className="flex items-start justify-between gap-3 text-sm">
+   915→      <span className="text-xs text-muted-foreground">{label}</span>
+   916→      <span className={cn("text-right", mono && "font-mono text-xs")}>{value}</span>
+   917→    </div>
+   918→  );
+   919→}
+   920→

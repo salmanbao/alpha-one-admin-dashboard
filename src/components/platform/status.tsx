@@ -17,7 +17,7 @@ const toneClass: Record<Tone, string> = {
   success: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
   warning: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
   danger: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400",
-  info: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400",
+  info: "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400",
   muted: "bg-muted text-muted-foreground",
 };
 

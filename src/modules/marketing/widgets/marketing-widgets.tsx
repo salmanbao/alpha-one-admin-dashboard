@@ -17,11 +17,11 @@ import { BarSeries, DonutSeries } from "@/components/platform/charts";
 import { Megaphone, DollarSign, Eye, Target, TrendingUp } from "lucide-react";
 
 const CHANNEL_COLORS: Record<string, string> = {
-  email: "#db2777",
+  email: "#b45309",
   social: "#f59e0b",
-  "paid-ads": "#db2777", // pink — Terra-allowed; replaces violet (#8b5cf6).
+  "paid-ads": "#b45309", // amber-700 — Terra-allowed; replaces violet (#8b5cf6).
   content: "#059669",
-  affiliate: "#0891b2",
+  affiliate: "#0f766e",
 };
 
 export function MarketingOverviewWidget() {
@@ -54,7 +54,7 @@ export function CampaignPerformanceWidget() {
     name: c.name,
     revenue: c.revenue,
   }));
-  return <BarSeries data={data} xKey="name" yKey="revenue" color="#db2777" height={200} formatValue={(v) => formatCurrency(v, runtime.tenant?.currency)} />;
+  return <BarSeries data={data} xKey="name" yKey="revenue" color="#b45309" height={200} formatValue={(v) => formatCurrency(v, runtime.tenant?.currency)} />;
 }
 
 export function ChannelBreakdownWidget() {

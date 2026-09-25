@@ -130,7 +130,7 @@ interface CheckoutDraft {
 const PHASE_FLOW_COLORS = {
   amber: "#d97706",
   teal: "#0d9488", // substituted for "sky" to honor the no-blue/indigo rule
-  violet: "#7c3aed",
+  violet: "#0d9488",
   emerald: "#059669",
 } as const;
 

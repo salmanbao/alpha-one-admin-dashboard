@@ -69,7 +69,7 @@ export function AiInsightsWidget() {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <Brain className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400" />
+        <Brain className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
         <span className="text-sm font-medium">Latest AI insights</span>
       </div>
       {insights.length === 0 ? (
@@ -88,7 +88,7 @@ export function AiInsightsWidget() {
                 ) : i.severity === "warning" ? (
                   <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 ) : (
-                  <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                  <Sparkles className="h-4 w-4 text-teal-600 dark:text-teal-400" />
                 )}
               </div>
               <div className="min-w-0 flex-1">
@@ -128,7 +128,7 @@ export function AiConfidenceWidget() {
   }
   return (
     <div className="space-y-2">
-      <BarSeries data={data} xKey="date" yKey="value" color="#7c3aed" height={200} formatValue={(v) => `${v}%`} />
+      <BarSeries data={data} xKey="date" yKey="value" color="#0d9488" height={200} formatValue={(v) => `${v}%`} />
       <p className="truncate text-xs text-muted-foreground">{formatCompact(insights.length)} insights · avg {avgConfidence(insights)}%</p>
     </div>
   );

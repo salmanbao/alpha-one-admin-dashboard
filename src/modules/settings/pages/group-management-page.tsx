@@ -92,7 +92,7 @@ function buildGroups(allUsers: (AuthUser | Trader)[]): Group[] {
       description: "Recently onboarded traders still in evaluation.",
       createdAt: "2025-04-22T14:45:00Z",
       memberIds: (traders as (AuthUser | Trader)[]).slice(5, Math.min(15, traders.length)).map((u) => u.id),
-      color: "#0891b2",
+      color: "#0f766e",
     },
     {
       id: "grp-risk-watch",
@@ -122,7 +122,13 @@ export function GroupManagementPage() {
   const tid = runtime.tenant?.id ?? "platform";
 
   const tenantTraders = useMemo(() => getTenantTraders(tid), [tid]);
-  const allUsers = useMemo<(AuthUser | Trader)[]>(() => [...authUsers, ...tenantTraders], [tenantTraders]);
+  // Platform tenant sees the full cross-tenant admin pool; a regular
+  // tenant only sees its own auth users (no cross-tenant PII leak).
+  const scopedAuthUsers = useMemo(
+    () => (tid === "platform" ? authUsers : authUsers.filter((u) => u.tenantId === tid)),
+    [tid],
+  );
+  const allUsers = useMemo<(AuthUser | Trader)[]>(() => [...scopedAuthUsers, ...tenantTraders], [scopedAuthUsers, tenantTraders]);
 
   const groups = useMemo(() => buildGroups(allUsers), [allUsers]);
 

@@ -233,12 +233,24 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [router, setRouter] = useState<RouterState>(routerStateFromUrl);
   const [notifications, setNotifications] = useState<AppNotification[]>(seedNotifications);
   const [commandOpen, setCommandOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    // Persist per-tenant sidebar collapse so F5 keeps the operator's choice
+    // and so different tenants can have different layouts (mirrors the
+    // per-tenant hiddenWidgets key below).
+    if (typeof window === "undefined") return false;
+    try {
+      const tid = window.localStorage.getItem(DEMO_TENANT_KEY) ?? "platform";
+      return window.localStorage.getItem(`pfaas:sidebarCollapsed:${tid}`) === "1";
+    } catch { return false; }
+  });
   const [hiddenWidgets, setHiddenWidgets] = useState<Set<string>>(() => {
-    // Load persisted hidden widgets from localStorage (spec §23 — user customization)
+    // Load persisted hidden widgets from localStorage, scoped per-tenant
+    // so Sarah (Alpha) hiding a widget doesn't affect Daniel (Beta) —
+    // the previous global key caused cross-tenant state leakage.
     if (typeof window === "undefined") return new Set();
     try {
-      const stored = window.localStorage.getItem("pfaas:hiddenWidgets");
+      const tid = window.localStorage.getItem(DEMO_TENANT_KEY) ?? "platform";
+      const stored = window.localStorage.getItem(`pfaas:hiddenWidgets:${tid}`);
       if (stored) {
         const arr = JSON.parse(stored) as string[];
         return new Set(arr);
@@ -249,13 +261,40 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // Persist hidden widgets to localStorage whenever they change
+  // Reload hiddenWidgets + sidebarCollapsed whenever the active tenant
+  // changes — otherwise switching tenants leaves stale per-tenant state.
+  // This deliberately syncs from external storage (localStorage) to React
+  // state on tenant change; the rule against setState-in-effect targets
+  // cascading renders on every tick, which doesn't apply here since the
+  // effect only fires on tenant.id change.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      window.localStorage.setItem("pfaas:hiddenWidgets", JSON.stringify(Array.from(hiddenWidgets)));
+      const stored = window.localStorage.getItem(`pfaas:hiddenWidgets:${tenant.id}`);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHiddenWidgets(stored ? new Set(JSON.parse(stored) as string[]) : new Set());
+      setSidebarCollapsed(window.localStorage.getItem(`pfaas:sidebarCollapsed:${tenant.id}`) === "1");
+    } catch { /* ignore parse errors */ }
+  }, [tenant.id]);
+
+  // Persist hidden widgets to per-tenant localStorage whenever they change
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        `pfaas:hiddenWidgets:${tenant.id}`,
+        JSON.stringify(Array.from(hiddenWidgets)),
+      );
     } catch { /* ignore quota errors */ }
-  }, [hiddenWidgets]);
+  }, [hiddenWidgets, tenant.id]);
+
+  // Persist sidebar collapse per-tenant
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(`pfaas:sidebarCollapsed:${tenant.id}`, sidebarCollapsed ? "1" : "0");
+    } catch { /* ignore quota errors */ }
+  }, [sidebarCollapsed, tenant.id]);
 
   // Persist demo user/tenant selection so F5 doesn't reset identity
   useEffect(() => {

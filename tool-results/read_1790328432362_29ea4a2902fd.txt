@@ -1,0 +1,1012 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Challenge Wizard Page (spec §14, §15, §16, §12, §23)
+     5→ *
+     6→ * Guided 7-step workflow to create a new challenge template. Each step
+     7→ * represents a meaningful mental concept:
+     8→ *
+     9→ *   1. Select challenge type        — what kind of evaluation is this?
+    10→ *   2. Phase 1 config               — risk / target / time limits
+    11→ *   3. Phase 2 config (if applicable)— verification phase
+    12→ *   4. Trading rules                 — what's allowed?
+    13→ *   5. Payout rules                  — profit split / frequency / methods
+    14→ *   6. Risk rules                    — daily / overall / trailing
+    15→ *   7. Review                        — summary + Create Challenge
+    16→ *
+    17→ * Smart defaults (spec §15): selecting a challenge type auto-fills the
+    18→ * phase config forms from getChallengePhaseConfigs(typeId). Templates over
+    19→ * blank forms (spec §16).
+    20→ *
+    21→ * Step indicator pattern mirrors OnboardingWizard (done/active/inactive
+    22→ * circles + connecting progress bars).
+    23→ *
+    24→ * All form state is local useState. No persistence — on Create, we show
+    25→ * a toast and reset.
+    26→ */
+    27→
+    28→import { useMemo, useState } from "react";
+    29→import {
+    30→  getChallengeTypes,
+    31→  getChallengePhaseConfigs,
+    32→  type ChallengeType,
+    33→} from "@/lib/platform/mock-data";
+    34→import { Page, PageHeader, PageContent } from "@/components/platform/page";
+    35→import { Button } from "@/components/ui/button";
+    36→import { Input } from "@/components/ui/input";
+    37→import { Label } from "@/components/ui/label";
+    38→import { Badge } from "@/components/ui/badge";
+    39→import { Separator } from "@/components/ui/separator";
+    40→import { cn } from "@/lib/utils";
+    41→import { toast } from "@/hooks/use-toast";
+    42→import {
+    43→  Zap,
+    44→  Target,
+    45→  Layers,
+    46→  GitBranch,
+    47→  Gift,
+    48→  Trophy,
+    49→  Check,
+    50→  ChevronLeft,
+    51→  ChevronRight,
+    52→  Sparkles,
+    53→  ShieldCheck,
+    54→  DollarSign,
+    55→  AlertTriangle,
+    56→  ScrollText,
+    57→  type LucideIcon,
+    58→} from "lucide-react";
+    59→
+    60→/* ------------------------------------------------------------------ */
+    61→/* Constants                                                          */
+    62→/* ------------------------------------------------------------------ */
+    63→
+    64→const TYPE_ICONS: Record<string, LucideIcon> = {
+    65→  Zap,
+    66→  Target,
+    67→  Layers,
+    68→  GitBranch,
+    69→  Gift,
+    70→  Trophy,
+    71→};
+    72→
+    73→const STEPS: { id: string; label: string; icon: LucideIcon }[] = [
+    74→  { id: "type", label: "Type", icon: Target },
+    75→  { id: "phase-1", label: "Phase 1", icon: Layers },
+    76→  { id: "phase-2", label: "Phase 2", icon: Layers },
+    77→  { id: "trading", label: "Trading", icon: ShieldCheck },
+    78→  { id: "payout", label: "Payout", icon: DollarSign },
+    79→  { id: "risk", label: "Risk", icon: AlertTriangle },
+    80→  { id: "review", label: "Review", icon: ScrollText },
+    81→];
+    82→
+    83→const PAYOUT_METHODS = ["Crypto (USDT)", "Card (Stripe)", "Fiat (Bank)"] as const;
+    84→
+    85→const PAYOUT_FREQUENCIES = [
+    86→  { id: "weekly", label: "Weekly" },
+    87→  { id: "bi-weekly", label: "Bi-weekly" },
+    88→  { id: "monthly", label: "Monthly" },
+    89→] as const;
+    90→
+    91→const TRAILING_TYPES = [
+    92→  { id: "static", label: "Static", description: "Fixed limit from the initial balance." },
+    93→  { id: "trailing", label: "Trailing", description: "Limit follows the highest recorded equity." },
+    94→  { id: "relative", label: "Relative", description: "Limit based on a rolling window." },
+    95→] as const;
+    96→
+    97→/* ------------------------------------------------------------------ */
+    98→/* State                                                              */
+    99→/* ------------------------------------------------------------------ */
+   100→
+   101→interface PhaseConfig {
+   102→  accountSize: string;
+   103→  profitTargetPct: string;
+   104→  maxDrawdownPct: string;
+   105→  dailyDrawdownPct: string;
+   106→  minTradingDays: string;
+   107→  maxDays: string;
+   108→}
+   109→
+   110→const EMPTY_PHASE: PhaseConfig = {
+   111→  accountSize: "",
+   112→  profitTargetPct: "",
+   113→  maxDrawdownPct: "",
+   114→  dailyDrawdownPct: "",
+   115→  minTradingDays: "",
+   116→  maxDays: "",
+   117→};
+   118→
+   119→interface WizardState {
+   120→  challengeTypeId: string | null;
+   121→  phase1: PhaseConfig;
+   122→  phase2: PhaseConfig;
+   123→  tradingRules: {
+   124→    newsTrading: "allow" | "block";
+   125→    copyTradingDetection: boolean;
+   126→    weekendTrading: "allow" | "block";
+   127→  };
+   128→  payoutRules: {
+   129→    profitSplitPct: string;
+   130→    payoutFrequency: (typeof PAYOUT_FREQUENCIES)[number]["id"];
+   131→    payoutMethods: string[];
+   132→  };
+   133→  riskRules: {
+   134→    maxDailyLossPct: string;
+   135→    maxOverallLossPct: string;
+   136→    trailingDrawdownType: (typeof TRAILING_TYPES)[number]["id"];
+   137→  };
+   138→}
+   139→
+   140→const INITIAL_STATE: WizardState = {
+   141→  challengeTypeId: null,
+   142→  phase1: { ...EMPTY_PHASE },
+   143→  phase2: { ...EMPTY_PHASE },
+   144→  tradingRules: {
+   145→    newsTrading: "block",
+   146→    copyTradingDetection: true,
+   147→    weekendTrading: "block",
+   148→  },
+   149→  payoutRules: {
+   150→    profitSplitPct: "80",
+   151→    payoutFrequency: "bi-weekly",
+   152→    payoutMethods: ["Crypto (USDT)", "Card (Stripe)"],
+   153→  },
+   154→  riskRules: {
+   155→    maxDailyLossPct: "5",
+   156→    maxOverallLossPct: "10",
+   157→    trailingDrawdownType: "trailing",
+   158→  },
+   159→};
+   160→
+   161→/* ------------------------------------------------------------------ */
+   162→/* Component                                                          */
+   163→/* ------------------------------------------------------------------ */
+   164→
+   165→export function ChallengeWizardPage() {
+   166→  const [state, setState] = useState<WizardState>(INITIAL_STATE);
+   167→  const [step, setStep] = useState(0);
+   168→
+   169→  const challengeTypes = getChallengeTypes();
+   170→  const selectedType = useMemo(
+   171→    () => challengeTypes.find((t) => t.id === state.challengeTypeId) ?? null,
+   172→    [challengeTypes, state.challengeTypeId],
+   173→  );
+   174→  const hasPhase2 = (selectedType?.phases ?? 0) >= 2;
+   175→
+   176→  /* ---- Smart defaults: select type → fill phases ---- */
+   177→  const selectChallengeType = (typeId: string) => {
+   178→    const configs = getChallengePhaseConfigs(typeId);
+   179→    // Find first non-funded phase as Phase 1, second non-funded as Phase 2
+   180→    const evaluationPhases = configs.filter((p) => !p.isFunded);
+   181→    const phase1Cfg = evaluationPhases[0] ?? configs[0];
+   182→    const phase2Cfg = evaluationPhases[1] ?? configs[1];
+   183→    setState((s) => ({
+   184→      ...s,
+   185→      challengeTypeId: typeId,
+   186→      phase1: phase1Cfg ? phaseConfigFromTemplate(phase1Cfg) : { ...EMPTY_PHASE },
+   187→      phase2: phase2Cfg ? phaseConfigFromTemplate(phase2Cfg) : { ...EMPTY_PHASE },
+   188→    }));
+   189→  };
+   190→
+   191→  /* ---- Validation per step ---- */
+   192→  const stepValid = (i: number): boolean => {
+   193→    switch (i) {
+   194→      case 0:
+   195→        return state.challengeTypeId !== null;
+   196→      case 1:
+   197→        return phaseValid(state.phase1);
+   198→      case 2:
+   199→        return !hasPhase2 || phaseValid(state.phase2);
+   200→      case 3:
+   201→        return true;
+   202→      case 4:
+   203→        // Payout step — at least one payout method must be selected and
+   204→        // the profit-split % must be a number 0–100. Previously returned
+   205→        // `true` unconditionally, so the operator could click Next with
+   206→        // zero payout methods and an invalid split.
+   207→        return (
+   208→          state.payoutRules.payoutMethods.length > 0 &&
+   209→          Number(state.payoutRules.profitSplitPct) >= 0 &&
+   210→          Number(state.payoutRules.profitSplitPct) <= 100
+   211→        );
+   212→      case 5:
+   213→        return (
+   214→          Number(state.riskRules.maxDailyLossPct) > 0 &&
+   215→          Number(state.riskRules.maxOverallLossPct) > 0
+   216→        );
+   217→      case 6:
+   218→        return true;
+   219→      default:
+   220→        return false;
+   221→    }
+   222→  };
+   223→
+   224→  const canNext = stepValid(step) && step < STEPS.length - 1;
+   225→  const canBack = step > 0;
+   226→
+   227→  const next = () => setStep((s) => Math.min(STEPS.length - 1, s + 1));
+   228→  const back = () => setStep((s) => Math.max(0, s - 1));
+   229→
+   230→  const createChallenge = () => {
+   231→    toast({
+   232→      title: "Challenge created",
+   233→      description: `${selectedType?.name ?? "Challenge"} template saved and ready to assign to traders.`,
+   234→    });
+   235→    setState(INITIAL_STATE);
+   236→    setStep(0);
+   237→  };
+   238→
+   239→  /* ---- Step content renderer ---- */
+   240→  const renderStep = () => {
+   241→    switch (step) {
+   242→      case 0:
+   243→        return (
+   244→          <StepType
+   245→            types={challengeTypes}
+   246→            selectedId={state.challengeTypeId}
+   247→            onSelect={selectChallengeType}
+   248→          />
+   249→        );
+   250→      case 1:
+   251→        return (
+   252→          <PhaseForm
+   253→            title="Phase 1 — Evaluation"
+   254→            description="Initial evaluation phase. Traders must reach the profit target while staying within risk limits."
+   255→            value={state.phase1}
+   256→            onChange={(next) => setState((s) => ({ ...s, phase1: next }))}
+   257→          />
+   258→        );
+   259→      case 2:
+   260→        if (!hasPhase2) {
+   261→          return (
+   262→            <NoticeCard
+   263→              title="Phase 2 not applicable"
+   264→              description={`"${selectedType?.name ?? "This challenge"}" only has one phase. You can skip this step and continue to Trading Rules.`}
+   265→            />
+   266→          );
+   267→        }
+   268→        return (
+   269→          <PhaseForm
+   270→            title="Phase 2 — Verification"
+   271→            description="Second evaluation phase. Typically a lower profit target with the same risk limits as Phase 1."
+   272→            value={state.phase2}
+   273→            onChange={(next) => setState((s) => ({ ...s, phase2: next }))}
+   274→          />
+   275→        );
+   276→      case 3:
+   277→        return (
+   278→          <TradingRulesForm
+   279→            value={state.tradingRules}
+   280→            onChange={(next) => setState((s) => ({ ...s, tradingRules: next }))}
+   281→          />
+   282→        );
+   283→      case 4:
+   284→        return (
+   285→          <PayoutRulesForm
+   286→            value={state.payoutRules}
+   287→            onChange={(next) => setState((s) => ({ ...s, payoutRules: next }))}
+   288→          />
+   289→        );
+   290→      case 5:
+   291→        return (
+   292→          <RiskRulesForm
+   293→            value={state.riskRules}
+   294→            onChange={(next) => setState((s) => ({ ...s, riskRules: next }))}
+   295→          />
+   296→        );
+   297→      case 6:
+   298→        return (
+   299→          <ReviewStep
+   300→            state={state}
+   301→            selectedType={selectedType}
+   302→            hasPhase2={hasPhase2}
+   303→            onCreate={createChallenge}
+   304→          />
+   305→        );
+   306→      default:
+   307→        return null;
+   308→    }
+   309→  };
+   310→
+   311→  return (
+   312→    <Page>
+   313→      <PageHeader
+   314→        title="Create Challenge"
+   315→        description="Guided wizard to configure a new evaluation challenge template."
+   316→        icon={Sparkles}
+   317→      />
+   318→      <PageContent>
+   319→        {/* Step indicator — done / active / inactive + connecting bars (mirrors OnboardingWizard) */}
+   320→        <div className="rounded-lg border bg-card p-4">
+   321→          <div className="flex items-center justify-between">
+   322→            {STEPS.map((s, i) => {
+   323→              const Icon = s.icon;
+   324→              const done = i < step;
+   325→              const active = i === step;
+   326→              return (
+   327→                <div key={s.id} className="flex flex-1 flex-col items-center gap-1">
+   328→                  <div className="flex w-full items-center">
+   329→                    {i > 0 ? (
+   330→                      <div className={cn("h-0.5 flex-1", i <= step ? "bg-primary" : "bg-muted")} />
+   331→                    ) : null}
+   332→                    <div
+   333→                      className={cn(
+   334→                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all",
+   335→                        done
+   336→                          ? "border-primary bg-primary text-primary-foreground"
+   337→                          : active
+   338→                            ? "border-primary text-primary"
+   339→                            : "border-muted text-muted-foreground",
+   340→                      )}
+   341→                    >
+   342→                      {done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+   343→                    </div>
+   344→                    {i < STEPS.length - 1 ? (
+   345→                      <div className={cn("h-0.5 flex-1", i < step ? "bg-primary" : "bg-muted")} />
+   346→                    ) : null}
+   347→                  </div>
+   348→                  <span
+   349→                    className={cn(
+   350→                      "text-[10px] font-medium",
+   351→                      active ? "text-foreground" : "text-muted-foreground",
+   352→                    )}
+   353→                  >
+   354→                    {s.label}
+   355→                  </span>
+   356→                </div>
+   357→              );
+   358→            })}
+   359→          </div>
+   360→        </div>
+   361→
+   362→        {/* Step content */}
+   363→        <div className="rounded-lg border bg-card p-4 md:p-6">
+   364→          <div className="min-h-[320px]">{renderStep()}</div>
+   365→
+   366→          <Separator className="my-4" />
+   367→
+   368→          {/* Footer nav — one primary action per step (spec §23) */}
+   369→          <div className="flex items-center justify-between">
+   370→            <Button variant="ghost" size="sm" disabled={!canBack} onClick={back} className="gap-1">
+   371→              <ChevronLeft className="h-4 w-4" /> Back
+   372→            </Button>
+   373→            <span className="text-xs text-muted-foreground">
+   374→              Step {step + 1} of {STEPS.length}
+   375→            </span>
+   376→            {step < STEPS.length - 1 ? (
+   377→              <Button size="sm" disabled={!canNext} onClick={next} className="gap-1">
+   378→                Next <ChevronRight className="h-4 w-4" />
+   379→              </Button>
+   380→            ) : (
+   381→              <Button size="sm" onClick={createChallenge} className="gap-1.5">
+   382→                <Check className="h-4 w-4" /> Create Challenge
+   383→              </Button>
+   384→            )}
+   385→          </div>
+   386→        </div>
+   387→      </PageContent>
+   388→    </Page>
+   389→  );
+   390→}
+   391→
+   392→/* ------------------------------------------------------------------ */
+   393→/* Helpers                                                            */
+   394→/* ------------------------------------------------------------------ */
+   395→
+   396→function phaseConfigFromTemplate(cfg: {
+   397→  accountSize: number;
+   398→  profitTargetPct: number;
+   399→  maxDrawdownPct: number;
+   400→  dailyDrawdownPct: number;
+   401→  minTradingDays: number;
+   402→  maxDays: number;
+   403→}): PhaseConfig {
+   404→  return {
+   405→    accountSize: String(cfg.accountSize),
+   406→    profitTargetPct: String(cfg.profitTargetPct),
+   407→    maxDrawdownPct: String(cfg.maxDrawdownPct),
+   408→    dailyDrawdownPct: String(cfg.dailyDrawdownPct),
+   409→    minTradingDays: String(cfg.minTradingDays),
+   410→    maxDays: String(cfg.maxDays),
+   411→  };
+   412→}
+   413→
+   414→function phaseValid(p: PhaseConfig): boolean {
+   415→  return (
+   416→    Number(p.accountSize) > 0 &&
+   417→    Number(p.profitTargetPct) >= 0 &&
+   418→    Number(p.maxDrawdownPct) > 0 &&
+   419→    Number(p.dailyDrawdownPct) > 0 &&
+   420→    Number(p.minTradingDays) >= 0 &&
+   421→    Number(p.maxDays) >= 0
+   422→  );
+   423→}
+   424→
+   425→function FieldRow({
+   426→  label,
+   427→  hint,
+   428→  children,
+   429→}: {
+   430→  label: string;
+   431→  hint?: string;
+   432→  children: React.ReactNode;
+   433→}) {
+   434→  return (
+   435→    <div className="flex flex-col gap-1.5">
+   436→      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+   437→      {children}
+   438→      {hint ? <p className="text-[10px] text-muted-foreground/80">{hint}</p> : null}
+   439→    </div>
+   440→  );
+   441→}
+   442→
+   443→const REQUIRED_ASTERISK = <span className="text-rose-500" aria-hidden>*</span>;
+   444→
+   445→function RequiredLabel({ children }: { children: React.ReactNode }) {
+   446→  return (
+   447→    <Label className="text-xs font-medium text-muted-foreground">
+   448→      {children} {REQUIRED_ASTERISK}
+   449→    </Label>
+   450→  );
+   451→}
+   452→
+   453→/* ------------------------------------------------------------------ */
+   454→/* Step 1 — Select challenge type                                    */
+   455→/* ------------------------------------------------------------------ */
+   456→
+   457→function StepType({
+   458→  types,
+   459→  selectedId,
+   460→  onSelect,
+   461→}: {
+   462→  types: ChallengeType[];
+   463→  selectedId: string | null;
+   464→  onSelect: (id: string) => void;
+   465→}) {
+   466→  return (
+   467→    <div className="space-y-3">
+   468→      <div>
+   469→        <RequiredLabel>Select challenge type</RequiredLabel>
+   470→        <p className="text-xs text-muted-foreground">
+   471→          Choose the evaluation structure. Smart defaults will auto-fill the next steps; you can edit
+   472→          them later.
+   473→        </p>
+   474→      </div>
+   475→      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   476→        {types.map((t) => {
+   477→          const Icon = TYPE_ICONS[t.icon] ?? Target;
+   478→          const selected = t.id === selectedId;
+   479→          return (
+   480→            <button
+   481→              key={t.id}
+   482→              type="button"
+   483→              onClick={() => onSelect(t.id)}
+   484→              className={cn(
+   485→                "flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-all hover:shadow-sm",
+   486→                selected
+   487→                  ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+   488→                  : "border-border hover:border-primary/40",
+   489→              )}
+   490→              aria-pressed={selected}
+   491→            >
+   492→              <div className="flex items-center gap-2">
+   493→                <div className="rounded-md bg-muted p-1.5">
+   494→                  <Icon className="h-4 w-4 text-foreground" />
+   495→                </div>
+   496→                <span className="text-sm font-medium text-foreground">{t.name}</span>
+   497→              </div>
+   498→              <p className="text-xs text-muted-foreground">{t.description}</p>
+   499→              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+   500→                <Badge variant="outline" className="text-[9px]">{t.phases} phase{t.phases !== 1 ? "s" : ""}</Badge>
+   501→                {t.hasFreeTrial ? <Badge variant="secondary" className="text-[9px]">Free trial</Badge> : null}
+   502→                {t.isCompetition ? <Badge variant="secondary" className="text-[9px]">Competition</Badge> : null}
+   503→                {!t.active ? <Badge variant="outline" className="text-[9px] text-muted-foreground">Inactive</Badge> : null}
+   504→              </div>
+   505→              {selected ? (
+   506→                <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-primary">
+   507→                  <Check className="h-3 w-3" /> Selected — defaults applied
+   508→                </div>
+   509→              ) : null}
+   510→            </button>
+   511→          );
+   512→        })}
+   513→      </div>
+   514→    </div>
+   515→  );
+   516→}
+   517→
+   518→/* ------------------------------------------------------------------ */
+   519→/* Steps 2 / 3 — Phase config forms                                   */
+   520→/* ------------------------------------------------------------------ */
+   521→
+   522→function PhaseForm({
+   523→  title,
+   524→  description,
+   525→  value,
+   526→  onChange,
+   527→}: {
+   528→  title: string;
+   529→  description: string;
+   530→  value: PhaseConfig;
+   531→  onChange: (next: PhaseConfig) => void;
+   532→}) {
+   533→  const update = (field: keyof PhaseConfig, v: string) =>
+   534→    onChange({ ...value, [field]: v });
+   535→
+   536→  return (
+   537→    <div className="space-y-4">
+   538→      <div>
+   539→        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+   540→        <p className="text-xs text-muted-foreground">{description}</p>
+   541→      </div>
+   542→      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   543→        <div className="flex flex-col gap-1.5">
+   544→          <RequiredLabel>Account size (USD)</RequiredLabel>
+   545→          <Input
+   546→            type="number"
+   547→            value={value.accountSize}
+   548→            onChange={(e) => update("accountSize", e.target.value)}
+   549→            placeholder="10000"
+   550→            min={0}
+   551→          />
+   552→        </div>
+   553→        <div className="flex flex-col gap-1.5">
+   554→          <RequiredLabel>Profit target (%)</RequiredLabel>
+   555→          <Input
+   556→            type="number"
+   557→            value={value.profitTargetPct}
+   558→            onChange={(e) => update("profitTargetPct", e.target.value)}
+   559→            placeholder="8"
+   560→            min={0}
+   561→            step={0.1}
+   562→          />
+   563→        </div>
+   564→        <div className="flex flex-col gap-1.5">
+   565→          <RequiredLabel>Max drawdown (%)</RequiredLabel>
+   566→          <Input
+   567→            type="number"
+   568→            value={value.maxDrawdownPct}
+   569→            onChange={(e) => update("maxDrawdownPct", e.target.value)}
+   570→            placeholder="10"
+   571→            min={0}
+   572→            step={0.1}
+   573→          />
+   574→        </div>
+   575→        <div className="flex flex-col gap-1.5">
+   576→          <RequiredLabel>Daily drawdown (%)</RequiredLabel>
+   577→          <Input
+   578→            type="number"
+   579→            value={value.dailyDrawdownPct}
+   580→            onChange={(e) => update("dailyDrawdownPct", e.target.value)}
+   581→            placeholder="5"
+   582→            min={0}
+   583→            step={0.1}
+   584→          />
+   585→        </div>
+   586→        <FieldRow label="Min trading days" hint="Optional — set 0 to disable.">
+   587→          <Input
+   588→            type="number"
+   589→            value={value.minTradingDays}
+   590→            onChange={(e) => update("minTradingDays", e.target.value)}
+   591→            placeholder="0"
+   592→            min={0}
+   593→          />
+   594→        </FieldRow>
+   595→        <FieldRow label="Max days" hint="Optional — set 0 for unlimited.">
+   596→          <Input
+   597→            type="number"
+   598→            value={value.maxDays}
+   599→            onChange={(e) => update("maxDays", e.target.value)}
+   600→            placeholder="30"
+   601→            min={0}
+   602→          />
+   603→        </FieldRow>
+   604→      </div>
+   605→      <p className="text-xs text-muted-foreground">
+   606→        Smart defaults are pulled from the selected challenge type's phase templates.
+   607→      </p>
+   608→    </div>
+   609→  );
+   610→}
+   611→
+   612→/* ------------------------------------------------------------------ */
+   613→/* Step 4 — Trading rules                                             */
+   614→/* ------------------------------------------------------------------ */
+   615→
+   616→function TradingRulesForm({
+   617→  value,
+   618→  onChange,
+   619→}: {
+   620→  value: WizardState["tradingRules"];
+   621→  onChange: (next: WizardState["tradingRules"]) => void;
+   622→}) {
+   623→  return (
+   624→    <div className="space-y-4">
+   625→      <div>
+   626→        <h3 className="text-sm font-semibold text-foreground">Trading Rules</h3>
+   627→        <p className="text-xs text-muted-foreground">
+   628→          What trading activities are allowed or blocked during the evaluation?
+   629→        </p>
+   630→      </div>
+   631→      <div className="space-y-3">
+   632→        <ToggleRow
+   633→          label="News trading"
+   634→          hint="Allow or block trades around high-impact news events (NFP, FOMC)."
+   635→          options={[
+   636→            { id: "allow", label: "Allow" },
+   637→            { id: "block", label: "Block" },
+   638→          ]}
+   639→          value={value.newsTrading}
+   640→          onChange={(v) => onChange({ ...value, newsTrading: v as "allow" | "block" })}
+   641→        />
+   642→        <ToggleRow
+   643→          label="Weekend trading"
+   644→          hint="Allow or block new positions opened on weekends for challenge accounts."
+   645→          options={[
+   646→            { id: "allow", label: "Allow" },
+   647→            { id: "block", label: "Block" },
+   648→          ]}
+   649→          value={value.weekendTrading}
+   650→          onChange={(v) => onChange({ ...value, weekendTrading: v as "allow" | "block" })}
+   651→        />
+   652→        <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
+   653→          <div>
+   654→            <p className="text-sm font-medium text-foreground">Copy trading detection</p>
+   655→            <p className="text-xs text-muted-foreground">
+   656→              Detect synchronized trading across multiple accounts.
+   657→            </p>
+   658→          </div>
+   659→          <Switch
+   660→            checked={value.copyTradingDetection}
+   661→            onChange={(v) => onChange({ ...value, copyTradingDetection: v })}
+   662→          />
+   663→        </div>
+   664→      </div>
+   665→    </div>
+   666→  );
+   667→}
+   668→
+   669→/* ------------------------------------------------------------------ */
+   670→/* Step 5 — Payout rules                                              */
+   671→/* ------------------------------------------------------------------ */
+   672→
+   673→function PayoutRulesForm({
+   674→  value,
+   675→  onChange,
+   676→}: {
+   677→  value: WizardState["payoutRules"];
+   678→  onChange: (next: WizardState["payoutRules"]) => void;
+   679→}) {
+   680→  const toggleMethod = (m: string) => {
+   681→    const set = new Set(value.payoutMethods);
+   682→    if (set.has(m)) set.delete(m);
+   683→    else set.add(m);
+   684→    onChange({ ...value, payoutMethods: Array.from(set) });
+   685→  };
+   686→
+   687→  return (
+   688→    <div className="space-y-4">
+   689→      <div>
+   690→        <h3 className="text-sm font-semibold text-foreground">Payout Rules</h3>
+   691→        <p className="text-xs text-muted-foreground">
+   692→          How are profits shared with the trader and how often are payouts processed?
+   693→        </p>
+   694→      </div>
+   695→      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+   696→        <div className="flex flex-col gap-1.5">
+   697→          <RequiredLabel>Profit split (%) — trader share</RequiredLabel>
+   698→          <Input
+   699→            type="number"
+   700→            value={value.profitSplitPct}
+   701→            onChange={(e) => onChange({ ...value, profitSplitPct: e.target.value })}
+   702→            placeholder="80"
+   703→            min={0}
+   704→            max={100}
+   705→          />
+   706→          <p className="text-[10px] text-muted-foreground/80">
+   707→            Trader keeps {value.profitSplitPct || 0}%, firm receives {100 - (Number(value.profitSplitPct) || 0)}%.
+   708→          </p>
+   709→        </div>
+   710→        <FieldRow label="Payout frequency">
+   711→          <select
+   712→            value={value.payoutFrequency}
+   713→            onChange={(e) =>
+   714→              onChange({
+   715→                ...value,
+   716→                payoutFrequency: e.target.value as WizardState["payoutRules"]["payoutFrequency"],
+   717→              })
+   718→            }
+   719→            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+   720→          >
+   721→            {PAYOUT_FREQUENCIES.map((f) => (
+   722→              <option key={f.id} value={f.id}>{f.label}</option>
+   723→            ))}
+   724→          </select>
+   725→        </FieldRow>
+   726→      </div>
+   727→      <div className="flex flex-col gap-1.5">
+   728→        <RequiredLabel>Payout methods</RequiredLabel>
+   729→        <div className="flex flex-wrap gap-2">
+   730→          {PAYOUT_METHODS.map((m) => {
+   731→            const selected = value.payoutMethods.includes(m);
+   732→            return (
+   733→              <button
+   734→                key={m}
+   735→                type="button"
+   736→                onClick={() => toggleMethod(m)}
+   737→                className={cn(
+   738→                  "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+   739→                  selected
+   740→                    ? "border-primary bg-primary/5 text-primary"
+   741→                    : "border-border text-muted-foreground hover:text-foreground",
+   742→                )}
+   743→                aria-pressed={selected}
+   744→              >
+   745→                {selected ? <Check className="mr-1 inline h-3 w-3" /> : null}
+   746→                {m}
+   747→              </button>
+   748→            );
+   749→          })}
+   750→        </div>
+   751→      </div>
+   752→    </div>
+   753→  );
+   754→}
+   755→
+   756→/* ------------------------------------------------------------------ */
+   757→/* Step 6 — Risk rules                                                */
+   758→/* ------------------------------------------------------------------ */
+   759→
+   760→function RiskRulesForm({
+   761→  value,
+   762→  onChange,
+   763→}: {
+   764→  value: WizardState["riskRules"];
+   765→  onChange: (next: WizardState["riskRules"]) => void;
+   766→}) {
+   767→  return (
+   768→    <div className="space-y-4">
+   769→      <div>
+   770→        <h3 className="text-sm font-semibold text-foreground">Risk Rules</h3>
+   771→        <p className="text-xs text-muted-foreground">
+   772→          Define the firm-level risk envelope for this challenge.
+   773→        </p>
+   774→      </div>
+   775→      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+   776→        <div className="flex flex-col gap-1.5">
+   777→          <RequiredLabel>Max daily loss (%)</RequiredLabel>
+   778→          <Input
+   779→            type="number"
+   780→            value={value.maxDailyLossPct}
+   781→            onChange={(e) => onChange({ ...value, maxDailyLossPct: e.target.value })}
+   782→            placeholder="5"
+   783→            min={0}
+   784→            step={0.1}
+   785→          />
+   786→          <p className="text-[10px] text-muted-foreground/80">
+   787→            Resets at 00:00 server time. Exceeding triggers a daily breach.
+   788→          </p>
+   789→        </div>
+   790→        <div className="flex flex-col gap-1.5">
+   791→          <RequiredLabel>Max overall loss (%)</RequiredLabel>
+   792→          <Input
+   793→            type="number"
+   794→            value={value.maxOverallLossPct}
+   795→            onChange={(e) => onChange({ ...value, maxOverallLossPct: e.target.value })}
+   796→            placeholder="10"
+   797→            min={0}
+   798→            step={0.1}
+   799→          />
+   800→          <p className="text-[10px] text-muted-foreground/80">
+   801→            Cumulative drawdown from peak equity. Does not reset.
+   802→          </p>
+   803→        </div>
+   804→      </div>
+   805→      <div className="flex flex-col gap-1.5">
+   806→        <RequiredLabel>Trailing drawdown type</RequiredLabel>
+   807→        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+   808→          {TRAILING_TYPES.map((t) => {
+   809→            const selected = value.trailingDrawdownType === t.id;
+   810→            return (
+   811→              <button
+   812→                key={t.id}
+   813→                type="button"
+   814→                onClick={() =>
+   815→                  onChange({
+   816→                    ...value,
+   817→                    trailingDrawdownType: t.id as WizardState["riskRules"]["trailingDrawdownType"],
+   818→                  })
+   819→                }
+   820→                className={cn(
+   821→                  "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all",
+   822→                  selected
+   823→                    ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+   824→                    : "border-border hover:border-primary/40",
+   825→                )}
+   826→                aria-pressed={selected}
+   827→              >
+   828→                <span className="text-sm font-medium text-foreground">{t.label}</span>
+   829→                <span className="text-[10px] text-muted-foreground">{t.description}</span>
+   830→              </button>
+   831→            );
+   832→          })}
+   833→        </div>
+   834→      </div>
+   835→    </div>
+   836→  );
+   837→}
+   838→
+   839→/* ------------------------------------------------------------------ */
+   840→/* Step 7 — Review                                                    */
+   841→/* ------------------------------------------------------------------ */
+   842→
+   843→function ReviewStep({
+   844→  state,
+   845→  selectedType,
+   846→  hasPhase2,
+   847→  onCreate,
+   848→}: {
+   849→  state: WizardState;
+   850→  selectedType: ChallengeType | null;
+   851→  hasPhase2: boolean;
+   852→  onCreate: () => void;
+   853→}) {
+   854→  const summary: { label: string; value: string }[] = [
+   855→    { label: "Challenge type", value: selectedType?.name ?? "—" },
+   856→    { label: "Phases", value: String(selectedType?.phases ?? 0) },
+   857→    {
+   858→      label: "Phase 1 — account size",
+   859→      value: state.phase1.accountSize ? `$${Number(state.phase1.accountSize).toLocaleString()}` : "—",
+   860→    },
+   861→    {
+   862→      label: "Phase 1 — profit target",
+   863→      value: `${state.phase1.profitTargetPct || 0}%`,
+   864→    },
+   865→    {
+   866→      label: "Phase 1 — max drawdown",
+   867→      value: `${state.phase1.maxDrawdownPct || 0}%`,
+   868→    },
+   869→    {
+   870→      label: "Phase 1 — daily drawdown",
+   871→      value: `${state.phase1.dailyDrawdownPct || 0}%`,
+   872→    },
+   873→  ];
+   874→  if (hasPhase2) {
+   875→    summary.push(
+   876→      {
+   877→        label: "Phase 2 — account size",
+   878→        value: state.phase2.accountSize ? `$${Number(state.phase2.accountSize).toLocaleString()}` : "—",
+   879→      },
+   880→      { label: "Phase 2 — profit target", value: `${state.phase2.profitTargetPct || 0}%` },
+   881→      { label: "Phase 2 — max drawdown", value: `${state.phase2.maxDrawdownPct || 0}%` },
+   882→    );
+   883→  }
+   884→  summary.push(
+   885→    { label: "News trading", value: state.tradingRules.newsTrading },
+   886→    { label: "Weekend trading", value: state.tradingRules.weekendTrading },
+   887→    {
+   888→      label: "Copy trading detection",
+   889→      value: state.tradingRules.copyTradingDetection ? "Enabled" : "Disabled",
+   890→    },
+   891→    { label: "Profit split (trader)", value: `${state.payoutRules.profitSplitPct || 0}%` },
+   892→    { label: "Payout frequency", value: state.payoutRules.payoutFrequency },
+   893→    { label: "Payout methods", value: state.payoutRules.payoutMethods.join(", ") || "—" },
+   894→    { label: "Max daily loss", value: `${state.riskRules.maxDailyLossPct || 0}%` },
+   895→    { label: "Max overall loss", value: `${state.riskRules.maxOverallLossPct || 0}%` },
+   896→    { label: "Trailing drawdown", value: state.riskRules.trailingDrawdownType },
+   897→  );
+   898→
+   899→  return (
+   900→    <div className="space-y-4">
+   901→      <div>
+   902→        <h3 className="text-sm font-semibold text-foreground">Review &amp; Create</h3>
+   903→        <p className="text-xs text-muted-foreground">
+   904→          Confirm the configuration below. You can edit any step using Back, or create the challenge
+   905→          template now.
+   906→        </p>
+   907→      </div>
+   908→      <div className="rounded-lg border bg-muted/20 p-4">
+   909→        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+   910→          Configuration summary
+   911→        </p>
+   912→        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+   913→          {summary.map((row, i) => (
+   914→            <div key={i} className="flex items-center justify-between gap-2 border-b border-border/40 py-1.5 last:border-0">
+   915→              <dt className="text-xs text-muted-foreground">{row.label}</dt>
+   916→              <dd className="text-xs font-medium text-foreground">{row.value}</dd>
+   917→            </div>
+   918→          ))}
+   919→        </dl>
+   920→      </div>
+   921→      <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-3">
+   922→        <div className="flex items-center gap-2">
+   923→          <ShieldCheck className="h-4 w-4 text-primary" />
+   924→          <p className="text-xs text-foreground">
+   925→            Challenge template will be available to assign to traders immediately after creation. Click <span className="font-medium">Create Challenge</span> in the footer to finalize.
+   926→          </p>
+   927→        </div>
+   928→      </div>
+   929→    </div>
+   930→  );
+   931→}
+   932→
+   933→/* ------------------------------------------------------------------ */
+   934→/* Small shared widgets                                               */
+   935→/* ------------------------------------------------------------------ */
+   936→
+   937→function ToggleRow({
+   938→  label,
+   939→  hint,
+   940→  options,
+   941→  value,
+   942→  onChange,
+   943→}: {
+   944→  label: string;
+   945→  hint?: string;
+   946→  options: { id: string; label: string }[];
+   947→  value: string;
+   948→  onChange: (v: string) => void;
+   949→}) {
+   950→  return (
+   951→    <div className="flex flex-col gap-2 rounded-lg border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+   952→      <div>
+   953→        <p className="text-sm font-medium text-foreground">{label}</p>
+   954→        {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+   955→      </div>
+   956→      <div className="inline-flex rounded-md border bg-card p-0.5">
+   957→        {options.map((opt) => (
+   958→          <button
+   959→            key={opt.id}
+   960→            type="button"
+   961→            onClick={() => onChange(opt.id)}
+   962→            className={cn(
+   963→              "rounded-[5px] px-2.5 py-1 text-xs font-medium transition-colors",
+   964→              value === opt.id
+   965→                ? "bg-primary text-primary-foreground shadow-sm"
+   966→                : "text-muted-foreground hover:text-foreground",
+   967→            )}
+   968→            aria-pressed={value === opt.id}
+   969→          >
+   970→            {opt.label}
+   971→          </button>
+   972→        ))}
+   973→      </div>
+   974→    </div>
+   975→  );
+   976→}
+   977→
+   978→function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+   979→  // Lightweight inline switch (avoids importing a radix switch wrapper just for one row)
+   980→  return (
+   981→    <button
+   982→      type="button"
+   983→      role="switch"
+   984→      aria-checked={checked}
+   985→      onClick={() => onChange(!checked)}
+   986→      className={cn(
+   987→        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-transparent transition-colors",
+   988→        checked ? "bg-primary" : "bg-input",
+   989→      )}
+   990→    >
+   991→      <span
+   992→        className={cn(
+   993→          "pointer-events-none block h-4 w-4 rounded-full bg-background shadow transition-transform",
+   994→          checked ? "translate-x-4" : "translate-x-0.5",
+   995→        )}
+   996→      />
+   997→    </button>
+   998→  );
+   999→}
+  1000→
+  1001→function NoticeCard({ title, description }: { title: string; description: string }) {
+  1002→  return (
+  1003→    <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/10 p-8 text-center">
+  1004→      <div className="rounded-full bg-muted p-2">
+  1005→        <Check className="h-4 w-4 text-muted-foreground" />
+  1006→      </div>
+  1007→      <p className="text-sm font-medium text-foreground">{title}</p>
+  1008→      <p className="max-w-sm text-xs text-muted-foreground">{description}</p>
+  1009→    </div>
+  1010→  );
+  1011→}
+  1012→

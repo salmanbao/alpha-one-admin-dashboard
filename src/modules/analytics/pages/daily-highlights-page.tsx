@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const HOURLY_CHART_COLORS = ["#059669", "#0f766e", "#d97706", "#7c3aed"];
+const HOURLY_CHART_COLORS = ["#059669", "#0f766e", "#d97706", "#0d9488"];
 
 export function DailyHighlightsPage() {
   const { runtime } = usePlatform();

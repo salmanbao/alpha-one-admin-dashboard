@@ -370,7 +370,7 @@ export function AccountVersionHistoryPage() {
             className={cn(
               "text-[9px]",
               v.changedByRole === "Automated" || v.changedByRole === "AI"
-                ? "border-violet-500/40 text-violet-700 dark:text-violet-400"
+                ? "border-teal-500/40 text-teal-700 dark:text-teal-400"
                 : v.changedByRole === "Risk Officer" || v.changedByRole === "Compliance"
                 ? "border-amber-500/40 text-amber-700 dark:text-amber-400"
                 : "border-emerald-500/40 text-emerald-700 dark:text-emerald-400",

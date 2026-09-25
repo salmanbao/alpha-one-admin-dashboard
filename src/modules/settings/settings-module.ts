@@ -55,6 +55,7 @@ const navigation: NavigationItem[] = [
 
       // ───────── Security & Access ─────────
       { id: "settings.users", label: "User Management", href: "user-management", icon: UsersRound, permission: "settings.manage", group: "Security & Access" },
+      { id: "settings.groups", label: "Group Management", href: "group-management", icon: Users, permission: "settings.manage", group: "Security & Access" },
       { id: "settings.tokens", label: "API Tokens", href: "token-management", icon: KeyRound, permission: "settings.manage", group: "Security & Access" },
       { id: "settings.device-activities", label: "Device Activities", href: "device-activities", icon: Fingerprint, permission: "settings.manage", group: "Security & Access" },
       { id: "settings.kyc-providers", label: "KYC Providers", href: "kyc-providers", icon: ShieldCheck, permission: "settings.manage", order: 75, group: "Security & Access" },

@@ -194,7 +194,7 @@ export function FirmStatisticsPage() {
               data={stats.revenueSeries}
               xKey="date"
               yKey="net"
-              color="#7c3aed"
+              color="#0d9488"
               formatValue={(v) => fmt(v)}
             />
           </ChartCard>

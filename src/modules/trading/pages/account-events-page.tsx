@@ -492,7 +492,7 @@ function toneText(tone: "success" | "info" | "warning" | "danger" | "muted" | "d
     case "success":
       return "text-emerald-600 dark:text-emerald-400";
     case "info":
-      return "text-sky-600 dark:text-sky-400";
+      return "text-teal-600 dark:text-teal-400";
     case "warning":
       return "text-amber-600 dark:text-amber-400";
     case "danger":

@@ -119,9 +119,9 @@ const categoryIcon = {
 
 const categoryColor = {
   feature: "#0f766e",
-  improvement: "#7c3aed",
+  improvement: "#0d9488",
   security: "#be123c",
-  branding: "#0891b2",
+  branding: "#0f766e",
 };
 
 const STORAGE_KEY = "pfaas:lastSeenVersion";

@@ -94,7 +94,7 @@ import { cn } from "@/lib/utils";
 
 const STAGE_COLOR: Record<CrmContact["stage"], string> = {
   lead: "#94a3b8",
-  qualified: "#0891b2",
+  qualified: "#0f766e",
   opportunity: "#f59e0b",
   customer: "#059669",
   churned: "#dc2626",
@@ -649,7 +649,7 @@ export function CrmOverviewPage() {
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-lg border bg-card p-4">
             <p className="mb-2 text-sm font-medium">Pipeline by Stage</p>
-            <BarSeries data={pipelineData} xKey="name" yKey="value" color="#0891b2" />
+            <BarSeries data={pipelineData} xKey="name" yKey="value" color="#0f766e" />
           </div>
           <div className="rounded-lg border bg-card p-4">
             <div className="mb-2 flex items-center justify-between">

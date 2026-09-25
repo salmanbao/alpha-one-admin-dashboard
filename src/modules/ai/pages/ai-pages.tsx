@@ -99,7 +99,7 @@ export function AiOverviewPage() {
                       ) : i.severity === "warning" ? (
                         <AlertTriangle className="h-4 w-4 text-amber-600" />
                       ) : (
-                        <Sparkles className="h-4 w-4 text-violet-600" />
+                        <Sparkles className="h-4 w-4 text-teal-600" />
                       )}
                     </div>
                     <div className="flex-1">
@@ -126,7 +126,7 @@ export function AiOverviewPage() {
                 No confidence data
               </div>
             ) : (
-              <BarSeries data={confidenceData} xKey="date" yKey="value" color="#7c3aed" height={240} formatValue={(v) => `${v}%`} />
+              <BarSeries data={confidenceData} xKey="date" yKey="value" color="#0d9488" height={240} formatValue={(v) => `${v}%`} />
             )}
           </div>
         </div>
@@ -168,7 +168,7 @@ export function AiInsightsPage() {
                       ) : i.severity === "warning" ? (
                         <AlertTriangle className="h-4 w-4 text-amber-600" />
                       ) : (
-                        <Sparkles className="h-4 w-4 text-violet-600" />
+                        <Sparkles className="h-4 w-4 text-teal-600" />
                       )}
                       <StatusBadge tone={aiSeverityTone(i.severity)}>{i.severity}</StatusBadge>
                     </div>
@@ -187,7 +187,7 @@ export function AiInsightsPage() {
                     <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                       <div
                         className="h-full rounded-full"
-                        style={{ width: `${Math.round(i.confidence * 100)}%`, backgroundColor: "#7c3aed" }}
+                        style={{ width: `${Math.round(i.confidence * 100)}%`, backgroundColor: "#0d9488" }}
                       />
                     </div>
                   </div>
@@ -325,7 +325,7 @@ export function AiAssistantPage() {
         <Card className="flex h-[560px] flex-col">
           <div className="flex items-center gap-2 border-b px-4 py-3">
             <Avatar className="h-7 w-7">
-              <AvatarFallback className="bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400">
+              <AvatarFallback className="bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400">
                 <Bot className="h-4 w-4" />
               </AvatarFallback>
             </Avatar>
@@ -344,7 +344,7 @@ export function AiAssistantPage() {
                   <div className="flex max-w-[80%] items-start gap-2">
                     {m.role === "assistant" ? (
                       <Avatar className="mt-0.5 h-6 w-6">
-                        <AvatarFallback className="bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400">
+                        <AvatarFallback className="bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400">
                           <Bot className="h-3 w-3" />
                         </AvatarFallback>
                       </Avatar>
@@ -358,7 +358,7 @@ export function AiAssistantPage() {
                     <div
                       className={
                         m.role === "user"
-                          ? "rounded-2xl rounded-tr-sm bg-violet-600 px-3 py-2 text-sm text-white"
+                          ? "rounded-2xl rounded-tr-sm bg-teal-600 px-3 py-2 text-sm text-white"
                           : "rounded-2xl rounded-tl-sm border bg-card px-3 py-2 text-sm text-foreground"
                       }
                     >
@@ -371,7 +371,7 @@ export function AiAssistantPage() {
                 <div className="flex justify-start">
                   <div className="flex max-w-[80%] items-start gap-2">
                     <Avatar className="mt-0.5 h-6 w-6">
-                      <AvatarFallback className="bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400">
+                      <AvatarFallback className="bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400">
                         <Bot className="h-3 w-3" />
                       </AvatarFallback>
                     </Avatar>

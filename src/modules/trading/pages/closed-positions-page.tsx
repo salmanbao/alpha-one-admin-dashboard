@@ -149,7 +149,11 @@ function generateClosedPositions(tenantId: string): ClosedPosition[] {
     const isJpyQuote = sym.endsWith("JPY");
     const grossPnlRaw = pnlPerUnit * mult * volume;
     const grossPnl = isJpyQuote ? grossPnlRaw / close : grossPnlRaw;
-    const commission = Math.round((volume * basePrice * 0.0004) * 100) / 100; // 4 bps
+    // Commission: 4 bps on notional value (volume × contract size × price).
+    // For JPY-quoted pairs the notional is in JPY, so divide by close
+    // to land in USD — previously the missing `mult` factor produced
+    // effectively zero commission for FX pairs ($0.02 instead of $19.53).
+    const commission = Math.round((volume * basePrice * mult * 0.0004 / (isJpyQuote ? close : 1)) * 100) / 100;
     const swap = Math.round(Math.sin(seed) * 5 * 100) / 100;
     const pnl = Math.round((grossPnl - commission - swap) * 100) / 100;
     // P&L % is the price-move percentage (volume cancels). Previously

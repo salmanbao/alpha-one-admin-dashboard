@@ -11,7 +11,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { getUserEvents, type UserEvent } from "@/lib/platform/mock-data";
+import { getUserEvents, getTenantUserEvents, type UserEvent } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge } from "@/components/platform/status";
@@ -82,9 +82,12 @@ const DATE_RANGES: Record<string, number> = {
 
 export function UserEventsPage() {
   const { runtime } = usePlatform();
-  void runtime; // tenant runtime is unused here; events are global
+  const tid = runtime.tenant?.id ?? "platform";
 
-  const allEvents = useMemo(() => getUserEvents(100), []);
+  const allEvents = useMemo(
+    () => (tid === "platform" ? getUserEvents(100) : getTenantUserEvents(tid, 100)),
+    [tid],
+  );
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("all");

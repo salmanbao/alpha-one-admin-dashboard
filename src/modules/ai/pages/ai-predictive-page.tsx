@@ -60,7 +60,7 @@ const TERRA = {
   amber: "#d97706",
   rose: "#e11d48",
   slate: "#475569",
-  sky: "#0ea5e9",
+  sky: "#0d9488",
   teal: "#0d9488",
 } as const;
 

@@ -38,7 +38,7 @@ export function TraderGrowthWidget() {
   const { runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const data = traderGrowthSeries(tid);
-  return <AreaSeries data={data} xKey="date" yKey="value" color="#0ea5e9" height={200} />;
+  return <AreaSeries data={data} xKey="date" yKey="value" color="#0d9488" height={200} />;
 }
 
 export function RiskDistributionWidget() {
@@ -65,7 +65,7 @@ export function AdvancedAnalyticsWidget() {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Brain className="h-4 w-4 text-violet-600" />
+        <Brain className="h-4 w-4 text-teal-600" />
         <span className="text-sm font-medium">Cohort retention analysis</span>
         <Badge variant="secondary" className="text-[10px]">Advanced</Badge>
       </div>

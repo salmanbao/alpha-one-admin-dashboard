@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 /** Derive initials from a display name (first letters of the first two words). */
 function initialsFrom(name: string): string {
@@ -38,16 +38,49 @@ export function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatarUrl ?? null);
   const [displayName, setDisplayName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
-  // Quick-preferences are local-only state — no persistence layer yet,
-  // but at least the toggle reflects the actual stored value (previously
-  // `defaultChecked` was uncontrolled: toggling did nothing visible).
-  const [prefs, setPrefs] = useState<Record<string, boolean>>({
-    "Email notifications": true,
-    "In-app notifications": true,
-    "Desktop notifications": false,
-    "Weekly digest": true,
-    "AI insight alerts": true,
+  // Quick-preferences persist to localStorage so reloads keep the
+  // operator's choices. Mirrors the NotificationsTab pattern in
+  // settings-page.tsx (`pfaas:notificationPrefs`). Round 4 fix:
+  // previously local-only with the comment "no persistence layer yet".
+  const PROFILE_PREFS_KEY = "pfaas:profilePrefs";
+  const [prefs, setPrefs] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") {
+      return {
+        "Email notifications": true,
+        "In-app notifications": true,
+        "Desktop notifications": false,
+        "Weekly digest": true,
+        "AI insight alerts": true,
+      };
+    }
+    try {
+      const stored = window.localStorage.getItem(PROFILE_PREFS_KEY);
+      if (stored) {
+        return {
+          "Email notifications": true,
+          "In-app notifications": true,
+          "Desktop notifications": false,
+          "Weekly digest": true,
+          "AI insight alerts": true,
+          ...(JSON.parse(stored) as Record<string, boolean>),
+        };
+      }
+    } catch { /* ignore parse errors */ }
+    return {
+      "Email notifications": true,
+      "In-app notifications": true,
+      "Desktop notifications": false,
+      "Weekly digest": true,
+      "AI insight alerts": true,
+    };
   });
+  // Persist whenever prefs change.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(PROFILE_PREFS_KEY, JSON.stringify(prefs));
+    } catch { /* ignore quota errors */ }
+  }, [prefs]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Resync local edits when the active user changes (user switcher).

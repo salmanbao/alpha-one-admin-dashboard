@@ -12,7 +12,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { getChangeHistory, type ChangeHistoryEntry } from "@/lib/platform/mock-data";
+import { getChangeHistory, getTenantChangeHistory, type ChangeHistoryEntry } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { ArrowRight, History, Filter, X, Download } from "lucide-react";
@@ -53,8 +53,11 @@ const ENTITY_TYPES = [
 
 export function ChangeHistoryPage() {
   const { runtime } = usePlatform();
-  void runtime;
-  const allChanges = useMemo(() => getChangeHistory(), []);
+  const tid = runtime.tenant?.id ?? "platform";
+  const allChanges = useMemo(
+    () => (tid === "platform" ? getChangeHistory() : getTenantChangeHistory(tid)),
+    [tid],
+  );
 
   const [search, setSearch] = useState("");
   const [entityFilter, setEntityFilter] = useState<string>("all");

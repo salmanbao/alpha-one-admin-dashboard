@@ -97,7 +97,7 @@ export function LiveEquityCurveWidget() {
                 const dotColor =
                   item.tone === "critical" ? "#dc2626" :
                   item.tone === "warning" ? "#ea580c" :
-                  item.tone === "success" ? "#16a34a" : "#0ea5e9";
+                  item.tone === "success" ? "#16a34a" : "#0d9488";
                 return (
                   <div
                     key={item.id}
@@ -126,7 +126,7 @@ export function LiveEquityCurveWidget() {
           <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> critical</span>
           <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> warning</span>
           <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> success</span>
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-sky-500" /> info</span>
+          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-teal-500" /> info</span>
         </div>
       ) : null}
     </div>

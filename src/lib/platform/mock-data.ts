@@ -315,7 +315,7 @@ export const roles: RoleDefinition[] = [
       "analytics.read",
       "trader.read",
     ],
-    color: "#a21caf",
+    color: "#b45309",
   },
   {
     id: "support-agent",

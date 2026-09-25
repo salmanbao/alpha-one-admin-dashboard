@@ -8,6 +8,7 @@ import { StatusBadge, ticketPriorityTone, ticketStatusTone, formatCompact } from
 import { DonutSeries } from "@/components/platform/charts";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { Inbox, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
+import { effectiveTicketStatus, effectiveTicketMessages, useTicketVersion } from "@/modules/support/support-store";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -34,6 +35,14 @@ function avgResponseHours(tickets: SupportTicket[]): number {
   return Math.round(total / withReplies.length);
 }
 
+function isToday(iso: string): boolean {
+  const d = new Date(iso);
+  const now = new Date();
+  return d.getUTCFullYear() === now.getUTCFullYear() &&
+    d.getUTCMonth() === now.getUTCMonth() &&
+    d.getUTCDate() === now.getUTCDate();
+}
+
 /* ------------------------------------------------------------------ */
 /* Widgets                                                             */
 /* ------------------------------------------------------------------ */
@@ -41,24 +50,38 @@ function avgResponseHours(tickets: SupportTicket[]): number {
 export function SupportOverviewWidget() {
   const { runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
-  const tickets = getTenantTickets(tid);
+  useTicketVersion();
+  const tickets = getTenantTickets(tid).map((t) => ({
+    ...t,
+    status: effectiveTicketStatus(t),
+    messages: effectiveTicketMessages(t),
+  }));
   const open = tickets.filter((t) => t.status === "open" || t.status === "in-progress").length;
   const urgent = tickets.filter((t) => t.priority === "urgent" && t.status !== "closed" && t.status !== "resolved").length;
-  const resolvedToday = tickets.filter((t) => t.status === "resolved").length;
+  const resolvedToday = tickets.filter(
+    (t) => t.status === "resolved" && t.lastReplyAt && isToday(t.lastReplyAt),
+  ).length;
+  const resolved = tickets.filter((t) => t.status === "resolved").length;
   const avg = avgResponseHours(tickets);
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <MetricCard label="Open Tickets" value={open} icon={Inbox} tone="warning" />
-      <MetricCard label="Urgent" value={urgent} icon={AlertTriangle} tone="negative" />
+      <MetricCard label="Open Tickets" value={open} icon={Inbox} tone={open > 0 ? "warning" : "positive"} />
+      <MetricCard label="Urgent" value={urgent} icon={AlertTriangle} tone={urgent > 0 ? "negative" : "positive"} />
       <MetricCard label="Avg Response" value={avg ? `${avg}h` : "—"} icon={Clock} />
-      <MetricCard label="Resolved Today" value={resolvedToday} icon={CheckCircle2} tone="positive" />
+      <MetricCard
+        label="Resolved Today"
+        value={resolvedToday}
+        deltaLabel={resolved > 0 ? `${resolved} all-time` : undefined}
+        icon={CheckCircle2}
+        tone="positive"
+      />
     </div>
   );
 }
 
 const recentColumns: Column<SupportTicket>[] = [
   { key: "subject", header: "Subject", cell: (t) => <span className="block max-w-[220px] truncate font-medium text-foreground">{t.subject}</span> },
-  { key: "traderName", header: "Trader", cell: (t) => <span className="block max-w-[140px] truncate text-muted-foreground">{t.traderName}</span> },
+  { key: "traderName", header: "Participant", cell: (t) => <span className="block max-w-[140px] truncate text-muted-foreground">{t.traderName}</span> },
   { key: "priority", header: "Priority", cell: (t) => <StatusBadge tone={ticketPriorityTone(t.priority)}>{t.priority}</StatusBadge> },
   { key: "status", header: "Status", cell: (t) => <StatusBadge tone={ticketStatusTone(t.status)}>{t.status}</StatusBadge> },
   { key: "messages", header: "Messages", cell: (t) => <span className="text-xs text-muted-foreground">{t.messages}</span>, sortValue: (t) => t.messages },
@@ -66,9 +89,11 @@ const recentColumns: Column<SupportTicket>[] = [
 ];
 
 export function RecentTicketsWidget() {
-  const { runtime } = usePlatform();
+  const { runtime, navigate } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
+  useTicketVersion();
   const tickets = getTenantTickets(tid)
+    .map((t) => ({ ...t, status: effectiveTicketStatus(t), messages: effectiveTicketMessages(t) }))
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 6);
@@ -77,6 +102,7 @@ export function RecentTicketsWidget() {
       columns={recentColumns}
       data={tickets}
       rowKey={(t) => t.id}
+      onRowClick={(t) => navigate("support-tickets", { focus: t.id })}
       searchableText={(t) => `${t.subject} ${t.traderName} ${t.category}`}
       pageSize={6}
       emptyTitle="No tickets"
@@ -88,14 +114,15 @@ export function RecentTicketsWidget() {
 export function TicketPriorityWidget() {
   const { runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
-  const tickets = getTenantTickets(tid);
+  useTicketVersion();
+  const tickets = getTenantTickets(tid).map((t) => ({ ...t, status: effectiveTicketStatus(t) }));
   const buckets = (["urgent", "high", "medium", "low"] as const).map((p) => ({
     label: p.charAt(0).toUpperCase() + p.slice(1),
     value: tickets.filter((t) => t.priority === p).length,
     color:
       p === "urgent" ? "#dc2626" :
       p === "high" ? "#ea580c" :
-      p === "medium" ? "#0ea5e9" : "#94a3b8",
+      p === "medium" ? "#0d9488" : "#94a3b8",
   }));
   const total = buckets.reduce((s, b) => s + b.value, 0);
   if (!total) {

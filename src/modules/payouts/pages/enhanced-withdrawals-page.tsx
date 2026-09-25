@@ -59,6 +59,11 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
+  applyPayoutDecision,
+  effectivePayoutStatus,
+  usePayoutVersion,
+} from "@/modules/payouts/payout-store";
+import {
   Wallet,
   Clock,
   CheckCircle2,
@@ -151,7 +156,15 @@ export function EnhancedWithdrawalsPage() {
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
-  const payouts = useMemo(() => getTenantPayouts(tid), [tid]);
+  // Subscribe to the payout-store so decisions made on the Pending
+  // Payouts page, dashboard widget, or this Enhanced Withdrawals page
+  // all reflect instantly — Round 3 wired the other surfaces; Round 4
+  // closes the loop here so two payout surfaces never diverge.
+  usePayoutVersion();
+  const payouts = useMemo(
+    () => getTenantPayouts(tid).map((p) => ({ ...p, status: effectivePayoutStatus(p) })),
+    [tid],
+  );
   const traders = useMemo(() => getTenantTraders(tid), [tid]);
   const kyc = useMemo(() => getTenantKyc(tid), [tid]);
 
@@ -294,6 +307,10 @@ export function EnhancedWithdrawalsPage() {
   const selectedPayouts = sorted.filter((p) => selected.has(p.id));
 
   const batchApprove = () => {
+    // Commit each selected payout's decision to the payout-store so
+    // every other payout surface (Pending Payouts queue, dashboard
+    // widget, Payout History) reflects the new status instantly.
+    for (const p of selectedPayouts) applyPayoutDecision(p.reference, "approved");
     toast({
       title: "Batch approved",
       description: `${selected.size} withdrawal${selected.size === 1 ? "" : "s"} approved.`,
@@ -301,6 +318,7 @@ export function EnhancedWithdrawalsPage() {
     setSelected(new Set());
   };
   const batchReject = () => {
+    for (const p of selectedPayouts) applyPayoutDecision(p.reference, "rejected");
     toast({
       title: "Batch rejected",
       description: `${selected.size} withdrawal${selected.size === 1 ? "" : "s"} rejected.`,

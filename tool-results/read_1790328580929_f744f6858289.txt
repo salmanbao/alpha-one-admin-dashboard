@@ -1,0 +1,970 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Support SLA Management + Breach Dashboard
+     5→ *
+     6→ * Task ID: impl-support-sla
+     7→ *
+     8→ * UX constitution alignment:
+     9→ *   §9  KPIs              — every MetricCard carries a deltaLabel for context.
+    10→ *   §17-§19 State-first   — Breached tickets surfaced with rose StatusBadge + reason.
+    11→ *   §20 Rule Engine UX    — SLA targets explained inline via LabelWithHelp.
+    12→ *   §22-§23 Contextual Actions — Edit / Save / Export CSV sit where the data lives.
+    13→ *   §24 Destructive Actions  — disabling a policy is a single Switch toggle (reversible).
+    14→ *   §27 Drawer vs Page   — SLA policy editor uses a Sheet (quick inspect + small form).
+    15→ *   §33 Help             — LabelWithHelp on every SLA target field.
+    16→ *   §54-§55 Terminology  — `term("trader")` + `plural()` for white-label.
+    17→ *
+    18→ * Mock data is deterministic (Math.sin patterns, hashStr derivation, fixed
+    19→ * constants) — no Math.random.
+    20→ *
+    21→ * Palette: Terra only (emerald / amber / rose / slate / sky). No blue / indigo /
+    22→ * violet. Compliance-band colors:
+    23→ *   >= 95%  emerald #059669  (On Target)
+    24→ *   80-94%  amber   #d97706  (At Risk)
+    25→ *   < 80%   rose    #e11d48  (Off Target)
+    26→ */
+    27→
+    28→import { useState } from "react";
+    29→import {
+    30→  BarChart,
+    31→  Bar,
+    32→  CartesianGrid,
+    33→  Cell as BarCell,
+    34→  ResponsiveContainer,
+    35→  Tooltip as RTooltip,
+    36→  XAxis,
+    37→  YAxis,
+    38→} from "recharts";
+    39→import { usePlatform } from "@/lib/platform/platform-context";
+    40→import { makeTermResolver, plural } from "@/lib/platform/terminology";
+    41→import { hashStr } from "@/lib/platform/mock-data";
+    42→import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+    43→import { DataTable, type Column } from "@/components/platform/data-table";
+    44→import { AreaSeries } from "@/components/platform/charts";
+    45→import { StatusBadge, ticketPriorityTone } from "@/components/platform/status";
+    46→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    47→import { exportToCsv } from "@/lib/platform/export-utils";
+    48→import { toast } from "@/hooks/use-toast";
+    49→import { Button } from "@/components/ui/button";
+    50→import {
+    51→  Card,
+    52→  CardHeader,
+    53→  CardTitle,
+    54→  CardDescription,
+    55→  CardContent,
+    56→} from "@/components/ui/card";
+    57→import {
+    58→  Sheet,
+    59→  SheetContent,
+    60→  SheetHeader,
+    61→  SheetTitle,
+    62→  SheetDescription,
+    63→  SheetFooter,
+    64→} from "@/components/ui/sheet";
+    65→import { Input } from "@/components/ui/input";
+    66→import { Label } from "@/components/ui/label";
+    67→import { Switch } from "@/components/ui/switch";
+    68→import { Separator } from "@/components/ui/separator";
+    69→import {
+    70→  Clock,
+    71→  Inbox,
+    72→  AlertTriangle,
+    73→  Gauge,
+    74→  Timer,
+    75→  TimerReset,
+    76→  Save,
+    77→  Download,
+    78→  Pencil,
+    79→  Users,
+    80→} from "lucide-react";
+    81→
+    82→/* ------------------------------------------------------------------ */
+    83→/* Deterministic mock data                                             */
+    84→/* ------------------------------------------------------------------ */
+    85→
+    86→type Priority = "urgent" | "high" | "medium" | "low";
+    87→
+    88→interface SlaPolicy {
+    89→  priority: Priority;
+    90→  firstResponseHours: number;
+    91→  resolutionHours: number;
+    92→  autoEscalateHours: number;
+    93→  businessHoursOnly: boolean;
+    94→  pauseOnCustomer: boolean;
+    95→  active: boolean;
+    96→  description: string;
+    97→}
+    98→
+    99→const SLA_POLICIES: SlaPolicy[] = [
+   100→  {
+   101→    priority: "urgent",
+   102→    firstResponseHours: 1,
+   103→    resolutionHours: 4,
+   104→    autoEscalateHours: 2,
+   105→    businessHoursOnly: false,
+   106→    pauseOnCustomer: true,
+   107→    active: true,
+   108→    description: "Critical account access issues, payment failures",
+   109→  },
+   110→  {
+   111→    priority: "high",
+   112→    firstResponseHours: 4,
+   113→    resolutionHours: 8,
+   114→    autoEscalateHours: 6,
+   115→    businessHoursOnly: false,
+   116→    pauseOnCustomer: true,
+   117→    active: true,
+   118→    description: "Trading platform issues, KYC rejections",
+   119→  },
+   120→  {
+   121→    priority: "medium",
+   122→    firstResponseHours: 24,
+   123→    resolutionHours: 48,
+   124→    autoEscalateHours: 36,
+   125→    businessHoursOnly: true,
+   126→    pauseOnCustomer: true,
+   127→    active: true,
+   128→    description: "Feature requests, general inquiries",
+   129→  },
+   130→  {
+   131→    priority: "low",
+   132→    firstResponseHours: 48,
+   133→    resolutionHours: 72,
+   134→    autoEscalateHours: 60,
+   135→    businessHoursOnly: true,
+   136→    pauseOnCustomer: true,
+   137→    active: false,
+   138→    description: "Documentation questions, cosmetic issues",
+   139→  },
+   140→];
+   141→
+   142→const BREACH_TREND = Array.from({ length: 12 }, (_, i) => ({
+   143→  label: `Wk ${i + 1}`,
+   144→  breaches: Math.floor(8 + Math.sin(i / 2) * 4 + (i % 3 === 0 ? 3 : 0)),
+   145→}));
+   146→
+   147→const COMPLIANCE_BY_PRIORITY = [
+   148→  { label: "Urgent", value: 88, target: 95 },
+   149→  { label: "High", value: 92, target: 95 },
+   150→  { label: "Medium", value: 96, target: 95 },
+   151→  { label: "Low", value: 98, target: 95 },
+   152→];
+   153→
+   154→interface BreachedTicket {
+   155→  id: string;
+   156→  subject: string;
+   157→  priority: Priority;
+   158→  created: string;
+   159→  slaDue: string;
+   160→  hoursOver: number;
+   161→  assignee: string;
+   162→}
+   163→
+   164→const BREACHED_TICKETS: BreachedTicket[] = [
+   165→  {
+   166→    id: "T-1042",
+   167→    subject: "Cannot withdraw funds",
+   168→    priority: "urgent",
+   169→    created: "2h ago",
+   170→    slaDue: "1h ago",
+   171→    hoursOver: 1,
+   172→    assignee: "Sarah K.",
+   173→  },
+   174→  {
+   175→    id: "T-1037",
+   176→    subject: "MT5 connection error",
+   177→    priority: "high",
+   178→    created: "10h ago",
+   179→    slaDue: "6h ago",
+   180→    hoursOver: 4,
+   181→    assignee: "Marcus L.",
+   182→  },
+   183→  {
+   184→    id: "T-1029",
+   185→    subject: "Payout confirmation stuck",
+   186→    priority: "high",
+   187→    created: "14h ago",
+   188→    slaDue: "2h ago",
+   189→    hoursOver: 12,
+   190→    assignee: "Elena R.",
+   191→  },
+   192→  {
+   193→    id: "T-1018",
+   194→    subject: "KYC docs not uploading",
+   195→    priority: "medium",
+   196→    created: "1d ago",
+   197→    slaDue: "6h ago",
+   198→    hoursOver: 6,
+   199→    assignee: "Sarah K.",
+   200→  },
+   201→  {
+   202→    id: "T-1011",
+   203→    subject: "Challenge rules question",
+   204→    priority: "low",
+   205→    created: "3d ago",
+   206→    slaDue: "1d ago",
+   207→    hoursOver: 24,
+   208→    assignee: "David T.",
+   209→  },
+   210→  {
+   211→    id: "T-1003",
+   212→    subject: "Account reset request delayed",
+   213→    priority: "urgent",
+   214→    created: "5h ago",
+   215→    slaDue: "2h ago",
+   216→    hoursOver: 3,
+   217→    assignee: "Elena R.",
+   218→  },
+   219→  {
+   220→    id: "T-0998",
+   221→    subject: "Email notifications not sending",
+   222→    priority: "medium",
+   223→    created: "2d ago",
+   224→    slaDue: "1d ago",
+   225→    hoursOver: 8,
+   226→    assignee: "Marcus L.",
+   227→  },
+   228→];
+   229→
+   230→interface AgentRow {
+   231→  agent: string;
+   232→  open: number;
+   233→  avgResponse: string;
+   234→  avgResolution: string;
+   235→  compliance: number;
+   236→}
+   237→
+   238→const AGENT_WORKLOAD: AgentRow[] = [
+   239→  { agent: "Sarah K.", open: 12, avgResponse: "1.8h", avgResolution: "6.4h", compliance: 94 },
+   240→  { agent: "Marcus L.", open: 8, avgResponse: "2.1h", avgResolution: "7.2h", compliance: 91 },
+   241→  { agent: "Elena R.", open: 15, avgResponse: "1.5h", avgResolution: "5.8h", compliance: 96 },
+   242→  { agent: "David T.", open: 6, avgResponse: "3.2h", avgResolution: "9.1h", compliance: 85 },
+   243→  { agent: "Priya M.", open: 9, avgResponse: "2.0h", avgResolution: "6.9h", compliance: 89 },
+   244→];
+   245→
+   246→/* ------------------------------------------------------------------ */
+   247→/* Compliance color helpers                                            */
+   248→/* ------------------------------------------------------------------ */
+   249→
+   250→const COMPLIANCE_COLORS = {
+   251→  green: "#059669", // emerald
+   252→  amber: "#d97706", // amber
+   253→  rose: "#e11d48", // rose
+   254→};
+   255→
+   256→function complianceColor(value: number): string {
+   257→  if (value >= 95) return COMPLIANCE_COLORS.green;
+   258→  if (value >= 80) return COMPLIANCE_COLORS.amber;
+   259→  return COMPLIANCE_COLORS.rose;
+   260→}
+   261→
+   262→function complianceTone(value: number): "success" | "warning" | "danger" {
+   263→  if (value >= 95) return "success";
+   264→  if (value >= 80) return "warning";
+   265→  return "danger";
+   266→}
+   267→
+   268→function complianceLabel(value: number): string {
+   269→  if (value >= 95) return "On Target";
+   270→  if (value >= 80) return "At Risk";
+   271→  return "Off Target";
+   272→}
+   273→
+   274→/* ------------------------------------------------------------------ */
+   275→/* Chart helpers                                                       */
+   276→/* ------------------------------------------------------------------ */
+   277→
+   278→const AXIS_STYLE = {
+   279→  fontSize: 11,
+   280→  fill: "var(--muted-foreground)",
+   281→};
+   282→
+   283→const tooltipStyle = {
+   284→  backgroundColor: "var(--popover)",
+   285→  border: "1px solid var(--border)",
+   286→  borderRadius: "var(--radius)",
+   287→  fontSize: 12,
+   288→  color: "var(--popover-foreground)",
+   289→};
+   290→
+   291→/* ------------------------------------------------------------------ */
+   292→/* Derive total tickets 30d deterministically from tenant id           */
+   293→/* ------------------------------------------------------------------ */
+   294→
+   295→function deriveTotalTickets30d(tenantId: string): number {
+   296→  // Deterministic 80–180 range based on a stable tenant hash.
+   297→  // Each tenant sees a consistent number — super-admin (platform) sees 142.
+   298→  if (!tenantId || tenantId === "platform") return 142;
+   299→  const h = Math.abs(hashStr(tenantId)) % 101;
+   300→  return 80 + h;
+   301→}
+   302→
+   303→/* ------------------------------------------------------------------ */
+   304→/* Page                                                                */
+   305→/* ------------------------------------------------------------------ */
+   306→
+   307→export function SupportSlaPage() {
+   308→  const { runtime, tenant, navigate } = usePlatform();
+   309→  const term = makeTermResolver(tenant);
+   310→  const tid = runtime.tenant?.id ?? "platform";
+   311→
+   312→  const [policies, setPolicies] = useState<SlaPolicy[]>(SLA_POLICIES);
+   313→  const [editingPriority, setEditingPriority] = useState<Priority | null>(null);
+   314→  const [draft, setDraft] = useState<SlaPolicy | null>(null);
+   315→
+   316→  const totalTickets30d = deriveTotalTickets30d(tid);
+   317→  const breachedCount = BREACHED_TICKETS.length;
+   318→  const avgFirstResponse = "2.4h";
+   319→  const avgResolution = "8.1h";
+   320→  const activePolicyCount = policies.filter((p) => p.active).length;
+   321→
+   322→  const openSheet = (p: SlaPolicy) => {
+   323→    setEditingPriority(p.priority);
+   324→    setDraft({ ...p });
+   325→  };
+   326→
+   327→  const closeSheet = () => {
+   328→    setEditingPriority(null);
+   329→    setDraft(null);
+   330→  };
+   331→
+   332→  const saveDraft = () => {
+   333→    if (!draft) return;
+   334→    setPolicies((prev) =>
+   335→      prev.map((p) => (p.priority === draft.priority ? draft : p)),
+   336→    );
+   337→    toast({
+   338→      title: "SLA policy saved",
+   339→      description: `${draft.priority} priority SLA targets updated (demo).`,
+   340→    });
+   341→    closeSheet();
+   342→  };
+   343→
+   344→  const toggleActive = (priority: Priority, active: boolean) => {
+   345→    setPolicies((prev) =>
+   346→      prev.map((p) => (p.priority === priority ? { ...p, active } : p)),
+   347→    );
+   348→    toast({
+   349→      title: `${priority} SLA ${active ? "enabled" : "disabled"}`,
+   350→      description: active
+   351→        ? "Tickets will be tracked against this SLA."
+   352→        : "Tickets will not be tracked against this SLA.",
+   353→    });
+   354→  };
+   355→
+   356→  /* ----- SLA policy table columns ----- */
+   357→  const policyColumns: Column<SlaPolicy>[] = [
+   358→    {
+   359→      key: "priority",
+   360→      header: "Priority",
+   361→      cell: (p) => (
+   362→        <StatusBadge tone={ticketPriorityTone(p.priority)}>
+   363→          {p.priority}
+   364→        </StatusBadge>
+   365→      ),
+   366→      sortValue: (p) => p.priority,
+   367→    },
+   368→    {
+   369→      key: "firstResponse",
+   370→      header: "First Response",
+   371→      cell: (p) => (
+   372→        <span className="font-medium tabular-nums">{p.firstResponseHours}h</span>
+   373→      ),
+   374→      sortValue: (p) => p.firstResponseHours,
+   375→      numeric: true,
+   376→    },
+   377→    {
+   378→      key: "resolution",
+   379→      header: "Resolution",
+   380→      cell: (p) => (
+   381→        <span className="font-medium tabular-nums">{p.resolutionHours}h</span>
+   382→      ),
+   383→      sortValue: (p) => p.resolutionHours,
+   384→      numeric: true,
+   385→    },
+   386→    {
+   387→      key: "description",
+   388→      header: "Description",
+   389→      cell: (p) => (
+   390→        <span className="text-xs text-muted-foreground">{p.description}</span>
+   391→      ),
+   392→    },
+   393→    {
+   394→      key: "active",
+   395→      header: "Active",
+   396→      cell: (p) => (
+   397→        <Switch
+   398→          checked={p.active}
+   399→          onCheckedChange={(checked) => toggleActive(p.priority, checked)}
+   400→          aria-label={`Toggle ${p.priority} SLA policy`}
+   401→        />
+   402→      ),
+   403→    },
+   404→    {
+   405→      key: "actions",
+   406→      header: "Actions",
+   407→      cell: (p) => (
+   408→        <Button
+   409→          size="sm"
+   410→          variant="outline"
+   411→          onClick={(e) => {
+   412→            // Stop propagation so the row click handler doesn't also fire
+   413→            // (if one is ever added to this DataTable).
+   414→            e.stopPropagation();
+   415→            openSheet(p);
+   416→          }}
+   417→        >
+   418→          <Pencil className="mr-1 h-3 w-3" /> Edit
+   419→        </Button>
+   420→      ),
+   421→    },
+   422→  ];
+   423→
+   424→  /* ----- Breached tickets table columns ----- */
+   425→  const breachedColumns: Column<BreachedTicket>[] = [
+   426→    {
+   427→      key: "id",
+   428→      header: "Ticket ID",
+   429→      cell: (t) => (
+   430→        <span className="font-mono text-xs text-foreground">{t.id}</span>
+   431→      ),
+   432→      sortValue: (t) => t.id,
+   433→    },
+   434→    {
+   435→      key: "subject",
+   436→      header: "Subject",
+   437→      cell: (t) => (
+   438→        <span className="font-medium text-foreground">{t.subject}</span>
+   439→      ),
+   440→    },
+   441→    {
+   442→      key: "priority",
+   443→      header: "Priority",
+   444→      cell: (t) => (
+   445→        <StatusBadge tone={ticketPriorityTone(t.priority)}>{t.priority}</StatusBadge>
+   446→      ),
+   447→      sortValue: (t) => t.priority,
+   448→    },
+   449→    {
+   450→      key: "created",
+   451→      header: "Created",
+   452→      cell: (t) => (
+   453→        <span className="text-xs text-muted-foreground">{t.created}</span>
+   454→      ),
+   455→    },
+   456→    {
+   457→      key: "slaDue",
+   458→      header: "SLA Due",
+   459→      cell: (t) => (
+   460→        <span className="text-xs text-muted-foreground">{t.slaDue}</span>
+   461→      ),
+   462→    },
+   463→    {
+   464→      key: "hoursOver",
+   465→      header: "Time Over",
+   466→      cell: (t) => (
+   467→        <span className="inline-flex items-center gap-1 font-medium text-rose-600 dark:text-rose-400">
+   468→          <AlertTriangle className="h-3 w-3" /> {t.hoursOver}h
+   469→        </span>
+   470→      ),
+   471→      sortValue: (t) => t.hoursOver,
+   472→      numeric: true,
+   473→    },
+   474→    {
+   475→      key: "assignee",
+   476→      header: "Assignee",
+   477→      cell: (t) => (
+   478→        <span className="text-muted-foreground">{t.assignee}</span>
+   479→      ),
+   480→    },
+   481→    {
+   482→      key: "status",
+   483→      header: "Status",
+   484→      cell: () => <StatusBadge tone="danger">Breached</StatusBadge>,
+   485→    },
+   486→  ];
+   487→
+   488→  /* ----- Agent workload table columns ----- */
+   489→  const agentColumns: Column<AgentRow>[] = [
+   490→    {
+   491→      key: "agent",
+   492→      header: "Agent",
+   493→      cell: (a) => (
+   494→        <div className="flex items-center gap-2">
+   495→          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-foreground">
+   496→            {a.agent
+   497→              .split(" ")
+   498→              .map((p) => p[0])
+   499→              .join("")}
+   500→          </div>
+   501→          <span className="font-medium text-foreground">{a.agent}</span>
+   502→        </div>
+   503→      ),
+   504→      sortValue: (a) => a.agent,
+   505→    },
+   506→    {
+   507→      key: "open",
+   508→      header: "Open Tickets",
+   509→      cell: (a) => <span className="tabular-nums">{a.open}</span>,
+   510→      sortValue: (a) => a.open,
+   511→      numeric: true,
+   512→    },
+   513→    {
+   514→      key: "avgResponse",
+   515→      header: "Avg Response",
+   516→      cell: (a) => (
+   517→        <span className="tabular-nums text-muted-foreground">{a.avgResponse}</span>
+   518→      ),
+   519→    },
+   520→    {
+   521→      key: "avgResolution",
+   522→      header: "Avg Resolution",
+   523→      cell: (a) => (
+   524→        <span className="tabular-nums text-muted-foreground">{a.avgResolution}</span>
+   525→      ),
+   526→    },
+   527→    {
+   528→      key: "compliance",
+   529→      header: "SLA Compliance",
+   530→      cell: (a) => (
+   531→        <div className="flex items-center gap-2">
+   532→          <span
+   533→            className="font-medium tabular-nums"
+   534→            style={{ color: complianceColor(a.compliance) }}
+   535→          >
+   536→            {a.compliance}%
+   537→          </span>
+   538→          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+   539→            <div
+   540→              className="h-full rounded-full"
+   541→              style={{
+   542→                width: `${a.compliance}%`,
+   543→                background: complianceColor(a.compliance),
+   544→              }}
+   545→            />
+   546→          </div>
+   547→        </div>
+   548→      ),
+   549→      sortValue: (a) => a.compliance,
+   550→      numeric: true,
+   551→    },
+   552→    {
+   553→      key: "status",
+   554→      header: "Status",
+   555→      cell: (a) => (
+   556→        <StatusBadge tone={complianceTone(a.compliance)}>
+   557→          {complianceLabel(a.compliance)}
+   558→        </StatusBadge>
+   559→      ),
+   560→    },
+   561→  ];
+   562→
+   563→  return (
+   564→    <Page>
+   565→      <PageHeader
+   566→        title="SLA Management"
+   567→        description="Configure service level targets per priority and monitor breach rates."
+   568→        icon={Clock}
+   569→        term={`Across all ${plural(term("trader")).toLowerCase()} · ${activePolicyCount} active policies`}
+   570→        actions={
+   571→          <div className="flex flex-wrap items-center gap-2">
+   572→            <Button
+   573→              size="sm"
+   574→              variant="outline"
+   575→              onClick={() =>
+   576→                exportToCsv<BreachedTicket>(
+   577→                  BREACHED_TICKETS,
+   578→                  [
+   579→                    { key: "id", header: "Ticket ID", value: (t) => t.id },
+   580→                    { key: "subject", header: "Subject", value: (t) => t.subject },
+   581→                    { key: "priority", header: "Priority", value: (t) => t.priority },
+   582→                    { key: "created", header: "Created", value: (t) => t.created },
+   583→                    { key: "slaDue", header: "SLA Due", value: (t) => t.slaDue },
+   584→                    { key: "hoursOver", header: "Hours Over", value: (t) => t.hoursOver },
+   585→                    { key: "assignee", header: "Assignee", value: (t) => t.assignee },
+   586→                  ],
+   587→                  "sla-breached-tickets.csv",
+   588→                )
+   589→              }
+   590→            >
+   591→              <Download className="mr-1 h-4 w-4" /> Export CSV
+   592→            </Button>
+   593→            <Button
+   594→              size="sm"
+   595→              onClick={() =>
+   596→                toast({
+   597→                  title: "SLA policies saved (demo)",
+   598→                  description: `${activePolicyCount} active policies persisted.`,
+   599→                })
+   600→              }
+   601→            >
+   602→              <Save className="mr-1 h-4 w-4" /> Save Changes
+   603→            </Button>
+   604→          </div>
+   605→        }
+   606→      />
+   607→
+   608→      <PageContent>
+   609→        {/* 1. KPI row ---------------------------------------------------- */}
+   610→        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+   611→          <MetricCard
+   612→            label="Total Tickets (30d)"
+   613→            value={totalTickets30d}
+   614→            icon={Inbox}
+   615→            deltaLabel="across all priorities"
+   616→          />
+   617→          <MetricCard
+   618→            label="Breached SLAs"
+   619→            value={breachedCount}
+   620→            icon={AlertTriangle}
+   621→            tone="negative"
+   622→            deltaLabel="past their SLA target"
+   623→          />
+   624→          <MetricCard
+   625→            label="Avg First Response"
+   626→            value={avgFirstResponse}
+   627→            icon={Timer}
+   628→            deltaLabel="target: 4h"
+   629→          />
+   630→          <MetricCard
+   631→            label="Avg Resolution Time"
+   632→            value={avgResolution}
+   633→            icon={TimerReset}
+   634→            deltaLabel="target: 24h"
+   635→          />
+   636→        </div>
+   637→
+   638→        {/* 2. SLA Policy Configuration ---------------------------------- */}
+   639→        <Card>
+   640→          <CardHeader>
+   641→            <CardTitle className="flex items-center gap-2">
+   642→              <Gauge className="h-4 w-4 text-emerald-600" />
+   643→              SLA Policy Configuration
+   644→            </CardTitle>
+   645→            <CardDescription className="mt-1">
+   646→              First-response + resolution targets per priority. Toggle to
+   647→              enable/disable; click <span className="font-medium">Edit</span>{" "}
+   648→              for advanced options.
+   649→            </CardDescription>
+   650→          </CardHeader>
+   651→          <CardContent>
+   652→            <DataTable
+   653→              columns={policyColumns}
+   654→              data={policies}
+   655→              rowKey={(p) => p.priority}
+   656→              pageSize={8}
+   657→              searchPlaceholder="Search policies…"
+   658→              searchableText={(p) => `${p.priority} ${p.description}`}
+   659→              emptyTitle="No SLA policies"
+   660→              emptyDescription="Add a priority SLA policy to begin tracking."
+   661→            />
+   662→          </CardContent>
+   663→        </Card>
+   664→
+   665→        {/* 3. Charts row ------------------------------------------------ */}
+   666→        <div className="grid gap-4 lg:grid-cols-2">
+   667→          <Card>
+   668→            <CardHeader>
+   669→              <CardTitle className="text-base">SLA Breach Trend</CardTitle>
+   670→              <CardDescription>
+   671→                Weekly breached tickets over the last 12 weeks.
+   672→              </CardDescription>
+   673→            </CardHeader>
+   674→            <CardContent>
+   675→              <AreaSeries
+   676→                data={BREACH_TREND}
+   677→                xKey="label"
+   678→                yKey="breaches"
+   679→                color={COMPLIANCE_COLORS.rose}
+   680→                height={220}
+   681→              />
+   682→            </CardContent>
+   683→          </Card>
+   684→
+   685→          <Card>
+   686→            <CardHeader>
+   687→              <CardTitle className="text-base">SLA Compliance by Priority</CardTitle>
+   688→              <CardDescription>
+   689→                % of tickets resolved within SLA, by priority.
+   690→              </CardDescription>
+   691→            </CardHeader>
+   692→            <CardContent>
+   693→              {/* Inline BarChart so each bar is color-coded by compliance band */}
+   694→              <div style={{ width: "100%", height: 220 }}>
+   695→                <ResponsiveContainer width="100%" height="100%">
+   696→                  <BarChart
+   697→                    data={COMPLIANCE_BY_PRIORITY}
+   698→                    margin={{ top: 6, right: 8, left: 0, bottom: 0 }}
+   699→                  >
+   700→                    <CartesianGrid
+   701→                      strokeDasharray="3 3"
+   702→                      stroke="var(--border)"
+   703→                      vertical={false}
+   704→                    />
+   705→                    <XAxis
+   706→                      dataKey="label"
+   707→                      tick={AXIS_STYLE}
+   708→                      tickLine={false}
+   709→                      axisLine={false}
+   710→                      minTickGap={4}
+   711→                      interval={0}
+   712→                    />
+   713→                    <YAxis
+   714→                      tick={AXIS_STYLE}
+   715→                      tickLine={false}
+   716→                      axisLine={false}
+   717→                      width={40}
+   718→                      domain={[0, 100]}
+   719→                      tickFormatter={(v) => `${v}%`}
+   720→                    />
+   721→                    <RTooltip
+   722→                      contentStyle={tooltipStyle}
+   723→                      cursor={{ fill: "var(--muted)" }}
+   724→                      formatter={(v: number) => [`${v}%`, "Compliance"]}
+   725→                    />
+   726→                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+   727→                      {COMPLIANCE_BY_PRIORITY.map((d) => (
+   728→                        <BarCell key={d.label} fill={complianceColor(d.value)} />
+   729→                      ))}
+   730→                    </Bar>
+   731→                  </BarChart>
+   732→                </ResponsiveContainer>
+   733→              </div>
+   734→              {/* Color-band legend */}
+   735→              <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+   736→                <span className="inline-flex items-center gap-1">
+   737→                  <span
+   738→                    className="h-2 w-2 rounded-sm"
+   739→                    style={{ background: COMPLIANCE_COLORS.green }}
+   740→                  />{" "}
+   741→                  ≥ 95% On Target
+   742→                </span>
+   743→                <span className="inline-flex items-center gap-1">
+   744→                  <span
+   745→                    className="h-2 w-2 rounded-sm"
+   746→                    style={{ background: COMPLIANCE_COLORS.amber }}
+   747→                  />{" "}
+   748→                  80–94% At Risk
+   749→                </span>
+   750→                <span className="inline-flex items-center gap-1">
+   751→                  <span
+   752→                    className="h-2 w-2 rounded-sm"
+   753→                    style={{ background: COMPLIANCE_COLORS.rose }}
+   754→                  />{" "}
+   755→                  &lt; 80% Off Target
+   756→                </span>
+   757→              </div>
+   758→            </CardContent>
+   759→          </Card>
+   760→        </div>
+   761→
+   762→        {/* 4. Currently Breached Tickets ------------------------------- */}
+   763→        <Card>
+   764→          <CardHeader>
+   765→            <CardTitle className="flex items-center gap-2">
+   766→              <AlertTriangle className="h-4 w-4 text-rose-600" />
+   767→              Currently Breached Tickets
+   768→            </CardTitle>
+   769→            <CardDescription>
+   770→              Click any row to open the ticket in the Support Tickets queue.
+   771→            </CardDescription>
+   772→          </CardHeader>
+   773→          <CardContent>
+   774→            <DataTable
+   775→              columns={breachedColumns}
+   776→              data={BREACHED_TICKETS}
+   777→              rowKey={(t) => t.id}
+   778→              pageSize={8}
+   779→              onRowClick={() => navigate("support-tickets")}
+   780→              searchPlaceholder="Search breached tickets…"
+   781→              searchableText={(t) => `${t.id} ${t.subject} ${t.assignee}`}
+   782→              emptyTitle="No breached tickets"
+   783→              emptyDescription="All tickets are within their SLA targets."
+   784→            />
+   785→          </CardContent>
+   786→        </Card>
+   787→
+   788→        {/* 5. Agent Workload ------------------------------------------- */}
+   789→        <Card>
+   790→          <CardHeader>
+   791→            <CardTitle className="flex items-center gap-2">
+   792→              <Users className="h-4 w-4 text-emerald-600" />
+   793→              Agent Workload
+   794→            </CardTitle>
+   795→            <CardDescription>
+   796→              Open tickets, response/resolution times, and per-agent SLA
+   797→              compliance.
+   798→            </CardDescription>
+   799→          </CardHeader>
+   800→          <CardContent>
+   801→            <DataTable
+   802→              columns={agentColumns}
+   803→              data={AGENT_WORKLOAD}
+   804→              rowKey={(a) => a.agent}
+   805→              pageSize={8}
+   806→              searchPlaceholder="Search agents…"
+   807→              searchableText={(a) => a.agent}
+   808→              emptyTitle="No agents"
+   809→              emptyDescription="No agent workload data available."
+   810→            />
+   811→          </CardContent>
+   812→        </Card>
+   813→      </PageContent>
+   814→
+   815→      {/* 6. SLA Policy Editor Sheet Drawer ------------------------------ */}
+   816→      <Sheet
+   817→        open={!!editingPriority}
+   818→        onOpenChange={(open) => {
+   819→          if (!open) closeSheet();
+   820→        }}
+   821→      >
+   822→        <SheetContent className="sm:max-w-[480px] overflow-y-auto" side="right">
+   823→          {draft && (
+   824→            <div className="flex h-full flex-col">
+   825→              <SheetHeader>
+   826→                <SheetTitle className="text-lg">
+   827→                  Edit SLA Policy — {draft.priority}
+   828→                </SheetTitle>
+   829→                <SheetDescription>
+   830→                  Configure first response, resolution, and escalation
+   831→                  behaviour for the{" "}
+   832→                  <span className="font-medium capitalize text-foreground">
+   833→                    {draft.priority}
+   834→                  </span>{" "}
+   835→                  priority.
+   836→                </SheetDescription>
+   837→              </SheetHeader>
+   838→
+   839→              <div className="flex-1 overflow-y-auto px-4 pb-4">
+   840→                <div className="space-y-4">
+   841→                  {/* Priority read-only */}
+   842→                  <div className="space-y-1.5">
+   843→                    <Label>Priority</Label>
+   844→                    <div className="flex h-9 items-center gap-2 rounded-md border bg-muted/40 px-3">
+   845→                      <StatusBadge tone={ticketPriorityTone(draft.priority)}>
+   846→                        {draft.priority}
+   847→                      </StatusBadge>
+   848→                      <span className="text-xs text-muted-foreground">
+   849→                        Cannot be changed
+   850→                      </span>
+   851→                    </div>
+   852→                  </div>
+   853→
+   854→                  <Separator />
+   855→
+   856→                  {/* First Response Target */}
+   857→                  <div className="space-y-1.5">
+   858→                    <LabelWithHelp help="Time within which an agent must send the first reply to the trader. Measured from ticket creation. Lower is better; breaching this triggers an At-Risk state.">
+   859→                      First Response Target (hours)
+   860→                    </LabelWithHelp>
+   861→                    <Input
+   862→                      type="number"
+   863→                      min={1}
+   864→                      value={String(draft.firstResponseHours)}
+   865→                      onChange={(e) =>
+   866→                        setDraft({
+   867→                          ...draft,
+   868→                          firstResponseHours: Math.max(1, Number(e.target.value) || 1),
+   869→                        })
+   870→                      }
+   871→                      aria-label="First response target in hours"
+   872→                    />
+   873→                  </div>
+   874→
+   875→                  {/* Resolution Target */}
+   876→                  <div className="space-y-1.5">
+   877→                    <LabelWithHelp help="Time within which the ticket must be fully resolved (status = resolved). Counted from ticket creation. Breaching this triggers the Breached state shown in the dashboard.">
+   878→                      Resolution Target (hours)
+   879→                    </LabelWithHelp>
+   880→                    <Input
+   881→                      type="number"
+   882→                      min={1}
+   883→                      value={String(draft.resolutionHours)}
+   884→                      onChange={(e) =>
+   885→                        setDraft({
+   886→                          ...draft,
+   887→                          resolutionHours: Math.max(1, Number(e.target.value) || 1),
+   888→                        })
+   889→                      }
+   890→                      aria-label="Resolution target in hours"
+   891→                    />
+   892→                  </div>
+   893→
+   894→                  {/* Auto-escalate after */}
+   895→                  <div className="space-y-1.5">
+   896→                    <LabelWithHelp help="When the SLA clock crosses this threshold, the ticket is auto-routed to a senior agent or Tier 2 queue. Should sit between first response and resolution targets.">
+   897→                      Auto-escalate after (hours)
+   898→                    </LabelWithHelp>
+   899→                    <Input
+   900→                      type="number"
+   901→                      min={1}
+   902→                      value={String(draft.autoEscalateHours)}
+   903→                      onChange={(e) =>
+   904→                        setDraft({
+   905→                          ...draft,
+   906→                          autoEscalateHours: Math.max(1, Number(e.target.value) || 1),
+   907→                        })
+   908→                      }
+   909→                      aria-label="Auto-escalate threshold in hours"
+   910→                    />
+   911→                  </div>
+   912→
+   913→                  <Separator />
+   914→
+   915→                  {/* Business hours only */}
+   916→                  <div className="flex items-start justify-between gap-3 rounded-md border p-3">
+   917→                    <div className="space-y-0.5">
+   918→                      <LabelWithHelp help="When enabled, the SLA clock only counts configured business hours (e.g. 9–18 Mon–Fri). Useful for non-urgent priorities where outside-hours response is not contractually required.">
+   919→                        Business hours only
+   920→                      </LabelWithHelp>
+   921→                      <p className="text-xs text-muted-foreground">
+   922→                        Only count business hours toward the SLA clock.
+   923→                      </p>
+   924→                    </div>
+   925→                    <Switch
+   926→                      checked={draft.businessHoursOnly}
+   927→                      onCheckedChange={(checked) =>
+   928→                        setDraft({ ...draft, businessHoursOnly: checked })
+   929→                      }
+   930→                      aria-label="Toggle business-hours-only"
+   931→                    />
+   932→                  </div>
+   933→
+   934→                  {/* Pause on customer response */}
+   935→                  <div className="flex items-start justify-between gap-3 rounded-md border p-3">
+   936→                    <div className="space-y-0.5">
+   937→                      <LabelWithHelp help="When enabled, the SLA clock pauses whenever the ticket is in 'waiting' status (i.e. awaiting a customer response). The clock resumes once the customer replies, so SLA is not unfairly penalised by customer latency.">
+   938→                        Pause on customer response
+   939→                      </LabelWithHelp>
+   940→                      <p className="text-xs text-muted-foreground">
+   941→                        Pause the SLA clock while waiting for the customer.
+   942→                      </p>
+   943→                    </div>
+   944→                    <Switch
+   945→                      checked={draft.pauseOnCustomer}
+   946→                      onCheckedChange={(checked) =>
+   947→                        setDraft({ ...draft, pauseOnCustomer: checked })
+   948→                      }
+   949→                      aria-label="Toggle pause-on-customer-response"
+   950→                    />
+   951→                  </div>
+   952→                </div>
+   953→              </div>
+   954→
+   955→              <SheetFooter className="mt-auto flex-row gap-2 border-t pt-4">
+   956→                <Button variant="outline" size="sm" onClick={closeSheet}>
+   957→                  Cancel
+   958→                </Button>
+   959→                <Button size="sm" onClick={saveDraft}>
+   960→                  <Save className="mr-1 h-3 w-3" /> Save Policy
+   961→                </Button>
+   962→              </SheetFooter>
+   963→            </div>
+   964→          )}
+   965→        </SheetContent>
+   966→      </Sheet>
+   967→    </Page>
+   968→  );
+   969→}
+   970→

@@ -121,8 +121,10 @@ const SCOPES: TokenScope[] = [
 /** User options for the User dropdown. */
 function getUserOptions(tid: string): { id: string; email: string; name: string }[] {
   const tenantTraders = getTenantTraders(tid);
-  // Combine auth users + tenant traders; cap at 20 for the dropdown.
-  const combined: (AuthUser | Trader)[] = [...authUsers, ...tenantTraders];
+  // Platform tenant sees the full cross-tenant admin pool; a regular
+  // tenant only sees its own auth users (no cross-tenant PII leak).
+  const scopedAuthUsers = tid === "platform" ? authUsers : authUsers.filter((u) => u.tenantId === tid);
+  const combined: (AuthUser | Trader)[] = [...scopedAuthUsers, ...tenantTraders];
   if (combined.length === 0) return [{ id: "system", email: "system@pfaas.io", name: "System" }];
   const seen = new Set<string>();
   const out: { id: string; email: string; name: string }[] = [];
@@ -238,11 +240,14 @@ function buildTokenDetail(id: string, tid: string): TokenDetail {
     ? new Date(Date.now() - (seed % 72) * 60 * 60 * 1000).toISOString()
     : null;
 
-  // Created by: deterministic admin user
-  const adminOptions = authUsers.filter((u) =>
+  // Created by: deterministic admin user (scoped to the calling tenant —
+  // platform tenant sees the full admin pool; regular tenants only see
+  // their own admins, no cross-tenant staff leak).
+  const scopedAuth = tid === "platform" ? authUsers : authUsers.filter((u) => u.tenantId === tid);
+  const adminOptions = scopedAuth.filter((u) =>
     u.roles?.some((r) => r === "super-admin" || r === "prop-admin"),
   );
-  const adminPool = adminOptions.length > 0 ? adminOptions : authUsers;
+  const adminPool = adminOptions.length > 0 ? adminOptions : scopedAuth;
   const admin = adminPool[seed % adminPool.length] ?? {
     id: "user-super",
     name: "Alex Morgan",
@@ -455,6 +460,7 @@ export function TokenDetailPage() {
       <PageContent>
         {/* Form grid — 2 columns on lg, stacks on smaller screens */}
         <TokenForm
+          key={working.key}
           working={working}
           userOptions={userOptions}
           showKey={showKey}

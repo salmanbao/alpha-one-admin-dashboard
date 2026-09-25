@@ -43,16 +43,30 @@ export interface ActivityItem {
   tone: "info" | "success" | "warning" | "critical";
 }
 
-const ACTORS = ["Sarah Chen", "Marcus Webb", "Priya Nair", "Daniel Cooper", "Elena Rossi", "System", "AI Engine"];
+// Role-based actor labels (no personal names) so the same global ticker
+// doesn't leak staff identities across tenants. Round 4 fix: previously
+// hardcoded "Sarah Chen", "Marcus Webb", "Priya Nair", "Daniel Cooper",
+// "Elena Rossi" — the same names appeared on every tenant, implying
+// cross-tenant staff. Roles are tenant-agnostic and conveys the same
+// "real human activity" intent without PII leakage.
+const ACTORS = [
+  "Compliance Officer",
+  "Risk Manager",
+  "Payouts Bot",
+  "Support Lead",
+  "System",
+  "AI Engine",
+  "Onboarding Team",
+];
 const ACTIONS = [
-  { action: "approved a payout", module: "payouts", tone: "success" as const },
+  { action: "approved a withdrawal", module: "payouts", tone: "success" as const },
   { action: "resolved a breach", module: "risk", tone: "success" as const },
   { action: "flagged a high-risk account", module: "risk", tone: "warning" as const },
-  { action: "approved KYC for a trader", module: "kyc", tone: "success" as const },
+  { action: "approved KYC for a participant", module: "kyc", tone: "success" as const },
   { action: "enabled the Analytics module", module: "settings", tone: "info" as const },
   { action: "generated an AI insight", module: "ai", tone: "info" as const },
-  { action: "detected a payout spike", module: "ai", tone: "warning" as const },
-  { action: "created a new challenge", module: "challenges", tone: "info" as const },
+  { action: "detected a withdrawal spike", module: "ai", tone: "warning" as const },
+  { action: "created a new evaluation", module: "challenges", tone: "info" as const },
   { action: "updated risk configuration", module: "risk", tone: "info" as const },
   { action: "exported the revenue report", module: "analytics", tone: "info" as const },
 ];

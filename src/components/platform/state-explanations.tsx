@@ -39,9 +39,9 @@ const toneStyles: Record<StateExplanation["tone"], { badge: string; icon: Compon
   safe: { badge: "border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30", icon: CheckCircle2, iconColor: "text-emerald-600 dark:text-emerald-400" },
   warning: { badge: "border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30", icon: AlertTriangle, iconColor: "text-amber-600 dark:text-amber-400" },
   critical: { badge: "border-rose-500/40 text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30", icon: ShieldAlert, iconColor: "text-rose-600 dark:text-rose-400" },
-  info: { badge: "border-sky-500/40 text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/30", icon: Info, iconColor: "text-sky-600 dark:text-sky-400" },
+  info: { badge: "border-teal-500/40 text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/30", icon: Info, iconColor: "text-teal-600 dark:text-teal-400" },
   neutral: { badge: "border-border text-muted-foreground bg-muted", icon: Clock, iconColor: "text-muted-foreground" },
-  progress: { badge: "border-violet-500/40 text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30", icon: Clock, iconColor: "text-violet-600 dark:text-violet-400" },
+  progress: { badge: "border-teal-500/40 text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/30", icon: Clock, iconColor: "text-teal-600 dark:text-teal-400" },
 };
 
 /** Status → StateExplanation lookup table (§56: internal vs external language) */

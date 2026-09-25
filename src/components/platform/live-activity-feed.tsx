@@ -26,7 +26,7 @@ const moduleIcon: Record<string, React.ComponentType<{ className?: string }>> = 
 };
 
 const toneColor: Record<string, string> = {
-  info: "bg-sky-500",
+  info: "bg-teal-500",
   success: "bg-emerald-500",
   warning: "bg-amber-500",
   critical: "bg-rose-500",

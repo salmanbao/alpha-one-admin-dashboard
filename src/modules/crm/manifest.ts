@@ -50,7 +50,7 @@ export const crmModule: FrontendModule = {
       { id: "crm.update", label: "Update contacts" },
     ],
     icon: Users,
-    accentColor: "#0891b2",
+    accentColor: "#0f766e",
   },
   navigation,
   routes,

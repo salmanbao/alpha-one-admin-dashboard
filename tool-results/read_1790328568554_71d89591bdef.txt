@@ -1,0 +1,614 @@
+     1→"use client";
+     2→
+     3→import { useMemo, useState } from "react";
+     4→import { usePlatform } from "@/lib/platform/platform-context";
+     5→import { makeTermResolver, plural } from "@/lib/platform/terminology";
+     6→import { getTenantTickets, hashStr } from "@/lib/platform/mock-data";
+     7→import { resolveTicket, escalateTicket, appendTicketReply, effectiveTicketStatus, effectiveTicketMessages, useTicketVersion } from "@/modules/support/support-store";
+     8→import type { SupportTicket } from "@/lib/platform/mock-data";
+     9→import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+    10→import { DataTable, type Column } from "@/components/platform/data-table";
+    11→import { StatusBadge, ticketPriorityTone, ticketStatusTone } from "@/components/platform/status";
+    12→import { DonutSeries } from "@/components/platform/charts";
+    13→import { toast } from "@/hooks/use-toast";
+    14→import {
+    15→  LifeBuoy,
+    16→  Inbox,
+    17→  AlertTriangle,
+    18→  Clock,
+    19→  CheckCircle2,
+    20→  BookOpen,
+    21→  FileText,
+    22→  MessageSquare,
+    23→  Paperclip,
+    24→  Send,
+    25→  User,
+    26→  AlertCircle,
+    27→  ChevronUp,
+    28→  ChevronDown,
+    29→} from "lucide-react";
+    30→import { Button } from "@/components/ui/button";
+    31→import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+    32→import {
+    33→  Sheet,
+    34→  SheetContent,
+    35→  SheetHeader,
+    36→  SheetTitle,
+    37→  SheetDescription,
+    38→  SheetFooter,
+    39→} from "@/components/ui/sheet";
+    40→import { Textarea } from "@/components/ui/textarea";
+    41→import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+    42→import { Separator } from "@/components/ui/separator";
+    43→import { Badge } from "@/components/ui/badge";
+    44→import {
+    45→  Collapsible,
+    46→  CollapsibleTrigger,
+    47→  CollapsibleContent,
+    48→} from "@/components/ui/collapsible";
+    49→
+    50→/* ------------------------------------------------------------------ */
+    51→/* Helpers                                                             */
+    52→/* ------------------------------------------------------------------ */
+    53→
+    54→function relativeTime(iso: string): string {
+    55→  const diff = Date.now() - new Date(iso).getTime();
+    56→  const hours = Math.floor(diff / (1000 * 60 * 60));
+    57→  if (hours < 1) return "just now";
+    58→  if (hours < 24) return `${hours}h ago`;
+    59→  const days = Math.floor(hours / 24);
+    60→  return `${days}d ago`;
+    61→}
+    62→
+    63→function avgResponseHours(tickets: SupportTicket[]): number {
+    64→  const withReplies = tickets.filter((t) => t.lastReplyAt);
+    65→  if (!withReplies.length) return 0;
+    66→  let total = 0;
+    67→  for (const t of withReplies) {
+    68→    const created = new Date(t.createdAt).getTime();
+    69→    const replied = new Date(t.lastReplyAt!).getTime();
+    70→    total += Math.max(1, (replied - created) / (1000 * 60 * 60));
+    71→  }
+    72→  return Math.round(total / withReplies.length);
+    73→}
+    74→
+    75→/**
+    76→ * Derive SLA target (in hours) from priority — used by the Ticket Detail
+    77→ * Sheet KPI strip. The mock SupportTicket has no `slaHours` field, so we
+    78→ * project from the existing `priority` field deterministically.
+    79→ */
+    80→function slaHoursFor(priority: SupportTicket["priority"]): number {
+    81→  switch (priority) {
+    82→    case "urgent": return 4;
+    83→    case "high": return 8;
+    84→    case "medium": return 24;
+    85→    case "low": return 48;
+    86→  }
+    87→}
+    88→
+    89→/* ------------------------------------------------------------------ */
+    90→/* Deterministic conversation thread generator                          */
+    91→/* ------------------------------------------------------------------ */
+    92→
+    93→interface ConversationMessage {
+    94→  author: string;
+    95→  authorInitials: string;
+    96→  body: string;
+    97→  timestamp: string;
+    98→  fromTrader: boolean;
+    99→}
+   100→
+   101→const TRADER_OPENERS = [
+   102→  "Hi team, I'm seeing the issue described above and would appreciate a quick look.",
+   103→  "Following up — this is still blocking my trading session today.",
+   104→  "Any update on this? I'd like to get back to the challenge before the daily reset.",
+   105→  "Thanks for the reply. I've attached the screenshot showing the error.",
+   106→  "Could you also confirm whether the payout window re-opens once this is resolved?",
+   107→];
+   108→
+   109→const AGENT_OPENERS = [
+   110→  "Thanks for reaching out — I've pulled up your account and I'm investigating now.",
+   111→  "I can confirm this is a known issue on our side; engineering is rolling out a fix this afternoon.",
+   112→  "Could you share the exact timestamp when this last occurred? I'll cross-reference the logs.",
+   113→  "Good news — the rule engine has been recalibrated; please refresh your dashboard in 5 minutes.",
+   114→  "I've escalated this to Tier 2 support. You should hear back within the SLA window.",
+   115→];
+   116→
+   117→function conversationFor(t: SupportTicket): ConversationMessage[] {
+   118→  const seed = hashStr(t.id);
+   119→  // Build 3 deterministic messages anchored on createdAt; spacing of 2h, 5h.
+   120→  const created = new Date(t.createdAt).getTime();
+   121→  const mkTs = (hoursAgo: number) => new Date(created + hoursAgo * 3_600_000).toISOString();
+   122→  const traderIdx = seed % TRADER_OPENERS.length;
+   123→  const agentIdx = (seed >>> 3) % AGENT_OPENERS.length;
+   124→  const traderInitials = t.traderName
+   125→    .split(" ")
+   126→    .map((p) => p[0])
+   127→    .slice(0, 2)
+   128→    .join("")
+   129→    .toUpperCase();
+   130→  return [
+   131→    {
+   132→      author: t.traderName,
+   133→      authorInitials: traderInitials,
+   134→      body: TRADER_OPENERS[traderIdx],
+   135→      timestamp: mkTs(0),
+   136→      fromTrader: true,
+   137→    },
+   138→    {
+   139→      author: t.assignee ?? "Support Agent",
+   140→      authorInitials: (t.assignee ?? "SA")
+   141→        .split(" ")
+   142→        .map((p) => p[0])
+   143→        .slice(0, 2)
+   144→        .join("")
+   145→        .toUpperCase(),
+   146→      body: AGENT_OPENERS[agentIdx],
+   147→      timestamp: mkTs(2),
+   148→      fromTrader: false,
+   149→    },
+   150→    {
+   151→      author: t.traderName,
+   152→      authorInitials: traderInitials,
+   153→      body: TRADER_OPENERS[(traderIdx + 2) % TRADER_OPENERS.length],
+   154→      timestamp: mkTs(5),
+   155→      fromTrader: true,
+   156→    },
+   157→  ];
+   158→}
+   159→
+   160→interface InternalNote {
+   161→  author: string;
+   162→  body: string;
+   163→  timestamp: string;
+   164→}
+   165→
+   166→function internalNotesFor(t: SupportTicket): InternalNote[] {
+   167→  const seed = hashStr(t.id);
+   168→  const created = new Date(t.createdAt).getTime();
+   169→  const mkTs = (h: number) => new Date(created + h * 3_600_000).toISOString();
+   170→  const authors = ["Sarah K.", "Marcus T.", "Elena R."];
+   171→  const notes = [
+   172→    "Triaged to billing tier — confirmed the trader is on the 100k challenge plan.",
+   173→    "Cross-referenced with the trading log; the rule-engine recalc is plausible.",
+   174→  ];
+   175→  return notes.map((body, i) => ({
+   176→    author: authors[(seed >>> (i * 2)) % authors.length],
+   177→    body,
+   178→    timestamp: mkTs(i + 1),
+   179→  }));
+   180→}
+   181→
+   182→/* ------------------------------------------------------------------ */
+   183→/* Pages                                                               */
+   184→/* ------------------------------------------------------------------ */
+   185→
+   186→export function SupportOverviewPage() {
+   187→  const { runtime, tenant } = usePlatform();
+   188→  const term = makeTermResolver(tenant);
+   189→  const tid = runtime.tenant?.id ?? "platform";
+   190→  useTicketVersion(); // KPIs recompute after resolve/escalate
+   191→  const tickets = getTenantTickets(tid).map((t) => ({ ...t, status: effectiveTicketStatus(t) }));
+   192→  const open = tickets.filter((t) => t.status === "open" || t.status === "in-progress").length;
+   193→  const urgent = tickets.filter((t) => t.priority === "urgent" && t.status !== "closed" && t.status !== "resolved").length;
+   194→  const resolvedToday = tickets.filter((t) => t.status === "resolved").length;
+   195→  const avg = avgResponseHours(tickets);
+   196→  const recent = tickets
+   197→    .slice()
+   198→    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+   199→    .slice(0, 6);
+   200→  const buckets = (["urgent", "high", "medium", "low"] as const).map((p) => ({
+   201→    label: p.charAt(0).toUpperCase() + p.slice(1),
+   202→    value: tickets.filter((t) => t.priority === p).length,
+   203→    color:
+   204→      p === "urgent" ? "#dc2626" :
+   205→      p === "high" ? "#ea580c" :
+   206→      p === "medium" ? "#0ea5e9" : "#94a3b8",
+   207→  }));
+   208→  return (
+   209→    <Page>
+   210→      <PageHeader
+   211→        title="Support"
+   212→        description={`Ticketing and ${term("trader").toLowerCase()} assistance across this tenant.`}
+   213→        icon={LifeBuoy}
+   214→        actions={
+   215→          <Button size="sm" variant="outline" onClick={() => toast({ title: "New ticket", description: "Open a new ticket (demo)." })}>
+   216→            <Inbox className="mr-1 h-4 w-4" /> New Ticket
+   217→          </Button>
+   218→        }
+   219→      />
+   220→      <PageContent>
+   221→        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+   222→          <MetricCard label="Open Tickets" value={open} icon={Inbox} tone="warning" />
+   223→          <MetricCard label="Urgent" value={urgent} icon={AlertTriangle} tone="negative" />
+   224→          <MetricCard label="Avg Response" value={avg ? `${avg}h` : "—"} icon={Clock} />
+   225→          <MetricCard label="Resolved Today" value={resolvedToday} icon={CheckCircle2} tone="positive" />
+   226→        </div>
+   227→        <div className="grid gap-4 lg:grid-cols-3">
+   228→          <div className="lg:col-span-2 rounded-lg border bg-card p-4">
+   229→            <p className="mb-3 text-sm font-medium">Recent tickets</p>
+   230→            <DataTable
+   231→              columns={[
+   232→                { key: "subject", header: "Subject", cell: (t) => <span className="font-medium text-foreground">{t.subject}</span> },
+   233→                { key: "traderName", header: term("trader"), cell: (t) => <span className="text-muted-foreground">{t.traderName}</span> },
+   234→                { key: "priority", header: "Priority", cell: (t) => <StatusBadge tone={ticketPriorityTone(t.priority)}>{t.priority}</StatusBadge> },
+   235→                { key: "status", header: "Status", cell: (t) => <StatusBadge tone={ticketStatusTone(t.status)}>{t.status}</StatusBadge> },
+   236→                { key: "created", header: "Created", cell: (t) => <span className="text-xs text-muted-foreground">{relativeTime(t.createdAt)}</span>, sortValue: (t) => t.createdAt },
+   237→              ]}
+   238→              data={recent}
+   239→              rowKey={(t) => t.id}
+   240→              pageSize={6}
+   241→            />
+   242→          </div>
+   243→          <div className="rounded-lg border bg-card p-4">
+   244→            <p className="mb-2 text-sm font-medium">Priority distribution</p>
+   245→            <DonutSeries data={buckets} height={200} />
+   246→          </div>
+   247→        </div>
+   248→      </PageContent>
+   249→    </Page>
+   250→  );
+   251→}
+   252→
+   253→export function SupportTicketsPage() {
+   254→  const { runtime, tenant } = usePlatform();
+   255→  const term = makeTermResolver(tenant);
+   256→  const tid = runtime.tenant?.id ?? "platform";
+   257→  useTicketVersion(); // table reacts to drawer actions
+   258→  const tickets = getTenantTickets(tid).map((t) => ({
+   259→    ...t,
+   260→    status: effectiveTicketStatus(t),
+   261→    messages: effectiveTicketMessages(t),
+   262→  }));
+   263→
+   264→  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+   265→  // Replies sent this session — appended to the thread so "Send" has an
+   266→  // observable effect in the conversation.
+   267→  const [sentReplies, setSentReplies] = useState<Array<{ body: string; timestamp: string }>>([]);
+   268→  const [reply, setReply] = useState("");
+   269→  const [notesOpen, setNotesOpen] = useState(false);
+   270→
+   271→  const columns: Column<SupportTicket>[] = [
+   272→    { key: "subject", header: "Subject", cell: (t) => <span className="font-medium text-foreground">{t.subject}</span> },
+   273→    { key: "traderName", header: term("trader"), cell: (t) => <span className="text-muted-foreground">{t.traderName}</span> },
+   274→    { key: "category", header: "Category", cell: (t) => <span className="capitalize text-muted-foreground">{t.category}</span>, sortValue: (t) => t.category },
+   275→    { key: "priority", header: "Priority", cell: (t) => <StatusBadge tone={ticketPriorityTone(t.priority)}>{t.priority}</StatusBadge>, sortValue: (t) => t.priority },
+   276→    { key: "status", header: "Status", cell: (t) => <StatusBadge tone={ticketStatusTone(t.status)}>{t.status}</StatusBadge>, sortValue: (t) => t.status },
+   277→    { key: "assignee", header: "Assignee", cell: (t) => <span className="text-muted-foreground">{t.assignee ?? "Unassigned"}</span> },
+   278→    { key: "created", header: "Created", cell: (t) => <span className="text-xs text-muted-foreground">{relativeTime(t.createdAt)}</span>, sortValue: (t) => t.createdAt },
+   279→    { key: "messages", header: "Messages", cell: (t) => <span className="text-xs text-muted-foreground">{t.messages}</span>, sortValue: (t) => t.messages },
+   280→  ];
+   281→
+   282→  // Derived conversation thread for the currently-selected ticket — memoised
+   283→  // so toggling `selectedTicket` doesn't recompute on every keystroke in the
+   284→  // reply box.
+   285→  const conversation = useMemo(
+   286→    () => (selectedTicket ? conversationFor(selectedTicket) : []),
+   287→    [selectedTicket],
+   288→  );
+   289→  const internalNotes = useMemo(
+   290→    () => (selectedTicket ? internalNotesFor(selectedTicket) : []),
+   291→    [selectedTicket],
+   292→  );
+   293→
+   294→  return (
+   295→    <Page>
+   296→      <PageHeader title="Support Tickets" description={`All ${term("trader").toLowerCase()} support tickets.`} icon={Inbox} />
+   297→      <PageContent>
+   298→        <DataTable
+   299→          columns={columns}
+   300→          data={tickets}
+   301→          rowKey={(t) => t.id}
+   302→          searchableText={(t) => `${t.subject} ${t.traderName} ${t.category} ${t.assignee ?? ""}`}
+   303→          onRowClick={(t) => {
+   304→            setSelectedTicket(t);
+   305→            setReply("");
+   306→            setNotesOpen(false);
+   307→            setSentReplies([]);
+   308→          }}
+   309→          pageSize={12}
+   310→        />
+   311→      </PageContent>
+   312→
+   313→      {/* Detail Sheet drawer (§27 — quick inspection + small contextual actions) */}
+   314→        <Sheet
+   315→        open={!!selectedTicket}
+   316→        onOpenChange={(open) => {
+   317→          if (!open) {
+   318→            setSelectedTicket(null);
+   319→            setReply("");
+   320→            setSentReplies([]);
+   321→          }
+   322→        }}
+   323→      >
+   324→        <SheetContent className="sm:max-w-[640px] overflow-y-auto" side="right">
+   325→          {selectedTicket && (
+   326→            <div className="flex h-full flex-col">
+   327→              <SheetHeader>
+   328→                <div className="flex items-start justify-between gap-4">
+   329→                  <div className="min-w-0">
+   330→                    <SheetTitle className="text-lg">{selectedTicket.subject}</SheetTitle>
+   331→                    <SheetDescription className="mt-1">
+   332→                      <span className="font-mono">#{selectedTicket.id}</span> · Opened {relativeTime(selectedTicket.createdAt)}
+   333→                    </SheetDescription>
+   334→                  </div>
+   335→                  <StatusBadge tone={ticketStatusTone(effectiveTicketStatus(selectedTicket))} className="shrink-0">
+   336→                    {effectiveTicketStatus(selectedTicket)}
+   337→                  </StatusBadge>
+   338→                </div>
+   339→              </SheetHeader>
+   340→
+   341→              {/* KPI strip */}
+   342→              <div className="grid grid-cols-3 gap-2 px-4 py-3">
+   343→                <div className="rounded-lg border p-2 text-center">
+   344→                  <Clock className="h-3 w-3 mx-auto text-amber-600 mb-1" />
+   345→                  <div className="text-[10px] text-muted-foreground">SLA</div>
+   346→                  <div className="text-xs font-medium">{slaHoursFor(selectedTicket.priority)}h</div>
+   347→                </div>
+   348→                <div className="rounded-lg border p-2 text-center">
+   349→                  <User className="h-3 w-3 mx-auto text-emerald-600 mb-1" />
+   350→                  <div className="text-[10px] text-muted-foreground">Assignee</div>
+   351→                  <div className="text-xs font-medium truncate">{selectedTicket.assignee ?? "Unassigned"}</div>
+   352→                </div>
+   353→                <div className="rounded-lg border p-2 text-center">
+   354→                  <MessageSquare className="h-3 w-3 mx-auto text-rose-600 mb-1" />
+   355→                  <div className="text-[10px] text-muted-foreground">Messages</div>
+   356→                  <div className="text-xs font-medium">{effectiveTicketMessages(selectedTicket)}</div>
+   357→                </div>
+   358→              </div>
+   359→
+   360→              <div className="flex-1 overflow-y-auto px-4 pb-4">
+   361→                {/* Conversation thread */}
+   362→                <div className="space-y-3 my-2">
+   363→                  <h4 className="text-sm font-medium">Conversation</h4>
+   364→                  {conversation.map((msg, i) => (
+   365→                    <div
+   366→                      key={`seed-${i}`}
+   367→                      className={`flex gap-2 ${msg.fromTrader ? "flex-row" : "flex-row-reverse"}`}
+   368→                    >
+   369→                      <Avatar className="h-7 w-7 shrink-0">
+   370→                        <AvatarFallback
+   371→                          className={`text-[10px] ${
+   372→                            msg.fromTrader
+   373→                              ? "bg-muted text-foreground"
+   374→                              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+   375→                          }`}
+   376→                        >
+   377→                          {msg.authorInitials}
+   378→                        </AvatarFallback>
+   379→                      </Avatar>
+   380→                      <div
+   381→                        className={`flex-1 rounded-lg p-3 ${
+   382→                          msg.fromTrader ? "bg-muted" : "bg-emerald-50 dark:bg-emerald-950/20"
+   383→                        }`}
+   384→                      >
+   385→                        <div className="flex items-center justify-between mb-1 gap-2">
+   386→                          <span className="text-xs font-medium truncate">{msg.author}</span>
+   387→                          <span className="text-[10px] text-muted-foreground shrink-0">
+   388→                            {relativeTime(msg.timestamp)}
+   389→                          </span>
+   390→                        </div>
+   391→                        <p className="text-sm leading-relaxed">{msg.body}</p>
+   392→                      </div>
+   393→                    </div>
+   394→                  ))}
+   395→                  {sentReplies.map((r, i) => (
+   396→                    <div key={`sent-${i}`} className="flex gap-2 flex-row-reverse">
+   397→                      <Avatar className="h-7 w-7 shrink-0">
+   398→                        <AvatarFallback className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+   399→                          You
+   400→                        </AvatarFallback>
+   401→                      </Avatar>
+   402→                      <div className="flex-1 rounded-lg p-3 bg-emerald-50 dark:bg-emerald-950/20">
+   403→                        <div className="flex items-center justify-between mb-1 gap-2">
+   404→                          <span className="text-xs font-medium truncate">You (agent)</span>
+   405→                          <span className="text-[10px] text-muted-foreground shrink-0">just now</span>
+   406→                        </div>
+   407→                        <p className="text-sm leading-relaxed">{r.body}</p>
+   408→                      </div>
+   409→                    </div>
+   410→                  ))}
+   411→                </div>
+   412→
+   413→                <Separator className="my-3" />
+   414→
+   415→                {/* Internal notes (collapsed — §12 Progressive Disclosure) */}
+   416→                <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
+   417→                  <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+   418→                    {notesOpen ? (
+   419→                      <ChevronUp className="h-3 w-3" />
+   420→                    ) : (
+   421→                      <ChevronDown className="h-3 w-3" />
+   422→                    )}
+   423→                    Internal notes ({internalNotes.length})
+   424→                  </CollapsibleTrigger>
+   425→                  <CollapsibleContent className="mt-2 space-y-2">
+   426→                    {internalNotes.map((n, i) => (
+   427→                      <div key={i} className="rounded-md border border-dashed bg-muted/30 p-2">
+   428→                        <div className="flex items-center justify-between mb-1">
+   429→                          <span className="text-[10px] font-medium text-foreground">{n.author}</span>
+   430→                          <span className="text-[10px] text-muted-foreground">{relativeTime(n.timestamp)}</span>
+   431→                        </div>
+   432→                        <p className="text-xs text-muted-foreground">{n.body}</p>
+   433→                      </div>
+   434→                    ))}
+   435→                  </CollapsibleContent>
+   436→                </Collapsible>
+   437→
+   438→                {/* Reply box */}
+   439→                <div className="mt-4">
+   440→                  <Textarea
+   441→                    value={reply}
+   442→                    onChange={(e) => setReply(e.target.value)}
+   443→                    placeholder="Type your reply..."
+   444→                    className="min-h-[80px]"
+   445→                    aria-label="Reply to ticket"
+   446→                  />
+   447→                  <div className="flex items-center justify-between mt-2 gap-2">
+   448→                    <div className="flex gap-1">
+   449→                      <Button
+   450→                        size="sm"
+   451→                        variant="ghost"
+   452→                        onClick={() => toast({ title: "Attachment (demo)", description: "File picker would open here." })}
+   453→                        aria-label="Attach file"
+   454→                      >
+   455→                        <Paperclip className="h-3 w-3" />
+   456→                      </Button>
+   457→                      <Button
+   458→                        size="sm"
+   459→                        variant="ghost"
+   460→                        onClick={() => toast({ title: "Canned responses (demo)", description: "Insert a saved macro." })}
+   461→                      >
+   462→                        <FileText className="h-3 w-3" /> Canned
+   463→                      </Button>
+   464→                    </div>
+   465→                    <Button
+   466→                      size="sm"
+   467→                      disabled={!reply.trim()}
+   468→                      onClick={() => {
+   469→                        // Record the reply in the store (message count) and
+   470→                        // append it to the visible thread.
+   471→                        appendTicketReply(selectedTicket.id);
+   472→                        setSentReplies((r) => [
+   473→                          ...r,
+   474→                          { body: reply.trim(), timestamp: new Date().toISOString() },
+   475→                        ]);
+   476→                        toast({
+   477→                          title: "Reply sent",
+   478→                          description: `Reply posted to ${selectedTicket.id}.`,
+   479→                        });
+   480→                        setReply("");
+   481→                      }}
+   482→                    >
+   483→                      <Send className="h-3 w-3" /> Send
+   484→                    </Button>
+   485→                  </div>
+   486→                </div>
+   487→              </div>
+   488→
+   489→              <SheetFooter className="mt-auto flex-row gap-2 border-t pt-4">
+   490→                <Button
+   491→                  variant="outline"
+   492→                  size="sm"
+   493→                  onClick={() => {
+   494→                    // Escalate moves the ticket to the in-progress (Tier 2)
+   495→                    // state — visible in the drawer badge and the table.
+   496→                    escalateTicket(selectedTicket.id);
+   497→                    toast({
+   498→                      title: "Escalated",
+   499→                      description: `Ticket ${selectedTicket.id} moved to Tier 2 queue.`,
+   500→                      variant: "default",
+   501→                    });
+   502→                  }}
+   503→                >
+   504→                  <AlertCircle className="h-3 w-3" /> Escalate
+   505→                </Button>
+   506→                <Button
+   507→                  variant="default"
+   508→                  size="sm"
+   509→                  onClick={() => {
+   510→                    // Mutate the shared store — the row flips to resolved and
+   511→                    // every ticket KPI recomputes.
+   512→                    resolveTicket(selectedTicket.id);
+   513→                    toast({
+   514→                      title: "Resolved",
+   515→                      description: `Ticket ${selectedTicket.id} marked as resolved.`,
+   516→                    });
+   517→                    setSelectedTicket(null);
+   518→                    setReply("");
+   519→                  }}
+   520→                >
+   521→                  <CheckCircle2 className="h-3 w-3" /> Resolve
+   522→                </Button>
+   523→              </SheetFooter>
+   524→            </div>
+   525→          )}
+   526→        </SheetContent>
+   527→      </Sheet>
+   528→    </Page>
+   529→  );
+   530→}
+   531→
+   532→/* Knowledge base — static FAQ cards */
+   533→
+   534→interface FaqItem {
+   535→  id: string;
+   536→  question: string;
+   537→  answer: string;
+   538→  category: string;
+   539→  icon: React.ComponentType<{ className?: string }>;
+   540→}
+   541→
+   542→const faqItems: FaqItem[] = [
+   543→  {
+   544→    id: "faq-1",
+   545→    category: "Getting Started",
+   546→    question: "How do I start a challenge?",
+   547→    answer: "After verifying your KYC, navigate to Challenges and select an available plan. Funded status is reached after passing both Phase 1 and Phase 2 profit targets.",
+   548→    icon: BookOpen,
+   549→  },
+   550→  {
+   551→    id: "faq-2",
+   552→    category: "Trading",
+   553→    question: "What is the max daily drawdown?",
+   554→    answer: "Most plans enforce a 5% daily drawdown limit. Breaches are flagged automatically and the affected account is moved to breached status with payout eligibility reviewed.",
+   555→    icon: FileText,
+   556→  },
+   557→  {
+   558→    id: "faq-3",
+   559→    category: "Payouts",
+   560→    question: "How long do payouts take?",
+   561→    answer: "Payouts are processed within 1-3 business days after approval. Bank holidays may extend processing. You will receive email confirmation once funds are released.",
+   562→    icon: FileText,
+   563→  },
+   564→  {
+   565→    id: "faq-4",
+   566→    category: "Account",
+   567→    question: "Can I reset my challenge account?",
+   568→    answer: "Yes, resets are available from the account detail page. Each plan includes one free reset per month; additional resets may incur a fee depending on your tier.",
+   569→    icon: BookOpen,
+   570→  },
+   571→  {
+   572→    id: "faq-5",
+   573→    category: "Technical",
+   574→    question: "Why can I not log in to MT5?",
+   575→    answer: "Ensure your MT5 credentials were issued from the Accounts page. If login still fails, verify your server matches the account platform (MT5 vs DXTrade) and contact support.",
+   576→    icon: FileText,
+   577→  },
+   578→  {
+   579→    id: "faq-6",
+   580→    category: "Billing",
+   581→    question: "How do refunds work for failed challenges?",
+   582→    answer: "Refunds are issued for technical failures on our side. Failed trades are non-refundable. To request a refund, open a ticket under the billing category.",
+   583→    icon: BookOpen,
+   584→  },
+   585→];
+   586→
+   587→export function SupportKnowledgePage() {
+   588→  const { tenant } = usePlatform();
+   589→  const term = makeTermResolver(tenant);
+   590→  return (
+   591→    <Page>
+   592→      <PageHeader title="Knowledge Base" description={`Self-service guides and FAQs for ${plural(term("trader")).toLowerCase()}.`} icon={BookOpen} />
+   593→      <PageContent>
+   594→        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+   595→          {faqItems.map((f) => (
+   596→            <Card key={f.id} className="flex flex-col">
+   597→              <CardHeader>
+   598→                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg border bg-muted">
+   599→                  <f.icon className="h-4 w-4 text-foreground" />
+   600→                </div>
+   601→                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{f.category}</span>
+   602→                <CardTitle className="text-base">{f.question}</CardTitle>
+   603→              </CardHeader>
+   604→              <CardContent>
+   605→                <CardDescription className="text-sm leading-relaxed">{f.answer}</CardDescription>
+   606→              </CardContent>
+   607→            </Card>
+   608→          ))}
+   609→        </div>
+   610→      </PageContent>
+   611→    </Page>
+   612→  );
+   613→}
+   614→

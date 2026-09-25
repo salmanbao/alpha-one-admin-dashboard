@@ -926,7 +926,7 @@ function ChangeHistoryTab({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => navigate("challenge-edit", { id: "" })}
+            onClick={() => navigate("challenge-edit", { id: phase.challengeTypeId })}
           >
             <ArrowLeft className="mr-1 h-3.5 w-3.5" /> Back to Challenge
           </Button>

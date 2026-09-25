@@ -99,7 +99,7 @@ const TERRA = {
   amber: "#f59e0b",
   rose: "#e11d48",
   slate: "#64748b",
-  sky: "#0ea5e9",
+  sky: "#0d9488",
   teal: "#0d9488",
   forest: "#4a7c59",
   muted: "#78716c",
@@ -498,7 +498,7 @@ export function AnalyticsOverviewPage() {
           </div>
           <div className="rounded-lg border bg-card p-4">
             <p className="mb-2 text-sm font-medium">{`${term("trader")} growth`}</p>
-            <AreaSeries data={traderGrowthSeries(tid)} xKey="date" yKey="value" color="#0ea5e9" />
+            <AreaSeries data={traderGrowthSeries(tid)} xKey="date" yKey="value" color="#0d9488" />
           </div>
           <div className="rounded-lg border bg-card p-4">
             <p className="mb-2 text-sm font-medium">Risk distribution</p>
@@ -1397,7 +1397,7 @@ export function AdvancedAnalyticsPage() {
               ]}
               xKey="date"
               yKey="value"
-              color="#7c3aed"
+              color="#0d9488"
               height={220}
             />
           </div>

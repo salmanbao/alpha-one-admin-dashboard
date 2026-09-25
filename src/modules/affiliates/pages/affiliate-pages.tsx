@@ -90,7 +90,7 @@ export function AffiliatesOverviewPage() {
             ].map((m, i) => ({ date: m, value: Math.round(earned / 12 * (0.7 + 0.5 * Math.sin(i / 2) + i * 0.04)) }))}
             xKey="date"
             yKey="value"
-            color="#a21caf"
+            color="#b45309"
             formatValue={(v) => formatCurrency(v, currency)}
           />
         </div>

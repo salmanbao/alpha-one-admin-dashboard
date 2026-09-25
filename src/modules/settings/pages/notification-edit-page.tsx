@@ -226,7 +226,7 @@ export function NotificationEditPage() {
       title: "Notification deleted",
       description: `${title || "Untitled notification"} was permanently deleted.`,
     });
-    navigate("notifications");
+    navigate("notifications-management");
   };
 
   // Build a preview object using the current form state.
@@ -252,7 +252,7 @@ export function NotificationEditPage() {
         }
         icon={Bell}
         actions={
-          <Button size="sm" variant="outline" onClick={() => navigate("notifications")}>
+          <Button size="sm" variant="outline" onClick={() => navigate("notifications-management")}>
             <ChevronLeft className="mr-1 h-4 w-4" /> Back to Notifications
           </Button>
         }

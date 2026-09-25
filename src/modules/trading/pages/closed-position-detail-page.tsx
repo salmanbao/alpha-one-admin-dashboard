@@ -204,7 +204,12 @@ function generateClosedPositionDetail(
   const isJpyQuote = sym.endsWith("JPY");
   const grossPnlRaw = pnlPerUnit * mult * volume;
   const grossPnl = isJpyQuote ? grossPnlRaw / close : grossPnlRaw;
-  const commission = Math.round((volume * basePrice * 0.0004) * 100) / 100;
+  // Commission: 4 bps on notional value (volume × contract size × price).
+  // For JPY-quoted pairs the notional is in JPY, so divide by close to
+  // land in USD — previously the missing `mult` factor produced
+  // effectively zero commission for FX pairs ($0.02 instead of $19.53).
+  // Mirrors the same fix applied to closed-positions-page (Round 4).
+  const commission = Math.round((volume * basePrice * mult * 0.0004 / (isJpyQuote ? close : 1)) * 100) / 100;
   const swap = Math.round(Math.sin(seed) * 5 * 100) / 100;
   // Net profit = gross - commission - swap. Previously `profit` already
   // subtracted commission+swap, then `netProfit` subtracted them AGAIN —
@@ -713,7 +718,7 @@ function ClosedPositionForm({
             mono
           />
           <ReadOnlyField
-            label="Current price"
+            label="Mark at close"
             value={working.currentPrice.toFixed(5)}
             mono
             help="Live quote at the moment the position was closed."

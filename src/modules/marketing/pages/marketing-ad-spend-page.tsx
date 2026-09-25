@@ -241,7 +241,7 @@ const PLATFORM_COLORS: Record<AdPlatform, string> = {
   Meta: "#e11d48", // rose
   TikTok: "#d97706", // amber
   LinkedIn: "#475569", // slate-600
-  "Twitter/X": "#0284c7", // sky-600
+  "Twitter/X": "#15803d", // green-700 (Terra-allowed; replaces sky-600)
 };
 
 const PLATFORM_OPTIONS: { value: string; label: string }[] = [
@@ -709,7 +709,7 @@ export function MarketingAdSpendPage() {
             data={SPEND_TREND_30D}
             xKey="label"
             yKey="value"
-            color="#0284c7"
+            color="#15803d"
             height={220}
             formatValue={(v) => formatCurrency(v, currency)}
           />

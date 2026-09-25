@@ -75,9 +75,12 @@ interface SearchHit {
 }
 
 /**
- * Static settings entries — mirrors the 19 cards on the Settings
+ * Static settings entries — mirrors the 20 cards on the Settings
  * Overview landing grid (`settings-page.tsx`). When a settings page
- * is added or removed, update this list to match.
+ * is added or removed, update this list to match. Round 4 added the
+ * KYC Providers entry that Round 3 introduced to the Settings page
+ * but missed here, so searching "KYC Providers" used to yield no
+ * settings hit.
  */
 const SETTINGS_ENTRIES: Array<{
   id: string;
@@ -95,8 +98,10 @@ const SETTINGS_ENTRIES: Array<{
   { id: "social-media", label: "Social Media Links", description: "Footer social links and channels", icon: Share2, viewId: "social-media-links" },
   // Security
   { id: "users", label: "User Management", description: "Tenant users and role assignments", icon: UsersRound, viewId: "user-management" },
+  { id: "groups", label: "Group Management", description: "Group membership and access control", icon: Users, viewId: "group-management" },
   { id: "tokens", label: "API Tokens", description: "Long-lived API tokens with rotation", icon: KeyRound, viewId: "token-management" },
   { id: "device-activities", label: "Device Activities", description: "Login device fingerprinting", icon: Fingerprint, viewId: "device-activities" },
+  { id: "kyc-providers", label: "KYC Providers", description: "Identity verification providers", icon: ShieldCheck, viewId: "kyc-providers" },
   // Communications
   { id: "email-templates", label: "Email Templates", description: "Transactional and marketing templates", icon: Mail, viewId: "email-templates" },
   { id: "notifications-mgmt", label: "Notifications Management", description: "Notification types, channels, triggers", icon: Bell, viewId: "notifications-management" },

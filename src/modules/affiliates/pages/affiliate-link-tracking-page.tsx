@@ -319,7 +319,7 @@ const SOURCE_COLORS: Record<LinkSource, string> = {
   Email: "#059669",       // emerald
   Social: "#e11d48",      // rose
   "Paid Ad": "#d97706",   // amber
-  Referral: "#0284c7",   // sky-600
+  Referral: "#15803d",   // green-700 (Terra-allowed; replaces sky-600)
   Banner: "#94a3b8",     // slate-400
 };
 

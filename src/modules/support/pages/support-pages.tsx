@@ -203,7 +203,7 @@ export function SupportOverviewPage() {
     color:
       p === "urgent" ? "#dc2626" :
       p === "high" ? "#ea580c" :
-      p === "medium" ? "#0ea5e9" : "#94a3b8",
+      p === "medium" ? "#0d9488" : "#94a3b8",
   }));
   return (
     <Page>

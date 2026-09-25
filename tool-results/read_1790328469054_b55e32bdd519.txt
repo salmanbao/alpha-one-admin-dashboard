@@ -1,0 +1,1025 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Closed Position Detail Page — single closed trade view + edit form.
+     5→ *
+     6→ * Reached from the Closed Positions list (row click) or directly via
+     7→ * `router.params.id`. Breadcrumb: "Closed Positions > [Position ID]".
+     8→ *
+     9→ * Layout (UX §12, §25-27 — progressive disclosure, predictable detail view):
+    10→ *  - Breadcrumb + header row showing the Position ID, direction, state
+    11→ *  - Read-only detail grid grouped into six sections (Identity, Volume &
+    12→ *    Pricing, Timing, Order IDs, P&L, Risk, Flags) — every field the
+    13→ *    operator might audit on a closed trade.
+    14→ *  - Footer actions: destructive "Delete Closed Position" wrapped in an
+    15→ *    AlertDialog (UX §24 — irreversible action confirmation with
+    16→ *    consequence text), Save / Save and continue editing (outline),
+    17→ *    Back to Closed Positions (ghost, navigate).
+    18→ *
+    19→ * Mock data is generated deterministically from the position id, mirroring
+    20→ * the `generateClosedPositions` pattern on closed-positions-page.tsx — same
+    21→ * symbol list + base prices, same sin-seeded pseudo-randoms. That way the
+    22→ * detail view stays in sync with the list view if the operator opens a row
+    23→ * that exists there.
+    24→ *
+    25→ * Terra palette — emerald / amber / rose accents, no blue / indigo.
+    26→ */
+    27→
+    28→import { useMemo, useState } from "react";
+    29→import { usePlatform } from "@/lib/platform/platform-context";
+    30→import {
+    31→  getTenantAccounts,
+    32→  getTenantTraders,
+    33→  getTenantPositions,
+    34→} from "@/lib/platform/mock-data";
+    35→import { Page, PageContent } from "@/components/platform/page";
+    36→import { formatCurrency } from "@/components/platform/status";
+    37→import {
+    38→  Breadcrumb,
+    39→  BreadcrumbItem,
+    40→  BreadcrumbLink,
+    41→  BreadcrumbList,
+    42→  BreadcrumbPage,
+    43→  BreadcrumbSeparator,
+    44→} from "@/components/ui/breadcrumb";
+    45→import { Button } from "@/components/ui/button";
+    46→import { Badge } from "@/components/ui/badge";
+    47→import { Separator } from "@/components/ui/separator";
+    48→import { Switch } from "@/components/ui/switch";
+    49→import {
+    50→  Select,
+    51→  SelectContent,
+    52→  SelectItem,
+    53→  SelectTrigger,
+    54→  SelectValue,
+    55→} from "@/components/ui/select";
+    56→import {
+    57→  AlertDialog,
+    58→  AlertDialogAction,
+    59→  AlertDialogCancel,
+    60→  AlertDialogContent,
+    61→  AlertDialogDescription,
+    62→  AlertDialogFooter,
+    63→  AlertDialogHeader,
+    64→  AlertDialogTitle,
+    65→  AlertDialogTrigger,
+    66→} from "@/components/ui/alert-dialog";
+    67→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    68→import { toast } from "@/hooks/use-toast";
+    69→import { cn } from "@/lib/utils";
+    70→import {
+    71→  Activity,
+    72→  ArrowLeft,
+    73→  ArrowUpRight,
+    74→  ChevronRight,
+    75→  Hash,
+    76→  TrendingUp,
+    77→  TrendingDown,
+    78→  Clock,
+    79→  Receipt,
+    80→  Coins,
+    81→  ShieldAlert,
+    82→  Flag,
+    83→  Trash2,
+    84→  Save,
+    85→  Pencil,
+    86→  Check,
+    87→  User,
+    88→  CreditCard,
+    89→} from "lucide-react";
+    90→
+    91→/* ------------------------------------------------------------------ */
+    92→/* Types & mock data                                                  */
+    93→/* ------------------------------------------------------------------ */
+    94→
+    95→type CloseReason = "TP" | "SL" | "Manual" | "System" | "Liquidation";
+    96→type ClosedSide = "buy" | "sell";
+    97→type PositionType = "Market" | "Pending";
+    98→type EntryType = "In" | "Out";
+    99→
+   100→interface ClosedPositionDetail {
+   101→  id: string;
+   102→  uid: string;
+   103→  direction: ClosedSide;
+   104→  state: "CLOSED";
+   105→  symbol: string;
+   106→  symbolDescription: string;
+   107→  positionType: PositionType;
+   108→  entryType: EntryType;
+   109→  volume: number;
+   110→  openPrice: number;
+   111→  closePrice: number;
+   112→  currentPrice: number;
+   113→  openTime: string;
+   114→  closeTime: string;
+   115→  durationMs: number;
+   116→  openOrderId: string;
+   117→  closeOrderId: string;
+   118→  profit: number;
+   119→  commission: number;
+   120→  swap: number;
+   121→  netProfit: number;
+   122→  stopLoss: number | null;
+   123→  takeProfit: number | null;
+   124→  rrRatio: number | null;
+   125→  isPartial: boolean;
+   126→  closeReason: CloseReason;
+   127→  traderId: string;
+   128→  traderName: string;
+   129→  accountId: string;
+   130→  accountLogin: string;
+   131→}
+   132→
+   133→const CLOSE_REASONS: CloseReason[] = [
+   134→  "TP",
+   135→  "SL",
+   136→  "Manual",
+   137→  "System",
+   138→  "Liquidation",
+   139→];
+   140→
+   141→const BASE_SYMBOLS: Array<[string, number, number, string]> = [
+   142→  // symbol, base price, contract multiplier (units per 1.0 volume), description.
+   143→  // FX majors: 1 lot = 100,000 units (was 10,000 — under-stated FX P&L by 10x).
+   144→  // JPY pairs need /currentPrice conversion to land in USD (see grossPnl below).
+   145→  ["EURUSD", 1.085, 100_000, "Euro vs US Dollar — Major FX pair"],
+   146→  ["GBPUSD", 1.271, 100_000, "British Pound vs US Dollar — Major FX pair (Cable)"],
+   147→  ["USDJPY", 151.4, 100_000, "US Dollar vs Japanese Yen — Major FX pair"],
+   148→  ["XAUUSD", 2348.5, 100, "Spot Gold vs US Dollar — precious metal"],
+   149→  ["BTCUSD", 67250, 1, "Bitcoin vs US Dollar — flagship cryptocurrency"],
+   150→  ["ETHUSD", 3480, 1, "Ethereum vs US Dollar — smart-contract crypto"],
+   151→  ["SP500", 5230, 1, "S&P 500 Index — US large-cap equity benchmark"],
+   152→  ["NAS100", 18420, 1, "Nasdaq 100 Index — US tech equity benchmark"],
+   153→];
+   154→
+   155→/** Deterministic pseudo-random generator from a numeric seed. */
+   156→function seededRandom(seed: number): number {
+   157→  const x = Math.sin(seed * 9999.1) * 10000;
+   158→  return x - Math.floor(x);
+   159→}
+   160→
+   161→/** Hash a string id to a stable integer seed. */
+   162→function hashSeed(id: string): number {
+   163→  let h = 0;
+   164→  for (let i = 0; i < id.length; i++) {
+   165→    h = (h * 31 + id.charCodeAt(i)) | 0;
+   166→  }
+   167→  return Math.abs(h) || 1;
+   168→}
+   169→
+   170→/**
+   171→ * Generate a single deterministic closed position from an id. The shape
+   172→ * mirrors `generateClosedPositions` on the list page so opening a row
+   173→ * there would show matching data.
+   174→ */
+   175→function generateClosedPositionDetail(
+   176→  id: string,
+   177→  tenantId: string,
+   178→): ClosedPositionDetail {
+   179→  const accounts = getTenantAccounts(tenantId);
+   180→  const traders = getTenantTraders(tenantId);
+   181→  const openPositions = getTenantPositions(tenantId);
+   182→
+   183→  const seed = hashSeed(id);
+   184→  const idx = seed % Math.max(openPositions.length, 1);
+   185→  const base = openPositions[idx] ?? openPositions[0];
+   186→
+   187→  const [sym, basePrice, mult, description] =
+   188→    BASE_SYMBOLS[(seed - 1) % BASE_SYMBOLS.length];
+   189→
+   190→  const r1 = seededRandom(seed + 0.1);
+   191→  const r2 = seededRandom(seed + 0.5);
+   192→  const r3 = seededRandom(seed + 1.7);
+   193→  const r4 = seededRandom(seed + 3.3);
+   194→
+   195→  const side: ClosedSide = base.side;
+   196→  const entry = base.entryPrice;
+   197→  const movePct = (r1 - 0.5) * 0.04; // ±2%
+   198→  const close = entry * (1 + movePct);
+   199→  const pnlPerUnit = side === "buy" ? close - entry : entry - close;
+   200→  const volume = base.volume;
+   201→  // JPY-quoted pairs (USDJPY, …) need /currentPrice conversion to land
+   202→  // in USD — otherwise P&L was 150x too high for USDJPY (the raw value
+   203→  // is in JPY, not USD).
+   204→  const isJpyQuote = sym.endsWith("JPY");
+   205→  const grossPnlRaw = pnlPerUnit * mult * volume;
+   206→  const grossPnl = isJpyQuote ? grossPnlRaw / close : grossPnlRaw;
+   207→  const commission = Math.round((volume * basePrice * 0.0004) * 100) / 100;
+   208→  const swap = Math.round(Math.sin(seed) * 5 * 100) / 100;
+   209→  // Net profit = gross - commission - swap. Previously `profit` already
+   210→  // subtracted commission+swap, then `netProfit` subtracted them AGAIN —
+   211→  // displaying a value that was off by exactly (commission + swap).
+   212→  const profit = Math.round((grossPnl - commission - swap) * 100) / 100;
+   213→  const netProfit = profit;
+   214→
+   215→  // Determine close reason from P&L direction
+   216→  let closeReason: CloseReason;
+   217→  if (profit >= Math.abs(grossPnl) * 0.5 && profit > 0) closeReason = "TP";
+   218→  else if (profit <= -Math.abs(grossPnl) * 0.3 && profit < 0) closeReason = "SL";
+   219→  else if (r4 > 0.92) closeReason = "Liquidation";
+   220→  else if (r4 > 0.8) closeReason = "System";
+   221→  else closeReason = "Manual";
+   222→
+   223→  // SL / TP — derive from side and entry
+   224→  const slDistance = entry * 0.012;
+   225→  const tpDistance = entry * 0.024;
+   226→  const stopLoss =
+   227→    side === "buy" ? entry - slDistance : entry + slDistance;
+   228→  const takeProfit =
+   229→    side === "buy" ? entry + tpDistance : entry - tpDistance;
+   230→  const rrRatio =
+   231→    Math.abs(takeProfit - entry) > 0 && Math.abs(entry - stopLoss) > 0
+   232→      ? Math.round(
+   233→          (Math.abs(takeProfit - entry) / Math.abs(entry - stopLoss)) * 100,
+   234→        ) / 100
+   235→      : null;
+   236→
+   237→  // Open / close timestamps
+   238→  const now = Date.now();
+   239→  const openedMsAgo = Math.floor((1 + r2 * 90 * 24 * 60)) * 60 * 1000;
+   240→  const durationMs = Math.floor((r3 * 48 * 60 + 5) * 60 * 1000);
+   241→  const closedMsAgo = Math.max(openedMsAgo - durationMs, 60 * 1000);
+   242→  const openTime = new Date(now - openedMsAgo).toISOString();
+   243→  const closeTime = new Date(now - closedMsAgo).toISOString();
+   244→
+   245→  const trader = traders.find((t) => t.id === base.traderId);
+   246→  const account = accounts.find((a) => a.id === base.accountId);
+   247→
+   248→  return {
+   249→    id,
+   250→    uid: `uid-${seed.toString(16).padStart(8, "0")}`,
+   251→    direction: side,
+   252→    state: "CLOSED",
+   253→    symbol: sym,
+   254→    symbolDescription: description,
+   255→    positionType: "Market",
+   256→    entryType: "In",
+   257→    volume,
+   258→    openPrice: Math.round(entry * 100000) / 100000,
+   259→    closePrice: Math.round(close * 100000) / 100000,
+   260→    currentPrice: Math.round(close * 100000) / 100000,
+   261→    openTime,
+   262→    closeTime,
+   263→    durationMs,
+   264→    openOrderId: `ord-${(seed % 90000) + 1000}`,
+   265→    closeOrderId: `ord-${(seed % 90000) + 1000 + 7}`,
+   266→    profit,
+   267→    commission,
+   268→    swap,
+   269→    netProfit,
+   270→    stopLoss: Math.round(stopLoss * 100000) / 100000,
+   271→    takeProfit: Math.round(takeProfit * 100000) / 100000,
+   272→    rrRatio,
+   273→    isPartial: r4 > 0.85,
+   274→    closeReason,
+   275→    traderId: trader?.id ?? "trader-unknown",
+   276→    traderName: trader?.name ?? "Unknown trader",
+   277→    accountId: account?.id ?? base.accountId,
+   278→    accountLogin: account?.login ?? "—",
+   279→  };
+   280→}
+   281→
+   282→/* ------------------------------------------------------------------ */
+   283→/* Helpers                                                            */
+   284→/* ------------------------------------------------------------------ */
+   285→
+   286→function formatDuration(ms: number): string {
+   287→  const totalMinutes = Math.round(ms / 60000);
+   288→  const h = Math.floor(totalMinutes / 60);
+   289→  const m = totalMinutes % 60;
+   290→  if (h >= 24) {
+   291→    const d = Math.floor(h / 24);
+   292→    const rh = h % 24;
+   293→    return `${d}d ${rh}h`;
+   294→  }
+   295→  if (h === 0) return `${m}m`;
+   296→  return `${h}h ${m}m`;
+   297→}
+   298→
+   299→function reasonTone(reason: CloseReason): "success" | "danger" | "warning" | "muted" {
+   300→  switch (reason) {
+   301→    case "TP":
+   302→      return "success";
+   303→    case "SL":
+   304→    case "Liquidation":
+   305→      return "danger";
+   306→    case "System":
+   307→      return "warning";
+   308→    case "Manual":
+   309→    default:
+   310→      return "muted";
+   311→  }
+   312→}
+   313→
+   314→/* ------------------------------------------------------------------ */
+   315→/* Page                                                                */
+   316→/* ------------------------------------------------------------------ */
+   317→
+   318→export function ClosedPositionDetailPage() {
+   319→  const { runtime, navigate, router } = usePlatform();
+   320→  const tid = runtime.tenant?.id ?? "platform";
+   321→  const currency = runtime.tenant?.currency ?? "USD";
+   322→
+   323→  const id = router.params.id ?? "cpos-unknown";
+   324→  const seed = useMemo(
+   325→    () => generateClosedPositionDetail(id, tid),
+   326→    [id, tid],
+   327→  );
+   328→
+   329→  // Working copy — local state so edits don't mutate mock data.
+   330→  const [working, setWorking] = useState<ClosedPositionDetail>(seed);
+   331→  const [editing, setEditing] = useState(false);
+   332→  const [deleteOpen, setDeleteOpen] = useState(false);
+   333→
+   334→  // Render-time resync — when the URL `id` changes (in-app navigation
+   335→  // between two closed positions), the useState initial value above is
+   336→  // already stale. Without this guard, the page briefly renders the
+   337→  // previous position's data until the user edits a field. Mirrors the
+   338→  // pattern in profile-page.tsx.
+   339→  const [lastId, setLastId] = useState(id);
+   340→  if (lastId !== id) {
+   341→    setLastId(id);
+   342→    setWorking(seed);
+   343→  }
+   344→
+   345→  // Recompute working when the seed changes (navigating to another id).
+   346→  // Use a key-based remount of the inner form below to flush stale edits.
+   347→  const update = (patch: Partial<ClosedPositionDetail>) =>
+   348→    setWorking((w) => ({ ...w, ...patch }));
+   349→
+   350→  const onToggleEdit = () => {
+   351→    if (editing) {
+   352→      // Discard local edits on toggle-off.
+   353→      setWorking(seed);
+   354→    }
+   355→    setEditing((e) => !e);
+   356→  };
+   357→
+   358→  const onSave = () => {
+   359→    setEditing(false);
+   360→    toast({
+   361→      title: "Position updated",
+   362→      description: `Changes to ${working.id} were saved.`,
+   363→    });
+   364→  };
+   365→
+   366→  const onSaveAndContinue = () => {
+   367→    toast({
+   368→      title: "Changes saved",
+   369→      description: `Position ${working.id} updated. Continuing edits.`,
+   370→    });
+   371→  };
+   372→
+   373→  const onDelete = () => {
+   374→    setDeleteOpen(false);
+   375→    toast({
+   376→      title: "Closed position deleted",
+   377→      description: `${working.id} was permanently deleted along with its P&L and audit trail.`,
+   378→    });
+   379→    navigate("closed-positions");
+   380→  };
+   381→
+   382→  return (
+   383→    <Page>
+   384→      {/* Breadcrumb */}
+   385→      <Breadcrumb>
+   386→        <BreadcrumbList>
+   387→          <BreadcrumbItem>
+   388→            <BreadcrumbLink
+   389→              asChild
+   390→              className="cursor-pointer text-muted-foreground"
+   391→            >
+   392→              <button
+   393→                type="button"
+   394→                onClick={() => navigate("closed-positions")}
+   395→              >
+   396→                Closed Positions
+   397→              </button>
+   398→            </BreadcrumbLink>
+   399→          </BreadcrumbItem>
+   400→          <BreadcrumbSeparator>
+   401→            <ChevronRight className="h-3.5 w-3.5" />
+   402→          </BreadcrumbSeparator>
+   403→          <BreadcrumbItem>
+   404→            <BreadcrumbPage className="font-mono text-xs">
+   405→              {working.id}
+   406→            </BreadcrumbPage>
+   407→          </BreadcrumbItem>
+   408→        </BreadcrumbList>
+   409→      </Breadcrumb>
+   410→
+   411→      {/* Header row */}
+   412→      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+   413→        <div className="flex items-start gap-3">
+   414→          <div className="rounded-lg border bg-muted p-2">
+   415→            <Activity className="h-5 w-5 text-foreground" />
+   416→          </div>
+   417→          <div>
+   418→            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+   419→              <span className="font-mono">{working.id}</span>
+   420→              <span className="ml-2 text-sm font-normal text-muted-foreground">
+   421→                · {working.symbol}
+   422→              </span>
+   423→            </h1>
+   424→            <p className="mt-1 text-sm text-muted-foreground">
+   425→              {working.symbolDescription}
+   426→            </p>
+   427→          </div>
+   428→        </div>
+   429→        <div className="flex flex-wrap items-center gap-2">
+   430→          {/* Direction badge */}
+   431→          <Badge
+   432→            variant="outline"
+   433→            className={cn(
+   434→              "text-[10px] font-semibold",
+   435→              working.direction === "buy"
+   436→                ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
+   437→                : "border-rose-500/40 text-rose-700 dark:text-rose-400",
+   438→            )}
+   439→          >
+   440→            {working.direction === "buy" ? "LONG" : "SHORT"}
+   441→          </Badge>
+   442→          <Badge
+   443→            variant="outline"
+   444→            className="border-muted-foreground/30 text-[10px] font-medium text-muted-foreground"
+   445→          >
+   446→            {working.state}
+   447→          </Badge>
+   448→          <Button
+   449→            size="sm"
+   450→            variant={editing ? "default" : "outline"}
+   451→            onClick={onToggleEdit}
+   452→            aria-pressed={editing}
+   453→          >
+   454→            {editing ? (
+   455→              <>
+   456→                <Check className="h-3.5 w-3.5" /> Done
+   457→              </>
+   458→            ) : (
+   459→              <>
+   460→                <Pencil className="h-3.5 w-3.5" /> Edit
+   461→              </>
+   462→            )}
+   463→          </Button>
+   464→        </div>
+   465→      </div>
+   466→
+   467→      <PageContent>
+   468→        {/* Key remount on id change so local working state resets */}
+   469→        <ClosedPositionForm
+   470→          key={seed.id}
+   471→          working={working}
+   472→          editing={editing}
+   473→          currency={currency}
+   474→          onFieldChange={update}
+   475→        />
+   476→
+   477→        <Separator />
+   478→
+   479→        {/* Footer action bar */}
+   480→        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   481→          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+   482→            <AlertDialogTrigger asChild>
+   483→              <Button
+   484→                size="sm"
+   485→                variant="outline"
+   486→                className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-400 dark:hover:bg-rose-950"
+   487→              >
+   488→                <Trash2 className="h-3.5 w-3.5" /> Delete Closed Position
+   489→              </Button>
+   490→            </AlertDialogTrigger>
+   491→            <AlertDialogContent>
+   492→              <AlertDialogHeader>
+   493→                <AlertDialogTitle className="flex items-center gap-2">
+   494→                  <ShieldAlert className="h-5 w-5 text-rose-600" />
+   495→                  Delete closed position?
+   496→                </AlertDialogTitle>
+   497→                <AlertDialogDescription>
+   498→                  This trade record will be permanently deleted. The position
+   499→                  data, P&amp;L, and audit trail will be lost.
+   500→                </AlertDialogDescription>
+   501→              </AlertDialogHeader>
+   502→              <AlertDialogFooter>
+   503→                <AlertDialogCancel>Cancel</AlertDialogCancel>
+   504→                <AlertDialogAction
+   505→                  className={cn(
+   506→                    "bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-800",
+   507→                  )}
+   508→                  onClick={onDelete}
+   509→                >
+   510→                  Delete permanently
+   511→                </AlertDialogAction>
+   512→              </AlertDialogFooter>
+   513→            </AlertDialogContent>
+   514→          </AlertDialog>
+   515→
+   516→          <div className="flex flex-wrap items-center gap-2">
+   517→            <Button
+   518→              size="sm"
+   519→              variant="ghost"
+   520→              onClick={() => navigate("closed-positions")}
+   521→            >
+   522→              <ArrowLeft className="h-3.5 w-3.5" /> Back to Closed Positions
+   523→            </Button>
+   524→            <Button
+   525→              size="sm"
+   526→              variant="outline"
+   527→              onClick={onSaveAndContinue}
+   528→            >
+   529→              <Save className="h-3.5 w-3.5" /> Save and continue editing
+   530→            </Button>
+   531→            <Button size="sm" onClick={onSave}>
+   532→              <Save className="h-3.5 w-3.5" /> Save Changes
+   533→            </Button>
+   534→          </div>
+   535→        </div>
+   536→      </PageContent>
+   537→    </Page>
+   538→  );
+   539→}
+   540→
+   541→/* ------------------------------------------------------------------ */
+   542→/* Form sub-component                                                  */
+   543→/* ------------------------------------------------------------------ */
+   544→
+   545→function ClosedPositionForm({
+   546→  working,
+   547→  editing,
+   548→  currency,
+   549→  onFieldChange,
+   550→}: {
+   551→  working: ClosedPositionDetail;
+   552→  editing: boolean;
+   553→  currency: string;
+   554→  onFieldChange: (patch: Partial<ClosedPositionDetail>) => void;
+   555→}) {
+   556→  const { navigate } = usePlatform();
+   557→  return (
+   558→    <div className="grid gap-4 lg:grid-cols-2">
+   559→      {/* Identity */}
+   560→      <FormSection
+   561→        title="Identity"
+   562→        icon={Hash}
+   563→        description="Core identifiers for this position."
+   564→      >
+   565→        <div className="space-y-3">
+   566→          <ReadOnlyField label="Uid" value={working.uid} />
+   567→          {/* Trader + Account cross-links (UX §22 — contextual actions
+   568→              where the user's decision happens). */}
+   569→          <div className="grid gap-3 sm:grid-cols-2">
+   570→            <div className="space-y-1.5">
+   571→              <LabelWithHelp
+   572→                help="The trader who opened this position. Click to open the Trader Workspace."
+   573→                className="text-sm font-medium"
+   574→              >
+   575→                Trader
+   576→              </LabelWithHelp>
+   577→              <Button
+   578→                type="button"
+   579→                variant="link"
+   580→                size="sm"
+   581→                className="h-9 w-full justify-between gap-2 rounded-md border bg-muted/30 px-3 text-sm font-medium text-foreground hover:bg-muted/50 hover:text-emerald-700 hover:underline dark:text-emerald-400"
+   582→                onClick={() =>
+   583→                  navigate("trader-detail", { id: working.traderId })
+   584→                }
+   585→                aria-label={`View trader ${working.traderName}`}
+   586→              >
+   587→                <span className="inline-flex items-center gap-1.5 truncate">
+   588→                  <User className="h-3.5 w-3.5 text-muted-foreground" />
+   589→                  <span className="truncate">{working.traderName}</span>
+   590→                </span>
+   591→                <span className="inline-flex items-center gap-0.5 text-[11px] text-emerald-700 dark:text-emerald-400">
+   592→                  View <ArrowUpRight className="h-3 w-3" />
+   593→                </span>
+   594→              </Button>
+   595→            </div>
+   596→            <div className="space-y-1.5">
+   597→              <LabelWithHelp
+   598→                help="The trading account this position was opened on. Click to open the Account Workspace."
+   599→                className="text-sm font-medium"
+   600→              >
+   601→                Account
+   602→              </LabelWithHelp>
+   603→              <Button
+   604→                type="button"
+   605→                variant="link"
+   606→                size="sm"
+   607→                className="h-9 w-full justify-between gap-2 rounded-md border bg-muted/30 px-3 font-mono text-xs text-foreground hover:bg-muted/50 hover:text-emerald-700 hover:underline dark:text-emerald-400"
+   608→                onClick={() =>
+   609→                  navigate("account-workspace", { id: working.accountId })
+   610→                }
+   611→                aria-label={`View account ${working.accountLogin}`}
+   612→              >
+   613→                <span className="inline-flex items-center gap-1.5 truncate">
+   614→                  <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+   615→                  <span className="truncate">{working.accountLogin}</span>
+   616→                </span>
+   617→                <span className="inline-flex items-center gap-0.5 text-[11px] text-emerald-700 dark:text-emerald-400">
+   618→                  View <ArrowUpRight className="h-3 w-3" />
+   619→                </span>
+   620→              </Button>
+   621→            </div>
+   622→          </div>
+   623→          <div className="space-y-1.5">
+   624→            <LabelWithHelp
+   625→              help="LONG = buy side (profit when price rises). SHORT = sell side (profit when price falls)."
+   626→              className="text-sm font-medium"
+   627→            >
+   628→              Direction
+   629→            </LabelWithHelp>
+   630→            <div className="flex h-9 items-center rounded-md border bg-muted/30 px-3">
+   631→              <Badge
+   632→                variant="outline"
+   633→                className={cn(
+   634→                  "text-[10px] font-semibold",
+   635→                  working.direction === "buy"
+   636→                    ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
+   637→                    : "border-rose-500/40 text-rose-700 dark:text-rose-400",
+   638→                )}
+   639→              >
+   640→                {working.direction === "buy" ? "LONG" : "SHORT"}
+   641→              </Badge>
+   642→            </div>
+   643→          </div>
+   644→          <ReadOnlyField label="State" value={working.state} />
+   645→          <ReadOnlyField label="Symbol" value={working.symbol} mono />
+   646→          <ReadOnlyField
+   647→            label="Symbol description"
+   648→            value={working.symbolDescription}
+   649→          />
+   650→          <div className="space-y-1.5">
+   651→            <LabelWithHelp
+   652→              help="Market = filled immediately at the current quote. Pending = waiting at a specified price (limit/stop)."
+   653→              className="text-sm font-medium"
+   654→            >
+   655→              Position type
+   656→            </LabelWithHelp>
+   657→            <Select
+   658→              value={working.positionType}
+   659→              onValueChange={(v) =>
+   660→                onFieldChange({ positionType: v as PositionType })
+   661→              }
+   662→              disabled={!editing}
+   663→            >
+   664→              <SelectTrigger className="w-full" disabled={!editing}>
+   665→                <SelectValue placeholder="Select position type…" />
+   666→              </SelectTrigger>
+   667→              <SelectContent>
+   668→                <SelectItem value="Market">Market</SelectItem>
+   669→                <SelectItem value="Pending">Pending</SelectItem>
+   670→              </SelectContent>
+   671→            </Select>
+   672→          </div>
+   673→          <div className="space-y-1.5">
+   674→            <LabelWithHelp
+   675→              help="In = position opened by an aggressive (market) order. Out = position opened by a passive (limit) order against an existing quote."
+   676→              className="text-sm font-medium"
+   677→            >
+   678→              Entry type
+   679→            </LabelWithHelp>
+   680→            <Select
+   681→              value={working.entryType}
+   682→              onValueChange={(v) => onFieldChange({ entryType: v as EntryType })}
+   683→              disabled={!editing}
+   684→            >
+   685→              <SelectTrigger className="w-full" disabled={!editing}>
+   686→                <SelectValue placeholder="Select entry type…" />
+   687→              </SelectTrigger>
+   688→              <SelectContent>
+   689→                <SelectItem value="In">In</SelectItem>
+   690→                <SelectItem value="Out">Out</SelectItem>
+   691→              </SelectContent>
+   692→            </Select>
+   693→          </div>
+   694→        </div>
+   695→      </FormSection>
+   696→
+   697→      {/* Volume & Pricing */}
+   698→      <FormSection
+   699→        title="Volume & Pricing"
+   700→        icon={Coins}
+   701→        description="Volume traded and price points."
+   702→      >
+   703→        <div className="space-y-3">
+   704→          <ReadOnlyField label="Volume" value={String(working.volume)} />
+   705→          <ReadOnlyField
+   706→            label="Open price"
+   707→            value={working.openPrice.toFixed(5)}
+   708→            mono
+   709→          />
+   710→          <ReadOnlyField
+   711→            label="Close price"
+   712→            value={working.closePrice.toFixed(5)}
+   713→            mono
+   714→          />
+   715→          <ReadOnlyField
+   716→            label="Current price"
+   717→            value={working.currentPrice.toFixed(5)}
+   718→            mono
+   719→            help="Live quote at the moment the position was closed."
+   720→          />
+   721→        </div>
+   722→      </FormSection>
+   723→
+   724→      {/* Timing */}
+   725→      <FormSection
+   726→        title="Timing"
+   727→        icon={Clock}
+   728→        description="When the position was open and for how long."
+   729→      >
+   730→        <div className="space-y-3">
+   731→          <ReadOnlyField
+   732→            label="Open time"
+   733→            value={new Date(working.openTime).toLocaleString()}
+   734→          />
+   735→          <ReadOnlyField
+   736→            label="Close time"
+   737→            value={new Date(working.closeTime).toLocaleString()}
+   738→          />
+   739→          <ReadOnlyField
+   740→            label="Duration"
+   741→            value={formatDuration(working.durationMs)}
+   742→            help="Calculated from open time to close time."
+   743→          />
+   744→        </div>
+   745→      </FormSection>
+   746→
+   747→      {/* Order IDs */}
+   748→      <FormSection
+   749→        title="Order IDs"
+   750→        icon={Receipt}
+   751→        description="The orders that opened and closed this position."
+   752→      >
+   753→        <div className="space-y-3">
+   754→          <ReadOnlyField
+   755→            label="Open order ID"
+   756→            value={working.openOrderId}
+   757→            mono
+   758→          />
+   759→          <ReadOnlyField
+   760→            label="Close order ID"
+   761→            value={working.closeOrderId}
+   762→            mono
+   763→          />
+   764→        </div>
+   765→      </FormSection>
+   766→
+   767→      {/* P&L */}
+   768→      <FormSection
+   769→        title="P&L"
+   770→        icon={working.profit >= 0 ? TrendingUp : TrendingDown}
+   771→        description="Profit, fees, and net result."
+   772→      >
+   773→        <div className="space-y-3">
+   774→          <PnlField
+   775→            label="Profit"
+   776→            value={working.profit}
+   777→            currency={currency}
+   778→          />
+   779→          <ReadOnlyField
+   780→            label="Commission"
+   781→            value={formatCurrency(working.commission, currency)}
+   782→            help="Brokerage commission charged when the order filled."
+   783→          />
+   784→          <ReadOnlyField
+   785→            label="Swap"
+   786→            value={formatCurrency(working.swap, currency)}
+   787→            help="Overnight financing fee accrued while the position was open."
+   788→          />
+   789→          <Separator />
+   790→          <PnlField
+   791→            label="Net profit"
+   792→            value={working.netProfit}
+   793→            currency={currency}
+   794→            strong
+   795→            help="Net of commission and swap — what the trader actually realizes."
+   796→          />
+   797→        </div>
+   798→      </FormSection>
+   799→
+   800→      {/* Risk */}
+   801→      <FormSection
+   802→        title="Risk"
+   803→        icon={ShieldAlert}
+   804→        description="Risk limits and reward-to-risk ratio."
+   805→      >
+   806→        <div className="space-y-3">
+   807→          <ReadOnlyField
+   808→            label="Stop Loss (SL)"
+   809→            value={
+   810→              working.stopLoss != null
+   811→                ? working.stopLoss.toFixed(5)
+   812→                : "—"
+   813→            }
+   814→            mono
+   815→            help="Price at which the position would automatically close to limit losses."
+   816→          />
+   817→          <ReadOnlyField
+   818→            label="Take Profit (TP)"
+   819→            value={
+   820→              working.takeProfit != null
+   821→                ? working.takeProfit.toFixed(5)
+   822→                : "—"
+   823→            }
+   824→            mono
+   825→            help="Price at which the position would automatically close to lock in gains."
+   826→          />
+   827→          <ReadOnlyField
+   828→            label="RR Ratio"
+   829→            value={
+   830→              working.rrRatio != null
+   831→                ? `${working.rrRatio.toFixed(2)} : 1`
+   832→                : "—"
+   833→            }
+   834→            help="Reward-to-risk ratio, calculated as |TP-entry| / |entry-SL|."
+   835→          />
+   836→        </div>
+   837→      </FormSection>
+   838→
+   839→      {/* Flags */}
+   840→      <FormSection
+   841→        title="Flags"
+   842→        icon={Flag}
+   843→        description="Partial-close flag and close reason."
+   844→      >
+   845→        <div className="space-y-3">
+   846→          <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+   847→            <div className="flex flex-col">
+   848→              <LabelWithHelp
+   849→                help="Marks whether this position was partially closed before the final close. Partial closes keep the original position alive with a reduced volume."
+   850→                className="text-sm font-medium"
+   851→              >
+   852→                Is partial
+   853→              </LabelWithHelp>
+   854→              <span className="text-xs text-muted-foreground">
+   855→                Read-only — set by the broker.
+   856→              </span>
+   857→            </div>
+   858→            <Switch checked={working.isPartial} disabled aria-readonly />
+   859→          </div>
+   860→
+   861→          <div className="space-y-1.5">
+   862→            <LabelWithHelp
+   863→              help="TP = closed by take-profit. SL = closed by stop-loss. Manual = trader closed by hand. System = closed by platform rule. Liquidation = margin call closed the position."
+   864→              className="text-sm font-medium"
+   865→            >
+   866→              Close reason
+   867→            </LabelWithHelp>
+   868→            <Select
+   869→              value={working.closeReason}
+   870→              onValueChange={(v) =>
+   871→                onFieldChange({ closeReason: v as CloseReason })
+   872→              }
+   873→              disabled={!editing}
+   874→            >
+   875→              <SelectTrigger className="w-full" disabled={!editing}>
+   876→                <SelectValue placeholder="Select close reason…" />
+   877→              </SelectTrigger>
+   878→              <SelectContent>
+   879→                {CLOSE_REASONS.map((r) => (
+   880→                  <SelectItem key={r} value={r}>
+   881→                    {r === "TP"
+   882→                      ? "Take Profit"
+   883→                      : r === "SL"
+   884→                      ? "Stop Loss"
+   885→                      : r === "Manual"
+   886→                      ? "Manual"
+   887→                      : r === "System"
+   888→                      ? "System"
+   889→                      : "Liquidation"}
+   890→                  </SelectItem>
+   891→                ))}
+   892→              </SelectContent>
+   893→            </Select>
+   894→            <div className="pt-1">
+   895→              <Badge
+   896→                variant="outline"
+   897→                className={cn(
+   898→                  "text-[10px] font-medium",
+   899→                  reasonTone(working.closeReason) === "success"
+   900→                    ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
+   901→                    : reasonTone(working.closeReason) === "danger"
+   902→                    ? "border-rose-500/40 text-rose-700 dark:text-rose-400"
+   903→                    : reasonTone(working.closeReason) === "warning"
+   904→                    ? "border-amber-500/40 text-amber-700 dark:text-amber-400"
+   905→                    : "border-muted-foreground/30 text-muted-foreground",
+   906→                )}
+   907→              >
+   908→                {working.closeReason}
+   909→              </Badge>
+   910→            </div>
+   911→          </div>
+   912→        </div>
+   913→      </FormSection>
+   914→    </div>
+   915→  );
+   916→}
+   917→
+   918→/* ------------------------------------------------------------------ */
+   919→/* Small building blocks                                              */
+   920→/* ------------------------------------------------------------------ */
+   921→
+   922→function FormSection({
+   923→  title,
+   924→  icon: Icon,
+   925→  description,
+   926→  children,
+   927→}: {
+   928→  title: string;
+   929→  icon: React.ComponentType<{ className?: string }>;
+   930→  description?: string;
+   931→  children: React.ReactNode;
+   932→}) {
+   933→  return (
+   934→    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+   935→      <header className="flex items-start gap-2">
+   936→        <div className="rounded-md bg-muted p-1.5">
+   937→          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+   938→        </div>
+   939→        <div>
+   940→          <p className="text-sm font-medium text-foreground">{title}</p>
+   941→          {description ? (
+   942→            <p className="text-xs text-muted-foreground">{description}</p>
+   943→          ) : null}
+   944→        </div>
+   945→      </header>
+   946→      <Separator />
+   947→      {children}
+   948→    </section>
+   949→  );
+   950→}
+   951→
+   952→function ReadOnlyField({
+   953→  label,
+   954→  value,
+   955→  help,
+   956→  mono,
+   957→}: {
+   958→  label: string;
+   959→  value: string;
+   960→  help?: string;
+   961→  mono?: boolean;
+   962→}) {
+   963→  return (
+   964→    <div className="space-y-1.5">
+   965→      <LabelWithHelp
+   966→        help={help ?? "Read-only."}
+   967→        className="text-sm font-medium"
+   968→      >
+   969→        {label}
+   970→      </LabelWithHelp>
+   971→      <div
+   972→        className={cn(
+   973→          "flex h-9 items-center rounded-md border bg-muted/30 px-3 text-sm text-foreground",
+   974→          mono && "font-mono text-xs",
+   975→        )}
+   976→      >
+   977→        {value}
+   978→      </div>
+   979→    </div>
+   980→  );
+   981→}
+   982→
+   983→function PnlField({
+   984→  label,
+   985→  value,
+   986→  currency,
+   987→  strong,
+   988→  help,
+   989→}: {
+   990→  label: string;
+   991→  value: number;
+   992→  currency: string;
+   993→  strong?: boolean;
+   994→  help?: string;
+   995→}) {
+   996→  const positive = value >= 0;
+   997→  return (
+   998→    <div className="space-y-1.5">
+   999→      <LabelWithHelp
+  1000→        help={help ?? "Calculated field."}
+  1001→        className="text-sm font-medium"
+  1002→      >
+  1003→        {label}
+  1004→      </LabelWithHelp>
+  1005→      <div
+  1006→        className={cn(
+  1007→          "flex h-9 items-center justify-between rounded-md border bg-muted/30 px-3 text-sm tabular-nums",
+  1008→          positive
+  1009→            ? "text-emerald-700 dark:text-emerald-400"
+  1010→            : "text-rose-700 dark:text-rose-400",
+  1011→          strong && "font-semibold",
+  1012→        )}
+  1013→      >
+  1014→        <span>
+  1015→          {positive ? "+" : ""}
+  1016→          {formatCurrency(value, currency)}
+  1017→        </span>
+  1018→        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+  1019→          {positive ? "profit" : "loss"}
+  1020→        </span>
+  1021→      </div>
+  1022→    </div>
+  1023→  );
+  1024→}
+  1025→

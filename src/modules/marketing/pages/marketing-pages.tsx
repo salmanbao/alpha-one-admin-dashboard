@@ -21,11 +21,11 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 
 const CHANNEL_COLORS: Record<string, string> = {
-  email: "#db2777",
+  email: "#b45309",
   social: "#f59e0b",
-  "paid-ads": "#db2777", // pink — Terra-allowed; replaces violet (#8b5cf6).
+  "paid-ads": "#b45309", // amber-700 — Terra-allowed; replaces violet (#8b5cf6).
   content: "#059669",
-  affiliate: "#0891b2",
+  affiliate: "#0f766e",
 };
 
 export function MarketingOverviewPage() {
@@ -99,7 +99,7 @@ export function MarketingOverviewPage() {
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-lg border bg-card p-4">
             <p className="mb-2 text-sm font-medium">Campaign Revenue</p>
-            <BarSeries data={perfData} xKey="name" yKey="revenue" color="#db2777" formatValue={(v) => formatCurrency(v, currency)} />
+            <BarSeries data={perfData} xKey="name" yKey="revenue" color="#b45309" formatValue={(v) => formatCurrency(v, currency)} />
           </div>
           <div className="rounded-lg border bg-card p-4">
             <p className="mb-2 text-sm font-medium">Spend by Channel</p>
@@ -200,7 +200,7 @@ export function MarketingPerformancePage() {
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-lg border bg-card p-4">
             <p className="mb-2 text-sm font-medium">Revenue by Channel</p>
-            <BarSeries data={revenueByChannel} xKey="name" yKey="revenue" color="#db2777" formatValue={(v) => formatCurrency(v, currency)} />
+            <BarSeries data={revenueByChannel} xKey="name" yKey="revenue" color="#b45309" formatValue={(v) => formatCurrency(v, currency)} />
           </div>
           <div className="rounded-lg border bg-card p-4">
             <p className="mb-2 text-sm font-medium">Conversions by Channel</p>

@@ -1,0 +1,1145 @@
+     1→"use client";
+     2→
+     3→/**
+     4→ * Affiliates — Coupon Codes Page (UX Constitution §9, §22-24, §33).
+     5→ *
+     6→ * Spec section 72 — Phase 9. Operational CRUD surface for affiliate
+     7→ * coupon codes: code generation, discount config, redemption caps,
+     8→ * plan targeting, and per-affiliate attribution. Surfaces top-performing
+     9→ * coupons so marketing leads can double-down on what converts.
+    10→ *
+    11→ * Sections:
+    12→ *   1. KPI row — Active Coupons, Total Redemptions (30d),
+    13→ *      Discount Given (30d), Revenue from Coupons (30d)
+    14→ *   2. Filter bar — status Select / discount-type Select + Export CSV
+    15→ *   3. Coupons DataTable — full lifecycle (Code / Type / Value / Used /
+    16→ *      Limit / Expires / Status / Actions)
+    17→ *   4. Create Coupon button + Coupon Sheet Drawer (view + create modes)
+    18→ *   5. Disable Coupon AlertDialog — destructive friction §24
+    19→ *   6. Top Performing Coupons DataTable — Code / Redemptions / Discount
+    20→ *      Given / Revenue Attributed / Conversion Rate / Top Affiliate
+    21→ *
+    22→ * Terra palette only — emerald / amber / rose / slate / sky.
+    23→ * No Math.random — deterministic patterns (LCG seed + Math.sin).
+    24→ */
+    25→
+    26→import { useMemo, useState } from "react";
+    27→import { usePlatform } from "@/lib/platform/platform-context";
+    28→import { makeTermResolver } from "@/lib/platform/terminology";
+    29→import { exportToCsv } from "@/lib/platform/export-utils";
+    30→import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+    31→import { DataTable, type Column } from "@/components/platform/data-table";
+    32→import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
+    33→import { LabelWithHelp } from "@/components/platform/contextual-help";
+    34→import { Button } from "@/components/ui/button";
+    35→import { Input } from "@/components/ui/input";
+    36→import { Label } from "@/components/ui/label";
+    37→import { Separator } from "@/components/ui/separator";
+    38→import { Switch } from "@/components/ui/switch";
+    39→import { Checkbox } from "@/components/ui/checkbox";
+    40→import { Badge } from "@/components/ui/badge";
+    41→import {
+    42→  Sheet,
+    43→  SheetContent,
+    44→  SheetHeader,
+    45→  SheetTitle,
+    46→  SheetDescription,
+    47→  SheetFooter,
+    48→} from "@/components/ui/sheet";
+    49→import {
+    50→  Select,
+    51→  SelectContent,
+    52→  SelectItem,
+    53→  SelectTrigger,
+    54→  SelectValue,
+    55→} from "@/components/ui/select";
+    56→import {
+    57→  AlertDialog,
+    58→  AlertDialogAction,
+    59→  AlertDialogCancel,
+    60→  AlertDialogContent,
+    61→  AlertDialogDescription,
+    62→  AlertDialogFooter,
+    63→  AlertDialogHeader,
+    64→  AlertDialogTitle,
+    65→  AlertDialogTrigger,
+    66→} from "@/components/ui/alert-dialog";
+    67→import { toast } from "@/hooks/use-toast";
+    68→import {
+    69→  Ticket,
+    70→  Plus,
+    71→  Download,
+    72→  Copy,
+    73→  Pencil,
+    74→  Ban,
+    75→  Files,
+    76→  RefreshCw,
+    77→  Calendar,
+    78→  Filter,
+    79→  DollarSign,
+    80→  Users,
+    81→  TrendingUp,
+    82→  Percent,
+    83→  Gift,
+    84→  Coins,
+    85→  Tag,
+    86→} from "lucide-react";
+    87→
+    88→/* ------------------------------------------------------------------ */
+    89→/* Types & mock data                                                  */
+    90→/* ------------------------------------------------------------------ */
+    91→
+    92→type CouponStatus = "active" | "expired" | "disabled" | "scheduled";
+    93→type DiscountType = "Percentage" | "Flat" | "Free Trial" | "Bonus Credit";
+    94→type PlanName = "Starter" | "Growth" | "Scale" | "Enterprise";
+    95→
+    96→interface Coupon {
+    97→  id: string;
+    98→  code: string;
+    99→  description: string;
+   100→  discountType: DiscountType;
+   101→  discountValue: number;
+   102→  minPurchase: number;
+   103→  used: number;
+   104→  limit: number;
+   105→  validFrom: string;
+   106→  expires: string;
+   107→  status: CouponStatus;
+   108→  applicablePlans: PlanName[];
+   109→  affiliateId: string;
+   110→  affiliateName: string;
+   111→  redemptions30d: number;
+   112→  discountGiven30d: number;
+   113→  revenueAttributed30d: number;
+   114→  conversionRate: number; // 0-100
+   115→  topAffiliate: string;
+   116→}
+   117→
+   118→const ALL_PLANS: PlanName[] = ["Starter", "Growth", "Scale", "Enterprise"];
+   119→
+   120→const COUPONS: Coupon[] = [
+   121→  {
+   122→    id: "CPN-001",
+   123→    code: "WELCOME20",
+   124→    description: "20% off first challenge — welcome offer",
+   125→    discountType: "Percentage",
+   126→    discountValue: 20,
+   127→    minPurchase: 100,
+   128→    used: 184,
+   129→    limit: 500,
+   130→    validFrom: "2026-01-01",
+   131→    expires: "2026-12-31",
+   132→    status: "active",
+   133→    applicablePlans: ["Starter", "Growth"],
+   134→    affiliateId: "AFF-001",
+   135→    affiliateName: "Alex Trader",
+   136→    redemptions30d: 47,
+   137→    discountGiven30d: 940,
+   138→    revenueAttributed30d: 4700,
+   139→    conversionRate: 12.4,
+   140→    topAffiliate: "Alex Trader",
+   141→  },
+   142→  {
+   143→    id: "CPN-002",
+   144→    code: "SUMMER50",
+   145→    description: "$50 off any plan — summer promo",
+   146→    discountType: "Flat",
+   147→    discountValue: 50,
+   148→    minPurchase: 200,
+   149→    used: 92,
+   150→    limit: 200,
+   151→    validFrom: "2026-06-01",
+   152→    expires: "2026-09-30",
+   153→    status: "active",
+   154→    applicablePlans: ["Starter", "Growth", "Scale"],
+   155→    affiliateId: "AFF-002",
+   156→    affiliateName: "Sarah Marketing",
+   157→    redemptions30d: 23,
+   158→    discountGiven30d: 1150,
+   159→    revenueAttributed30d: 2300,
+   160→    conversionRate: 9.8,
+   161→    topAffiliate: "Sarah Marketing",
+   162→  },
+   163→  {
+   164→    id: "CPN-003",
+   165→    code: "FREETRIAL",
+   166→    description: "Free 14-day trial — no credit card required",
+   167→    discountType: "Free Trial",
+   168→    discountValue: 14,
+   169→    minPurchase: 0,
+   170→    used: 47,
+   171→    limit: 100,
+   172→    validFrom: "2026-03-01",
+   173→    expires: "2026-12-31",
+   174→    status: "active",
+   175→    applicablePlans: ["Starter"],
+   176→    affiliateId: "AFF-003",
+   177→    affiliateName: "Maria Lopez",
+   178→    redemptions30d: 12,
+   179→    discountGiven30d: 0,
+   180→    revenueAttributed30d: 980,
+   181→    conversionRate: 14.2,
+   182→    topAffiliate: "Maria Lopez",
+   183→  },
+   184→  {
+   185→    id: "CPN-004",
+   186→    code: "BONUS100",
+   187→    description: "$100 bonus credit on funded account",
+   188→    discountType: "Bonus Credit",
+   189→    discountValue: 100,
+   190→    minPurchase: 500,
+   191→    used: 28,
+   192→    limit: 50,
+   193→    validFrom: "2026-04-15",
+   194→    expires: "2026-12-31",
+   195→    status: "active",
+   196→    applicablePlans: ["Scale", "Enterprise"],
+   197→    affiliateId: "AFF-004",
+   198→    affiliateName: "David Chen",
+   199→    redemptions30d: 8,
+   200→    discountGiven30d: 800,
+   201→    revenueAttributed30d: 4000,
+   202→    conversionRate: 18.6,
+   203→    topAffiliate: "David Chen",
+   204→  },
+   205→  {
+   206→    id: "CPN-005",
+   207→    code: "SPRING15",
+   208→    description: "15% off — spring promo (ended)",
+   209→    discountType: "Percentage",
+   210→    discountValue: 15,
+   211→    minPurchase: 0,
+   212→    used: 312,
+   213→    limit: 500,
+   214→    validFrom: "2026-03-01",
+   215→    expires: "2026-06-30",
+   216→    status: "expired",
+   217→    applicablePlans: ["Starter", "Growth"],
+   218→    affiliateId: "AFF-005",
+   219→    affiliateName: "Emma Wilson",
+   220→    redemptions30d: 0,
+   221→    discountGiven30d: 0,
+   222→    revenueAttributed30d: 0,
+   223→    conversionRate: 10.1,
+   224→    topAffiliate: "Emma Wilson",
+   225→  },
+   226→  {
+   227→    id: "CPN-006",
+   228→    code: "FALL25",
+   229→    description: "25% off — fall launch (scheduled)",
+   230→    discountType: "Percentage",
+   231→    discountValue: 25,
+   232→    minPurchase: 150,
+   233→    used: 0,
+   234→    limit: 250,
+   235→    validFrom: "2026-10-01",
+   236→    expires: "2026-11-30",
+   237→    status: "scheduled",
+   238→    applicablePlans: ["Starter", "Growth", "Scale"],
+   239→    affiliateId: "AFF-001",
+   240→    affiliateName: "Alex Trader",
+   241→    redemptions30d: 0,
+   242→    discountGiven30d: 0,
+   243→    revenueAttributed30d: 0,
+   244→    conversionRate: 0,
+   245→    topAffiliate: "Alex Trader",
+   246→  },
+   247→  {
+   248→    id: "CPN-007",
+   249→    code: "VIP40",
+   250→    description: "40% off — VIP offer (manually disabled)",
+   251→    discountType: "Percentage",
+   252→    discountValue: 40,
+   253→    minPurchase: 1000,
+   254→    used: 18,
+   255→    limit: 50,
+   256→    validFrom: "2026-02-01",
+   257→    expires: "2026-12-31",
+   258→    status: "disabled",
+   259→    applicablePlans: ["Scale", "Enterprise"],
+   260→    affiliateId: "AFF-002",
+   261→    affiliateName: "Sarah Marketing",
+   262→    redemptions30d: 0,
+   263→    discountGiven30d: 0,
+   264→    revenueAttributed30d: 0,
+   265→    conversionRate: 16.7,
+   266→    topAffiliate: "Sarah Marketing",
+   267→  },
+   268→  {
+   269→    id: "CPN-008",
+   270→    code: "WELCOME10",
+   271→    description: "$10 off — entry tier",
+   272→    discountType: "Flat",
+   273→    discountValue: 10,
+   274→    minPurchase: 50,
+   275→    used: 421,
+   276→    limit: 1000,
+   277→    validFrom: "2026-01-15",
+   278→    expires: "2026-12-31",
+   279→    status: "active",
+   280→    applicablePlans: ["Starter"],
+   281→    affiliateId: "AFF-003",
+   282→    affiliateName: "Maria Lopez",
+   283→    redemptions30d: 88,
+   284→    discountGiven30d: 880,
+   285→    revenueAttributed30d: 1760,
+   286→    conversionRate: 8.3,
+   287→    topAffiliate: "Maria Lopez",
+   288→  },
+   289→];
+   290→
+   291→/* Top performing coupons — separate panel for marketing leads */
+   292→const TOP_PERF: Coupon[] = [...COUPONS]
+   293→  .filter((c) => c.status === "active")
+   294→  .sort((a, b) => b.revenueAttributed30d - a.revenueAttributed30d)
+   295→  .slice(0, 5);
+   296→
+   297→const AFFILIATE_NAMES = Array.from(
+   298→  new Set(COUPONS.map((c) => c.affiliateName)),
+   299→);
+   300→
+   301→/* ------------------------------------------------------------------ */
+   302→/* Helpers                                                            */
+   303→/* ------------------------------------------------------------------ */
+   304→
+   305→function couponStatusTone(status: CouponStatus): "success" | "muted" | "danger" | "info" {
+   306→  switch (status) {
+   307→    case "active":
+   308→      return "success";
+   309→    case "scheduled":
+   310→      return "info";
+   311→    case "disabled":
+   312→      return "danger";
+   313→    case "expired":
+   314→    default:
+   315→      return "muted";
+   316→  }
+   317→}
+   318→
+   319→function discountTypeIcon(type: DiscountType) {
+   320→  switch (type) {
+   321→    case "Percentage":
+   322→      return Percent;
+   323→    case "Flat":
+   324→      return DollarSign;
+   325→    case "Free Trial":
+   326→      return Gift;
+   327→    case "Bonus Credit":
+   328→      return Coins;
+   329→  }
+   330→}
+   331→
+   332→function formatDiscountValue(type: DiscountType, value: number, currency = "USD"): string {
+   333→  switch (type) {
+   334→    case "Percentage":
+   335→      return `${value}%`;
+   336→    case "Flat":
+   337→      return formatCurrency(value, currency);
+   338→    case "Free Trial":
+   339→      return `${value} days`;
+   340→    case "Bonus Credit":
+   341→      return formatCurrency(value, currency);
+   342→  }
+   343→}
+   344→
+   345→function formatDate(iso: string): string {
+   346→  const d = new Date(iso);
+   347→  if (Number.isNaN(d.getTime())) return iso;
+   348→  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+   349→}
+   350→
+   351→/* Deterministic 8-char code generator — LCG seeded by an integer
+   352→ * counter. No Math.random — same seed always produces same code. */
+   353→const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no I O 0 1
+   354→function generateCode(seed: number): string {
+   355→  let v = seed * 31 + 7;
+   356→  let out = "";
+   357→  for (let i = 0; i < 8; i++) {
+   358→    v = (v * 1103515245 + 12345) & 0x7fffffff;
+   359→    out += CODE_ALPHABET[v % CODE_ALPHABET.length];
+   360→  }
+   361→  return out;
+   362→}
+   363→
+   364→function copyToClipboard(text: string, label = "Code") {
+   365→  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+   366→    navigator.clipboard.writeText(text).then(
+   367→      () => toast({ title: `${label} copied`, description: text }),
+   368→      () => toast({ title: "Copy failed", description: "Clipboard unavailable", variant: "destructive" }),
+   369→    );
+   370→  } else {
+   371→    toast({ title: "Copy failed", description: "Clipboard unavailable", variant: "destructive" });
+   372→  }
+   373→}
+   374→
+   375→/* ------------------------------------------------------------------ */
+   376→/* Page                                                                */
+   377→/* ------------------------------------------------------------------ */
+   378→
+   379→export function AffiliateCouponsPage() {
+   380→  const { runtime, tenant } = usePlatform();
+   381→  const term = makeTermResolver(tenant);
+   382→  const currency = runtime.tenant?.currency ?? "USD";
+   383→
+   384→  const [statusFilter, setStatusFilter] = useState<string>("all");
+   385→  const [typeFilter, setTypeFilter] = useState<string>("all");
+   386→  const [selected, setSelected] = useState<Coupon | null>(null);
+   387→  const [creating, setCreating] = useState(false);
+   388→  const [disableTarget, setDisableTarget] = useState<Coupon | null>(null);
+   389→
+   390→  const filtered = useMemo(() => {
+   391→    return COUPONS.filter((c) => {
+   392→      if (statusFilter !== "all" && c.status !== statusFilter) return false;
+   393→      if (typeFilter !== "all" && c.discountType !== typeFilter) return false;
+   394→      return true;
+   395→    });
+   396→  }, [statusFilter, typeFilter]);
+   397→
+   398→  // KPI roll-ups (30-day window for the active coupons)
+   399→  const activeCount = COUPONS.filter((c) => c.status === "active").length;
+   400→  const totalRedemptions = COUPONS.reduce((s, c) => s + c.redemptions30d, 0);
+   401→  const totalDiscountGiven = COUPONS.reduce((s, c) => s + c.discountGiven30d, 0);
+   402→  const totalRevenue = COUPONS.reduce((s, c) => s + c.revenueAttributed30d, 0);
+   403→  const topPerformer = TOP_PERF[0]?.code ?? "—";
+   404→
+   405→  const handleExport = () => {
+   406→    exportToCsv(
+   407→      filtered,
+   408→      [
+   409→        { key: "id", header: "Coupon ID", value: (c) => c.id },
+   410→        { key: "code", header: "Code", value: (c) => c.code },
+   411→        { key: "description", header: "Description", value: (c) => c.description },
+   412→        { key: "discountType", header: "Discount Type", value: (c) => c.discountType },
+   413→        { key: "discountValue", header: "Discount Value", value: (c) => c.discountValue },
+   414→        { key: "minPurchase", header: "Min Purchase", value: (c) => c.minPurchase },
+   415→        { key: "used", header: "Used", value: (c) => c.used },
+   416→        { key: "limit", header: "Limit", value: (c) => c.limit },
+   417→        { key: "validFrom", header: "Valid From", value: (c) => c.validFrom },
+   418→        { key: "expires", header: "Expires", value: (c) => c.expires },
+   419→        { key: "status", header: "Status", value: (c) => c.status },
+   420→        { key: "affiliate", header: "Affiliate", value: (c) => c.affiliateName },
+   421→        { key: "redemptions30d", header: "Redemptions (30d)", value: (c) => c.redemptions30d },
+   422→        { key: "discountGiven30d", header: "Discount Given (30d)", value: (c) => c.discountGiven30d },
+   423→        { key: "revenueAttributed30d", header: "Revenue Attributed (30d)", value: (c) => c.revenueAttributed30d },
+   424→      ],
+   425→      `affiliate-coupons-${Date.now()}.csv`,
+   426→    );
+   427→  };
+   428→
+   429→  const couponsColumns: Column<Coupon>[] = [
+   430→    {
+   431→      key: "code",
+   432→      header: "Code",
+   433→      cell: (c) => (
+   434→        <div className="flex items-center gap-1.5">
+   435→          <span className="font-mono text-xs font-medium text-foreground">{c.code}</span>
+   436→          <Button
+   437→            size="sm"
+   438→            variant="ghost"
+   439→            className="h-6 w-6 p-0"
+   440→            onClick={(e) => {
+   441→              e.stopPropagation();
+   442→              copyToClipboard(c.code, "Coupon code");
+   443→            }}
+   444→            aria-label={`Copy coupon code ${c.code}`}
+   445→          >
+   446→            <Copy className="h-3 w-3" />
+   447→          </Button>
+   448→        </div>
+   449→      ),
+   450→      sortValue: (c) => c.code,
+   451→    },
+   452→    {
+   453→      key: "description",
+   454→      header: "Description",
+   455→      cell: (c) => (
+   456→        <span className="line-clamp-1 text-xs text-muted-foreground">{c.description}</span>
+   457→      ),
+   458→      sortValue: (c) => c.description,
+   459→    },
+   460→    {
+   461→      key: "discountType",
+   462→      header: "Type",
+   463→      cell: (c) => {
+   464→        const Icon = discountTypeIcon(c.discountType);
+   465→        return (
+   466→          <span className="inline-flex items-center gap-1 text-xs text-foreground">
+   467→            <Icon className="h-3 w-3 text-muted-foreground" />
+   468→            {c.discountType}
+   469→          </span>
+   470→        );
+   471→      },
+   472→      sortValue: (c) => c.discountType,
+   473→    },
+   474→    {
+   475→      key: "discountValue",
+   476→      header: "Value",
+   477→      cell: (c) => (
+   478→        <span className="font-medium tabular-nums text-foreground">
+   479→          {formatDiscountValue(c.discountType, c.discountValue, currency)}
+   480→        </span>
+   481→      ),
+   482→      sortValue: (c) => c.discountValue,
+   483→      numeric: true,
+   484→    },
+   485→    {
+   486→      key: "minPurchase",
+   487→      header: "Min Purchase",
+   488→      cell: (c) =>
+   489→        c.minPurchase === 0 ? (
+   490→          <span className="text-xs text-muted-foreground">None</span>
+   491→        ) : (
+   492→          <span className="tabular-nums text-xs">{formatCurrency(c.minPurchase, currency)}</span>
+   493→        ),
+   494→      sortValue: (c) => c.minPurchase,
+   495→      numeric: true,
+   496→    },
+   497→    {
+   498→      key: "used",
+   499→      header: "Used",
+   500→      cell: (c) => (
+   501→        <span className="tabular-nums text-xs">
+   502→          {c.used}
+   503→          <span className="text-muted-foreground"> / {c.limit}</span>
+   504→        </span>
+   505→      ),
+   506→      sortValue: (c) => c.used,
+   507→      numeric: true,
+   508→    },
+   509→    {
+   510→      key: "expires",
+   511→      header: "Expires",
+   512→      cell: (c) => (
+   513→        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+   514→          <Calendar className="h-3 w-3" />
+   515→          {formatDate(c.expires)}
+   516→        </span>
+   517→      ),
+   518→      sortValue: (c) => c.expires,
+   519→    },
+   520→    {
+   521→      key: "status",
+   522→      header: "Status",
+   523→      cell: (c) => (
+   524→        <StatusBadge tone={couponStatusTone(c.status)} className="capitalize">
+   525→          {c.status}
+   526→        </StatusBadge>
+   527→      ),
+   528→      sortValue: (c) => c.status,
+   529→    },
+   530→    {
+   531→      key: "actions",
+   532→      header: "Actions",
+   533→      cell: (c) => (
+   534→        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+   535→          <Button
+   536→            size="sm"
+   537→            variant="ghost"
+   538→            className="h-7 px-2 text-xs"
+   539→            onClick={() => {
+   540→              setSelected(c);
+   541→              setCreating(false);
+   542→            }}
+   543→            aria-label={`Edit coupon ${c.code}`}
+   544→          >
+   545→            <Pencil className="mr-1 h-3 w-3" /> Edit
+   546→          </Button>
+   547→          {c.status === "active" && (
+   548→            <Button
+   549→              size="sm"
+   550→              variant="ghost"
+   551→              className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700"
+   552→              onClick={() => setDisableTarget(c)}
+   553→              aria-label={`Disable coupon ${c.code}`}
+   554→            >
+   555→              <Ban className="mr-1 h-3 w-3" /> Disable
+   556→            </Button>
+   557→          )}
+   558→          <Button
+   559→            size="sm"
+   560→            variant="ghost"
+   561→            className="h-7 px-2 text-xs"
+   562→            onClick={() =>
+   563→              toast({
+   564→                title: "Coupon duplicated",
+   565→                description: `${c.code} → ${c.code}-COPY draft created.`,
+   566→              })
+   567→            }
+   568→            aria-label={`Duplicate coupon ${c.code}`}
+   569→          >
+   570→            <Files className="h-3 w-3" />
+   571→          </Button>
+   572→        </div>
+   573→      ),
+   574→      numeric: true,
+   575→    },
+   576→  ];
+   577→
+   578→  const topPerfColumns: Column<Coupon>[] = [
+   579→    {
+   580→      key: "code",
+   581→      header: "Code",
+   582→      cell: (c) => (
+   583→        <div className="flex items-center gap-1.5">
+   584→          <span className="font-mono text-xs font-medium text-foreground">{c.code}</span>
+   585→          <Button
+   586→            size="sm"
+   587→            variant="ghost"
+   588→            className="h-6 w-6 p-0"
+   589→            onClick={() => copyToClipboard(c.code, "Coupon code")}
+   590→            aria-label={`Copy ${c.code}`}
+   591→          >
+   592→            <Copy className="h-3 w-3" />
+   593→          </Button>
+   594→        </div>
+   595→      ),
+   596→      sortValue: (c) => c.code,
+   597→    },
+   598→    {
+   599→      key: "redemptions30d",
+   600→      header: "Redemptions",
+   601→      cell: (c) => <span className="tabular-nums">{c.redemptions30d}</span>,
+   602→      sortValue: (c) => c.redemptions30d,
+   603→      numeric: true,
+   604→    },
+   605→    {
+   606→      key: "discountGiven30d",
+   607→      header: "Discount Given",
+   608→      cell: (c) => (
+   609→        <span className="tabular-nums text-rose-600">
+   610→          {formatCurrency(c.discountGiven30d, currency)}
+   611→        </span>
+   612→      ),
+   613→      sortValue: (c) => c.discountGiven30d,
+   614→      numeric: true,
+   615→    },
+   616→    {
+   617→      key: "revenueAttributed30d",
+   618→      header: "Revenue",
+   619→      cell: (c) => (
+   620→        <span className="tabular-nums font-medium text-emerald-600">
+   621→          {formatCurrency(c.revenueAttributed30d, currency)}
+   622→        </span>
+   623→      ),
+   624→      sortValue: (c) => c.revenueAttributed30d,
+   625→      numeric: true,
+   626→    },
+   627→    {
+   628→      key: "conversionRate",
+   629→      header: "Conv. Rate",
+   630→      cell: (c) => {
+   631→        const tone = c.conversionRate >= 12 ? "text-emerald-600" : "text-muted-foreground";
+   632→        return <span className={`tabular-nums ${tone}`}>{c.conversionRate.toFixed(1)}%</span>;
+   633→      },
+   634→      sortValue: (c) => c.conversionRate,
+   635→      numeric: true,
+   636→    },
+   637→    {
+   638→      key: "topAffiliate",
+   639→      header: "Top Affiliate",
+   640→      cell: (c) => <span className="text-xs text-foreground">{c.topAffiliate}</span>,
+   641→      sortValue: (c) => c.topAffiliate,
+   642→    },
+   643→  ];
+   644→
+   645→  return (
+   646→    <Page>
+   647→      <PageHeader
+   648→        title="Coupon Codes"
+   649→        description={`Create and track coupon codes that ${term("trader").toLowerCase()}s redeem on ${term("challenge")} purchases via affiliate links.`}
+   650→        icon={Ticket}
+   651→        term={`Attributable revenue · 30-day window · ${term("trader")} → funded conversion`}
+   652→        actions={
+   653→          <>
+   654→            <Button size="sm" variant="outline" onClick={handleExport}>
+   655→              <Download className="mr-1 h-4 w-4" /> Export
+   656→            </Button>
+   657→            <Button
+   658→              size="sm"
+   659→              onClick={() => {
+   660→                setSelected(null);
+   661→                setCreating(true);
+   662→              }}
+   663→            >
+   664→              <Plus className="mr-1 h-4 w-4" /> Create Coupon
+   665→            </Button>
+   666→          </>
+   667→        }
+   668→      />
+   669→      <PageContent>
+   670→        {/* KPI row — §9 every metric carries context */}
+   671→        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+   672→          <MetricCard
+   673→            label="Active Coupons"
+   674→            value={activeCount}
+   675→            icon={Ticket}
+   676→            tone="positive"
+   677→            deltaLabel={`${COUPONS.length} total · ${COUPONS.filter((c) => c.status === "scheduled").length} scheduled`}
+   678→          />
+   679→          <MetricCard
+   680→            label="Total Redemptions (30d)"
+   681→            value={formatCompact(totalRedemptions)}
+   682→            icon={Users}
+   683→            tone="positive"
+   684→            deltaLabel={`across all ${term("trader").toLowerCase()} signups`}
+   685→          />
+   686→          <MetricCard
+   687→            label="Discount Given (30d)"
+   688→            value={formatCurrency(totalDiscountGiven, currency)}
+   689→            icon={Tag}
+   690→            tone="negative"
+   691→            deltaLabel="reduces recognized revenue"
+   692→          />
+   693→          <MetricCard
+   694→            label="Revenue from Coupons (30d)"
+   695→            value={formatCurrency(totalRevenue, currency)}
+   696→            icon={TrendingUp}
+   697→            tone="positive"
+   698→            deltaLabel={`top: ${topPerformer}`}
+   699→          />
+   700→        </div>
+   701→
+   702→        {/* Filter bar + Coupons DataTable */}
+   703→        <div className="rounded-lg border bg-card p-4">
+   704→          <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+   705→            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+   706→              <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+   707→              All Coupons
+   708→              <Badge variant="outline" className="text-[10px]">{filtered.length}</Badge>
+   709→            </div>
+   710→            <div className="flex flex-wrap items-center gap-2">
+   711→              <Select value={statusFilter} onValueChange={setStatusFilter}>
+   712→                <SelectTrigger size="sm" className="h-8 w-36 text-xs" aria-label="Filter by status">
+   713→                  <SelectValue placeholder="All statuses" />
+   714→                </SelectTrigger>
+   715→                <SelectContent>
+   716→                  <SelectItem value="all">All statuses</SelectItem>
+   717→                  <SelectItem value="active">Active</SelectItem>
+   718→                  <SelectItem value="scheduled">Scheduled</SelectItem>
+   719→                  <SelectItem value="expired">Expired</SelectItem>
+   720→                  <SelectItem value="disabled">Disabled</SelectItem>
+   721→                </SelectContent>
+   722→              </Select>
+   723→              <Select value={typeFilter} onValueChange={setTypeFilter}>
+   724→                <SelectTrigger size="sm" className="h-8 w-40 text-xs" aria-label="Filter by discount type">
+   725→                  <SelectValue placeholder="All types" />
+   726→                </SelectTrigger>
+   727→                <SelectContent>
+   728→                  <SelectItem value="all">All discount types</SelectItem>
+   729→                  <SelectItem value="Percentage">Percentage</SelectItem>
+   730→                  <SelectItem value="Flat">Flat</SelectItem>
+   731→                  <SelectItem value="Free Trial">Free Trial</SelectItem>
+   732→                  <SelectItem value="Bonus Credit">Bonus Credit</SelectItem>
+   733→                </SelectContent>
+   734→              </Select>
+   735→            </div>
+   736→          </div>
+   737→
+   738→          <DataTable
+   739→            columns={couponsColumns}
+   740→            data={filtered}
+   741→            rowKey={(c) => c.id}
+   742→            searchableText={(c) => `${c.code} ${c.description} ${c.affiliateName} ${c.discountType}`}
+   743→            searchPlaceholder="Search by code or affiliate…"
+   744→            pageSize={8}
+   745→            onRowClick={(c) => {
+   746→              setSelected(c);
+   747→              setCreating(false);
+   748→            }}
+   749→            emptyTitle="No coupons match"
+   750→            emptyDescription="Adjust the status or discount-type filter and try again."
+   751→          />
+   752→        </div>
+   753→
+   754→        {/* Top Performing Coupons — separate section per spec */}
+   755→        <div className="rounded-lg border bg-card p-4">
+   756→          <div className="mb-3 flex items-center justify-between">
+   757→            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+   758→              <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+   759→              Top Performing Coupons (30d)
+   760→            </div>
+   761→            <span className="text-xs text-muted-foreground">
+   762→              Ranked by revenue attributed to coupon-driven signups.
+   763→            </span>
+   764→          </div>
+   765→          <DataTable
+   766→            columns={topPerfColumns}
+   767→            data={TOP_PERF}
+   768→            rowKey={(c) => c.id}
+   769→            pageSize={5}
+   770→            emptyTitle="No active coupons"
+   771→            emptyDescription="Top performers will appear here once redemptions roll in."
+   772→          />
+   773→        </div>
+   774→      </PageContent>
+   775→
+   776→      <CouponSheet
+   777→        key={selected?.id ?? (creating ? "__create__" : "__closed__")}
+   778→        coupon={selected}
+   779→        creating={creating}
+   780→        onClose={() => {
+   781→          setSelected(null);
+   782→          setCreating(false);
+   783→        }}
+   784→        currency={currency}
+   785→        onDisable={(c) => {
+   786→          setSelected(null);
+   787→          setCreating(false);
+   788→          setDisableTarget(c);
+   789→        }}
+   790→      />
+   791→
+   792→      {/* Disable Coupon AlertDialog — destructive friction §24 */}
+   793→      <AlertDialog
+   794→        open={!!disableTarget}
+   795→        onOpenChange={(open) => {
+   796→          if (!open) setDisableTarget(null);
+   797→        }}
+   798→      >
+   799→        <AlertDialogContent>
+   800→          <AlertDialogHeader>
+   801→            <AlertDialogTitle>
+   802→              Disable coupon {disableTarget?.code ?? ""}?
+   803→            </AlertDialogTitle>
+   804→            <AlertDialogDescription>
+   805→              The coupon will stop accepting new redemptions immediately.
+   806→              {disableTarget
+   807→                ? ` ${disableTarget.used} ${term("trader").toLowerCase()}${disableTarget.used === 1 ? "" : "s"} have already redeemed this code — those discounts remain honored.`
+   808→                : ""}
+   809→              {" "}Existing tracked links continue to work but return a "code disabled" error to the {term("trader").toLowerCase()} at checkout. This action is logged in the audit trail and can be reversed by re-enabling the coupon.
+   810→            </AlertDialogDescription>
+   811→          </AlertDialogHeader>
+   812→          <AlertDialogFooter>
+   813→            <AlertDialogCancel>Keep coupon</AlertDialogCancel>
+   814→            <AlertDialogAction
+   815→              className="bg-rose-600 text-white hover:bg-rose-700"
+   816→              onClick={() => {
+   817→                if (disableTarget) {
+   818→                  toast({
+   819→                    title: "Coupon disabled",
+   820→                    description: `${disableTarget.code} no longer accepts redemptions.`,
+   821→                    variant: "destructive",
+   822→                  });
+   823→                }
+   824→                setDisableTarget(null);
+   825→              }}
+   826→            >
+   827→              Disable coupon
+   828→            </AlertDialogAction>
+   829→          </AlertDialogFooter>
+   830→        </AlertDialogContent>
+   831→      </AlertDialog>
+   832→    </Page>
+   833→  );
+   834→}
+   835→
+   836→/* ------------------------------------------------------------------ */
+   837→/* Coupon Sheet Drawer (View or Create)                                */
+   838→/* ------------------------------------------------------------------ */
+   839→
+   840→function CouponSheet({
+   841→  coupon,
+   842→  creating,
+   843→  onClose,
+   844→  currency,
+   845→  onDisable,
+   846→}: {
+   847→  coupon: Coupon | null;
+   848→  creating: boolean;
+   849→  onClose: () => void;
+   850→  currency: string;
+   851→  onDisable: (c: Coupon) => void;
+   852→}) {
+   853→  const open = creating || coupon !== null;
+   854→  // The parent component passes a `key` prop so the entire sheet
+   855→  // remounts whenever the target coupon changes (or when entering
+   856→  // create mode). Lazy useState initializers read from `coupon`
+   857→  // and `creating` on mount — no useEffect, no setState-in-effect
+   858→  // warning (react-hooks/set-state-in-effect).
+   859→  const [codeValue, setCodeValue] = useState(() => coupon?.code ?? generateCode(1));
+   860→  const [description, setDescription] = useState(() => coupon?.description ?? "");
+   861→  const [discountType, setDiscountType] = useState<DiscountType>(() => coupon?.discountType ?? "Percentage");
+   862→  const [discountValue, setDiscountValue] = useState(() => String(coupon?.discountValue ?? 10));
+   863→  const [minPurchase, setMinPurchase] = useState(() => String(coupon?.minPurchase ?? 0));
+   864→  const [limit, setLimit] = useState(() => String(coupon?.limit ?? 100));
+   865→  const [unlimited, setUnlimited] = useState(() => coupon?.limit === 0);
+   866→  const [validFrom, setValidFrom] = useState(() => coupon?.validFrom ?? new Date().toISOString().slice(0, 10));
+   867→  const [validUntil, setValidUntil] = useState(() => coupon?.expires ?? "");
+   868→  const [plans, setPlans] = useState<PlanName[]>(() => coupon?.applicablePlans ?? ["Starter"]);
+   869→  const [affiliate, setAffiliate] = useState<string>(() => coupon?.affiliateId ?? "AFF-001");
+   870→  const [active, setActive] = useState(() => coupon?.status === "active" || !coupon);
+   871→  const [seed, setSeed] = useState(1);
+   872→
+   873→  const handleGenerate = () => {
+   874→    const next = seed + 1;
+   875→    setSeed(next);
+   876→    setCodeValue(generateCode(next));
+   877→  };
+   878→
+   879→  const togglePlan = (p: PlanName) => {
+   880→    setPlans((arr) => (arr.includes(p) ? arr.filter((x) => x !== p) : [...arr, p]));
+   881→  };
+   882→
+   883→  const handleSave = () => {
+   884→    if (!codeValue.trim()) {
+   885→      toast({ title: "Code required", description: "Generate or type a coupon code first.", variant: "destructive" });
+   886→      return;
+   887→    }
+   888→    toast({
+   889→      title: creating ? "Coupon created" : "Coupon saved",
+   890→      description: `${codeValue} — ${discountType} ${formatDiscountValue(discountType, Number(discountValue) || 0, currency)}${plans.length ? ` · ${plans.length} plan${plans.length === 1 ? "" : "s"}` : ""}.`,
+   891→    });
+   892→    onClose();
+   893→  };
+   894→
+   895→  const handleDuplicate = () => {
+   896→    toast({
+   897→      title: "Coupon duplicated",
+   898→      description: `${codeValue}-COPY draft created in the Coupons table.`,
+   899→    });
+   900→  };
+   901→
+   902→  return (
+   903→    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+   904→      <SheetContent
+   905→        side="right"
+   906→        className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-xl"
+   907→      >
+   908→        <SheetHeader className="border-b pb-4">
+   909→          <SheetTitle className="flex items-center gap-2">
+   910→            <Ticket className="h-4 w-4 text-muted-foreground" />
+   911→            {creating ? "Create Coupon" : `Edit ${coupon?.code ?? ""}`}
+   912→          </SheetTitle>
+   913→          <SheetDescription>
+   914→            {creating
+   915→              ? "Configure the discount, redemption caps, and which plans this code applies to."
+   916→              : `Last redeemed ${coupon?.used ?? 0} times · limit ${coupon?.limit ?? "—"}.`}
+   917→          </SheetDescription>
+   918→        </SheetHeader>
+   919→
+   920→        <div className="flex-1 space-y-4 p-4">
+   921→          {/* Code field with Generate button */}
+   922→          <div className="space-y-1.5">
+   923→            <Label htmlFor="cpn-code" className="text-xs">
+   924→              <LabelWithHelp help="The code {trader}s type at checkout. Use 6-12 uppercase alphanumeric characters. Avoid I, O, 0, 1 for legibility.">
+   925→                Code
+   926→              </LabelWithHelp>
+   927→            </Label>
+   928→            <div className="flex gap-2">
+   929→              <Input
+   930→                id="cpn-code"
+   931→                value={codeValue}
+   932→                onChange={(e) => setCodeValue(e.target.value.toUpperCase())}
+   933→                className="font-mono text-sm"
+   934→                placeholder="WELCOME20"
+   935→                aria-label="Coupon code"
+   936→              />
+   937→              <Button
+   938→                type="button"
+   939→                size="sm"
+   940→                variant="outline"
+   941→                onClick={handleGenerate}
+   942→                aria-label="Generate random coupon code"
+   943→              >
+   944→                <RefreshCw className="mr-1 h-3.5 w-3.5" /> Generate
+   945→              </Button>
+   946→            </div>
+   947→          </div>
+   948→
+   949→          {/* Description */}
+   950→          <div className="space-y-1.5">
+   951→            <Label htmlFor="cpn-desc" className="text-xs">Description</Label>
+   952→            <Input
+   953→              id="cpn-desc"
+   954→              value={description}
+   955→              onChange={(e) => setDescription(e.target.value)}
+   956→              placeholder="20% off first challenge"
+   957→              aria-label="Coupon description"
+   958→            />
+   959→          </div>
+   960→
+   961→          {/* Discount type + value */}
+   962→          <div className="grid grid-cols-2 gap-3">
+   963→            <div className="space-y-1.5">
+   964→              <Label className="text-xs">Discount Type</Label>
+   965→              <Select value={discountType} onValueChange={(v) => setDiscountType(v as DiscountType)}>
+   966→                <SelectTrigger size="sm" className="h-9 text-xs" aria-label="Discount type">
+   967→                  <SelectValue />
+   968→                </SelectTrigger>
+   969→                <SelectContent>
+   970→                  <SelectItem value="Percentage">Percentage off</SelectItem>
+   971→                  <SelectItem value="Flat">Flat amount off</SelectItem>
+   972→                  <SelectItem value="Free Trial">Free trial days</SelectItem>
+   973→                  <SelectItem value="Bonus Credit">Bonus credit</SelectItem>
+   974→                </SelectContent>
+   975→              </Select>
+   976→            </div>
+   977→            <div className="space-y-1.5">
+   978→              <Label htmlFor="cpn-value" className="text-xs">
+   979→                {discountType === "Percentage"
+   980→                  ? "Percent (%)"
+   981→                  : discountType === "Free Trial"
+   982→                    ? "Trial days"
+   983→                    : `Amount (${currency})`}
+   984→              </Label>
+   985→              <Input
+   986→                id="cpn-value"
+   987→                type="number"
+   988→                min={0}
+   989→                value={discountValue}
+   990→                onChange={(e) => setDiscountValue(e.target.value)}
+   991→                aria-label="Discount value"
+   992→              />
+   993→            </div>
+   994→          </div>
+   995→
+   996→          <Separator />
+   997→
+   998→          {/* Min purchase + Max redemptions */}
+   999→          <div className="grid grid-cols-2 gap-3">
+  1000→            <div className="space-y-1.5">
+  1001→              <Label htmlFor="cpn-min" className="text-xs">
+  1002→                <LabelWithHelp help="Minimum cart subtotal required before the coupon applies. Set to 0 for no minimum.">
+  1003→                  Min Purchase ({currency})
+  1004→                </LabelWithHelp>
+  1005→              </Label>
+  1006→              <Input
+  1007→                id="cpn-min"
+  1008→                type="number"
+  1009→                min={0}
+  1010→                value={minPurchase}
+  1011→                onChange={(e) => setMinPurchase(e.target.value)}
+  1012→                aria-label="Minimum purchase"
+  1013→              />
+  1014→            </div>
+  1015→            <div className="space-y-1.5">
+  1016→              <Label htmlFor="cpn-limit" className="text-xs">
+  1017→                <LabelWithHelp help="Maximum total redemptions across all {trader}s. Once hit, the coupon stops accepting new redemptions.">
+  1018→                  Max Redemptions
+  1019→                </LabelWithHelp>
+  1020→              </Label>
+  1021→              <Input
+  1022→                id="cpn-limit"
+  1023→                type="number"
+  1024→                min={0}
+  1025→                value={limit}
+  1026→                disabled={unlimited}
+  1027→                aria-label="Maximum redemptions"
+  1028→                className={unlimited ? "opacity-50" : ""}
+  1029→              />
+  1030→              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+  1031→                <Checkbox checked={unlimited} onCheckedChange={(v) => setUnlimited(v === true)} aria-label="Unlimited redemptions" />
+  1032→                Unlimited
+  1033→              </label>
+  1034→            </div>
+  1035→          </div>
+  1036→
+  1037→          {/* Valid From / Valid Until */}
+  1038→          <div className="grid grid-cols-2 gap-3">
+  1039→            <div className="space-y-1.5">
+  1040→              <Label htmlFor="cpn-from" className="text-xs">Valid From</Label>
+  1041→              <Input
+  1042→                id="cpn-from"
+  1043→                type="date"
+  1044→                value={validFrom}
+  1045→                onChange={(e) => setValidFrom(e.target.value)}
+  1046→                aria-label="Valid from date"
+  1047→              />
+  1048→            </div>
+  1049→            <div className="space-y-1.5">
+  1050→              <Label htmlFor="cpn-until" className="text-xs">Valid Until</Label>
+  1051→              <Input
+  1052→                id="cpn-until"
+  1053→                type="date"
+  1054→                value={validUntil}
+  1055→                onChange={(e) => setValidUntil(e.target.value)}
+  1056→                aria-label="Valid until date"
+  1057→              />
+  1058→            </div>
+  1059→          </div>
+  1060→
+  1061→          {/* Applicable Plans — multi-select */}
+  1062→          <div className="space-y-1.5">
+  1063→            <Label className="text-xs">
+  1064→              <LabelWithHelp help="Restricts the coupon to specific plans at checkout. Leave all unchecked for any plan.">
+  1065→                Applicable Plans
+  1066→              </LabelWithHelp>
+  1067→            </Label>
+  1068→            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+  1069→              {ALL_PLANS.map((p) => (
+  1070→                <label
+  1071→                  key={p}
+  1072→                  className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-xs"
+  1073→                >
+  1074→                  <Checkbox
+  1075→                    checked={plans.includes(p)}
+  1076→                    onCheckedChange={() => togglePlan(p)}
+  1077→                    aria-label={`Apply to ${p} plan`}
+  1078→                  />
+  1079→                  <span>{p}</span>
+  1080→                </label>
+  1081→              ))}
+  1082→            </div>
+  1083→          </div>
+  1084→
+  1085→          {/* Affiliate select */}
+  1086→          <div className="space-y-1.5">
+  1087→            <Label className="text-xs">
+  1088→              <LabelWithHelp help="The affiliate who earns commission on each redemption. Choose 'Any' to allow all affiliates to share the coupon.">
+  1089→                Owning Affiliate
+  1090→              </LabelWithHelp>
+  1091→            </Label>
+  1092→            <Select value={affiliate} onValueChange={setAffiliate}>
+  1093→              <SelectTrigger size="sm" className="h-9 text-xs" aria-label="Owning affiliate">
+  1094→                <SelectValue />
+  1095→              </SelectTrigger>
+  1096→              <SelectContent>
+  1097→                <SelectItem value="AFF-001">Alex Trader</SelectItem>
+  1098→                <SelectItem value="AFF-002">Sarah Marketing</SelectItem>
+  1099→                <SelectItem value="AFF-003">Maria Lopez</SelectItem>
+  1100→                <SelectItem value="AFF-004">David Chen</SelectItem>
+  1101→                <SelectItem value="AFF-005">Emma Wilson</SelectItem>
+  1102→                <SelectItem value="any">Any affiliate</SelectItem>
+  1103→              </SelectContent>
+  1104→            </Select>
+  1105→          </div>
+  1106→
+  1107→          {/* Status toggle */}
+  1108→          <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+  1109→            <div className="flex flex-col">
+  1110→              <span className="text-xs font-medium">Status</span>
+  1111→              <span className="text-[11px] text-muted-foreground">
+  1112→                {active ? "Accepting redemptions" : "Disabled — no new redemptions"}
+  1113→              </span>
+  1114→            </div>
+  1115→            <Switch checked={active} onCheckedChange={setActive} aria-label="Coupon status" />
+  1116→          </div>
+  1117→        </div>
+  1118→
+  1119→        <SheetFooter className="mt-auto flex-row gap-2 border-t pt-4">
+  1120→          <Button size="sm" onClick={handleSave}>
+  1121→            <Plus className="mr-1 h-3.5 w-3.5" /> {creating ? "Create" : "Save"}
+  1122→          </Button>
+  1123→          <Button size="sm" variant="outline" onClick={handleDuplicate}>
+  1124→            <Files className="mr-1 h-3.5 w-3.5" /> Duplicate
+  1125→          </Button>
+  1126→          {!creating && coupon && coupon.status === "active" ? (
+  1127→            <Button
+  1128→              size="sm"
+  1129→              variant="outline"
+  1130→              className="ml-auto text-rose-600 hover:text-rose-700"
+  1131→              onClick={() => onDisable(coupon)}
+  1132→            >
+  1133→              <Ban className="mr-1 h-3.5 w-3.5" /> Disable
+  1134→            </Button>
+  1135→          ) : (
+  1136→            <Button size="sm" variant="ghost" className="ml-auto" onClick={onClose}>
+  1137→              Cancel
+  1138→            </Button>
+  1139→          )}
+  1140→        </SheetFooter>
+  1141→      </SheetContent>
+  1142→    </Sheet>
+  1143→  );
+  1144→}
+  1145→

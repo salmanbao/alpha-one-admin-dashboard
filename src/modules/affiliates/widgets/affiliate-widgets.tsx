@@ -71,7 +71,7 @@ export function TopAffiliatesWidget() {
                   className="h-1.5 rounded-full"
                   style={{
                     width: `${Math.round((a.conversions / maxConversions) * 100)}%`,
-                    background: tierTone[a.tier] ?? "#a21caf",
+                    background: tierTone[a.tier] ?? "#b45309",
                   }}
                 />
               </div>
@@ -99,7 +99,7 @@ export function AffiliateRevenueWidget() {
       data={data}
       xKey="date"
       yKey="value"
-      color="#a21caf"
+      color="#b45309"
       formatValue={(v) => formatCurrency(v, currency)}
       height={200}
     />
