@@ -9276,3 +9276,73 @@ Stage Summary:
 - All touched files pass lint (verified after each batch via `bun run lint`)
 - Dev server OOM'd twice during Phase 6 (compile load) — 1536MB restart applied, HTTP 200
 - No active cron jobs (413512 was stopped per user request earlier; 15-min webDevReview was not recreated since the user said "proceed to implement the remaining phases" implying hands-on work, not background cron)
+
+---
+Task ID: phase7-master
+Agent: Super Z (Phase 7 remaining batches after Phase 6)
+Task: Implement remaining deferred phases — cert-designer load existing fields, token-mgmt nav, phase-mgmt key prop, offer-edit stale useState, closed-positions expandedId stale, copy-trading-analysis dead Date Range, risk-addon `|| true` + dev tool, ai-pages seedChat terminology, ai-cost silly expression, payout-widgets Reject+Info, boot-screen sessionStorage skip, topbar Audit log + help-dropdown Contact Support + keyboard-shortcuts chord leak module filters, TenantDetailPage RiskTab real nav + export, notification-edit segment rules load.
+
+Work Log:
+- Attempted to dispatch a parallel subagent for terminology deep sweep (Phase 7A) but it exceeded max turns — recovered the 2 parse errors it left in enhanced-user-events-page.tsx before continuing
+- Phase 7B — cert-designer load existing template fields:
+  - Extended CertificateTemplate type with optional `fields?: Array<{id, label, x, y, fontSize, fontWeight, color, align}>` field (forward-compat with the designer's richer CertField shape)
+  - certificate-template-designer-page.tsx useState initializer now reads existing.fields via defaultField() normalization (was always DEFAULT_FIELDS — silently discarded the saved field config when editing)
+- Phase 7C — token-management list nav to detail:
+  - Added onRowClick handler: `navigate("token-detail", { id: t.keyFull })` so operators can finally open the rich token detail view (scopes matrix, IP whitelist, usage stats) — previously only Copy + Revoke actions were available, the token-detail viewId was registered but unreachable from the UI
+- Phase 7D — phase-management PhaseDetailPanel key prop:
+  - Added `key={p.id}` so React remounts the panel when the operator expands a different phase (was keeping Phase A's local draft state applied to Phase B's form when expanding Phase B without remount)
+- Phase 7E — offer-edit-page stale useState pattern:
+  - Added lastId render-time reset pattern that re-syncs all 13 useState fields when the URL id param changes (was keeping offer A's title/description/dates when navigating to offer B)
+- Phase 7F — closed-positions-page expandedId stale on filter change:
+  - Added useEffect that clears expandedId when search/symbolFilter/directionFilter/reasonFilter/dateRange change (was: chevron state persisted on a row that may have been filtered out, ExpandedDetail returned null but the chevron showed expanded)
+- Phase 7G — copy-trading-analysis-page dead Date Range Select:
+  - Extended summarizeAccount() with a 5th cutoffMs param; filters real positions by `new Date(p.openedAt).getTime() >= cutoffMs`
+  - onAnalyze now computes cutoffMs from the dateRange state and passes it to both summarizeAccount calls
+  - The "Last 7d / 30d / 90d / All time" selector now actually filters the analysis window (was purely decorative — analyze ignored dateRange entirely)
+- Phase 7H — risk-addon-revenue-page `|| true` no-op + developer tool:
+  - Removed the `|| true` from `traders.filter((t) => new Date(t.joinedAt).getTime() >= cutoff * 0.5 || true)` so the date-range filter actually scopes to in-window traders (was filtering nothing)
+  - Added aria-label + title hint to the "Preview empty state" developer toggle button so it's clear it's a developer preview tool, not a real operator action
+- Phase 7I — ai-pages seedChat terminology + ai-cost silly expression:
+  - ai-pages.tsx: extracted `buildSeedChat(tenant)` helper that wraps each seedChat message in `resolveTermsInString(content, tenant)` so Alpha tenant sees "participants"/"withdrawals" instead of hardcoded "traders"/"payouts"; useState initializer calls buildSeedChat instead of using the const directly; imported TenantContext + resolveTermsInString
+  - ai-cost-page.tsx: replaced `totalSpend30d * (30 / 30)` (which is just totalSpend30d — a no-op expression) with `Math.round(dailyAvg * 30)` which is the actual month-end projection (dailyAvg = totalSpend30d / 30, projected over 30 days)
+- Phase 7J — payout-widgets Approve only → Approve + Reject + Request-Info:
+  - PayoutQueueWidget now offers all 3 actions matching the PayoutReviewActions panel (Approve / Reject with AlertDialog destructive confirmation / Request-Info via applyPayoutDecision with "info-requested")
+  - Added aria-labels for each button; layout changed to flex-wrap to accommodate 3 buttons on mobile
+- Phase 7K — boot-screen sessionStorage + module-filtered shortcuts/menu items:
+  - providers.tsx: booted useState initializer reads sessionStorage flag `pfaas:booted`; onDone writes "1" so subsequent F5 reloads within the same browser session skip the animation (fresh browser visit still sees it)
+  - topbar.tsx: Audit log menu item now conditionally rendered when `moduleRegistry.getEnabledModules(runtime).some(m => m.manifest.id === "audit")` — tenants without the audit module no longer see a dead-end menu item that lands in ForbiddenState
+  - help-dropdown.tsx: openSupport() now checks supportEnabled before navigating — shows a destructive toast if the module isn't enabled for the current tenant; Contact Support menu item still rendered but the click handler is honest
+  - keyboard-shortcuts-help.tsx: `g t/a/p/r` chord shortcuts now gated on `isModuleEnabled("trading"|"analytics"|"payouts"|"risk")`; chord listener now has a 500ms setTimeout cleanup so a stray `g` keystroke doesn't leak the listener forever (was using `{ once: true }` which never auto-cleaned if no follow-up key was pressed)
+- Phase 7L — TenantDetailPage RiskTab real navigation + export:
+  - RiskTab now destructure `navigate` from usePlatform
+  - "Open risk workspace" → `navigate("risk")` (was toast-only)
+  - "View open breaches" → `navigate("risk-breaches")` (was toast-only)
+  - "Export risk report" → real `exportToCsv(open, [6 columns], \`risk-report-${tenant.slug}-${Date.now()}.csv\`)` (was toast-only "Risk report will be downloaded (demo)" but no file was written); toast now says "Risk report exported" with the breach count
+  - Imported exportToCsv
+- Phase 7O — notification-edit-page segment rules load from existing:
+  - Extended ScheduledNotification type with optional `segment?: Partial<SegmentRules>` field (forward-compat for saved targeting rules)
+  - useState initializer now reads existing.segment via `{ ...EMPTY_SEGMENT, ...existing.segment } as SegmentRules` (was always EMPTY_SEGMENT — silently reset all targeting rules to "any" when editing a notification that had segment rules set)
+
+Verification (agent-browser E2E on Alpha/Sarah after all Phase 7 fixes):
+- HTTP 200, page renders cleanly, 0 console errors
+- 32 grid-stack widgets render
+- Terminology resolves: Participant/Evaluation/Withdrawal for Alpha
+- Group Management + KYC Providers sidebar entries visible
+- Screenshot: download/r7-overview.png
+- Dev server died twice during Phase 7 (compile load) — restarted with 1536MB variant, HTTP 200
+
+Stage Summary:
+- Phase 7 closed all the remaining Round 6 deferred items except:
+  - Phase 7A terminology deep sweep (subagent exceeded max turns — only partial work was done, mostly recovered; the broad sweep across trading-pages/closed-positions/order-detail/add-account/account-events/challenge-pages/account-ip-addresses/risk-statistics/weekend-trades/enhanced-user-events/ai-predictive/firm-statistics/marketing-dashboard/daily-highlights/support-pages/settings-page-notifications-matrix/marketing-banner-edit/certificate-template-designer/dashboard-manager is still pending Round 8)
+  - TenantDetailPage UsersTab "Edit role" / "Remove user" / "Invite user" / "Generate invoice" (got "(demo)" suffix in Phase 5A; full CRUD + navigation deferred)
+  - settings-page IntegrationsTab — duplicate catalog of marketing-integrations-page (deferred — would hide the tab or wire to a session store)
+  - user-management per-row Edit/View actions — full CRUD deferred (got "(demo)" suffix)
+  - 5 edit pages (notification-edit/email-template-edit/marketing-banner-edit/certificate-detail/token-detail) — toast-only Save (got "(demo)" suffix in Phase 5A; persistence to a settings-store deferred)
+  - group-management-page CRUD + permissions matrix (deferred — would need a groups-store)
+  - kyc-providers-page CRUD (deferred — would need a kyc-providers-store)
+  - tenant-detail-page BillingTab history status pattern (deterministic per-tenant; deferred)
+  - super-admin-pages PlatformHealthPage uptime/latency/error-rate hardcoded (deferred — would need real metrics)
+  - dashboard-tabs chart series + TRADER_NAMES + PAYOUT_COHORT + country tiers (still synthetic — needs major restructure to derive from tenant data)
+- All touched files pass lint (verified after each batch via `bun run lint`)
+- Dev server OOM'd twice during Phase 7 — 1536MB restart applied, HTTP 200
+- No active cron jobs (413512 was stopped earlier; user did not request recreation)

@@ -14,8 +14,10 @@
  * detail fields (commission, swap, open/close timestamps).
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, resolveTermsInString } from "@/lib/platform/terminology";
+import type { TenantContext } from "@/lib/platform/types";
 import {
   getTenantAccounts,
   getTenantTraders,
@@ -222,7 +224,8 @@ function formatDuration(ms: number): string {
 /* ------------------------------------------------------------------ */
 
 export function ClosedPositionsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -235,6 +238,14 @@ export function ClosedPositionsPage() {
   const [directionFilter, setDirectionFilter] = useState<string>("all");
   const [reasonFilter, setReasonFilter] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Round 7 fix: clear expandedId whenever the operator changes any filter
+  // — previously the chevron state persisted on a row that may have been
+  // filtered out, so the ExpandedDetail returned null but the row still
+  // showed an expanded chevron in the table.
+  useEffect(() => {
+    setExpandedId(null);
+  }, [search, symbolFilter, directionFilter, reasonFilter, dateRange]);
 
   const symbolsAvailable = useMemo(
     () => Array.from(new Set(allClosed.map((p) => p.symbol))).sort(),
@@ -300,7 +311,7 @@ export function ClosedPositionsPage() {
       [
         { key: "id", header: "Position ID", value: (p) => p.id },
         { key: "accountLogin", header: "Account Login", value: (p) => p.accountLogin },
-        { key: "traderName", header: "Trader", value: (p) => p.traderName },
+        { key: "traderName", header: term("trader"), value: (p) => p.traderName },
         { key: "symbol", header: "Symbol", value: (p) => p.symbol },
         { key: "side", header: "Direction", value: (p) => p.side },
         { key: "volume", header: "Volume", value: (p) => p.volume },
@@ -360,7 +371,7 @@ export function ClosedPositionsPage() {
     },
     {
       key: "traderName",
-      header: "Trader",
+      header: term("trader"),
       cell: (row) => <span className="text-xs font-medium">{row.traderName}</span>,
       sortValue: (row) => row.traderName,
     },
@@ -538,7 +549,7 @@ export function ClosedPositionsPage() {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search symbol, trader, account…"
+          placeholder={resolveTermsInString("Search symbol, trader, account…", tenant)}
           className="h-8 w-64 text-xs"
         />
         {/* Date range */}
@@ -621,6 +632,7 @@ export function ClosedPositionsPage() {
           <ExpandedDetail
             position={filtered.find((p) => p.id === expandedId) ?? null}
             currency={currency}
+            tenant={tenant}
           />
         ) : null}
       </PageContent>
@@ -635,15 +647,18 @@ export function ClosedPositionsPage() {
 function ExpandedDetail({
   position,
   currency,
+  tenant,
 }: {
   position: ClosedPosition | null;
   currency: string;
+  tenant: Pick<TenantContext, "terminology">;
 }) {
+  const term = makeTermResolver(tenant);
   if (!position) return null;
   const fields: Array<{ label: string; value: string }> = [
     { label: "Position ID", value: position.id },
     { label: "Account Login", value: position.accountLogin },
-    { label: "Trader", value: position.traderName },
+    { label: term("trader"), value: position.traderName },
     { label: "Symbol", value: position.symbol },
     { label: "Direction", value: position.side === "buy" ? "Buy" : "Sell" },
     { label: "Volume", value: String(position.volume) },

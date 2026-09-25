@@ -13,14 +13,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 function ChallengeTable({ filter }: { filter?: (c: Challenge) => boolean }) {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   const chs = getTenantChallenges(tid).filter(filter ?? (() => true));
 
   const columns: Column<Challenge>[] = [
-    { key: "trader", header: "Trader", cell: (c) => <span className="font-medium">{c.traderName}</span>, sortValue: (c) => c.traderName },
-    { key: "name", header: "Challenge", cell: (c) => c.name, sortValue: (c) => c.name },
+    { key: "trader", header: term("trader"), cell: (c) => <span className="font-medium">{c.traderName}</span>, sortValue: (c) => c.traderName },
+    { key: "name", header: term("challenge"), cell: (c) => c.name, sortValue: (c) => c.name },
     { key: "phase", header: "Phase", cell: (c) => <Badge variant="outline" className="text-[10px]">{c.phase}</Badge>, sortValue: (c) => c.phase },
     { key: "size", header: "Account Size", cell: (c) => formatCurrency(c.accountSize, currency), sortValue: (c) => c.accountSize },
     { key: "target", header: "Profit Target", cell: (c) => formatCurrency(c.profitTarget, currency), sortValue: (c) => c.profitTarget },
@@ -51,7 +52,7 @@ function ChallengeTable({ filter }: { filter?: (c: Challenge) => boolean }) {
       data={chs}
       rowKey={(c) => c.id}
       searchableText={(c) => `${c.traderName} ${c.name} ${c.phase}`}
-      searchPlaceholder="Search challenges…"
+      searchPlaceholder={`Search ${plural(term("challenge")).toLowerCase()}…`}
     />
   );
 }
@@ -165,7 +166,7 @@ export function ChallengesOverviewPage() {
             value={`${passRate.toFixed(1)}%`}
             icon={Percent}
             tone={passRate >= 60 ? "positive" : "warning"}
-            deltaLabel="of all completed challenges"
+            deltaLabel={`of all completed ${plural(term("challenge")).toLowerCase()}`}
           />
           <MetricCard label="Avg Progress" value={`${avgProgress}%`} icon={CheckCircle2} />
           <MetricCard label="Total" value={chs.length} icon={Target} />

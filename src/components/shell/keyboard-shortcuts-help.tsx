@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { moduleRegistry } from "@/lib/platform/module-registry";
 import { resolveTermsInString } from "@/lib/platform/terminology";
 import {
   Dialog,
@@ -47,7 +48,12 @@ const SHORTCUTS: Shortcut[] = [
 ];
 
 export function KeyboardShortcutsHelp() {
-  const { setCommandOpen, setSearchOpen, navigate, sidebarCollapsed, setSidebarCollapsed, tenant } = usePlatform();
+  const { setCommandOpen, setSearchOpen, navigate, sidebarCollapsed, setSidebarCollapsed, tenant, runtime } = usePlatform();
+  // Round 7 fix: gate `g <key>` shortcuts on the target module being
+  // enabled for the current tenant (mirrors Round 3's command-menu fix).
+  const enabledModules = moduleRegistry.getEnabledModules(runtime);
+  const isModuleEnabled = (id: string) =>
+    enabledModules.some((m) => m.manifest.id === id);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -76,19 +82,21 @@ export function KeyboardShortcutsHelp() {
       }
       // `g <next-key>` navigation — listen for `g`, then the next key.
       // Command-menu.tsx handles `g d` and `g s`; we own `g t/a/p/r`.
+      // Round 7: gate each navigation on its module being enabled for
+      // the current tenant (avoid dead-end navigation into a ForbiddenState).
       if (e.key === "g") {
         const onKey = (ev: KeyboardEvent) => {
           const next = ev.key.toLowerCase();
-          if (next === "t") {
+          if (next === "t" && isModuleEnabled("trading")) {
             ev.preventDefault();
             navigate("trading-traders");
-          } else if (next === "a") {
+          } else if (next === "a" && isModuleEnabled("analytics")) {
             ev.preventDefault();
             navigate("analytics");
-          } else if (next === "p") {
+          } else if (next === "p" && isModuleEnabled("payouts")) {
             ev.preventDefault();
             navigate("payouts");
-          } else if (next === "r") {
+          } else if (next === "r" && isModuleEnabled("risk")) {
             ev.preventDefault();
             navigate("risk");
           }
@@ -96,12 +104,16 @@ export function KeyboardShortcutsHelp() {
           // (which only reacts to `d` and `s`), so they fall through.
           window.removeEventListener("keydown", onKey);
         };
-        window.addEventListener("keydown", onKey, { once: true });
+        window.addEventListener("keydown", onKey);
+        // Round 7: 500ms timeout cleanup so a stray `g` keystroke
+        // (followed by no follow-up, or a non-matching key) doesn't
+        // leak the chord listener forever.
+        setTimeout(() => window.removeEventListener("keydown", onKey), 500);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [navigate, sidebarCollapsed, setSidebarCollapsed]);
+  }, [navigate, sidebarCollapsed, setSidebarCollapsed, isModuleEnabled]);
 
   // Also expose a global to open it from the command menu
   useEffect(() => {

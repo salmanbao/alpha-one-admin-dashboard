@@ -28,6 +28,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import { getBanners, type Banner } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { LabelWithHelp } from "@/components/platform/contextual-help";
@@ -183,7 +184,7 @@ function SectionCard({
 /* ------------------------------------------------------------------ */
 
 export function MarketingBannerEditPage() {
-  const { router, navigate } = usePlatform();
+  const { router, navigate, tenant } = usePlatform();
   const id = router.params.id ?? "";
   const existing = useMemo(
     () => (id ? getBanners().find((b) => b.id === id) : undefined),
@@ -314,7 +315,7 @@ export function MarketingBannerEditPage() {
             {/* Basic + image */}
             <SectionCard
               title="Basic Information"
-              description="Banner image, title, and copy shown to traders."
+              description={resolveTermsInString("Banner image, title, and copy shown to traders.", tenant)}
               icon={Megaphone}
             >
               <div className="grid gap-4">
@@ -385,7 +386,7 @@ export function MarketingBannerEditPage() {
                     rows={3}
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="Short banner copy visible to traders."
+                    placeholder={resolveTermsInString("Short banner copy visible to traders.", tenant)}
                   />
                 </div>
               </div>
@@ -407,7 +408,7 @@ export function MarketingBannerEditPage() {
                       Is Active
                     </Label>
                     <span className="text-xs text-muted-foreground">
-                      Inactive banners are hidden from traders.
+                      {resolveTermsInString("Inactive banners are hidden from traders.", tenant)}
                     </span>
                   </div>
                   <Switch
@@ -454,7 +455,7 @@ export function MarketingBannerEditPage() {
             {/* Destination */}
             <SectionCard
               title="Destination"
-              description="What happens when a trader clicks the banner."
+              description={resolveTermsInString("What happens when a trader clicks the banner.", tenant)}
               icon={Link2}
             >
               <div className="grid gap-4">
@@ -506,13 +507,13 @@ export function MarketingBannerEditPage() {
                       <SelectContent>
                         {INTERNAL_PAGES.map((p) => (
                           <SelectItem key={p} value={p}>
-                            {p}
+                            {resolveTermsInString(p, tenant)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Navigates the trader to the selected dashboard page.
+                      {resolveTermsInString("Navigates the trader to the selected dashboard page.", tenant)}
                     </p>
                   </div>
                 ) : null}
@@ -645,7 +646,7 @@ export function MarketingBannerEditPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <LabelWithHelp help="Restrict visibility to traders from these countries. Empty selection applies worldwide.">
+                      <LabelWithHelp help={resolveTermsInString("Restrict visibility to traders from these countries. Empty selection applies worldwide.", tenant)}>
                         Countries
                       </LabelWithHelp>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -710,12 +711,11 @@ export function MarketingBannerEditPage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete this banner?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will permanently remove{" "}
+                          {resolveTermsInString("This will permanently remove ", tenant)}{" "}
                           <span className="font-medium text-foreground">
                             {title || "this banner"}
                           </span>{" "}
-                          from all trader experiences. This action cannot be
-                          undone.
+                          {resolveTermsInString("from all trader experiences. This action cannot be undone.", tenant)}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>

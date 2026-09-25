@@ -582,7 +582,7 @@ export function AiCostPage() {
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Bell className="h-4 w-4" />
               <span>
-                Projected month-end: <strong className="text-foreground">{formatCurrency(totalSpend30d * (30 / 30), currency)}</strong>
+                Projected month-end: <strong className="text-foreground">{formatCurrency(Math.round(dailyAvg * 30), currency)}</strong>
                 {" "}— projected {budgetUsedPct >= alertThreshold ? "will trigger" : "will not trigger"} the alert.
               </span>
             </div>

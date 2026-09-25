@@ -286,7 +286,12 @@ export function Topbar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate("profile")}>Profile</DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("settings", { tab: "general" })}>Settings</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("audit")}>Audit log</DropdownMenuItem>
+            {/* Round 7 fix: filter Audit log menu item by audit-module-enabled
+                so tenants without the audit module don't dead-end into a
+                ForbiddenState (mirrors Round 3's command-menu fix). */}
+            {moduleRegistry.getEnabledModules(runtime).some((m) => m.manifest.id === "audit") && (
+              <DropdownMenuItem onClick={() => navigate("audit")}>Audit log</DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-rose-600 focus:text-rose-600"

@@ -19,9 +19,29 @@ import { BootScreen } from "@/components/shell/boot-screen";
 bootstrapModules();
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [booted, setBooted] = useState(false);
+  // Round 7 fix: skip the boot-screen animation on subsequent reloads
+  // within the same browser session (was playing on every F5). The
+  // sessionStorage flag is cleared when the tab closes, so a fresh
+  // browser visit still sees the animation.
+  const [booted, setBooted] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.sessionStorage.getItem("pfaas:booted") === "1";
+    } catch {
+      return false;
+    }
+  });
   if (!booted) {
-    return <BootScreen onDone={() => setBooted(true)} />;
+    return (
+      <BootScreen
+        onDone={() => {
+          setBooted(true);
+          if (typeof window !== "undefined") {
+            try { window.sessionStorage.setItem("pfaas:booted", "1"); } catch { /* ignore */ }
+          }
+        }}
+      />
+    );
   }
   return (
     <PlatformProvider>

@@ -385,7 +385,7 @@ export function AiPredictivePage() {
       [
         { key: "payoutId", header: "Payout ID", value: (r) => r.payoutId },
         { key: "traderId", header: "Trader ID", value: (r) => r.traderId },
-        { key: "traderName", header: "Trader", value: (r) => r.traderName },
+        { key: "traderName", header: term("trader"), value: (r) => r.traderName },
         { key: "amount", header: "Amount", value: (r) => `${r.amount} ${r.currency}` },
         { key: "riskScore", header: "Risk Score", value: (r) => r.riskScore },
         { key: "riskFactors", header: "Risk Factors", value: (r) => r.riskFactors.join("; ") },

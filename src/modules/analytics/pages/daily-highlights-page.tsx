@@ -21,6 +21,7 @@
 
 import { useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import { getDailyHighlights } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { AreaSeries } from "@/components/platform/charts";
@@ -39,7 +40,7 @@ import { cn } from "@/lib/utils";
 const HOURLY_CHART_COLORS = ["#059669", "#0f766e", "#d97706", "#0d9488"];
 
 export function DailyHighlightsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   const today = new Date().toISOString().slice(0, 10);
@@ -66,7 +67,7 @@ export function DailyHighlightsPage() {
     <Page>
       <PageHeader
         title="Daily Highlights (UTC)"
-        description="Hourly revenue, payouts, and operational breakdowns for the selected UTC day."
+        description={resolveTermsInString("Hourly revenue, payouts, and operational breakdowns for the selected UTC day.", tenant)}
         icon={TrendingUp}
         actions={
           <div className="flex items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-xs">
@@ -170,12 +171,12 @@ export function DailyHighlightsPage() {
             ))}
           </SimpleTable>
 
-          <SimpleTable title="Recent Orders" headers={["Order", "Customer", "Challenge", "Amount", "PSP", "Time"]}>
+          <SimpleTable title="Recent Orders" headers={["Order", "Customer", "Challenge", "Amount", "PSP", "Time"].map((h) => resolveTermsInString(h, tenant))}>
             {h.recentOrders.map((o) => (
               <tr key={o.id}>
                 <td className="px-3 py-2 text-xs font-medium text-foreground">{o.id}</td>
                 <td className="px-3 py-2 text-xs text-foreground">{o.customer}</td>
-                <td className="px-3 py-2 text-xs text-muted-foreground">{o.challenge}</td>
+                <td className="px-3 py-2 text-xs text-muted-foreground">{resolveTermsInString(o.challenge, tenant)}</td>
                 <td className="px-3 py-2 text-right text-xs tabular-nums text-foreground">{fmt(o.amount)}</td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{o.psp}</td>
                 <td className="px-3 py-2 text-right text-xs text-muted-foreground">{o.time}</td>

@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 import { usePlatform, PlatformContext, type PlatformContextValue } from "@/lib/platform/platform-context";
+import { makeTermResolver } from "@/lib/platform/terminology";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import {
   resolveDashboardLayout,
@@ -306,7 +307,8 @@ const WIDGET_CATEGORIES: WidgetCategory[] = [
 
 export function DashboardManagerPage() {
   const platformValue = usePlatform();
-  const { availableTenants, user } = platformValue;
+  const { availableTenants, user, tenant } = platformValue;
+  const term = makeTermResolver(tenant);
 
   // Non-platform tenants only
   const tenants = useMemo(
@@ -731,7 +733,7 @@ export function DashboardManagerPage() {
     <Page>
       <PageHeader
         title="Dashboard Manager"
-        description="Configure widget layouts for each tenant's admin and trader roles."
+        description={`Configure widget layouts for each tenant's admin and ${term("trader").toLowerCase()} roles.`}
         icon={LayoutDashboard}
         actions={
           <div className="flex items-center gap-2">
@@ -821,7 +823,7 @@ export function DashboardManagerPage() {
                           variant="outline"
                           className="ml-1 text-[9px] capitalize"
                         >
-                          {r.application === "prop-admin" ? "Admin" : "Trader"}
+                          {r.application === "prop-admin" ? "Admin" : term("trader")}
                         </Badge>
                       </div>
                     </SelectItem>

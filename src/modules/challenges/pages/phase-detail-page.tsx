@@ -21,7 +21,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { resolveTermsInString } from "@/lib/platform/terminology";
+import { resolveTermsInString, makeTermResolver } from "@/lib/platform/terminology";
 import {
   getChallengePhaseConfigs,
   getChallengeTypes,
@@ -546,6 +546,8 @@ function PlatformIdsTab({
   index: number;
   challengeName: string;
 }) {
+  const { tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const mock = useMemo(() => generatePlatformIds(phase, index), [phase, index]);
   const [draft, setDraft] = useState<PlatformIdsDraft>({
     mt5Group: mock.mt5Group,
@@ -580,7 +582,7 @@ function PlatformIdsTab({
   const summaryColumns: Column<ChallengePhaseConfig>[] = [
     {
       key: "challenge",
-      header: "Challenge",
+      header: term("challenge"),
       cell: (p) => typeLookup[p.challengeTypeId] ?? "—",
       sortValue: (p) => typeLookup[p.challengeTypeId] ?? "",
     },

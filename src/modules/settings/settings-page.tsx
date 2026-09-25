@@ -20,6 +20,7 @@
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { EmptyState } from "@/components/platform/guards";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -280,7 +281,7 @@ export function SettingsPage() {
                               {card.title}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                              {card.description}
+                              {resolveTermsInString(card.description, tenant)}
                             </p>
                           </div>
                           <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
@@ -656,12 +657,13 @@ function RolesTab() {
 const NOTIF_PREFS_KEY = "pfaas:notificationPrefs";
 
 function NotificationsTab() {
+  const { tenant } = usePlatform();
   // Per-module notification preferences with per-channel toggles
   const modules = [
-    { id: "trading", name: "Trading", icon: CandlestickChart, events: ["New trader", "Account breach", "Large P&L"] },
-    { id: "challenges", name: "Challenges", icon: Target, events: ["Phase passed", "Challenge failed", "Profit target hit"] },
+    { id: "trading", name: resolveTermsInString("Trading", tenant), icon: CandlestickChart, events: [resolveTermsInString("New trader", tenant), "Account breach", "Large P&L"] },
+    { id: "challenges", name: resolveTermsInString("Challenges", tenant), icon: Target, events: ["Phase passed", resolveTermsInString("Challenge failed", tenant), "Profit target hit"] },
     { id: "risk", name: "Risk", icon: ShieldCheck, events: ["Drawdown breach", "Daily limit hit", "Risk score change"] },
-    { id: "payouts", name: "Payouts", icon: Wallet, events: ["Payout requested", "Payout approved", "Payout rejected"] },
+    { id: "payouts", name: resolveTermsInString("Payouts", tenant), icon: Wallet, events: [resolveTermsInString("Payout requested", tenant), resolveTermsInString("Payout approved", tenant), resolveTermsInString("Payout rejected", tenant)] },
     { id: "kyc", name: "KYC", icon: FileCheck, events: ["KYC submitted", "KYC approved", "High-risk flag"] },
     { id: "ai", name: "AI / LLM", icon: Brain, events: ["New insight", "Critical alert", "Opportunity flagged"] },
   ];

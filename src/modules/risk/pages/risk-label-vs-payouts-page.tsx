@@ -15,6 +15,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import {
   getTenantAccounts,
   getTenantPayouts,
@@ -104,7 +105,8 @@ interface AccountRow {
 }
 
 export function RiskLabelVsPayoutsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -122,7 +124,7 @@ export function RiskLabelVsPayoutsPage() {
       map.set(k, {
         key: k,
         label: LABEL_META[k].label,
-        description: LABEL_META[k].description,
+        description: resolveTermsInString(LABEL_META[k].description, tenant),
         accounts: [],
         revenue: 0,
         totalPayouts: 0,
@@ -244,9 +246,9 @@ export function RiskLabelVsPayoutsPage() {
         { key: "label", header: "Label", value: (r) => r.label },
         { key: "accountId", header: "Account ID", value: (r) => r.accountId },
         { key: "login", header: "Login", value: (r) => r.login },
-        { key: "trader", header: "Trader", value: (r) => r.trader },
+        { key: "trader", header: term("trader"), value: (r) => r.trader },
         { key: "revenue", header: "Revenue", value: (r) => r.revenue },
-        { key: "payouts", header: "Payouts", value: (r) => r.payouts },
+        { key: "payouts", header: plural(term("payout")), value: (r) => r.payouts },
         { key: "margin", header: "Margin %", value: (r) => r.margin },
       ],
       `risk-label-vs-payouts-${Date.now()}.csv`,
@@ -316,7 +318,7 @@ export function RiskLabelVsPayoutsPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by account id, trader, or login…"
+              placeholder={resolveTermsInString("Search by account id, trader, or login…", tenant)}
               className="pl-8"
               aria-label="Search accounts"
             />

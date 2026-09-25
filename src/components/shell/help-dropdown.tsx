@@ -31,12 +31,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { moduleRegistry } from "@/lib/platform/module-registry";
 import { toast } from "@/hooks/use-toast";
 
 const PLATFORM_VERSION = "v1.8.0";
 
 export function HelpDropdown() {
-  const { navigate } = usePlatform();
+  const { navigate, runtime } = usePlatform();
+  // Round 7 fix: filter Contact Support by support-module-enabled so
+  // tenants without the support module don't dead-end into a ForbiddenState.
+  const supportEnabled = moduleRegistry
+    .getEnabledModules(runtime)
+    .some((m) => m.manifest.id === "support");
 
   const openArchitectureOverview = () => {
     // The standalone Help page IS the platform architecture overview —
@@ -72,6 +78,14 @@ export function HelpDropdown() {
   };
 
   const openSupport = () => {
+    if (!supportEnabled) {
+      toast({
+        title: "Support module not enabled",
+        description: "This tenant doesn't have the Support module enabled. Contact your platform administrator.",
+        variant: "destructive",
+      });
+      return;
+    }
     navigate("support-tickets");
   };
 

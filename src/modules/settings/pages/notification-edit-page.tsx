@@ -178,7 +178,12 @@ export function NotificationEditPage() {
   const [endDate, setEndDate] = useState(endParts.date);
   const [endTime, setEndTime] = useState(endParts.time || "17:00");
   const [segmentOpen, setSegmentOpen] = useState(false);
-  const [segment, setSegment] = useState<SegmentRules>(EMPTY_SEGMENT);
+  // Round 7 fix: load existing.segment if present so editing a
+  // notification that had targeting rules doesn't silently reset all
+  // rules to "any" (previously the initializer always used EMPTY_SEGMENT).
+  const [segment, setSegment] = useState<SegmentRules>(() =>
+    existing?.segment ? { ...EMPTY_SEGMENT, ...existing.segment } as SegmentRules : EMPTY_SEGMENT,
+  );
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const setSegmentField = <K extends keyof SegmentRules>(

@@ -22,6 +22,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver } from "@/lib/platform/terminology";
 import {
   getTenantAccounts,
   getTenantTraders,
@@ -200,7 +201,8 @@ const TRI_STATE_OPTIONS: TriState[] = ["unknown", "yes", "no"];
 /* ------------------------------------------------------------------ */
 
 export function AccountIpAddressesPage() {
-  const { runtime, navigate } = usePlatform();
+  const { runtime, navigate, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
 
   const allRecords = useMemo(() => buildIpRecords(tid), [tid]);
@@ -267,10 +269,10 @@ export function AccountIpAddressesPage() {
       filtered,
       [
         { key: "login", header: "Account Login", value: (r) => r.accountLogin },
-        { key: "trader", header: "Trader", value: (r) => r.traderName },
+        { key: "trader", header: term("trader"), value: (r) => r.traderName },
         { key: "status", header: "Account Status", value: (r) => r.status },
         { key: "phase", header: "Phase", value: (r) => r.phase },
-        { key: "challenge", header: "Challenge", value: (r) => r.challenge },
+        { key: "challenge", header: term("challenge"), value: (r) => r.challenge },
         { key: "ip", header: "IP Address", value: (r) => r.ipAddress },
         { key: "city", header: "City", value: (r) => r.city },
         { key: "country", header: "Country", value: (r) => r.country },
@@ -361,7 +363,7 @@ export function AccountIpAddressesPage() {
     },
     {
       key: "challenge",
-      header: "Challenge",
+      header: term("challenge"),
       cell: (r) => <span className="text-xs">{r.challenge}</span>,
       sortValue: (r) => r.challenge,
     },

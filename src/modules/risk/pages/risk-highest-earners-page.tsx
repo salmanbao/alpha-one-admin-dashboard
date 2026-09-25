@@ -12,6 +12,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver } from "@/lib/platform/terminology";
 import {
   getTenantAccounts,
   getTenantChallenges,
@@ -56,7 +57,8 @@ interface EarnerRow {
 const REVENUE_PER_TRADER = 260;
 
 export function RiskHighestEarnersPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -272,7 +274,7 @@ export function RiskHighestEarnersPage() {
       filtered,
       [
         { key: "rank", header: "Rank", value: (r: EarnerRow) => r.rank },
-        { key: "trader", header: "Trader", value: (r) => r.trader.name },
+        { key: "trader", header: term("trader"), value: (r) => r.trader.name },
         { key: "email", header: "Email", value: (r) => r.email },
         { key: "country", header: "Country", value: (r) => r.country },
         { key: "totalRevenue", header: "Total Revenue", value: (r) => r.totalRevenue },

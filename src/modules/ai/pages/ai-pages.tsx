@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { makeTermResolver, plural } from "@/lib/platform/terminology";
+import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
+import type { TenantContext } from "@/lib/platform/types";
 import { getTenantAiInsights } from "@/lib/platform/mock-data";
 import type { AiInsight } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -251,6 +252,16 @@ const seedChat: ChatMessage[] = [
   },
 ];
 
+/**
+ * Build seed chat with tenant-specific terminology. Round 7 fix:
+ * previously the seedChat constants hardcoded "trader"/"payout" — Alpha
+ * tenant (terminology: trader→Participant, payout→Withdrawal) saw the
+ * default terms instead of its white-label terms.
+ */
+function buildSeedChat(tenant: TenantContext | undefined): ChatMessage[] {
+  return seedChat.map((m) => ({ ...m, content: resolveTermsInString(m.content, tenant) }));
+}
+
 // Keyword-matched demo responses so the assistant always answers in-band
 // (footer already discloses demo mode). Production would call a real LLM.
 const CANNED_RESPONSES: Array<{ match: RegExp; reply: string }> = [
@@ -286,7 +297,7 @@ const FALLBACK_RESPONSE =
 export function AiAssistantPage() {
   const { tenant } = usePlatform();
   const term = makeTermResolver(tenant);
-  const [messages, setMessages] = useState<ChatMessage[]>(seedChat);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => buildSeedChat(tenant));
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const counter = useRef(seedChat.length);

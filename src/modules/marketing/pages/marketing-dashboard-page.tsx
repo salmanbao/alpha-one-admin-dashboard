@@ -20,7 +20,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { resolveTermsInString } from "@/lib/platform/terminology";
+import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import {
   getTenantPayouts,
   getTenantTraders,
@@ -102,6 +102,7 @@ interface TopCountryRow {
 
 export function MarketingDashboardPage() {
   const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -339,7 +340,7 @@ export function MarketingDashboardPage() {
     },
     {
       key: "count",
-      header: "Payouts",
+      header: plural(term("payout")),
       cell: (r) => formatCompact(r.payoutCount),
       sortValue: (r) => r.payoutCount,
       numeric: true,

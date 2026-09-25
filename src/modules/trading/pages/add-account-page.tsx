@@ -21,6 +21,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, resolveTermsInString } from "@/lib/platform/terminology";
 import {
   getChallengeTypes,
   getChallengePhaseConfigs,
@@ -33,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/components/platform/status";
 import {
   User,
   Target,
@@ -116,7 +118,8 @@ const INITIAL_STATE: AddAccountState = {
 /* ------------------------------------------------------------------ */
 
 export function AddAccountPage() {
-  const { navigate } = usePlatform();
+  const { navigate, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const [state, setState] = useState<AddAccountState>(INITIAL_STATE);
   const [step, setStep] = useState(0);
 
@@ -166,7 +169,7 @@ export function AddAccountPage() {
   const createAccount = () => {
     toast({
       title: "Account created successfully",
-      description: `${state.fullName}’s ${challengeTypes.find((t) => t.id === state.challengeTypeId)?.name ?? "challenge"} account is ready.`,
+      description: resolveTermsInString(`${state.fullName}’s ${challengeTypes.find((t) => t.id === state.challengeTypeId)?.name ?? "challenge"} account is ready.`, tenant),
     });
     setState(INITIAL_STATE);
     setStep(0);
@@ -211,7 +214,7 @@ export function AddAccountPage() {
     <Page>
       <PageHeader
         title="Add Account"
-        description="Create a new trader account with associated challenge and KYC."
+        description={resolveTermsInString("Create a new trader account with associated challenge and KYC.", tenant)}
         icon={UserPlus}
       />
       <PageContent>
@@ -250,7 +253,7 @@ export function AddAccountPage() {
                       active ? "text-foreground" : "text-muted-foreground",
                     )}
                   >
-                    {s.label}
+                    {resolveTermsInString(s.label, tenant)}
                   </span>
                 </div>
               );
@@ -358,12 +361,13 @@ function UserInfoStep({
   state: AddAccountState;
   update: <K extends keyof AddAccountState>(field: K, value: AddAccountState[K]) => void;
 }) {
+  const { tenant } = usePlatform();
   return (
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-foreground">User Information</h3>
         <p className="text-xs text-muted-foreground">
-          Identify the trader who will own this account.
+          {resolveTermsInString("Identify the trader who will own this account.", tenant)}
         </p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -373,7 +377,7 @@ function UserInfoStep({
             type="email"
             value={state.email}
             onChange={(e) => update("email", e.target.value)}
-            placeholder="trader@example.com"
+            placeholder={resolveTermsInString("trader@example.com", tenant)}
             autoComplete="email"
           />
         </div>
@@ -410,24 +414,27 @@ function ChallengePhaseStep({
   challengeTypes: ReturnType<typeof getChallengeTypes>;
   phases: ReturnType<typeof getChallengePhaseConfigs>;
 }) {
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
+  const currency = runtime.tenant?.currency ?? "USD";
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-foreground">Challenge &amp; Phase</h3>
+        <h3 className="text-sm font-semibold text-foreground">{term("challenge")} &amp; Phase</h3>
         <p className="text-xs text-muted-foreground">
-          Pick the challenge type and the specific phase this account starts at.
+          {resolveTermsInString("Pick the challenge type and the specific phase this account starts at.", tenant)}
         </p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <RequiredLabel>Challenge type</RequiredLabel>
+          <RequiredLabel>{term("challenge")} type</RequiredLabel>
           <NativeSelect
             value={state.challengeTypeId}
             onChange={(v) => {
               update("challengeTypeId", v);
               update("phaseConfigId", "");
             }}
-            placeholder="Select challenge type…"
+            placeholder={resolveTermsInString("Select challenge type…", tenant)}
             options={challengeTypes.map((t) => ({ id: t.id, label: `${t.name} (${t.phases} phase${t.phases !== 1 ? "s" : ""})` }))}
           />
         </div>
@@ -436,11 +443,11 @@ function ChallengePhaseStep({
           <NativeSelect
             value={state.phaseConfigId}
             onChange={(v) => update("phaseConfigId", v)}
-            placeholder={state.challengeTypeId ? "Select phase…" : "Pick a challenge type first"}
+            placeholder={state.challengeTypeId ? "Select phase…" : resolveTermsInString("Pick a challenge type first", tenant)}
             disabled={!state.challengeTypeId}
             options={phases.map((p) => ({
               id: p.id,
-              label: `${p.phaseName}${p.isFunded ? " (Funded)" : ""} — ${p.accountSize.toLocaleString()} USD`,
+              label: `${p.phaseName}${p.isFunded ? " (Funded)" : ""} — ${formatCurrency(p.accountSize, currency)}`,
             }))}
           />
         </div>
@@ -455,6 +462,8 @@ function ChallengePhaseStep({
 }
 
 function PhaseSummaryCard({ phase }: { phase: ReturnType<typeof getChallengePhaseConfigs>[number] | null }) {
+  const { runtime } = usePlatform();
+  const currency = runtime.tenant?.currency ?? "USD";
   if (!phase) return null;
   return (
     <div className="rounded-lg border bg-muted/20 p-3">
@@ -464,7 +473,7 @@ function PhaseSummaryCard({ phase }: { phase: ReturnType<typeof getChallengePhas
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
         <div>
           <dt className="text-[10px] text-muted-foreground">Account size</dt>
-          <dd className="text-xs font-medium text-foreground">${phase.accountSize.toLocaleString()}</dd>
+          <dd className="text-xs font-medium text-foreground">{formatCurrency(phase.accountSize, currency)}</dd>
         </div>
         <div>
           <dt className="text-[10px] text-muted-foreground">Profit target</dt>
@@ -494,6 +503,9 @@ function AccountConfigStep({
   state: AddAccountState;
   update: <K extends keyof AddAccountState>(field: K, value: AddAccountState[K]) => void;
 }) {
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
+  const currency = runtime.tenant?.currency ?? "USD";
   return (
     <div className="space-y-4">
       <div>
@@ -504,7 +516,7 @@ function AccountConfigStep({
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <RequiredLabel>Profit split (trader share %)</RequiredLabel>
+          <RequiredLabel>Profit split ({term("trader").toLowerCase()} share %)</RequiredLabel>
           <Input
             type="number"
             value={state.profitSplitPct}
@@ -514,10 +526,10 @@ function AccountConfigStep({
             max={100}
           />
           <p className="text-[10px] text-muted-foreground/80">
-            Trader keeps {state.profitSplitPct || 0}%; firm receives {100 - (Number(state.profitSplitPct) || 0)}%.
+            {term("trader")} keeps {state.profitSplitPct || 0}%; firm receives {100 - (Number(state.profitSplitPct) || 0)}%.
           </p>
         </div>
-        <FieldRow label="Payout frequency">
+        <FieldRow label={`${term("payout")} frequency`}>
           <NativeSelect
             value={state.payoutFrequency}
             onChange={(v) => update("payoutFrequency", v as AddAccountState["payoutFrequency"])}
@@ -525,7 +537,7 @@ function AccountConfigStep({
           />
         </FieldRow>
         <div className="flex flex-col gap-1.5">
-          <RequiredLabel>Initial balance (USD)</RequiredLabel>
+          <RequiredLabel>Initial balance ({currency})</RequiredLabel>
           <Input
             type="number"
             value={state.initialBalance}
@@ -557,6 +569,8 @@ function KycStep({
   state: AddAccountState;
   update: <K extends keyof AddAccountState>(field: K, value: AddAccountState[K]) => void;
 }) {
+  const { tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const skip = state.kycStatus === "skip";
   return (
     <div className="space-y-4">
@@ -582,14 +596,14 @@ function KycStep({
             options={[...DOCUMENT_TYPES]}
           />
           <p className="text-[10px] text-muted-foreground/80">
-            Trader must submit a valid {DOCUMENT_TYPES.find((d) => d.id === state.documentType)?.label ?? "document"}.
+            {term("trader")} must submit a valid {DOCUMENT_TYPES.find((d) => d.id === state.documentType)?.label ?? "document"}.
           </p>
         </div>
       ) : (
         <div className="rounded-lg border border-dashed bg-muted/10 p-4 text-center">
           <p className="text-xs font-medium text-foreground">KYC skipped</p>
           <p className="text-[11px] text-muted-foreground">
-            The trader will be prompted to complete KYC before their first payout.
+            {resolveTermsInString("The trader will be prompted to complete KYC before their first payout.", tenant)}
           </p>
         </div>
       )}
@@ -612,6 +626,9 @@ function ReviewStep({
   phases: ReturnType<typeof getChallengePhaseConfigs>;
   onCreate: () => void;
 }) {
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
+  const currency = runtime.tenant?.currency ?? "USD";
   const challenge = challengeTypes.find((t) => t.id === state.challengeTypeId);
   const phase = phases.find((p) => p.id === state.phaseConfigId);
   const brokerLabel = BROKER_TYPES.find((b) => b.id === state.brokerType)?.label ?? "—";
@@ -621,12 +638,12 @@ function ReviewStep({
   const summary: { label: string; value: string }[] = [
     { label: "Email", value: state.email || "—" },
     { label: "Full name", value: state.fullName || "—" },
-    { label: "Challenge type", value: challenge?.name ?? "—" },
+    { label: `${term("challenge")} type`, value: challenge?.name ?? "—" },
     { label: "Phase", value: phase?.phaseName ?? "—" },
-    { label: "Account size", value: phase ? `$${phase.accountSize.toLocaleString()}` : state.initialBalance ? `$${Number(state.initialBalance).toLocaleString()}` : "—" },
-    { label: "Profit split (trader)", value: `${state.profitSplitPct || 0}%` },
-    { label: "Payout frequency", value: freqLabel },
-    { label: "Initial balance", value: state.initialBalance ? `$${Number(state.initialBalance).toLocaleString()}` : "—" },
+    { label: "Account size", value: phase ? formatCurrency(phase.accountSize, currency) : state.initialBalance ? formatCurrency(Number(state.initialBalance), currency) : "—" },
+    { label: `Profit split (${term("trader").toLowerCase()})`, value: `${state.profitSplitPct || 0}%` },
+    { label: `${term("payout")} frequency`, value: freqLabel },
+    { label: "Initial balance", value: state.initialBalance ? formatCurrency(Number(state.initialBalance), currency) : "—" },
     { label: "Broker type", value: brokerLabel },
     { label: "KYC status", value: state.kycStatus === "skip" ? "Skipped" : "Pending" },
     { label: "Document type", value: state.kycStatus === "skip" ? "—" : docLabel },

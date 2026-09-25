@@ -19,6 +19,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import {
   getTenantAccounts,
   getTenantChallenges,
@@ -106,7 +107,8 @@ function brokerFor(challengeType: string, accountSize: number): string {
 }
 
 export function RiskGroupVsPayoutsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -213,13 +215,13 @@ export function RiskGroupVsPayoutsPage() {
     exportToCsv(
       filtered,
       [
-        { key: "challengeName", header: "Challenge", value: (r: GroupRow) => r.challengeName },
+        { key: "challengeName", header: term("challenge"), value: (r: GroupRow) => r.challengeName },
         { key: "challengeType", header: "Type", value: (r) => r.challengeType },
         { key: "accountSize", header: "Account Size", value: (r) => r.accountSize },
         { key: "broker", header: "Broker", value: (r) => r.broker },
         { key: "orderCount", header: "Order Count", value: (r) => r.orderCount },
         { key: "orderRevenue", header: "Order Revenue", value: (r) => r.orderRevenue },
-        { key: "totalPayouts", header: "Total Payouts", value: (r) => r.totalPayouts },
+        { key: "totalPayouts", header: `Total ${plural(term("payout"))}`, value: (r) => r.totalPayouts },
         { key: "profitMargin", header: "Profit Margin %", value: (r) => r.profitMargin },
       ],
       `risk-group-vs-payouts-${Date.now()}.csv`,
@@ -238,7 +240,7 @@ export function RiskGroupVsPayoutsPage() {
     <Page>
       <PageHeader
         title="Group vs Payouts"
-        description="Payouts grouped by challenge configuration — order revenue vs payout outflow per challenge type and account size."
+        description={resolveTermsInString("Payouts grouped by challenge configuration — order revenue vs payout outflow per challenge type and account size.", tenant)}
         icon={Layers}
         actions={
           <Button size="sm" variant="outline" onClick={exportCsv}>
@@ -289,10 +291,10 @@ export function RiskGroupVsPayoutsPage() {
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={challengeTypeFilter} onValueChange={setChallengeTypeFilter}>
               <SelectTrigger className="h-9 w-[200px]">
-                <SelectValue placeholder="All challenge types" />
+                <SelectValue placeholder={resolveTermsInString("All challenge types", tenant)} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All challenge types</SelectItem>
+                <SelectItem value="all">{resolveTermsInString("All challenge types", tenant)}</SelectItem>
                 {challengeTypes.map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}
@@ -300,7 +302,7 @@ export function RiskGroupVsPayoutsPage() {
             </Select>
           </div>
           <span className="ml-auto text-xs text-muted-foreground">
-            {filteredGroups.length} of {groups.length} groups · {totalOrders} orders · {totalAccounts} accounts · {totalTraders} traders
+            {filteredGroups.length} of {groups.length} groups · {totalOrders} orders · {totalAccounts} accounts · {totalTraders} {plural(term("trader")).toLowerCase()}
           </span>
         </div>
 
@@ -322,7 +324,7 @@ export function RiskGroupVsPayoutsPage() {
               {filteredGroups.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="px-3 py-8 text-center text-sm text-muted-foreground">
-                    No challenge groups match your filters for this date range.
+                    No {plural(term("challenge")).toLowerCase()} groups match your filters for this date range.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -393,7 +395,7 @@ export function RiskGroupVsPayoutsPage() {
 
         <p className="text-xs text-muted-foreground">
           Order revenue is approximated from account size (≈2.2% of size, $35 floor). Payouts are distributed
-          across each trader's challenge configurations. Use the date range and challenge type filter to narrow scope.
+          across each {term("trader").toLowerCase()}'s {plural(term("challenge")).toLowerCase()} configurations. Use the date range and {term("challenge").toLowerCase()} type filter to narrow scope.
         </p>
       </PageContent>
     </Page>

@@ -26,6 +26,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, resolveTermsInString } from "@/lib/platform/terminology";
 import {
   getCertificateTemplates,
   type CertificateTemplate,
@@ -470,7 +471,8 @@ function FieldRow({
 /* ------------------------------------------------------------------ */
 
 export function CertificateTemplateDesignerPage() {
-  const { router, navigate } = usePlatform();
+  const { router, navigate, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const id = router.params.id ?? "";
   const existing = useMemo(
     () => (id ? getCertificateTemplates().find((t) => t.id === id) : undefined),
@@ -484,8 +486,31 @@ export function CertificateTemplateDesignerPage() {
     (typeof OUTPUT_FORMATS)[number]
   >("PNG");
   const [active, setActive] = useState(existing?.active ?? true);
-  const [fields, setFields] = useState<CertField[]>(DEFAULT_FIELDS);
-  const [nextId, setNextId] = useState(DEFAULT_FIELDS.length + 1);
+  // Round 7 fix: load existing.fields when editing a template that was
+  // previously saved via the designer. Templates without a saved fields
+  // config (older seed entries) fall back to the default 4-field layout.
+  // Each stored field is normalized to the designer's richer CertField
+  // shape via defaultField(); designer-only props (valueTemplate,
+  // textCase, shortenOver, dateFormat, font, fontSize, fontColor) get
+  // their defaults since the stored shape is the simpler public type.
+  const [fields, setFields] = useState<CertField[]>(() => {
+    const fromExisting = existing?.fields;
+    if (fromExisting && fromExisting.length > 0) {
+      return fromExisting.map((f) =>
+        defaultField(f.id, {
+          name: resolveTermsInString(f.label, tenant),
+          x: String(f.x),
+          y: String(f.y),
+          fontSize: String(f.fontSize),
+          fontColor: f.color,
+        }),
+      );
+    }
+    return DEFAULT_FIELDS.map((f) => ({ ...f, name: resolveTermsInString(f.name, tenant) }));
+  });
+  const [nextId, setNextId] = useState(
+    (existing?.fields?.length ?? DEFAULT_FIELDS.length) + 1,
+  );
 
   const updateField = (fid: string, patch: Partial<CertField>) => {
     setFields((prev) =>
@@ -505,7 +530,7 @@ export function CertificateTemplateDesignerPage() {
     const fid = `cf-${nextId}`;
     setFields((prev) => [
       ...prev,
-      defaultField(fid, { name: "New Field", valueTemplate: "{{user_name}}", y: "400" }),
+      defaultField(fid, { name: resolveTermsInString("New Field", tenant), valueTemplate: "{{user_name}}", y: "400" }),
     ]);
     setNextId((n) => n + 1);
     toast({
@@ -627,11 +652,11 @@ export function CertificateTemplateDesignerPage() {
                     id="cert-name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Challenge Passed Certificate"
+                    placeholder={resolveTermsInString("e.g. Challenge Passed Certificate", tenant)}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <LabelWithHelp help="File format produced when this certificate is downloaded or emailed to a trader.">
+                  <LabelWithHelp help={resolveTermsInString("File format produced when this certificate is downloaded or emailed to a trader.", tenant)}>
                     Output Format
                   </LabelWithHelp>
                   <Select

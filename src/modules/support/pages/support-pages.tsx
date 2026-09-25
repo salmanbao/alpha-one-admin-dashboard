@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { makeTermResolver, plural } from "@/lib/platform/terminology";
+import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import { getTenantTickets, hashStr } from "@/lib/platform/mock-data";
 import { resolveTicket, escalateTicket, appendTicketReply, effectiveTicketStatus, effectiveTicketMessages, useTicketVersion } from "@/modules/support/support-store";
 import type { SupportTicket } from "@/lib/platform/mock-data";
@@ -653,11 +653,11 @@ export function SupportKnowledgePage() {
                 <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg border bg-muted">
                   <f.icon className="h-4 w-4 text-foreground" />
                 </div>
-                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{f.category}</span>
-                <CardTitle className="text-base">{f.question}</CardTitle>
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{resolveTermsInString(f.category, tenant)}</span>
+                <CardTitle className="text-base">{resolveTermsInString(f.question, tenant)}</CardTitle>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-sm leading-relaxed">{f.answer}</CardDescription>
+                <CardDescription className="text-sm leading-relaxed">{resolveTermsInString(f.answer, tenant)}</CardDescription>
               </CardContent>
             </Card>
           ))}

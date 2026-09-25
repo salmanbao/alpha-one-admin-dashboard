@@ -194,7 +194,7 @@ export function TradersPage() {
   const columns: Column<Trader>[] = [
     {
       key: "name",
-      header: "Trader",
+      header: term("trader"),
       cell: (t) => (
         <div className="flex items-center gap-2">
           <Avatar className="h-7 w-7"><AvatarFallback className="text-[10px]">{t.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
@@ -329,7 +329,7 @@ export function AccountsPage() {
     { key: "login", header: "Login", cell: (a) => <span className="font-mono text-xs">{a.login}</span>, sortValue: (a) => a.login },
     {
       key: "trader",
-      header: "Trader",
+      header: term("trader"),
       cell: (a) => (
         <Button
           type="button"
@@ -347,8 +347,8 @@ export function AccountsPage() {
             e.stopPropagation();
             navigate("trader-detail", { id: a.traderId });
           }}
-          aria-label={`View trader ${a.traderName}`}
-          title={`View trader ${a.traderName}`}
+          aria-label={`View ${term("trader").toLowerCase()} ${a.traderName}`}
+          title={`View ${term("trader").toLowerCase()} ${a.traderName}`}
         >
           {a.traderName}
           <ArrowUpRight className="h-3 w-3 text-muted-foreground" />
@@ -541,7 +541,8 @@ export function PositionsPage() {
 }
 
 export function TraderDetailPage() {
-  const { runtime, router, navigate } = usePlatform();
+  const { runtime, router, navigate, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const traderId = router.params.id;
   const trader = getTenantTraders(tid).find((t) => t.id === traderId);
@@ -553,14 +554,14 @@ export function TraderDetailPage() {
     return (
       <Page>
         <Button variant="ghost" size="sm" onClick={() => navigate("trading-traders")}><ArrowLeft className="mr-1 h-4 w-4" />Back</Button>
-        <p className="text-muted-foreground">Trader not found.</p>
+        <p className="text-muted-foreground">{term("trader")} not found.</p>
       </Page>
     );
   }
 
   return (
     <Page>
-      <Button variant="ghost" size="sm" className="w-fit" onClick={() => navigate("trading-traders")}><ArrowLeft className="mr-1 h-4 w-4" />Back to traders</Button>
+      <Button variant="ghost" size="sm" className="w-fit" onClick={() => navigate("trading-traders")}><ArrowLeft className="mr-1 h-4 w-4" />Back to {plural(term("trader")).toLowerCase()}</Button>
       <EntityHeader
         title={trader.name}
         subtitle={`${trader.email} · ${trader.country}`}
@@ -571,7 +572,7 @@ export function TraderDetailPage() {
             <Badge variant="outline" className="text-[10px]">{trader.challengePhase ?? "none"}</Badge>
           </>
         }
-        actions={<Button size="sm" variant="outline">Edit trader</Button>}
+        actions={<Button size="sm" variant="outline">Edit {term("trader").toLowerCase()}</Button>}
       />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard label="Equity" value={formatCurrency(trader.equity, currency)} icon={Wallet} />

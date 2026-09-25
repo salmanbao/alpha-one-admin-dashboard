@@ -76,6 +76,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -1150,6 +1151,7 @@ function RiskTab({
   breaches: ReturnType<typeof getTenantBreaches>;
   accountsCount: number;
 }) {
+  const { navigate } = usePlatform();
   const open = breaches.filter((b) => b.status === "open");
   const critical = open.filter((b) => b.severity === "critical");
   // Mock risk score: weighted by open / critical / total accounts
@@ -1205,7 +1207,11 @@ function RiskTab({
             size="sm"
             variant="outline"
             className="w-full justify-start gap-1.5"
-            onClick={() => toast({ title: "Opening risk workspace", description: `Navigating to ${tenant.name}'s risk workspace. (demo)` })}
+            onClick={() => {
+              // Round 7 fix: actually navigate to the risk workspace
+              // (previously toast-only — "Navigating to X (demo)" but no nav).
+              navigate("risk");
+            }}
           >
             <ShieldAlert className="h-3.5 w-3.5" />Open risk workspace
           </Button>
@@ -1213,7 +1219,9 @@ function RiskTab({
             size="sm"
             variant="outline"
             className="w-full justify-start gap-1.5"
-            onClick={() => toast({ title: "Opening breaches", description: `Showing ${open.length} open breaches. (demo)` })}
+            onClick={() => {
+              navigate("risk-breaches");
+            }}
           >
             <AlertTriangle className="h-3.5 w-3.5" />View open breaches
           </Button>
@@ -1221,7 +1229,27 @@ function RiskTab({
             size="sm"
             variant="outline"
             className="w-full justify-start gap-1.5"
-            onClick={() => toast({ title: "Export queued", description: "Risk report will be downloaded. (demo)" })}
+            onClick={() => {
+              // Round 7 fix: real CSV export of the tenant's open breaches
+              // (previously toast-only — "Risk report will be downloaded (demo)"
+              // but no file was written).
+              exportToCsv(
+                open,
+                [
+                  { key: "id", header: "Breach ID", value: (b: typeof open[number]) => b.id },
+                  { key: "traderName", header: "Trader", value: (b) => b.traderName },
+                  { key: "rule", header: "Rule", value: (b) => b.rule },
+                  { key: "severity", header: "Severity", value: (b) => b.severity },
+                  { key: "status", header: "Status", value: (b) => b.status },
+                  { key: "triggeredAt", header: "Triggered At", value: (b) => b.triggeredAt },
+                ],
+                `risk-report-${tenant.slug}-${Date.now()}.csv`,
+              );
+              toast({
+                title: "Risk report exported",
+                description: `${open.length} open breaches for ${tenant.name} written to CSV.`,
+              });
+            }}
           >
             <FileText className="h-3.5 w-3.5" />Export risk report
           </Button>

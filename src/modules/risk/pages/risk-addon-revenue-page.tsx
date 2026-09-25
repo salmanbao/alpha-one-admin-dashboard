@@ -116,7 +116,10 @@ export function RiskAddonRevenuePage() {
   const rows = useMemo<AddonRow[]>(() => {
     // Only traders created after cutoff are eligible to "buy" add-ons in this window.
     // For demo, use the trader id hash to pick add-ons for ~60% of traders.
-    const inRangeTraders = traders.filter((t) => new Date(t.joinedAt).getTime() >= cutoff * 0.5 || true);
+    // Round 7 fix: removed `|| true` no-op — the filter now actually
+    // scopes to traders created after the cutoff (deterministic ~60%
+    // purchase rate is applied further below via hashStr).
+    const inRangeTraders = traders.filter((t) => new Date(t.joinedAt).getTime() >= cutoff);
     const counts = new Map<string, { orders: number; units: number }>();
     for (const a of ADDONS) counts.set(a.id, { orders: 0, units: 0 });
 
@@ -283,6 +286,8 @@ export function RiskAddonRevenuePage() {
             variant="ghost"
             onClick={() => setShowEmptyState((v) => !v)}
             className="ml-auto text-xs"
+            aria-label="Toggle empty state preview"
+            title="Developer preview toggle — show what the empty state looks like when no add-on sales are recorded"
           >
             {showEmptyState ? "Show data" : "Preview empty state"}
           </Button>

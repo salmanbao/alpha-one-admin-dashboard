@@ -17,6 +17,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import {
   getTenantChallenges,
   getTenantPayouts,
@@ -82,7 +83,8 @@ const SIZE_BANDS: { label: string; min: number; max: number }[] = [
 ];
 
 export function RiskStatisticsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -188,9 +190,9 @@ export function RiskStatisticsPage() {
 
   // ---- Column definitions ----
   const challengeColumns: Column<ChallengeRow>[] = [
-    { key: "challengeType", header: "Challenge Type", cell: (r) => <span className="font-medium">{r.challengeType}</span>, sortValue: (r) => r.challengeType },
+    { key: "challengeType", header: `${term("challenge")} Type`, cell: (r) => <span className="font-medium">{r.challengeType}</span>, sortValue: (r) => r.challengeType },
     { key: "revenue", header: "Revenue", cell: (r) => formatCurrency(r.revenue, currency), sortValue: (r) => r.revenue, numeric: true },
-    { key: "totalPayouts", header: "Total Payouts", cell: (r) => formatCurrency(r.totalPayouts, currency), sortValue: (r) => r.totalPayouts, numeric: true },
+    { key: "totalPayouts", header: `Total ${plural(term("payout"))}`, cell: (r) => formatCurrency(r.totalPayouts, currency), sortValue: (r) => r.totalPayouts, numeric: true },
     {
       key: "profitMargin",
       header: "Profit Margin",
@@ -205,13 +207,13 @@ export function RiskStatisticsPage() {
       sortValue: (r) => r.profitMargin,
       numeric: true,
     },
-    { key: "payoutCount", header: "Payout Count", cell: (r) => r.payoutCount, sortValue: (r) => r.payoutCount, numeric: true },
+    { key: "payoutCount", header: `${term("payout")} Count`, cell: (r) => r.payoutCount, sortValue: (r) => r.payoutCount, numeric: true },
     { key: "fundedAccounts", header: "Funded Accounts", cell: (r) => r.fundedAccounts, sortValue: (r) => r.fundedAccounts, numeric: true },
   ];
 
   const countryColumns: Column<CountryRow>[] = [
     { key: "country", header: "Country", cell: (r) => <span className="font-medium">{r.country}</span>, sortValue: (r) => r.country },
-    { key: "traders", header: "Traders", cell: (r) => r.traders, sortValue: (r) => r.traders, numeric: true },
+    { key: "traders", header: plural(term("trader")), cell: (r) => r.traders, sortValue: (r) => r.traders, numeric: true },
     { key: "funded", header: "Funded", cell: (r) => <span className="text-emerald-600 dark:text-emerald-400">{r.funded}</span>, sortValue: (r) => r.funded, numeric: true },
     { key: "breached", header: "Breached", cell: (r) => <span className={r.breached > 0 ? "text-rose-600 dark:text-rose-400" : ""}>{r.breached}</span>, sortValue: (r) => r.breached, numeric: true },
     { key: "revenue", header: "Revenue", cell: (r) => formatCurrency(r.revenue, currency), sortValue: (r) => r.revenue, numeric: true },
@@ -230,11 +232,11 @@ export function RiskStatisticsPage() {
       exportToCsv(
         challengeRows,
         [
-          { key: "challengeType", header: "Challenge Type", value: (r) => r.challengeType },
+          { key: "challengeType", header: `${term("challenge")} Type`, value: (r) => r.challengeType },
           { key: "revenue", header: "Revenue", value: (r) => r.revenue },
-          { key: "totalPayouts", header: "Total Payouts", value: (r) => r.totalPayouts },
+          { key: "totalPayouts", header: `Total ${plural(term("payout"))}`, value: (r) => r.totalPayouts },
           { key: "profitMargin", header: "Profit Margin %", value: (r) => r.profitMargin },
-          { key: "payoutCount", header: "Payout Count", value: (r) => r.payoutCount },
+          { key: "payoutCount", header: `${term("payout")} Count`, value: (r) => r.payoutCount },
           { key: "fundedAccounts", header: "Funded Accounts", value: (r) => r.fundedAccounts },
         ],
         `risk-challenge-stats-${Date.now()}.csv`,
@@ -244,7 +246,7 @@ export function RiskStatisticsPage() {
         countryRows,
         [
           { key: "country", header: "Country", value: (r) => r.country },
-          { key: "traders", header: "Traders", value: (r) => r.traders },
+          { key: "traders", header: plural(term("trader")), value: (r) => r.traders },
           { key: "funded", header: "Funded", value: (r) => r.funded },
           { key: "breached", header: "Breached", value: (r) => r.breached },
           { key: "revenue", header: "Revenue", value: (r) => r.revenue },
@@ -270,7 +272,7 @@ export function RiskStatisticsPage() {
     <Page>
       <PageHeader
         title="Risk Analysis"
-        description="Challenge payout statistics, country breakdown, and account-size distribution."
+        description={resolveTermsInString("Challenge payout statistics, country breakdown, and account-size distribution.", tenant)}
         icon={ShieldCheck}
         actions={
           <div className="flex items-center gap-2">
@@ -299,14 +301,14 @@ export function RiskStatisticsPage() {
         {/* KPI row */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Revenue" value={formatCurrency(totalRevenue, currency)} icon={DollarSign} tone="positive" />
-          <MetricCard label="Total Payouts" value={formatCurrency(totalPayouts, currency)} icon={Wallet} tone="warning" />
+          <MetricCard label={`Total ${plural(term("payout"))}`} value={formatCurrency(totalPayouts, currency)} icon={Wallet} tone="warning" />
           <MetricCard label="Profit Margin" value={`${overallMargin}%`} icon={TrendingUp} tone={overallMargin >= 30 ? "positive" : "warning"} />
           <MetricCard label="Funded Accounts" value={totalFunded} icon={Users} tone="positive" />
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
-            <TabsTrigger value="challenge">Challenge Stats</TabsTrigger>
+            <TabsTrigger value="challenge">{term("challenge")} Stats</TabsTrigger>
             <TabsTrigger value="country">Country-Wise</TabsTrigger>
             <TabsTrigger value="size">Account Size</TabsTrigger>
           </TabsList>
@@ -315,7 +317,7 @@ export function RiskStatisticsPage() {
             <div className="rounded-lg border bg-card p-2">
               <div className="mb-2 flex items-center gap-2 px-2 pt-1 text-xs text-muted-foreground">
                 <ShieldCheck className="h-3.5 w-3.5" />
-                <span>Grouped by challenge type — {challengeRows.length} types</span>
+                <span>{resolveTermsInString(`Grouped by challenge type — ${challengeRows.length} types`, tenant)}</span>
               </div>
               <DataTable
                 columns={challengeColumns}
@@ -330,7 +332,7 @@ export function RiskStatisticsPage() {
             <div className="rounded-lg border bg-card p-2">
               <div className="mb-2 flex items-center gap-2 px-2 pt-1 text-xs text-muted-foreground">
                 <Globe className="h-3.5 w-3.5" />
-                <span>{countryRows.length} countries — sorted by trader count</span>
+                <span>{resolveTermsInString(`${countryRows.length} countries — sorted by trader count`, tenant)}</span>
               </div>
               <DataTable
                 columns={countryColumns}
@@ -359,8 +361,7 @@ export function RiskStatisticsPage() {
 
         {/* Footnote with derived totals */}
         <p className="text-xs text-muted-foreground">
-          Showing {formatCompact(challengeRows.length + countryRows.length + sizeRows.length)} aggregated rows ·
-          Revenue figures are derived from challenge entry fees ({formatCurrency(0.02 * 100, currency)} per $1 of account size).
+          {resolveTermsInString(`Showing ${formatCompact(challengeRows.length + countryRows.length + sizeRows.length)} aggregated rows · Revenue figures are derived from challenge entry fees (${formatCurrency(0.02 * 100, currency)} per $1 of account size).`, tenant)}
         </p>
       </PageContent>
     </Page>

@@ -70,26 +70,26 @@ export function FirmStatisticsPage() {
     {
       metric: "Net Profit",
       value: fmt(stats.netProfit),
-      formula: "Total Revenue − Total Payouts",
+      formula: resolveTermsInString("Total Revenue − Total Payouts", tenant),
       context: `${fmt(stats.totalRevenue)} − ${fmt(stats.totalPayouts)}`,
     },
     {
       metric: "Profit Margin",
       value: `${stats.profitMargin}%`,
       formula: "(Net Profit ÷ Total Revenue) × 100",
-      context: `Net of payouts relative to gross revenue.`,
+      context: resolveTermsInString("Net of payouts relative to gross revenue.", tenant),
     },
     {
-      metric: "Average Challenge Value",
+      metric: resolveTermsInString("Average Challenge Value", tenant),
       value: fmt(stats.avgChallengeValue),
-      formula: "Total Revenue ÷ Challenges Sold",
+      formula: resolveTermsInString("Total Revenue ÷ Challenges Sold", tenant),
       context: `${fmt(stats.totalRevenue)} ÷ ${stats.challengesSold}`,
     },
     {
-      metric: "Payout Ratio",
+      metric: resolveTermsInString("Payout Ratio", tenant),
       value: `${stats.payoutRatio}%`,
-      formula: "(Total Payouts ÷ Total Revenue) × 100",
-      context: "Share of revenue returned to traders.",
+      formula: resolveTermsInString("(Total Payouts ÷ Total Revenue) × 100", tenant),
+      context: resolveTermsInString("Share of revenue returned to traders.", tenant),
     },
   ];
 
@@ -106,9 +106,9 @@ export function FirmStatisticsPage() {
       [
         { key: "date", header: "Month", value: (r) => r.date },
         { key: "revenue", header: "Revenue", value: (r) => r.revenue },
-        { key: "payouts", header: "Payouts", value: (r) => r.payouts },
+        { key: "payouts", header: resolveTermsInString("Payouts", tenant), value: (r) => r.payouts },
         { key: "net", header: "Net Revenue", value: (r) => r.net },
-        { key: "challenges", header: "Challenges Sold", value: (r) => r.challenges },
+        { key: "challenges", header: resolveTermsInString("Challenges Sold", tenant), value: (r) => r.challenges },
       ],
       `firm-statistics-${range}-${new Date().toISOString().slice(0, 10)}.csv`,
     );
@@ -176,8 +176,8 @@ export function FirmStatisticsPage() {
             />
           </ChartCard>
           <ChartCard
-            title="Payouts (12 months)"
-            subtitle={`Monthly trader payouts — ${currency}`}
+            title={resolveTermsInString("Payouts (12 months)", tenant)}
+            subtitle={resolveTermsInString(`Monthly trader payouts — ${currency}`, tenant)}
           >
             <AreaSeries
               data={stats.revenueSeries}
@@ -200,8 +200,8 @@ export function FirmStatisticsPage() {
             />
           </ChartCard>
           <ChartCard
-            title="Challenges Sold (12 months)"
-            subtitle="New challenge purchases per month"
+            title={resolveTermsInString("Challenges Sold (12 months)", tenant)}
+            subtitle={resolveTermsInString("New challenge purchases per month", tenant)}
           >
             <AreaSeries
               data={stats.revenueSeries}

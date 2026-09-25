@@ -1363,6 +1363,23 @@ export interface CertificateTemplate {
   layout: string;
   active: boolean;
   lastModified: string;
+  /**
+   * Optional designer field configuration (Round 7 addition). Templates
+   * created via the Certificate Designer can store their field list
+   * here so editing an existing template loads its previous config
+   * instead of always starting from DEFAULT_FIELDS. Older templates
+   * without this field fall back to the default 4-field layout.
+   */
+  fields?: Array<{
+    id: string;
+    label: string;
+    x: number;
+    y: number;
+    fontSize: number;
+    fontWeight: string;
+    color: string;
+    align: "left" | "center" | "right";
+  }>;
 }
 
 export interface Banner {

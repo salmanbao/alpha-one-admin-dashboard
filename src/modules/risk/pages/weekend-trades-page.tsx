@@ -22,6 +22,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, resolveTermsInString } from "@/lib/platform/terminology";
 import {
   getTenantAccounts,
   getTenantPositions,
@@ -257,7 +258,8 @@ function formatWeekday(iso: string): string {
 /* ------------------------------------------------------------------ */
 
 export function WeekendTradesPage() {
-  const { runtime, navigate } = usePlatform();
+  const { runtime, navigate, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -335,7 +337,7 @@ export function WeekendTradesPage() {
       [
         { key: "uid", header: "UID", value: (t) => t.uid },
         { key: "login", header: "Account Login", value: (t) => t.accountLogin },
-        { key: "trader", header: "Trader", value: (t) => t.traderName },
+        { key: "trader", header: term("trader"), value: (t) => t.traderName },
         { key: "direction", header: "Direction", value: (t) => (t.direction === "buy" ? "LONG" : "SHORT") },
         { key: "symbol", header: "Symbol", value: (t) => t.symbol },
         { key: "volume", header: "Volume", value: (t) => t.volume },
@@ -545,9 +547,7 @@ export function WeekendTradesPage() {
         <p className="flex items-start gap-2">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            This view shows trades opened or closed during weekend/market-closed hours.
-            These trades may violate challenge rules. Investigate each row and remove
-            legitimate exceptions only.
+            {resolveTermsInString("This view shows trades opened or closed during weekend/market-closed hours. These trades may violate challenge rules. Investigate each row and remove legitimate exceptions only.", tenant)}
           </span>
         </p>
       </div>
@@ -603,7 +603,7 @@ export function WeekendTradesPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search symbol, trader, account…"
+            placeholder={resolveTermsInString("Search symbol, trader, account…", tenant)}
             className="h-8 pl-8 text-xs"
             aria-label="Search weekend trades"
           />
@@ -669,7 +669,7 @@ export function WeekendTradesPage() {
             icon={CalendarClock}
             title="No weekend trades detected"
             description="Trades opened or closed during weekend hours will appear here for review."
-            hint="Weekend monitoring runs against the challenge calendar configured in Trading Events."
+            hint={resolveTermsInString("Weekend monitoring runs against the challenge calendar configured in Trading Events.", tenant)}
           />
         ) : (
           <div className="rounded-lg border bg-card">
@@ -738,6 +738,7 @@ function WeekendTradeDetail({
   onSelectTrader: (traderId: string) => void;
   onSelectNext: () => void;
 }) {
+  const { tenant } = usePlatform();
   return (
     <div className="rounded-lg border bg-card p-4">
       <div className="mb-3 flex items-center justify-between">
@@ -764,7 +765,7 @@ function WeekendTradeDetail({
             <button
               type="button"
               onClick={() => onSelectTrader(trade.traderId)}
-              aria-label={`Open account ${trade.accountLogin} trader detail`}
+              aria-label={resolveTermsInString(`Open account ${trade.accountLogin} trader detail`, tenant)}
               className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
             >
               {trade.accountLogin}

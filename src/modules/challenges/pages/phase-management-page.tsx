@@ -270,7 +270,11 @@ export function PhaseManagementPage() {
                 const p = filtered.find((x) => x.id === expandedId);
                 if (!p) return null;
                 return (
-                  <PhaseDetailPanel phase={p} challengeName={typeLookup[p.challengeTypeId] ?? "—"} />
+                  <PhaseDetailPanel
+                    key={p.id}
+                    phase={p}
+                    challengeName={typeLookup[p.challengeTypeId] ?? "—"}
+                  />
                 );
               })()}
             </div>

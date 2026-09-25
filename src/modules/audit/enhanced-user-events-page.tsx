@@ -27,6 +27,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, resolveTermsInString } from "@/lib/platform/terminology";
 import {
   traders as allTraders,
   getTenantTraders,
@@ -386,7 +387,8 @@ function buildEnhancedEvents(traderPool: Trader[]): EnhancedUserEvent[] {
 /* ------------------------------------------------------------------ */
 
 export function EnhancedUserEventsPage() {
-  const { runtime, navigate } = usePlatform();
+  const { runtime, navigate, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   // Platform tenant sees the full cross-tenant stream; a regular tenant
   // only sees events built from its own trader pool (no email/PII leak).
@@ -510,9 +512,9 @@ export function EnhancedUserEventsPage() {
         { key: "userEmail", header: "User Email", value: (e) => e.userEmail },
         { key: "accountId", header: "Account ID", value: (e) => e.accountId },
         { key: "phaseType", header: "Phase Type", value: (e) => e.phaseType },
-        { key: "challengeName", header: "Challenge", value: (e) => e.challengeName },
+        { key: "challengeName", header: term("challenge"), value: (e) => e.challengeName },
         { key: "eventType", header: "Event Type", value: (e) => e.eventType },
-        { key: "description", header: "Description", value: (e) => e.description },
+        { key: "description", header: "Description", value: (e) => resolveTermsInString(e.description, tenant) },
         { key: "ipAddress", header: "IP Address", value: (e) => e.ipAddress },
         { key: "source", header: "Source", value: (e) => e.source },
       ],
@@ -533,7 +535,7 @@ export function EnhancedUserEventsPage() {
             navigate("trader-detail", { id: e.traderId });
           }}
           className="font-medium text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400"
-          title={`Open trader workspace for ${e.userEmail}`}
+          title={resolveTermsInString(`Open trader workspace for ${e.userEmail}`, tenant)}
         >
           {e.userEmail}
         </button>
@@ -552,7 +554,7 @@ export function EnhancedUserEventsPage() {
             navigate("trader-detail", { id: e.traderId });
           }}
           className="flex flex-col text-left text-xs hover:underline"
-          title={`Open trader workspace for account ${e.accountId}`}
+          title={resolveTermsInString(`Open trader workspace for account ${e.accountId}`, tenant)}
         >
           <span className="font-mono text-muted-foreground">
             [{e.phaseType}]
@@ -581,7 +583,7 @@ export function EnhancedUserEventsPage() {
       key: "description",
       header: "Event Description",
       cell: (e) => (
-        <span className="text-sm text-muted-foreground">{e.description}</span>
+        <span className="text-sm text-muted-foreground">{resolveTermsInString(e.description, tenant)}</span>
       ),
     },
     {
@@ -875,7 +877,7 @@ export function EnhancedUserEventsPage() {
                 {/* Source dropdown */}
                 <div className="space-y-1.5">
                   <LabelWithHelp
-                    help="Origin of the event — System (automated), Admin (manual admin action), User (trader action), or API (third-party integration)."
+                    help={resolveTermsInString("Origin of the event — System (automated), Admin (manual admin action), User (trader action), or API (third-party integration).", tenant)}
                     className="text-sm font-medium"
                   >
                     Source

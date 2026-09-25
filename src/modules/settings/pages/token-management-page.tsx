@@ -105,7 +105,7 @@ function timeAgo(iso: string | null): string {
 }
 
 export function TokenManagementPage() {
-  const { runtime } = usePlatform();
+  const { runtime, navigate } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
 
   const tenantTraders = useMemo(() => getTenantTraders(tid), [tid]);
@@ -331,6 +331,7 @@ export function TokenManagementPage() {
             columns={columns}
             data={filtered}
             rowKey={(t) => t.id}
+            onRowClick={(t) => navigate("token-detail", { id: t.keyFull })}
             pageSize={10}
             emptyTitle="No tokens found"
             emptyDescription="Generate a new token to get started, or clear your search."

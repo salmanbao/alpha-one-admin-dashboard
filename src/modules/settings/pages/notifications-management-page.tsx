@@ -74,6 +74,20 @@ export interface ScheduledNotification {
   isActive: boolean;
   priority: number;
   targetAudience: "All Traders" | "Funded Only" | "New Users" | "Affiliates" | "Competition Users";
+  /**
+   * Optional saved segment rules (Round 7 addition). Loaded by
+   * notification-edit-page so editing a notification that had targeting
+   * rules doesn't silently reset to "any". Older notifications without
+   * this field fall back to EMPTY_SEGMENT.
+   */
+  segment?: Partial<{
+    accountPurchased: string;
+    competitionUser: string;
+    hasFundedAccounts: string;
+    hasFailedAccounts: string;
+    accountSizeMin: string;
+    accountSizeMax: string;
+  }>;
 }
 
 /** ISO date helper — N days from now (negative = past). */

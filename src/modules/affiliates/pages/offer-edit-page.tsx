@@ -328,6 +328,30 @@ export function OfferEditPage() {
   const [segment, setSegment] = useState<SegmentRules>(EMPTY_SEGMENT);
   const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
 
+  // Round 7 fix: re-sync form state when navigating from one offer to
+  // another (URL id param changes) — previously the useState initializers
+  // only ran once, so editing offer A then navigating to offer B kept
+  // A's title/description/dates visible in the form.
+  const [lastId, setLastId] = useState(id);
+  if (lastId !== id) {
+    setLastId(id);
+    setTitle(existing?.name ?? "");
+    setDescription(existing?.description ?? "");
+    setImageUrl("");
+    setDisplayOrder("0");
+    setCouponCode(existing?.couponCode ?? "");
+    setDiscountPct(existing ? String(existing.discountPct) : "");
+    setStartDate(existing?.startDate?.slice(0, 10) ?? "");
+    setEndDate(existing?.endDate?.slice(0, 10) ?? "");
+    setIsPopup(false);
+    setOfferUrl("");
+    setSelectedCountries(existing?.targetCountries ?? []);
+    setSelectedChallenges([]);
+    setSegmentOpen(false);
+    setSegment(EMPTY_SEGMENT);
+    setDeleteOpen(false);
+  }
+
   const setSegmentField = <K extends keyof SegmentRules>(
     key: K,
     value: SegmentRules[K],

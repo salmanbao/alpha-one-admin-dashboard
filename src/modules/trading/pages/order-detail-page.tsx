@@ -31,6 +31,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, resolveTermsInString } from "@/lib/platform/terminology";
 import { getTenantTraders } from "@/lib/platform/mock-data";
 import { Page, PageContent } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -355,7 +356,8 @@ function generateOrderDetail(id: string, tenantId: string): OrderDetail {
 /* ------------------------------------------------------------------ */
 
 export function OrderDetailPage() {
-  const { runtime, navigate, router } = usePlatform();
+  const { runtime, navigate, router, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -486,11 +488,11 @@ export function OrderDetailPage() {
                   navigate("trader-detail", { id: working.userId })
                 }
                 className="inline-flex h-auto items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-50/50 px-2 py-1 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100 hover:no-underline hover:text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/60"
-                aria-label={`View trader ${working.userFullName}`}
-                title={`View trader ${working.userFullName}`}
+                aria-label={`View ${term("trader").toLowerCase()} ${working.userFullName}`}
+                title={`View ${term("trader").toLowerCase()} ${working.userFullName}`}
               >
                 <User className="h-3 w-3" />
-                View Trader
+                View {term("trader")}
                 <ArrowUpRight className="h-3 w-3" />
               </Button>
             </div>
@@ -733,7 +735,7 @@ function OrderForm({
 
           <div className="space-y-1.5">
             <LabelWithHelp
-              help="Challenge Purchase = first-time evaluation buy. Activation Fee = re-activation of a breached account. Add-on = supplementary purchase (extra withdrawal, KYC upgrade). Subscription = recurring billing. Refund = reimbursement of a previous order."
+              help={resolveTermsInString("Challenge Purchase = first-time evaluation buy. Activation Fee = re-activation of a breached account. Add-on = supplementary purchase (extra withdrawal, KYC upgrade). Subscription = recurring billing. Refund = reimbursement of a previous order.", tenant)}
               className="text-sm font-medium"
             >
               Order type
@@ -760,7 +762,7 @@ function OrderForm({
 
           <div className="space-y-1.5">
             <LabelWithHelp
-              help="Internal notes for finance / ops staff. Visible only inside the admin panel, not to the trader."
+              help={resolveTermsInString("Internal notes for finance / ops staff. Visible only inside the admin panel, not to the trader.", tenant)}
               className="text-sm font-medium"
             >
               Notes
@@ -780,11 +782,11 @@ function OrderForm({
       <FormSection
         title="Financials"
         icon={CreditCard}
-        description="Challenge, payment, and attribution identifiers."
+        description={resolveTermsInString("Challenge, payment, and attribution identifiers.", tenant)}
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <ReadOnlyField
-            label="Challenge"
+            label={term("challenge")}
             value={working.challenge}
           />
           <ReadOnlyField
@@ -794,7 +796,7 @@ function OrderForm({
           <ReadOnlyField
             label="Account balance"
             value={formatCurrency(working.accountBalance, currency)}
-            help="Target account size for this challenge purchase."
+            help={resolveTermsInString("Target account size for this challenge purchase.", tenant)}
           />
           <ReadOnlyField
             label="Amount paid"
@@ -810,7 +812,7 @@ function OrderForm({
           />
           <div className="space-y-1.5">
             <LabelWithHelp
-              help="Payment method the trader used at checkout."
+              help={resolveTermsInString("Payment method the trader used at checkout.", tenant)}
               className="text-sm font-medium"
             >
               Payment method

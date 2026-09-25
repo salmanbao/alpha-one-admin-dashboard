@@ -95,6 +95,7 @@ function summarizeAccount(
   accounts: TradingAccount[],
   positions: Position[],
   traders: Trader[],
+  cutoffMs: number = 0,
 ): AccountSummary | null {
   const acct = accounts.find((a) => a.login === login);
   // Fallback: synthesize an account summary even if the login is unknown,
@@ -103,8 +104,11 @@ function summarizeAccount(
   const trader = traders.find((t) => t.id === traderId);
   const traderName = trader?.name ?? `Trader ${login}`;
 
-  // For real accounts, use their actual positions; for synthetic, derive.
-  let acctPositions = positions.filter((p) => p.accountId === acct?.id);
+  // For real accounts, use their actual positions (filtered by the
+  // selected date range when provided); for synthetic, derive.
+  let acctPositions = positions.filter(
+    (p) => p.accountId === acct?.id && (cutoffMs === 0 || new Date(p.openedAt).getTime() >= cutoffMs),
+  );
   if (acctPositions.length === 0) {
     // Build deterministic mock positions seeded from login hash.
     const seed = hashStr(login);
@@ -235,8 +239,18 @@ export function CopyTradingAnalysisPage() {
       });
       return;
     }
-    const s1 = summarizeAccount(l1, accounts, positions, traders);
-    const s2 = summarizeAccount(l2, accounts, positions, traders);
+    // Round 7 fix: pass the date range cutoff to summarizeAccount so the
+    // "Last 7d / 30d / 90d" selector actually filters positions (was
+    // decorative — analyze ignored dateRange entirely).
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const cutoffMs = dateRange === "all" ? 0 : Date.now() - (
+      dateRange === "7d" ? 7 * DAY_MS :
+      dateRange === "30d" ? 30 * DAY_MS :
+      dateRange === "90d" ? 90 * DAY_MS :
+      7 * DAY_MS
+    );
+    const s1 = summarizeAccount(l1, accounts, positions, traders, cutoffMs);
+    const s2 = summarizeAccount(l2, accounts, positions, traders, cutoffMs);
     if (!s1 || !s2) return; // should not happen
     const match = analyze(s1, s2);
     setResult({ summary1: s1, summary2: s2, match });

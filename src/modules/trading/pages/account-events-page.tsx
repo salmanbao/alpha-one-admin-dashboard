@@ -16,10 +16,11 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import { getTenantAccounts } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
-import { StatusBadge } from "@/components/platform/status";
+import { StatusBadge, formatCurrency } from "@/components/platform/status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -151,7 +152,7 @@ const DESCRIPTIONS: Record<EventType, string[]> = {
   ],
 };
 
-function generateEvents(accountId: string, accountLogin: string): AccountEvent[] {
+function generateEvents(accountId: string, accountLogin: string, currency: string = "USD"): AccountEvent[] {
   const seed = hashStr(accountId) || 7;
   const events: AccountEvent[] = [];
   // Always start with ACCOUNT_CREATED on day 0
@@ -181,7 +182,9 @@ function generateEvents(accountId: string, accountLogin: string): AccountEvent[]
     }
     const descArr = DESCRIPTIONS[t];
     const desc = descArr[i % descArr.length].replace(/\$4,250|\$1,820/g, (m) =>
-      m === "$4,250" ? `$${(2000 + ((seed + i * 113) % 6000))}` : `$${(500 + ((seed + i * 97) % 2500))}`,
+      m === "$4,250"
+        ? formatCurrency(2000 + ((seed + i * 113) % 6000), currency)
+        : formatCurrency(500 + ((seed + i * 97) % 2500), currency),
     );
     events.push({
       id: `evt-${accountId}-${i}`,
@@ -201,8 +204,9 @@ function generateEvents(accountId: string, accountLogin: string): AccountEvent[]
 /* ------------------------------------------------------------------ */
 
 export function AccountEventsPage() {
-  const { runtime, router, navigate } = usePlatform();
+  const { runtime, router, navigate, tenant } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
+  const currency = runtime.tenant?.currency ?? "USD";
   const accountId = router.params.id;
 
   const account = useMemo(
@@ -211,8 +215,8 @@ export function AccountEventsPage() {
   );
 
   const events = useMemo(
-    () => (account ? generateEvents(account.id, account.login) : []),
-    [account],
+    () => (account ? generateEvents(account.id, account.login, currency) : []),
+    [account, currency],
   );
 
   const [search, setSearch] = useState("");
@@ -254,7 +258,7 @@ export function AccountEventsPage() {
       [
         { key: "id", header: "Event ID", value: (e) => e.id },
         { key: "type", header: "Event Type", value: (e) => e.type },
-        { key: "description", header: "Description", value: (e) => e.description },
+        { key: "description", header: "Description", value: (e) => resolveTermsInString(e.description, tenant) },
         { key: "actor", header: "Actor", value: (e) => e.actor },
         { key: "createdAt", header: "Created", value: (e) => e.createdAt },
       ],
@@ -266,7 +270,7 @@ export function AccountEventsPage() {
     const meta = EVENT_META[e.type];
     toast({
       title: meta.label,
-      description: `${e.description} · ${new Date(e.createdAt).toLocaleString()}`,
+      description: `${resolveTermsInString(e.description, tenant)} · ${new Date(e.createdAt).toLocaleString()}`,
     });
   };
 
@@ -298,7 +302,7 @@ export function AccountEventsPage() {
       key: "description",
       header: "Description",
       cell: (e) => (
-        <span className="text-xs text-foreground">{e.description}</span>
+        <span className="text-xs text-foreground">{resolveTermsInString(e.description, tenant)}</span>
       ),
     },
     {

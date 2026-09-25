@@ -15,6 +15,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import {
   getTenantPayouts,
   getTenantTraders,
@@ -58,7 +59,8 @@ interface CountryRow {
 const REVENUE_PER_TRADER = 220;
 
 export function RiskUnprofitableCountriesPage() {
-  const { runtime } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -217,7 +219,7 @@ export function RiskUnprofitableCountriesPage() {
       filtered,
       [
         { key: "countryCode", header: "Country", value: (r: CountryRow) => r.countryCode },
-        { key: "traders", header: "Traders", value: (r) => r.traders },
+        { key: "traders", header: plural(term("trader")), value: (r) => r.traders },
         { key: "totalRevenue", header: "Total Revenue", value: (r) => r.totalRevenue },
         { key: "totalPayouts", header: "Total Payouts", value: (r) => r.totalPayouts },
         { key: "revenueLoss", header: "Revenue Loss", value: (r) => r.revenueLoss },
