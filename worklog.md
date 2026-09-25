@@ -8219,3 +8219,41 @@ Stage Summary:
 - REPORTED BUG FIXED (verified at runtime): GridStack.init argument order now matches v11+ API (options first, element second); fix was present in uncommitted working tree changes — left uncommitted per project practice
 - Dev server survived a silent crash mid-task; restarted with 1536MB safe variant — reinforces the 1024MB template risk (ops priority)
 - Artifact: download/dashboard-gridstack-fixed.png
+
+---
+Task ID: ux-audit-platform-admin
+Agent: Super Z (main)
+Task: Platform-admin dashboard UI/UX audit — section/screen/feature/flow walkthrough, find & fix gaps (user request, 14:45 round)
+
+Work Log:
+## Walkthrough (Alex Morgan / super-admin, 11 surfaces)
+Main dashboard (GridStack) · Platform Overview · Tenants · Create Tenant wizard (5 steps, full flow) · Tenant Lifecycle · Service Catalog · Dashboard Manager · System Health · Platform Audit Log · Tenant Detail (7 tabs) · tenant switcher menu
+
+## Gaps found (major → minor) and fixes
+1. MAJOR — Onboarding wizard popped for Platform tenant / super-admin on every switch; collided with post-create toast. FIX (onboarding-wizard.tsx): skip when tenant.id === "platform" OR application === "super-admin".
+2. MAJOR — Demo user/tenant reset to Sarah/Alpha Capital on every F5 (useState(users[1]), hiddenWidgets persisted but identity not). FIX (platform-context.tsx): persist pfaas:demoUser/demoTenant, lazy-init from localStorage.
+3. MAJOR — View-router had NO URL sync: URL always "/", refresh/back/bookmark/deep-link broken. FIX (platform-context.tsx): pushState ?view=&params on navigate, lazy-init router from URL, popstate sync, back() prefers history.back(). Verified: ?view=tenants, ?view=tenant-detail&id=tenant-beta deep-link, browser back all work.
+4. MAJOR — Create Tenant hijacked operator context (setTenant(newTenant) swapped whole sidebar into new tenant, contradicting the wizard's "taken to tenant detail" promise) and new tenant never registered in availableTenants (vanished from Tenants list/switcher, lost on reload). FIX: registerTenant() added to context (customTenants state + localStorage persistence, merged into availableTenants); create-tenant-page uses registerTenant + navigate(tenant-detail); toast copy now "ready for configuration". Verified: stays in Platform shell, lands on new tenant detail, Epsilon FX in list, survives reload.
+5. MAJOR — Dashboard Manager canvas empty ("0 widgets placed", invisible items): SAME GridStack v11 init arg-order bug as gridstack-dashboard.tsx (init(el, opts) → crash before sizing/persist). FIX: init(options, el) + TS interface, mirroring earlier fix. Verified: 16 widgets placed.
+6. MAJOR — Dashboard Manager preview widgets all crashed ("usePlatform must be used within PlatformProvider", 20 Issues badge): createRoot roots inherit no context. FIX: exported PlatformContext/PlatformContextValue; renderWidgetInto wraps each preview root in <PlatformContext.Provider value={{...platformValue, runtime: ctx}}> so previews render the SELECTED tenant+role. Verified: 16/16 preview widgets render real data, 0 errors.
+7. MAJOR — Duplicate widget IDs across modules ("breach-trend", "risk-distribution" in BOTH risk + analytics manifests) → duplicate React keys ×17 in widget library + rootMap collisions. FIX: renamed analytics copies to analytics-risk-distribution / analytics-breach-trend.
+8. MINOR — Chart width(0)/height(0) warnings ×108: ResponsiveContainer mounted in zero-size containers. FIX (charts.tsx): useHasSize ResizeObserver guard in ChartFrame — mount recharts only when box > 0.
+9. MINOR — root.unmount() during render race ×48. FIX: queueMicrotask-deferred unmount in renderWidgetInto/unmountWidget.
+10. MINOR — Tenant Detail KPI labels clipped ("ACTIVE AC…"). FIX: MetricCard label truncate → line-clamp-2 (platform-wide).
+11. MINOR — Platform Overview "Module adoption" showed Super Admin 0/3 (platform-only module in a tenant metric). FIX: filter super-admin from adoption list.
+12. MINOR — Audit table Summary column clipped at table edge. FIX: line-clamp-2 + max-w.
+13. MINOR — Create Tenant: meaningless "*" on "Review & create"; Cancel carried a stray left-chevron. FIX: plain Label; plain ghost Cancel.
+
+## Verification
+- ESLint clean after every stage
+- Fresh browser session, ?view=dashboard-manager: 16/16 preview widgets OK, console 0 duplicate-key / 0 sync-unmount / 0 usePlatform / 0 width(0)
+- Main dashboard as Alex: 16/16 widgets OK, 0 errors
+- Persistence: user+tenant+custom tenants survive reload; URL deep-links work; browser back works
+- Artifacts: download/ux-audit-01..11-*.png (walkthrough), ux-final-dashmgr.png (post-fix)
+- Server crashed 4× during session (OOM); each restart used 1536MB safe variant; HTTP 200 after cleanup
+
+Stage Summary:
+- 13 gaps fixed across 6 files: onboarding-wizard.tsx, platform-context.tsx, create-tenant-page.tsx, dashboard-manager-page.tsx, charts.tsx, page.tsx (MetricCard), platform-audit-page.tsx, super-admin-pages.tsx, analytics/manifest.ts
+- Platform-admin flows now: identity persists, URL deep-links/back work, wizard scoped correctly, create-tenant stays in operator context with tenant registered, Dashboard Manager previews render with per-tenant context, zero console noise
+- Architectural note: PlatformContext is now exported for context-override mounting; the main dashboard uses createPortal, dashboard-manager uses createRoot+Provider override (two valid patterns for widget-in-imperative-DOM)
+- Ops: server instability (4 OOM crashes) reinforces 1536MB requirement

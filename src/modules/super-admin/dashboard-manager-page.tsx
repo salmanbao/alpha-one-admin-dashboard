@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-import { usePlatform } from "@/lib/platform/platform-context";
+import { usePlatform, PlatformContext, type PlatformContextValue } from "@/lib/platform/platform-context";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import {
   resolveDashboardLayout,
@@ -202,11 +202,17 @@ function renderWidgetInto(
   widget: WidgetDefinition,
   ctx: ModuleRuntimeContext,
   rootMap: Map<string, Root>,
+  platformValue: PlatformContextValue,
 ) {
-  // Unmount any previous root for this widget id (avoid leaks on re-render)
+  // Unmount any previous root for this widget id (avoid leaks on re-render).
+  // Deferred to a microtask: calling root.unmount() synchronously while React
+  // is mid-render of another root triggers "synchronously unmount a root
+  // while React was already rendering" race warnings.
   const previous = rootMap.get(widget.id);
   if (previous) {
-    try { previous.unmount(); } catch { /* ignore */ }
+    queueMicrotask(() => {
+      try { previous.unmount(); } catch { /* ignore */ }
+    });
     rootMap.delete(widget.id);
   }
 
@@ -228,6 +234,11 @@ function renderWidgetInto(
   };
 
   root.render(
+    // Widgets are mounted into an imperative DOM container, which makes a
+    // separate React root that inherits NO context. Re-provide the platform
+    // context here with `runtime` overridden so the widget previews the
+    // SELECTED tenant + role instead of the operator's own context.
+    <PlatformContext.Provider value={{ ...platformValue, runtime: ctx }}>
     <ModuleErrorBoundary name={widget.title}>
       <div className="flex h-full flex-col overflow-hidden">
         <div className="flex items-center justify-between gap-2 border-b border-terra-soft bg-terra-surface/30 px-4 py-2.5">
@@ -255,14 +266,18 @@ function renderWidgetInto(
           />
         </div>
       </div>
-    </ModuleErrorBoundary>,
+    </ModuleErrorBoundary>
+    </PlatformContext.Provider>,
   );
 }
 
 function unmountWidget(widgetId: string, rootMap: Map<string, Root>) {
   const root = rootMap.get(widgetId);
   if (root) {
-    try { root.unmount(); } catch { /* ignore */ }
+    // Defer unmount past any in-flight render (see note in renderWidgetInto)
+    queueMicrotask(() => {
+      try { root.unmount(); } catch { /* ignore */ }
+    });
     rootMap.delete(widgetId);
   }
 }
@@ -290,7 +305,8 @@ const WIDGET_CATEGORIES: WidgetCategory[] = [
 /* ------------------------------------------------------------------ */
 
 export function DashboardManagerPage() {
-  const { availableTenants, user } = usePlatform();
+  const platformValue = usePlatform();
+  const { availableTenants, user } = platformValue;
 
   // Non-platform tenants only
   const tenants = useMemo(
@@ -491,7 +507,7 @@ export function DashboardManagerPage() {
         if (!def) return;
         const contentEl = item.querySelector(".grid-stack-item-content");
         if (contentEl) {
-          renderWidgetInto(contentEl as HTMLElement, def, ctx, rootMapRef.current);
+          renderWidgetInto(contentEl as HTMLElement, def, ctx, rootMapRef.current, platformValue);
         }
       });
 
@@ -579,7 +595,7 @@ export function DashboardManagerPage() {
       // Render React widget into the freshly added content div
       const contentEl = el.querySelector(".grid-stack-item-content");
       if (contentEl) {
-        renderWidgetInto(contentEl as HTMLElement, widget, ctx, rootMapRef.current);
+        renderWidgetInto(contentEl as HTMLElement, widget, ctx, rootMapRef.current, platformValue);
       }
 
       refreshPlacedIds();

@@ -44,7 +44,7 @@ export interface RouterState {
 /* Context shape                                                       */
 /* ------------------------------------------------------------------ */
 
-interface PlatformContextValue {
+export interface PlatformContextValue {
   /* auth */
   user: AuthUser;
   setUser: (u: AuthUser) => void;
@@ -86,7 +86,9 @@ interface PlatformContextValue {
   setSearchOpen: (open: boolean) => void;
 }
 
-const PlatformContext = createContext<PlatformContextValue | null>(null);
+// Exported so surfaces that mount widget components into imperative DOM
+// containers (e.g. GridStack previews) can wrap them in a context override.
+export const PlatformContext = createContext<PlatformContextValue | null>(null);
 
 /* ------------------------------------------------------------------ */
 /* Default notifications (seeded for demo)                             */

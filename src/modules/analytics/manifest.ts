@@ -65,8 +65,8 @@ const widgets: WidgetDefinition[] = [
   { id: "analytics-overview", title: "Analytics Overview", module: "analytics", category: "metric", component: AnalyticsOverviewWidget, permission: "analytics.read", defaultSize: { w: 12, h: 1 } },
   { id: "revenue", title: "Revenue (30d)", module: "analytics", category: "chart", component: RevenueWidget, permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
   { id: "trader-growth", title: "Trader Growth", module: "analytics", category: "chart", component: TraderGrowthWidget, permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
-  { id: "risk-distribution", title: "Risk Distribution", module: "analytics", category: "chart", component: RiskDistributionWidget, permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
-  { id: "breach-trend", title: "Breach Trend", module: "analytics", category: "chart", component: BreachTrendWidget, permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
+  { id: "analytics-risk-distribution", title: "Risk Distribution", module: "analytics", category: "chart", component: RiskDistributionWidget, permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
+  { id: "analytics-breach-trend", title: "Breach Trend", module: "analytics", category: "chart", component: BreachTrendWidget, permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
   { id: "advanced-analytics", title: "Advanced Analytics", module: "analytics", category: "ai", component: AdvancedAnalyticsWidget, permission: "analytics.advanced.read", feature: "analytics.advanced", defaultSize: { w: 12, h: 2 } },
 ];
 
