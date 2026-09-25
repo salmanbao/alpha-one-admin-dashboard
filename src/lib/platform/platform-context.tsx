@@ -48,6 +48,8 @@ export interface PlatformContextValue {
   /* auth */
   user: AuthUser;
   setUser: (u: AuthUser) => void;
+  /** Merge profile edits into the current user and persist across reloads. */
+  updateUser: (patch: Partial<AuthUser>) => void;
   /* tenant */
   tenant: TenantContext;
   setTenant: (t: TenantContext) => void;
@@ -150,14 +152,27 @@ const DEMO_USER_KEY = "pfaas:demoUser";
 const DEMO_TENANT_KEY = "pfaas:demoTenant";
 const ROUTE_PARAM = "view";
 
+const USER_OVERRIDES_KEY = "pfaas:userOverrides";
+
+/** Profile edits (name/email/avatar) persisted per user id. */
+function readUserOverrides(): Record<string, Partial<AuthUser>> {
+  if (typeof window !== "undefined") {
+    try {
+      const raw = window.localStorage.getItem(USER_OVERRIDES_KEY);
+      return raw ? (JSON.parse(raw) as Record<string, Partial<AuthUser>>) : {};
+    } catch { /* ignore */ }
+  }
+  return {};
+}
+
 function readStoredUser(): AuthUser {
   if (typeof window !== "undefined") {
     try {
       const id = window.localStorage.getItem(DEMO_USER_KEY);
-      if (id) {
-        const found = users.find((u) => u.id === id);
-        if (found) return found;
-      }
+      const found = (id && users.find((u) => u.id === id)) || users[1];
+      // Merge persisted profile edits so name/email/avatar survive reloads
+      const patch = readUserOverrides()[found.id];
+      return patch ? { ...found, ...patch } : found;
     } catch { /* ignore */ }
   }
   return users[1]; // Sarah Chen — prop-admin (default)
@@ -207,7 +222,14 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       ?? all.find((t) => t.id === user.tenantId)
       ?? platformTenant;
   });
-  const [themeMode, setThemeMode] = useState<"light" | "dark">("light");
+  const [themeMode, setThemeMode] = useState<"light" | "dark">(() => {
+    // Persist theme choice so F5 doesn't reset it
+    if (typeof window === "undefined") return "light";
+    try {
+      const t = window.localStorage.getItem("pfaas:theme");
+      return t === "dark" ? "dark" : "light";
+    } catch { return "light"; }
+  });
   const [router, setRouter] = useState<RouterState>(routerStateFromUrl);
   const [notifications, setNotifications] = useState<AppNotification[]>(seedNotifications);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -244,6 +266,14 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore quota errors */ }
   }, [user, tenant]);
 
+  // Persist theme mode so reloads keep the operator's preference
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("pfaas:theme", themeMode);
+    } catch { /* ignore quota errors */ }
+  }, [themeMode]);
+
   // Persist runtime-created tenants so they survive reloads
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -254,6 +284,21 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   const registerTenant = useCallback((t: TenantContext) => {
     setCustomTenants((prev) => (prev.some((x) => x.id === t.id) ? prev : [...prev, t]));
+  }, []);
+
+  // Profile edits: merge into live user + persist per user id (survive reloads)
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    setUser((u) => {
+      const next = { ...u, ...patch };
+      if (typeof window !== "undefined") {
+        try {
+          const all = readUserOverrides();
+          all[next.id] = { ...(all[next.id] ?? {}), ...patch };
+          window.localStorage.setItem(USER_OVERRIDES_KEY, JSON.stringify(all));
+        } catch { /* ignore quota errors */ }
+      }
+      return next;
+    });
   }, []);
 
   const toggleWidget = useCallback((widgetId: string) => {
@@ -372,6 +417,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const value: PlatformContextValue = {
     user,
     setUser,
+    updateUser,
     tenant,
     setTenant,
     availableTenants: [platformTenant, ...tenants, ...customTenants],

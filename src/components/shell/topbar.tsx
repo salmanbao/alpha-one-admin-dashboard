@@ -12,7 +12,6 @@ import {
   Check,
   ChevronDown,
   Command as CommandIcon,
-  Menu,
   Moon,
   Search,
   Sun,
@@ -40,7 +39,7 @@ import { WhatsNewButton } from "@/components/shell/whats-new";
 import { HelpDropdown } from "@/components/shell/help-dropdown";
 import { toast } from "@/hooks/use-toast";
 
-export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
+export function Topbar() {
   const {
     tenant,
     setTenant,
@@ -61,24 +60,14 @@ export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* Mobile menu */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="md:hidden"
-        onClick={onMobileMenu}
-        aria-label="Open menu"
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
-
-      {/* Search — opens global search dialog */}
+      {/* Search — opens global search dialog. Mobile nav lives in the content
+          area (MobileNav sheet); a second menu button here was a dead control. */}
       <button
         onClick={() => setSearchOpen(true)}
         className="group flex h-9 w-full max-w-md items-center gap-2 rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted md:max-w-sm"
       >
         <Search className="h-4 w-4" />
-        <span className="flex-1 text-left">Search traders, accounts, payouts…</span>
+        <span className="flex-1 text-left">Search traders, accounts, settings…</span>
         <kbd className="hidden rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
           /
         </kbd>
@@ -117,6 +106,9 @@ export function Topbar({ onMobileMenu }: { onMobileMenu: () => void }) {
                     ? users.find((u) => u.application === "super-admin")
                     : users.find((u) => u.tenantId === t.id && u.application === user.application);
                   if (match) switchUser(match);
+                  // Leave tenant-scoped views behind: the current view may not
+                  // exist (or mean something else) in the target tenant's context.
+                  navigate("overview");
                 }}
                 className="gap-2"
               >

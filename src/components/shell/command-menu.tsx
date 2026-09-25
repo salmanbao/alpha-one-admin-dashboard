@@ -17,7 +17,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { usePlatform } from "@/lib/platform/platform-context";
+import { usePlatform, useUserSwitcher } from "@/lib/platform/platform-context";
 import { resolveNavigation } from "@/lib/platform/navigation-engine";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import { users as allUsers } from "@/lib/platform/mock-data";
@@ -32,6 +32,7 @@ import {
   Package,
   Keyboard,
   History,
+  Boxes,
 } from "lucide-react";
 import type { CommandAction } from "@/lib/platform/types";
 
@@ -46,8 +47,8 @@ export function CommandMenu() {
     user,
     availableTenants,
     setTenant,
-    setUser,
   } = usePlatform();
+  const { switchUser } = useUserSwitcher();
   const users = allUsers;
 
   // Build navigation-based actions
@@ -163,19 +164,23 @@ export function CommandMenu() {
         icon: Building2,
         run: () => {
           setTenant(t);
-          const match = users.find((u) => u.tenantId === t.id && u.application === user.application);
-          if (match) setUser(match);
+          const match = t.id === "platform"
+            ? users.find((u) => u.application === "super-admin")
+            : users.find((u) => u.tenantId === t.id && u.application === user.application);
+          if (match) switchUser(match);
+          // Reset to overview — the current view may not exist in the target tenant
+          navigate("overview");
         },
       });
     }
-    // user switching
+    // user switching (switchUser also syncs the tenant to match the user)
     for (const u of users) {
       out.push({
         id: `user-${u.id}`,
         label: `Switch user → ${u.name} (${u.roles[0]})`,
         group: "Users",
         icon: Users,
-        run: () => setUser(u),
+        run: () => switchUser(u),
       });
     }
     // module management
@@ -270,7 +275,7 @@ export function CommandMenu() {
               setCommandOpen(false);
             }}
           >
-            <SettingsIcon className="mr-2 h-4 w-4" />
+            <Boxes className="mr-2 h-4 w-4" />
             Architecture overview
           </CommandItem>
         </CommandGroup>

@@ -40,6 +40,8 @@ import {
 } from "@/components/platform/page";
 import { BarSeries } from "@/components/platform/charts";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
+import { moduleRegistry } from "@/lib/platform/module-registry";
+import { isModuleEnabledSafe } from "@/components/platform/guard-utils";
 import { cn } from "@/lib/utils";
 import {
   ClipboardList,
@@ -63,6 +65,15 @@ interface SummaryCard {
   viewId: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   description: string;
+}
+
+/** Resolve the human label + owning module for a target view from the route registry. */
+function resolveRouteInfo(viewId: string): { label: string; moduleId?: string } {
+  for (const m of moduleRegistry.getAll()) {
+    const route = (m.routes ?? []).find((r) => r.viewId === viewId);
+    if (route) return { label: route.label, moduleId: route.module };
+  }
+  return { label: viewId.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) };
 }
 
 export function PendingTasksPage() {
@@ -136,6 +147,11 @@ export function PendingTasksPage() {
   ];
 
   const totalPending = cards.reduce((s, c) => s + c.count, 0);
+
+  // Resolve target-route info: human-readable labels + module ownership, so
+  // cards for modules that are disabled in this tenant can be surfaced
+  // honestly instead of navigating into a "module not enabled" dead end.
+  const routeInfo = Object.fromEntries(cards.map((c) => [c.id, resolveRouteInfo(c.viewId)]));
 
   // Forecast bar chart — Tue–Sun expected withdrawal amounts (mock).
   const forecast = useMemo(() => {
@@ -251,18 +267,32 @@ export function PendingTasksPage() {
             const isWarning = c.count > 0;
             const tone = isWarning ? "warning" : "success";
             const accentColor = tone === "warning" ? "#d97706" : "#059669";
+            const info = routeInfo[c.id] ?? { label: c.viewId };
+            const moduleEnabled = !info.moduleId || isModuleEnabledSafe(runtime, info.moduleId);
             return (
               <button
                 key={c.id}
                 type="button"
-                onClick={() => onCardClick(c)}
+                onClick={() => { if (moduleEnabled) onCardClick(c); }}
+                disabled={!moduleEnabled}
+                aria-disabled={!moduleEnabled}
+                title={!moduleEnabled ? `Enable the "${info.moduleId}" module to manage this queue` : undefined}
                 className={cn(
-                  "group relative overflow-hidden rounded-lg border bg-card p-4 text-left transition-all hover:shadow-md hover:-translate-y-0.5",
-                  isWarning
+                  "group relative overflow-hidden rounded-lg border bg-card p-4 text-left transition-all",
+                  moduleEnabled
+                    ? "hover:shadow-md hover:-translate-y-0.5"
+                    : "cursor-not-allowed opacity-55",
+                  moduleEnabled && isWarning
                     ? "border-amber-500/40 hover:border-amber-500/60"
-                    : "border-emerald-500/40 hover:border-emerald-500/60",
+                    : moduleEnabled
+                    ? "border-emerald-500/40 hover:border-emerald-500/60"
+                    : "border-border",
                 )}
-                aria-label={`${c.label}: ${c.count} pending. Click to view.`}
+                aria-label={
+                  moduleEnabled
+                    ? `${c.label}: ${c.count} pending. Click to view.`
+                    : `${c.label}: ${c.count} pending. The ${info.moduleId} module is not enabled for this tenant.`
+                }
               >
                 <span className="absolute inset-y-0 left-0 w-1" style={{ background: accentColor }} />
                 <div className="flex items-start justify-between pl-2">
@@ -295,7 +325,9 @@ export function PendingTasksPage() {
                   />
                 </div>
                 <div className="mt-3 pl-2 text-[11px] font-medium text-muted-foreground/80">
-                  Opens {c.viewId} →
+                  {!moduleEnabled
+                    ? `Module "${info.moduleId}" not enabled`
+                    : `Opens ${info.label} →`}
                 </div>
               </button>
             );

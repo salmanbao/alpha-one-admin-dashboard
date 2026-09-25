@@ -41,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onMobileMenu={() => {}} />
+        <Topbar />
         <main className="flex-1 px-4 py-4 md:px-6 md:py-6">
           <div className="md:hidden">
             <MobileNav />
@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
             <span>
               PFaaS Platform · Multi-tenant white-label infrastructure ·{" "}
-              <span className="font-medium text-foreground">v1.0.0</span>
+              <span className="font-medium text-foreground">v1.8.0</span>
             </span>
             <span className="text-muted-foreground/70">
               Press <kbd className="rounded border bg-background px-1 text-[10px]">/</kbd> to search ·{" "}

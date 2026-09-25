@@ -8,7 +8,7 @@
  * for unread updates. Persists "last seen" version to localStorage.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -142,6 +142,13 @@ export function WhatsNewButton() {
     }
     setHasNew(false);
   };
+
+  // Expose a global opener so other entry points (Help dropdown, ⌘K) can
+  // open the real dialog instead of a "would open here" placeholder toast.
+  useEffect(() => {
+    (window as unknown as { __openWhatsNew?: () => void }).__openWhatsNew = handleOpen;
+    return () => { delete (window as unknown as { __openWhatsNew?: () => void }).__openWhatsNew; };
+  });
 
   return (
     <>

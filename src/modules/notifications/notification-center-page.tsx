@@ -183,7 +183,7 @@ export function NotificationCenterPage() {
                 filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              {f === "all" ? "All" : f}
+              {f === "all" ? "All" : f === "activity" ? "Notifications" : f}
               {f === "unread" && unreadCount > 0 ? ` (${unreadCount})` : ""}
               {f === "alerts" && alertCount > 0 ? ` (${alertCount})` : ""}
             </button>

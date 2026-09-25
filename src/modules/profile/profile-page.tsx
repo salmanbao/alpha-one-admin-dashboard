@@ -9,7 +9,7 @@
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
-import { Page, PageHeader, PageContent, EntityHeader, MetricCard } from "@/components/platform/page";
+import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/platform/status";
@@ -23,12 +23,32 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { useState, useRef } from "react";
 
+/** Derive initials from a display name (first letters of the first two words). */
+function initialsFrom(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("") || "U";
+}
+
 export function ProfilePage() {
-  const { user, tenant } = usePlatform();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { user, tenant, updateUser } = usePlatform();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatarUrl ?? null);
   const [displayName, setDisplayName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Resync local edits when the active user changes (user switcher).
+  // Render-time reset pattern (avoids setState-in-effect cascades).
+  const [lastUserId, setLastUserId] = useState(user.id);
+  if (lastUserId !== user.id) {
+    setLastUserId(user.id);
+    setAvatarUrl(user.avatarUrl ?? null);
+    setDisplayName(user.name);
+    setEmail(user.email);
+  }
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,13 +63,27 @@ export function ProfilePage() {
     }
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setAvatarUrl(ev.target?.result as string);
+      const url = ev.target?.result as string;
+      setAvatarUrl(url);
+      // Persist immediately so the avatar survives reloads and shows in the topbar
+      updateUser({ avatarUrl: url });
       toast({ title: "Avatar updated", description: "Your profile photo has been updated." });
     };
     reader.readAsDataURL(file);
   };
 
   const saveProfile = () => {
+    const name = displayName.trim();
+    const mail = email.trim();
+    if (!name) {
+      toast({ title: "Name required", description: "Display name cannot be empty.", variant: "destructive" });
+      return;
+    }
+    if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+      toast({ title: "Invalid email", description: "Please enter a valid email address.", variant: "destructive" });
+      return;
+    }
+    updateUser({ name, email: mail || user.email, initials: initialsFrom(name) });
     toast({ title: "Profile saved", description: "Your changes have been saved." });
   };
 

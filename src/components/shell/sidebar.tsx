@@ -82,7 +82,7 @@ function SidebarHeader() {
       <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {appLabel}
       </span>
-      <Badge variant="outline" className="text-[9px]">v1.0</Badge>
+      <Badge variant="outline" className="text-[9px]">v1.8.0</Badge>
     </div>
   );
 }

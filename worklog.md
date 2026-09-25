@@ -8257,3 +8257,48 @@ Stage Summary:
 - Platform-admin flows now: identity persists, URL deep-links/back work, wizard scoped correctly, create-tenant stays in operator context with tenant registered, Dashboard Manager previews render with per-tenant context, zero console noise
 - Architectural note: PlatformContext is now exported for context-override mounting; the main dashboard uses createPortal, dashboard-manager uses createRoot+Provider override (two valid patterns for widget-in-imperative-DOM)
 - Ops: server instability (4 OOM crashes) reinforces 1536MB requirement
+
+---
+Task ID: ux-audit-platform-admin-round2
+Agent: Super Z (main)
+Task: Continuation of platform-admin UX audit — remaining surfaces (Profile / Notifications / Help / Pendings standalone pages + shell flows: topbar, help dropdown, command menu, theme, breadcrumbs, mobile nav) — find and fix major-to-minor gaps (15:30 round, after 15:30 cron check HTTP 200)
+
+Work Log:
+- 15:30 cron check: HTTP 200, no action (round 52)
+- Verified round-1 audit state intact on disk (13 fixes + artifacts confirmed)
+- Code audit of previously uncovered surfaces + E2E walkthrough (agent-browser, Sarah/Alpha + Alex/Platform): captured runtime evidence for each issue
+- FALSE ALARM INVESTIGATED: `historyistory.length - 1]` seen in sed/grep output was a DISPLAY artifact — my terminal pipeline eats the literal `[h` sequence. Hexdump (od -c) proved the file contains valid `history[history.length - 1]`; Babel parse OK. Lesson: verify with od/JSON before "fixing" suspected corruption
+
+Gaps found (major → minor) and fixes:
+1. MAJOR — Topbar mobile menu button was a no-op (`onMobileMenu={() => {}}` in app-shell): dead control on mobile; MobileNav sheet in content area is the real nav. FIX (topbar.tsx/app-shell.tsx): removed dead button + unused prop
+2. MAJOR — HelpDropdown "Architecture Overview" dead item: dispatched `pfaas:open-help` event with NO listener + unconditional "would open here" toast. FIX: navigate("help") — the standalone Help page IS the architecture overview; icon Sparkles→Boxes
+3. MAJOR — HelpDropdown "What's New" dead item: same phantom-event pattern, dialog never opened. FIX (whats-new.tsx + help-dropdown.tsx): WhatsNewButton now registers `window.__openWhatsNew` (mirrors __openShortcutsHelp pattern); dropdown opens the REAL changelog dialog; toast only as fallback
+4. MAJOR — HelpDropdown "Documentation" opened fake external docs.example.com in new tab. FIX: item removed (dead demo link worse than absence)
+5. MAJOR — ⌘K "Switch user" used raw setUser → user/tenant desync (switched to Alex while tenant stayed Alpha: super-admin permissions + prop-admin sidebar hybrid). FIX (command-menu.tsx): use useUserSwitcher().switchUser which syncs tenant
+6. MAJOR — Tenant switch (topbar + ⌘K) left stale view: e.g. tenant-detail/kyc-reviews survives into target tenant context → "not enabled" walls or wrong-tenant data. FIX: after switch, navigate("overview")
+7. MAJOR — Profile "Save" was fake: toast-only, header stale, nothing persisted (verified at runtime: edit + Save → header unchanged). FIX (platform-context.tsx + profile-page.tsx): new updateUser(patch) in context with per-user localStorage persistence (pfaas:userOverrides); save validates name/email, recomputes initials; header/topbar reflect changes instantly; avatar upload now persists too; render-time reset pattern resyncs fields on user switch (setState-in-effect lint-safe)
+8. MAJOR — Pendings cards navigated into ForbiddenState walls for modules disabled in the current tenant (KYC Reviews / Affiliate Payouts as Alpha → "module is not enabled" dead end). FIX (pending-tasks-page.tsx): resolveRouteInfo() looks up owning module + human label from moduleRegistry; disabled modules render as disabled cards (opacity-55, cursor-not-allowed, aria-disabled, tooltip "Enable the module...") instead of navigating
+9. MINOR — Pendings card footers leaked internal viewIds ("Opens challenges-passed →"). FIX: human labels from route registry ("Opens Passed Challenges →")
+10. MINOR — Notification Center "activity" filter actually showed notifications (mislabel). FIX: label "activity" → "Notifications"
+11. MINOR — Theme mode reset to light on every reload. FIX (platform-context.tsx): persist pfaas:theme + lazy-init
+12. MINOR — Version drift: sidebar "v1.0" / footer "v1.0.0" / help "v1.8.0". FIX: all v1.8.0
+13. MINOR — Command menu "Architecture overview" used settings gear icon. FIX: Boxes icon
+14. MINOR — Search placeholder "…payouts" didn't reflect platform-wide scope. FIX: "Search traders, accounts, settings…"
+15. MINOR — Unused imports (MetricCard/EntityHeader in profile-page) removed; duplicate "text-left" class removed
+
+Verification (all via agent-browser after fixes, ESLint clean on all 10 touched files):
+- Profile: edit name → Save → header + user-menu initials update instantly; F5 → persists (localStorage overrides verified); invalid-empty name → destructive toast
+- HelpDropdown: "Documentation" gone; Architecture Overview → lands on ?view=help; What's New → real dialog with 5 changelog entries
+- ⌘K: Switch user Alex (from Sarah/Alpha) → sidebar flips to "Super Admin / PFaaS Platform" (tenant synced)
+- Pendings: footers now "Opens Passed Challenges →" etc.; KYC/Affiliate cards disabled with honest "Module not enabled" hint
+- Notifications: filters now All / unread (3) / alerts / Notifications
+- Theme: toggle → dark; F5 → still dark; localStorage pfaas:theme set (reset to light after test)
+- Regression: main dashboard 41/41 unique widgets with content (0 empty), grid class healthy, console 0 errors
+- Server crashed (OOM) mid-verification → restarted with 1536MB safe variant, HTTP 200
+- Artifacts: download/ux2-final-dashboard.png, ux2-final-pendings.png, ux2-final-profile.png
+
+Stage Summary:
+- 15 additional gaps fixed (8 major, 7 minor) across 10 files: platform-context.tsx, topbar.tsx, app-shell.tsx, help-dropdown.tsx, whats-new.tsx, command-menu.tsx, sidebar.tsx, profile-page.tsx, pending-tasks-page.tsx, notification-center-page.tsx
+- Platform-admin shell flows now: no dead controls, help menu fully wired, user/tenant switches keep context consistent, profile edits persist, pendings cards are honest about module availability
+- Combined with round 1 (13 fixes), the platform-admin dashboard has now been audited section-by-section, screen-by-screen, feature-by-feature, flow-by-flow: main GridStack dashboard, Platform Overview, Tenants, Create Tenant wizard, Tenant Lifecycle, Service Catalog, Dashboard Manager, System Health, Platform Audit, Tenant Detail, tenant switcher, Profile, Notification Center, Help, Pendings, help dropdown, command menu, global search, theme, keyboard shortcuts, breadcrumbs, mobile nav
+- Ops: another OOM crash during this round — 1536MB restart recipe applied; cron template still on 1024MB (unchanged priority)

@@ -17,10 +17,9 @@ import {
   LifeBuoy,
   Keyboard,
   Sparkles,
-  BookOpen,
+  Boxes,
   MessageSquare,
   Info,
-  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,18 +39,9 @@ export function HelpDropdown() {
   const { navigate } = usePlatform();
 
   const openArchitectureOverview = () => {
-    // Dispatch a custom event the AppShell (or any listener) can hook
-    // to open the architecture-overview dialog. Mirrors the pattern
-    // used by `window.__openShortcutsHelp` for the keyboard-shortcuts
-    // dialog. If no listener is wired, the toast gives actionable
-    // feedback (§4 — clear, actionable error messages).
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("pfaas:open-help"));
-    }
-    toast({
-      title: "Architecture overview",
-      description: "Architecture overview dialog would open here.",
-    });
+    // The standalone Help page IS the platform architecture overview —
+    // navigate there instead of firing a phantom dialog event.
+    navigate("help");
   };
 
   const openKeyboardShortcuts = () => {
@@ -68,18 +58,16 @@ export function HelpDropdown() {
   };
 
   const openWhatsNew = () => {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("pfaas:open-whats-new"));
-    }
-    toast({
-      title: "What's new",
-      description: "Changelog dialog would open here. Use the gift icon in the topbar as a fallback.",
-    });
-  };
-
-  const openDocumentation = () => {
-    if (typeof window !== "undefined") {
-      window.open("https://docs.example.com", "_blank", "noopener,noreferrer");
+    if (typeof window === "undefined") return;
+    const open = (window as unknown as { __openWhatsNew?: () => void }).__openWhatsNew;
+    if (open) {
+      open();
+    } else {
+      // Fallback only if the topbar What's New button is not mounted.
+      toast({
+        title: "What's new",
+        description: "Use the gift icon in the topbar to see recent updates.",
+      });
     }
   };
 
@@ -114,7 +102,7 @@ export function HelpDropdown() {
           onClick={openArchitectureOverview}
           className="gap-2"
         >
-          <Sparkles className="h-4 w-4" />
+          <Boxes className="h-4 w-4" />
           <span>Architecture Overview</span>
         </DropdownMenuItem>
         <DropdownMenuItem
@@ -136,11 +124,6 @@ export function HelpDropdown() {
         <DropdownMenuItem onClick={openWhatsNew} className="gap-2">
           <Sparkles className="h-4 w-4" />
           <span>What&apos;s New</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={openDocumentation} className="gap-2">
-          <BookOpen className="h-4 w-4" />
-          <span className="flex-1">Documentation</span>
-          <ExternalLink className="h-3 w-3 text-muted-foreground" />
         </DropdownMenuItem>
         <DropdownMenuItem onClick={openSupport} className="gap-2">
           <MessageSquare className="h-4 w-4" />
