@@ -840,7 +840,7 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
             {/* Round 4 fix: previously hardcoded "Visa ··4242" for every
                 tenant — deterministic per-tenant card brand + last 4 so
                 each tenant shows a different (but stable) card. */}
-            <dd className="mt-0.5">{paymentMethodFor(localTenant ?? tenant)}</dd>
+            <dd className="mt-0.5">{paymentMethodFor(tenant)}</dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">Status</dt>

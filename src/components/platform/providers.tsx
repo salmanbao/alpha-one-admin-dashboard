@@ -8,7 +8,7 @@
  * then transitions to the dashboard.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PlatformProvider } from "@/lib/platform/platform-context";
 import { bootstrapModules } from "@/lib/platform/module-bootstrap";
 import { Toaster } from "@/components/ui/toaster";
@@ -19,18 +19,25 @@ import { BootScreen } from "@/components/shell/boot-screen";
 bootstrapModules();
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  // Round 7 fix: skip the boot-screen animation on subsequent reloads
-  // within the same browser session (was playing on every F5). The
-  // sessionStorage flag is cleared when the tab closes, so a fresh
-  // browser visit still sees the animation.
-  const [booted, setBooted] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
+  // Always start with booted=false so the server and client render the
+  // same initial HTML (the boot screen). After hydration, check
+  // sessionStorage and skip the animation if the flag is set. This
+  // prevents the hydration mismatch that occurred when the server
+  // rendered the boot screen but the client immediately rendered the
+  // app (because sessionStorage was available on the client only).
+  const [booted, setBooted] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     try {
-      return window.sessionStorage.getItem("pfaas:booted") === "1";
-    } catch {
-      return false;
-    }
-  });
+      if (window.sessionStorage.getItem("pfaas:booted") === "1") {
+        // Already booted in this session — skip the animation.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setBooted(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   if (!booted) {
     return (
       <BootScreen
