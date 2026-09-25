@@ -32,6 +32,7 @@
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, resolveTermsInString } from "@/lib/platform/terminology";
+import type { TenantContext } from "@/lib/platform/types";
 import { getTenantTraders } from "@/lib/platform/mock-data";
 import { Page, PageContent } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -544,6 +545,7 @@ export function OrderDetailPage() {
           working={working}
           editing={editing}
           currency={currency}
+          tenant={tenant}
           onFieldChange={update}
         />
 
@@ -701,11 +703,13 @@ function OrderForm({
   working,
   editing,
   currency,
+  tenant,
   onFieldChange,
 }: {
   working: OrderDetail;
   editing: boolean;
   currency: string;
+  tenant: TenantContext;
   onFieldChange: (patch: Partial<OrderDetail>) => void;
 }) {
   return (
