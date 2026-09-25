@@ -10006,3 +10006,83 @@ Stage Summary:
   * #46 Terms & Policies
 - All 8 new files pass lint (verified after each fix)
 - Server healthy at HTTP 200 with 1536MB variant
+
+---
+Task ID: trader-portal-round10b-master
+Agent: Super Z (Trader Portal — Remaining Deferred Screens with Demo Data)
+Task: Implement all remaining deferred trader-facing screens with demo data.
+
+Work Log:
+- Implemented 9 additional trader-facing screens:
+
+1. checkout-page.tsx — #6 Checkout:
+   - Order summary (challenge, account size, price, discount, tax, total)
+   - Payment method selector (card/crypto/PayPal/Skrill) with card input fields
+   - Promo code input (WELCOME10 = 10% off)
+   - Secure payment trust panel with terms/refund notice
+   - "Pay & Start Challenge" CTA → navigates to purchase-completed
+
+2. purchase-completed-page.tsx — #8 Purchase Completed:
+   - Success state with checkmark + challenge name + order ID/amount/method
+   - 3-step next-steps guide: Complete KYC → Account Provisioning → Start Trading
+   - Download receipt + email confirmation buttons
+
+3. kyc-onboarding-page.tsx — #9 KYC Onboarding:
+   - 5-step wizard: Personal Info → Address → Document Upload → Selfie → Review
+   - Step indicator with checkmarks
+   - File upload dropzone for ID document
+   - Camera capture for selfie/liveness
+   - Consent checkbox + "Submit for verification" CTA → navigates to kyc-status
+
+4. kyc-status-page.tsx — #10 KYC Verification Status:
+   - "Identity verified" green banner
+   - 4 verification checks (document/address/selfie/PEP) all passed
+   - Timeline showing submission → verification → approval timestamps
+   - "Continue to provisioning" CTA
+
+5. account-provisioning-page.tsx — #11 Account Provisioning:
+   - 6-step progress: Purchase confirmed → KYC → Create account → Apply config → Generate credentials → Account ready
+   - Current step highlighted with pulse animation
+   - "View credentials" button (disabled until ready)
+   - Estimated time + support contact
+
+6. performance-analytics-page.tsx — #21 Performance Analytics:
+   - 4 KPIs: Total P&L, Win Rate (62%), Profit Factor (1.8), Total Trades (47)
+   - Equity curve (30 days, AreaSeries)
+   - Daily P&L (14 days, AreaSeries)
+   - Trade statistics grid: avg win/loss, largest win/loss, trading days, avg duration, win/loss streaks
+
+7. evaluation-passed-page.tsx — #23 Evaluation Passed:
+   - "Congratulations!" with Award icon
+   - Performance summary (profit achieved/trading days/max drawdown)
+   - 3-step next steps: Eligibility confirmed → Accept funded trader agreement → Funded account provisioning
+   - "View funded account credentials" CTA
+
+8. purchase-history-page.tsx — #31 Purchase History:
+   - DataTable with 3 purchase orders (trader-specific)
+   - Columns: Order, Challenge, Price, Method, Date, Status, Account link
+   - 4 KPIs: Total/Paid/Total Spent/Refunds
+
+9. terms-policies-page.tsx — #46 Terms & Policies:
+   - 6 legal documents: Terms of Service, Challenge Rules, Funded Trader Agreement, Privacy Policy, Risk Disclosure, Refund Policy
+   - Each with version badge + acceptance timestamp + status (accepted/pending)
+   - Versioned agreements notice
+
+- Fixed bugs:
+  1. PerformanceAnalyticsPage duplicate export — renamed to TraderPerformancePage
+  2. purchase-history-page.tsx missing Button import — added
+  3. TermsPoliciesPage needed separate route registration in settings-module.ts (not manifest.ts)
+
+Verification (agent-browser E2E as Tom Allen — user-trader-1, tenant-beta):
+- HTTP 200, 0 console errors
+- All 9 new screens render with hasError=false
+
+Stage Summary:
+- Trader Portal now has 24 of 20 "core" screens (exceeded the core backbone) plus many supplementary screens
+- The full trader journey is now implemented with demo data:
+  Discover → Marketplace → Checkout → Purchase Complete → KYC Onboarding → KYC Status →
+  Account Provisioning → Trader Dashboard → Objectives → Rules → Credentials →
+  Live Trading → Performance → Evaluation Passed → Payout Eligibility → Payout Request →
+  Payout History → Purchase History → Documents → Terms & Policies → Account Breach → Support
+- All new files pass lint
+- Server healthy at HTTP 200 with 1536MB variant

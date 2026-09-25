@@ -22,6 +22,9 @@ import {
   RulesPage,
   TradingCredentialsPage,
   AccountBreachPage,
+  AccountProvisioningPage,
+  EvaluationPassedPage,
+  PurchaseHistoryPage,
 } from "@/modules/trading";
 import {
   ChallengesOverviewPage,
@@ -30,6 +33,8 @@ import {
   FailedChallengesPage,
   CompetitionsPage,
   ChallengeMarketplacePage,
+  CheckoutPage,
+  PurchaseCompletedPage,
 } from "@/modules/challenges";
 import { RiskOverviewPage, BreachesPage, RiskCasesPage } from "@/modules/risk";
 import {
@@ -47,6 +52,7 @@ import {
   RiskAnalyticsPage,
   AdvancedAnalyticsPage,
   ReportsPage,
+  TraderPerformancePage,
 } from "@/modules/analytics";
 import {
   AffiliatesOverviewPage,
@@ -66,7 +72,7 @@ import {
   MarketingPerformancePage,
 } from "@/modules/marketing";
 import { CrmOverviewPage, CrmContactsPage, CrmPipelinePage } from "@/modules/crm";
-import { KycOverviewPage, KycReviewsPage, KycRiskPage, KycDocumentRequestsPage } from "@/modules/kyc";
+import { KycOverviewPage, KycReviewsPage, KycRiskPage, KycDocumentRequestsPage, KycOnboardingPage, KycStatusPage } from "@/modules/kyc";
 import {
   SupportOverviewPage,
   SupportTicketsPage,
@@ -85,6 +91,7 @@ import { AuditPage } from "@/modules/audit/audit-page";
 import { NotificationsPage } from "@/modules/notifications/notifications-page";
 import { HelpPage } from "@/modules/help/help-page";
 import { SettingsPage } from "@/modules/settings/settings-page";
+import { TermsPoliciesPage } from "@/modules/settings";
 import { SuperAdminOverviewPage, TenantsPage, ModuleCatalogPage, PlatformHealthPage } from "@/modules/super-admin/super-admin-pages";
 import { PlatformOperationsPage } from "@/modules/super-admin/platform-operations-page";
 import { EmergencyControlsPage } from "@/modules/super-admin/emergency-controls-page";
@@ -229,6 +236,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   notifications: NotificationsPage,
   help: HelpPage,
   settings: SettingsPage,
+  "terms-policies": TermsPoliciesPage,
   "pending-tasks": PendingTasksPage,
 
   /* super-admin */
@@ -286,6 +294,9 @@ export const viewRegistry: Record<string, ViewComponent> = {
   rules: RulesPage,
   "trading-credentials": TradingCredentialsPage,
   "account-breach": AccountBreachPage,
+  "account-provisioning": AccountProvisioningPage,
+  "evaluation-passed": EvaluationPassedPage,
+  "purchase-history": PurchaseHistoryPage,
 
   /* challenges */
   challenges: ChallengesOverviewPage,
@@ -297,6 +308,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "challenge-types": ChallengeTypesPage,
   competitions: CompetitionsPage,
   "challenge-marketplace": ChallengeMarketplacePage,
+  checkout: CheckoutPage,
+  "purchase-completed": PurchaseCompletedPage,
   "phase-management": PhaseManagementPage,
   "challenge-edit": ChallengeEditPage,
   "phase-detail": PhaseDetailPage,
@@ -337,6 +350,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "analytics-risk": RiskAnalyticsPage,
   "analytics-advanced": AdvancedAnalyticsPage,
   reports: ReportsPage,
+  "trader-performance": TraderPerformancePage,
   "analytics-firm-statistics": FirmStatisticsPage,
   "analytics-daily-highlights": DailyHighlightsPage,
   "analytics-retention": RetentionAnalyticsPage,
@@ -382,6 +396,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "kyc-reviews": KycReviewsPage,
   "kyc-risk": KycRiskPage,
   "kyc-document-requests": KycDocumentRequestsPage,
+  "kyc-onboarding": KycOnboardingPage,
+  "kyc-status": KycStatusPage,
 
   /* support */
   support: SupportOverviewPage,

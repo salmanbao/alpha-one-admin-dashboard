@@ -78,6 +78,7 @@ const navigation: NavigationItem[] = [
       { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage", group: "System" },
     ],
   },
+  { path: "terms-policies", viewId: "terms-policies", label: "Terms & Policies", permission: "settings.manage", module: "settings" },
 ];
 
 const routes: RouteDefinition[] = [
@@ -102,6 +103,7 @@ const routes: RouteDefinition[] = [
   { path: "device-activities", viewId: "device-activities", label: "Device Activities", permission: "settings.manage", module: "settings" },
   { path: "kyc-providers", viewId: "kyc-providers", label: "KYC Providers", permission: "settings.manage", module: "settings" },
   { path: "token-detail", viewId: "token-detail", label: "Token Detail", permission: "settings.manage", module: "settings" },
+  { path: "terms-policies", viewId: "terms-policies", label: "Terms & Policies", permission: "settings.manage", module: "settings" },
 ];
 
 export const settingsModule: FrontendModule = {

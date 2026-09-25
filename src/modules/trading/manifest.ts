@@ -45,6 +45,9 @@ const navigation: NavigationItem[] = [
       { id: "trading.my-closed", label: "My Closed Positions", href: "closed-positions", icon: Archive, permission: "trader.self", application: ["trader"] },
     ],
   },
+  { path: "account-provisioning", viewId: "account-provisioning", label: "Account Provisioning", permission: ["trader.read", "trader.self"], module: "trading" },
+  { path: "evaluation-passed", viewId: "evaluation-passed", label: "Evaluation Passed", permission: ["trader.read", "trader.self"], module: "trading" },
+  { path: "purchase-history", viewId: "purchase-history", label: "Purchase History", permission: ["trader.read", "trader.self"], module: "trading" },
 ];
 
 const routes: RouteDefinition[] = [
@@ -69,6 +72,9 @@ const routes: RouteDefinition[] = [
   { path: "account-breach", viewId: "account-breach", label: "Account Breach", permission: ["trader.read", "trader.self"], module: "trading" },
   { path: "orders", viewId: "orders", label: "Orders", permission: ["account.read", "account.self"], module: "trading" },
   { path: "order-detail", viewId: "order-detail", label: "Order Detail", permission: ["account.read", "account.self"], module: "trading" },
+  { path: "account-provisioning", viewId: "account-provisioning", label: "Account Provisioning", permission: ["trader.read", "trader.self"], module: "trading" },
+  { path: "evaluation-passed", viewId: "evaluation-passed", label: "Evaluation Passed", permission: ["trader.read", "trader.self"], module: "trading" },
+  { path: "purchase-history", viewId: "purchase-history", label: "Purchase History", permission: ["trader.read", "trader.self"], module: "trading" },
 ];
 
 const widgets: WidgetDefinition[] = [
@@ -122,6 +128,9 @@ const widgets: WidgetDefinition[] = [
     defaultSize: { w: 6, h: 2 },
     description: "Latest trades and position changes.",
   },
+  { path: "account-provisioning", viewId: "account-provisioning", label: "Account Provisioning", permission: ["trader.read", "trader.self"], module: "trading" },
+  { path: "evaluation-passed", viewId: "evaluation-passed", label: "Evaluation Passed", permission: ["trader.read", "trader.self"], module: "trading" },
+  { path: "purchase-history", viewId: "purchase-history", label: "Purchase History", permission: ["trader.read", "trader.self"], module: "trading" },
 ];
 
 export const tradingModule: FrontendModule = {

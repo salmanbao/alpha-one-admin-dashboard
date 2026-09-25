@@ -28,6 +28,8 @@ const navigation: NavigationItem[] = [
       { id: "challenges.edit", label: "Edit Challenge", href: "challenge-edit", icon: Edit3, permission: "challenge.update", group: "Management" },
     ],
   },
+  { path: "checkout", viewId: "checkout", label: "Checkout", permission: ["challenge.read", "challenge.self"], module: "challenges" },
+  { path: "purchase-completed", viewId: "purchase-completed", label: "Purchase Completed", permission: ["challenge.read", "challenge.self"], module: "challenges" },
 ];
 
 const routes: RouteDefinition[] = [
@@ -43,12 +45,16 @@ const routes: RouteDefinition[] = [
   { path: "phase-management", viewId: "phase-management", label: "Phase Management", permission: "challenge.read", module: "challenges" },
   { path: "challenge-edit", viewId: "challenge-edit", label: "Edit Challenge", permission: "challenge.update", module: "challenges" },
   { path: "phase-detail", viewId: "phase-detail", label: "Phase Detail", permission: "challenge.read", module: "challenges" },
+  { path: "checkout", viewId: "checkout", label: "Checkout", permission: ["challenge.read", "challenge.self"], module: "challenges" },
+  { path: "purchase-completed", viewId: "purchase-completed", label: "Purchase Completed", permission: ["challenge.read", "challenge.self"], module: "challenges" },
 ];
 
 const widgets: WidgetDefinition[] = [
   { id: "challenge-overview", title: "Challenge Overview", module: "challenges", category: "metric", component: ChallengeOverviewWidget, permission: "challenge.read", defaultSize: { w: 12, h: 1 } },
   { id: "challenge-progress", title: "Challenge Progress", module: "challenges", category: "progress", component: ChallengeProgressWidget, permission: "challenge.read", defaultSize: { w: 6, h: 2 } },
   { id: "challenge-phases", title: "Phase Distribution", module: "challenges", category: "chart", component: ChallengePhasesWidget, permission: "challenge.read", defaultSize: { w: 6, h: 2 } },
+  { path: "checkout", viewId: "checkout", label: "Checkout", permission: ["challenge.read", "challenge.self"], module: "challenges" },
+  { path: "purchase-completed", viewId: "purchase-completed", label: "Purchase Completed", permission: ["challenge.read", "challenge.self"], module: "challenges" },
 ];
 
 export const challengesModule: FrontendModule = {

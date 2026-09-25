@@ -44,6 +44,7 @@ const navigation: NavigationItem[] = [
       { id: "analytics.positions", label: "Dashboard: Positions", href: "dashboard-positions", icon: CandlestickChart, permission: "analytics.read", group: "Dashboards" },
     ],
   },
+  { path: "trader-performance", viewId: "trader-performance", label: "My Performance", permission: "analytics.read", module: "analytics" },
 ];
 
 const routes: RouteDefinition[] = [
@@ -60,6 +61,7 @@ const routes: RouteDefinition[] = [
   { path: "dashboard-payouts", viewId: "dashboard-payouts", label: "Dashboard: Payouts", permission: "analytics.read", module: "analytics" },
   { path: "dashboard-orders", viewId: "dashboard-orders", label: "Dashboard: Orders", permission: "analytics.read", module: "analytics" },
   { path: "dashboard-positions", viewId: "dashboard-positions", label: "Dashboard: Positions", permission: "analytics.read", module: "analytics" },
+  { path: "trader-performance", viewId: "trader-performance", label: "My Performance", permission: "analytics.read", module: "analytics" },
 ];
 
 const widgets: WidgetDefinition[] = [
@@ -69,6 +71,7 @@ const widgets: WidgetDefinition[] = [
   { id: "analytics-risk-distribution", title: "Risk Distribution", module: "analytics", category: "chart", component: RiskDistributionWidget, permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
   { id: "analytics-breach-trend", title: "Breach Trend", module: "analytics", category: "chart", component: BreachTrendWidget, permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
   { id: "advanced-analytics", title: "Advanced Analytics", module: "analytics", category: "ai", component: AdvancedAnalyticsWidget, permission: "analytics.advanced.read", feature: "analytics.advanced", defaultSize: { w: 12, h: 2 } },
+  { path: "trader-performance", viewId: "trader-performance", label: "My Performance", permission: "analytics.read", module: "analytics" },
 ];
 
 export const analyticsModule: FrontendModule = {
