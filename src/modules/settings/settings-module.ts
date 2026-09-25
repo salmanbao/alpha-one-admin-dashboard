@@ -78,7 +78,6 @@ const navigation: NavigationItem[] = [
       { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage", group: "System" },
     ],
   },
-  { path: "terms-policies", viewId: "terms-policies", label: "Terms & Policies", permission: "settings.manage", module: "settings" },
 ];
 
 const routes: RouteDefinition[] = [

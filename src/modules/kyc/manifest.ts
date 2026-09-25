@@ -21,8 +21,6 @@ const navigation: NavigationItem[] = [
       { id: "kyc.risk", label: "Risk", href: "kyc-risk", icon: AlertTriangle, permission: "kyc.read" },
     ],
   },
-  { path: "kyc-onboarding", viewId: "kyc-onboarding", label: "KYC Onboarding", permission: "kyc.read", module: "kyc" },
-  { path: "kyc-status", viewId: "kyc-status", label: "KYC Status", permission: "kyc.read", module: "kyc" },
 ];
 
 const routes: RouteDefinition[] = [
@@ -37,8 +35,6 @@ const routes: RouteDefinition[] = [
 const widgets: WidgetDefinition[] = [
   { id: "kyc-overview", title: "KYC Overview", module: "kyc", category: "metric", component: KycOverviewWidget, permission: "kyc.read", defaultSize: { w: 12, h: 1 } },
   { id: "kyc-queue", title: "KYC Queue", module: "kyc", category: "alert", component: KycQueueWidget, permission: "kyc.read", defaultSize: { w: 12, h: 2 } },
-  { path: "kyc-onboarding", viewId: "kyc-onboarding", label: "KYC Onboarding", permission: "kyc.read", module: "kyc" },
-  { path: "kyc-status", viewId: "kyc-status", label: "KYC Status", permission: "kyc.read", module: "kyc" },
 ];
 
 export const kycModule: FrontendModule = {

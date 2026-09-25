@@ -45,9 +45,6 @@ const navigation: NavigationItem[] = [
       { id: "trading.my-closed", label: "My Closed Positions", href: "closed-positions", icon: Archive, permission: "trader.self", application: ["trader"] },
     ],
   },
-  { path: "account-provisioning", viewId: "account-provisioning", label: "Account Provisioning", permission: ["trader.read", "trader.self"], module: "trading" },
-  { path: "evaluation-passed", viewId: "evaluation-passed", label: "Evaluation Passed", permission: ["trader.read", "trader.self"], module: "trading" },
-  { path: "purchase-history", viewId: "purchase-history", label: "Purchase History", permission: ["trader.read", "trader.self"], module: "trading" },
 ];
 
 const routes: RouteDefinition[] = [
@@ -128,9 +125,6 @@ const widgets: WidgetDefinition[] = [
     defaultSize: { w: 6, h: 2 },
     description: "Latest trades and position changes.",
   },
-  { path: "account-provisioning", viewId: "account-provisioning", label: "Account Provisioning", permission: ["trader.read", "trader.self"], module: "trading" },
-  { path: "evaluation-passed", viewId: "evaluation-passed", label: "Evaluation Passed", permission: ["trader.read", "trader.self"], module: "trading" },
-  { path: "purchase-history", viewId: "purchase-history", label: "Purchase History", permission: ["trader.read", "trader.self"], module: "trading" },
 ];
 
 export const tradingModule: FrontendModule = {

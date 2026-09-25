@@ -24,7 +24,6 @@ const navigation: NavigationItem[] = [
       { id: "accounting.pl", label: "P&L Statement", href: "accounting-pl", icon: TrendingUp, permission: "accounting.read", order: 74 },
     ],
   },
-  { path: "documents", viewId: "documents", label: "Documents", permission: ["payout.read", "payout.self"], module: "accounting" },
 ];
 
 const routes: RouteDefinition[] = [
@@ -40,7 +39,6 @@ const widgets: WidgetDefinition[] = [
   { id: "accounting-overview", title: "Accounting Overview", module: "accounting", category: "metric", component: AccountingOverviewWidget, permission: "accounting.read", defaultSize: { w: 12, h: 1 } },
   { id: "revenue-by-type", title: "Revenue by Type", module: "accounting", category: "chart", component: RevenueByTypeWidget, permission: "accounting.read", defaultSize: { w: 6, h: 2 } },
   { id: "transaction-flow", title: "Transaction Flow", module: "accounting", category: "chart", component: TransactionFlowWidget, permission: "accounting.read", defaultSize: { w: 6, h: 2 } },
-  { path: "documents", viewId: "documents", label: "Documents", permission: ["payout.read", "payout.self"], module: "accounting" },
 ];
 
 export const accountingModule: FrontendModule = {

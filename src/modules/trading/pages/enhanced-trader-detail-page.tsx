@@ -306,13 +306,51 @@ export function EnhancedTraderDetailPage() {
 
         {/* Overview — account summary + key metrics */}
         <TabsContent value="overview">
+          {/* Important alerts — state-driven trader guidance */}
+          {openBreaches.length > 0 && (
+            <div className="rounded-lg border border-rose-500/30 bg-rose-50/50 p-3 dark:bg-rose-950/20">
+              <p className="flex items-center gap-2 text-sm font-medium text-rose-700 dark:text-rose-400">
+                <ShieldAlert className="h-4 w-4" />
+                Your account has {openBreaches.length} open breach{openBreaches.length === 1 ? "" : "es"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {openBreaches[0]?.rule} — {openBreaches[0]?.severity} severity.{" "}
+                <button onClick={() => navigate("account-breach")} className="font-medium text-primary hover:underline">View details →</button>
+              </p>
+            </div>
+          )}
+          {trader.totalPnl > 0 && trader.challengePhase !== "funded" && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-50/50 p-3 dark:bg-emerald-950/20">
+              <p className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                <Target className="h-4 w-4" />
+                You are {Math.round((trader.totalPnl / (trader.equity * 0.08)) * 100)}% toward your profit target!
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {formatCurrency(Math.max(0, trader.equity * 0.08 - trader.totalPnl), currency)} remaining to pass.{" "}
+                <button onClick={() => navigate("objectives")} className="font-medium text-primary hover:underline">View objectives →</button>
+              </p>
+            </div>
+          )}
+          {trader.challengePhase === "funded" && (
+            <div className="rounded-lg border border-teal-500/30 bg-teal-50/50 p-3 dark:bg-teal-950/20">
+              <p className="flex items-center gap-2 text-sm font-medium text-teal-700 dark:text-teal-400">
+                <Wallet className="h-4 w-4" />
+                Your funded account is active
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                You keep 80% of profits.{" "}
+                <button onClick={() => navigate("payout-eligibility")} className="font-medium text-primary hover:underline">Check payout eligibility →</button>
+              </p>
+            </div>
+          )}
+
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="rounded-lg border bg-card p-4 lg:col-span-2">
               <p className="mb-3 text-sm font-medium">Account Summary</p>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div>
-                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">Trader ID</dt>
-                  <dd className="font-mono text-xs">{trader.id}</dd>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">Account #</dt>
+                  <dd className="font-mono text-xs">{accounts[0]?.login ?? "—"}</dd>
                 </div>
                 <div>
                   <dt className="text-xs uppercase tracking-wide text-muted-foreground">Country</dt>
@@ -338,30 +376,57 @@ export function EnhancedTraderDetailPage() {
             </div>
             <div className="rounded-lg border bg-card p-4">
               <p className="mb-3 text-sm font-medium">
-                <LabelWithHelp help="Open positions, KYC status, and any active breaches for this trader.">
+                <LabelWithHelp help="Click any metric to navigate to its detail page.">
                   Key Metrics
                 </LabelWithHelp>
               </p>
               <ul className="space-y-2 text-sm">
-                <li className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Accounts</span>
-                  <Badge variant="secondary" className="text-[10px]">{accounts.length}</Badge>
+                <li>
+                  <button onClick={() => { /* switch to accounts tab */ }} className="flex w-full items-center justify-between hover:bg-accent/30 rounded p-1 -m-1">
+                    <span className="text-muted-foreground">Accounts</span>
+                    <Badge variant="secondary" className="text-[10px]">{accounts.length}</Badge>
+                  </button>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Open positions</span>
-                  <Badge variant="secondary" className="text-[10px]">{positions.length}</Badge>
+                <li>
+                  <button onClick={() => navigate("trading-positions")} className="flex w-full items-center justify-between hover:bg-accent/30 rounded p-1 -m-1">
+                    <span className="text-muted-foreground">Open positions</span>
+                    <Badge variant="secondary" className="text-[10px]">{positions.length}</Badge>
+                  </button>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span className="text-muted-foreground">KYC</span>
-                  {kyc ? <ExplainableStateBadge status={kyc.status} entityType="kyc" /> : <Badge variant="outline" className="text-[10px]">None</Badge>}
+                <li>
+                  <button onClick={() => navigate(isTrader ? "kyc-status" : "kyc-reviews")} className="flex w-full items-center justify-between hover:bg-accent/30 rounded p-1 -m-1">
+                    <span className="text-muted-foreground">KYC</span>
+                    {kyc ? <ExplainableStateBadge status={kyc.status} entityType="kyc" /> : <Badge variant="outline" className="text-[10px]">None</Badge>}
+                  </button>
                 </li>
-                <li className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Open breaches</span>
-                  <Badge variant={openBreaches.length > 0 ? "destructive" : "outline"} className="text-[10px]">{openBreaches.length}</Badge>
+                <li>
+                  <button onClick={() => navigate(isTrader ? "account-breach" : "breaches")} className="flex w-full items-center justify-between hover:bg-accent/30 rounded p-1 -m-1">
+                    <span className="text-muted-foreground">Open breaches</span>
+                    <Badge variant={openBreaches.length > 0 ? "destructive" : "outline"} className="text-[10px]">{openBreaches.length}</Badge>
+                  </button>
                 </li>
               </ul>
             </div>
           </div>
+
+          {/* Recent activity — trader's own audit events */}
+          {traderAudit.length > 0 && (
+            <div className="rounded-lg border bg-card p-4">
+              <p className="mb-3 text-sm font-medium">Recent Activity</p>
+              <ol className="relative space-y-2 border-l pl-4">
+                {traderAudit.slice(0, 6).map((a) => (
+                  <li key={a.id} className="relative">
+                    <span className="absolute -left-[21px] top-1 h-2 w-2 rounded-full border-2 border-background" style={{ background: "var(--brand-primary)" }} />
+                    <p className="text-sm text-foreground">
+                      <span className="font-medium">{a.actor}</span>{" "}
+                      <span className="text-muted-foreground">{a.action}</span>
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{new Date(a.timestamp).toLocaleString()}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </TabsContent>
 
         {/* Accounts — table of trading accounts */}
