@@ -2,7 +2,7 @@
 
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
-import { getTenantPayouts, type Payout } from "@/lib/platform/mock-data";
+import { getTenantPayouts, getTraderPayouts, getTraderForUser, type Payout } from "@/lib/platform/mock-data";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { applyPayoutDecision, effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -42,13 +42,16 @@ const payoutExportColumns = (
 ];
 
 function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
-  const { runtime, tenant } = usePlatform();
+  const { runtime, tenant, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
+  // Round 7: trader application users see only THEIR OWN payouts; admins
+  // see the whole-tenant list.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
   // Subscribe to in-session decisions so approve/reject from any surface
   // (review cards, dashboard widget, other tables) re-renders here.
   usePayoutVersion();
-  const pays = getTenantPayouts(tid)
+  const pays = (trader ? getTraderPayouts(trader.id) : getTenantPayouts(tid))
     .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
     .filter(filter);
 
@@ -141,12 +144,14 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
 /* ------------------------------------------------------------------ */
 
 export function PayoutsOverviewPage() {
-  const { runtime, tenant } = usePlatform();
+  const { runtime, tenant, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
+  // Round 7: trader sees only their own payouts.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
   usePayoutVersion(); // KPIs recompute when decisions change
   const currency = runtime.tenant?.currency ?? "USD";
-  const pays = getTenantPayouts(tid).map((p) => ({ ...p, status: effectivePayoutStatus(p) }));
+  const pays = (trader ? getTraderPayouts(trader.id) : getTenantPayouts(tid)).map((p) => ({ ...p, status: effectivePayoutStatus(p) }));
   const pending = pays.filter((p) => p.status === "pending").length;
   const paid = pays.filter((p) => p.status === "paid");
   const totalPaid = paid.reduce((s, p) => s + p.amount, 0);
@@ -256,11 +261,13 @@ export function PendingPayoutsPage() {
 }
 
 export function PayoutHistoryPage() {
-  const { runtime, tenant } = usePlatform();
+  const { runtime, tenant, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
+  // Round 7: trader sees only their own payout history.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
   usePayoutVersion();
-  const historyPayouts = getTenantPayouts(tid)
+  const historyPayouts = (trader ? getTraderPayouts(trader.id) : getTenantPayouts(tid))
     .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
     .filter((p) => p.status === "paid" || p.status === "rejected");
 

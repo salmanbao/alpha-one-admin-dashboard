@@ -16,18 +16,18 @@ const navigation: NavigationItem[] = [
     icon: LifeBuoy,
     order: 80,
     children: [
-      { id: "support.overview", label: "Overview", href: "support", icon: LifeBuoy, permission: "support.read" },
-      { id: "support.tickets", label: "Tickets", href: "support-tickets", icon: Inbox, permission: "support.read" },
+      { id: "support.overview", label: "Overview", href: "support", icon: LifeBuoy, permission: ["support.read", "support.self"] },
+      { id: "support.tickets", label: "My Tickets", href: "support-tickets", icon: Inbox, permission: ["support.read", "support.self"] },
       { id: "support.sla", label: "SLA Management", href: "support-sla", icon: Clock, permission: "support.read", order: 84 },
-      { id: "support.knowledge", label: "Knowledge", href: "support-knowledge", icon: BookOpen, permission: "support.read" },
+      { id: "support.knowledge", label: "Knowledge", href: "support-knowledge", icon: BookOpen, permission: ["support.read", "support.self"] },
     ],
   },
 ];
 
 const routes: RouteDefinition[] = [
-  { path: "support", viewId: "support", label: "Support Overview", permission: "support.read", module: "support" },
-  { path: "support-tickets", viewId: "support-tickets", label: "Support Tickets", permission: "support.read", module: "support" },
-  { path: "support-knowledge", viewId: "support-knowledge", label: "Knowledge Base", permission: "support.read", module: "support" },
+  { path: "support", viewId: "support", label: "Support Overview", permission: ["support.read", "support.self"], module: "support" },
+  { path: "support-tickets", viewId: "support-tickets", label: "Support Tickets", permission: ["support.read", "support.self"], module: "support" },
+  { path: "support-knowledge", viewId: "support-knowledge", label: "Knowledge Base", permission: ["support.read", "support.self"], module: "support" },
   { path: "support-sla", viewId: "support-sla", label: "SLA Management", permission: "support.read", module: "support" },
 ];
 

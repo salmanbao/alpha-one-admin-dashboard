@@ -22,6 +22,7 @@ import {
   getTenantAccounts,
   getTenantTraders,
   getTenantPositions,
+  getTraderForUser,
 } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -114,10 +115,14 @@ const BASE_SYMBOLS_BY_SYM: Record<string, { basePrice: number; mult: number; des
  * the existing open positions seed as a base. Each closed position adds
  * a close price, close time, close reason, commission, and duration.
  */
-function generateClosedPositions(tenantId: string): ClosedPosition[] {
-  const accounts = getTenantAccounts(tenantId);
+function generateClosedPositions(tenantId: string, traderId?: string): ClosedPosition[] {
+  const accounts = traderId
+    ? getTenantAccounts(tenantId).filter((a) => a.traderId === traderId)
+    : getTenantAccounts(tenantId);
   const traders = getTenantTraders(tenantId);
-  const openPositions = getTenantPositions(tenantId);
+  const openPositions = traderId
+    ? getTenantPositions(tenantId).filter((p) => p.traderId === traderId)
+    : getTenantPositions(tenantId);
   const traderById = new Map(traders.map((t) => [t.id, t]));
 
   return Array.from({ length: openPositions.length }, (_, idx) => {
@@ -224,12 +229,17 @@ function formatDuration(ms: number): string {
 /* ------------------------------------------------------------------ */
 
 export function ClosedPositionsPage() {
-  const { runtime, tenant } = usePlatform();
+  const { runtime, tenant, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
-
-  const allClosed = useMemo(() => generateClosedPositions(tid), [tid]);
+  // Round 7: trader application users see only THEIR OWN closed positions;
+  // admins see the whole-tenant list.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
+  const allClosed = useMemo(
+    () => generateClosedPositions(tid, trader?.id),
+    [tid, trader?.id],
+  );
 
   // Filters
   const [search, setSearch] = useState("");

@@ -15,10 +15,10 @@ const navigation: NavigationItem[] = [
     order: 20,
     children: [
       // ───────── Status ─────────
-      { id: "challenges.overview", label: "Overview", href: "challenges", icon: Target, permission: "challenge.read", group: "Status" },
-      { id: "challenges.active", label: "Active", href: "challenges-active", icon: Flame, permission: "challenge.read", group: "Status" },
-      { id: "challenges.passed", label: "Passed", href: "challenges-passed", icon: Trophy, permission: "challenge.read", group: "Status" },
-      { id: "challenges.failed", label: "Failed", href: "challenges-failed", icon: AlertCircle, permission: "challenge.read", group: "Status" },
+      { id: "challenges.overview", label: "Overview", href: "challenges", icon: Target, permission: ["challenge.read", "challenge.self"], group: "Status" },
+      { id: "challenges.active", label: "My Active", href: "challenges-active", icon: Flame, permission: ["challenge.read", "challenge.self"], group: "Status" },
+      { id: "challenges.passed", label: "My Passed", href: "challenges-passed", icon: Trophy, permission: ["challenge.read", "challenge.self"], group: "Status" },
+      { id: "challenges.failed", label: "My Failed", href: "challenges-failed", icon: AlertCircle, permission: ["challenge.read", "challenge.self"], group: "Status" },
 
       // ───────── Management ─────────
       { id: "challenges.wizard", label: "Create Challenge", href: "challenge-wizard", icon: Plus, permission: "challenge.create", group: "Management" },
@@ -31,10 +31,10 @@ const navigation: NavigationItem[] = [
 ];
 
 const routes: RouteDefinition[] = [
-  { path: "challenges", viewId: "challenges", label: "Challenges Overview", permission: "challenge.read", module: "challenges" },
-  { path: "challenges-active", viewId: "challenges-active", label: "Active Challenges", permission: "challenge.read", module: "challenges" },
-  { path: "challenges-passed", viewId: "challenges-passed", label: "Passed Challenges", permission: "challenge.read", module: "challenges" },
-  { path: "challenges-failed", viewId: "challenges-failed", label: "Failed Challenges", permission: "challenge.read", module: "challenges" },
+  { path: "challenges", viewId: "challenges", label: "Challenges Overview", permission: ["challenge.read", "challenge.self"], module: "challenges" },
+  { path: "challenges-active", viewId: "challenges-active", label: "Active Challenges", permission: ["challenge.read", "challenge.self"], module: "challenges" },
+  { path: "challenges-passed", viewId: "challenges-passed", label: "Passed Challenges", permission: ["challenge.read", "challenge.self"], module: "challenges" },
+  { path: "challenges-failed", viewId: "challenges-failed", label: "Failed Challenges", permission: ["challenge.read", "challenge.self"], module: "challenges" },
   { path: "challenge-wizard", viewId: "challenge-wizard", label: "Create Challenge", permission: "challenge.create", module: "challenges" },
   { path: "challenge-types", viewId: "challenge-types", label: "Challenge Types", permission: "challenge.read", module: "challenges" },
   { path: "challenge-config", viewId: "challenge-config", label: "Challenge Configuration", permission: "challenge.update", module: "challenges" },

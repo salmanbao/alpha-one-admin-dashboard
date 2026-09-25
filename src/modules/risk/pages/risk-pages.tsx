@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
-import { getTenantBreaches, type Breach } from "@/lib/platform/mock-data";
+import { getTenantBreaches, getTraderBreaches, getTraderForUser, type Breach } from "@/lib/platform/mock-data";
 import { resolveBreach, effectiveBreachStatus, useBreachVersion } from "@/modules/risk/breach-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -43,12 +43,15 @@ function hashStr(s: string): number {
 /* ------------------------------------------------------------------ */
 
 export function RiskOverviewPage() {
-  const { runtime, tenant, navigate } = usePlatform();
+  const { runtime, tenant, navigate, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
+  // Round 7: trader application users see only THEIR OWN breaches on the
+  // Risk Overview; admins see the whole-tenant list.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
   useBreachVersion(); // KPIs recompute when a breach is resolved
-  const breaches = getTenantBreaches(tid).map((b) => ({ ...b, status: effectiveBreachStatus(b) }));
+  const breaches = (trader ? getTraderBreaches(trader.id) : getTenantBreaches(tid)).map((b) => ({ ...b, status: effectiveBreachStatus(b) }));
   const open = breaches.filter((b) => b.status === "open").length;
   const critical = breaches.filter((b) => b.severity === "critical").length;
   const resolved = breaches.filter((b) => b.status === "resolved").length;
@@ -167,9 +170,12 @@ function BreachesTable({
   filter: (b: Breach) => boolean;
   showFilters?: boolean;
 }) {
-  const { runtime, navigate, tenant } = usePlatform();
+  const { runtime, navigate, tenant, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
+  // Round 7: trader application users see only THEIR OWN breaches; admins
+  // see the whole-tenant list. Previously Tom saw other traders' breaches.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
   useBreachVersion(); // rows react to resolutions from any surface
 
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -184,7 +190,7 @@ function BreachesTable({
     return 0;
   }, [rangeFilter]);
 
-  const breaches = getTenantBreaches(tid)
+  const breaches = (trader ? getTraderBreaches(trader.id) : getTenantBreaches(tid))
     .map((b) => ({ ...b, status: effectiveBreachStatus(b) }))
     .filter((b) => {
     if (!filter(b)) return false;

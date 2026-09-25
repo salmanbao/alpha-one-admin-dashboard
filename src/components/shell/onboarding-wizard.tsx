@@ -92,8 +92,12 @@ export function OnboardingWizard() {
     // The platform pseudo-tenant IS the operator's own org — it is already
     // "set up" by definition. Super-admins administer tenants rather than
     // onboard them, so the wizard is meaningless in that context too.
+    // Round 7: trader-application users also shouldn't see the wizard —
+    // they're not the admin who sets up the tenant (modules / branding /
+    // team). The wizard is admin-onboarding, not trader-onboarding.
     if (tenant.id === "platform") return;
     if (runtime.application === "super-admin") return;
+    if (runtime.application === "trader") return;
     const onboarded = window.localStorage.getItem(`${ONBOARDED_KEY}:${tenant.id}`);
     if (!onboarded) {
       // Show onboarding after a short delay so the dashboard loads first

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
-import { getTenantTraders, getTenantAccounts, getTenantPositions, type Trader, type TradingAccount, type Position } from "@/lib/platform/mock-data";
+import { getTenantTraders, getTenantAccounts, getTenantPositions, getTraderForUser, getTraderPositions, type Trader, type TradingAccount, type Position } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, traderStatusTone, formatCurrency, formatCompact } from "@/components/platform/status";
@@ -429,10 +429,14 @@ export function AccountsPage() {
 }
 
 export function PositionsPage() {
-  const { runtime, navigate, tenant } = usePlatform();
+  const { runtime, navigate, tenant, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const positions = getTenantPositions(tid);
+  // Round 7: trader application users see only THEIR OWN open positions;
+  // admins see the whole-tenant list. Previously Tom saw all 124 tenant
+  // positions instead of his own 4.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
+  const positions = trader ? getTraderPositions(trader.id) : getTenantPositions(tid);
   const currency = runtime.tenant?.currency ?? "USD";
 
   const [sideFilter, setSideFilter] = useState<string>("all");
@@ -485,7 +489,15 @@ export function PositionsPage() {
 
   return (
     <Page>
-      <PageHeader title="Open Positions" description={`${positions.length} positions currently open across all ${plural(term("trader")).toLowerCase()}.`} icon={Activity} />
+      <PageHeader
+        title="Open Positions"
+        description={
+          trader
+            ? `${positions.length} ${positions.length === 1 ? "position" : "positions"} currently open on your account.`
+            : `${positions.length} positions currently open across all ${plural(term("trader")).toLowerCase()}.`
+        }
+        icon={Activity}
+      />
       <PageContent>
         <FilterBar
           label="Filters"

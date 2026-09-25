@@ -343,6 +343,11 @@ export const roles: RoleDefinition[] = [
       "analytics.self",
       "support.self",
       "affiliate.self",
+      // Round 7: trader can read their own breaches + KYC + risk events
+      // so the trader-facing Risk / KYC / Breaches views don't ForbiddenState.
+      "breach.self",
+      "kyc.self",
+      "risk.self",
     ],
     color: "#0369a1",
   },

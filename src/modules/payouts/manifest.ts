@@ -14,19 +14,19 @@ const navigation: NavigationItem[] = [
     icon: Wallet,
     order: 40,
     children: [
-      { id: "payouts.overview", label: "Overview", href: "payouts", icon: Banknote, permission: "payout.read" },
+      { id: "payouts.overview", label: "Overview", href: "payouts", icon: Banknote, permission: ["payout.read", "payout.self"] },
       { id: "payouts.pending", label: "Pending Approval", href: "payouts-pending", icon: Clock, permission: "payout.approve" },
-      { id: "payouts.history", label: "History", href: "payouts-history", icon: CheckCircle2, permission: "payout.read" },
-      { id: "payouts.withdrawals", label: "Withdrawals", href: "payouts-enhanced-withdrawals", icon: ListChecks, permission: "payout.read" },
+      { id: "payouts.history", label: "My Withdrawals", href: "payouts-history", icon: CheckCircle2, permission: ["payout.read", "payout.self"] },
+      { id: "payouts.withdrawals", label: "Withdrawals", href: "payouts-enhanced-withdrawals", icon: ListChecks, permission: ["payout.read", "payout.self"] },
     ],
   },
 ];
 
 const routes: RouteDefinition[] = [
-  { path: "payouts", viewId: "payouts", label: "Payouts Overview", permission: "payout.read", module: "payouts" },
+  { path: "payouts", viewId: "payouts", label: "Payouts Overview", permission: ["payout.read", "payout.self"], module: "payouts" },
   { path: "payouts-pending", viewId: "payouts-pending", label: "Pending Payouts", permission: "payout.approve", module: "payouts" },
-  { path: "payouts-history", viewId: "payouts-history", label: "Payout History", permission: "payout.read", module: "payouts" },
-  { path: "payouts-enhanced-withdrawals", viewId: "payouts-enhanced-withdrawals", label: "Enhanced Withdrawals", permission: "payout.read", module: "payouts" },
+  { path: "payouts-history", viewId: "payouts-history", label: "Payout History", permission: ["payout.read", "payout.self"], module: "payouts" },
+  { path: "payouts-enhanced-withdrawals", viewId: "payouts-enhanced-withdrawals", label: "Enhanced Withdrawals", permission: ["payout.read", "payout.self"], module: "payouts" },
 ];
 
 const widgets: WidgetDefinition[] = [

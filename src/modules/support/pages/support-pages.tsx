@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
-import { getTenantTickets, hashStr } from "@/lib/platform/mock-data";
+import { getTenantTickets, getTraderForUser, hashStr } from "@/lib/platform/mock-data";
 import { resolveTicket, escalateTicket, appendTicketReply, effectiveTicketStatus, effectiveTicketMessages, useTicketVersion } from "@/modules/support/support-store";
 import type { SupportTicket } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -243,11 +243,17 @@ function internalNotesFor(t: SupportTicket): InternalNote[] {
 /* ------------------------------------------------------------------ */
 
 export function SupportOverviewPage() {
-  const { runtime, tenant } = usePlatform();
+  const { runtime, tenant, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
+  // Round 7: trader application users see only THEIR OWN tickets; admins
+  // see the whole-tenant list. Filter by trader.name (linked Trader's
+  // name) since SupportTicket has no traderId field.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
   useTicketVersion(); // KPIs recompute after resolve/escalate
-  const tickets = getTenantTickets(tid).map((t) => ({ ...t, status: effectiveTicketStatus(t) }));
+  const tickets = getTenantTickets(tid)
+    .filter((t) => !trader || t.traderName === trader.name)
+    .map((t) => ({ ...t, status: effectiveTicketStatus(t) }));
   const open = tickets.filter((t) => t.status === "open" || t.status === "in-progress").length;
   const urgent = tickets.filter((t) => t.priority === "urgent" && t.status !== "closed" && t.status !== "resolved").length;
   const resolvedToday = tickets.filter((t) => t.status === "resolved").length;
@@ -310,15 +316,19 @@ export function SupportOverviewPage() {
 }
 
 export function SupportTicketsPage() {
-  const { runtime, tenant } = usePlatform();
+  const { runtime, tenant, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
+  // Round 7: trader application users see only THEIR OWN tickets.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
   useTicketVersion(); // table reacts to drawer actions
-  const tickets = getTenantTickets(tid).map((t) => ({
-    ...t,
-    status: effectiveTicketStatus(t),
-    messages: effectiveTicketMessages(t),
-  }));
+  const tickets = getTenantTickets(tid)
+    .filter((t) => !trader || t.traderName === trader.name)
+    .map((t) => ({
+      ...t,
+      status: effectiveTicketStatus(t),
+      messages: effectiveTicketMessages(t),
+    }));
 
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   // Replies sent this session — appended to the thread so "Send" has an

@@ -46,21 +46,22 @@ const navigation: NavigationItem[] = [
 ];
 
 const routes: RouteDefinition[] = [
-  { path: "trading", viewId: "trading", label: "Trading Overview", permission: "trader.read", module: "trading" },
+  { path: "trading", viewId: "trading", label: "Trading Overview", permission: ["trader.read", "trader.self"], module: "trading" },
   { path: "trading-traders", viewId: "trading-traders", label: "Traders", permission: "trader.read", module: "trading" },
   { path: "trading-accounts", viewId: "trading-accounts", label: "Accounts", permission: "account.read", module: "trading" },
-  { path: "trading-positions", viewId: "trading-positions", label: "Open Positions", permission: "account.read", module: "trading" },
-  { path: "trader-detail", viewId: "trader-detail", label: "Trader Detail", permission: "trader.read", module: "trading" },
+  { path: "trading-positions", viewId: "trading-positions", label: "Open Positions", permission: ["account.read", "account.self"], module: "trading" },
+  // Round 7: trader-detail allows trader.self so Tom can open his own workspace.
+  { path: "trader-detail", viewId: "trader-detail", label: "Trader Detail", permission: ["trader.read", "trader.self"], module: "trading" },
   { path: "trading-add-account", viewId: "trading-add-account", label: "Add Account", permission: "account.write", module: "trading" },
-  { path: "closed-positions", viewId: "closed-positions", label: "Closed Positions", permission: "account.read", module: "trading" },
-  { path: "account-broker-details", viewId: "account-broker-details", label: "Account Broker Details", permission: "account.read", module: "trading" },
-  { path: "account-kyc-statuses", viewId: "account-kyc-statuses", label: "Account KYC Statuses", permission: "account.read", module: "trading" },
-  { path: "account-related-accounts", viewId: "account-related-accounts", label: "Related Accounts", permission: "account.read", module: "trading" },
-  { path: "account-configuration", viewId: "account-configuration", label: "Account Configuration", permission: "account.read", module: "trading" },
-  { path: "account-events", viewId: "account-events", label: "Account Events", permission: "account.read", module: "trading" },
-  { path: "account-version-history", viewId: "account-version-history", label: "Account Version History", permission: "account.read", module: "trading" },
-  { path: "closed-position-detail", viewId: "closed-position-detail", label: "Closed Position Detail", permission: "account.read", module: "trading" },
-  { path: "order-detail", viewId: "order-detail", label: "Order Detail", permission: "account.read", module: "trading" },
+  { path: "closed-positions", viewId: "closed-positions", label: "Closed Positions", permission: ["account.read", "account.self"], module: "trading" },
+  { path: "account-broker-details", viewId: "account-broker-details", label: "Account Broker Details", permission: ["account.read", "account.self"], module: "trading" },
+  { path: "account-kyc-statuses", viewId: "account-kyc-statuses", label: "Account KYC Statuses", permission: ["account.read", "account.self"], module: "trading" },
+  { path: "account-related-accounts", viewId: "account-related-accounts", label: "Related Accounts", permission: ["account.read", "account.self"], module: "trading" },
+  { path: "account-configuration", viewId: "account-configuration", label: "Account Configuration", permission: ["account.read", "account.self"], module: "trading" },
+  { path: "account-events", viewId: "account-events", label: "Account Events", permission: ["account.read", "account.self"], module: "trading" },
+  { path: "account-version-history", viewId: "account-version-history", label: "Account Version History", permission: ["account.read", "account.self"], module: "trading" },
+  { path: "closed-position-detail", viewId: "closed-position-detail", label: "Closed Position Detail", permission: ["account.read", "account.self"], module: "trading" },
+  { path: "order-detail", viewId: "order-detail", label: "Order Detail", permission: ["account.read", "account.self"], module: "trading" },
 ];
 
 const widgets: WidgetDefinition[] = [

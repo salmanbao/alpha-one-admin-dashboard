@@ -26,6 +26,8 @@ import {
   getTenantKyc,
   getTenantPayouts,
   getTenantTraders,
+  getTraderForUser,
+  getTraderPayouts,
   type Payout,
 } from "@/lib/platform/mock-data";
 import { exportToCsv, type ExportColumn } from "@/lib/platform/export-utils";
@@ -152,9 +154,11 @@ function countryForPayout(p: Payout, traderCountry?: string): string {
 }
 
 export function EnhancedWithdrawalsPage() {
-  const { runtime } = usePlatform();
+  const { runtime, user } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
+  // Round 7: trader application users see only THEIR OWN withdrawals.
+  const trader = user.application === "trader" ? getTraderForUser(user) : null;
 
   // Subscribe to the payout-store so decisions made on the Pending
   // Payouts page, dashboard widget, or this Enhanced Withdrawals page
@@ -162,8 +166,8 @@ export function EnhancedWithdrawalsPage() {
   // closes the loop here so two payout surfaces never diverge.
   usePayoutVersion();
   const payouts = useMemo(
-    () => getTenantPayouts(tid).map((p) => ({ ...p, status: effectivePayoutStatus(p) })),
-    [tid],
+    () => (trader ? getTraderPayouts(trader.id) : getTenantPayouts(tid)).map((p) => ({ ...p, status: effectivePayoutStatus(p) })),
+    [tid, trader],
   );
   const traders = useMemo(() => getTenantTraders(tid), [tid]);
   const kyc = useMemo(() => getTenantKyc(tid), [tid]);
