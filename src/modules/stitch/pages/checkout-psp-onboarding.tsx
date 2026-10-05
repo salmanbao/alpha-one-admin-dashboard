@@ -145,7 +145,7 @@ export function CheckoutPspOnboardingStitchPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="pk_live_51Oz99xQ0281hNqLzWv304M819KkP" />
+<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="pk_live_xxx_xxxxxxxxxxxxxx" />
                       <button className="p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Copy Key"><MsIcon name="content_copy" className="text-base" /></button>
                     </div>
                   </div>
@@ -165,7 +165,7 @@ export function CheckoutPspOnboardingStitchPage() {
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-1.5">Webhook Signing Secret</label>
                     <div className="flex items-center gap-2">
-<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="whsec_7b8a1c9e4f20389012cdbf881a2e9914" />
+<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="whsec_xxxxxxxxxxxxxxxx" />
                       <button className="p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Copy Secret"><MsIcon name="content_copy" className="text-base" /></button>
                     </div>
                   </div>
