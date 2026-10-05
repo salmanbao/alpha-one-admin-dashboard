@@ -616,9 +616,7 @@ export function AccountVersionHistoryStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-inverse-surface/40 backdrop-blur-md transition-opacity">
-          <div className="relative w-full max-w-6xl max-h-[942px] flex flex-col rounded-3xl bg-surface shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="relative w-full max-w-6xl max-h-[942px] flex flex-col rounded-3xl bg-surface shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary via-tertiary-container to-primary"></div>
             <div className="px-8 pt-7 pb-6 bg-surface-container-low flex flex-col gap-4">
               <div className="flex items-start justify-between">
@@ -842,7 +840,6 @@ export function AccountVersionHistoryStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/40 backdrop-blur-md overflow-y-auto" id="revert-modal">
           <div aria-describedby="dialog-description" aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl shadow-xl overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
             <div className="p-6 bg-surface-container-low flex items-start gap-4">

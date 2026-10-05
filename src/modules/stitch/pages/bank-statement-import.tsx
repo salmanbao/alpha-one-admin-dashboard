@@ -789,9 +789,7 @@ export function BankStatementImportStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm hidden flex items-center justify-end transition-opacity" id="import-sheet-modal">
-          <div className="w-full max-w-xl h-full bg-surface-bright shadow-2xl flex flex-col justify-between overflow-y-auto transform transition-transform duration-300">
+        <div className="w-full max-w-xl h-full bg-surface-bright shadow-2xl flex flex-col justify-between overflow-y-auto transform transition-transform duration-300">
             <div className="p-6">
               <div className="flex items-center justify-between pb-4 border-b border-surface-container">
                 <div className="flex items-center gap-3">
@@ -1106,7 +1104,6 @@ export function BankStatementImportStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-end transition-opacity" id="import-sheet-modal">
           <div className="w-full max-w-2xl h-full bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden border-l border-outline-variant/60 rounded-l-2xl">
             <div className="p-6 bg-surface-container-low border-b border-surface-container shrink-0">

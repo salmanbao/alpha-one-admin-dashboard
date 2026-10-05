@@ -507,7 +507,6 @@ export function MarketingTemplateEditorStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/45 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="modal-container">
           <div className="w-full max-w-[550px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.22)] flex flex-col overflow-hidden max-h-[901px]">
             <div className="px-6 pt-6 pb-4 bg-surface-container-lowest flex flex-col gap-2">
@@ -755,7 +754,6 @@ export function MarketingTemplateEditorStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 bg-inverse-surface/45 backdrop-blur-[2px] z-50 flex justify-end transition-opacity duration-300" id="sheet-scrim">
           <div className="w-full max-w-[680px] h-screen bg-[#faf8f5] shadow-2xl flex flex-col justify-between overflow-hidden relative transform transition-transform duration-300 ease-out" id="creation-sheet">
             <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/5 blur-3xl pointer-events-none"></div>

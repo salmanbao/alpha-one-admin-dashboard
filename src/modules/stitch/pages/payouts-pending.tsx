@@ -785,7 +785,6 @@ export function PayoutsPendingStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-[3px] transition-all" id="confirmation-dialog-container">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[620px] bg-surface-container-lowest/95 backdrop-blur-xl rounded-2xl shadow-2xl p-6 sm:p-7 relative overflow-hidden flex flex-col gap-5" role="alertdialog">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-tertiary-container via-primary to-primary-container"></div>
@@ -941,7 +940,6 @@ export function PayoutsPendingStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/60 backdrop-blur-[4px] overflow-y-auto">
           <div className="relative w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden my-auto transform transition-all duration-200">
             <div className="h-1.5 w-full bg-error"></div>

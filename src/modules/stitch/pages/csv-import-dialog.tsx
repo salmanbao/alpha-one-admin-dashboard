@@ -419,8 +419,7 @@ export function CsvImportDialogStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-on-surface/40 backdrop-blur-md">
           <div className="relative w-full max-w-5xl max-h-[942px] flex flex-col bg-surface rounded-xl shadow-[0_20px_50px_rgba(46,50,48,0.18)] overflow-hidden" id="csv-import-dialog">
             <div className="px-8 pt-7 pb-5 bg-surface-container-low flex items-start justify-between">
@@ -659,7 +658,6 @@ export function CsvImportDialogStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/40 backdrop-blur-md flex items-center justify-center p-6 z-50 overflow-y-auto">
           <div className="bg-surface-container-lowest w-full max-w-4xl rounded-xl shadow-2xl flex flex-col max-h-[calc(100vh-5.5rem)] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200" id="csv-import-dialog">
             <div className="px-8 pt-7 pb-5 bg-surface-container-low/70 flex items-start justify-between">

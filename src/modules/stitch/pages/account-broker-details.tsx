@@ -405,9 +405,7 @@ export function AccountBrokerDetailsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-on-surface/40 backdrop-blur-md transition-opacity" id="telemetryModal">
-          <div className="w-full max-w-5xl bg-surface-container-lowest rounded-2xl shadow-xl flex flex-col max-h-[942px] overflow-hidden">
+        <div className="w-full max-w-5xl bg-surface-container-lowest rounded-2xl shadow-xl flex flex-col max-h-[942px] overflow-hidden">
             <div className="px-6 py-5 bg-surface-container flex flex-col gap-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3.5">
@@ -666,7 +664,6 @@ export function AccountBrokerDetailsStitchPage() {
             </div>
           </div>
         </div>
-        </>
       )}
     </>
   );

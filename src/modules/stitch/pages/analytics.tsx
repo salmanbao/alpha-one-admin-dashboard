@@ -477,8 +477,6 @@ export function AnalyticsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 left-72 bg-inverse-surface/40 backdrop-blur-[2px] z-50 transition-opacity duration-300"></div>
         <div className="fixed top-0 right-0 h-full w-full max-w-[590px] bg-surface-container-lowest shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
           <div className="px-7 pt-6 pb-5 bg-surface-container-low shrink-0 relative">
             <div className="flex items-center justify-between mb-3">
@@ -723,7 +721,6 @@ export function AnalyticsStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/40 backdrop-blur-[3px] z-50 transition-opacity duration-300" id="backdropOverlay"></div>
         <div className="fixed top-16 right-0 bottom-0 w-full max-w-[560px] bg-background text-on-surface z-50 flex flex-col shadow-[0_10px_40px_rgba(46,50,48,0.22)] overflow-hidden transform translate-x-0 transition-transform duration-300 ease-in-out" id="saveReportSheet">
           <div className="px-8 pt-7 pb-5 bg-surface-container-low shrink-0 space-y-3">

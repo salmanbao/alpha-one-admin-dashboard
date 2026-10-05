@@ -695,7 +695,6 @@ export function RiskHighestEarnersStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           <div className="relative w-full max-w-[560px] bg-surface-container-lowest rounded-xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.25)] overflow-hidden my-auto transform transition-all duration-200">
             <div className="h-1.5 w-full bg-gradient-to-r from-tertiary-container via-primary to-primary-container"></div>
@@ -798,7 +797,6 @@ export function RiskHighestEarnersStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-[2px] transition-opacity duration-300" id="drawer-backdrop"></div>
           <div className="relative w-full max-w-[624px] h-full bg-surface shadow-2xl flex flex-col overflow-hidden z-10">

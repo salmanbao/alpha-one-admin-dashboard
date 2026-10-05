@@ -724,10 +724,7 @@ export function AffiliatesListStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
-        <div className="fixed inset-0 bg-inverse-surface/45 backdrop-blur-[3px] z-50 flex justify-end transition-opacity duration-300" id="payout-modal-backdrop">
-          <section aria-labelledby="payout-title" aria-modal="true" className="w-full max-w-4xl bg-surface-bright h-full shadow-2xl flex flex-col overflow-hidden relative" role="dialog">
+      {so0 && (          <section aria-labelledby="payout-title" aria-modal="true" className="w-full max-w-4xl bg-surface-bright h-full shadow-2xl flex flex-col overflow-hidden relative" role="dialog">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary shrink-0"></div>
             <div className="px-8 pt-6 pb-5 bg-surface-container-low/70 border-b border-surface-container shrink-0">
               <div className="flex items-center justify-between gap-4 mb-2.5">
@@ -1074,7 +1071,6 @@ export function AffiliatesListStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/65 backdrop-blur-sm overflow-y-auto" id="suspend-dialog-backdrop">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-[560px] bg-surface-container-lowest rounded-xl shadow-[0_12px_40px_rgba(46,50,48,0.22)] overflow-hidden my-auto transform transition-all" role="alertdialog">
             <div className="h-1.5 w-full bg-error"></div>

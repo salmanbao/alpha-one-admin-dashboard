@@ -431,8 +431,7 @@ export function CheckoutStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-end bg-inverse-surface/40 backdrop-blur-sm hidden transition-all duration-300" id="test-payload-modal">
           <div className="bg-surface-container-lowest w-full max-w-xl h-full shadow-2xl flex flex-col justify-between p-6 overflow-y-auto">
             <div className="space-y-5">
@@ -504,7 +503,6 @@ export function CheckoutStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm overflow-y-auto" id="checkout-switch-mode-modal">
           <div className="relative w-full max-w-[640px] my-8 bg-surface-container-lowest rounded-2xl shadow-[0_20px_50px_rgba(46,50,48,0.22)] p-7 text-on-surface transition-all animate-[fadeIn_0.2s_ease-out]">
             <div className="flex items-start gap-4 mb-5">

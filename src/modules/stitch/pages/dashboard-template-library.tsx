@@ -602,8 +602,7 @@ export function DashboardTemplateLibraryStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 transition-opacity duration-300"></div>
         <aside className="fixed top-0 right-0 h-full w-full max-w-[560px] bg-surface-container-lowest shadow-[0_10px_40px_rgba(46,50,48,0.25)] z-50 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
           <div className="px-8 pt-7 pb-5 bg-surface-container-low shrink-0 relative">
@@ -844,7 +843,6 @@ export function DashboardTemplateLibraryStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/65 backdrop-blur-md flex items-center justify-center p-4 md:p-6 sm:pl-72" id="preview-modal-scrim">
           <div className="max-w-5xl w-full bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col max-h-[942px] overflow-hidden transform transition-all animate-[fadeIn_0.2s_ease-out]">
             <div className="px-7 py-5 bg-surface-container-low flex flex-col gap-3">

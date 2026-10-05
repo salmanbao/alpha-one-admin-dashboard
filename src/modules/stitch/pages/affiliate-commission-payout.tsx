@@ -873,9 +873,7 @@ export function AffiliateCommissionPayoutStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 bg-inverse-surface/65 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[568px] bg-surface rounded-2xl shadow-2xl p-6 sm:p-7 flex flex-col gap-5 text-on-surface relative animate-in fade-in zoom-in-95 duration-200" role="dialog">
+        <div aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[568px] bg-surface rounded-2xl shadow-2xl p-6 sm:p-7 flex flex-col gap-5 text-on-surface relative animate-in fade-in zoom-in-95 duration-200" role="dialog">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center shrink-0 shadow-sm">                <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-on-primary"><MsIcon name="assured_workload" className="text-[22px]" fill /></div></div>
               <div className="flex flex-col min-w-0">
@@ -1000,7 +998,6 @@ export function AffiliateCommissionPayoutStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-sm z-50 transition-opacity duration-300" id="drawer-backdrop"></div>
         <aside aria-label="Commission Settlement Inspection Dossier" className="fixed top-0 right-0 h-full w-full max-w-[640px] bg-surface-bright shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-out" id="payout-drawer">
           <div className="px-7 py-5 bg-surface-container-low shrink-0 shadow-sm flex items-start justify-between gap-4">

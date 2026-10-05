@@ -378,9 +378,8 @@ export function CheckoutPlatformExternalEditorStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (\n        <>\n        <div aria-labelledby="slide-over-title" aria-modal="true" className="fixed inset-0 z-50 overflow-hidden hidden" id="incident-drawer" role="dialog">
-          <div className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-sm transition-opacity"></div>
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+      {so0 && (
+        <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
             <div className="w-screen max-w-md bg-surface-container-lowest shadow-2xl p-6 flex flex-col justify-between overflow-y-auto">
               <div className="space-y-6">
                 <div className="flex items-center justify-between pb-4 border-b border-surface-container">
@@ -552,9 +551,8 @@ export function CheckoutPlatformExternalEditorStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
-      {so1 && (\n        <>\n        <div aria-labelledby="slide-over-title" aria-modal="true" className="fixed inset-0 z-50 overflow-hidden hidden" id="incident-drawer" role="dialog">
-          <div className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-sm transition-opacity"></div>
+        {so1 && (
+        <div className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-sm transition-opacity"></div>
           <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
             <div className="w-screen max-w-md bg-surface-container-lowest shadow-2xl p-6 flex flex-col justify-between overflow-y-auto">
               <div className="space-y-6">

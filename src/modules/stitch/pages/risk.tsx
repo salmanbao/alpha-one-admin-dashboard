@@ -764,7 +764,6 @@ export function RiskStitchPage() {
         </div>
       </div>
       {so1 && (
-        <>
         <div className="fixed top-0 right-0 h-full w-full max-w-3xl z-50 bg-surface-container-lowest shadow-2xl flex flex-col transform transition-transform duration-300 ease-out overflow-hidden" id="replay-sheet">
           <div className="px-6 py-4 bg-surface-container-low flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-2.5">

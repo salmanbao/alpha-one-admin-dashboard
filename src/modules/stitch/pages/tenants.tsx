@@ -704,8 +704,7 @@ export function TenantsStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (\n        <>\n        <div className="fixed inset-0 top-16 left-72 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm overflow-y-auto">
-          <div aria-labelledby="dialogTitle" aria-modal="true" className="relative w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.28)] p-6 md:p-7 space-y-5 my-6 animate-[fadeIn_0.2s_ease-out]" id="suspensionDialog" role="alertdialog">
+      {so0 && ( p-6 md:p-7 space-y-5 my-6 animate-[fadeIn_0.2s_ease-out]" id="suspensionDialog" role="alertdialog">
             <div className="flex items-start justify-between gap-4">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container text-tertiary text-[10px] font-extrabold tracking-wider uppercase">
                 <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>

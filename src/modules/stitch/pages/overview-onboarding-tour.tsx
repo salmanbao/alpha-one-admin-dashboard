@@ -331,7 +331,6 @@ export function OverviewOnboardingTourStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 bg-[#1e1a13]/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 transition-all duration-300" id="alert-modal-scrim">
           <div className="relative w-full max-w-lg bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.25)] p-6 sm:p-7 text-left overflow-hidden transition-transform animate-in fade-in zoom-in-95 duration-200">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-error via-tertiary to-error"></div>
@@ -421,7 +420,6 @@ export function OverviewOnboardingTourStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 top-16 left-72 z-50 bg-[#1e2320]/65 backdrop-blur-md flex items-center justify-center p-4 lg:p-8 overflow-y-auto">
           <div className="relative w-full max-w-5xl bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(30,35,32,0.35)] overflow-hidden flex flex-col my-auto transition-all">
             <div className="px-8 pt-7 pb-5 bg-surface-container-lowest">

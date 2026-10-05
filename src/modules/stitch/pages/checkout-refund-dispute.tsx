@@ -567,7 +567,6 @@ export function CheckoutRefundDisputeStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4 overflow-y-auto" id="modalBackdrop">
           <div className="relative w-full max-w-[660px] bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="h-1.5 w-full bg-gradient-to-r from-error via-tertiary to-error"></div>

@@ -677,8 +677,7 @@ export function CheckoutWebhookLogStitchPage() {
           </section>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden my-auto transform transition-all duration-200">
             <div className="h-1.5 w-full bg-gradient-to-r from-error via-tertiary to-error"></div>

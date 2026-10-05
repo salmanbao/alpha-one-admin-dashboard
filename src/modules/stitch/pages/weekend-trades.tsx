@@ -590,7 +590,6 @@ export function WeekendTradesStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div aria-labelledby="block-modal-title" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" id="block-ip-modal-dialog" role="dialog">
           <div className="fixed inset-0 bg-[#1e2120]/60 backdrop-blur-[2px] transition-opacity"></div>
           <div className="relative bg-surface-container-lowest rounded-2xl shadow-2xl border border-surface-variant w-full max-w-[540px] p-6 z-10 font-body text-on-surface flex flex-col gap-5 my-8">
@@ -671,19 +670,17 @@ export function WeekendTradesStitchPage() {
                 </label>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-container-high">
+<div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-container-high">
               <button className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-tsc hover:bg-surface-container-high transition-colors" type="button" onClick={() => setSo0(false)}>                Cancel</button>
               <button className="px-5 py-2.5 rounded-xl bg-error text-on-error hover:opacity-95 transition-all text-xs font-bold tracking-wider uppercase shadow-sm flex items-center gap-2" type="button" onClick={() => setSo0(false)}>
 <MsIcon name="block" className="text-[16px]" />
-                <span>Confirm &amp; Block IP Address</span>
+                <span>Confirm & Block IP Address</span>
               </button>
             </div>
           </div>
         </div>
-        </>
       )}
       {so1 && (
-        <>
         <div aria-labelledby="block-modal-title" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" id="block-ip-modal-dialog" role="dialog">
           <div className="fixed inset-0 bg-[#1e2120]/60 backdrop-blur-[2px] transition-opacity"></div>
           <div className="relative bg-surface-container-lowest rounded-2xl shadow-2xl border border-surface-variant w-full max-w-[540px] p-6 z-10 font-body text-on-surface flex flex-col gap-5 my-8">

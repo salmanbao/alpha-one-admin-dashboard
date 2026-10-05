@@ -490,7 +490,6 @@ export function RolesManagementStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 lg:p-8">
           <div className="relative w-full max-w-[1100px] max-h-[921px] bg-surface-container-lowest rounded-2xl shadow-xl flex flex-col overflow-hidden text-on-surface animate-in fade-in zoom-in-95 duration-200">
             <div className="px-8 py-6 bg-surface-container-low/70 flex items-center justify-between gap-4">
@@ -768,7 +767,6 @@ export function RolesManagementStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/40 backdrop-blur-md transition-opacity" id="permission-dialog">
           <div className="bg-surface-container-lowest max-w-xl w-full rounded-2xl shadow-2xl p-6 sm:p-8 flex flex-col gap-6 relative animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-4">

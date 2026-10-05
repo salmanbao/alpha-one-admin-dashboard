@@ -573,9 +573,7 @@ export function AuditSiemStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 bg-inverse-surface/65 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" id="modalBackdrop">
-          <div aria-describedby="dialogDesc" aria-labelledby="dialogTitle" aria-modal="true" className="relative w-full max-w-[540px] bg-surface-container-lowest text-on-surface rounded-2xl shadow-2xl p-6 md:p-8 space-y-5 transform transition-all my-8" id="confirmationDialog" role="alertdialog">
+        <div aria-describedby="dialogDesc" aria-labelledby="dialogTitle" aria-modal="true" className="relative w-full max-w-[540px] bg-surface-container-lowest text-on-surface rounded-2xl shadow-2xl p-6 md:p-8 space-y-5 transform transition-all my-8" id="confirmationDialog" role="alertdialog">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-error-container text-on-error-container shrink-0 flex items-center justify-center"><MsIcon name="warning" className="text-[28px]" /></div>
               <div className="flex-1 min-w-0">

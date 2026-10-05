@@ -647,9 +647,7 @@ export function AffiliateDetailStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 bg-[#23201d]/65 backdrop-blur-sm transition-opacity duration-300" id="modal-overlay">
-          <div className="relative w-full h-full flex justify-end">
+        <div className="relative w-full h-full flex justify-end">
             <div className="flex-1 h-full cursor-pointer"></div>
             <aside aria-label="Edit Profile Slide-Over" className="relative w-full max-w-[624px] h-full bg-surface-bright flex flex-col shadow-2xl z-20 overflow-hidden transform transition-all duration-300 ease-out">
               <header className="px-7 py-5 bg-surface-container-low shrink-0 shadow-sm flex items-center justify-between">
@@ -861,7 +859,6 @@ export function AffiliateDetailStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/60 backdrop-blur-sm transition-all duration-200" id="modal-container">
           <div className="relative w-full max-w-[560px] bg-surface-container-lowest rounded-xl shadow-[0_20px_50px_rgba(46,50,48,0.22)] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="h-1.5 w-full bg-error"></div>

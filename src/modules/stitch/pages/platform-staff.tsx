@@ -920,9 +920,8 @@ export function PlatformStaffStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (\n        <>\n        <div className="fixed inset-0 z-50 bg-[#1e211f]/60 backdrop-blur-[3px] transition-opacity duration-300 flex justify-end" id="modal-backdrop">
-          <aside aria-labelledby="drawer-title" aria-modal="true" className="w-full max-w-[580px] h-full bg-[#faf8f5] shadow-2xl flex flex-col justify-between overflow-hidden transform transition-transform duration-300 ease-out translate-x-0" role="dialog">
-            <div className="px-7 pt-6 pb-5 bg-surface-container-lowest shadow-sm shrink-0">
+      {so0 && (
+        <div className="px-7 pt-6 pb-5 bg-surface-container-lowest shadow-sm shrink-0">
               <div className="flex items-center justify-between pb-3">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container text-tertiary text-[10px] font-bold tracking-wider font-label uppercase">
                   <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
@@ -1169,9 +1168,8 @@ export function PlatformStaffStitchPage() {
             </footer>
           </aside>
         </div>\n        </>\n      )}
-      {so1 && (\n        <>\n        <div className="fixed inset-0 z-50 bg-[#1e1a13]/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-[540px] bg-surface-container-lowest rounded-2xl shadow-2xl p-7 relative transition-all my-8 animate-in fade-in zoom-in-95 duration-200" id="suspensionDialog">
-            <div className="absolute top-0 left-8 right-8 h-1 bg-gradient-to-r from-transparent via-error/60 to-transparent rounded-full"></div>
+      {so1 && (
+        <div className="absolute top-0 left-8 right-8 h-1 bg-gradient-to-r from-transparent via-error/60 to-transparent rounded-full"></div>
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-2xl bg-error-container text-error flex items-center justify-center shrink-0 shadow-sm"><MsIcon name="warning" className="text-[28px]" fill /></div>
               <div className="space-y-1.5 flex-1 min-w-0">

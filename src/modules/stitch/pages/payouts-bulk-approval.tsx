@@ -713,8 +713,7 @@ export function PayoutsBulkApprovalStitchPage() {
           <div className="font-mono text-[10px]">            {"       ED25519 IMMUTABLE SIGNATURE LOG // READY     "}</div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/50 backdrop-blur-[4px] transition-opacity duration-300" id="modal-container">
           <div aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[660px] bg-surface rounded-xl shadow-xl flex flex-col overflow-hidden max-h-[942px]" role="dialog">
             <div className="p-6 bg-surface-container-low flex flex-col gap-4">
@@ -864,7 +863,6 @@ export function PayoutsBulkApprovalStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex justify-end" id="drawer-container">
           <div className="fixed inset-0 bg-[#2e3230]/40 backdrop-blur-[2px] transition-opacity duration-300" id="drawer-backdrop"></div>
           <div className="relative w-full max-w-[560px] h-full bg-surface-container-lowest shadow-2xl flex flex-col z-10 overflow-hidden transform transition-transform duration-300 ease-in-out">

@@ -659,9 +659,7 @@ export function AuditRetentionStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-200" id="modal-container">
-          <div className="w-full max-w-[520px] bg-surface-container-lowest rounded-2xl shadow-[0_24px_48px_rgba(46,50,48,0.22)] overflow-hidden transition-all duration-300">
+        <div className="w-full max-w-[520px] bg-surface-container-lowest rounded-2xl shadow-[0_24px_48px_rgba(46,50,48,0.22)] overflow-hidden transition-all duration-300">
             <div className="px-7 pt-7 pb-4 bg-surface-container-low/70 flex items-start gap-4">
               <div className="w-12 h-12 rounded-2xl bg-error-container/60 flex items-center justify-center flex-shrink-0 text-error shadow-sm"><MsIcon name="warning" className="text-[26px]" /></div>
               <div className="min-w-0 flex-1 pt-0.5">
@@ -742,7 +740,6 @@ export function AuditRetentionStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 bg-inverse-surface/35 backdrop-blur-[2px] z-50 transition-opacity" id="drawer-backdrop"></div>
         <aside className="fixed top-0 right-0 h-full w-[95vw] sm:w-[600px] bg-surface-bright z-50 shadow-2xl flex flex-col justify-between overflow-hidden transform transition-transform duration-300" id="drawer-panel">
           <div className="p-6 bg-surface-container-low shrink-0 border-b border-outline-variant/30 relative">

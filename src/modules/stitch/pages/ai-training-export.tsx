@@ -700,9 +700,7 @@ export function AiTrainingExportStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 bg-[#2e3230]/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="relative w-full max-w-[620px] rounded-2xl bg-surface-container-lowest shadow-2xl p-7 flex flex-col gap-5 text-on-surface transform transition-all animate-[fadeIn_0.2s_ease-out]">
+        <div className="relative w-full max-w-[620px] rounded-2xl bg-surface-container-lowest shadow-2xl p-7 flex flex-col gap-5 text-on-surface transform transition-all animate-[fadeIn_0.2s_ease-out]">
             <div className="flex items-center justify-between">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f8e5dc] text-error font-bold text-[11px] tracking-wider uppercase">
 <MsIcon name="warning" className="text-[15px]" />
@@ -813,9 +811,7 @@ export function AiTrainingExportStitchPage() {
         </div>
         </>
       )}
-      {so1 && (
-        <>
-        <aside className="fixed top-0 right-0 h-screen w-full sm:w-[680px] bg-surface-container-lowest z-50 flex flex-col shadow-2xl overflow-hidden transition-transform duration-300 ease-out">
+      {so1 && (        <aside className="fixed top-0 right-0 h-screen w-full sm:w-[680px] bg-surface-container-lowest z-50 flex flex-col shadow-2xl overflow-hidden transition-transform duration-300 ease-out">
           <div className="relative bg-surface-container-low px-7 pt-6 pb-5 flex-shrink-0">
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex flex-wrap items-center gap-2">

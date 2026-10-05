@@ -541,9 +541,7 @@ export function BannerManagementStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-end transition-opacity" id="add-banner-slideover">
-          <div className="w-full max-w-[640px] h-full bg-[#faf8f5] shadow-2xl border-l border-[#e7e3dc] flex flex-col font-body overflow-hidden relative">
+        <div className="w-full max-w-[640px] h-full bg-[#faf8f5] shadow-2xl border-l border-[#e7e3dc] flex flex-col font-body overflow-hidden relative">
             <div className="p-6 border-b border-[#e7e3dc] bg-[#faf8f5] flex flex-col gap-3 shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -737,7 +735,6 @@ export function BannerManagementStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div aria-labelledby="modal-title" aria-modal="true" className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" id="delete-banner-modal" role="dialog">
           <div className="relative w-full max-w-[540px] rounded-2xl bg-[#faf8f5] border border-[#e7e3dc] shadow-2xl p-7 font-['Nunito_Sans',sans-serif] my-8">
             <button aria-label="Close dialog" className="absolute top-5 right-5 text-stone-400 hover:text-stone-700 transition-colors p-1.5 rounded-lg hover:bg-stone-200/50" onClick={() => setSo1(false)}><MsIcon name="close" className="text-[20px]" /></button>

@@ -554,9 +554,7 @@ export function RiskGroupVsPayoutsStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
-        <aside className="fixed top-0 right-0 z-50 h-screen w-full max-w-[640px] bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden transition-transform duration-300 ease-out transform translate-x-0" id="drilldown-sheet">
+      ({so0 && (        <aside className="fixed top-0 right-0 z-50 h-screen w-full max-w-[640px] bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden transition-transform duration-300 ease-out transform translate-x-0" id="drilldown-sheet">
           <div className="p-6 bg-surface-container-low flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">

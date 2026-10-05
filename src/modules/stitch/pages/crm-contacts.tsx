@@ -554,7 +554,6 @@ export function CrmContactsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 top-16 left-72 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-[2px] transition-opacity duration-200" id="modal-container">
           <div className="w-full max-w-lg bg-surface-container-lowest rounded-2xl shadow-[0_24px_50px_rgba(46,50,48,0.22)] p-7 flex flex-col gap-6 relative animate-in fade-in zoom-in-95 duration-150">
             <div className="absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl bg-gradient-to-r from-error/80 via-error to-error/90"></div>

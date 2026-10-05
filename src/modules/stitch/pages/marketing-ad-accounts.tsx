@@ -445,7 +445,6 @@ export function MarketingAdAccountsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex justify-end bg-inverse-surface/40 backdrop-blur-sm transition-opacity duration-300">
           <div className="w-full max-w-2xl h-full bg-surface-container-lowest flex flex-col shadow-2xl relative animate-in slide-in-from-right duration-300">
             <div className="px-8 pt-7 pb-5 bg-surface-container-low">
@@ -576,7 +575,6 @@ export function MarketingAdAccountsStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/60 backdrop-blur-sm transition-opacity duration-200" id="disconnectModalBackdrop">
           <div aria-describedby="dialog-description" aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-lg rounded-2xl bg-surface-container-lowest shadow-2xl p-6 sm:p-7 flex flex-col transition-transform transform scale-100 animate-in fade-in zoom-in-95 duration-150" role="alertdialog">
             <div className="absolute -top-1 left-6 right-6 h-1 rounded-full bg-error/30"></div>

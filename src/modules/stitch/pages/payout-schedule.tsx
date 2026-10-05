@@ -919,9 +919,7 @@ export function PayoutScheduleStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
-        <footer className="w-full bg-surface-container-low py-4 px-8 shadow-[0_-1px_6px_rgba(46,50,48,0.03)]">
+      ({so0 && (        <footer className="w-full bg-surface-container-low py-4 px-8 shadow-[0_-1px_6px_rgba(46,50,48,0.03)]">
           <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-tsc">
             <div className="flex items-center gap-6">
               <span>Route: <strong className="text-on-surface font-medium">LDN-01A</strong></span>
@@ -938,7 +936,6 @@ export function PayoutScheduleStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 bg-[#2e3230]/70 backdrop-blur-[4px] flex items-center justify-center p-4 sm:p-6 overflow-y-auto transition-opacity duration-200" id="alert-backdrop">
           <div aria-describedby="dialog-subtitle" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.28)] overflow-hidden flex flex-col my-auto transform transition-transform duration-200" id="alert-dialog-box" role="alertdialog">
             <div className="h-1.5 w-full bg-gradient-to-r from-tertiary via-primary to-primary-container"></div>

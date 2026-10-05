@@ -606,8 +606,7 @@ export function PayoutDetailStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 z-50 bg-[#1e2320]/45 backdrop-blur-[3px] transition-opacity duration-300 ease-out flex justify-end" id="slideover-backdrop">
           <div className="w-full max-w-[540px] h-full bg-[#fcfbf9] text-on-surface shadow-2xl flex flex-col justify-between overflow-hidden relative border-l border-outline-variant/30 transform transition-transform duration-300 ease-out" id="drawer-container">
             <div className="h-1 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary-container shrink-0"></div>
@@ -786,7 +785,6 @@ export function PayoutDetailStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div aria-labelledby="modal-title" aria-modal="true" className="fixed inset-0 z-50 bg-inverse-surface/65 backdrop-blur-[4px] flex items-center justify-center p-4 sm:p-6 overflow-y-auto" role="dialog">
           <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.3)] overflow-hidden my-auto transform transition-all animate-[fadeIn_0.2s_ease-out]">
             <div className="h-1.5 w-full bg-error"></div>

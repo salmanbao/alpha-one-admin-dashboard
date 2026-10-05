@@ -473,9 +473,7 @@ export function CertificateTemplateDesignerStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm" id="add-field-sheet-modal">
-          <div className="relative w-[620px] max-w-full h-full bg-[#faf8f5] border-l border-[#e7e3dc] shadow-2xl flex flex-col z-50 overflow-hidden">
+        <div className="relative w-[620px] max-w-full h-full bg-[#faf8f5] border-l border-[#e7e3dc] shadow-2xl flex flex-col z-50 overflow-hidden">
             <div className="p-6 border-b border-[#e7e3dc] bg-[#faf8f5] flex items-start justify-between flex-shrink-0">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -698,7 +696,6 @@ export function CertificateTemplateDesignerStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-black/60 backdrop-blur-sm" id="fullscreen-canvas-modal">
           <div className="w-[1180px] max-w-[96vw] max-h-[92vh] flex flex-col bg-[#faf8f5] rounded-3xl border border-[#e7e3dc] shadow-2xl overflow-hidden">
             <div className="px-6 py-4 bg-[#faf8f5] border-b border-[#e7e3dc] flex flex-wrap items-center justify-between gap-4">

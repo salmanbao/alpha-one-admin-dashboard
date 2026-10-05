@@ -743,9 +743,7 @@ export function AnalyticsDailyHighlightsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-[620px] bg-[#fcfbf9] shadow-2xl flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300" id="slide-over-sheet">
-          <div className="p-6 bg-surface-container-low/70 flex flex-col gap-2">
+        <div className="p-6 bg-surface-container-low/70 flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-tsc font-label">{"Geographic Intraday Drill-Down // UTC Timeframe"}</span>
@@ -1000,9 +998,7 @@ export function AnalyticsDailyHighlightsStitchPage() {
         </div>
         </>
       )}
-      {so1 && (
-        <>
-        <aside className="fixed top-16 right-0 w-full sm:w-[620px] max-w-[95vw] h-[calc(100vh-4rem)] bg-[#fcfbf9] shadow-[0_4px_30px_rgba(46,50,48,0.18)] z-50 flex flex-col justify-between overflow-hidden transform transition-transform duration-300 ease-out" id="orderSheet">
+      {so1 && (        <aside className="fixed top-16 right-0 w-full sm:w-[620px] max-w-[95vw] h-[calc(100vh-4rem)] bg-[#fcfbf9] shadow-[0_4px_30px_rgba(46,50,48,0.18)] z-50 flex flex-col justify-between overflow-hidden transform transition-transform duration-300 ease-out" id="orderSheet">
           <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6">
             <div className="space-y-3 pb-4">
               <div className="flex items-center justify-between">

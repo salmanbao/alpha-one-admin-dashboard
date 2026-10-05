@@ -748,7 +748,6 @@ export function FinancialReportsLibraryStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#1a2e22]/60 backdrop-blur-sm transition-all duration-300" id="alert-modal-backdrop">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[560px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(26,46,34,0.35)] overflow-hidden transform transition-all duration-200" id="alert-dialog" role="alertdialog">
             <div className="h-1.5 w-full bg-gradient-to-r from-error via-error-container to-error"></div>
@@ -863,9 +862,7 @@ export function FinancialReportsLibraryStitchPage() {
         </div>
         </>
       )}
-      {so1 && (
-        <>
-        <aside className="fixed top-16 right-0 bottom-0 w-[74vw] max-w-[1400px] min-w-[960px] bg-surface-container-lowest z-50 shadow-2xl flex flex-col justify-between overflow-hidden">
+      {so1 && (        <aside className="fixed top-16 right-0 bottom-0 w-[74vw] max-w-[1400px] min-w-[960px] bg-surface-container-lowest z-50 shadow-2xl flex flex-col justify-between overflow-hidden">
           <div className="bg-surface-container-low px-8 py-5 flex flex-col gap-4 shadow-sm relative">
             <div className="flex items-start justify-between">
               <div className="flex flex-col gap-1.5">

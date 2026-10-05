@@ -643,7 +643,6 @@ export function ProfileApiTokensStitchPage() {
         </section>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/65 backdrop-blur-sm transition-all animate-fadeIn">
           <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.35)] overflow-hidden transition-all transform scale-100 flex flex-col">
             <div className="h-1.5 w-full bg-error"></div>
@@ -750,7 +749,6 @@ export function ProfileApiTokensStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-inverse-surface/65 backdrop-blur-md transition-opacity" id="tokenModalBackdrop">
           <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-8 flex flex-col gap-6 max-h-[942px] overflow-y-auto">
             <div className="absolute -top-16 -right-16 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>

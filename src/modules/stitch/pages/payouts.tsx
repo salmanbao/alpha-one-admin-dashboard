@@ -729,9 +729,7 @@ export function PayoutsStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
-        <aside className="fixed top-0 right-0 bottom-0 w-[640px] max-w-full bg-[#fdfcf9] shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-out" id="drilldown-sheet">
+      ({so0 && (        <aside className="fixed top-0 right-0 bottom-0 w-[640px] max-w-full bg-[#fdfcf9] shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-out" id="drilldown-sheet">
           <div className="px-7 pt-6 pb-5 bg-surface-container-low/60 flex flex-col gap-3 shrink-0">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">                <span className="text-[11px] font-bold tracking-widest text-tsc uppercase font-label">                  {"             CHALLENGE OUTFLOW BREAKDOWN // DISBURSEMENT OLAP           "}</span></div>
@@ -1039,9 +1037,7 @@ export function PayoutsStitchPage() {
         </aside>
         </>
       )}
-      {so1 && (
-        <>
-        <aside className="fixed top-0 right-0 bottom-0 w-[640px] max-w-full bg-surface-bright shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-out" id="slideOverSheet">
+      {so1 && (        <aside className="fixed top-0 right-0 bottom-0 w-[640px] max-w-full bg-surface-bright shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-out" id="slideOverSheet">
           <div className="p-6 bg-surface-container-low shrink-0 flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap">

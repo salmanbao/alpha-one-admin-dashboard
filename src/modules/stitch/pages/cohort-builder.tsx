@@ -658,8 +658,7 @@ export function CohortBuilderStitchPage() {
           </div>
         </footer>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="matrix-scrim"></div>
         <div className="fixed top-0 right-0 h-full w-full max-w-[960px] bg-surface-container-lowest z-50 shadow-2xl flex flex-col overflow-hidden transition-transform duration-300 ease-out" id="retention-sheet" style={{ backgroundColor: '#ffffff' }}>
           <div className="px-8 pt-6 pb-5 bg-surface-container-lowest flex flex-col gap-3 relative">
@@ -1029,7 +1028,6 @@ export function CohortBuilderStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-[2px] z-50 transition-opacity duration-300 flex justify-end" id="drawer-scrim">
           <div className="relative w-full max-w-[760px] h-full bg-surface-container-lowest text-on-surface shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300" id="cohort-drawer">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>

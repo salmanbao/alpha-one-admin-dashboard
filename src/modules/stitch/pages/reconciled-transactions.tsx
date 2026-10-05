@@ -674,7 +674,6 @@ export function ReconciledTransactionsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-sm z-50 transition-opacity duration-300" id="drawerBackdrop"></div>
         <div className="fixed inset-y-0 right-0 max-w-[610px] w-full bg-surface-bright shadow-[0_20px_60px_rgba(46,50,48,0.22)] z-50 flex flex-col h-full overflow-hidden transition-transform duration-300 ease-out transform translate-x-0" id="auditorDrawer">
           <div className="px-7 pt-6 pb-5 bg-surface-container-low shrink-0 relative">
@@ -850,7 +849,6 @@ export function ReconciledTransactionsStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-on-background/70 backdrop-blur-md" id="reopen-modal-backdrop">
           <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.35)] p-6 sm:p-8 space-y-6 overflow-hidden transform transition-all animate-[fadeIn_0.2s_ease-out]" id="modal-container">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-tertiary via-error to-tertiary"></div>

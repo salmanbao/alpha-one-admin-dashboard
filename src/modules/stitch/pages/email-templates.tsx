@@ -484,8 +484,7 @@ export function EmailTemplatesStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm transition-all duration-300" id="modal-container">
           <div className="relative w-full max-w-[580px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.25)] p-7 md:p-8 overflow-hidden text-on-surface animate-in fade-in zoom-in-95 duration-200">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-error via-tertiary-container to-error"></div>
@@ -593,7 +592,6 @@ export function EmailTemplatesStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-inverse-surface/60 backdrop-blur-md">
           <div className="w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-2xl p-7 relative overflow-hidden transition-all my-auto" id="simulationModal">
             <div className="absolute -top-24 -right-24 w-56 h-56 rounded-full bg-primary/10 blur-3xl pointer-events-none"></div>

@@ -840,7 +840,7 @@ export function AffiliateCouponsStitchPage() {
       </div>
       {so0 && (
         <>
-        <aside className="fixed right-0 top-0 bottom-0 w-full max-w-[680px] bg-[#fcfbf9] text-stone-900 shadow-2xl z-50 flex flex-col h-full transform transition-transform duration-300 ease-in-out" id="coupon-drawer">
+        <aside className="w-full max-h-full bg-[#fcfbf9] shadow-xl z-50 flex flex-col h-full transition-transform duration-300 ease-out" id="coupon-sheet">
           <div className="px-7 py-5 bg-[#fcfbf9] shrink-0">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1.5 min-w-0">

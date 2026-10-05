@@ -300,7 +300,6 @@ export function NotificationDetailDialogStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-y-0 right-0 z-50 flex pl-10 max-w-full">
           <div className="w-screen max-w-lg bg-surface shadow-2xl flex flex-col justify-between overflow-hidden">
             <div className="p-6 bg-surface-container-low">
@@ -444,7 +443,6 @@ export function NotificationDetailDialogStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 top-16 left-72 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-surface rounded-xl shadow-xl p-6 relative flex flex-col pointer-events-auto">
             <div className="flex items-start gap-3.5 mb-5">

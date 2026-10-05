@@ -872,9 +872,7 @@ export function AffiliateLinkTrackingStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <aside className="fixed inset-y-0 right-0 w-[780px] max-w-full bg-[#fcfbf9] shadow-2xl z-50 flex flex-col font-body transition-transform duration-300 ease-out translate-x-0 overflow-hidden" id="telemetry-sheet">
-          <div className="p-6 bg-surface-container-lowest shadow-sm flex flex-col gap-3 shrink-0">
+        <div className="p-6 bg-surface-container-lowest shadow-sm flex flex-col gap-3 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <span className="text-[10px] font-mono tracking-widest uppercase font-bold text-tsc">{"ATTRIBUTION GATEWAY // LINK TELEMETRY & AUDIT"}</span>
@@ -907,6 +905,7 @@ export function AffiliateLinkTrackingStitchPage() {
               </div>
             </div>
           </div>
+          </>
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
             <div className="bg-surface-container-lowest rounded-xl p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
@@ -1164,7 +1163,6 @@ export function AffiliateLinkTrackingStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 bg-inverse-surface/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-200" id="suspensionModalBackdrop">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="max-w-[580px] w-full bg-surface-bright rounded-2xl shadow-xl p-6 sm:p-7 z-50 font-body relative overflow-hidden transition-all transform scale-100" role="alertdialog">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-tertiary-container via-tertiary to-error"></div>

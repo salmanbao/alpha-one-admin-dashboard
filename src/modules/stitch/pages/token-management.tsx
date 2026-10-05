@@ -589,9 +589,7 @@ export function TokenManagementStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
-        <aside className="fixed top-16 right-0 bottom-0 w-[640px] max-w-full bg-[#faf8f5] shadow-2xl flex flex-col z-50 overflow-hidden transform transition-transform duration-300 ease-in-out" id="slideOverDrawer">
+      {so0 && (        <aside className="fixed top-16 right-0 bottom-0 w-[640px] max-w-full bg-[#faf8f5] shadow-2xl flex flex-col z-50 overflow-hidden transform transition-transform duration-300 ease-in-out" id="slideOverDrawer">
           <div className="px-8 pt-7 pb-5 bg-[#faf8f5] flex-shrink-0">
             <div className="flex items-start justify-between gap-4 mb-3">
               <div className="flex flex-wrap items-center gap-2">

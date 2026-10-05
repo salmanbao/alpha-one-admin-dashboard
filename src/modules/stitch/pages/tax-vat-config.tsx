@@ -747,7 +747,6 @@ export function TaxVatConfigStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 bg-[#1a2e22]/45 backdrop-blur-[3px] z-50 transition-opacity duration-300" id="backdrop"></div>
         <aside className="fixed top-0 right-0 h-screen w-full max-w-[700px] bg-surface-container-lowest shadow-2xl z-50 flex flex-col transition-transform duration-300 transform translate-x-0 overflow-hidden" id="tax-sheet">
           <div className="bg-surface-container-low px-8 pt-7 pb-6 relative shrink-0">
@@ -1004,7 +1003,6 @@ export function TaxVatConfigStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex justify-end bg-on-surface/40 backdrop-blur-[4px] transition-opacity duration-300" id="statutory-modal-overlay">
           <div className="relative w-full max-w-[740px] h-full bg-surface shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
             <div className="px-8 pt-7 pb-5 bg-surface-container-low shrink-0 relative">

@@ -648,9 +648,8 @@ export function CheckoutPlatformTransactionsStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (\n        <>\n        <div className="fixed inset-0 z-50 bg-[#1e2320]/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-          <div className="relative w-full max-w-[660px] bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-7 flex flex-col gap-5 my-auto transform transition-all animate-in fade-in zoom-in-95 duration-200" id="refund-modal">
-            <div className="absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl bg-gradient-to-r from-[#c25e38] via-tertiary-container to-primary"></div>
+      {so0 && (
+        <div className="absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl bg-gradient-to-r from-[#c25e38] via-tertiary-container to-primary"></div>
             <div className="flex flex-col gap-2.5 pt-1">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-1.5">

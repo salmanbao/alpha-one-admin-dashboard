@@ -718,7 +718,6 @@ export function MarketingEmailCampaignsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div aria-labelledby="slide-over-title" aria-modal="true" className="fixed inset-0 z-50 flex justify-end overflow-hidden" role="dialog">
           <div className="fixed inset-0 bg-[#2e3230]/40 backdrop-blur-[2px] transition-opacity"></div>
           <aside className="relative w-full max-w-[600px] bg-[#faf8f5] shadow-2xl border-l border-outline-variant flex flex-col h-full z-10 font-body text-on-surface">
@@ -858,7 +857,6 @@ export function MarketingEmailCampaignsStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex justify-end bg-stone-900/40 backdrop-blur-[2px] transition-opacity" id="campaign-slideover-container">
           <div className="relative w-full max-w-[560px] h-full bg-[#faf8f5] shadow-2xl border-l border-[#e4e0d8] flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
             <div className="flex-1 overflow-y-auto">

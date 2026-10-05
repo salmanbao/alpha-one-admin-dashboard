@@ -771,7 +771,6 @@ export function CrmPipelineStitchPage() {
         </footer>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 left-72 top-16 bg-[#2e3230]/40 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="drawer-backdrop"></div>
         <aside className="fixed top-16 right-0 bottom-0 w-[540px] max-w-[90vw] bg-surface-container-lowest shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-out border-l border-outline-variant/30" id="deal-drawer">
           <div className="p-6 pb-4 bg-surface-container-low/70 border-b border-outline-variant/20 flex flex-col gap-3">
@@ -988,7 +987,6 @@ export function CrmPipelineStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 bg-neutral-900/40 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="drawer-backdrop"></div>
         <div className="fixed top-0 right-0 h-full w-[480px] max-w-full bg-background z-50 shadow-2xl flex flex-col justify-between transition-transform duration-300 translate-x-0 overflow-hidden" id="filter-sheet">
           <div className="px-7 pt-7 pb-5 bg-surface-container-low flex flex-col gap-1.5">

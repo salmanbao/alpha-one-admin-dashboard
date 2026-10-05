@@ -727,9 +727,7 @@ export function SupportAgentDetailStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
-        <aside className="fixed top-0 right-0 h-full w-full max-w-[640px] bg-surface z-50 flex flex-col shadow-2xl rounded-l-2xl overflow-hidden" id="ticket-slideover">
+      {so0 && (        <aside className="fixed top-0 right-0 h-full w-full max-w-[640px] bg-surface z-50 flex flex-col shadow-2xl rounded-l-2xl overflow-hidden" id="ticket-slideover">
           <div className="px-6 pt-5 pb-4 bg-surface-container-low flex flex-col gap-3 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1033,7 +1031,6 @@ export function SupportAgentDetailStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto" style={{ backgroundColor: 'rgba(46, 50, 48, 0.62)', backdropFilter: 'blur(4px)' }}>
           <div aria-describedby="modal-desc" aria-labelledby="modal-title" aria-modal="true" className="relative w-full max-w-[580px] bg-[#faf8f5] rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.35)] overflow-hidden flex flex-col my-auto transition-all animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
             <div className="h-1.5 w-full bg-gradient-to-r from-tertiary via-[#c25e38] to-primary"></div>

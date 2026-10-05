@@ -916,8 +916,7 @@ export function ScheduledExportsStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 bg-[#2e3230]/40 backdrop-blur-[2px] z-50 transition-opacity"></div>
         <aside className="fixed top-0 right-0 h-full w-[780px] max-w-full bg-surface z-50 flex flex-col shadow-[0_10px_40px_rgba(46,50,48,0.18)] overflow-hidden transition-all duration-300">
           <div className="h-20 px-8 flex items-center justify-between bg-surface-container-low shrink-0">
@@ -1213,7 +1212,6 @@ export function ScheduledExportsStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/65 backdrop-blur-[3px] transition-all duration-200">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-[560px] bg-surface-container-lowest rounded-xl shadow-[0_20px_50px_rgba(46,50,48,0.22)] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-tertiary-container to-primary"></div>

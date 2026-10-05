@@ -448,10 +448,7 @@ export function CertificateDetailStitchPage() {
           <span id="toastMessage">Action completed successfully.</span>
         </div>
       </div>
-      {so0 && (
-        <>
-        <aside aria-label="Certificate Lifecycle and Immutable Audit History" className="fixed top-16 right-0 bottom-0 w-[620px] max-w-full bg-surface-container-lowest z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-out translate-x-0" id="auditSheet">
-          <header className="flex-shrink-0 px-7 pt-6 pb-5 bg-surface-container-lowest">
+      {so0 && (          <header className="flex-shrink-0 px-7 pt-6 pb-5 bg-surface-container-lowest">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="bg-primary-fixed text-on-primary-fixed-variant font-semibold text-[11px] px-2.5 py-1 rounded-full tracking-wide">                  IMMUTABLE AUDIT TRAIL</span>
@@ -717,7 +714,6 @@ export function CertificateDetailStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/65 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto" id="modal-backdrop">
           <div className="relative w-full max-w-[590px] my-auto bg-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-2xl text-on-surface transition-all transform duration-300">
             <div className="absolute -top-1 left-8 right-8 h-1 bg-gradient-to-r from-error/30 via-error to-error/30 rounded-t-full"></div>

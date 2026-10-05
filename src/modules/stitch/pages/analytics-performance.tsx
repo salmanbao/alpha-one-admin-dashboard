@@ -780,9 +780,7 @@ export function AnalyticsPerformanceStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 bg-[#2e3230]/40 backdrop-blur-sm flex justify-end transition-opacity duration-300" id="country-drilldown-sheet-backdrop">
-          <div className="relative w-full max-w-[600px] h-full bg-[#fcfbf9] shadow-2xl flex flex-col z-50 border-l border-[#e7e5e4] overflow-hidden">
+        <div className="relative w-full max-w-[600px] h-full bg-[#fcfbf9] shadow-2xl flex flex-col z-50 border-l border-[#e7e5e4] overflow-hidden">
             <div className="px-6 py-5 border-b border-outline-variant/30 bg-surface-container-low flex flex-col gap-2 relative">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -959,7 +957,6 @@ export function AnalyticsPerformanceStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex justify-end bg-stone-900/40 backdrop-blur-[2px] transition-opacity" id="symbol-drilldown-sheet">
           <div className="relative w-full max-w-[590px] h-full bg-[#fcfbf9] shadow-2xl flex flex-col border-l border-[#e7e5e4] z-50 overflow-hidden">
             <div className="px-6 py-5 border-b border-[#e7e5e4] bg-[#faf6f0]">

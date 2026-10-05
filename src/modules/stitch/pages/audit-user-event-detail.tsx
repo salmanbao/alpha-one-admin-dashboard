@@ -486,9 +486,7 @@ export function AuditUserEventDetailStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity">
-          <div className="w-[700px] max-w-full bg-surface-container-lowest rounded-2xl shadow-2xl p-6 text-on-surface font-body relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="w-[700px] max-w-full bg-surface-container-lowest rounded-2xl shadow-2xl p-6 text-on-surface font-body relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
             <div className="flex items-start justify-between gap-4 pb-4">
               <div className="space-y-2">
@@ -625,7 +623,6 @@ export function AuditUserEventDetailStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-on-surface/65 backdrop-blur-sm transition-opacity duration-300" id="compliance-modal-backdrop">
           <div aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-[680px] bg-surface-container-lowest rounded-2xl shadow-[0_16px_50px_rgba(46,50,48,0.18)] flex flex-col overflow-hidden text-on-surface font-body animate-in fade-in zoom-in-95 duration-200" role="dialog">
             <div className="h-1.5 w-full bg-[#c25e38]"></div>

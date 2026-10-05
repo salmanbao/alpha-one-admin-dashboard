@@ -743,8 +743,7 @@ export function SavedReportsStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-md transition-opacity duration-200" id="modal-container">
           <div aria-describedby="dialog-description" aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-[540px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_50px_rgba(46,50,48,0.28)] overflow-hidden flex flex-col transition-all transform scale-100 animate-in fade-in zoom-in-95 duration-150" role="dialog">
             <div className="h-1.5 w-full bg-error"></div>
@@ -843,9 +842,7 @@ export function SavedReportsStitchPage() {
         </div>
         </>
       )}
-      {so1 && (
-        <>
-        <aside className="fixed top-0 right-0 h-full w-full max-w-[820px] bg-surface-container-lowest z-50 shadow-2xl flex flex-col transition-transform duration-300 ease-out transform translate-x-0 overflow-hidden" id="report-builder-drawer">
+      {so1 && (        <aside className="fixed top-0 right-0 h-full w-full max-w-[820px] bg-surface-container-lowest z-50 shadow-2xl flex flex-col transition-transform duration-300 ease-out transform translate-x-0 overflow-hidden" id="report-builder-drawer">
           <div className="p-6 bg-surface-container-low shrink-0 relative">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">

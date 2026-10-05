@@ -473,7 +473,6 @@ export function SettingsModuleDetailStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-sm z-50 transition-opacity duration-300" id="slideover-backdrop"></div>
         <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[640px] bg-background shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
           <div className="px-8 pt-7 pb-5 bg-surface-container-low flex flex-col gap-3.5 shadow-sm">
@@ -706,7 +705,6 @@ export function SettingsModuleDetailStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm" id="disable-dialog-backdrop">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-xl bg-surface-bright rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.25)] p-7 flex flex-col space-y-5 animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
             <div className="flex items-center justify-between">
@@ -834,7 +832,6 @@ export function SettingsModuleDetailStitchPage() {
         </>
       )}
       {so2 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-inverse-surface/60 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-2xl my-auto bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.3)] overflow-hidden flex flex-col transition-all text-on-surface">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-tertiary to-primary-container"></div>
@@ -1078,7 +1075,6 @@ export function SettingsModuleDetailStitchPage() {
         </>
       )}
       {so3 && (
-        <>
         <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="backdropOverlay"></div>
         <aside aria-labelledby="sheetTitle" aria-modal="true" className="fixed top-0 right-0 h-full w-full max-w-[660px] bg-background shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-out translate-x-0 overflow-hidden" id="overrideSheet" role="dialog">
           <div className="flex-shrink-0 px-8 pt-7 pb-5 bg-background shadow-[0_1px_0_rgba(74,78,74,0.08)]">

@@ -597,7 +597,6 @@ export function RiskUnprofitableCountriesStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div aria-labelledby="block-modal-title" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" id="block-ip-modal-dialog" role="dialog">
           <div className="fixed inset-0 bg-[#1e2120]/60 backdrop-blur-[2px] transition-opacity"></div>
           <div className="relative bg-surface-container-lowest rounded-2xl shadow-2xl border border-surface-variant w-full max-w-[540px] p-6 z-10 font-body text-on-surface flex flex-col gap-5 my-8">
@@ -690,7 +689,6 @@ export function RiskUnprofitableCountriesStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div aria-labelledby="block-modal-title" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" id="block-ip-modal-dialog" role="dialog">
           <div className="fixed inset-0 bg-[#1e2120]/60 backdrop-blur-[2px] transition-opacity"></div>
           <div className="relative bg-surface-container-lowest rounded-2xl shadow-2xl border border-surface-variant w-full max-w-[540px] p-6 z-10 font-body text-on-surface flex flex-col gap-5 my-8">

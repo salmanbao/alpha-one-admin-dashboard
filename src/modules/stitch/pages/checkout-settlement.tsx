@@ -649,7 +649,6 @@ export function CheckoutSettlementStitchPage() {
         </aside>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 bg-[#1e1a13]/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto" id="reconcileModalOverlay">
           <div aria-labelledby="modal-headline" aria-modal="true" className="w-full max-w-[680px] my-auto bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-7 relative overflow-hidden flex flex-col gap-5 text-on-surface animate-in fade-in zoom-in-95 duration-200" role="dialog">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>

@@ -542,7 +542,6 @@ export function NotificationsArchivedStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/40 backdrop-blur-sm transition-opacity" id="purge-modal">
           <div className="bg-surface rounded-xl max-w-xl w-full p-6 lg:p-7 shadow-xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-3.5">

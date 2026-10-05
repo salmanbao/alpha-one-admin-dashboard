@@ -515,8 +515,6 @@ export function AccountRelatedAccountsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-sm z-50 transition-opacity duration-300"></div>
         <div className="fixed inset-y-0 right-0 max-w-5xl w-full bg-surface-container-lowest z-50 shadow-2xl flex flex-col overflow-hidden">
           <div className="px-8 py-6 bg-surface-container-low flex flex-col gap-4 shadow-sm relative">
             <div className="flex items-start justify-between">
@@ -829,7 +827,6 @@ export function AccountRelatedAccountsStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-[3px] transition-opacity duration-300" id="drawer-backdrop"></div>
         <div aria-labelledby="drawer-title" aria-modal="true" className="fixed top-0 right-0 z-50 h-full w-[540px] max-w-[95vw] bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden transform transition-transform duration-300 ease-out" id="link-account-drawer" role="dialog">
           <div className="p-6 bg-surface-container-low flex items-start justify-between relative shadow-sm">

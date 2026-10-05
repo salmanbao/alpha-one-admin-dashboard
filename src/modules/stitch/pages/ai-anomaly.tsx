@@ -669,9 +669,7 @@ export function AiAnomalyStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 bg-[#1e1a13]/60 backdrop-blur-sm flex items-center justify-center p-4" id="modal-container">
-          <div className="w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className="w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
             <div className="h-1.5 w-full bg-primary"></div>
             <div className="p-7 space-y-5">
               <div className="space-y-2">

@@ -478,7 +478,6 @@ export function SupportContactStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed bottom-6 right-8 z-50 w-[420px] h-[580px] bg-surface-container-lowest rounded-2xl shadow-2xl border border-surface-container-high flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200" id="live-desk-chat-widget">
           <div className="bg-primary text-on-primary p-4 shrink-0 shadow-sm">
             <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/15">
@@ -581,7 +580,6 @@ Failover to secondary NY4 circuit engaged.
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm" id="ticketConfirmationModal">
           <div className="max-w-lg w-full bg-surface-container-lowest rounded-2xl shadow-2xl border border-surface-container-high overflow-hidden transition-all">
             <div className="p-6 pb-4 flex flex-col items-center text-center relative">

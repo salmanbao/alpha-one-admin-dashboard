@@ -609,10 +609,7 @@ export function AccountingTransactionsStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
-        <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/35 backdrop-blur-[2px] z-50 flex justify-end transition-opacity">
-          <section aria-labelledby="sheet-title" className="w-full max-w-2xl h-[calc(100vh-4rem)] bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden animate-slide-left">
+      {so0 && (          <section aria-labelledby="sheet-title" className="w-full max-w-2xl h-[calc(100vh-4rem)] bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden animate-slide-left">
             <div className="px-7 pt-6 pb-4 bg-surface-container flex items-start justify-between shrink-0">
               <div className="flex flex-col gap-1 pr-4">
                 <div className="flex items-center gap-2">
@@ -777,9 +774,7 @@ export function AccountingTransactionsStitchPage() {
         </div>
         </>
       )}
-      {so1 && (
-        <>
-        <aside className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-2xl bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden">
+      {so1 && (        <aside className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-2xl bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden">
           <div className="px-8 py-5 bg-surface-container-low flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-3.5">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><MsIcon name="receipt_long" className="text-[24px]" /></div>

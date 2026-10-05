@@ -680,9 +680,8 @@ export function CheckoutPlatformTenantsStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (\n        <>\n        <div className="fixed inset-0 top-16 left-72 z-50 bg-[#1e2320]/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-[720px] max-w-[92vw] my-auto bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden flex flex-col text-[#1e2320]">
-            <div className="bg-surface-container-low px-7 pt-6 pb-5 space-y-4">
+      {so0 && (
+        <div className="bg-surface-container-low px-7 pt-6 pb-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="bg-primary/10 text-primary text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full">                    {"               Super-Admin // Tenant Checkout Provisioning             "}</span>
@@ -883,8 +882,7 @@ export function CheckoutPlatformTenantsStitchPage() {
             </div>
           </div>
         </div>\n        </>\n      )}
-      {so1 && (\n        <>\n        <div className="fixed inset-0 z-50 bg-[#1e2320]/60 backdrop-blur-[6px] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-[680px] max-w-[92vw] rounded-2xl bg-surface-container-lowest shadow-[0_25px_60px_-15px_rgba(30,35,32,0.35)] overflow-hidden text-on-surface flex flex-col relative my-auto animate-in fade-in zoom-in-95 duration-200">
+      {so1 && ( overflow-hidden text-on-surface flex flex-col relative my-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>
             <div className="px-7 pt-6 pb-5 bg-surface-container-lowest">
               <div className="flex items-center justify-between mb-3">

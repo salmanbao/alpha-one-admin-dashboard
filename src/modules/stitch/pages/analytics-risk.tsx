@@ -861,10 +861,7 @@ export function AnalyticsRiskStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
-        <div className="fixed inset-0 bg-[#2e3230]/40 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="drawer-backdrop">
-          <aside aria-label="Parametric Modeling Drawer" className="fixed right-0 top-0 h-full w-full max-w-[580px] bg-[#faf6f0] shadow-2xl flex flex-col z-50 overflow-hidden transform transition-transform duration-300 ease-in-out" id="risk-parameter-drawer">
+      {so0 && (          <aside aria-label="Parametric Modeling Drawer" className="fixed right-0 top-0 h-full w-full max-w-[580px] bg-[#faf6f0] shadow-2xl flex flex-col z-50 overflow-hidden transform transition-transform duration-300 ease-in-out" id="risk-parameter-drawer">
             <div className="px-7 pt-6 pb-5 bg-surface-container-low shadow-[0_1px_4px_rgba(46,50,48,0.04)]">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -1073,7 +1070,6 @@ export function AnalyticsRiskStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm transition-opacity duration-200" id="recalculate-modal">
           <div className="w-full max-w-[550px] bg-surface-container-lowest rounded-2xl p-7 shadow-2xl flex flex-col gap-5 text-on-surface relative">
             <div className="absolute top-0 left-0 right-0 h-1 bg-tertiary-container rounded-t-2xl"></div>

@@ -863,7 +863,6 @@ export function UserManagementStitchPage() {
         </dialog>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/40 backdrop-blur-sm z-50 transition-opacity duration-300" id="slideover-backdrop"></div>
         <aside className="fixed top-16 right-0 bottom-0 w-[620px] max-w-full bg-surface-container-low z-50 shadow-2xl flex flex-col overflow-hidden transition-transform duration-300 ease-in-out" id="provision-slideover">
           <div className="px-8 pt-7 pb-5 bg-surface-container-low flex flex-col gap-3 shrink-0 shadow-[0_1px_8px_rgba(46,50,48,0.03)]">
@@ -1110,7 +1109,6 @@ export function UserManagementStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 bg-[#1e2320]/65 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" id="modal-container">
           <div className="relative w-full max-w-[580px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_50px_rgba(20,28,24,0.18)] p-7 flex flex-col my-auto transition-all animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-start justify-between gap-4 mb-5">

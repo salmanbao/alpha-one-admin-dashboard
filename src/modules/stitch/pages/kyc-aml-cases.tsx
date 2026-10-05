@@ -808,8 +808,7 @@ export function KycAmlCasesStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 top-16 left-72 bg-black/45 z-50 flex justify-end transition-opacity duration-300" id="sar-sheet-backdrop">
           <div className="w-[660px] max-w-full h-full bg-surface-container-lowest flex flex-col shadow-2xl relative animate-[slideIn_0.25s_ease-out]" id="sar-drawer">
             <div className="p-6 bg-surface-container-low flex flex-col gap-3 shadow-[0_1px_4px_rgba(46,50,48,0.06)] relative z-20">
@@ -1047,7 +1046,6 @@ export function KycAmlCasesStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-inverse-surface/50 backdrop-blur-sm" id="modal-container">
           <div className="relative w-full max-w-[560px] bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col overflow-hidden my-auto transform transition-all duration-300">
             <div className="h-1.5 w-full bg-primary"></div>

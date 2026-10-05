@@ -481,7 +481,6 @@ export function PositionDetailLiveStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/50 backdrop-blur-md transition-all">
           <div aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-xl bg-surface-bright rounded-2xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.3)] overflow-hidden flex flex-col relative animate-in fade-in zoom-in-95 duration-200" role="dialog">
             <div className="bg-error-container text-on-error-container px-6 py-2.5 flex items-center justify-between">
@@ -627,9 +626,7 @@ export function PositionDetailLiveStitchPage() {
         </div>
         </>
       )}
-      {so1 && (
-        <>
-        <aside className="fixed top-16 right-0 bottom-0 w-[42%] min-w-[480px] max-w-[540px] bg-[#fcfbf9] z-50 flex flex-col shadow-[0_4px_30px_rgba(46,50,48,0.18)] overflow-hidden animate-in slide-in-from-right duration-200">
+      {so1 && (        <aside className="fixed top-16 right-0 bottom-0 w-[42%] min-w-[480px] max-w-[540px] bg-[#fcfbf9] z-50 flex flex-col shadow-[0_4px_30px_rgba(46,50,48,0.18)] overflow-hidden animate-in slide-in-from-right duration-200">
           <div className="p-6 pb-4 bg-surface-container-low shrink-0">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">

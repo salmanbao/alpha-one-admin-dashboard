@@ -585,7 +585,6 @@ export function MarketingIntegrationsStitchPage() {
         </footer>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 top-16 left-72 bg-[#1c221e]/50 backdrop-blur-[6px] z-50 flex justify-end transition-opacity duration-300">
           <aside aria-labelledby="slideover-modal-title" aria-modal="true" className="w-full max-w-[640px] h-[calc(100vh-4rem)] bg-[#ffffff] shadow-2xl flex flex-col justify-between overflow-hidden relative border-l border-[#e7e3dc] animate-in slide-in-from-right duration-300" role="dialog">
             <div className="p-6 md:p-8 pb-5 bg-[#ffffff] border-b border-[#e7e3dc] flex flex-col gap-3 relative z-10 shrink-0">
@@ -809,7 +808,6 @@ export function MarketingIntegrationsStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-300" id="disconnect-modal-backdrop">
           <div aria-describedby="alert-dialog-desc" aria-labelledby="alert-dialog-title" aria-modal="true" className="w-full max-w-[540px] bg-[#ffffff] rounded-2xl shadow-2xl p-6 relative flex flex-col gap-5 text-on-surface transition-transform duration-300 transform scale-100" role="alertdialog">
             <div className="flex items-start justify-between">

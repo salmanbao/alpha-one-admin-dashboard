@@ -685,8 +685,7 @@ export function KycProviderMarketplaceStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 z-50 flex justify-end" id="connect-onfido-drawer-container">
           <div className="fixed inset-0 bg-[#2e3230]/40 backdrop-blur-sm transition-opacity duration-300"></div>
           <aside className="relative z-50 w-full max-w-2xl bg-surface-container-lowest h-full shadow-2xl flex flex-col justify-between overflow-hidden border-l border-surface-container-high">
@@ -856,7 +855,6 @@ export function KycProviderMarketplaceStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-stone-900/60 backdrop-blur-sm" id="comparison-spec-modal">
           <div className="max-w-5xl w-full my-auto bg-[#faf8f5] border border-[#e7e3dc] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
             <div className="p-6 border-b border-[#e7e3dc] bg-[#faf8f5] relative flex items-start justify-between gap-4">

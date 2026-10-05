@@ -762,7 +762,6 @@ export function PayoutsEnhancedWithdrawalsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex justify-end bg-on-surface/40 backdrop-blur-[2px] transition-opacity">
           <div className="relative w-full max-w-[620px] h-full bg-surface-container-low shadow-2xl flex flex-col border-l border-outline-variant/60 font-body text-on-surface overflow-hidden">
             <div className="px-6 py-5 bg-surface-container border-b border-outline-variant/40 flex items-start justify-between shrink-0">
@@ -959,7 +958,6 @@ export function PayoutsEnhancedWithdrawalsStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/60 backdrop-blur-sm overflow-y-auto" id="reject-dialog-overlay">
           <div aria-labelledby="reject-modal-title" aria-modal="true" className="relative w-full max-w-[620px] bg-surface-container-lowest rounded-xl shadow-[0_1px_8px_rgba(46,50,48,0.06)] border border-outline-variant/60 overflow-hidden my-6" role="alertdialog">
             <div className="p-6 pb-4 border-b border-outline-variant/60 bg-surface-container-low">

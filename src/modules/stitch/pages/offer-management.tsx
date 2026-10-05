@@ -585,7 +585,6 @@ export function OfferManagementStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 overflow-y-auto transition-opacity duration-200" id="archive-modal-overlay">
           <div aria-describedby="modal-description" aria-labelledby="modal-title" aria-modal="true" className="relative w-full max-w-[570px] bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
             <div className="h-1.5 w-full bg-gradient-to-r from-tertiary-container via-tertiary to-error"></div>
@@ -695,7 +694,6 @@ export function OfferManagementStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm transition-opacity duration-200" id="modal-container">
           <div className="relative w-full max-w-[560px] bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-7 flex flex-col gap-5 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-error"></div>

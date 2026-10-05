@@ -371,9 +371,7 @@ export function AiConfigureStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 bg-on-surface/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 lg:p-10 overflow-y-auto">
-          <div aria-labelledby="modal-title" aria-modal="true" className="relative w-full max-w-6xl bg-surface rounded-xl shadow-2xl overflow-hidden flex flex-col my-auto transition-all" role="dialog">
+        <div aria-labelledby="modal-title" aria-modal="true" className="relative w-full max-w-6xl bg-surface rounded-xl shadow-2xl overflow-hidden flex flex-col my-auto transition-all" role="dialog">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>
             <div className="px-8 pt-7 pb-6 bg-surface-container-low flex items-start justify-between">
               <div className="space-y-1.5 max-w-3xl">
@@ -625,7 +623,6 @@ export function AiConfigureStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-on-surface/60 backdrop-blur-sm transition-all duration-300" id="reset-modal-backdrop">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-3xl rounded-xl bg-surface-container-lowest shadow-2xl overflow-hidden flex flex-col transform transition-all" id="reset-alert-dialog" role="alertdialog">
             <div className="h-1.5 w-full bg-gradient-to-r from-tertiary-container via-error to-tertiary"></div>

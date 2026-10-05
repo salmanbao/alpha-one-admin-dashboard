@@ -607,10 +607,7 @@ export function BreachesStitchPage() {
           </a>
         </div>
       </div>
-      {so0 && (
-        <>
-        <div className="fixed inset-0 bg-[#1e1a13]/40 backdrop-blur-sm z-50 flex justify-end" id="escalation-sheet-backdrop">
-          <aside className="w-[540px] max-w-full h-full bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-y-auto border-l border-outline-variant/40">
+      {so0 && (          <aside className="w-[540px] max-w-full h-full bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-y-auto border-l border-outline-variant/40">
             <div className="flex flex-col">
               <div className="p-6 border-b border-surface-container-high bg-surface-container-low/70">
                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -751,7 +748,6 @@ export function BreachesStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm overflow-y-auto" id="bulk-resolve-modal">
           <div className="relative w-full max-w-3xl my-8 bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden border border-outline-variant/50 flex flex-col font-body animate-in fade-in zoom-in-95 duration-150">
             <div className="px-6 py-4 bg-surface-container-low border-b border-outline-variant/40 flex items-center justify-between">

@@ -596,7 +596,6 @@ export function RiskAlertSubscriptionStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-[2px] transition-opacity" id="add-subscription-drawer-wrapper">
           <div className="relative w-full max-w-[620px] h-full bg-[#faf6f0] border-l border-outline-variant shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
             <div className="px-6 py-5 border-b border-outline-variant/60 bg-surface-container-low flex flex-col gap-1.5 shrink-0">
@@ -830,7 +829,6 @@ export function RiskAlertSubscriptionStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-[2px]" id="delete-subscription-modal">
           <div className="w-full max-w-[540px] rounded-2xl bg-white border border-stone-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-6 pb-4">
@@ -901,7 +899,6 @@ export function RiskAlertSubscriptionStitchPage() {
         </>
       )}
       {so2 && (
-        <>
         <div className="fixed inset-0 bg-[#2e3230]/60 backdrop-blur-sm z-50 transition-opacity duration-300" id="slideover-backdrop"></div>
         <aside className="fixed top-0 right-0 h-screen w-full max-w-[560px] bg-surface-container-lowest z-50 flex flex-col justify-between shadow-2xl transition-transform duration-300 ease-out" id="slideover-drawer">
           <header className="shrink-0 px-7 pt-6 pb-5 bg-surface-container-lowest shadow-sm relative">

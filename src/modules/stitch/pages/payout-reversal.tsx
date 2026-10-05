@@ -653,8 +653,7 @@ export function PayoutReversalStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/60 backdrop-blur-[3px] transition-opacity">
           <div className="w-full max-w-[620px] rounded-2xl bg-surface shadow-2xl p-7 md:p-8 space-y-6 transform transition-all animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-start gap-4">
@@ -752,9 +751,7 @@ export function PayoutReversalStitchPage() {
         </div>
         </>
       )}
-      {so1 && (
-        <>
-        <aside className="fixed top-16 right-0 bottom-0 w-[580px] max-w-full bg-surface-container-lowest shadow-2xl z-50 flex flex-col justify-between overflow-hidden">
+      {so1 && (        <aside className="fixed top-16 right-0 bottom-0 w-[580px] max-w-full bg-surface-container-lowest shadow-2xl z-50 flex flex-col justify-between overflow-hidden">
           <div className="px-8 pt-7 pb-6 bg-surface-container-low shrink-0 shadow-sm relative">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">

@@ -951,8 +951,7 @@ export function RiskStatisticsStitchPage() {
           <span id="toast-message">Data exported successfully.</span>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 bg-on-surface/40 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="drawer-scrim">
           <div className="absolute inset-0"></div>
           <aside className="absolute top-0 right-0 h-full w-[670px] max-w-[95vw] bg-[#fcfbf9] text-on-surface shadow-2xl flex flex-col z-10 overflow-hidden transform transition-transform duration-300 ease-out">
@@ -1167,9 +1166,7 @@ export function RiskStatisticsStitchPage() {
         </div>
         </>
       )}
-      {so1 && (
-        <>
-        <aside aria-label="Save Custom Risk View Drawer" className="fixed top-0 right-0 z-50 h-screen w-full max-w-[500px] bg-surface-container-lowest text-on-surface shadow-[0_4px_30px_rgba(46,50,48,0.18)] flex flex-col justify-between overflow-hidden transition-transform duration-300 transform translate-x-0" id="risk-save-sheet">
+      {so1 && (        <aside aria-label="Save Custom Risk View Drawer" className="fixed top-0 right-0 z-50 h-screen w-full max-w-[500px] bg-surface-container-lowest text-on-surface shadow-[0_4px_30px_rgba(46,50,48,0.18)] flex flex-col justify-between overflow-hidden transition-transform duration-300 transform translate-x-0" id="risk-save-sheet">
           <div className="px-7 pt-6 pb-5 bg-surface-container-low/70 flex flex-col gap-2 shrink-0">
             <div className="flex items-center justify-between">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold tracking-widest uppercase">

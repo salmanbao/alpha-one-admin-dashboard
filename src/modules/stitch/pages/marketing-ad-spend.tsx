@@ -692,7 +692,6 @@ export function MarketingAdSpendStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/60 backdrop-blur-sm transition-opacity duration-300">
           <div className="fixed top-0 right-0 h-screen w-full max-w-[560px] bg-surface-container-low shadow-[0_4px_30px_rgba(46,50,48,0.18)] z-50 flex flex-col justify-between overflow-hidden">
             <div className="px-7 pt-6 pb-5 bg-surface-container-low shrink-0 space-y-3">
@@ -886,7 +885,6 @@ export function MarketingAdSpendStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/65 backdrop-blur-md transition-opacity duration-200" id="delete-modal-overlay">
           <div className="relative w-full max-w-[520px] bg-surface-container-lowest rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="h-1.5 w-full bg-error"></div>

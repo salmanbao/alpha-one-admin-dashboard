@@ -593,7 +593,6 @@ export function InverseTradingEventsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
           <div aria-describedby="modal-desc" aria-labelledby="modal-title" aria-modal="true" className="max-w-lg w-full bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.22)] p-6 relative flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200" id="bulkDismissalModal" role="alertdialog">
             <div className="flex items-start gap-4">

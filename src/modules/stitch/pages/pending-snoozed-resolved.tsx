@@ -713,7 +713,6 @@ export function PendingSnoozedResolvedStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 top-16 left-72 z-50 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           <div className="relative w-full max-w-xl rounded-2xl bg-surface-container-lowest shadow-2xl overflow-hidden my-auto transform transition-all duration-300">
             <div className="px-6 py-2.5 bg-surface-container-high flex items-center justify-between text-xs">

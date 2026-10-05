@@ -419,7 +419,6 @@ export function CheckoutPspOnboardingStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 top-16 left-72 z-50 flex items-center justify-center p-6 bg-[#1a1c1b]/60 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-[660px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(20,24,22,0.35)] overflow-hidden my-auto transform transition-all animate-in fade-in duration-200">
             <div className="h-1.5 w-full bg-error"></div>

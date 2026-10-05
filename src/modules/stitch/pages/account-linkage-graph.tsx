@@ -600,9 +600,7 @@ export function AccountLinkageGraphStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
-        <div className="fixed inset-0 z-50 bg-[#1e2220]/60 backdrop-blur-[4px] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="relative w-full max-w-[580px] my-auto bg-surface-container-lowest rounded-xl shadow-[0_24px_50px_rgba(46,50,48,0.22)] overflow-hidden transition-all transform animate-in fade-in zoom-in-95 duration-200">
+        <div className="relative w-full max-w-[580px] my-auto bg-surface-container-lowest rounded-xl shadow-[0_24px_50px_rgba(46,50,48,0.22)] overflow-hidden transition-all transform animate-in fade-in zoom-in-95 duration-200">
             <div className="h-1.5 w-full bg-error"></div>
             <div className="p-6 md:p-8 space-y-5">
               <div className="flex items-start gap-4">
@@ -762,9 +760,7 @@ export function AccountLinkageGraphStitchPage() {
         </div>
         </>
       )}
-      {so1 && (
-        <>
-        <aside aria-label="Edge Telemetry Inspection Drawer" className="fixed top-16 right-0 bottom-0 w-[630px] max-w-[calc(100vw-18rem)] bg-surface-container-low shadow-xl z-50 flex flex-col overflow-hidden transition-transform duration-300 translate-x-0" id="edge-detail-drawer">
+      {so1 && (        <aside aria-label="Edge Telemetry Inspection Drawer" className="fixed top-16 right-0 bottom-0 w-[630px] max-w-[calc(100vw-18rem)] bg-surface-container-low shadow-xl z-50 flex flex-col overflow-hidden transition-transform duration-300 translate-x-0" id="edge-detail-drawer">
           <div className="px-6 py-4 bg-surface-container flex items-center justify-between shrink-0 shadow-[0_1px_4px_rgba(46,50,48,0.04)]">
             <div className="flex items-center gap-2.5">
               <div className="w-2 h-2 rounded-full bg-error animate-ping"></div>

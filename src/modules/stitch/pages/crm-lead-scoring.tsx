@@ -592,7 +592,6 @@ export function CrmLeadScoringStitchPage() {
         </div>
       </div>
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 bg-[#2e3230]/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="w-full max-w-2xl bg-surface-container-lowest rounded-xl shadow-2xl p-7 my-8 relative overflow-hidden text-on-surface animate-in fade-in zoom-in-95 duration-200">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>

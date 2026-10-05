@@ -544,7 +544,6 @@ export function AuditStitchPage() {
         </div>
       </div>
       {so1 && (
-        <>
         <div className="fixed inset-0 bg-inverse-surface/30 backdrop-blur-[2px] z-50 transition-opacity" id="slideover-backdrop"></div>
         <div className="fixed top-0 right-0 h-screen w-[620px] max-w-full bg-surface-container-lowest z-50 flex flex-col shadow-2xl transition-transform" id="slideover-panel">
           <div className="p-6 bg-surface-container-low shrink-0 flex flex-col gap-4">
@@ -707,7 +706,6 @@ export function AuditStitchPage() {
         </>
       )}
       {so2 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm bg-black/55" id="dossierModalOverlay">
           <div className="relative w-full max-w-[720px] max-h-[942px] flex flex-col bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>

@@ -715,9 +715,8 @@ export function PlatformAuditStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (\n        <>\n        <aside aria-label="Save Search and Alert Rules Sheet" className="fixed top-0 right-0 bottom-0 w-full sm:w-[540px] md:w-[600px] z-50 flex flex-col justify-between bg-surface shadow-2xl transition-transform duration-300 ease-out overflow-hidden" id="alert-drawer">
-          <div className="p-6 md:p-7 bg-surface-container-low shrink-0 shadow-sm relative">
-            <div className="flex items-start justify-between gap-4">
+      {so0 && (
+        <div className="flex items-start justify-between gap-4">
               <div className="space-y-1.5 pr-6">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-[10px] font-bold tracking-widest uppercase font-label">                    Statutory Surveillance · Real-Time Dispatch</span>
@@ -907,9 +906,8 @@ export function PlatformAuditStitchPage() {
             </div>
           </div>
         </aside>\n        </>\n      )}
-      {so1 && (\n        <>\n        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto" id="modal-container">
-          <div className="max-w-2xl w-full bg-surface-bright rounded-2xl shadow-2xl p-6 sm:p-7 flex flex-col gap-6 relative my-auto animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-start justify-between gap-4">
+      {so1 && (
+        <div className="flex items-start justify-between gap-4">
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed text-[11px] font-bold tracking-wider uppercase font-label">
 <MsIcon name="gavel" className="text-[14px]" />

@@ -531,8 +531,7 @@ export function SupportStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 z-50 bg-[#2e3230]/65 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           <div aria-labelledby="modal-headline" aria-modal="true" className="max-w-2xl w-full bg-surface-bright rounded-2xl shadow-[0_12px_40px_rgba(46,50,48,0.22)] overflow-hidden text-on-surface z-50 transform transition-all my-auto" id="create-ticket-modal" role="dialog">
             <div className="px-6 pt-6 pb-5 bg-surface-container-low">
@@ -693,7 +692,6 @@ export function SupportStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/40 backdrop-blur-[3px] flex items-center justify-center p-6 z-50 overflow-y-auto">
           <div className="w-full max-w-4xl bg-surface-container-low rounded-xl shadow-2xl overflow-hidden flex flex-col my-auto transition-all animate-in fade-in zoom-in-95 duration-200">
             <div className="px-8 pt-7 pb-5 bg-surface-container flex items-start justify-between">
@@ -923,7 +921,6 @@ export function SupportStitchPage() {
         </>
       )}
       {so2 && (
-        <>
         <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-[3px] z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           <div className="relative w-full max-w-3xl bg-surface-container-lowest rounded-2xl shadow-xl flex flex-col my-auto max-h-[942px] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
             <div className="px-7 pt-6 pb-4 bg-surface-container-low flex items-start justify-between">
@@ -1094,7 +1091,6 @@ export function SupportStitchPage() {
         </>
       )}
       {so3 && (
-        <>
         <div className="fixed inset-0 bg-[#1e1a13]/45 backdrop-blur-[2px] z-50 transition-opacity"></div>
         <div className="fixed top-0 right-0 bottom-0 w-full max-w-[740px] bg-surface z-50 shadow-2xl flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-7 py-4 bg-surface-container-low shrink-0 shadow-sm">

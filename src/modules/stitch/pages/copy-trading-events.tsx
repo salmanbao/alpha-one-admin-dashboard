@@ -681,7 +681,6 @@ export function CopyTradingEventsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-[3px] transition-opacity animate-in fade-in duration-150">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[480px] bg-surface-container-lowest rounded-xl shadow-2xl p-6 relative flex flex-col" role="alertdialog">
             <div className="flex items-start gap-4 mb-3">
@@ -743,7 +742,6 @@ export function CopyTradingEventsStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 bg-[#1e1a13]/40 backdrop-blur-[2px] z-50 flex justify-end transition-opacity duration-300" id="drawerOverlay">
           <aside className="w-full max-w-[580px] h-screen bg-surface-container-lowest shadow-2xl flex flex-col relative z-50 overflow-hidden text-on-surface">
             <div className="px-6 py-5 bg-surface-container-low flex flex-col gap-2 shrink-0">

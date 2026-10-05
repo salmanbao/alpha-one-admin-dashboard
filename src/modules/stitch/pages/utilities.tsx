@@ -670,8 +670,7 @@ export function UtilitiesStitchPage() {
           </div>
         </footer>
       </div>
-      {so0 && (
-        <>
+      ({so0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-md p-4 transition-opacity duration-200">
           <div aria-labelledby="modal-title" aria-modal="true" className="w-full max-w-xl bg-surface-container-lowest rounded-2xl shadow-2xl p-7 relative flex flex-col gap-6 text-on-surface" id="delete-utility-modal" role="dialog">
             <div className="flex items-start justify-between">
@@ -746,7 +745,6 @@ export function UtilitiesStitchPage() {
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 z-50 bg-[#1e211f]/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto" id="previewModalScrim">
           <div className="w-full max-w-5xl bg-surface-container-lowest rounded-2xl shadow-[0_16px_48px_rgba(46,50,48,0.22)] overflow-hidden flex flex-col my-auto transition-all duration-300 ease-out" id="modalContainer">
             <div className="px-6 py-5 bg-surface-container-low/70 flex flex-col gap-4">

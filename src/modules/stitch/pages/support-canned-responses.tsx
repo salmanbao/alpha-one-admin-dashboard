@@ -593,7 +593,6 @@ TerraDesk Prop Operations Desk
         </div>
       </div>
       {so0 && (
-        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/40 backdrop-blur-[3px] transition-opacity duration-300" id="modal-container">
           <div className="w-full max-w-[560px] bg-surface-container-lowest rounded-2xl p-6 sm:p-7 shadow-[0_20px_60px_rgba(46,50,48,0.18)] flex flex-col gap-5 max-h-[942px] overflow-y-auto">
             <div>
@@ -696,7 +695,6 @@ TerraDesk Prop Operations Desk
         </>
       )}
       {so1 && (
-        <>
         <div className="fixed inset-0 bg-[#2e3230]/45 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="slideover-backdrop"></div>
         <aside aria-label="Create or Edit Canned Response Drawer" className="fixed right-0 top-0 h-screen w-full sm:w-[640px] max-w-[95vw] bg-surface-container-lowest z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out" id="response-slideover">
           <div className="px-8 pt-7 pb-5 bg-surface-container-low shrink-0 relative flex flex-col gap-3">
