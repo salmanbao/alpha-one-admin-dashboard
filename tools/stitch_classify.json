@@ -1,0 +1,3542 @@
+{
+"primary": {
+"2fa-setup-dialog": "2fa_setup_dialog",
+"account-broker-details": "account_broker_details_mt5_882049_elena_althaus",
+"account-configuration": "account_configuration_mt5_882049_elena_althaus",
+"account-events": "account_events_mt5_882049_elena_althaus",
+"account-ip-addresses": "account_ip_addresses",
+"account-kyc-statuses": "account_kyc_statuses_mt5_882049_elena_althaus",
+"risk-account-label-analysis": "account_label_analysis",
+"account-linkage-graph": "account_linkage_graph",
+"account-related-accounts": "account_related_accounts_mt5_882049_elena_althaus",
+"account-version-history": "account_version_history_mt5_882049_elena_althaus",
+"account-workspace": "account_workspace_mt5_882049_elena_althaus",
+"accounting": "accounting_overview",
+"trading-accounts": "accounts_dashboard",
+"challenges-active": "active_challenges",
+"marketing-ad-accounts": "ad_account_connections",
+"marketing-ad-spend": "ad_spend",
+"trading-add-account": "add_account_provisioning_wizard",
+"crm-contact-create": "add_contact_flow_step_2_stage_allocation_owner",
+"add-group-sheet": "add_group_sheet",
+"risk-addon-revenue": "add_on_revenue",
+"analytics-advanced": "advanced_analytics",
+"affiliates-campaigns": "affiliate_campaigns",
+"affiliates-commissions": "affiliate_commissions",
+"affiliate-coupons": "affiliate_coupons",
+"affiliate-detail": "affiliate_detail_alpha_capital_media",
+"affiliate-link-tracking": "affiliate_link_tracking",
+"affiliate-onboarding": "affiliate_onboarding_invite_wizard",
+"affiliate-comparison": "affiliate_performance_comparison",
+"affiliates-list": "affiliates_directory",
+"affiliates": "affiliates_overview",
+"support-agent-detail": "agent_detail_marcus_vance",
+"ai-assistant": "ai_assistant",
+"ai-configure": "ai_configuration",
+"ai-cost": "ai_cost_tracking",
+"ai-insights": "ai_insights",
+"ai": "ai_overview",
+"ai-quota": "ai_usage_quota_rate_limit",
+"kyc-aml-cases": "aml_cases",
+"analytics": "analytics_overview",
+"ai-anomaly": "anomaly_detection",
+"notifications-archived": "archived_snoozed_notifications",
+"marketing-audience-builder": "audiences_segment_builder",
+"audit": "audit_log",
+"bank-statement-import": "bank_statement_import",
+"banner-management": "banner_management",
+"breach-detail": "breach_detail_br_84920_elena_althaus",
+"breaches": "breaches",
+"bridge-sync-log": "bridge_sync_log",
+"bulk-account-operations": "bulk_account_operations",
+"payouts-bulk-approval": "bulk_payout_approval_queue",
+"bulk-phase-editor": "bulk_phase_editor",
+"marketing-campaign-detail": "campaign_detail_100k_challenge_scalper_surge",
+"certificate-detail": "certificate_detail_cert_2025_94182_elena_althaus",
+"certificate-font-upload": "certificate_font_upload",
+"certificate-management": "certificate_management",
+"certificate-template-designer": "certificate_template_designer",
+"certificates-issued": "certificates_issued",
+"challenge-analytics": "challenge_analytics_two_phase_standard",
+"challenge-comparison": "challenge_comparison",
+"challenge-config": "challenge_configuration",
+"challenge-types": "challenge_types",
+"challenges": "challenges_overview",
+"audit-change-history": "change_history",
+"change-password-dialog": "change_password_dialog",
+"chart-of-accounts": "chart_of_accounts",
+"checkout": "checkout_overview",
+"checkout-transactions": "checkout_transactions",
+"closed-position-detail": "closed_position_detail_pos_908412_xauusd",
+"closed-positions": "closed_positions",
+"cohort-builder": "cohort_builder",
+"affiliate-commission-payout": "commission_payouts",
+"audit-compliance-report": "compliance_reports",
+"connected-sessions-detail": "connected_session_detail_apple_mac_pro_m3_max",
+"crm-contacts": "contacts",
+"cookie-attribution": "cookie_attribution_report",
+"copy-trading-analysis": "copy_trading_analysis",
+"copy-trading-events": "copy_trading_events",
+"risk-coupon-vs-payouts": "coupon_vs_payouts",
+"challenge-wizard": "create_challenge_wizard",
+"create-tenant": "create_tenant_step_3_capabilities_feature_modules",
+"crm-activity-log": "crm_activity_log_timeline",
+"crm": "crm_overview",
+"crm-pipeline": "crm_pipeline",
+"support-csat": "csat_feedback_review",
+"csv-import-dialog": "csv_import_dialog",
+"custom-segmentation": "custom_segmentation_builder",
+"analytics-daily-highlights": "daily_highlights_utc",
+"dashboard-manager": "dashboard_manager",
+"dashboard-template-library": "dashboard_template_library",
+"device-activities": "device_activities",
+"device-detail": "device_detail_view_fp_94a7c88b432e021fa09cd3491bc01ae4",
+"marketing-banner-edit": "edit_banner_summer_scalper_accelerator_2025",
+"challenge-edit": "edit_challenge_two_phase_standard",
+"notification-edit": "edit_notification_scheduled_server_maintenance_fix_bridge_failover",
+"offer-edit": "edit_offer_summer_scalper_accelerator",
+"email-template-edit": "edit_template_breach_warning_daily_drawdown",
+"marketing-email-campaigns": "email_campaigns",
+"email-templates": "email_templates",
+"payouts-enhanced-withdrawals": "enhanced_payouts",
+"checkout-external": "external_checkout_integration",
+"challenges-failed": "failed_challenges",
+"financial-reports-library": "financial_reports_library",
+"ai-finetuning": "fine_tuning",
+"analytics-firm-statistics": "firm_statistics",
+"overview-onboarding-tour": "getting_started_prop_admin_operator_onboarding",
+"group-management": "group_management",
+"risk-group-vs-payouts": "group_vs_payouts",
+"support-knowledge": "knowledge_base",
+"risk-highest-earners": "highest_earners",
+"incident-management": "incident_management",
+"inverse-trading-events": "inverse_trading_events",
+"accounting-invoices": "invoices",
+"journal-entries": "journal_entries",
+"support-knowledge-editor": "knowledge_article_editor",
+"kyc": "kyc_aml_overview",
+"kyc-provider-marketplace": "kyc_provider_marketplace",
+"kyc-providers": "kyc_provider_settings",
+"kyc-record-detail": "kyc_record_detail_elena_althaus_kyc_94182",
+"kyc-reviews": "kyc_reviews",
+"kyc-risk": "kyc_risk",
+"risk-label-vs-payouts": "label_vs_payouts",
+"crm-lead-scoring": "lead_scoring_configuration",
+"marketing-dashboard": "marketing_dashboard",
+"marketing-integrations": "marketing_integrations",
+"marketing": "marketing_overview",
+"marketing-performance": "marketing_performance",
+"challenge-marketplace-preview": "marketplace_preview_two_phase_standard",
+"ai-model-audit": "model_audit_log",
+"super-module-detail": "module_detail_super_admin",
+"help-module-detail": "module_detail_trading_execution_help_context",
+"profile-api-tokens": "my_api_tokens",
+"my-tasks": "my_tasks",
+"notifications": "notification_center",
+"notification-detail-dialog": "notification_detail_dialog",
+"notification-preferences-matrix": "notification_preferences_matrix_2",
+"notifications-management": "notifications_management",
+"offer-change-history": "offer_change_history_summer_scalper_accelerator",
+"offer-management": "offer_management",
+"offer-matching-users": "offer_matching_users_summer_scalper_accelerator",
+"trading-positions": "positions_dashboard",
+"orders": "orders_dashboard",
+"accounting-pl": "p_l_statement",
+"challenges-passed": "passed_challenges",
+"checkout-providers": "payment_providers",
+"payout-compliance": "payout_compliance_audit_report",
+"payout-detail": "payout_detail_po_94102_elena_althaus",
+"payouts-history": "payout_history",
+"payout-methods-config": "payout_methods_configuration",
+"payout-reversal": "payout_reversals_refunds",
+"payout-schedule": "payout_schedule",
+"payouts": "payouts_dashboard",
+"payouts-pending": "pending_payouts",
+"pending-task-detail": "pending_task_detail_elena_althaus",
+"pending-tasks": "pending_tasks",
+"user-audit-timeline": "per_user_audit_timeline_elena_althaus_1",
+"analytics-performance": "performance_analytics",
+"permissions-catalog": "permissions_catalog",
+"phase-detail": "phase_detail_phase_1_evaluation_alpha",
+"phase-management": "phase_management",
+"phase-migration-tool": "phase_migration_tool",
+"platform-architecture": "platform_architecture",
+"platform-audit": "platform_audit",
+"checkout-platform-overview": "platform_external_checkout_defaults",
+"checkout-platform-external-editor": "platform_external_contract_editor",
+"overview": "platform_overview_prop_admin_operations_hub",
+"platform-roles": "platform_roles",
+"platform-staff": "platform_staff",
+"checkout-platform-transactions": "platform_transactions",
+"position-detail-live": "position_detail_live_pos_894201_eurusd",
+"ai-predictive": "predictive_analytics",
+"profile": "profile",
+"ai-prompt-library": "prompt_library",
+"checkout-platform-psp-catalog": "psp_catalog",
+"checkout-psp-onboarding": "psp_onboarding_wizard",
+"reconciled-transactions": "reconciled_transactions_review",
+"accounting-reconciliation": "reconciliation",
+"recurring-invoices": "recurring_invoices",
+"refunds-credit-notes": "refunds_credit_notes",
+"checkout-refund-dispute": "refunds_disputes",
+"analytics-retention": "retention_analytics",
+"audit-retention": "retention_export_scheduling",
+"risk-revenue-loss": "revenue_loss_analysis",
+"kyc-reviewer-trail": "reviewer_audit_trail",
+"risk-alert-subscription": "risk_alert_subscriptions",
+"analytics-risk": "risk_analytics",
+"risk": "risk_overview",
+"risk-rules-editor": "risk_rules_editor",
+"risk-statistics": "risk_statistics",
+"role-audit": "role_audit_log",
+"roles-management": "roles_permissions",
+"saved-reports": "saved_reports",
+"overview-saved-views": "saved_views_multi_dashboard_switcher",
+"scheduled-exports": "scheduled_exports",
+"mt4-dxtrade-server-catalog": "server_catalog",
+"module-catalog": "service_catalog",
+"service-detail": "service_detail_fix_4.4_engine_bridge_protocol",
+"settings": "settings_landing",
+"settings-module-detail": "settings_module_detail_trading_execution",
+"checkout-settlement": "settlement_reconciliation_report",
+"audit-severity-policy": "severity_policy_configuration",
+"audit-siem": "siem_external_sinks",
+"support-sla": "sla_management",
+"pending-snoozed-resolved": "snoozed_resolved_history",
+"social-media-links": "social_media_links",
+"support-canned-responses": "support_canned_responses",
+"support-contact": "support_contact",
+"support": "support_overview",
+"support-tickets": "support_tickets",
+"platform-health": "system_health",
+"tax-vat-config": "tax_vat_configuration",
+"team-members": "team_members",
+"marketing-template-editor": "template_editor",
+"tenant-billing-detail": "tenant_billing_detail_alpha_capital_media",
+"checkout-platform-tenants": "tenant_checkout_matrix",
+"tenant-detail": "tenant_detail_alpha_capital_media",
+"tenant-impersonation-audit": "tenant_impersonation_audit_trail",
+"tenant-lifecycle": "tenant_lifecycle",
+"tenants": "tenants_directory",
+"token-detail": "token_detail_fix_4.4_bridge_dispatcher",
+"token-management": "token_management",
+"analytics-traders": "trader_analytics",
+"trader-audit-log": "trader_audit_log_elena_althaus",
+"trader-comparison": "trader_comparison",
+"trader-detail": "trader_detail_elena_althaus",
+"trader-risk-score-detail": "trader_risk_score_elena_althaus",
+"trading-traders": "traders_directory",
+"trading-credentials": "trading_credentials_mt5_882049_elena_althaus",
+"trading-events": "trading_event_rules",
+"trading": "trading_overview",
+"ai-training-export": "training_data_export",
+"transaction-detail": "transaction_detail_tx_94182_elena_althaus",
+"accounting-transactions": "transactions",
+"risk-unprofitable-countries": "unprofitable_countries",
+"audit-user-event-detail": "user_event_detail_evt_01jwm48ak927qw89_elena_althaus",
+"audit-user-events": "user_events",
+"audit-user-events-enhanced": "user_events_enhanced",
+"user-management": "user_management",
+"utilities": "utilities",
+"vpn-proxy-detection-dashboard": "vpn_proxy_detection",
+"checkout-webhook-log": "webhook_log_viewer",
+"weekend-trades": "weekend_trades",
+"help-changelog": "what_s_new_changelog"
+},
+"base_map": {
+"2fa_setup_dialog": "2fa-setup-dialog",
+"account_broker_details_mt5_882049_elena_althaus": "account-broker-details",
+"account_configuration_mt5_882049_elena_althaus": "account-configuration",
+"account_events_mt5_882049_elena_althaus": "account-events",
+"account_ip_addresses": "account-ip-addresses",
+"account_kyc_statuses_mt5_882049_elena_althaus": "account-kyc-statuses",
+"account_label_analysis": "risk-account-label-analysis",
+"account_linkage_graph": "account-linkage-graph",
+"account_related_accounts_mt5_882049_elena_althaus": "account-related-accounts",
+"account_version_history_mt5_882049_elena_althaus": "account-version-history",
+"account_workspace_mt5_882049_elena_althaus": "account-workspace",
+"accounting_overview": "accounting",
+"accounts_dashboard": "trading-accounts",
+"active_challenges": "challenges-active",
+"ad_account_connections": "marketing-ad-accounts",
+"ad_spend": "marketing-ad-spend",
+"add_account_provisioning_wizard": "trading-add-account",
+"add_account_step_5_review_confirm": "trading-add-account",
+"add_contact_flow_step_2_stage_allocation_owner": "crm-contact-create",
+"add_group_sheet": "add-group-sheet",
+"add_on_revenue": "risk-addon-revenue",
+"advanced_analytics": "analytics-advanced",
+"affiliate_campaigns": "affiliates-campaigns",
+"affiliate_commissions": "affiliates-commissions",
+"affiliate_coupons": "affiliate-coupons",
+"affiliate_detail_alpha_capital_media": "affiliate-detail",
+"affiliate_link_tracking": "affiliate-link-tracking",
+"affiliate_onboarding_invite_wizard": "affiliate-onboarding",
+"affiliate_performance_comparison": "affiliate-comparison",
+"affiliates_directory": "affiliates-list",
+"affiliates_overview": "affiliates",
+"agent_detail_marcus_vance": "support-agent-detail",
+"ai_assistant": "ai-assistant",
+"ai_configuration": "ai-configure",
+"ai_cost_tracking": "ai-cost",
+"ai_insights": "ai-insights",
+"ai_overview": "ai",
+"ai_usage_quota_rate_limit": "ai-quota",
+"aml_cases": "kyc-aml-cases",
+"analytics_overview": "analytics",
+"anomaly_detection": "ai-anomaly",
+"archived_snoozed_notifications": "notifications-archived",
+"audiences_segment_builder": "marketing-audience-builder",
+"audit_log": "audit",
+"bank_statement_import": "bank-statement-import",
+"banner_management": "banner-management",
+"breach_detail_br_84920_elena_althaus": "breach-detail",
+"breaches": "breaches",
+"bridge_sync_log": "bridge-sync-log",
+"bulk_account_operations": "bulk-account-operations",
+"bulk_payout_approval_queue": "payouts-bulk-approval",
+"bulk_phase_editor": "bulk-phase-editor",
+"campaign_detail_100k_challenge_scalper_surge": "marketing-campaign-detail",
+"campaigns": "affiliates-campaigns",
+"certificate_detail_cert_2025_94182_elena_althaus": "certificate-detail",
+"certificate_font_upload": "certificate-font-upload",
+"certificate_management": "certificate-management",
+"certificate_template_designer": "certificate-template-designer",
+"certificates_issued": "certificates-issued",
+"challenge_analytics_two_phase_standard": "challenge-analytics",
+"challenge_comparison": "challenge-comparison",
+"challenge_configuration": "challenge-config",
+"challenge_types": "challenge-types",
+"challenges_overview": "challenges",
+"change_history": "audit-change-history",
+"change_password_dialog": "change-password-dialog",
+"chart_of_accounts": "chart-of-accounts",
+"checkout_overview": "checkout",
+"checkout_transactions": "checkout-transactions",
+"closed_position_detail_pos_908412_xauusd": "closed-position-detail",
+"closed_positions": "closed-positions",
+"cohort_builder": "cohort-builder",
+"commission_payouts": "affiliate-commission-payout",
+"compliance_reports": "audit-compliance-report",
+"connected_session_detail_apple_mac_pro_m3_max": "connected-sessions-detail",
+"contacts": "crm-contacts",
+"cookie_attribution_report": "cookie-attribution",
+"copy_trading_analysis": "copy-trading-analysis",
+"copy_trading_events": "copy-trading-events",
+"coupon_vs_payouts": "risk-coupon-vs-payouts",
+"create_challenge_wizard": "challenge-wizard",
+"create_challenge_wizard_step_7_review_launch": "challenge-wizard",
+"create_tenant": "create-tenant",
+"create_tenant_step_2_branding_visual_tokens": "create-tenant",
+"create_tenant_step_3_capabilities_feature_modules": "create-tenant",
+"create_tenant_step_4_admin_security_credentials": "create-tenant",
+"create_tenant_step_5_review_launch": "create-tenant",
+"crm_activity_log_timeline": "crm-activity-log",
+"crm_overview": "crm",
+"crm_pipeline": "crm-pipeline",
+"csat_feedback_review": "support-csat",
+"csv_import_dialog": "csv-import-dialog",
+"custom_segmentation_builder": "custom-segmentation",
+"daily_highlights_utc": "analytics-daily-highlights",
+"dashboard_manager": "dashboard-manager",
+"dashboard_template_library": "dashboard-template-library",
+"device_activities": "device-activities",
+"device_detail_view_fp_94a7c88b432e021fa09cd3491bc01ae4": "device-detail",
+"edit_banner_summer_scalper_accelerator_2025": "marketing-banner-edit",
+"edit_campaign_summer_scalper_accelerator_2025": "marketing-campaign-detail",
+"edit_challenge_two_phase_standard": "challenge-edit",
+"edit_notification_scheduled_server_maintenance_fix_bridge_failover": "notification-edit",
+"edit_offer_summer_scalper_accelerator": "offer-edit",
+"edit_template_breach_warning_daily_drawdown": "email-template-edit",
+"email_campaigns": "marketing-email-campaigns",
+"email_templates": "email-templates",
+"enhanced_payouts": "payouts-enhanced-withdrawals",
+"external_checkout_integration": "checkout-external",
+"failed_challenges": "challenges-failed",
+"financial_reports_library": "financial-reports-library",
+"fine_tuning": "ai-finetuning",
+"firm_statistics": "analytics-firm-statistics",
+"getting_started_prop_admin_operator_onboarding": "overview-onboarding-tour",
+"group_management": "group-management",
+"group_vs_payouts": "risk-group-vs-payouts",
+"help_center_knowledge_base": "support-knowledge",
+"highest_earners": "risk-highest-earners",
+"incident_management": "incident-management",
+"inverse_trading_events": "inverse-trading-events",
+"invoices": "accounting-invoices",
+"journal_entries": "journal-entries",
+"knowledge_article_editor": "support-knowledge-editor",
+"knowledge_base": "support-knowledge",
+"kyc_aml_overview": "kyc",
+"kyc_provider_marketplace": "kyc-provider-marketplace",
+"kyc_provider_settings": "kyc-providers",
+"kyc_providers": "kyc-providers",
+"kyc_record_detail_elena_althaus_kyc_94182": "kyc-record-detail",
+"kyc_reviews": "kyc-reviews",
+"kyc_risk": "kyc-risk",
+"label_vs_payouts": "risk-label-vs-payouts",
+"lead_scoring_configuration": "crm-lead-scoring",
+"marketing_dashboard": "marketing-dashboard",
+"marketing_integrations": "marketing-integrations",
+"marketing_overview": "marketing",
+"marketing_performance": "marketing-performance",
+"marketplace_preview_two_phase_standard": "challenge-marketplace-preview",
+"model_audit_log": "ai-model-audit",
+"module_detail_super_admin": "super-module-detail",
+"module_detail_trading_execution_help_context": "help-module-detail",
+"my_api_tokens": "profile-api-tokens",
+"my_tasks": "my-tasks",
+"notification_center": "notifications",
+"notification_detail_dialog": "notification-detail-dialog",
+"notification_preferences_matrix_1": "notification-preferences-matrix",
+"notification_preferences_matrix_2": "notification-preferences-matrix",
+"notifications_management": "notifications-management",
+"offer_change_history_summer_scalper_accelerator": "offer-change-history",
+"offer_management": "offer-management",
+"offer_matching_users_summer_scalper_accelerator": "offer-matching-users",
+"open_positions": "trading-positions",
+"orders_dashboard": "orders",
+"p_l_statement": "accounting-pl",
+"passed_challenges": "challenges-passed",
+"payment_providers": "checkout-providers",
+"payout_compliance_audit_report": "payout-compliance",
+"payout_detail_po_94102_elena_althaus": "payout-detail",
+"payout_history": "payouts-history",
+"payout_methods_configuration": "payout-methods-config",
+"payout_reversals_refunds": "payout-reversal",
+"payout_schedule": "payout-schedule",
+"payouts_dashboard": "payouts",
+"pending_payouts": "payouts-pending",
+"pending_task_detail_elena_althaus": "pending-task-detail",
+"pending_tasks": "pending-tasks",
+"per_user_audit_timeline_elena_althaus_1": "user-audit-timeline",
+"per_user_audit_timeline_elena_althaus_2": "user-audit-timeline",
+"performance_analytics": "analytics-performance",
+"permissions_catalog": "permissions-catalog",
+"phase_detail_phase_1_evaluation_alpha": "phase-detail",
+"phase_management": "phase-management",
+"phase_migration_tool": "phase-migration-tool",
+"platform_architecture": "platform-architecture",
+"platform_audit": "platform-audit",
+"platform_external_checkout_defaults": "checkout-platform-overview",
+"platform_external_contract_editor": "checkout-platform-external-editor",
+"platform_overview": "checkout-platform-overview",
+"platform_overview_checkout_management": "checkout-platform-overview",
+"platform_overview_prop_admin_operations_hub": "overview",
+"platform_roles": "platform-roles",
+"platform_staff": "platform-staff",
+"platform_transactions": "checkout-platform-transactions",
+"position_detail_live_pos_894201_eurusd": "position-detail-live",
+"positions_dashboard": "trading-positions",
+"predictive_analytics": "ai-predictive",
+"profile": "profile",
+"prompt_library": "ai-prompt-library",
+"psp_catalog": "checkout-platform-psp-catalog",
+"psp_onboarding_wizard": "checkout-psp-onboarding",
+"reconciled_transactions_review": "reconciled-transactions",
+"reconciliation": "accounting-reconciliation",
+"recurring_invoices": "recurring-invoices",
+"refunds_credit_notes": "refunds-credit-notes",
+"refunds_disputes": "checkout-refund-dispute",
+"retention_analytics": "analytics-retention",
+"retention_export_scheduling": "audit-retention",
+"revenue_loss_analysis": "risk-revenue-loss",
+"reviewer_audit_trail": "kyc-reviewer-trail",
+"risk_alert_subscriptions": "risk-alert-subscription",
+"risk_analytics": "analytics-risk",
+"risk_overview": "risk",
+"risk_rules_editor": "risk-rules-editor",
+"risk_statistics": "risk-statistics",
+"risk_surveillance_notifications": "risk-alert-subscription",
+"role_audit_log": "role-audit",
+"roles_permissions": "roles-management",
+"saved_reports": "saved-reports",
+"saved_views_multi_dashboard_switcher": "overview-saved-views",
+"scheduled_exports": "scheduled-exports",
+"server_catalog": "mt4-dxtrade-server-catalog",
+"service_catalog": "module-catalog",
+"service_detail_fix_4.4_engine_bridge_protocol": "service-detail",
+"settings_landing": "settings",
+"settings_module_detail_trading_execution": "settings-module-detail",
+"settlement_reconciliation_report": "checkout-settlement",
+"severity_policy_configuration": "audit-severity-policy",
+"siem_external_sinks": "audit-siem",
+"sla_management": "support-sla",
+"snoozed_resolved_history": "pending-snoozed-resolved",
+"social_media_links": "social-media-links",
+"support_canned_responses": "support-canned-responses",
+"support_contact": "support-contact",
+"support_overview": "support",
+"support_tickets": "support-tickets",
+"system_health": "platform-health",
+"tax_vat_configuration": "tax-vat-config",
+"team_members": "team-members",
+"template_editor": "marketing-template-editor",
+"tenant_billing_detail_alpha_capital_media": "tenant-billing-detail",
+"tenant_checkout_matrix": "checkout-platform-tenants",
+"tenant_detail_alpha_capital_media": "tenant-detail",
+"tenant_impersonation_audit_trail": "tenant-impersonation-audit",
+"tenant_lifecycle": "tenant-lifecycle",
+"tenants_directory": "tenants",
+"token_detail_fix_4.4_bridge_dispatcher": "token-detail",
+"token_management": "token-management",
+"trader_accounts": "trading-accounts",
+"trader_analytics": "analytics-traders",
+"trader_audit_log_elena_althaus": "trader-audit-log",
+"trader_comparison": "trader-comparison",
+"trader_detail_elena_althaus": "trader-detail",
+"trader_detail_new_onboarding_state_pending_kyc_unfunded": "trader-detail",
+"trader_risk_score_elena_althaus": "trader-risk-score-detail",
+"traders_directory": "trading-traders",
+"trading_credentials_mt5_882049_elena_althaus": "trading-credentials",
+"trading_event_rules": "trading-events",
+"trading_overview": "trading",
+"training_data_export": "ai-training-export",
+"transaction_detail_tx_94182_elena_althaus": "transaction-detail",
+"transaction_detail_tx_gl_94182_elena_althaus": "transaction-detail",
+"transactions": "accounting-transactions",
+"unprofitable_countries": "risk-unprofitable-countries",
+"user_event_detail_evt_01jwm48ak927qw89_elena_althaus": "audit-user-event-detail",
+"user_events": "audit-user-events",
+"user_events_enhanced": "audit-user-events-enhanced",
+"user_events_enhanced_forensic_replay_cryptographic_proof_verification_modal": "audit-user-events-enhanced",
+"user_management": "user-management",
+"utilities": "utilities",
+"vpn_proxy_detection": "vpn-proxy-detection-dashboard",
+"webhook_log_viewer": "checkout-webhook-log",
+"weekend_trades": "weekend-trades",
+"what_s_new_changelog": "help-changelog"
+},
+"state_map": {
+"2fa_setup_dialog_disable_2fa_destructive_confirmation_state": "2fa_setup_dialog",
+"2fa_setup_dialog_step_4_emergency_backup_codes_state": "2fa_setup_dialog",
+"account_broker_details_active_edit_mode_state": "account_broker_details_mt5_882049_elena_althaus",
+"account_broker_details_bridge_connection_log_modal_state": "account_broker_details_mt5_882049_elena_althaus",
+"account_configuration_resend_credentials_sheet_state": "account_configuration_mt5_882049_elena_althaus",
+"account_configuration_reset_account_destructive_confirmation_state": "account_configuration_mt5_882049_elena_althaus",
+"account_events_event_detail_sheet_state": "account_events_mt5_882049_elena_althaus",
+"account_events_subscribe_to_events_sheet_state": "account_events_mt5_882049_elena_althaus",
+"account_ip_addresses_block_ip_confirmation_alertdialog_state": "account_ip_addresses",
+"account_ip_addresses_ip_detail_inspection_sheet_state": "account_ip_addresses",
+"account_kyc_statuses_document_detail_inspection_sheet_state": "account_kyc_statuses_mt5_882049_elena_althaus",
+"account_kyc_statuses_mark_all_approved_confirmation_state": "account_kyc_statuses_mt5_882049_elena_althaus",
+"account_label_analysis_account_drill_down_sheet_state": "account_label_analysis",
+"account_label_analysis_bulk_change_label_sheet_state": "account_label_analysis",
+"account_linkage_graph_block_cluster_confirmation_alertdialog_state": "account_linkage_graph",
+"account_linkage_graph_relationship_detail_sheet_state": "account_linkage_graph",
+"account_related_accounts_compare_accounts_sheet_state": "account_related_accounts_mt5_882049_elena_althaus",
+"account_related_accounts_link_account_drawer_state": "account_related_accounts_mt5_882049_elena_althaus",
+"account_version_history_compare_two_versions_sheet_state": "account_version_history_mt5_882049_elena_althaus",
+"account_version_history_revert_to_version_destructive_confirmation_state": "account_version_history_mt5_882049_elena_althaus",
+"account_workspace_block_account_risk_quarantine_confirmation_state": "account_workspace_mt5_882049_elena_althaus",
+"account_workspace_sync_bridge_reconciliation_modal_state": "account_workspace_mt5_882049_elena_althaus",
+"accounting_overview_create_journal_entry_sheet_state": "accounting_overview",
+"accounting_overview_kpi_drill_down_sheet_state": "accounting_overview",
+"accounts_dashboard_kpi_drill_down_sheet_state": "accounts_dashboard",
+"accounts_dashboard_pass_fail_day_inspection_sheet_state": "accounts_dashboard",
+"active_challenges_add_note_sheet_state": "active_challenges",
+"active_challenges_bulk_extend_sheet_state": "active_challenges",
+"ad_account_connections_connect_ad_account_sheet_state": "ad_account_connections",
+"ad_account_connections_disconnect_account_confirmation_alertdialog_state": "ad_account_connections",
+"ad_spend_ad_campaign_detail_configuration_sheet_state": "ad_spend",
+"ad_spend_delete_campaign_confirmation_alertdialog_state": "ad_spend",
+"add_account_validation_error_bridge_failure_state": "add_account_provisioning_wizard",
+"add_contact_flow_new_contact_slide_over_sheet_state": "add_contact_flow_step_2_stage_allocation_owner",
+"add_contact_flow_validation_domain_verification_error_state": "add_contact_flow_step_2_stage_allocation_owner",
+"add_on_revenue_add_on_drill_down_sheet_state": "add_on_revenue",
+"add_on_revenue_archive_add_on_alertdialog_state": "add_on_revenue",
+"advanced_analytics_anomaly_investigation_sheet_state": "advanced_analytics",
+"advanced_analytics_churn_outreach_sheet_state": "advanced_analytics",
+"affiliate_campaigns_delete_campaign_destructive_confirmation_alertdialog_state": "affiliate_campaigns",
+"affiliate_campaigns_pause_campaign_alertdialog_state": "affiliate_campaigns",
+"affiliate_commissions_bulk_commission_payout_sheet_state": "affiliate_commissions",
+"affiliate_commissions_commission_ledger_sheet_state": "affiliate_commissions",
+"affiliate_coupons_disable_coupon_alertdialog_state": "affiliate_coupons",
+"affiliate_coupons_edit_coupon_sheet_state": "affiliate_coupons",
+"affiliate_detail_edit_profile_sheet_state": "affiliate_detail_alpha_capital_media",
+"affiliate_detail_suspend_affiliate_alertdialog_state": "affiliate_detail_alpha_capital_media",
+"affiliate_link_tracking_link_analytics_sheet_state": "affiliate_link_tracking",
+"affiliate_link_tracking_suspend_link_alertdialog_state": "affiliate_link_tracking",
+"affiliate_onboarding_save_send_invite_confirmation_alertdialog_state": "affiliate_onboarding_invite_wizard",
+"affiliate_onboarding_validation_missing_fields_alertdialog_state": "affiliate_onboarding_invite_wizard",
+"affiliate_performance_comparison_add_affiliate_modal_state": "affiliate_performance_comparison",
+"affiliate_performance_comparison_metric_drill_down_sheet_state": "affiliate_performance_comparison",
+"affiliates_directory_bulk_commission_payout_sheet_state": "affiliates_directory",
+"affiliates_directory_suspend_affiliate_alertdialog_state": "affiliates_directory",
+"affiliates_overview_custom_date_range_sheet_state": "affiliates_overview",
+"affiliates_overview_invite_affiliate_sheet_state": "affiliates_overview",
+"agent_detail_assign_tickets_sheet_state": "agent_detail_marcus_vance",
+"agent_detail_reassign_all_tickets_alertdialog_state": "agent_detail_marcus_vance",
+"ai_configuration_interactive_model_test_sandbox_modal_state": "ai_configuration",
+"ai_configuration_reset_to_defaults_confirmation_alertdialog_state": "ai_configuration",
+"ai_cost_tracking_budget_alert_spend_cap_modal_state": "ai_cost_tracking",
+"ai_cost_tracking_model_unit_economics_sheet_state": "ai_cost_tracking",
+"ai_insights_all_caught_up_empty_state": "ai_insights",
+"ai_insights_no_filter_results_state": "ai_insights",
+"ai_insights_per_insight_detail_sheet_state": "ai_insights",
+"ai_insights_reasoning_shap_attribution_sheet_state": "ai_insights",
+"ai_insights_snooze_insight_confirmation_alertdialog_state": "ai_insights",
+"ai_overview_anomaly_triage_immediate_intervention_drawer_state": "ai_overview",
+"ai_overview_model_diagnostics_calibration_modal_state": "ai_overview",
+"ai_usage_quota_reset_counters_confirmation_alertdialog_state": "ai_usage_quota_rate_limit",
+"ai_usage_quota_tenant_quota_override_sheet_state": "ai_usage_quota_rate_limit",
+"aml_cases_file_fincen_sar_sheet_state": "aml_cases",
+"aml_cases_mark_cleared_case_disposition_modal_state": "aml_cases",
+"analytics_overview_chart_point_drill_down_sheet_state": "analytics_overview",
+"analytics_overview_save_as_report_sheet_state": "analytics_overview",
+"anomaly_detection_acknowledge_all_nominal_alertdialog_state": "anomaly_detection",
+"anomaly_detection_all_nominal_empty_state": "anomaly_detection",
+"archived_notifications_tab_permanent_purge_alertdialog_state": "archived_snoozed_notifications",
+"archived_snoozed_notifications_all_dormant_cleared_empty_state": "archived_snoozed_notifications",
+"audiences_segment_builder_import_csv_modal_state": "audiences_segment_builder",
+"audiences_segment_builder_segment_builder_sheet_state": "audiences_segment_builder",
+"audit_log_audit_entry_detail_flag_for_compliance_review_dialog_state": "audit_log",
+"audit_log_audit_entry_detail_sheet_raw_payload_state": "audit_log",
+"audit_log_audit_entry_detail_sheet_state": "audit_log",
+"audit_log_export_cryptographic_proof_worm_dossier_modal_state": "audit_log",
+"audit_log_no_filter_results_state": "audit_log",
+"bank_statement_import_manual_match_sheet_state": "bank_statement_import",
+"bank_statement_import_new_import_sheet_state": "bank_statement_import",
+"banner_management_add_banner_slide_over_sheet_state": "banner_management",
+"banner_management_delete_banner_destructive_confirmation_alertdialog_state": "banner_management",
+"breach_detail_reopen_breach_modal_state": "breach_detail_br_84920_elena_althaus",
+"breach_detail_resolve_breach_sheet_state": "breach_detail_br_84920_elena_althaus",
+"breaches_bulk_escalate_sheet_state": "breaches",
+"breaches_bulk_resolve_confirmation_alertdialog_state": "breaches",
+"bridge_sync_log_retry_failed_replay_progress_state": "bridge_sync_log",
+"bridge_sync_log_sync_detail_sheet_state": "bridge_sync_log",
+"bulk_account_operations_operation_history_sheet_state": "bulk_account_operations",
+"bulk_account_operations_step_4_review_execute_alertdialog_state": "bulk_account_operations",
+"bulk_payout_approval_queue_approve_selected_alertdialog_state": "bulk_payout_approval_queue",
+"bulk_payout_approval_queue_two_person_policy_sheet_state": "bulk_payout_approval_queue",
+"bulk_phase_editor_apply_confirmation_alertdialog_state": "bulk_phase_editor",
+"bulk_phase_editor_edit_history_sheet_state": "bulk_phase_editor",
+"campaign_detail_delete_campaign_confirmation_alertdialog_state": "campaign_detail_100k_challenge_scalper_surge",
+"campaign_detail_edit_campaign_sheet_state": "campaign_detail_100k_challenge_scalper_surge",
+"campaigns_empty_state": "campaigns",
+"campaigns_no_filter_results_state": "campaigns",
+"certificate_detail_audit_trail_lifecycle_history_sheet_state": "certificate_detail_cert_2025_94182_elena_althaus",
+"certificate_detail_revoke_invalidate_certificate_alertdialog_state": "certificate_detail_cert_2025_94182_elena_althaus",
+"certificate_font_upload_delete_font_destructive_confirmation_alertdialog_state": "certificate_font_upload",
+"certificate_font_upload_font_subsetting_glyph_packaging_sheet_state": "certificate_font_upload",
+"certificate_management_ca_signature_hardware_key_rotation_confirmation": "certificate_management",
+"certificate_management_quick_full_preview_modal_state": "certificate_management",
+"certificate_template_designer_add_dynamic_overlay_field_sheet_state": "certificate_template_designer",
+"certificate_template_designer_full_screen_visual_canvas_modal_state": "certificate_template_designer",
+"certificates_issued_issue_certificate_slide_over_sheet_state": "certificates_issued",
+"certificates_issued_no_filter_results_state": "certificates_issued",
+"challenge_analytics_empty_no_data_state": "challenge_analytics_two_phase_standard",
+"challenge_analytics_save_view_sheet_state": "challenge_analytics_two_phase_standard",
+"challenge_comparison_pick_challenge_type_sheet_state": "challenge_comparison",
+"challenge_comparison_schedule_report_sheet_state": "challenge_comparison",
+"challenge_configuration_add_challenge_type_sheet_state": "challenge_configuration",
+"challenge_configuration_test_configuration_dry_run_simulation_sheet_state": "challenge_configuration",
+"challenge_types_add_challenge_type_sheet_state": "challenge_types",
+"challenge_types_disable_challenge_type_confirmation_alertdialog_state": "challenge_types",
+"challenges_overview_extend_time_modal_state": "challenges_overview",
+"challenges_overview_force_fail_confirmation_alertdialog_state": "challenges_overview",
+"challenges_overview_issue_payout_sheet_state_1": "challenges_overview",
+"challenges_overview_issue_payout_sheet_state_2": "challenges_overview",
+"change_history_no_filter_results_state": "change_history",
+"change_history_rollback_configuration_confirmation_alertdialog_state": "change_history",
+"change_password_dialog_success_cryptographic_receipt_state": "change_password_dialog",
+"change_password_dialog_validation_error_policy_rejection_state": "change_password_dialog",
+"chart_of_accounts_account_detail_audit_inspection_sheet_state": "chart_of_accounts",
+"chart_of_accounts_new_account_sheet_state": "chart_of_accounts",
+"checkout_overview_external_headless_active_mode_state": "checkout_overview",
+"checkout_overview_switch_mode_confirmation_alertdialog_state": "checkout_overview",
+"checkout_transactions_issue_refund_confirmation_alertdialog_state": "checkout_transactions",
+"checkout_transactions_reconciliation_audit_trail_sheet_state": "checkout_transactions",
+"closed_position_detail_destructive_delete_confirmation_state": "closed_position_detail_pos_908412_xauusd",
+"closed_position_detail_reopen_reverse_position_modal_state": "closed_position_detail_pos_908412_xauusd",
+"closed_positions_empty_state": "closed_positions",
+"closed_positions_no_filter_results_state": "closed_positions",
+"cohort_builder_full_retention_matrix_sheet_state": "cohort_builder",
+"cohort_builder_save_cohort_sheet_state": "cohort_builder",
+"commission_payouts_batch_disburse_approved_payouts_alertdialog_state": "commission_payouts",
+"commission_payouts_payout_detail_audit_inspection_sheet_state": "commission_payouts",
+"connected_session_detail_cryptographic_worm_proof_modal_state": "connected_session_detail_apple_mac_pro_m3_max",
+"connected_session_detail_revoke_session_confirmation_alertdialog_state": "connected_session_detail_apple_mac_pro_m3_max",
+"contacts_contact_detail_sheet_state": "contacts",
+"contacts_delete_contact_confirmation_alertdialog_state": "contacts",
+"cookie_attribution_report_affiliate_attribution_detail_sheet_state": "cookie_attribution_report",
+"cookie_attribution_report_model_settings_attribution_methodology_modal_state": "cookie_attribution_report",
+"copy_trading_events_bulk_expired_confirmation_alertdialog_state": "copy_trading_events",
+"copy_trading_events_event_detail_sheet_state": "copy_trading_events",
+"coupon_vs_payouts_archive_coupon_alertdialog_state": "coupon_vs_payouts",
+"coupon_vs_payouts_coupon_drill_down_sheet_state": "coupon_vs_payouts",
+"create_challenge_wizard_marketplace_trader_preview_sheet_state": "create_challenge_wizard",
+"crm_activity_log_timeline_empty_state": "crm_activity_log_timeline",
+"crm_activity_log_timeline_no_filter_results_state": "crm_activity_log_timeline",
+"crm_overview_empty_first_time_state": "crm_overview",
+"crm_overview_export_contacts_modal_state": "crm_overview",
+"crm_pipeline_deal_contact_inspection_sheet_state": "crm_pipeline",
+"crm_pipeline_filter_stages_owners_sheet_state": "crm_pipeline",
+"csat_feedback_dispute_rating_alertdialog_state": "csat_feedback_review",
+"csat_feedback_follow_up_outreach_resolution_drawer_state": "csat_feedback_review",
+"csv_import_dialog_step_1_upload_csv_state": "csv_import_dialog",
+"csv_import_dialog_step_4_confirm_dispatch_state": "csv_import_dialog",
+"custom_segmentation_builder_matching_traders_sheet_state": "custom_segmentation_builder",
+"custom_segmentation_builder_save_segment_sheet_state": "custom_segmentation_builder",
+"daily_highlights_country_hourly_breakdown_sheet_state": "daily_highlights_utc",
+"daily_highlights_recent_order_detail_sheet_state": "daily_highlights_utc",
+"dashboard_manager_per_widget_configuration_modal_state": "dashboard_manager",
+"dashboard_manager_publish_to_all_tenants_confirmation_alertdialog_state": "dashboard_manager",
+"dashboard_template_library_save_current_as_template_sheet_state": "dashboard_template_library",
+"dashboard_template_library_template_preview_modal_state": "dashboard_template_library",
+"device_activities_suspicious_sybil_cluster_scan_drawer_state": "device_activities",
+"device_activities_terminate_session_quarantine_device_alertdialog_state": "device_activities",
+"device_detail_view_block_device_confirmation_alertdialog_state": "device_detail_view_fp_94a7c88b432e021fa09cd3491bc01ae4",
+"device_detail_view_force_logout_all_sessions_alertdialog_state": "device_detail_view_fp_94a7c88b432e021fa09cd3491bc01ae4",
+"edit_banner_a_b_test_variant_configuration_sheet_state": "edit_banner_summer_scalper_accelerator_2025",
+"edit_banner_discard_unsaved_changes_confirmation_alertdialog_state": "edit_banner_summer_scalper_accelerator_2025",
+"edit_campaign_discard_unsaved_changes_alertdialog_state": "edit_campaign_summer_scalper_accelerator_2025",
+"edit_campaign_test_edge_redirect_sandbox_sheet_state": "edit_campaign_summer_scalper_accelerator_2025",
+"edit_challenge_publish_confirmation_live_impact_alertdialog_state": "edit_challenge_two_phase_standard",
+"edit_challenge_version_history_audit_diff_sheet_state": "edit_challenge_two_phase_standard",
+"edit_offer_preview_as_trader_sheet_state": "edit_offer_summer_scalper_accelerator",
+"edit_offer_schedule_activation_sheet_state": "edit_offer_summer_scalper_accelerator",
+"edit_template_raw_html_liquid_syntax_editor_state": "edit_template_breach_warning_daily_drawdown",
+"edit_template_version_history_audit_diff_sheet_state": "edit_template_breach_warning_daily_drawdown",
+"email_campaigns_campaign_inspection_telemetry_sheet_state": "email_campaigns",
+"email_campaigns_create_campaign_slide_over_sheet_state": "email_campaigns",
+"email_templates_delete_template_destructive_confirmation_alertdialog_state": "email_templates",
+"email_templates_send_test_email_simulation_modal_state": "email_templates",
+"enhanced_payouts_payout_detail_sheet_state": "enhanced_payouts",
+"enhanced_payouts_reject_selected_confirmation_alertdialog_state": "enhanced_payouts",
+"external_checkout_integration_disable_external_ingress_confirmation_alertdialog": "external_checkout_integration",
+"external_checkout_integration_test_webhook_event_simulation_sheet_state": "external_checkout_integration",
+"failed_challenges_add_to_re_engagement_campaign_sheet_state": "failed_challenges",
+"failed_challenges_bulk_offer_retry_sheet_state": "failed_challenges",
+"financial_reports_library_delete_report_confirmation_alertdialog_state": "financial_reports_library",
+"financial_reports_library_new_report_creation_wizard_sheet_state": "financial_reports_library",
+"fine_tuning_cancel_fine_tune_job_confirmation_alertdialog_state": "fine_tuning",
+"fine_tuning_new_fine_tune_job_configuration_sheet_state": "fine_tuning",
+"firm_statistics_export_financials_csv_sheet_state": "firm_statistics",
+"firm_statistics_ratio_methodology_audit_modal_state": "firm_statistics",
+"getting_started_restart_onboarding_alertdialog_state": "getting_started_prop_admin_operator_onboarding",
+"getting_started_video_walkthrough_modal_state": "getting_started_prop_admin_operator_onboarding",
+"group_management_delete_group_destructive_confirmation_alertdialog_state": "group_management",
+"group_management_rule_override_execution_policy_sheet_state": "group_management",
+"group_vs_payouts_account_drill_down_sheet_state": "group_vs_payouts",
+"group_vs_payouts_schedule_group_report_sheet_state": "group_vs_payouts",
+"help_center_active_search_filtered_results_state": "help_center_knowledge_base",
+"help_center_article_detail_runbook_view_state": "help_center_knowledge_base",
+"highest_earners_add_to_vip_tier_alertdialog_state": "highest_earners",
+"highest_earners_send_bonus_sheet_state": "highest_earners",
+"inverse_trading_events_bulk_expired_confirmation_alertdialog_state": "inverse_trading_events",
+"inverse_trading_events_event_detail_sheet_state": "inverse_trading_events",
+"invoices_create_invoice_sheet_state": "invoices",
+"invoices_view_invoice_detail_sheet_state": "invoices",
+"journal_entries_create_journal_entry_sheet_state": "journal_entries",
+"journal_entries_entry_detail_audit_inspection_sheet_state": "journal_entries",
+"knowledge_base_manage_categories_sheet_state": "knowledge_base",
+"knowledge_base_no_filter_results_state": "knowledge_base",
+"kyc_aml_overview_all_cleared_empty_state": "kyc_aml_overview",
+"kyc_aml_overview_no_filter_results_state": "kyc_aml_overview",
+"kyc_provider_marketplace_connect_provider_sheet_state": "kyc_provider_marketplace",
+"kyc_provider_marketplace_side_by_side_comparison_spec_matrix_modal_state": "kyc_provider_marketplace",
+"kyc_provider_settings_switch_active_provider_confirmation_alertdialog_state": "kyc_provider_settings",
+"kyc_provider_settings_test_connection_diagnostic_ping_state": "kyc_provider_settings",
+"kyc_providers_deactivate_provider_confirmation_alertdialog_state": "kyc_providers",
+"kyc_providers_edit_configuration_sheet_state": "kyc_providers",
+"kyc_record_detail_escalate_to_aml_modal_state": "kyc_record_detail_elena_althaus_kyc_94182",
+"kyc_record_detail_request_additional_information_sheet_state": "kyc_record_detail_elena_althaus_kyc_94182",
+"kyc_reviews_all_cleared_empty_state": "kyc_reviews",
+"kyc_reviews_no_filter_results_state": "kyc_reviews",
+"kyc_risk_all_nominal_zero_exposure_state": "kyc_risk",
+"kyc_risk_no_filter_results_state": "kyc_risk",
+"label_vs_payouts_account_payout_history_drill_down_sheet_state": "label_vs_payouts",
+"label_vs_payouts_save_view_sheet_state": "label_vs_payouts",
+"lead_scoring_configuration_add_custom_scoring_factor_sheet_state": "lead_scoring_configuration",
+"lead_scoring_configuration_save_recalculate_confirmation_modal_state": "lead_scoring_configuration",
+"marketing_dashboard_export_aggregated_marketing_data_modal_state": "marketing_dashboard",
+"marketing_dashboard_no_search_results_state": "marketing_dashboard",
+"marketing_integrations_add_integration_sheet_state": "marketing_integrations",
+"marketing_integrations_disconnect_integration_alertdialog_state": "marketing_integrations",
+"marketing_overview_custom_date_range_attribution_drill_down_sheet_state": "marketing_overview",
+"marketing_overview_empty_first_time_state": "marketing_overview",
+"marketing_performance_channel_attribution_drill_down_sheet_state": "marketing_performance",
+"marketing_performance_export_attribution_model_modal_state": "marketing_performance",
+"marketplace_preview_no_challenge_selected_empty_state": "marketplace_preview_two_phase_standard",
+"marketplace_preview_tier_switch_expanded_faq_state": "marketplace_preview_two_phase_standard",
+"model_audit_log_cryptographic_proof_compliance_certificate_modal_state": "model_audit_log",
+"model_audit_log_rollback_configuration_confirmation_alertdialog_state": "model_audit_log",
+"module_detail_architectural_decision_adr_deep_dive_modal_state": "module_detail_super_admin",
+"module_detail_edit_documentation_sheet_state": "module_detail_super_admin",
+"my_api_tokens_revoke_token_destructive_confirmation_alertdialog_state": "my_api_tokens",
+"my_api_tokens_token_secret_generated_one_time_reveal_modal_state": "my_api_tokens",
+"my_tasks_all_caught_up_empty_state": "my_tasks",
+"my_tasks_no_filter_results_state": "my_tasks",
+"notification_center_all_caught_up_empty_state": "notification_center",
+"notification_center_notification_detail_snooze_dialog_state": "notification_center",
+"notification_detail_dialog_mute_notification_type_stream_sheet_state": "notification_detail_dialog",
+"notification_detail_dialog_snooze_notification_alertdialog_state": "notification_detail_dialog",
+"notification_preferences_matrix_reset_to_system_defaults_alertdialog_state_1": "notification_preferences_matrix_1",
+"notification_preferences_matrix_reset_to_system_defaults_alertdialog_state_2": "notification_preferences_matrix_1",
+"notification_preferences_matrix_test_channel_modal_diagnostic_ping_state_1": "notification_preferences_matrix_1",
+"notification_preferences_matrix_test_channel_modal_diagnostic_ping_state_2": "notification_preferences_matrix_1",
+"notifications_management_add_notification_slide_over_sheet_state": "notifications_management",
+"notifications_management_delete_selected_notifications_confirmation_alertdialog": "notifications_management",
+"offer_change_history_diff_viewer_sheet_state": "offer_change_history_summer_scalper_accelerator",
+"offer_change_history_revert_change_confirmation_alertdialog_state": "offer_change_history_summer_scalper_accelerator",
+"offer_management_archive_offer_confirmation_alertdialog_state": "offer_management",
+"offer_management_delete_offer_destructive_confirmation_alertdialog_state": "offer_management",
+"offer_matching_users_apply_offer_confirmation_sheet_state": "offer_matching_users_summer_scalper_accelerator",
+"offer_matching_users_empty_no_offer_selected_state": "offer_matching_users_summer_scalper_accelerator",
+"open_positions_empty_state": "open_positions",
+"open_positions_no_filter_results_state": "open_positions",
+"orders_dashboard_challenge_broker_drill_down_sheet_state": "orders_dashboard",
+"orders_dashboard_country_drill_down_sheet_state": "orders_dashboard",
+"p_l_statement_compare_periods_sheet_state": "p_l_statement",
+"p_l_statement_line_item_drill_down_sheet_state": "p_l_statement",
+"passed_challenges_bulk_issue_payouts_sheet_state": "passed_challenges",
+"passed_challenges_mark_as_funded_modal_state": "passed_challenges",
+"payment_providers_add_provider_sheet_state": "payment_providers",
+"payment_providers_deactivate_provider_confirmation_alertdialog_state": "payment_providers",
+"payout_compliance_audit_report_custom_range_sheet_state": "payout_compliance_audit_report",
+"payout_compliance_audit_report_sign_off_confirmation_alertdialog_state": "payout_compliance_audit_report",
+"payout_detail_add_note_sheet_state": "payout_detail_po_94102_elena_althaus",
+"payout_detail_reverse_payout_destructive_confirmation_alertdialog_state": "payout_detail_po_94102_elena_althaus",
+"payout_history_receipt_inspection_sheet_state": "payout_history",
+"payout_history_reverse_payout_destructive_confirmation_alertdialog_state": "payout_history",
+"payout_methods_configuration_add_payout_method_sheet_state": "payout_methods_configuration",
+"payout_methods_configuration_disable_method_confirmation_alertdialog_state": "payout_methods_configuration",
+"payout_reversals_refunds_approve_reversal_confirmation_alertdialog_state": "payout_reversals_refunds",
+"payout_reversals_refunds_initiate_reversal_sheet_state": "payout_reversals_refunds",
+"payout_schedule_add_batch_schedule_sheet_state": "payout_schedule",
+"payout_schedule_run_now_manual_execution_alertdialog_state": "payout_schedule",
+"payouts_dashboard_challenge_tier_drill_down_sheet_state": "payouts_dashboard",
+"payouts_dashboard_settlement_rail_drill_down_sheet_state": "payouts_dashboard",
+"pending_payouts_bulk_approve_confirmation_alertdialog_state": "pending_payouts",
+"pending_payouts_reject_payout_confirmation_alertdialog_state": "pending_payouts",
+"pending_tasks_bulk_assign_resolve_drawer_state": "pending_tasks",
+"pending_tasks_bulk_resolve_drawer_state": "pending_tasks",
+"pending_tasks_bulk_triage_conflict_validation_alert_state": "pending_tasks",
+"per_user_audit_timeline_export_certified_audit_dossier_modal_state": "per_user_audit_timeline_elena_althaus_1",
+"per_user_audit_timeline_quarantine_account_freeze_alertdialog_state": "per_user_audit_timeline_elena_althaus_1",
+"performance_analytics_country_drill_down_sheet_state": "performance_analytics",
+"performance_analytics_symbol_drill_down_sheet_state": "performance_analytics",
+"permissions_catalog_declare_register_permission_sheet_state": "permissions_catalog",
+"permissions_catalog_review_orphan_permissions_batch_clean_modal_state": "permissions_catalog",
+"phase_detail_add_platform_id_sheet_state": "phase_detail_phase_1_evaluation_alpha",
+"phase_detail_platform_connection_test_diagnostics_modal_state": "phase_detail_phase_1_evaluation_alpha",
+"phase_management_add_phase_sheet_state": "phase_management",
+"phase_management_delete_phase_migrate_confirmation_alertdialog_state": "phase_management",
+"phase_migration_tool_execute_migration_alertdialog_state": "phase_migration_tool",
+"phase_migration_tool_migration_history_sheet_state": "phase_migration_tool",
+"platform_architecture_principle_deep_dive_modal_state": "platform_architecture",
+"platform_architecture_report_bug_slide_over_sheet_state": "platform_architecture",
+"platform_audit_save_search_alert_rules_sheet_state": "platform_audit",
+"platform_audit_verify_ledger_merkle_proof_cryptographic_certificate_modal_state": "platform_audit",
+"platform_external_checkout_defaults_add_event_definition_modal_state": "platform_external_checkout_defaults",
+"platform_external_checkout_defaults_rotate_egress_ips_alertdialog_state": "platform_external_checkout_defaults",
+"platform_external_contract_editor_incident_inspection_mitigation_sheet_state": "platform_external_contract_editor",
+"platform_external_contract_editor_rotate_egress_ips_alertdialog_state": "platform_external_contract_editor",
+"platform_module_bulk_toggle_disable_engine_modal_state": "platform_audit",
+"platform_overview_add_widget_sheet_state": "platform_overview",
+"platform_overview_customize_dashboard_modal_state": "platform_overview",
+"platform_overview_ingress_exception_triage_mitigation_drawer_state_1": "platform_overview",
+"platform_overview_ingress_exception_triage_mitigation_drawer_state_2": "platform_overview",
+"platform_overview_onboarding_tour_paused_resume_banner_state": "platform_overview",
+"platform_overview_onboarding_tour_state": "platform_overview",
+"platform_overview_onboarding_tour_welcome_modal_state": "platform_overview",
+"platform_overview_per_widget_configuration_modal_state": "platform_overview",
+"platform_overview_tenant_health_volume_drill_down_modal_state_1": "platform_overview",
+"platform_overview_tenant_health_volume_drill_down_modal_state_2": "platform_overview",
+"platform_overview_widget_configuration_kpi_metric_card_state": "platform_overview",
+"platform_overview_widget_configuration_table_feed_stream_state": "platform_overview",
+"platform_roles_compare_roles_diff_modal_state": "platform_roles",
+"platform_roles_permission_matrix_grant_revoke_dialog_state": "platform_roles",
+"platform_staff_invite_platform_staff_slide_over_sheet_state": "platform_staff",
+"platform_staff_suspend_staff_confirmation_alertdialog_state": "platform_staff",
+"platform_transactions_issue_refund_clawback_modal_state": "platform_transactions",
+"platform_transactions_no_filter_results_state": "platform_transactions",
+"position_detail_live_close_at_market_modal_state": "position_detail_live_pos_894201_eurusd",
+"position_detail_live_modify_sl_tp_sheet_state": "position_detail_live_pos_894201_eurusd",
+"positions_dashboard_hour_drill_down_sheet_state": "positions_dashboard",
+"positions_dashboard_symbol_drill_down_sheet_state": "positions_dashboard",
+"predictive_analytics_churn_outreach_batch_intervention_sheet_state": "predictive_analytics",
+"predictive_analytics_retrain_model_confirmation_alertdialog_state": "predictive_analytics",
+"profile_active_edit_mode_unsaved_changes_state": "profile",
+"profile_revoke_all_other_sessions_confirmation_alertdialog_state": "profile",
+"prompt_library_archive_prompt_confirmation_alertdialog_state": "prompt_library",
+"prompt_library_interactive_model_test_sandbox_modal_state": "prompt_library",
+"psp_catalog_add_new_psp_template_modal_state": "psp_catalog",
+"psp_catalog_upload_compliance_certification_deprecation_state": "psp_catalog",
+"psp_onboarding_wizard_connection_diagnostics_error_key_vault_modal_state": "psp_onboarding_wizard",
+"psp_onboarding_wizard_step_4_test_pre_flight_activation_state": "psp_onboarding_wizard",
+"reconciled_transactions_review_flag_for_auditor_sheet_state": "reconciled_transactions_review",
+"reconciled_transactions_review_reopen_reconciliation_alertdialog_state": "reconciled_transactions_review",
+"reconciliation_discrepancy_investigation_sheet_state": "reconciliation",
+"reconciliation_import_bank_statement_sheet_state": "reconciliation",
+"recurring_invoices_new_edit_schedule_sheet_state": "recurring_invoices",
+"recurring_invoices_schedule_detail_audit_history_sheet_state": "recurring_invoices",
+"refunds_credit_notes_new_refund_sheet_state": "refunds_credit_notes",
+"refunds_credit_notes_refund_detail_audit_inspection_sheet_state": "refunds_credit_notes",
+"refunds_disputes_accept_chargeback_conclude_case_modal_state": "refunds_disputes",
+"refunds_disputes_all_resolved_empty_state": "refunds_disputes",
+"retention_analytics_cohort_drill_down_sheet_state": "retention_analytics",
+"retention_analytics_re_engagement_campaign_composer_sheet_state": "retention_analytics",
+"retention_export_scheduling_delete_export_schedule_alertdialog_state": "retention_export_scheduling",
+"retention_export_scheduling_schedule_export_configuration_sheet_state": "retention_export_scheduling",
+"revenue_loss_analysis_period_drill_down_sheet_state": "revenue_loss_analysis",
+"revenue_loss_analysis_schedule_deep_dive_sheet_state": "revenue_loss_analysis",
+"reviewer_audit_trail_cryptographic_proofs_export_modal_state": "reviewer_audit_trail",
+"reviewer_audit_trail_reviewer_inspection_sheet_state": "reviewer_audit_trail",
+"risk_alert_subscriptions_add_subscription_sheet_state": "risk_alert_subscriptions",
+"risk_alert_subscriptions_delete_subscription_alertdialog_state": "risk_alert_subscriptions",
+"risk_analytics_custom_date_range_confidence_parameters_sheet_state": "risk_analytics",
+"risk_analytics_recalculate_risk_model_alertdialog_state": "risk_analytics",
+"risk_overview_resolve_breach_modal_state": "risk_overview",
+"risk_overview_trade_replay_sheet_state": "risk_overview",
+"risk_rules_editor_reset_to_defaults_alertdialog_state": "risk_rules_editor",
+"risk_rules_editor_test_rule_simulation_sheet_state": "risk_rules_editor",
+"risk_statistics_cohort_drill_down_sheet_state": "risk_statistics",
+"risk_statistics_save_view_sheet_state": "risk_statistics",
+"risk_surveillance_notifications_all_nominal_empty_state": "risk_surveillance_notifications",
+"risk_surveillance_notifications_module_preferences_ingress_rules_sheet_state": "risk_surveillance_notifications",
+"role_audit_log_emergency_revert_quorum_verification_modal_state": "role_audit_log",
+"role_audit_log_save_search_alert_rules_sheet_state": "role_audit_log",
+"roles_permissions_compare_roles_diff_modal_state": "roles_permissions",
+"roles_permissions_permission_matrix_grant_revoke_alertdialog_state": "roles_permissions",
+"saved_reports_delete_report_confirmation_alertdialog_state": "saved_reports",
+"saved_reports_report_builder_sheet_state": "saved_reports",
+"saved_views_save_current_view_sheet_state": "saved_views_multi_dashboard_switcher",
+"saved_views_share_view_with_team_modal_state": "saved_views_multi_dashboard_switcher",
+"scheduled_exports_new_edit_schedule_sheet_state": "scheduled_exports",
+"scheduled_exports_run_now_manual_execution_alertdialog_state": "scheduled_exports",
+"server_catalog_add_server_provisioning_sheet_state": "server_catalog",
+"server_catalog_connection_test_diagnostics_modal_state": "server_catalog",
+"service_catalog_bulk_module_orchestration_modal_state": "service_catalog",
+"service_catalog_module_manifest_changelog_sheet_state": "service_catalog",
+"settings_landing_export_tenant_data.zip_modal_state": "settings_landing",
+"settings_landing_no_filter_results_state": "settings_landing",
+"settings_module_detail_configure_module_parameters_slide_over_sheet_state": "settings_module_detail_trading_execution",
+"settings_module_detail_disable_module_confirmation_alertdialog_state": "settings_module_detail_trading_execution",
+"settings_module_detail_edit_rbac_permissions_modal_state": "settings_module_detail_trading_execution",
+"settings_module_detail_tenant_parameter_overrides_sheet_state": "settings_module_detail_trading_execution",
+"settlement_reconciliation_adjust_ledger_reconcile_modal_state": "settlement_reconciliation_report",
+"settlement_reconciliation_all_balanced_empty_state": "settlement_reconciliation_report",
+"severity_policy_configuration_delete_escalation_rule_confirmation_alertdialog": "severity_policy_configuration",
+"severity_policy_configuration_escalation_rule_configuration_sheet_state": "severity_policy_configuration",
+"siem_external_sinks_add_external_sink_sheet_state": "siem_external_sinks",
+"siem_external_sinks_delete_sink_alertdialog_state": "siem_external_sinks",
+"sla_management_edit_sla_tier_policy_sheet_state": "sla_management",
+"sla_management_trigger_bulk_supervisor_ping_alertdialog_state": "sla_management",
+"snoozed_resolved_history_reopen_task_confirmation_alertdialog_state": "snoozed_resolved_history",
+"snoozed_resolved_history_resolved_archive_active_tab_state": "snoozed_resolved_history",
+"social_media_links_no_filter_results_state": "social_media_links",
+"social_media_links_revoke_social_handle_confirmation_alertdialog_state": "social_media_links",
+"support_canned_responses_archive_response_confirmation_alertdialog_state": "support_canned_responses",
+"support_canned_responses_create_edit_response_slide_over_sheet_state": "support_canned_responses",
+"support_contact_live_chat_widget_state": "support_contact",
+"support_contact_ticket_submitted_sla_confirmation_state": "support_contact",
+"support_overview_all_caught_up_empty_state": "support_overview",
+"support_overview_create_ticket_dialog_state": "support_overview",
+"support_overview_create_ticket_step_2_advanced_telemetry_state": "support_overview",
+"support_overview_create_ticket_validation_error_duplicate_warning_state": "support_overview",
+"support_overview_ticket_inspection_triage_sheet_state": "support_overview",
+"support_tickets_bulk_triage_resolve_drawer_state": "support_tickets",
+"support_tickets_no_filter_results_state": "support_tickets",
+"system_health_incident_inspection_automated_failover_drawer_state": "system_health",
+"system_health_simulate_disaster_recovery_drill_modal_state": "system_health",
+"tax_vat_configuration_add_edit_tax_rate_sheet_state": "tax_vat_configuration",
+"tax_vat_configuration_statutory_tax_filing_detail_remittance_sheet_state": "tax_vat_configuration",
+"team_members_invite_staff_operator_sheet_state": "team_members",
+"team_members_revoke_operator_access_confirmation_alertdialog_state": "team_members",
+"template_editor_insert_merge_field_dialog_state": "template_editor",
+"template_editor_new_template_creation_sheet_state": "template_editor",
+"tenant_checkout_matrix_add_tenant_to_checkout_modal_state": "tenant_checkout_matrix",
+"tenant_checkout_matrix_bulk_take_rate_override_modal_state": "tenant_checkout_matrix",
+"tenant_detail_clone_tenant_slide_over_sheet_state": "tenant_detail_alpha_capital_media",
+"tenant_detail_suspend_tenant_confirmation_alertdialog_state": "tenant_detail_alpha_capital_media",
+"tenant_lifecycle_emergency_suspend_kill_switch_confirmation_alertdialog_state": "tenant_lifecycle",
+"tenant_lifecycle_stage_transition_re_verification_sheet_state": "tenant_lifecycle",
+"tenants_directory_bulk_suspend_confirmation_alertdialog_state": "tenants_directory",
+"tenants_directory_no_filter_results_state": "tenants_directory",
+"token_management_generate_token_slide_over_sheet_state": "token_management",
+"token_management_no_filter_results_state": "token_management",
+"trader_accounts_empty_state": "trader_accounts",
+"trader_accounts_no_filter_results_state": "trader_accounts",
+"trader_analytics_apply_segment_sheet_state": "trader_analytics",
+"trader_analytics_row_action_menu_metric_popover_state": "trader_analytics",
+"trader_audit_log_compare_to_previous_period_state": "trader_audit_log_elena_althaus",
+"trader_audit_log_event_subscription_sheet_state": "trader_audit_log_elena_althaus",
+"trader_comparison_pick_trader_sheet_state": "trader_comparison",
+"trader_comparison_schedule_report_sheet_state": "trader_comparison",
+"trader_detail_suspended_rule_breached_state": "trader_detail_elena_althaus",
+"traders_directory_empty_state": "traders_directory",
+"traders_directory_no_filter_results_state": "traders_directory",
+"trading_credentials_reveal_master_password_alertdialog_state": "trading_credentials_mt5_882049_elena_althaus",
+"trading_credentials_rotate_password_modal_state": "trading_credentials_mt5_882049_elena_althaus",
+"trading_event_rules_add_event_rule_sheet_state": "trading_event_rules",
+"trading_event_rules_test_rule_simulation_sheet_state": "trading_event_rules",
+"trading_overview_degraded_high_risk_state": "trading_overview",
+"trading_overview_empty_first_time_state": "trading_overview",
+"training_data_export_cancel_active_export_confirmation_alertdialog_state": "training_data_export",
+"training_data_export_export_detail_anonymization_audit_sheet_state": "training_data_export",
+"transaction_detail_add_audit_note_sheet_state": "transaction_detail_tx_94182_elena_althaus",
+"transaction_detail_raw_payload_json_state": "transaction_detail_tx_94182_elena_althaus",
+"transaction_detail_reverse_transaction_alertdialog_state": "transaction_detail_tx_94182_elena_althaus",
+"transaction_detail_timeline_audit_events_state": "transaction_detail_tx_94182_elena_althaus",
+"transactions_add_audit_note_sheet_state": "transactions",
+"transactions_reconcile_transaction_sheet_state": "transactions",
+"unprofitable_countries_add_to_geo_restriction_alertdialog_state": "unprofitable_countries",
+"unprofitable_countries_regional_drill_down_sheet_state": "unprofitable_countries",
+"user_event_detail_export_forensic_json_cryptographic_proof_modal_state": "user_event_detail_evt_01jwm48ak927qw89_elena_althaus",
+"user_event_detail_flag_for_compliance_review_hold_dialog_state": "user_event_detail_evt_01jwm48ak927qw89_elena_althaus",
+"user_events_enhanced_no_filter_results_state": "user_events_enhanced",
+"user_management_add_user_slide_over_sheet_state": "user_management",
+"user_management_export_users_csv_modal_state": "user_management",
+"utilities_delete_utility_confirmation_alertdialog_state": "utilities",
+"utilities_preview_as_trader_modal_state": "utilities",
+"vpn_proxy_detection_block_all_flagged_confirmation_alertdialog_state": "vpn_proxy_detection",
+"vpn_proxy_detection_ip_detail_inspection_sheet_state": "vpn_proxy_detection",
+"webhook_log_viewer_no_filter_results_state": "webhook_log_viewer",
+"webhook_log_viewer_replay_block_ip_modal_state": "webhook_log_viewer",
+"weekend_trades_bulk_force_close_confirmation_alertdialog_state": "weekend_trades",
+"weekend_trades_notify_trader_sheet_state": "weekend_trades",
+"what_s_new_changelog_release_notes_migration_guide_modal_state": "what_s_new_changelog",
+"what_s_new_changelog_subscribe_slide_over_sheet_state": "what_s_new_changelog"
+},
+"vid_states": {
+"2fa-setup-dialog": [
+"2fa_setup_dialog_disable_2fa_destructive_confirmation_state",
+"2fa_setup_dialog_step_4_emergency_backup_codes_state"
+],
+"account-broker-details": [
+"account_broker_details_active_edit_mode_state",
+"account_broker_details_bridge_connection_log_modal_state"
+],
+"account-configuration": [
+"account_configuration_resend_credentials_sheet_state",
+"account_configuration_reset_account_destructive_confirmation_state"
+],
+"account-events": [
+"account_events_event_detail_sheet_state",
+"account_events_subscribe_to_events_sheet_state"
+],
+"account-ip-addresses": [
+"account_ip_addresses_block_ip_confirmation_alertdialog_state",
+"account_ip_addresses_ip_detail_inspection_sheet_state"
+],
+"account-kyc-statuses": [
+"account_kyc_statuses_document_detail_inspection_sheet_state",
+"account_kyc_statuses_mark_all_approved_confirmation_state"
+],
+"risk-account-label-analysis": [
+"account_label_analysis_account_drill_down_sheet_state",
+"account_label_analysis_bulk_change_label_sheet_state"
+],
+"account-linkage-graph": [
+"account_linkage_graph_block_cluster_confirmation_alertdialog_state",
+"account_linkage_graph_relationship_detail_sheet_state"
+],
+"account-related-accounts": [
+"account_related_accounts_compare_accounts_sheet_state",
+"account_related_accounts_link_account_drawer_state"
+],
+"account-version-history": [
+"account_version_history_compare_two_versions_sheet_state",
+"account_version_history_revert_to_version_destructive_confirmation_state"
+],
+"account-workspace": [
+"account_workspace_block_account_risk_quarantine_confirmation_state",
+"account_workspace_sync_bridge_reconciliation_modal_state"
+],
+"accounting": [
+"accounting_overview_create_journal_entry_sheet_state",
+"accounting_overview_kpi_drill_down_sheet_state"
+],
+"trading-accounts": [
+"accounts_dashboard_kpi_drill_down_sheet_state",
+"accounts_dashboard_pass_fail_day_inspection_sheet_state",
+"trader_accounts_empty_state",
+"trader_accounts_no_filter_results_state"
+],
+"challenges-active": [
+"active_challenges_add_note_sheet_state",
+"active_challenges_bulk_extend_sheet_state"
+],
+"marketing-ad-accounts": [
+"ad_account_connections_connect_ad_account_sheet_state",
+"ad_account_connections_disconnect_account_confirmation_alertdialog_state"
+],
+"marketing-ad-spend": [
+"ad_spend_ad_campaign_detail_configuration_sheet_state",
+"ad_spend_delete_campaign_confirmation_alertdialog_state"
+],
+"trading-add-account": [
+"add_account_validation_error_bridge_failure_state"
+],
+"crm-contact-create": [
+"add_contact_flow_new_contact_slide_over_sheet_state",
+"add_contact_flow_validation_domain_verification_error_state"
+],
+"risk-addon-revenue": [
+"add_on_revenue_add_on_drill_down_sheet_state",
+"add_on_revenue_archive_add_on_alertdialog_state"
+],
+"analytics-advanced": [
+"advanced_analytics_anomaly_investigation_sheet_state",
+"advanced_analytics_churn_outreach_sheet_state"
+],
+"affiliates-campaigns": [
+"affiliate_campaigns_delete_campaign_destructive_confirmation_alertdialog_state",
+"affiliate_campaigns_pause_campaign_alertdialog_state",
+"campaigns_empty_state",
+"campaigns_no_filter_results_state"
+],
+"affiliates-commissions": [
+"affiliate_commissions_bulk_commission_payout_sheet_state",
+"affiliate_commissions_commission_ledger_sheet_state"
+],
+"affiliate-coupons": [
+"affiliate_coupons_disable_coupon_alertdialog_state",
+"affiliate_coupons_edit_coupon_sheet_state"
+],
+"affiliate-detail": [
+"affiliate_detail_edit_profile_sheet_state",
+"affiliate_detail_suspend_affiliate_alertdialog_state"
+],
+"affiliate-link-tracking": [
+"affiliate_link_tracking_link_analytics_sheet_state",
+"affiliate_link_tracking_suspend_link_alertdialog_state"
+],
+"affiliate-onboarding": [
+"affiliate_onboarding_save_send_invite_confirmation_alertdialog_state",
+"affiliate_onboarding_validation_missing_fields_alertdialog_state"
+],
+"affiliate-comparison": [
+"affiliate_performance_comparison_add_affiliate_modal_state",
+"affiliate_performance_comparison_metric_drill_down_sheet_state"
+],
+"affiliates-list": [
+"affiliates_directory_bulk_commission_payout_sheet_state",
+"affiliates_directory_suspend_affiliate_alertdialog_state"
+],
+"affiliates": [
+"affiliates_overview_custom_date_range_sheet_state",
+"affiliates_overview_invite_affiliate_sheet_state"
+],
+"support-agent-detail": [
+"agent_detail_assign_tickets_sheet_state",
+"agent_detail_reassign_all_tickets_alertdialog_state"
+],
+"ai-configure": [
+"ai_configuration_interactive_model_test_sandbox_modal_state",
+"ai_configuration_reset_to_defaults_confirmation_alertdialog_state"
+],
+"ai-cost": [
+"ai_cost_tracking_budget_alert_spend_cap_modal_state",
+"ai_cost_tracking_model_unit_economics_sheet_state"
+],
+"ai-insights": [
+"ai_insights_all_caught_up_empty_state",
+"ai_insights_no_filter_results_state",
+"ai_insights_per_insight_detail_sheet_state",
+"ai_insights_reasoning_shap_attribution_sheet_state",
+"ai_insights_snooze_insight_confirmation_alertdialog_state"
+],
+"ai": [
+"ai_overview_anomaly_triage_immediate_intervention_drawer_state",
+"ai_overview_model_diagnostics_calibration_modal_state"
+],
+"ai-quota": [
+"ai_usage_quota_reset_counters_confirmation_alertdialog_state",
+"ai_usage_quota_tenant_quota_override_sheet_state"
+],
+"kyc-aml-cases": [
+"aml_cases_file_fincen_sar_sheet_state",
+"aml_cases_mark_cleared_case_disposition_modal_state"
+],
+"analytics": [
+"analytics_overview_chart_point_drill_down_sheet_state",
+"analytics_overview_save_as_report_sheet_state"
+],
+"ai-anomaly": [
+"anomaly_detection_acknowledge_all_nominal_alertdialog_state",
+"anomaly_detection_all_nominal_empty_state"
+],
+"notifications-archived": [
+"archived_notifications_tab_permanent_purge_alertdialog_state",
+"archived_snoozed_notifications_all_dormant_cleared_empty_state"
+],
+"marketing-audience-builder": [
+"audiences_segment_builder_import_csv_modal_state",
+"audiences_segment_builder_segment_builder_sheet_state"
+],
+"audit": [
+"audit_log_audit_entry_detail_flag_for_compliance_review_dialog_state",
+"audit_log_audit_entry_detail_sheet_raw_payload_state",
+"audit_log_audit_entry_detail_sheet_state",
+"audit_log_export_cryptographic_proof_worm_dossier_modal_state",
+"audit_log_no_filter_results_state"
+],
+"bank-statement-import": [
+"bank_statement_import_manual_match_sheet_state",
+"bank_statement_import_new_import_sheet_state"
+],
+"banner-management": [
+"banner_management_add_banner_slide_over_sheet_state",
+"banner_management_delete_banner_destructive_confirmation_alertdialog_state"
+],
+"breach-detail": [
+"breach_detail_reopen_breach_modal_state",
+"breach_detail_resolve_breach_sheet_state"
+],
+"breaches": [
+"breaches_bulk_escalate_sheet_state",
+"breaches_bulk_resolve_confirmation_alertdialog_state"
+],
+"bridge-sync-log": [
+"bridge_sync_log_retry_failed_replay_progress_state",
+"bridge_sync_log_sync_detail_sheet_state"
+],
+"bulk-account-operations": [
+"bulk_account_operations_operation_history_sheet_state",
+"bulk_account_operations_step_4_review_execute_alertdialog_state"
+],
+"payouts-bulk-approval": [
+"bulk_payout_approval_queue_approve_selected_alertdialog_state",
+"bulk_payout_approval_queue_two_person_policy_sheet_state"
+],
+"bulk-phase-editor": [
+"bulk_phase_editor_apply_confirmation_alertdialog_state",
+"bulk_phase_editor_edit_history_sheet_state"
+],
+"marketing-campaign-detail": [
+"campaign_detail_delete_campaign_confirmation_alertdialog_state",
+"campaign_detail_edit_campaign_sheet_state",
+"edit_campaign_discard_unsaved_changes_alertdialog_state",
+"edit_campaign_test_edge_redirect_sandbox_sheet_state"
+],
+"certificate-detail": [
+"certificate_detail_audit_trail_lifecycle_history_sheet_state",
+"certificate_detail_revoke_invalidate_certificate_alertdialog_state"
+],
+"certificate-font-upload": [
+"certificate_font_upload_delete_font_destructive_confirmation_alertdialog_state",
+"certificate_font_upload_font_subsetting_glyph_packaging_sheet_state"
+],
+"certificate-management": [
+"certificate_management_ca_signature_hardware_key_rotation_confirmation",
+"certificate_management_quick_full_preview_modal_state"
+],
+"certificate-template-designer": [
+"certificate_template_designer_add_dynamic_overlay_field_sheet_state",
+"certificate_template_designer_full_screen_visual_canvas_modal_state"
+],
+"certificates-issued": [
+"certificates_issued_issue_certificate_slide_over_sheet_state",
+"certificates_issued_no_filter_results_state"
+],
+"challenge-analytics": [
+"challenge_analytics_empty_no_data_state",
+"challenge_analytics_save_view_sheet_state"
+],
+"challenge-comparison": [
+"challenge_comparison_pick_challenge_type_sheet_state",
+"challenge_comparison_schedule_report_sheet_state"
+],
+"challenge-config": [
+"challenge_configuration_add_challenge_type_sheet_state",
+"challenge_configuration_test_configuration_dry_run_simulation_sheet_state"
+],
+"challenge-types": [
+"challenge_types_add_challenge_type_sheet_state",
+"challenge_types_disable_challenge_type_confirmation_alertdialog_state"
+],
+"challenges": [
+"challenges_overview_extend_time_modal_state",
+"challenges_overview_force_fail_confirmation_alertdialog_state",
+"challenges_overview_issue_payout_sheet_state_1",
+"challenges_overview_issue_payout_sheet_state_2"
+],
+"audit-change-history": [
+"change_history_no_filter_results_state",
+"change_history_rollback_configuration_confirmation_alertdialog_state"
+],
+"change-password-dialog": [
+"change_password_dialog_success_cryptographic_receipt_state",
+"change_password_dialog_validation_error_policy_rejection_state"
+],
+"chart-of-accounts": [
+"chart_of_accounts_account_detail_audit_inspection_sheet_state",
+"chart_of_accounts_new_account_sheet_state"
+],
+"checkout": [
+"checkout_overview_external_headless_active_mode_state",
+"checkout_overview_switch_mode_confirmation_alertdialog_state"
+],
+"checkout-transactions": [
+"checkout_transactions_issue_refund_confirmation_alertdialog_state",
+"checkout_transactions_reconciliation_audit_trail_sheet_state"
+],
+"closed-position-detail": [
+"closed_position_detail_destructive_delete_confirmation_state",
+"closed_position_detail_reopen_reverse_position_modal_state"
+],
+"closed-positions": [
+"closed_positions_empty_state",
+"closed_positions_no_filter_results_state"
+],
+"cohort-builder": [
+"cohort_builder_full_retention_matrix_sheet_state",
+"cohort_builder_save_cohort_sheet_state"
+],
+"affiliate-commission-payout": [
+"commission_payouts_batch_disburse_approved_payouts_alertdialog_state",
+"commission_payouts_payout_detail_audit_inspection_sheet_state"
+],
+"connected-sessions-detail": [
+"connected_session_detail_cryptographic_worm_proof_modal_state",
+"connected_session_detail_revoke_session_confirmation_alertdialog_state"
+],
+"crm-contacts": [
+"contacts_contact_detail_sheet_state",
+"contacts_delete_contact_confirmation_alertdialog_state"
+],
+"cookie-attribution": [
+"cookie_attribution_report_affiliate_attribution_detail_sheet_state",
+"cookie_attribution_report_model_settings_attribution_methodology_modal_state"
+],
+"copy-trading-events": [
+"copy_trading_events_bulk_expired_confirmation_alertdialog_state",
+"copy_trading_events_event_detail_sheet_state"
+],
+"risk-coupon-vs-payouts": [
+"coupon_vs_payouts_archive_coupon_alertdialog_state",
+"coupon_vs_payouts_coupon_drill_down_sheet_state"
+],
+"challenge-wizard": [
+"create_challenge_wizard_marketplace_trader_preview_sheet_state"
+],
+"crm-activity-log": [
+"crm_activity_log_timeline_empty_state",
+"crm_activity_log_timeline_no_filter_results_state"
+],
+"crm": [
+"crm_overview_empty_first_time_state",
+"crm_overview_export_contacts_modal_state"
+],
+"crm-pipeline": [
+"crm_pipeline_deal_contact_inspection_sheet_state",
+"crm_pipeline_filter_stages_owners_sheet_state"
+],
+"support-csat": [
+"csat_feedback_dispute_rating_alertdialog_state",
+"csat_feedback_follow_up_outreach_resolution_drawer_state"
+],
+"csv-import-dialog": [
+"csv_import_dialog_step_1_upload_csv_state",
+"csv_import_dialog_step_4_confirm_dispatch_state"
+],
+"custom-segmentation": [
+"custom_segmentation_builder_matching_traders_sheet_state",
+"custom_segmentation_builder_save_segment_sheet_state"
+],
+"analytics-daily-highlights": [
+"daily_highlights_country_hourly_breakdown_sheet_state",
+"daily_highlights_recent_order_detail_sheet_state"
+],
+"dashboard-manager": [
+"dashboard_manager_per_widget_configuration_modal_state",
+"dashboard_manager_publish_to_all_tenants_confirmation_alertdialog_state"
+],
+"dashboard-template-library": [
+"dashboard_template_library_save_current_as_template_sheet_state",
+"dashboard_template_library_template_preview_modal_state"
+],
+"device-activities": [
+"device_activities_suspicious_sybil_cluster_scan_drawer_state",
+"device_activities_terminate_session_quarantine_device_alertdialog_state"
+],
+"device-detail": [
+"device_detail_view_block_device_confirmation_alertdialog_state",
+"device_detail_view_force_logout_all_sessions_alertdialog_state"
+],
+"marketing-banner-edit": [
+"edit_banner_a_b_test_variant_configuration_sheet_state",
+"edit_banner_discard_unsaved_changes_confirmation_alertdialog_state"
+],
+"challenge-edit": [
+"edit_challenge_publish_confirmation_live_impact_alertdialog_state",
+"edit_challenge_version_history_audit_diff_sheet_state"
+],
+"offer-edit": [
+"edit_offer_preview_as_trader_sheet_state",
+"edit_offer_schedule_activation_sheet_state"
+],
+"email-template-edit": [
+"edit_template_raw_html_liquid_syntax_editor_state",
+"edit_template_version_history_audit_diff_sheet_state"
+],
+"marketing-email-campaigns": [
+"email_campaigns_campaign_inspection_telemetry_sheet_state",
+"email_campaigns_create_campaign_slide_over_sheet_state"
+],
+"email-templates": [
+"email_templates_delete_template_destructive_confirmation_alertdialog_state",
+"email_templates_send_test_email_simulation_modal_state"
+],
+"payouts-enhanced-withdrawals": [
+"enhanced_payouts_payout_detail_sheet_state",
+"enhanced_payouts_reject_selected_confirmation_alertdialog_state"
+],
+"checkout-external": [
+"external_checkout_integration_disable_external_ingress_confirmation_alertdialog",
+"external_checkout_integration_test_webhook_event_simulation_sheet_state"
+],
+"challenges-failed": [
+"failed_challenges_add_to_re_engagement_campaign_sheet_state",
+"failed_challenges_bulk_offer_retry_sheet_state"
+],
+"financial-reports-library": [
+"financial_reports_library_delete_report_confirmation_alertdialog_state",
+"financial_reports_library_new_report_creation_wizard_sheet_state"
+],
+"ai-finetuning": [
+"fine_tuning_cancel_fine_tune_job_confirmation_alertdialog_state",
+"fine_tuning_new_fine_tune_job_configuration_sheet_state"
+],
+"analytics-firm-statistics": [
+"firm_statistics_export_financials_csv_sheet_state",
+"firm_statistics_ratio_methodology_audit_modal_state"
+],
+"overview-onboarding-tour": [
+"getting_started_restart_onboarding_alertdialog_state",
+"getting_started_video_walkthrough_modal_state"
+],
+"group-management": [
+"group_management_delete_group_destructive_confirmation_alertdialog_state",
+"group_management_rule_override_execution_policy_sheet_state"
+],
+"risk-group-vs-payouts": [
+"group_vs_payouts_account_drill_down_sheet_state",
+"group_vs_payouts_schedule_group_report_sheet_state"
+],
+"support-knowledge": [
+"help_center_active_search_filtered_results_state",
+"help_center_article_detail_runbook_view_state",
+"knowledge_base_manage_categories_sheet_state",
+"knowledge_base_no_filter_results_state"
+],
+"risk-highest-earners": [
+"highest_earners_add_to_vip_tier_alertdialog_state",
+"highest_earners_send_bonus_sheet_state"
+],
+"inverse-trading-events": [
+"inverse_trading_events_bulk_expired_confirmation_alertdialog_state",
+"inverse_trading_events_event_detail_sheet_state"
+],
+"accounting-invoices": [
+"invoices_create_invoice_sheet_state",
+"invoices_view_invoice_detail_sheet_state"
+],
+"journal-entries": [
+"journal_entries_create_journal_entry_sheet_state",
+"journal_entries_entry_detail_audit_inspection_sheet_state"
+],
+"kyc": [
+"kyc_aml_overview_all_cleared_empty_state",
+"kyc_aml_overview_no_filter_results_state"
+],
+"kyc-provider-marketplace": [
+"kyc_provider_marketplace_connect_provider_sheet_state",
+"kyc_provider_marketplace_side_by_side_comparison_spec_matrix_modal_state"
+],
+"kyc-providers": [
+"kyc_provider_settings_switch_active_provider_confirmation_alertdialog_state",
+"kyc_provider_settings_test_connection_diagnostic_ping_state",
+"kyc_providers_deactivate_provider_confirmation_alertdialog_state",
+"kyc_providers_edit_configuration_sheet_state"
+],
+"kyc-record-detail": [
+"kyc_record_detail_escalate_to_aml_modal_state",
+"kyc_record_detail_request_additional_information_sheet_state"
+],
+"kyc-reviews": [
+"kyc_reviews_all_cleared_empty_state",
+"kyc_reviews_no_filter_results_state"
+],
+"kyc-risk": [
+"kyc_risk_all_nominal_zero_exposure_state",
+"kyc_risk_no_filter_results_state"
+],
+"risk-label-vs-payouts": [
+"label_vs_payouts_account_payout_history_drill_down_sheet_state",
+"label_vs_payouts_save_view_sheet_state"
+],
+"crm-lead-scoring": [
+"lead_scoring_configuration_add_custom_scoring_factor_sheet_state",
+"lead_scoring_configuration_save_recalculate_confirmation_modal_state"
+],
+"marketing-dashboard": [
+"marketing_dashboard_export_aggregated_marketing_data_modal_state",
+"marketing_dashboard_no_search_results_state"
+],
+"marketing-integrations": [
+"marketing_integrations_add_integration_sheet_state",
+"marketing_integrations_disconnect_integration_alertdialog_state"
+],
+"marketing": [
+"marketing_overview_custom_date_range_attribution_drill_down_sheet_state",
+"marketing_overview_empty_first_time_state"
+],
+"marketing-performance": [
+"marketing_performance_channel_attribution_drill_down_sheet_state",
+"marketing_performance_export_attribution_model_modal_state"
+],
+"challenge-marketplace-preview": [
+"marketplace_preview_no_challenge_selected_empty_state",
+"marketplace_preview_tier_switch_expanded_faq_state"
+],
+"ai-model-audit": [
+"model_audit_log_cryptographic_proof_compliance_certificate_modal_state",
+"model_audit_log_rollback_configuration_confirmation_alertdialog_state"
+],
+"super-module-detail": [
+"module_detail_architectural_decision_adr_deep_dive_modal_state",
+"module_detail_edit_documentation_sheet_state"
+],
+"profile-api-tokens": [
+"my_api_tokens_revoke_token_destructive_confirmation_alertdialog_state",
+"my_api_tokens_token_secret_generated_one_time_reveal_modal_state"
+],
+"my-tasks": [
+"my_tasks_all_caught_up_empty_state",
+"my_tasks_no_filter_results_state"
+],
+"notifications": [
+"notification_center_all_caught_up_empty_state",
+"notification_center_notification_detail_snooze_dialog_state"
+],
+"notification-detail-dialog": [
+"notification_detail_dialog_mute_notification_type_stream_sheet_state",
+"notification_detail_dialog_snooze_notification_alertdialog_state"
+],
+"notification-preferences-matrix": [
+"notification_preferences_matrix_reset_to_system_defaults_alertdialog_state_1",
+"notification_preferences_matrix_reset_to_system_defaults_alertdialog_state_2",
+"notification_preferences_matrix_test_channel_modal_diagnostic_ping_state_1",
+"notification_preferences_matrix_test_channel_modal_diagnostic_ping_state_2"
+],
+"notifications-management": [
+"notifications_management_add_notification_slide_over_sheet_state",
+"notifications_management_delete_selected_notifications_confirmation_alertdialog"
+],
+"offer-change-history": [
+"offer_change_history_diff_viewer_sheet_state",
+"offer_change_history_revert_change_confirmation_alertdialog_state"
+],
+"offer-management": [
+"offer_management_archive_offer_confirmation_alertdialog_state",
+"offer_management_delete_offer_destructive_confirmation_alertdialog_state"
+],
+"offer-matching-users": [
+"offer_matching_users_apply_offer_confirmation_sheet_state",
+"offer_matching_users_empty_no_offer_selected_state"
+],
+"trading-positions": [
+"open_positions_empty_state",
+"open_positions_no_filter_results_state",
+"positions_dashboard_hour_drill_down_sheet_state",
+"positions_dashboard_symbol_drill_down_sheet_state"
+],
+"orders": [
+"orders_dashboard_challenge_broker_drill_down_sheet_state",
+"orders_dashboard_country_drill_down_sheet_state"
+],
+"accounting-pl": [
+"p_l_statement_compare_periods_sheet_state",
+"p_l_statement_line_item_drill_down_sheet_state"
+],
+"challenges-passed": [
+"passed_challenges_bulk_issue_payouts_sheet_state",
+"passed_challenges_mark_as_funded_modal_state"
+],
+"checkout-providers": [
+"payment_providers_add_provider_sheet_state",
+"payment_providers_deactivate_provider_confirmation_alertdialog_state"
+],
+"payout-compliance": [
+"payout_compliance_audit_report_custom_range_sheet_state",
+"payout_compliance_audit_report_sign_off_confirmation_alertdialog_state"
+],
+"payout-detail": [
+"payout_detail_add_note_sheet_state",
+"payout_detail_reverse_payout_destructive_confirmation_alertdialog_state"
+],
+"payouts-history": [
+"payout_history_receipt_inspection_sheet_state",
+"payout_history_reverse_payout_destructive_confirmation_alertdialog_state"
+],
+"payout-methods-config": [
+"payout_methods_configuration_add_payout_method_sheet_state",
+"payout_methods_configuration_disable_method_confirmation_alertdialog_state"
+],
+"payout-reversal": [
+"payout_reversals_refunds_approve_reversal_confirmation_alertdialog_state",
+"payout_reversals_refunds_initiate_reversal_sheet_state"
+],
+"payout-schedule": [
+"payout_schedule_add_batch_schedule_sheet_state",
+"payout_schedule_run_now_manual_execution_alertdialog_state"
+],
+"payouts": [
+"payouts_dashboard_challenge_tier_drill_down_sheet_state",
+"payouts_dashboard_settlement_rail_drill_down_sheet_state"
+],
+"payouts-pending": [
+"pending_payouts_bulk_approve_confirmation_alertdialog_state",
+"pending_payouts_reject_payout_confirmation_alertdialog_state"
+],
+"pending-tasks": [
+"pending_tasks_bulk_assign_resolve_drawer_state",
+"pending_tasks_bulk_resolve_drawer_state",
+"pending_tasks_bulk_triage_conflict_validation_alert_state"
+],
+"user-audit-timeline": [
+"per_user_audit_timeline_export_certified_audit_dossier_modal_state",
+"per_user_audit_timeline_quarantine_account_freeze_alertdialog_state"
+],
+"analytics-performance": [
+"performance_analytics_country_drill_down_sheet_state",
+"performance_analytics_symbol_drill_down_sheet_state"
+],
+"permissions-catalog": [
+"permissions_catalog_declare_register_permission_sheet_state",
+"permissions_catalog_review_orphan_permissions_batch_clean_modal_state"
+],
+"phase-detail": [
+"phase_detail_add_platform_id_sheet_state",
+"phase_detail_platform_connection_test_diagnostics_modal_state"
+],
+"phase-management": [
+"phase_management_add_phase_sheet_state",
+"phase_management_delete_phase_migrate_confirmation_alertdialog_state"
+],
+"phase-migration-tool": [
+"phase_migration_tool_execute_migration_alertdialog_state",
+"phase_migration_tool_migration_history_sheet_state"
+],
+"platform-architecture": [
+"platform_architecture_principle_deep_dive_modal_state",
+"platform_architecture_report_bug_slide_over_sheet_state"
+],
+"platform-audit": [
+"platform_audit_save_search_alert_rules_sheet_state",
+"platform_audit_verify_ledger_merkle_proof_cryptographic_certificate_modal_state",
+"platform_module_bulk_toggle_disable_engine_modal_state"
+],
+"checkout-platform-overview": [
+"platform_external_checkout_defaults_add_event_definition_modal_state",
+"platform_external_checkout_defaults_rotate_egress_ips_alertdialog_state",
+"platform_overview_add_widget_sheet_state",
+"platform_overview_customize_dashboard_modal_state",
+"platform_overview_ingress_exception_triage_mitigation_drawer_state_1",
+"platform_overview_ingress_exception_triage_mitigation_drawer_state_2",
+"platform_overview_onboarding_tour_paused_resume_banner_state",
+"platform_overview_onboarding_tour_state",
+"platform_overview_onboarding_tour_welcome_modal_state",
+"platform_overview_per_widget_configuration_modal_state",
+"platform_overview_tenant_health_volume_drill_down_modal_state_1",
+"platform_overview_tenant_health_volume_drill_down_modal_state_2",
+"platform_overview_widget_configuration_kpi_metric_card_state",
+"platform_overview_widget_configuration_table_feed_stream_state"
+],
+"checkout-platform-external-editor": [
+"platform_external_contract_editor_incident_inspection_mitigation_sheet_state",
+"platform_external_contract_editor_rotate_egress_ips_alertdialog_state"
+],
+"platform-roles": [
+"platform_roles_compare_roles_diff_modal_state",
+"platform_roles_permission_matrix_grant_revoke_dialog_state"
+],
+"platform-staff": [
+"platform_staff_invite_platform_staff_slide_over_sheet_state",
+"platform_staff_suspend_staff_confirmation_alertdialog_state"
+],
+"checkout-platform-transactions": [
+"platform_transactions_issue_refund_clawback_modal_state",
+"platform_transactions_no_filter_results_state"
+],
+"position-detail-live": [
+"position_detail_live_close_at_market_modal_state",
+"position_detail_live_modify_sl_tp_sheet_state"
+],
+"ai-predictive": [
+"predictive_analytics_churn_outreach_batch_intervention_sheet_state",
+"predictive_analytics_retrain_model_confirmation_alertdialog_state"
+],
+"profile": [
+"profile_active_edit_mode_unsaved_changes_state",
+"profile_revoke_all_other_sessions_confirmation_alertdialog_state"
+],
+"ai-prompt-library": [
+"prompt_library_archive_prompt_confirmation_alertdialog_state",
+"prompt_library_interactive_model_test_sandbox_modal_state"
+],
+"checkout-platform-psp-catalog": [
+"psp_catalog_add_new_psp_template_modal_state",
+"psp_catalog_upload_compliance_certification_deprecation_state"
+],
+"checkout-psp-onboarding": [
+"psp_onboarding_wizard_connection_diagnostics_error_key_vault_modal_state",
+"psp_onboarding_wizard_step_4_test_pre_flight_activation_state"
+],
+"reconciled-transactions": [
+"reconciled_transactions_review_flag_for_auditor_sheet_state",
+"reconciled_transactions_review_reopen_reconciliation_alertdialog_state"
+],
+"accounting-reconciliation": [
+"reconciliation_discrepancy_investigation_sheet_state",
+"reconciliation_import_bank_statement_sheet_state"
+],
+"recurring-invoices": [
+"recurring_invoices_new_edit_schedule_sheet_state",
+"recurring_invoices_schedule_detail_audit_history_sheet_state"
+],
+"refunds-credit-notes": [
+"refunds_credit_notes_new_refund_sheet_state",
+"refunds_credit_notes_refund_detail_audit_inspection_sheet_state"
+],
+"checkout-refund-dispute": [
+"refunds_disputes_accept_chargeback_conclude_case_modal_state",
+"refunds_disputes_all_resolved_empty_state"
+],
+"analytics-retention": [
+"retention_analytics_cohort_drill_down_sheet_state",
+"retention_analytics_re_engagement_campaign_composer_sheet_state"
+],
+"audit-retention": [
+"retention_export_scheduling_delete_export_schedule_alertdialog_state",
+"retention_export_scheduling_schedule_export_configuration_sheet_state"
+],
+"risk-revenue-loss": [
+"revenue_loss_analysis_period_drill_down_sheet_state",
+"revenue_loss_analysis_schedule_deep_dive_sheet_state"
+],
+"kyc-reviewer-trail": [
+"reviewer_audit_trail_cryptographic_proofs_export_modal_state",
+"reviewer_audit_trail_reviewer_inspection_sheet_state"
+],
+"risk-alert-subscription": [
+"risk_alert_subscriptions_add_subscription_sheet_state",
+"risk_alert_subscriptions_delete_subscription_alertdialog_state",
+"risk_surveillance_notifications_all_nominal_empty_state",
+"risk_surveillance_notifications_module_preferences_ingress_rules_sheet_state"
+],
+"analytics-risk": [
+"risk_analytics_custom_date_range_confidence_parameters_sheet_state",
+"risk_analytics_recalculate_risk_model_alertdialog_state"
+],
+"risk": [
+"risk_overview_resolve_breach_modal_state",
+"risk_overview_trade_replay_sheet_state"
+],
+"risk-rules-editor": [
+"risk_rules_editor_reset_to_defaults_alertdialog_state",
+"risk_rules_editor_test_rule_simulation_sheet_state"
+],
+"risk-statistics": [
+"risk_statistics_cohort_drill_down_sheet_state",
+"risk_statistics_save_view_sheet_state"
+],
+"role-audit": [
+"role_audit_log_emergency_revert_quorum_verification_modal_state",
+"role_audit_log_save_search_alert_rules_sheet_state"
+],
+"roles-management": [
+"roles_permissions_compare_roles_diff_modal_state",
+"roles_permissions_permission_matrix_grant_revoke_alertdialog_state"
+],
+"saved-reports": [
+"saved_reports_delete_report_confirmation_alertdialog_state",
+"saved_reports_report_builder_sheet_state"
+],
+"overview-saved-views": [
+"saved_views_save_current_view_sheet_state",
+"saved_views_share_view_with_team_modal_state"
+],
+"scheduled-exports": [
+"scheduled_exports_new_edit_schedule_sheet_state",
+"scheduled_exports_run_now_manual_execution_alertdialog_state"
+],
+"mt4-dxtrade-server-catalog": [
+"server_catalog_add_server_provisioning_sheet_state",
+"server_catalog_connection_test_diagnostics_modal_state"
+],
+"module-catalog": [
+"service_catalog_bulk_module_orchestration_modal_state",
+"service_catalog_module_manifest_changelog_sheet_state"
+],
+"settings": [
+"settings_landing_export_tenant_data.zip_modal_state",
+"settings_landing_no_filter_results_state"
+],
+"settings-module-detail": [
+"settings_module_detail_configure_module_parameters_slide_over_sheet_state",
+"settings_module_detail_disable_module_confirmation_alertdialog_state",
+"settings_module_detail_edit_rbac_permissions_modal_state",
+"settings_module_detail_tenant_parameter_overrides_sheet_state"
+],
+"checkout-settlement": [
+"settlement_reconciliation_adjust_ledger_reconcile_modal_state",
+"settlement_reconciliation_all_balanced_empty_state"
+],
+"audit-severity-policy": [
+"severity_policy_configuration_delete_escalation_rule_confirmation_alertdialog",
+"severity_policy_configuration_escalation_rule_configuration_sheet_state"
+],
+"audit-siem": [
+"siem_external_sinks_add_external_sink_sheet_state",
+"siem_external_sinks_delete_sink_alertdialog_state"
+],
+"support-sla": [
+"sla_management_edit_sla_tier_policy_sheet_state",
+"sla_management_trigger_bulk_supervisor_ping_alertdialog_state"
+],
+"pending-snoozed-resolved": [
+"snoozed_resolved_history_reopen_task_confirmation_alertdialog_state",
+"snoozed_resolved_history_resolved_archive_active_tab_state"
+],
+"social-media-links": [
+"social_media_links_no_filter_results_state",
+"social_media_links_revoke_social_handle_confirmation_alertdialog_state"
+],
+"support-canned-responses": [
+"support_canned_responses_archive_response_confirmation_alertdialog_state",
+"support_canned_responses_create_edit_response_slide_over_sheet_state"
+],
+"support-contact": [
+"support_contact_live_chat_widget_state",
+"support_contact_ticket_submitted_sla_confirmation_state"
+],
+"support": [
+"support_overview_all_caught_up_empty_state",
+"support_overview_create_ticket_dialog_state",
+"support_overview_create_ticket_step_2_advanced_telemetry_state",
+"support_overview_create_ticket_validation_error_duplicate_warning_state",
+"support_overview_ticket_inspection_triage_sheet_state"
+],
+"support-tickets": [
+"support_tickets_bulk_triage_resolve_drawer_state",
+"support_tickets_no_filter_results_state"
+],
+"platform-health": [
+"system_health_incident_inspection_automated_failover_drawer_state",
+"system_health_simulate_disaster_recovery_drill_modal_state"
+],
+"tax-vat-config": [
+"tax_vat_configuration_add_edit_tax_rate_sheet_state",
+"tax_vat_configuration_statutory_tax_filing_detail_remittance_sheet_state"
+],
+"team-members": [
+"team_members_invite_staff_operator_sheet_state",
+"team_members_revoke_operator_access_confirmation_alertdialog_state"
+],
+"marketing-template-editor": [
+"template_editor_insert_merge_field_dialog_state",
+"template_editor_new_template_creation_sheet_state"
+],
+"checkout-platform-tenants": [
+"tenant_checkout_matrix_add_tenant_to_checkout_modal_state",
+"tenant_checkout_matrix_bulk_take_rate_override_modal_state"
+],
+"tenant-detail": [
+"tenant_detail_clone_tenant_slide_over_sheet_state",
+"tenant_detail_suspend_tenant_confirmation_alertdialog_state"
+],
+"tenant-lifecycle": [
+"tenant_lifecycle_emergency_suspend_kill_switch_confirmation_alertdialog_state",
+"tenant_lifecycle_stage_transition_re_verification_sheet_state"
+],
+"tenants": [
+"tenants_directory_bulk_suspend_confirmation_alertdialog_state",
+"tenants_directory_no_filter_results_state"
+],
+"token-management": [
+"token_management_generate_token_slide_over_sheet_state",
+"token_management_no_filter_results_state"
+],
+"analytics-traders": [
+"trader_analytics_apply_segment_sheet_state",
+"trader_analytics_row_action_menu_metric_popover_state"
+],
+"trader-audit-log": [
+"trader_audit_log_compare_to_previous_period_state",
+"trader_audit_log_event_subscription_sheet_state"
+],
+"trader-comparison": [
+"trader_comparison_pick_trader_sheet_state",
+"trader_comparison_schedule_report_sheet_state"
+],
+"trader-detail": [
+"trader_detail_suspended_rule_breached_state"
+],
+"trading-traders": [
+"traders_directory_empty_state",
+"traders_directory_no_filter_results_state"
+],
+"trading-credentials": [
+"trading_credentials_reveal_master_password_alertdialog_state",
+"trading_credentials_rotate_password_modal_state"
+],
+"trading-events": [
+"trading_event_rules_add_event_rule_sheet_state",
+"trading_event_rules_test_rule_simulation_sheet_state"
+],
+"trading": [
+"trading_overview_degraded_high_risk_state",
+"trading_overview_empty_first_time_state"
+],
+"ai-training-export": [
+"training_data_export_cancel_active_export_confirmation_alertdialog_state",
+"training_data_export_export_detail_anonymization_audit_sheet_state"
+],
+"transaction-detail": [
+"transaction_detail_add_audit_note_sheet_state",
+"transaction_detail_raw_payload_json_state",
+"transaction_detail_reverse_transaction_alertdialog_state",
+"transaction_detail_timeline_audit_events_state"
+],
+"accounting-transactions": [
+"transactions_add_audit_note_sheet_state",
+"transactions_reconcile_transaction_sheet_state"
+],
+"risk-unprofitable-countries": [
+"unprofitable_countries_add_to_geo_restriction_alertdialog_state",
+"unprofitable_countries_regional_drill_down_sheet_state"
+],
+"audit-user-event-detail": [
+"user_event_detail_export_forensic_json_cryptographic_proof_modal_state",
+"user_event_detail_flag_for_compliance_review_hold_dialog_state"
+],
+"audit-user-events-enhanced": [
+"user_events_enhanced_no_filter_results_state"
+],
+"user-management": [
+"user_management_add_user_slide_over_sheet_state",
+"user_management_export_users_csv_modal_state"
+],
+"utilities": [
+"utilities_delete_utility_confirmation_alertdialog_state",
+"utilities_preview_as_trader_modal_state"
+],
+"vpn-proxy-detection-dashboard": [
+"vpn_proxy_detection_block_all_flagged_confirmation_alertdialog_state",
+"vpn_proxy_detection_ip_detail_inspection_sheet_state"
+],
+"checkout-webhook-log": [
+"webhook_log_viewer_no_filter_results_state",
+"webhook_log_viewer_replay_block_ip_modal_state"
+],
+"weekend-trades": [
+"weekend_trades_bulk_force_close_confirmation_alertdialog_state",
+"weekend_trades_notify_trader_sheet_state"
+],
+"help-changelog": [
+"what_s_new_changelog_release_notes_migration_guide_modal_state",
+"what_s_new_changelog_subscribe_slide_over_sheet_state"
+]
+},
+"prop": [
+"2fa-setup-dialog",
+"account-broker-details",
+"account-configuration",
+"account-events",
+"account-ip-addresses",
+"account-kyc-statuses",
+"account-linkage-graph",
+"account-related-accounts",
+"account-version-history",
+"accounting",
+"accounting-invoices",
+"accounting-pl",
+"accounting-reconciliation",
+"accounting-transactions",
+"add-group-sheet",
+"affiliate-commission-payout",
+"affiliate-comparison",
+"affiliate-coupons",
+"affiliate-detail",
+"affiliate-link-tracking",
+"affiliate-onboarding",
+"affiliates",
+"affiliates-campaigns",
+"affiliates-commissions",
+"affiliates-list",
+"ai",
+"ai-anomaly",
+"ai-assistant",
+"ai-configure",
+"ai-cost",
+"ai-finetuning",
+"ai-insights",
+"ai-model-audit",
+"ai-predictive",
+"ai-prompt-library",
+"ai-quota",
+"ai-training-export",
+"analytics",
+"analytics-advanced",
+"analytics-daily-highlights",
+"analytics-firm-statistics",
+"analytics-performance",
+"analytics-retention",
+"analytics-risk",
+"analytics-traders",
+"audit",
+"audit-change-history",
+"audit-compliance-report",
+"audit-retention",
+"audit-severity-policy",
+"audit-siem",
+"audit-user-event-detail",
+"audit-user-events",
+"audit-user-events-enhanced",
+"bank-statement-import",
+"banner-management",
+"breach-detail",
+"breaches",
+"certificate-detail",
+"certificate-font-upload",
+"certificate-management",
+"certificate-template-designer",
+"certificates-issued",
+"change-password-dialog",
+"chart-of-accounts",
+"checkout",
+"checkout-external",
+"checkout-providers",
+"checkout-psp-onboarding",
+"checkout-refund-dispute",
+"checkout-settlement",
+"checkout-transactions",
+"checkout-webhook-log",
+"cohort-builder",
+"connected-sessions-detail",
+"cookie-attribution",
+"copy-trading-analysis",
+"copy-trading-events",
+"crm",
+"crm-activity-log",
+"crm-contact-create",
+"crm-contacts",
+"crm-lead-scoring",
+"crm-pipeline",
+"csv-import-dialog",
+"custom-segmentation",
+"dashboard-template-library",
+"device-activities",
+"device-detail",
+"email-template-edit",
+"email-templates",
+"financial-reports-library",
+"group-management",
+"help-changelog",
+"help-module-detail",
+"inverse-trading-events",
+"journal-entries",
+"kyc",
+"kyc-aml-cases",
+"kyc-provider-marketplace",
+"kyc-providers",
+"kyc-record-detail",
+"kyc-reviewer-trail",
+"kyc-reviews",
+"kyc-risk",
+"marketing",
+"marketing-ad-accounts",
+"marketing-ad-spend",
+"marketing-audience-builder",
+"marketing-banner-edit",
+"marketing-campaign-detail",
+"marketing-dashboard",
+"marketing-email-campaigns",
+"marketing-integrations",
+"marketing-performance",
+"marketing-template-editor",
+"my-tasks",
+"notification-detail-dialog",
+"notification-edit",
+"notification-preferences-matrix",
+"notifications",
+"notifications-archived",
+"notifications-management",
+"offer-change-history",
+"offer-edit",
+"offer-management",
+"offer-matching-users",
+"orders",
+"overview",
+"overview-onboarding-tour",
+"overview-saved-views",
+"payout-compliance",
+"payout-detail",
+"payout-methods-config",
+"payout-reversal",
+"payout-schedule",
+"payouts",
+"payouts-bulk-approval",
+"payouts-enhanced-withdrawals",
+"payouts-history",
+"payouts-pending",
+"pending-snoozed-resolved",
+"pending-task-detail",
+"pending-tasks",
+"platform-architecture",
+"position-detail-live",
+"profile",
+"profile-api-tokens",
+"reconciled-transactions",
+"recurring-invoices",
+"refunds-credit-notes",
+"risk",
+"risk-account-label-analysis",
+"risk-addon-revenue",
+"risk-alert-subscription",
+"risk-coupon-vs-payouts",
+"risk-group-vs-payouts",
+"risk-highest-earners",
+"risk-label-vs-payouts",
+"risk-revenue-loss",
+"risk-rules-editor",
+"risk-statistics",
+"risk-unprofitable-countries",
+"roles-management",
+"saved-reports",
+"scheduled-exports",
+"settings",
+"settings-module-detail",
+"social-media-links",
+"support",
+"support-agent-detail",
+"support-canned-responses",
+"support-contact",
+"support-csat",
+"support-knowledge",
+"support-knowledge-editor",
+"support-sla",
+"support-tickets",
+"tax-vat-config",
+"team-members",
+"token-detail",
+"token-management",
+"trader-risk-score-detail",
+"trading-events",
+"transaction-detail",
+"user-audit-timeline",
+"user-management",
+"utilities",
+"vpn-proxy-detection-dashboard",
+"weekend-trades"
+],
+"super": [
+"checkout-platform-external-editor",
+"checkout-platform-overview",
+"checkout-platform-psp-catalog",
+"checkout-platform-tenants",
+"checkout-platform-transactions",
+"create-tenant",
+"dashboard-manager",
+"incident-management",
+"module-catalog",
+"permissions-catalog",
+"platform-audit",
+"platform-health",
+"platform-roles",
+"platform-staff",
+"role-audit",
+"service-detail",
+"super-module-detail",
+"tenant-billing-detail",
+"tenant-detail",
+"tenant-impersonation-audit",
+"tenant-lifecycle",
+"tenants"
+],
+"done": [
+"account-workspace",
+"bridge-sync-log",
+"bulk-account-operations",
+"bulk-phase-editor",
+"challenge-analytics",
+"challenge-comparison",
+"challenge-config",
+"challenge-edit",
+"challenge-marketplace-preview",
+"challenge-types",
+"challenge-wizard",
+"challenges",
+"challenges-active",
+"challenges-failed",
+"challenges-passed",
+"closed-position-detail",
+"closed-positions",
+"mt4-dxtrade-server-catalog",
+"phase-detail",
+"phase-management",
+"phase-migration-tool",
+"trader-audit-log",
+"trader-comparison",
+"trader-detail",
+"trading",
+"trading-accounts",
+"trading-add-account",
+"trading-credentials",
+"trading-positions",
+"trading-traders"
+],
+"no_stitch": [
+"affiliate-campaign-detail",
+"ai-insight-detail",
+"audit-entry-detail",
+"checkout-methods",
+"checkout-platform-external",
+"checkout-transaction-detail",
+"crm-deal-detail",
+"dashboard-accounts",
+"dashboard-orders",
+"dashboard-payouts",
+"dashboard-positions",
+"help",
+"help-center-faq",
+"help-onboarding",
+"marketing-campaigns",
+"marketing-utm-builder",
+"notification-preferences-matrix-notifications",
+"notifications-module-feed",
+"overview-widget-config",
+"pending-bulk-assign",
+"platform-module-toggle",
+"super-admin-user-audit-timeline",
+"super-overview",
+"support-create-ticket"
+],
+"screens": {
+"trading": {
+"title": "Trading Overview",
+"tag": "EXISTING",
+"batch": "Batch 1 \u2014 Trading Overview, Traders, Accounts, Open Positions, Trader Detail"
+},
+"trading-traders": {
+"title": "Traders",
+"tag": "EXISTING",
+"batch": "Batch 1 \u2014 Trading Overview, Traders, Accounts, Open Positions, Trader Detail"
+},
+"trading-accounts": {
+"title": "Accounts",
+"tag": "EXISTING",
+"batch": "Batch 1 \u2014 Trading Overview, Traders, Accounts, Open Positions, Trader Detail"
+},
+"trading-positions": {
+"title": "Open Positions",
+"tag": "EXISTING",
+"batch": "Batch 1 \u2014 Trading Overview, Traders, Accounts, Open Positions, Trader Detail"
+},
+"trader-detail": {
+"title": "Trader Detail",
+"tag": "EXISTING",
+"batch": "Batch 1 \u2014 Trading Overview, Traders, Accounts, Open Positions, Trader Detail"
+},
+"trading-add-account": {
+"title": "Add Account",
+"tag": "EXISTING",
+"batch": "Batch 2 \u2014 Add Account, Closed Positions, Closed Position Detail, Account Workspace, Account Broker Details"
+},
+"closed-positions": {
+"title": "Closed Positions",
+"tag": "EXISTING",
+"batch": "Batch 2 \u2014 Add Account, Closed Positions, Closed Position Detail, Account Workspace, Account Broker Details"
+},
+"closed-position-detail": {
+"title": "Closed Position Detail",
+"tag": "EXISTING",
+"batch": "Batch 2 \u2014 Add Account, Closed Positions, Closed Position Detail, Account Workspace, Account Broker Details"
+},
+"account-workspace": {
+"title": "Account Workspace",
+"tag": "EXISTING",
+"batch": "Batch 2 \u2014 Add Account, Closed Positions, Closed Position Detail, Account Workspace, Account Broker Details"
+},
+"account-broker-details": {
+"title": "Account Broker Details",
+"tag": "EXISTING",
+"batch": "Batch 2 \u2014 Add Account, Closed Positions, Closed Position Detail, Account Workspace, Account Broker Details"
+},
+"account-kyc-statuses": {
+"title": "Account KYC Statuses",
+"tag": "EXISTING",
+"batch": "Batch 3 \u2014 Account KYC Statuses, Account Related Accounts, Account Configuration, Account Events, Account Version History"
+},
+"account-related-accounts": {
+"title": "Account Related Accounts",
+"tag": "EXISTING",
+"batch": "Batch 3 \u2014 Account KYC Statuses, Account Related Accounts, Account Configuration, Account Events, Account Version History"
+},
+"account-configuration": {
+"title": "Account Configuration",
+"tag": "EXISTING",
+"batch": "Batch 3 \u2014 Account KYC Statuses, Account Related Accounts, Account Configuration, Account Events, Account Version History"
+},
+"account-events": {
+"title": "Account Events",
+"tag": "EXISTING",
+"batch": "Batch 3 \u2014 Account KYC Statuses, Account Related Accounts, Account Configuration, Account Events, Account Version History"
+},
+"account-version-history": {
+"title": "Account Version History",
+"tag": "EXISTING",
+"batch": "Batch 3 \u2014 Account KYC Statuses, Account Related Accounts, Account Configuration, Account Events, Account Version History"
+},
+"trading-credentials": {
+"title": "Trading Credentials",
+"tag": "EXISTING",
+"batch": "Batch 4 \u2014 Trading Credentials, Trader Comparison, Position Detail (Live), Bridge Sync Log, Trader Audit Log"
+},
+"trader-comparison": {
+"title": "Trader Comparison",
+"tag": "NEW",
+"batch": "Batch 4 \u2014 Trading Credentials, Trader Comparison, Position Detail (Live), Bridge Sync Log, Trader Audit Log"
+},
+"position-detail-live": {
+"title": "Position Detail (Live)",
+"tag": "NEW",
+"batch": "Batch 4 \u2014 Trading Credentials, Trader Comparison, Position Detail (Live), Bridge Sync Log, Trader Audit Log"
+},
+"bridge-sync-log": {
+"title": "Bridge Sync Log",
+"tag": "NEW",
+"batch": "Batch 4 \u2014 Trading Credentials, Trader Comparison, Position Detail (Live), Bridge Sync Log, Trader Audit Log"
+},
+"trader-audit-log": {
+"title": "Trader Audit Log",
+"tag": "NEW",
+"batch": "Batch 4 \u2014 Trading Credentials, Trader Comparison, Position Detail (Live), Bridge Sync Log, Trader Audit Log"
+},
+"mt4-dxtrade-server-catalog": {
+"title": "MT4/DXTrade Server Config Catalog",
+"tag": "NEW",
+"batch": "Batch 5 \u2014 MT4/DXTrade Server Config Catalog, Bulk Account Operations, Challenges Overview, Active Challenges, Passed Challenges"
+},
+"bulk-account-operations": {
+"title": "Bulk Account Operations",
+"tag": "NEW",
+"batch": "Batch 5 \u2014 MT4/DXTrade Server Config Catalog, Bulk Account Operations, Challenges Overview, Active Challenges, Passed Challenges"
+},
+"challenges": {
+"title": "Challenges Overview",
+"tag": "EXISTING",
+"batch": "Batch 5 \u2014 MT4/DXTrade Server Config Catalog, Bulk Account Operations, Challenges Overview, Active Challenges, Passed Challenges"
+},
+"challenges-active": {
+"title": "Active Challenges",
+"tag": "EXISTING",
+"batch": "Batch 5 \u2014 MT4/DXTrade Server Config Catalog, Bulk Account Operations, Challenges Overview, Active Challenges, Passed Challenges"
+},
+"challenges-passed": {
+"title": "Passed Challenges",
+"tag": "EXISTING",
+"batch": "Batch 5 \u2014 MT4/DXTrade Server Config Catalog, Bulk Account Operations, Challenges Overview, Active Challenges, Passed Challenges"
+},
+"challenges-failed": {
+"title": "Failed Challenges",
+"tag": "EXISTING",
+"batch": "Batch 6 \u2014 Failed Challenges, Create Wizard, Challenge Types, Configuration, Phase Management"
+},
+"challenge-wizard": {
+"title": "Create Wizard",
+"tag": "EXISTING",
+"batch": "Batch 6 \u2014 Failed Challenges, Create Wizard, Challenge Types, Configuration, Phase Management"
+},
+"challenge-types": {
+"title": "Challenge Types",
+"tag": "EXISTING",
+"batch": "Batch 6 \u2014 Failed Challenges, Create Wizard, Challenge Types, Configuration, Phase Management"
+},
+"challenge-config": {
+"title": "Configuration",
+"tag": "EXISTING",
+"batch": "Batch 6 \u2014 Failed Challenges, Create Wizard, Challenge Types, Configuration, Phase Management"
+},
+"phase-management": {
+"title": "Phase Management",
+"tag": "EXISTING",
+"batch": "Batch 6 \u2014 Failed Challenges, Create Wizard, Challenge Types, Configuration, Phase Management"
+},
+"challenge-edit": {
+"title": "Edit Challenge",
+"tag": "EXISTING",
+"batch": "Batch 7 \u2014 Edit Challenge, Phase Detail, Challenge Marketplace Preview, Challenge Comparison, Challenge Analytics"
+},
+"phase-detail": {
+"title": "Phase Detail",
+"tag": "EXISTING",
+"batch": "Batch 7 \u2014 Edit Challenge, Phase Detail, Challenge Marketplace Preview, Challenge Comparison, Challenge Analytics"
+},
+"challenge-marketplace-preview": {
+"title": "Challenge Marketplace Preview",
+"tag": "NEW",
+"batch": "Batch 7 \u2014 Edit Challenge, Phase Detail, Challenge Marketplace Preview, Challenge Comparison, Challenge Analytics"
+},
+"challenge-comparison": {
+"title": "Challenge Comparison",
+"tag": "NEW",
+"batch": "Batch 7 \u2014 Edit Challenge, Phase Detail, Challenge Marketplace Preview, Challenge Comparison, Challenge Analytics"
+},
+"challenge-analytics": {
+"title": "Challenge Analytics",
+"tag": "NEW",
+"batch": "Batch 7 \u2014 Edit Challenge, Phase Detail, Challenge Marketplace Preview, Challenge Comparison, Challenge Analytics"
+},
+"phase-migration-tool": {
+"title": "Phase Migration Tool",
+"tag": "NEW",
+"batch": "Batch 8 \u2014 Phase Migration Tool, Bulk Phase Editor, Risk Overview, Breaches, Risk Statistics"
+},
+"bulk-phase-editor": {
+"title": "Bulk Phase Editor",
+"tag": "NEW",
+"batch": "Batch 8 \u2014 Phase Migration Tool, Bulk Phase Editor, Risk Overview, Breaches, Risk Statistics"
+},
+"risk": {
+"title": "Risk Overview",
+"tag": "EXISTING",
+"batch": "Batch 8 \u2014 Phase Migration Tool, Bulk Phase Editor, Risk Overview, Breaches, Risk Statistics"
+},
+"breaches": {
+"title": "Breaches",
+"tag": "EXISTING",
+"batch": "Batch 8 \u2014 Phase Migration Tool, Bulk Phase Editor, Risk Overview, Breaches, Risk Statistics"
+},
+"risk-statistics": {
+"title": "Risk Statistics",
+"tag": "EXISTING",
+"batch": "Batch 8 \u2014 Phase Migration Tool, Bulk Phase Editor, Risk Overview, Breaches, Risk Statistics"
+},
+"trading-events": {
+"title": "Trading Events",
+"tag": "EXISTING",
+"batch": "Batch 9 \u2014 Trading Events, Copy Trading Events, Copy Trading Analysis, Inverse Trading Events, Account IP Addresses"
+},
+"copy-trading-events": {
+"title": "Copy Trading Events",
+"tag": "EXISTING",
+"batch": "Batch 9 \u2014 Trading Events, Copy Trading Events, Copy Trading Analysis, Inverse Trading Events, Account IP Addresses"
+},
+"copy-trading-analysis": {
+"title": "Copy Trading Analysis",
+"tag": "EXISTING",
+"batch": "Batch 9 \u2014 Trading Events, Copy Trading Events, Copy Trading Analysis, Inverse Trading Events, Account IP Addresses"
+},
+"inverse-trading-events": {
+"title": "Inverse Trading Events",
+"tag": "EXISTING",
+"batch": "Batch 9 \u2014 Trading Events, Copy Trading Events, Copy Trading Analysis, Inverse Trading Events, Account IP Addresses"
+},
+"account-ip-addresses": {
+"title": "Account IP Addresses",
+"tag": "EXISTING",
+"batch": "Batch 9 \u2014 Trading Events, Copy Trading Events, Copy Trading Analysis, Inverse Trading Events, Account IP Addresses"
+},
+"weekend-trades": {
+"title": "Weekend Trades",
+"tag": "EXISTING",
+"batch": "Batch 10 \u2014 Weekend Trades, Unprofitable Countries, Revenue Loss, Label vs Payouts, Highest Earners"
+},
+"risk-unprofitable-countries": {
+"title": "Unprofitable Countries",
+"tag": "EXISTING",
+"batch": "Batch 10 \u2014 Weekend Trades, Unprofitable Countries, Revenue Loss, Label vs Payouts, Highest Earners"
+},
+"risk-revenue-loss": {
+"title": "Revenue Loss",
+"tag": "EXISTING",
+"batch": "Batch 10 \u2014 Weekend Trades, Unprofitable Countries, Revenue Loss, Label vs Payouts, Highest Earners"
+},
+"risk-label-vs-payouts": {
+"title": "Label vs Payouts",
+"tag": "EXISTING",
+"batch": "Batch 10 \u2014 Weekend Trades, Unprofitable Countries, Revenue Loss, Label vs Payouts, Highest Earners"
+},
+"risk-highest-earners": {
+"title": "Highest Earners",
+"tag": "EXISTING",
+"batch": "Batch 10 \u2014 Weekend Trades, Unprofitable Countries, Revenue Loss, Label vs Payouts, Highest Earners"
+},
+"risk-group-vs-payouts": {
+"title": "Group vs Payouts",
+"tag": "EXISTING",
+"batch": "Batch 11 \u2014 Group vs Payouts, Coupon vs Payouts, Account Label Analysis, Addon Revenue, Risk Rules Editor"
+},
+"risk-coupon-vs-payouts": {
+"title": "Coupon vs Payouts",
+"tag": "EXISTING",
+"batch": "Batch 11 \u2014 Group vs Payouts, Coupon vs Payouts, Account Label Analysis, Addon Revenue, Risk Rules Editor"
+},
+"risk-account-label-analysis": {
+"title": "Account Label Analysis",
+"tag": "EXISTING",
+"batch": "Batch 11 \u2014 Group vs Payouts, Coupon vs Payouts, Account Label Analysis, Addon Revenue, Risk Rules Editor"
+},
+"risk-addon-revenue": {
+"title": "Addon Revenue",
+"tag": "EXISTING",
+"batch": "Batch 11 \u2014 Group vs Payouts, Coupon vs Payouts, Account Label Analysis, Addon Revenue, Risk Rules Editor"
+},
+"risk-rules-editor": {
+"title": "Risk Rules Editor",
+"tag": "NEW",
+"batch": "Batch 11 \u2014 Group vs Payouts, Coupon vs Payouts, Account Label Analysis, Addon Revenue, Risk Rules Editor"
+},
+"breach-detail": {
+"title": "Breach Detail",
+"tag": "NEW",
+"batch": "Batch 12 \u2014 Breach Detail, Trader Risk Score Detail, Risk Alert Subscription, VPN/Proxy Detection Dashboard, Account Linkage Graph"
+},
+"trader-risk-score-detail": {
+"title": "Trader Risk Score Detail",
+"tag": "NEW",
+"batch": "Batch 12 \u2014 Breach Detail, Trader Risk Score Detail, Risk Alert Subscription, VPN/Proxy Detection Dashboard, Account Linkage Graph"
+},
+"risk-alert-subscription": {
+"title": "Risk Alert Subscription",
+"tag": "NEW",
+"batch": "Batch 12 \u2014 Breach Detail, Trader Risk Score Detail, Risk Alert Subscription, VPN/Proxy Detection Dashboard, Account Linkage Graph"
+},
+"vpn-proxy-detection-dashboard": {
+"title": "VPN/Proxy Detection Dashboard",
+"tag": "NEW",
+"batch": "Batch 12 \u2014 Breach Detail, Trader Risk Score Detail, Risk Alert Subscription, VPN/Proxy Detection Dashboard, Account Linkage Graph"
+},
+"account-linkage-graph": {
+"title": "Account Linkage Graph",
+"tag": "NEW",
+"batch": "Batch 12 \u2014 Breach Detail, Trader Risk Score Detail, Risk Alert Subscription, VPN/Proxy Detection Dashboard, Account Linkage Graph"
+},
+"payouts": {
+"title": "Payouts Overview",
+"tag": "EXISTING",
+"batch": "Batch 13 \u2014 Payouts Module (1 of 2)"
+},
+"payouts-pending": {
+"title": "Pending Payouts",
+"tag": "EXISTING",
+"batch": "Batch 13 \u2014 Payouts Module (1 of 2)"
+},
+"payouts-history": {
+"title": "Payout History",
+"tag": "EXISTING",
+"batch": "Batch 13 \u2014 Payouts Module (1 of 2)"
+},
+"payouts-enhanced-withdrawals": {
+"title": "Enhanced Withdrawals",
+"tag": "EXISTING",
+"batch": "Batch 13 \u2014 Payouts Module (1 of 2)"
+},
+"payout-detail": {
+"title": "Payout Detail (Admin-side)",
+"tag": "NEW",
+"batch": "Batch 13 \u2014 Payouts Module (1 of 2)"
+},
+"payouts-bulk-approval": {
+"title": "Bulk Payout Approval Queue",
+"tag": "NEW",
+"batch": "Batch 14 \u2014 Payouts Module (2 of 2)"
+},
+"payout-methods-config": {
+"title": "Payout Methods Configuration",
+"tag": "NEW",
+"batch": "Batch 14 \u2014 Payouts Module (2 of 2)"
+},
+"payout-schedule": {
+"title": "Payout Schedule",
+"tag": "NEW",
+"batch": "Batch 14 \u2014 Payouts Module (2 of 2)"
+},
+"payout-reversal": {
+"title": "Payout Reversal / Refund",
+"tag": "NEW",
+"batch": "Batch 14 \u2014 Payouts Module (2 of 2)"
+},
+"payout-compliance": {
+"title": "Payout Compliance / Audit Report",
+"tag": "NEW",
+"batch": "Batch 14 \u2014 Payouts Module (2 of 2)"
+},
+"analytics": {
+"title": "Analytics Overview",
+"tag": "EXISTING",
+"batch": "Batch 15 \u2014 Analytics Module (1 of 4)"
+},
+"analytics-traders": {
+"title": "Trader Analytics",
+"tag": "EXISTING",
+"batch": "Batch 15 \u2014 Analytics Module (1 of 4)"
+},
+"analytics-performance": {
+"title": "Performance Analytics",
+"tag": "EXISTING",
+"batch": "Batch 15 \u2014 Analytics Module (1 of 4)"
+},
+"analytics-risk": {
+"title": "Risk Analytics",
+"tag": "EXISTING",
+"batch": "Batch 15 \u2014 Analytics Module (1 of 4)"
+},
+"analytics-advanced": {
+"title": "Advanced Analytics",
+"tag": "EXISTING",
+"batch": "Batch 15 \u2014 Analytics Module (1 of 4)"
+},
+"analytics-firm-statistics": {
+"title": "Firm Statistics",
+"tag": "EXISTING",
+"batch": "Batch 16 \u2014 Analytics Module (2 of 4)"
+},
+"analytics-daily-highlights": {
+"title": "Daily Highlights",
+"tag": "EXISTING",
+"batch": "Batch 16 \u2014 Analytics Module (2 of 4)"
+},
+"analytics-retention": {
+"title": "Retention Analytics",
+"tag": "EXISTING",
+"batch": "Batch 16 \u2014 Analytics Module (2 of 4)"
+},
+"dashboard-accounts": {
+"title": "Dashboard: Accounts Tab",
+"tag": "EXISTING",
+"batch": "Batch 16 \u2014 Analytics Module (2 of 4)"
+},
+"dashboard-payouts": {
+"title": "Dashboard: Payouts Tab",
+"tag": "EXISTING",
+"batch": "Batch 16 \u2014 Analytics Module (2 of 4)"
+},
+"dashboard-orders": {
+"title": "Dashboard: Orders Tab",
+"tag": "EXISTING",
+"batch": "Batch 17 \u2014 Analytics Module (3 of 4)"
+},
+"dashboard-positions": {
+"title": "Dashboard: Positions Tab",
+"tag": "EXISTING",
+"batch": "Batch 17 \u2014 Analytics Module (3 of 4)"
+},
+"saved-reports": {
+"title": "Saved Reports / Report Builder",
+"tag": "NEW",
+"batch": "Batch 17 \u2014 Analytics Module (3 of 4)"
+},
+"scheduled-exports": {
+"title": "Scheduled Exports",
+"tag": "NEW",
+"batch": "Batch 17 \u2014 Analytics Module (3 of 4)"
+},
+"custom-segmentation": {
+"title": "Custom Segmentation Builder",
+"tag": "NEW",
+"batch": "Batch 17 \u2014 Analytics Module (3 of 4)"
+},
+"cohort-builder": {
+"title": "Cohort Builder",
+"tag": "NEW",
+"batch": "Batch 18 \u2014 Analytics Module (4 of 4) + Affiliates Module (1 of 4)"
+},
+"affiliates": {
+"title": "Affiliates Overview",
+"tag": "EXISTING",
+"batch": "Batch 18 \u2014 Analytics Module (4 of 4) + Affiliates Module (1 of 4)"
+},
+"affiliates-list": {
+"title": "Affiliates List",
+"tag": "EXISTING",
+"batch": "Batch 18 \u2014 Analytics Module (4 of 4) + Affiliates Module (1 of 4)"
+},
+"affiliates-campaigns": {
+"title": "Campaigns",
+"tag": "EXISTING",
+"batch": "Batch 18 \u2014 Analytics Module (4 of 4) + Affiliates Module (1 of 4)"
+},
+"affiliates-commissions": {
+"title": "Commissions",
+"tag": "EXISTING",
+"batch": "Batch 18 \u2014 Analytics Module (4 of 4) + Affiliates Module (1 of 4)"
+},
+"offer-management": {
+"title": "Offer Management",
+"tag": "EXISTING",
+"batch": "Batch 19 \u2014 Affiliates Module (2 of 4)"
+},
+"offer-edit": {
+"title": "Offer Edit",
+"tag": "EXISTING",
+"batch": "Batch 19 \u2014 Affiliates Module (2 of 4)"
+},
+"offer-matching-users": {
+"title": "Offer Matching Users",
+"tag": "EXISTING",
+"batch": "Batch 19 \u2014 Affiliates Module (2 of 4)"
+},
+"offer-change-history": {
+"title": "Offer Change History",
+"tag": "EXISTING",
+"batch": "Batch 19 \u2014 Affiliates Module (2 of 4)"
+},
+"affiliate-coupons": {
+"title": "Affiliate Coupons",
+"tag": "EXISTING",
+"batch": "Batch 19 \u2014 Affiliates Module (2 of 4)"
+},
+"affiliate-link-tracking": {
+"title": "Affiliate Link Tracking",
+"tag": "EXISTING",
+"batch": "Batch 20 \u2014 Affiliates Module (3 of 4)"
+},
+"affiliate-detail": {
+"title": "Affiliate Detail",
+"tag": "NEW",
+"batch": "Batch 20 \u2014 Affiliates Module (3 of 4)"
+},
+"affiliate-campaign-detail": {
+"title": "Campaign Detail / Edit",
+"tag": "NEW",
+"batch": "Batch 20 \u2014 Affiliates Module (3 of 4)"
+},
+"affiliate-commission-payout": {
+"title": "Commission Payout Flow",
+"tag": "NEW",
+"batch": "Batch 20 \u2014 Affiliates Module (3 of 4)"
+},
+"affiliate-onboarding": {
+"title": "Affiliate Onboarding / Invite",
+"tag": "NEW",
+"batch": "Batch 20 \u2014 Affiliates Module (3 of 4)"
+},
+"affiliate-comparison": {
+"title": "Affiliate Performance Comparison",
+"tag": "NEW",
+"batch": "Batch 21 \u2014 Affiliates Module (4 of 4) + Accounting Module (1 of 3)"
+},
+"cookie-attribution": {
+"title": "Cookie Attribution Report",
+"tag": "NEW",
+"batch": "Batch 21 \u2014 Affiliates Module (4 of 4) + Accounting Module (1 of 3)"
+},
+"accounting": {
+"title": "Accounting Overview",
+"tag": "EXISTING",
+"batch": "Batch 21 \u2014 Affiliates Module (4 of 4) + Accounting Module (1 of 3)"
+},
+"accounting-transactions": {
+"title": "Transactions",
+"tag": "EXISTING",
+"batch": "Batch 21 \u2014 Affiliates Module (4 of 4) + Accounting Module (1 of 3)"
+},
+"accounting-reconciliation": {
+"title": "Reconciliation",
+"tag": "EXISTING",
+"batch": "Batch 21 \u2014 Affiliates Module (4 of 4) + Accounting Module (1 of 3)"
+},
+"accounting-invoices": {
+"title": "Invoices",
+"tag": "EXISTING",
+"batch": "Batch 22 \u2014 Accounting Module (2 of 3)"
+},
+"accounting-pl": {
+"title": "P&L Statement",
+"tag": "EXISTING",
+"batch": "Batch 22 \u2014 Accounting Module (2 of 3)"
+},
+"transaction-detail": {
+"title": "Transaction Detail",
+"tag": "NEW",
+"batch": "Batch 22 \u2014 Accounting Module (2 of 3)"
+},
+"bank-statement-import": {
+"title": "Bank Statement Import",
+"tag": "NEW",
+"batch": "Batch 22 \u2014 Accounting Module (2 of 3)"
+},
+"journal-entries": {
+"title": "Journal Entries / Manual Adjustments",
+"tag": "NEW",
+"batch": "Batch 22 \u2014 Accounting Module (2 of 3)"
+},
+"refunds-credit-notes": {
+"title": "Refunds / Credit Notes",
+"tag": "NEW",
+"batch": "Batch 23 \u2014 Accounting Module (3 of 3)"
+},
+"recurring-invoices": {
+"title": "Recurring Invoices",
+"tag": "NEW",
+"batch": "Batch 23 \u2014 Accounting Module (3 of 3)"
+},
+"tax-vat-config": {
+"title": "Tax / VAT Configuration",
+"tag": "NEW",
+"batch": "Batch 23 \u2014 Accounting Module (3 of 3)"
+},
+"chart-of-accounts": {
+"title": "Chart of Accounts",
+"tag": "NEW",
+"batch": "Batch 23 \u2014 Accounting Module (3 of 3)"
+},
+"reconciled-transactions": {
+"title": "Reconciled Transactions Review",
+"tag": "NEW",
+"batch": "Batch 23 \u2014 Accounting Module (3 of 3)"
+},
+"financial-reports-library": {
+"title": "Financial Reports Library",
+"tag": "NEW",
+"batch": "Batch 24 \u2014 Accounting Module (Final Screen)"
+},
+"marketing": {
+"title": "Marketing Overview",
+"tag": "EXISTING",
+"batch": "Batch 25 \u2014 Marketing (5 existing)"
+},
+"marketing-campaigns": {
+"title": "Campaigns",
+"tag": "EXISTING",
+"batch": "Batch 25 \u2014 Marketing (5 existing)"
+},
+"marketing-performance": {
+"title": "Performance",
+"tag": "EXISTING",
+"batch": "Batch 25 \u2014 Marketing (5 existing)"
+},
+"marketing-ad-spend": {
+"title": "Ad Spend",
+"tag": "EXISTING",
+"batch": "Batch 25 \u2014 Marketing (5 existing)"
+},
+"marketing-email-campaigns": {
+"title": "Email Campaigns",
+"tag": "EXISTING",
+"batch": "Batch 25 \u2014 Marketing (5 existing)"
+},
+"marketing-dashboard": {
+"title": "Marketing Dashboard",
+"tag": "EXISTING",
+"batch": "Batch 26 \u2014 Marketing (1 existing + 4 new)"
+},
+"marketing-campaign-detail": {
+"title": "Campaign Detail",
+"tag": "NEW",
+"batch": "Batch 26 \u2014 Marketing (1 existing + 4 new)"
+},
+"marketing-audience-builder": {
+"title": "Audience / Segment Builder",
+"tag": "NEW",
+"batch": "Batch 26 \u2014 Marketing (1 existing + 4 new)"
+},
+"marketing-template-editor": {
+"title": "Template Editor (Marketing-local)",
+"tag": "NEW",
+"batch": "Batch 26 \u2014 Marketing (1 existing + 4 new)"
+},
+"marketing-utm-builder": {
+"title": "Attribution / UTM Builder",
+"tag": "NEW",
+"batch": "Batch 26 \u2014 Marketing (1 existing + 4 new)"
+},
+"marketing-ad-accounts": {
+"title": "Ad Account Connections",
+"tag": "NEW",
+"batch": "Batch 27 \u2014 Marketing (1 new) + CRM (3 existing + 1 new)"
+},
+"crm": {
+"title": "CRM Overview",
+"tag": "EXISTING",
+"batch": "Batch 27 \u2014 Marketing (1 new) + CRM (3 existing + 1 new)"
+},
+"crm-contacts": {
+"title": "Contacts",
+"tag": "EXISTING",
+"batch": "Batch 27 \u2014 Marketing (1 new) + CRM (3 existing + 1 new)"
+},
+"crm-pipeline": {
+"title": "Pipeline",
+"tag": "EXISTING",
+"batch": "Batch 27 \u2014 Marketing (1 new) + CRM (3 existing + 1 new)"
+},
+"crm-contact-create": {
+"title": "Add Contact Flow",
+"tag": "NEW",
+"batch": "Batch 27 \u2014 Marketing (1 new) + CRM (3 existing + 1 new)"
+},
+"crm-deal-detail": {
+"title": "Deal Detail",
+"tag": "NEW",
+"batch": "Batch 28 \u2014 CRM (2 new) + KYC (2 existing + 1 new)"
+},
+"crm-activity-log": {
+"title": "Activity Log Timeline",
+"tag": "NEW",
+"batch": "Batch 28 \u2014 CRM (2 new) + KYC (2 existing + 1 new)"
+},
+"crm-lead-scoring": {
+"title": "Lead Scoring Configuration",
+"tag": "NEW",
+"batch": "Batch 28 \u2014 CRM (2 new) + KYC (2 existing + 1 new)"
+},
+"kyc": {
+"title": "KYC Overview",
+"tag": "EXISTING",
+"batch": "Batch 28 \u2014 CRM (2 new) + KYC (2 existing + 1 new)"
+},
+"kyc-reviews": {
+"title": "KYC Reviews",
+"tag": "EXISTING",
+"batch": "Batch 28 \u2014 CRM (2 new) + KYC (2 existing + 1 new)"
+},
+"kyc-risk": {
+"title": "KYC Risk",
+"tag": "EXISTING",
+"batch": "Batch 29 \u2014 KYC (1 existing + 4 new)"
+},
+"kyc-record-detail": {
+"title": "KYC Record Detail",
+"tag": "NEW",
+"batch": "Batch 29 \u2014 KYC (1 existing + 4 new)"
+},
+"kyc-aml-cases": {
+"title": "AML Case Management",
+"tag": "NEW",
+"batch": "Batch 29 \u2014 KYC (1 existing + 4 new)"
+},
+"kyc-providers": {
+"title": "KYC Providers",
+"tag": "EXISTING",
+"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 206-210)"
+},
+"kyc-reviewer-trail": {
+"title": "Reviewer Audit Trail",
+"tag": "NEW",
+"batch": "Batch 29 \u2014 KYC (1 existing + 4 new)"
+},
+"support": {
+"title": "Support Overview",
+"tag": "EXISTING",
+"batch": "Batch 30 \u2014 Support (4 existing + 1 new)"
+},
+"support-tickets": {
+"title": "Tickets",
+"tag": "EXISTING",
+"batch": "Batch 30 \u2014 Support (4 existing + 1 new)"
+},
+"support-sla": {
+"title": "SLA Management",
+"tag": "EXISTING",
+"batch": "Batch 30 \u2014 Support (4 existing + 1 new)"
+},
+"support-knowledge": {
+"title": "Knowledge",
+"tag": "EXISTING",
+"batch": "Batch 30 \u2014 Support (4 existing + 1 new)"
+},
+"support-create-ticket": {
+"title": "Create Ticket Dialog",
+"tag": "NEW",
+"batch": "Batch 30 \u2014 Support (4 existing + 1 new)"
+},
+"support-canned-responses": {
+"title": "Canned Responses Library",
+"tag": "NEW",
+"batch": "Batch 31 \u2014 Support (4 new) + AI (1 existing)"
+},
+"support-agent-detail": {
+"title": "Agent Detail",
+"tag": "NEW",
+"batch": "Batch 31 \u2014 Support (4 new) + AI (1 existing)"
+},
+"support-knowledge-editor": {
+"title": "Knowledge Article Editor",
+"tag": "NEW",
+"batch": "Batch 31 \u2014 Support (4 new) + AI (1 existing)"
+},
+"support-csat": {
+"title": "CSAT / Feedback Review",
+"tag": "NEW",
+"batch": "Batch 31 \u2014 Support (4 new) + AI (1 existing)"
+},
+"ai": {
+"title": "AI Overview",
+"tag": "EXISTING",
+"batch": "Batch 31 \u2014 Support (4 new) + AI (1 existing)"
+},
+"ai-insights": {
+"title": "AI Insights",
+"tag": "EXISTING",
+"batch": "Batch 32 \u2014 AI (5 existing)"
+},
+"ai-assistant": {
+"title": "AI Assistant",
+"tag": "EXISTING",
+"batch": "Batch 32 \u2014 AI (5 existing)"
+},
+"ai-configure": {
+"title": "AI Configure",
+"tag": "EXISTING",
+"batch": "Batch 32 \u2014 AI (5 existing)"
+},
+"ai-predictive": {
+"title": "Predictive Analytics",
+"tag": "EXISTING",
+"batch": "Batch 32 \u2014 AI (5 existing)"
+},
+"ai-anomaly": {
+"title": "Anomaly Detection",
+"tag": "EXISTING",
+"batch": "Batch 32 \u2014 AI (5 existing)"
+},
+"ai-cost": {
+"title": "Cost Tracking",
+"tag": "EXISTING",
+"batch": "Batch 33 \u2014 AI (1 existing + 4 new)"
+},
+"ai-insight-detail": {
+"title": "Per-Insight Detail",
+"tag": "NEW",
+"batch": "Batch 33 \u2014 AI (1 existing + 4 new)"
+},
+"ai-model-audit": {
+"title": "Model Audit Log",
+"tag": "NEW",
+"batch": "Batch 33 \u2014 AI (1 existing + 4 new)"
+},
+"ai-quota": {
+"title": "AI Usage Quota / Rate-Limit",
+"tag": "NEW",
+"batch": "Batch 33 \u2014 AI (1 existing + 4 new)"
+},
+"ai-prompt-library": {
+"title": "Prompt Library",
+"tag": "NEW",
+"batch": "Batch 33 \u2014 AI (1 existing + 4 new)"
+},
+"ai-finetuning": {
+"title": "Fine-tuning",
+"tag": "NEW",
+"batch": "Batch 34 \u2014 AI (2 new) + Checkout (3 existing)"
+},
+"ai-training-export": {
+"title": "Training Data Export",
+"tag": "NEW",
+"batch": "Batch 34 \u2014 AI (2 new) + Checkout (3 existing)"
+},
+"checkout": {
+"title": "Checkout Overview",
+"tag": "EXISTING",
+"batch": "Batch 34 \u2014 AI (2 new) + Checkout (3 existing)"
+},
+"checkout-providers": {
+"title": "Payment Providers",
+"tag": "EXISTING",
+"batch": "Batch 34 \u2014 AI (2 new) + Checkout (3 existing)"
+},
+"checkout-methods": {
+"title": "Payment Methods",
+"tag": "EXISTING",
+"batch": "Batch 34 \u2014 AI (2 new) + Checkout (3 existing)"
+},
+"checkout-external": {
+"title": "External Integration",
+"tag": "EXISTING",
+"batch": "Batch 35 \u2014 Checkout (5 existing)"
+},
+"checkout-transactions": {
+"title": "Transactions",
+"tag": "EXISTING",
+"batch": "Batch 35 \u2014 Checkout (5 existing)"
+},
+"checkout-platform-overview": {
+"title": "Platform Overview",
+"tag": "EXISTING",
+"batch": "Batch 35 \u2014 Checkout (5 existing)"
+},
+"checkout-platform-tenants": {
+"title": "Tenant Checkout Matrix",
+"tag": "EXISTING",
+"batch": "Batch 35 \u2014 Checkout (5 existing)"
+},
+"checkout-platform-psp-catalog": {
+"title": "PSP Catalog",
+"tag": "EXISTING",
+"batch": "Batch 35 \u2014 Checkout (5 existing)"
+},
+"checkout-platform-external": {
+"title": "Platform External Defaults",
+"tag": "EXISTING",
+"batch": "Batch 36 \u2014 Checkout (2 existing + 3 new)"
+},
+"checkout-platform-transactions": {
+"title": "Platform Transactions",
+"tag": "EXISTING",
+"batch": "Batch 36 \u2014 Checkout (2 existing + 3 new)"
+},
+"checkout-transaction-detail": {
+"title": "Transaction Detail Sheet",
+"tag": "NEW",
+"batch": "Batch 36 \u2014 Checkout (2 existing + 3 new)"
+},
+"checkout-webhook-log": {
+"title": "Webhook Log Viewer",
+"tag": "NEW",
+"batch": "Batch 36 \u2014 Checkout (2 existing + 3 new)"
+},
+"checkout-refund-dispute": {
+"title": "Refund / Dispute Workflow",
+"tag": "NEW",
+"batch": "Batch 36 \u2014 Checkout (2 existing + 3 new)"
+},
+"checkout-settlement": {
+"title": "Settlement / Reconciliation Report",
+"tag": "NEW",
+"batch": "Batch 37 \u2014 Checkout (3 new) + Audit (2 existing)"
+},
+"checkout-psp-onboarding": {
+"title": "PSP Onboarding Wizard",
+"tag": "NEW",
+"batch": "Batch 37 \u2014 Checkout (3 new) + Audit (2 existing)"
+},
+"checkout-platform-external-editor": {
+"title": "Platform External Contract Editor",
+"tag": "NEW",
+"batch": "Batch 37 \u2014 Checkout (3 new) + Audit (2 existing)"
+},
+"audit": {
+"title": "Audit Log",
+"tag": "EXISTING",
+"batch": "Batch 37 \u2014 Checkout (3 new) + Audit (2 existing)"
+},
+"audit-user-events": {
+"title": "User Events",
+"tag": "EXISTING",
+"batch": "Batch 37 \u2014 Checkout (3 new) + Audit (2 existing)"
+},
+"audit-user-events-enhanced": {
+"title": "Enhanced Events",
+"tag": "EXISTING",
+"batch": "Batch 38 \u2014 Audit (3 existing + 2 new)"
+},
+"audit-change-history": {
+"title": "Change History",
+"tag": "EXISTING",
+"batch": "Batch 38 \u2014 Audit (3 existing + 2 new)"
+},
+"audit-user-event-detail": {
+"title": "User Event Detail",
+"tag": "EXISTING",
+"batch": "Batch 38 \u2014 Audit (3 existing + 2 new)"
+},
+"audit-entry-detail": {
+"title": "Audit Entry Detail Sheet",
+"tag": "NEW",
+"batch": "Batch 38 \u2014 Audit (3 existing + 2 new)"
+},
+"audit-retention": {
+"title": "Retention / Export Scheduling",
+"tag": "NEW",
+"batch": "Batch 38 \u2014 Audit (3 existing + 2 new)"
+},
+"audit-severity-policy": {
+"title": "Severity & Policy Configuration",
+"tag": "NEW",
+"batch": "Batch 39 \u2014 Audit (3 new)"
+},
+"audit-compliance-report": {
+"title": "Compliance Report Generator",
+"tag": "NEW",
+"batch": "Batch 39 \u2014 Audit (3 new)"
+},
+"audit-siem": {
+"title": "SIEM / External Sink Integration",
+"tag": "NEW",
+"batch": "Batch 39 \u2014 Audit (3 new)"
+},
+"settings": {
+"title": "Settings Landing",
+"tag": "EXISTING",
+"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 196-200)"
+},
+"user-management": {
+"title": "User Management",
+"tag": "EXISTING",
+"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 196-200)"
+},
+"team-members": {
+"title": "Team Members",
+"tag": "EXISTING",
+"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 196-200)"
+},
+"group-management": {
+"title": "Group Management",
+"tag": "EXISTING",
+"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 196-200)"
+},
+"banner-management": {
+"title": "Banner Management",
+"tag": "EXISTING",
+"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 196-200)"
+},
+"marketing-integrations": {
+"title": "Marketing Integrations",
+"tag": "EXISTING",
+"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 201-205)"
+},
+"social-media-links": {
+"title": "Social Media Links",
+"tag": "EXISTING",
+"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 201-205)"
+},
+"marketing-banner-edit": {
+"title": "Marketing Banner Edit",
+"tag": "EXISTING",
+"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 201-205)"
+},
+"token-management": {
+"title": "Token Management",
+"tag": "EXISTING",
+"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 201-205)"
+},
+"token-detail": {
+"title": "Token Detail",
+"tag": "EXISTING",
+"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 201-205)"
+},
+"device-activities": {
+"title": "Device Activities",
+"tag": "EXISTING",
+"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 206-210)"
+},
+"email-templates": {
+"title": "Email Templates",
+"tag": "EXISTING",
+"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 206-210)"
+},
+"email-template-edit": {
+"title": "Email Template Edit",
+"tag": "EXISTING",
+"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 206-210)"
+},
+"notifications-management": {
+"title": "Notifications Management",
+"tag": "EXISTING",
+"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 206-210)"
+},
+"notification-edit": {
+"title": "Notification Edit",
+"tag": "EXISTING",
+"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 211-215)"
+},
+"certificate-management": {
+"title": "Certificate Management",
+"tag": "EXISTING",
+"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 211-215)"
+},
+"certificate-template-designer": {
+"title": "Certificate Template Designer",
+"tag": "EXISTING",
+"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 211-215)"
+},
+"certificate-detail": {
+"title": "Certificate Detail",
+"tag": "EXISTING",
+"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 211-215)"
+},
+"certificates-issued": {
+"title": "Certificates Issued",
+"tag": "EXISTING",
+"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 211-215)"
+},
+"certificate-font-upload": {
+"title": "Certificate Font Upload",
+"tag": "EXISTING",
+"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 216-220)"
+},
+"utilities": {
+"title": "Utilities",
+"tag": "EXISTING",
+"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 216-220)"
+},
+"roles-management": {
+"title": "Roles Management",
+"tag": "EXISTING",
+"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 216-220)"
+},
+"csv-import-dialog": {
+"title": "CSV Import Dialog",
+"tag": "NEW",
+"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 216-220)"
+},
+"add-group-sheet": {
+"title": "Add Group Sheet",
+"tag": "NEW",
+"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 216-220)"
+},
+"kyc-provider-marketplace": {
+"title": "Add KYC Provider Marketplace",
+"tag": "NEW",
+"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 221-225)"
+},
+"user-audit-timeline": {
+"title": "Per-User Audit Timeline \u2014 Settings Context",
+"tag": "NEW",
+"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 221-225)"
+},
+"device-detail": {
+"title": "Device Detail View",
+"tag": "NEW",
+"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 221-225)"
+},
+"settings-module-detail": {
+"title": "Settings Module Detail",
+"tag": "NEW",
+"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 221-225)"
+},
+"super-overview": {
+"title": "Platform Overview",
+"tag": "EXISTING",
+"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 221-225)"
+},
+"tenants": {
+"title": "Tenants",
+"tag": "EXISTING",
+"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 226-230)"
+},
+"module-catalog": {
+"title": "Module Catalog",
+"tag": "EXISTING",
+"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 226-230)"
+},
+"platform-health": {
+"title": "Platform Health",
+"tag": "EXISTING",
+"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 226-230)"
+},
+"create-tenant": {
+"title": "Create Tenant",
+"tag": "EXISTING",
+"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 226-230)"
+},
+"tenant-detail": {
+"title": "Tenant Detail",
+"tag": "EXISTING",
+"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 226-230)"
+},
+"tenant-lifecycle": {
+"title": "Tenant Lifecycle",
+"tag": "EXISTING",
+"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 231-235)"
+},
+"dashboard-manager": {
+"title": "Dashboard Manager",
+"tag": "EXISTING",
+"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 231-235)"
+},
+"platform-audit": {
+"title": "Platform Audit",
+"tag": "EXISTING",
+"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 231-235)"
+},
+"platform-staff": {
+"title": "Platform Staff",
+"tag": "EXISTING",
+"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 231-235)"
+},
+"platform-roles": {
+"title": "Platform Roles",
+"tag": "EXISTING",
+"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 231-235)"
+},
+"role-audit": {
+"title": "Role Audit Log",
+"tag": "EXISTING",
+"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 236-240)"
+},
+"permissions-catalog": {
+"title": "Permissions Catalog",
+"tag": "EXISTING",
+"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 236-240)"
+},
+"super-module-detail": {
+"title": "Module Detail \u2014 Super-Admin",
+"tag": "NEW",
+"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 236-240)"
+},
+"service-detail": {
+"title": "Service Detail",
+"tag": "NEW",
+"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 236-240)"
+},
+"super-admin-user-audit-timeline": {
+"title": "Per-User Audit Timeline \u2014 Super-Admin Context",
+"tag": "NEW",
+"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 236-240)"
+},
+"tenant-billing-detail": {
+"title": "Tenant Billing Detail",
+"tag": "NEW",
+"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 241-245)"
+},
+"incident-management": {
+"title": "Incident Management",
+"tag": "NEW",
+"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 241-245)"
+},
+"tenant-impersonation-audit": {
+"title": "Tenant Impersonation Audit Trail",
+"tag": "NEW",
+"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 241-245)"
+},
+"platform-module-toggle": {
+"title": "Platform-wide Module Enable/Disable",
+"tag": "NEW",
+"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 241-245)"
+},
+"pending-tasks": {
+"title": "Pending Tasks",
+"tag": "EXISTING",
+"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 241-245)"
+},
+"pending-task-detail": {
+"title": "Pending Task Detail",
+"tag": "NEW",
+"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 246-250)"
+},
+"my-tasks": {
+"title": "My Tasks",
+"tag": "NEW",
+"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 246-250)"
+},
+"pending-snoozed-resolved": {
+"title": "Snoozed / Resolved History",
+"tag": "NEW",
+"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 246-250)"
+},
+"pending-bulk-assign": {
+"title": "Pending Task Bulk-Assign / Bulk-Resolve",
+"tag": "NEW",
+"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 246-250)"
+},
+"profile": {
+"title": "Profile",
+"tag": "EXISTING",
+"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 246-250)"
+},
+"change-password-dialog": {
+"title": "Change Password Dialog",
+"tag": "NEW",
+"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 251-255)"
+},
+"2fa-setup-dialog": {
+"title": "2FA Setup Dialog",
+"tag": "NEW",
+"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 251-255)"
+},
+"connected-sessions-detail": {
+"title": "Connected Sessions Detail",
+"tag": "NEW",
+"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 251-255)"
+},
+"notification-preferences-matrix": {
+"title": "Notification Preferences Matrix",
+"tag": "NEW",
+"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 251-255)"
+},
+"profile-api-tokens": {
+"title": "API Tokens Cross-link",
+"tag": "NEW",
+"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 251-255)"
+},
+"notifications": {
+"title": "Notification Center",
+"tag": "EXISTING",
+"batch": "Batch 52 \u2014 Notifications Module (Screens 256-260)"
+},
+"notification-detail-dialog": {
+"title": "Notification Detail Dialog",
+"tag": "NEW",
+"batch": "Batch 52 \u2014 Notifications Module (Screens 256-260)"
+},
+"notifications-archived": {
+"title": "Archived / Snoozed Notifications",
+"tag": "NEW",
+"batch": "Batch 52 \u2014 Notifications Module (Screens 256-260)"
+},
+"notifications-module-feed": {
+"title": "Per-Module Notification Feed",
+"tag": "NEW",
+"batch": "Batch 52 \u2014 Notifications Module (Screens 256-260)"
+},
+"notification-preferences-matrix-notifications": {
+"title": "Notification Preferences Matrix \u2014 Notifications Context",
+"tag": "NEW",
+"batch": "Batch 52 \u2014 Notifications Module (Screens 256-260)"
+},
+"help": {
+"title": "Help",
+"tag": "EXISTING",
+"batch": "Batch 53 \u2014 Help Module (Screens 261-265)"
+},
+"help-center-faq": {
+"title": "Help Center / FAQ",
+"tag": "NEW",
+"batch": "Batch 53 \u2014 Help Module (Screens 261-265)"
+},
+"help-changelog": {
+"title": "Changelog / What's New",
+"tag": "NEW",
+"batch": "Batch 53 \u2014 Help Module (Screens 261-265)"
+},
+"support-contact": {
+"title": "Support Contact",
+"tag": "NEW",
+"batch": "Batch 53 \u2014 Help Module (Screens 261-265)"
+},
+"help-onboarding": {
+"title": "Onboarding / Getting Started",
+"tag": "NEW",
+"batch": "Batch 53 \u2014 Help Module (Screens 261-265)"
+},
+"help-module-detail": {
+"title": "Module Detail \u2014 Help Context",
+"tag": "NEW",
+"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 266-270)"
+},
+"overview": {
+"title": "Overview",
+"tag": "EXISTING",
+"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 266-270)"
+},
+"overview-widget-config": {
+"title": "Per-Widget Configuration Dialogs",
+"tag": "NEW",
+"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 266-270)"
+},
+"dashboard-template-library": {
+"title": "Dashboard Template Library",
+"tag": "NEW",
+"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 266-270)"
+},
+"overview-saved-views": {
+"title": "Saved Views / Multi-dashboard Switcher",
+"tag": "NEW",
+"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 266-270)"
+},
+"overview-onboarding-tour": {
+"title": "Onboarding Tour",
+"tag": "NEW",
+"batch": "Batch 55 \u2014 Overview NEW (Screen 271)"
+}
+}
+}
