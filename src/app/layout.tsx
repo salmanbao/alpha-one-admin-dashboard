@@ -3,6 +3,30 @@ import { Geist, Geist_Mono, Literata, Nunito_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
+/* Material Symbols — the Stitch design language icon set (ligature font). */
+export const materialSymbols = `
+  @font-face {
+    font-family: 'Material Symbols Outlined';
+    font-style: normal;
+    src: url(https://fonts.gstatic.com/s/materialsymbolsoutlined/v201/kjeNqXKwxOnMGvHPOFjLd2gLtD5hA.woff2) format('woff2');
+    font-display: block;
+  }
+  .ms-icon {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+`;
+
 const literata = Literata({
   variable: "--font-literata",
   subsets: ["latin"],
@@ -52,6 +76,7 @@ export default function RootLayout({
       <body
         className={`${literata.variable} ${nunitoSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
+        <style dangerouslySetInnerHTML={{ __html: materialSymbols }} />
         {children}
         <Toaster />
       </body>

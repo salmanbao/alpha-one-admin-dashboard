@@ -6,6 +6,12 @@ export {
   PositionsPage,
   TraderDetailPage,
 } from "./pages/trading-pages";
+export {
+  TradingOverviewStitchPage,
+  TradersStitchPage,
+  AccountsStitchPage,
+  PositionsStitchPage,
+} from "./pages/trading-stitch-pages";
 export { OrdersPage } from "./pages/orders-page";
 export { ObjectivesProgressPage } from "./pages/objectives-progress-page";
 export { RulesPage } from "./pages/rules-page";

@@ -120,6 +120,51 @@ import { TenantLifecyclePage } from "@/modules/super-admin/tenant-lifecycle-page
 import { DashboardManagerPage } from "@/modules/super-admin/dashboard-manager-page";
 import { PlatformAuditPage } from "@/modules/super-admin/platform-audit-page";
 
+/* Stitch conversions — trading batch 1 */
+import {
+  TradingOverviewStitchPage,
+  TradersStitchPage,
+  AccountsStitchPage,
+  PositionsStitchPage,
+} from "@/modules/trading/pages/trading-stitch-pages";
+import { TraderDetailStitchPage } from "@/modules/trading/pages/trader-detail-stitch-page";
+import { AccountWorkspaceStitchPage } from "@/modules/trading/pages/account-workspace-stitch-page";
+import {
+  AddAccountStitchPage,
+  ClosedPositionsStitchPage,
+  ClosedPositionDetailStitchPage,
+  TradingCredentialsStitchPage,
+  TraderComparisonStitchPage,
+  BridgeSyncLogStitchPage,
+  TraderAuditLogStitchPage,
+  ServerCatalogStitchPage,
+  BulkAccountOperationsStitchPage,
+} from "@/modules/trading/pages/trading-stitch-pages-2";
+import {
+  ChallengesOverviewStitchPage,
+  ActiveChallengesStitchPage,
+  PassedChallengesStitchPage,
+  FailedChallengesStitchPage,
+  ChallengeWizardStitchPage,
+  ChallengeTypesStitchPage,
+  ChallengeConfigStitchPage,
+  PhaseManagementStitchPage,
+  ChallengeEditStitchPage,
+  PhaseDetailStitchPage,
+  ChallengeMarketplacePreviewStitchPage,
+  ChallengeComparisonStitchPage,
+  ChallengeAnalyticsStitchPage,
+  PhaseMigrationToolStitchPage,
+  BulkPhaseEditorStitchPage,
+} from "@/modules/challenges/pages/challenges-stitch-pages";
+
+/* Generated stitch conversions — prop-admin redesign (PROP_ADMIN_DESIGN_SPEC).
+ * All screens in src/modules/stitch/pages are converted from stitch_screens/
+ * by tools/stitch2tsx.py and gated to the prop-admin application below so the
+ * super-admin + trader dashboards keep their existing components. */
+import { stitchViews } from "@/modules/stitch";
+import { withPropAdminStitch } from "@/modules/stitch/gate";
+
 /* New flows — imported from subagent-built pages */
 import { FirmStatisticsPage } from "@/modules/analytics/pages/firm-statistics-page";
 import { DailyHighlightsPage } from "@/modules/analytics/pages/daily-highlights-page";
@@ -273,46 +318,57 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "platform-analytics": PlatformAnalyticsPage,
 
   /* trading */
-  trading: TradingOverviewPage,
-  "trading-traders": TradersPage,
-  "trading-accounts": AccountsPage,
-  "trading-positions": PositionsPage,
-  "trader-detail": EnhancedTraderDetailPage,
-  "trading-add-account": AddAccountPage,
+  trading: TradingOverviewStitchPage,
+  "trading-traders": TradersStitchPage,
+  "trading-accounts": AccountsStitchPage,
+  "trading-positions": PositionsStitchPage,
+  "trader-detail": TraderDetailStitchPage,
+  "trading-add-account": AddAccountStitchPage,
+  "closed-positions": ClosedPositionsStitchPage,
+  "closed-position-detail": ClosedPositionDetailStitchPage,
+  "trading-credentials": TradingCredentialsStitchPage,
+  "trader-comparison": TraderComparisonStitchPage,
+  "bridge-sync-log": BridgeSyncLogStitchPage,
+  "trader-audit-log": TraderAuditLogStitchPage,
+  "mt4-dxtrade-server-catalog": ServerCatalogStitchPage,
+  "server-catalog": ServerCatalogStitchPage,
+  "bulk-account-operations": BulkAccountOperationsStitchPage,
   "account-broker-details": AccountBrokerDetailsPage,
   "account-kyc-statuses": AccountKycStatusesPage,
   "account-related-accounts": AccountRelatedAccountsPage,
   "account-configuration": AccountConfigurationPage,
   "account-events": AccountEventsPage,
   "account-version-history": AccountVersionHistoryPage,
-  "account-workspace": AccountWorkspacePage,
-  "closed-positions": ClosedPositionsPage,
-  "closed-position-detail": ClosedPositionDetailPage,
+  "account-workspace": AccountWorkspaceStitchPage,
   "order-detail": OrderDetailPage,
   orders: OrdersPage,
   objectives: ObjectivesProgressPage,
   rules: RulesPage,
-  "trading-credentials": TradingCredentialsPage,
   "account-breach": AccountBreachPage,
   "account-provisioning": AccountProvisioningPage,
   "evaluation-passed": EvaluationPassedPage,
   "purchase-history": PurchaseHistoryPage,
 
   /* challenges */
-  challenges: ChallengesOverviewPage,
-  "challenges-active": ActiveChallengesPage,
-  "challenges-passed": PassedChallengesPage,
-  "challenges-failed": FailedChallengesPage,
-  "challenge-wizard": ChallengeWizardPage,
-  "challenge-config": ChallengeConfigPage,
-  "challenge-types": ChallengeTypesPage,
+  challenges: ChallengesOverviewStitchPage,
+  "challenges-active": ActiveChallengesStitchPage,
+  "challenges-passed": PassedChallengesStitchPage,
+  "challenges-failed": FailedChallengesStitchPage,
+  "challenge-wizard": ChallengeWizardStitchPage,
+  "challenge-config": ChallengeConfigStitchPage,
+  "challenge-types": ChallengeTypesStitchPage,
+  "challenge-marketplace-preview": ChallengeMarketplacePreviewStitchPage,
+  "challenge-comparison": ChallengeComparisonStitchPage,
+  "challenge-analytics": ChallengeAnalyticsStitchPage,
+  "phase-migration-tool": PhaseMigrationToolStitchPage,
+  "bulk-phase-editor": BulkPhaseEditorStitchPage,
   competitions: CompetitionsPage,
   "challenge-marketplace": ChallengeMarketplacePage,
   checkout: CheckoutPage,
   "purchase-completed": PurchaseCompletedPage,
-  "phase-management": PhaseManagementPage,
-  "challenge-edit": ChallengeEditPage,
-  "phase-detail": PhaseDetailPage,
+  "phase-management": PhaseManagementStitchPage,
+  "challenge-edit": ChallengeEditStitchPage,
+  "phase-detail": PhaseDetailStitchPage,
 
   /* risk */
   risk: RiskOverviewPage,
@@ -444,6 +500,47 @@ export const viewRegistry: Record<string, ViewComponent> = {
 };
 
 const dynamicViews = new Map<string, ViewComponent>();
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Stitch redesign application (prop-admin only)
+ *
+ * 1. Views already converted in the hand stitch pass fall back to their
+ *    pre-stitch legacy component for every non prop-admin application.
+ * 2. All generated stitch pages replace the legacy component for the
+ *    prop-admin application only.
+ * → The super-admin and trader dashboards keep their existing rendering.
+ * ══════════════════════════════════════════════════════════════════════ */
+const PRE_STITCH_LEGACY: Record<string, ViewComponent> = {
+  trading: TradingOverviewPage,
+  "trading-traders": TradersPage,
+  "trading-accounts": AccountsPage,
+  "trading-positions": PositionsPage,
+  "trader-detail": EnhancedTraderDetailPage,
+  "trading-add-account": AddAccountPage,
+  "account-workspace": AccountWorkspacePage,
+  "closed-positions": ClosedPositionsPage,
+  "closed-position-detail": ClosedPositionDetailPage,
+  "trading-credentials": TradingCredentialsPage,
+  challenges: ChallengesOverviewPage,
+  "challenges-active": ActiveChallengesPage,
+  "challenges-passed": PassedChallengesPage,
+  "challenges-failed": FailedChallengesPage,
+  "challenge-wizard": ChallengeWizardPage,
+  "challenge-types": ChallengeTypesPage,
+  "challenge-config": ChallengeConfigPage,
+  "phase-management": PhaseManagementPage,
+  "challenge-edit": ChallengeEditPage,
+  "phase-detail": PhaseDetailPage,
+};
+
+for (const [vid, legacy] of Object.entries(PRE_STITCH_LEGACY)) {
+  const cur = viewRegistry[vid];
+  if (cur) viewRegistry[vid] = withPropAdminStitch(cur, legacy);
+}
+for (const [vid, Stitch] of Object.entries(stitchViews)) {
+  const legacy = viewRegistry[vid];
+  viewRegistry[vid] = legacy ? withPropAdminStitch(Stitch, legacy) : Stitch;
+}
 
 export function registerModuleView(viewId: string, component: ViewComponent) {
   dynamicViews.set(viewId, component);
