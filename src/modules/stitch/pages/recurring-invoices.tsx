@@ -754,6 +754,7 @@ export function RecurringInvoicesStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-[#1a2e22]/40 backdrop-blur-sm transition-opacity duration-300" id="slideOverBackdrop"></div>
         <aside className="fixed top-0 right-0 z-50 h-screen w-full max-w-[680px] bg-surface-bright shadow-2xl flex flex-col justify-between overflow-hidden transform translate-x-0 transition-transform duration-300 ease-out" id="recurringSheet" style={{ boxShadow: '-12px 0 36px rgba(46, 50, 48, 0.16)' }}>
           <div className="px-8 pt-7 pb-5 bg-surface-container-low shrink-0 shadow-sm relative">
@@ -966,6 +967,7 @@ export function RecurringInvoicesStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-[#1a2e22]/40 backdrop-blur-sm z-50 transition-opacity"></div>
         <aside className="fixed top-0 right-0 h-full w-[700px] max-w-full bg-[#faf8f5] z-50 shadow-2xl flex flex-col justify-between overflow-hidden" style={{ boxShadow: '-12px 0 40px -4px rgba(46, 50, 48, 0.16)' }}>
           <div className="px-7 pt-6 pb-5 bg-surface-container-low/90 backdrop-blur shrink-0 flex flex-col gap-3 shadow-[0_1px_4px_rgba(0,0,0,0.03)]">

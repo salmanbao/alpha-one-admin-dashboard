@@ -452,7 +452,8 @@ export function KycRecordDetailStitchPage() {
           </div>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/60 backdrop-blur-md overflow-y-auto">
           <div className="relative w-full max-w-3xl my-8 bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.22)] overflow-hidden transition-all duration-200">
             <div className="h-1.5 w-full bg-gradient-to-r from-error via-tertiary-container to-tertiary"></div>
@@ -609,6 +610,7 @@ export function KycRecordDetailStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-[2px] transition-opacity duration-300" id="drawerBackdrop">
           <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
             <div className="w-screen max-w-2xl bg-surface-bright shadow-2xl flex flex-col justify-between overflow-hidden">

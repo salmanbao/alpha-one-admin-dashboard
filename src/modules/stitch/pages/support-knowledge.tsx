@@ -501,7 +501,9 @@ export function SupportKnowledgeStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (        <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-20">
+      {so0 && (
+        <>
+        <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-20">
           <div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm space-y-4">
             <div className="flex items-center justify-between pb-3">
               <span className="font-headline font-bold text-sm text-on-surface uppercase tracking-wider text-xs">On This Page</span>
@@ -579,6 +581,7 @@ export function SupportKnowledgeStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 bg-on-surface/45 backdrop-blur-[2px] z-50 flex justify-end transition-opacity duration-300" id="drawer-backdrop">
           <div className="w-[640px] max-w-full h-full bg-surface-bright flex flex-col shadow-2xl relative transition-transform duration-300 transform translate-x-0" id="slide-drawer">
             <div className="px-7 pt-6 pb-5 bg-surface-container-low shrink-0 shadow-sm relative">

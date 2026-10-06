@@ -725,7 +725,10 @@ export function AiPredictiveStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (        <aside aria-labelledby="sheet-title" aria-modal="true" className="fixed top-16 right-0 bottom-0 w-[640px] max-w-full bg-surface-bright shadow-2xl z-50 flex flex-col overflow-hidden transform translate-x-0 transition-transform duration-300 ease-out" id="intervention-sheet" role="dialog">
+      {so0 && (
+        <>
+        <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/45 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="drawer-backdrop"></div>
+        <aside aria-labelledby="sheet-title" aria-modal="true" className="fixed top-16 right-0 bottom-0 w-[640px] max-w-full bg-surface-bright shadow-2xl z-50 flex flex-col overflow-hidden transform translate-x-0 transition-transform duration-300 ease-out" id="intervention-sheet" role="dialog">
           <div className="p-6 bg-surface-container-low shrink-0 relative">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
@@ -1041,6 +1044,7 @@ export function AiPredictiveStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-inverse-surface/50 backdrop-blur-[3px] z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[620px] bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/30 flex flex-col my-auto animate-in fade-in zoom-in-95 duration-200" role="dialog">
             <div className="h-1.5 w-full bg-gradient-to-r from-tertiary-container via-error to-primary rounded-t-xl"></div>

@@ -709,7 +709,9 @@ export function CheckoutPlatformOverviewStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="relative w-full max-w-[730px] my-auto bg-surface-container-lowest text-on-surface rounded-xl shadow-[0_20px_50px_rgba(46,50,48,0.24)] overflow-hidden flex flex-col max-h-[942px]">
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-inverse-surface/60 backdrop-blur-sm transition-all duration-300" id="modal-container">
+          <div className="relative w-full max-w-[730px] my-auto bg-surface-container-lowest text-on-surface rounded-xl shadow-[0_20px_50px_rgba(46,50,48,0.24)] overflow-hidden flex flex-col max-h-[942px]">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary-container"></div>
             <div className="px-7 pt-6 pb-5 bg-surface-container-low/60 flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-4">
@@ -883,8 +885,13 @@ export function CheckoutPlatformOverviewStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
-      {so1 && ( p-6 md:p-8 flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
+        </div>
+        </>
+      )}
+      {so1 && (
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm transition-opacity duration-300" id="egress-rotation-modal-backdrop">
+          <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-[640px] max-h-[942px] overflow-y-auto bg-surface-container-lowest text-on-surface rounded-2xl shadow-[0_20px_50px_rgba(46,50,48,0.22)] p-6 md:p-8 flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-full bg-error-container text-error flex items-center justify-center shrink-0 shadow-sm"><MsIcon name="emergency_home" className="text-[26px]" /></div>
               <div className="flex flex-col gap-1.5 min-w-0">
@@ -999,9 +1006,14 @@ export function CheckoutPlatformOverviewStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
       {so4 && (
-        <div className="flex items-center justify-between mb-3">
+        <>
+        <aside className="fixed top-16 right-0 bottom-0 w-[680px] max-w-full bg-surface-bright shadow-2xl z-50 flex flex-col overflow-hidden transform translate-x-0 transition-transform duration-300">
+          <div className="p-6 bg-surface-container-low shrink-0 shadow-sm relative">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="bg-[#fdf2ee] text-[#c25e38] font-bold text-[11px] uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">                  {"             EDGE TELEMETRY // INGRESS INCIDENT TRIAGE           "}</span>
                 <span className="bg-surface-container text-on-surface-variant font-mono text-[11px] font-bold px-2.5 py-1 rounded-md">                  INCIDENT #INC-CHK-9914</span>
@@ -1162,9 +1174,14 @@ export function CheckoutPlatformOverviewStitchPage() {
               </button>
             </div>
           </div>
-        </aside>\n        </>\n      )}
+        </aside>
+        </>
+      )}
       {so5 && (
-        <div className="flex items-center justify-between">
+        <>
+        <aside className="w-full max-w-[680px] bg-surface h-full fixed top-0 right-0 z-50 flex flex-col shadow-2xl overflow-hidden transition-transform duration-300 ease-out" id="triage-drawer">
+          <div className="p-6 bg-surface-container-low flex flex-col gap-3.5 shadow-sm">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-label font-extrabold tracking-wider uppercase bg-secondary-container text-tertiary flex items-center gap-1 shadow-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-ping"></span>
@@ -1409,8 +1426,13 @@ export function CheckoutPlatformOverviewStitchPage() {
               <span>Telemetry cryptographically attested via PTP IEEE 1588v2 hardware clock sync</span>
             </div>
           </div>
-        </aside>\n        </>\n      )}
-      {so7 && ( flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200" role="dialog">
+        </aside>
+        </>
+      )}
+      {so7 && (
+        <>
+        <div className="fixed inset-0 top-16 left-72 bg-[#1e201e]/65 backdrop-blur-[6px] z-50 flex items-center justify-center p-6 overflow-y-auto" id="tour-modal-backdrop">
+          <div aria-labelledby="tour-modal-title" aria-modal="true" className="relative w-full max-w-4xl bg-surface-bright rounded-2xl shadow-[0_20px_50px_rgba(46,50,48,0.28)] flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200" role="dialog">
             <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-primary via-primary-container to-tertiary-container"></div>
             <div className="absolute top-6 right-6 z-20 group">
               <button aria-label="Skip tour (can resume from Help anytime)" className="w-9 h-9 rounded-full bg-surface-container hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-primary shadow-sm" type="button" onClick={() => setSo7(false)}><MsIcon name="close" className="text-[18px]" /></button>
@@ -1518,8 +1540,13 @@ export function CheckoutPlatformOverviewStitchPage() {
             <span>Next: Live Metrics</span>
 <MsIcon name="arrow_forward" className="text-[16px]" />
           </button>
-        </aside>\n        </>\n      )}
-      {so9 && ( overflow-hidden flex flex-col my-auto transition-transform duration-200">
+        </aside>
+        </>
+      )}
+      {so9 && (
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-on-surface/55 backdrop-blur-sm transition-all duration-300" id="checkoutAuditModal">
+          <div className="w-[720px] max-w-full bg-[#faf8f5] rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.22)] overflow-hidden flex flex-col my-auto transition-transform duration-200">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>
             <div className="p-6 sm:p-7 pb-5 bg-[#faf8f5] flex flex-col gap-3">
               <div className="flex items-start justify-between gap-4">
@@ -1701,7 +1728,9 @@ export function CheckoutPlatformOverviewStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
     </>
   );
 }

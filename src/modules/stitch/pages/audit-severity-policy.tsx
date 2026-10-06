@@ -708,7 +708,9 @@ export function AuditSeverityPolicyStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="w-[540px] max-w-full bg-[#faf8f5] rounded-2xl border border-[#e2ded6] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+        <>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="delete-rule-dialog">
+          <div className="w-[540px] max-w-full bg-[#faf8f5] rounded-2xl border border-[#e2ded6] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
             <div className="p-6 pb-4 flex items-start justify-between border-b border-[#ece7de]">
               <div className="flex items-start gap-3.5">
                 <div className="w-11 h-11 rounded-xl bg-error-container/60 text-error flex items-center justify-center shrink-0 shadow-sm"><MsIcon name="warning" className="text-[24px]" /></div>
@@ -892,6 +894,7 @@ export function AuditSeverityPolicyStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" id="rule-sheet">
           <div className="fixed inset-0" id="backdrop-click-area"></div>
           <aside className="relative w-full max-w-[580px] h-full bg-surface-bright border-l border-surface-container-highest shadow-2xl z-10 flex flex-col justify-between overflow-y-auto">

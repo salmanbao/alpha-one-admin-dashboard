@@ -768,7 +768,8 @@ export function TeamMembersStitchPage() {
           </div>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 top-0 left-0 w-screen h-screen z-50 flex justify-end bg-black/40 backdrop-blur-sm transition-opacity duration-300" id="drawerOverlay">
           <div className="w-full max-w-[640px] h-full bg-[#faf8f5] text-on-surface flex flex-col shadow-2xl relative overflow-hidden transition-transform duration-300 transform translate-x-0" id="slideOverSheet">
             <div className="px-8 pt-7 pb-5 bg-[#faf8f5] border-b border-surface-container-high/60 shrink-0">
@@ -1033,6 +1034,7 @@ export function TeamMembersStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto backdrop-blur-sm bg-black/60 transition-all duration-300" id="confirmation-modal">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-[550px] my-auto bg-surface-container-lowest rounded-2xl p-6 sm:p-7 shadow-2xl flex flex-col gap-5 text-on-surface overflow-hidden" role="alertdialog">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-error via-tertiary to-error"></div>

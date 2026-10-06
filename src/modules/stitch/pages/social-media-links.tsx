@@ -791,6 +791,7 @@ export function SocialMediaLinksStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-on-surface/40 backdrop-blur-sm transition-opacity duration-200" id="modal-container">
           <div className="relative w-full max-w-[560px] bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-7 flex flex-col space-y-5 animate-[scale-in_0.15s_ease-out]">
             <div className="flex items-start justify-between gap-4">

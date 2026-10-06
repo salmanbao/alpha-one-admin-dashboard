@@ -713,6 +713,7 @@ export function RefundsCreditNotesStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 left-72 bg-[#1a2e22]/40 backdrop-blur-sm z-50 transition-opacity duration-300 flex justify-end">
           <section aria-labelledby="slideover-title" className="w-full max-w-[680px] h-full bg-surface-bright shadow-2xl flex flex-col justify-between overflow-hidden rounded-l-2xl animate-in slide-in-from-right duration-300" role="dialog">
             <div className="px-8 pt-7 pb-6 bg-surface-container-low shrink-0 shadow-sm relative">
@@ -916,6 +917,7 @@ export function RefundsCreditNotesStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed top-16 right-0 bottom-0 w-full max-w-[720px] bg-surface-bright shadow-2xl z-50 flex flex-col rounded-l-2xl overflow-hidden transition-transform duration-300 ease-out transform translate-x-0" id="audit-drawer">
           <div className="h-1.5 w-full bg-surface-container-high relative overflow-hidden">            <div className="h-full bg-tertiary-container w-2/3 transition-all duration-500"></div></div>
           <div className="p-6 pb-5 bg-surface-container-lowest shadow-sm flex flex-col gap-3">

@@ -586,7 +586,10 @@ export function AccountConfigurationStitchPage() {
           </div>
         </details>
       </div>
-      {so0 && (        <aside aria-label="Resend Broker Credentials Slide-Over" className="fixed top-0 right-0 h-full w-full max-w-[560px] bg-surface-container-low z-50 shadow-[0_4px_30px_rgba(46,50,48,0.18)] flex flex-col justify-between overflow-hidden transform transition-transform duration-300 ease-out" id="slideover-sheet">
+      {so0 && (
+        <>
+        <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-sm z-50 transition-opacity duration-300" id="slideover-backdrop"></div>
+        <aside aria-label="Resend Broker Credentials Slide-Over" className="fixed top-0 right-0 h-full w-full max-w-[560px] bg-surface-container-low z-50 shadow-[0_4px_30px_rgba(46,50,48,0.18)] flex flex-col justify-between overflow-hidden transform transition-transform duration-300 ease-out" id="slideover-sheet">
           <div className="p-6 bg-surface-container border-b border-outline-variant/30">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3.5">
@@ -787,8 +790,10 @@ export function AccountConfigurationStitchPage() {
             </div>
           </div>
         </aside>
+        </>
       )}
       {so1 && (
+        <>
         <div aria-labelledby="modal-headline" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/60 backdrop-blur-sm transition-all" id="destructive-reset-modal" role="dialog">
           <div className="relative w-full max-w-2xl max-h-[942px] overflow-y-auto rounded-xl bg-surface-container-lowest text-on-surface shadow-[0_20px_50px_rgba(46,50,48,0.22)] flex flex-col">
             <div className="h-1.5 w-full bg-gradient-to-r from-error via-tertiary to-error"></div>

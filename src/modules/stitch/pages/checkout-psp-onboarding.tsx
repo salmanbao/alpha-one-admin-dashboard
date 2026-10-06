@@ -145,7 +145,7 @@ export function CheckoutPspOnboardingStitchPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="pk_live_xxx_xxxxxxxxxxxxxx" />
+<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="pk_live_51Oz99xQ0281hNqLzWv304M819KkP" />
                       <button className="p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Copy Key"><MsIcon name="content_copy" className="text-base" /></button>
                     </div>
                   </div>
@@ -156,7 +156,7 @@ export function CheckoutPspOnboardingStitchPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="relative w-full">
-<input className="w-full bg-surface-container-lowest rounded-xl pl-4 pr-10 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" id="secret-key-input" type="password" defaultValue="sk_live_xxx_xxxxxxxxxxxxxxxx" />
+<input className="w-full bg-surface-container-lowest rounded-xl pl-4 pr-10 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" id="secret-key-input" type="password" defaultValue="sk_live_••••••••••••1290" />
                         <button className="absolute right-3 top-2.5 text-outline hover:text-on-surface" type="button"><MsIcon name="visibility" className="text-base" /></button>
                       </div>
                       <button className="p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Copy Key"><MsIcon name="content_copy" className="text-base" /></button>
@@ -165,7 +165,7 @@ export function CheckoutPspOnboardingStitchPage() {
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-1.5">Webhook Signing Secret</label>
                     <div className="flex items-center gap-2">
-<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="whsec_xxxxxxxxxxxxxxxx" />
+<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="whsec_7b8a1c9e4f20389012cdbf881a2e9914" />
                       <button className="p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Copy Secret"><MsIcon name="content_copy" className="text-base" /></button>
                     </div>
                   </div>
@@ -419,6 +419,7 @@ export function CheckoutPspOnboardingStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 z-50 flex items-center justify-center p-6 bg-[#1a1c1b]/60 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-[660px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(20,24,22,0.35)] overflow-hidden my-auto transform transition-all animate-in fade-in duration-200">
             <div className="h-1.5 w-full bg-error"></div>

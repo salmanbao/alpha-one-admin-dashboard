@@ -708,7 +708,9 @@ export function AiPromptLibraryStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-7 relative flex flex-col gap-5 text-on-surface border-0 max-h-[942px] overflow-y-auto transform transition-transform">
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/55 backdrop-blur-sm transition-opacity duration-300 animate-[fadeIn_0.15s_ease-out]" id="archive-modal-backdrop">
+          <div className="w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-7 relative flex flex-col gap-5 text-on-surface border-0 max-h-[942px] overflow-y-auto transform transition-transform">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="bg-error/10 text-error px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1.5">
@@ -829,6 +831,7 @@ export function AiPromptLibraryStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           <div className="w-full max-w-[880px] bg-surface-container-lowest text-on-surface rounded-2xl shadow-2xl p-6 relative max-h-[942px] flex flex-col overflow-hidden my-auto animate-[fadeIn_0.2s_ease-out]" id="sandbox-modal">
             <div className="flex items-start justify-between pb-3">

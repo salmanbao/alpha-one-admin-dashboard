@@ -670,7 +670,8 @@ export function SupportSlaStitchPage() {
           </div>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="sla-drawer-scrim"></div>
         <aside className="fixed top-0 right-0 h-full w-full max-w-[640px] bg-background shadow-2xl z-50 flex flex-col justify-between overflow-hidden transition-transform duration-300 ease-out" id="sla-edit-drawer">
           <div className="px-8 pt-7 pb-6 bg-surface-container-low shrink-0 relative">
@@ -902,6 +903,7 @@ export function SupportSlaStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 top-16 left-64 bg-inverse-surface/60 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           <div aria-labelledby="dialog-title" aria-modal="true" className="bg-surface-container-lowest w-full max-w-2xl rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-auto text-on-surface flex flex-col" id="supervisor-ping-dialog" role="alertdialog">
             <div className="h-2 w-full bg-error"></div>

@@ -709,7 +709,10 @@ export function CheckoutPlatformPspCatalogStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && ( overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+      {so0 && (
+        <>
+        <div className="fixed inset-0 z-50 bg-inverse-surface/50 backdrop-blur-sm flex items-start justify-center overflow-y-auto px-4 py-6 md:py-10">
+          <div className="relative w-full max-w-3xl bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.22)] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 md:p-8 bg-surface-container-low/60 relative">
               <div className="flex items-center justify-between gap-4 mb-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -979,9 +982,14 @@ export function CheckoutPlatformPspCatalogStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
       {so1 && (
-        <div className="flex items-center justify-between">
+        <>
+        <aside aria-label="Certification Ingestion & Deprecation Sheet" className="fixed right-0 top-0 bottom-0 w-[680px] max-w-full bg-surface-container-lowest h-screen shadow-2xl flex flex-col z-50 overflow-hidden font-body animate-in slide-in-from-right duration-300" id="institutionalDrawer">
+          <header className="p-6 md:px-8 md:pt-7 md:pb-5 bg-surface-container-low/70 flex flex-col gap-3 shrink-0">
+            <div className="flex items-center justify-between">
               <div className="flex items-center flex-wrap gap-2">
                 <span className="bg-[#eef4f0] text-primary text-[11px] font-bold tracking-wider px-3 py-1 rounded-full uppercase flex items-center gap-1.5 shadow-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
@@ -1199,7 +1207,9 @@ export function CheckoutPlatformPspCatalogStitchPage() {
               </div>
             </section>
           </main>
-        </aside>\n        </>\n      )}
+        </aside>
+        </>
+      )}
     </>
   );
 }

@@ -621,6 +621,7 @@ export function UserAuditTimelineStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-black/60 backdrop-blur-sm animate-fade-in" id="dossier-modal">
           <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-7 text-on-surface my-auto transition-transform duration-200">
             <div className="flex items-start gap-4">
@@ -816,6 +817,7 @@ export function UserAuditTimelineStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm bg-inverse-surface/60 overflow-y-auto">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-xl bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-7 space-y-6 animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
             <div className="flex items-start gap-4">

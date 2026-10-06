@@ -991,7 +991,9 @@ export function AccountingPlStitchPage() {
         </aside>
         </>
       )}
-      {so1 && (        <aside className="w-[640px] max-w-[94vw] bg-surface-bright shadow-[0_10px_40px_rgba(46,50,48,0.18)] flex flex-col h-full z-50 fixed right-0 top-0 bottom-0 overflow-y-auto transition-transform duration-300 ease-out" id="drillDownSheet">
+      {so1 && (
+        <>
+        <aside className="w-[640px] max-w-[94vw] bg-surface-bright shadow-[0_10px_40px_rgba(46,50,48,0.18)] flex flex-col h-full z-50 fixed right-0 top-0 bottom-0 overflow-y-auto transition-transform duration-300 ease-out" id="drillDownSheet">
           <div className="sticky top-0 bg-surface-bright/95 backdrop-blur-md px-6 pt-6 pb-5 z-20 shadow-[0_1px_8px_rgba(0,0,0,0.03)] space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-tsc">
@@ -1282,6 +1284,7 @@ export function AccountingPlStitchPage() {
             </button>
           </div>
         </aside>
+        </>
       )}
     </>
   );

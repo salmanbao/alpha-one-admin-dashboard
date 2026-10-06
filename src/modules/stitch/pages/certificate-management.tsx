@@ -584,7 +584,9 @@ export function CertificateManagementStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[620px] bg-surface-container-lowest rounded-3xl shadow-2xl p-7 relative overflow-hidden flex flex-col transition-all transform scale-100 animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/60 backdrop-blur-md transition-opacity duration-300" id="modal-container">
+          <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[620px] bg-surface-container-lowest rounded-3xl shadow-2xl p-7 relative overflow-hidden flex flex-col transition-all transform scale-100 animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
             <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-error/5 blur-3xl pointer-events-none"></div>
             <button aria-label="Dismiss dialog" className="absolute top-6 right-6 w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors focus:outline-none focus:bg-surface-container-high" id="dismiss-btn" type="button" onClick={() => setSo0(false)}><MsIcon name="close" className="text-[20px]" /></button>
             <div className="flex items-start gap-4">
@@ -677,6 +679,7 @@ export function CertificateManagementStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-on-surface/60 backdrop-blur-sm transition-opacity duration-300" id="modal-container">
           <div className="w-full max-w-4xl bg-surface-container-lowest rounded-3xl shadow-2xl flex flex-col overflow-hidden max-h-[962px] transition-all transform duration-300">
             <div className="px-8 py-5 bg-surface-container-low flex items-start justify-between gap-4">

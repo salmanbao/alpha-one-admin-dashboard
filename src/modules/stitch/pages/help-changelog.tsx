@@ -518,6 +518,7 @@ export function HelpChangelogStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
           <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm transition-opacity"></div>
           <div className="relative w-full max-w-xl bg-[#faf8f5] shadow-2xl border-l border-stone-200 z-50 h-full flex flex-col justify-between">

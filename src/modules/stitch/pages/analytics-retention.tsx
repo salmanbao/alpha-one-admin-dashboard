@@ -531,6 +531,7 @@ export function AnalyticsRetentionStitchPage() {
         </div>
       </div>
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-[#2e3230]/45 backdrop-blur-[2px] z-50 transition-opacity flex justify-end" id="campaign-composer-backdrop">
           <aside className="relative w-full max-w-2xl bg-surface-container-lowest shadow-2xl h-full flex flex-col border-l border-outline-variant/60 font-body overflow-hidden" id="campaign-composer-drawer">
             <div className="px-6 py-5 border-b border-surface-container bg-surface-container-low flex items-start justify-between">

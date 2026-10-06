@@ -510,6 +510,7 @@ export function GroupManagementStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-[#1e2320]/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto transition-opacity duration-200" id="delete-modal-overlay">
           <div className="relative w-full max-w-xl bg-surface-bright rounded-2xl shadow-[0_20px_60px_-15px_rgba(30,35,32,0.35)] overflow-hidden flex flex-col my-auto transition-transform duration-200">
             <div className="h-1.5 w-full bg-error"></div>
@@ -629,6 +630,7 @@ export function GroupManagementStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 pl-72 bg-on-surface/20 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="backdrop-scrim">
           <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
             <section className="w-[620px] bg-surface-bright shadow-[0_4px_30px_rgba(46,50,48,0.18)] flex flex-col justify-between overflow-hidden">

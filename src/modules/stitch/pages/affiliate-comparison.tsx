@@ -810,7 +810,9 @@ export function AffiliateComparisonStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="relative w-full max-w-[620px] rounded-2xl bg-surface shadow-2xl p-6 sm:p-7 flex flex-col my-auto transition-all animate-in fade-in zoom-in-95 duration-200">
+        <>
+        <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/40 backdrop-blur-sm z-50 flex items-center justify-center p-6 overflow-y-auto">
+          <div className="relative w-full max-w-[620px] rounded-2xl bg-surface shadow-2xl p-6 sm:p-7 flex flex-col my-auto transition-all animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-start justify-between gap-4 pb-4">
               <div className="flex flex-col gap-1 min-w-0">
                 <div className="flex items-center gap-2">                  <span className="px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container text-[10px] font-bold tracking-widest uppercase">                    {"               PARTNER COHORT SURVEILLANCE // BENCHMARK BENCH             "}</span></div>
@@ -1016,6 +1018,7 @@ export function AffiliateComparisonStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-[#2e3230]/40 backdrop-blur-xs z-50 transition-opacity" id="drawer-backdrop"></div>
         <aside aria-labelledby="drawer-title" aria-modal="true" className="fixed top-0 right-0 h-full w-full max-w-[660px] bg-surface z-50 shadow-[0_4px_30px_rgba(46,50,48,0.18)] flex flex-col justify-between transition-transform duration-300 ease-out transform translate-x-0" id="slideover-drawer" role="dialog">
           <div className="flex-1 flex flex-col min-h-0">

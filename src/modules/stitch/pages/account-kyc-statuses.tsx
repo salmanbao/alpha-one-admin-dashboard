@@ -492,7 +492,7 @@ export function AccountKycStatusesStitchPage() {
                   <span className="text-[10px] text-outline font-mono">Vault Encrypted</span>
                 </div>
                 <div className="relative flex items-center">
-<input className="w-full pl-3 pr-10 py-2.5 rounded-lg bg-surface font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary shadow-inner" id="apiKeyInput" type="password" defaultValue="sk_live_99420849204_terra_ops_institutional_ld4" />
+<input className="w-full pl-3 pr-10 py-2.5 rounded-lg bg-surface font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary shadow-inner" id="apiKeyInput" type="password" defaultValue="sk_live_••••••••••••ld4" />
                   <button className="absolute right-3 text-outline hover:text-on-surface" type="button"><MsIcon name="visibility_off" className="text-[16px]" /></button>
                 </div>
               </div>
@@ -550,7 +550,9 @@ export function AccountKycStatusesStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="relative w-full max-w-[560px] h-full bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden border-l border-surface-container">
+        <>
+        <div className="fixed inset-0 z-50 flex justify-end bg-inverse-surface/40 backdrop-blur-xs transition-opacity duration-300" id="kycInspectionModal">
+          <div className="relative w-full max-w-[560px] h-full bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden border-l border-surface-container">
             <div className="overflow-y-auto flex-1 p-6 space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-surface-container">
                 <div className="flex flex-wrap items-center gap-2">
@@ -802,6 +804,7 @@ export function AccountKycStatusesStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed bottom-6 right-8 max-w-sm bg-inverse-surface text-inverse-on-surface px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 transform translate-y-24 opacity-0 transition-all duration-300 z-50" id="toastNotification">
 <MsIcon name="check_circle" className="text-inverse-primary text-[20px]" />
           <div className="text-xs">

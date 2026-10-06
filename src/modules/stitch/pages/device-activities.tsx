@@ -867,7 +867,8 @@ export function DeviceActivitiesStitchPage() {
           <span id="toastMsg">Action executed successfully</span>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm transition-opacity duration-300" id="drawer-backdrop">
           <div className="absolute inset-0"></div>
           <aside className="absolute top-0 right-0 h-full w-full max-w-[680px] bg-surface-container-lowest shadow-2xl flex flex-col z-50 overflow-hidden transform transition-transform duration-300 ease-in-out" id="inspection-drawer">
@@ -1134,6 +1135,7 @@ export function DeviceActivitiesStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm transition-all duration-300" id="quarantine-dialog-overlay">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[560px] bg-[#fffdfa] rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.22)] p-7 relative transition-all transform scale-100 flex flex-col gap-5 max-h-[942px] overflow-y-auto" role="alertdialog">
             <div>

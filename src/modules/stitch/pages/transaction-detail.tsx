@@ -548,6 +548,7 @@ export function TransactionDetailStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/40 backdrop-blur-sm overflow-y-auto" id="reversalModalOverlay">
           <div className="relative w-full max-w-2xl bg-surface-bright rounded-xl shadow-2xl p-7 space-y-6 my-8 transform transition-all animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-start justify-between pb-1">

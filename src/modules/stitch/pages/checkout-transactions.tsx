@@ -586,6 +586,7 @@ export function CheckoutTransactionsStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/65 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" id="refundModalOverlay">
           <div className="w-full max-w-[640px] my-auto bg-surface-container-lowest rounded-2xl shadow-2xl p-7 relative flex flex-col gap-5 text-on-surface">
             <div className="flex items-start gap-4">
@@ -746,6 +747,7 @@ export function CheckoutTransactionsStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-stone-950/45 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="drawer-backdrop"></div>
         <aside className="fixed right-0 top-0 h-screen w-full max-w-[700px] bg-surface-container-lowest shadow-2xl z-50 flex flex-col overflow-hidden text-on-surface" id="audit-sheet">
           <div className="p-6 bg-surface-container-low flex flex-col gap-4">

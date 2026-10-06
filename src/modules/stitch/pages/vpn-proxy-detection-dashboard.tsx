@@ -659,6 +659,7 @@ export function VpnProxyDetectionDashboardStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm transition-opacity" id="confirmationModal">
           <div className="w-full max-w-[620px] bg-surface rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[942px] transform transition-all duration-200">
             <div className="h-1.5 w-full bg-error"></div>
@@ -769,10 +770,10 @@ export function VpnProxyDetectionDashboardStitchPage() {
                 </label>
               </div>
             </div>
-<div className="p-5 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_-2px_8px_rgba(46,50,48,0.04)]">
+            <div className="p-5 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_-2px_8px_rgba(46,50,48,0.04)]">
               <div className="flex items-center gap-2 text-[11px] font-mono text-on-surface-variant">
 <MsIcon name="key" className="text-[16px] text-primary" />
-                <span>OPERATOR: MORGAN VANCE M-BM-7 HSM: VERIFIED (ED25519)</span>
+                <span>OPERATOR: MORGAN VANCE · HSM: VERIFIED (ED25519)</span>
               </div>
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                 <button className="px-5 py-2.5 rounded-xl bg-surface hover:bg-surface-container-high text-xs font-bold text-on-surface transition-all shadow-sm" type="button" onClick={() => setSo0(false)}>                  Cancel</button>
@@ -784,6 +785,7 @@ export function VpnProxyDetectionDashboardStitchPage() {
             </div>
           </div>
         </div>
+        </>
       )}
     </>
   );

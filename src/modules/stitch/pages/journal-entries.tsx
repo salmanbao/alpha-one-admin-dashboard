@@ -853,6 +853,7 @@ export function JournalEntriesStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex justify-end bg-inverse-surface/40 backdrop-blur-sm transition-opacity duration-300" id="journal-entry-modal-backdrop">
           <div aria-labelledby="modal-headline" aria-modal="true" className="w-full max-w-[660px] h-full bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden rounded-l-2xl animate-in slide-in-from-right duration-300 relative" role="dialog">
             <div className="px-7 pt-6 pb-4 bg-surface-container-lowest z-10 flex-shrink-0">
@@ -1064,6 +1065,7 @@ export function JournalEntriesStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-inverse-surface/30 backdrop-blur-[3px] z-50 transition-opacity duration-300 flex justify-end" id="sheet-backdrop">
           <aside className="w-full max-w-[690px] h-screen bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden rounded-l-2xl animate-[slideIn_0.25s_ease-out]">
             <div className="px-8 pt-6 pb-5 bg-surface-container-low shrink-0 shadow-sm relative">

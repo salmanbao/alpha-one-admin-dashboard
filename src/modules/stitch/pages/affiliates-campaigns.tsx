@@ -799,7 +799,9 @@ export function AffiliatesCampaignsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="relative w-full max-w-[580px] bg-surface-container-lowest rounded-2xl shadow-2xl p-7 flex flex-col gap-5 text-on-surface" id="deleteAlertDialog">
+        <>
+        <div className="fixed inset-0 z-50 bg-inverse-surface/65 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="relative w-full max-w-[580px] bg-surface-container-lowest rounded-2xl shadow-2xl p-7 flex flex-col gap-5 text-on-surface" id="deleteAlertDialog">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-error-container text-error flex items-center justify-center shrink-0 shadow-sm"><MsIcon name="delete_forever" className="text-[26px]" /></div>
               <div className="flex flex-col min-w-0 flex-1">
@@ -885,6 +887,7 @@ export function AffiliatesCampaignsStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div aria-labelledby="modal-headline" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/60 backdrop-blur-sm p-4 overflow-y-auto" role="dialog">
           <div className="relative w-full max-w-[580px] bg-surface rounded-2xl shadow-2xl p-6 sm:p-7 flex flex-col gap-5 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-tertiary via-tertiary-container to-tsc"></div>

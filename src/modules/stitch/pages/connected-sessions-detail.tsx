@@ -607,6 +607,7 @@ export function ConnectedSessionsDetailStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm hidden flex items-center justify-center p-4" id="revoke-modal">
           <div className="bg-surface-container-lowest max-w-lg w-full rounded-2xl p-6 sm:p-7 shadow-xl space-y-6 animate-[fadeIn_0.15s_ease-out]">
             <div className="flex items-start gap-4">
@@ -756,6 +757,7 @@ export function ConnectedSessionsDetailStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div aria-modal="true" className="fixed inset-0 z-50 bg-inverse-surface/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" id="revoke-modal" role="dialog">
           <div className="bg-surface-container-lowest max-w-xl w-full rounded-2xl p-6 sm:p-7 shadow-xl space-y-5 animate-[fadeIn_0.15s_ease-out] border border-outline-variant/30 my-8">
             <div className="space-y-2">

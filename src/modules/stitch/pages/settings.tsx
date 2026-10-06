@@ -989,6 +989,7 @@ export function SettingsStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-[#2e3230]/65 backdrop-blur-md overflow-y-auto">
           <div className="relative w-full max-w-3xl my-auto bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.22)] overflow-hidden flex flex-col">
             <div className="w-full h-1.5 bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>

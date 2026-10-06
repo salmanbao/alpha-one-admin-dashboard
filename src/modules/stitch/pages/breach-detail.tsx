@@ -659,7 +659,9 @@ export function BreachDetailStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="relative w-full max-w-[560px] my-auto bg-surface rounded-2xl shadow-[0_24px_60px_rgba(30,26,19,0.30)] flex flex-col overflow-hidden transform animate-in fade-in zoom-in-95 duration-200">
+        <>
+        <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="fixed inset-0 z-50 bg-[#232725]/60 backdrop-blur-[4px] flex items-center justify-center p-4 sm:p-6 overflow-y-auto" role="dialog">
+          <div className="relative w-full max-w-[560px] my-auto bg-surface rounded-2xl shadow-[0_24px_60px_rgba(30,26,19,0.30)] flex flex-col overflow-hidden transform animate-in fade-in zoom-in-95 duration-200">
             <div className="h-1.5 w-full bg-gradient-to-r from-tertiary-container via-error to-tertiary"></div>
             <div className="p-6 sm:p-7 pb-4">
               <div className="flex items-start gap-4">
@@ -785,6 +787,7 @@ export function BreachDetailStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-[2px] z-50 transition-opacity"></div>
         <aside className="fixed right-0 top-0 bottom-0 w-full max-w-[620px] bg-surface-bright shadow-2xl z-50 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
           <div className="px-8 pt-7 pb-5 bg-surface-container-low shadow-[0_1px_4px_rgba(46,50,48,0.04)] flex-shrink-0">

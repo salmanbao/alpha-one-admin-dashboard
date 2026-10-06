@@ -716,7 +716,8 @@ export function OrdersStitchPage() {
           </div>
         </footer>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-[2.5px] z-50 transition-opacity duration-300" id="drawer-backdrop"></div>
         <aside className="fixed top-0 right-0 bottom-0 w-full max-w-[660px] bg-surface-container-lowest z-50 flex flex-col shadow-[-10px_0_35px_rgba(46,50,48,0.12)] overflow-hidden transition-transform duration-300" id="challenge-drawer">
           <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>
@@ -992,6 +993,7 @@ export function OrdersStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-[2px] z-50 transition-opacity duration-300 ease-out" id="drawer-backdrop"></div>
         <aside className="fixed top-0 right-0 h-full w-full sm:w-[680px] bg-surface-container-lowest z-50 flex flex-col shadow-2xl overflow-hidden transition-transform duration-300 ease-in-out border-l border-outline-variant/30" id="country-drilldown-sheet">
           <div className="px-7 pt-6 pb-5 bg-surface-container-low shrink-0 relative">

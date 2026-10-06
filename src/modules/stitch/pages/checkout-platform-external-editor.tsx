@@ -379,7 +379,10 @@ export function CheckoutPlatformExternalEditorStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+        <>
+        <div aria-labelledby="slide-over-title" aria-modal="true" className="fixed inset-0 z-50 overflow-hidden hidden" id="incident-drawer" role="dialog">
+          <div className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-sm transition-opacity"></div>
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
             <div className="w-screen max-w-md bg-surface-container-lowest shadow-2xl p-6 flex flex-col justify-between overflow-y-auto">
               <div className="space-y-6">
                 <div className="flex items-center justify-between pb-4 border-b border-surface-container">
@@ -551,8 +554,13 @@ export function CheckoutPlatformExternalEditorStitchPage() {
               </div>
             </div>
           </div>
-        {so1 && (
-        <div className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-sm transition-opacity"></div>
+        </div>
+        </>
+      )}
+      {so1 && (
+        <>
+        <div aria-labelledby="slide-over-title" aria-modal="true" className="fixed inset-0 z-50 overflow-hidden hidden" id="incident-drawer" role="dialog">
+          <div className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-sm transition-opacity"></div>
           <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
             <div className="w-screen max-w-md bg-surface-container-lowest shadow-2xl p-6 flex flex-col justify-between overflow-y-auto">
               <div className="space-y-6">
@@ -715,7 +723,9 @@ export function CheckoutPlatformExternalEditorStitchPage() {
               <button className="px-5 py-2.5 rounded-xl bg-[#c25e38] hover:bg-[#b0532f] text-white text-xs font-bold shadow-sm transition-all flex items-center gap-2" type="button" onClick={() => setSo1(false)}>                <span>Confirm &amp; Begin 48h IP Rotation 🔄</span></button>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
     </>
   );
 }

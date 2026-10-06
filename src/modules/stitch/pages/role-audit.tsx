@@ -831,7 +831,10 @@ export function RoleAuditStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="bg-error-container p-5 text-on-error-container relative">
+        <>
+        <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-50 bg-stone-900/60 backdrop-blur-md flex items-center justify-center p-4 md:p-6 overflow-y-auto" id="revert-modal-container">
+          <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-error-container p-5 text-on-error-container relative">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3.5">
                   <div className="w-10 h-10 rounded-xl bg-error/15 text-error flex items-center justify-center shrink-0"><MsIcon name="flip_camera_ios" className="text-2xl" /></div>
@@ -1003,9 +1006,14 @@ export function RoleAuditStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
       {so1 && (
-        <div className="px-7 pt-6 pb-5 bg-surface-container-lowest/80 backdrop-blur-md flex flex-col gap-3 shadow-xs shrink-0">
+        <>
+        <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-sm z-50 transition-opacity duration-300" id="drawer-backdrop">
+          <div className="absolute right-0 top-0 h-full w-full max-w-[620px] bg-background shadow-2xl flex flex-col justify-between border-0 transition-transform duration-300 transform translate-x-0 overflow-hidden" id="slide-drawer">
+            <div className="px-7 pt-6 pb-5 bg-surface-container-lowest/80 backdrop-blur-md flex flex-col gap-3 shadow-xs shrink-0">
               <div className="flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container text-[11px] font-mono font-bold tracking-wider text-primary">
                   <span className="relative flex h-2 w-2">
@@ -1222,7 +1230,9 @@ export function RoleAuditStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
     </>
   );
 }

@@ -876,6 +876,7 @@ export function NotificationPreferencesMatrixStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 transition-opacity duration-200" id="alert-backdrop">
           <div aria-describedby="alert-dialog-description" aria-labelledby="alert-dialog-title" aria-modal="true" className="relative w-full max-w-[550px] bg-surface-container-lowest rounded-2xl shadow-2xl p-7 flex flex-col gap-6 text-on-surface animate-in fade-in zoom-in-95 duration-150" id="alert-modal" role="alertdialog">
             <div className="flex items-start gap-4">
@@ -973,6 +974,7 @@ export function NotificationPreferencesMatrixStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/40 backdrop-blur-sm transition-opacity">
           <div aria-describedby="dialog-description" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-lg rounded-xl bg-surface-container-lowest shadow-[0_12px_40px_rgba(46,50,48,0.18)] p-6 sm:p-8 flex flex-col space-y-6 relative transform transition-all animate-in fade-in zoom-in-95 duration-200" id="dialog-card" role="alertdialog">
             <div className="flex items-center gap-3">
@@ -1035,6 +1037,7 @@ export function NotificationPreferencesMatrixStitchPage() {
         </>
       )}
       {so2 && (
+        <>
         <div className="fixed inset-0 left-72 top-16 bg-on-surface/40 backdrop-blur-md z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           <div className="w-full max-w-4xl bg-surface-container-lowest rounded-xl shadow-[0_12px_48px_rgba(46,50,48,0.18)] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>
@@ -1231,6 +1234,7 @@ export function NotificationPreferencesMatrixStitchPage() {
         </>
       )}
       {so3 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-inverse-surface/60 backdrop-blur-sm transition-all duration-300" id="test-modal-backdrop">
           <div aria-labelledby="modal-headline" aria-modal="true" className="relative w-full max-w-[640px] bg-surface-container-lowest rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[calc(100vh-6rem)]" role="dialog">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>

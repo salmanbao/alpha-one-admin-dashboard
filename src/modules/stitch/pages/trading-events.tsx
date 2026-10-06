@@ -480,7 +480,9 @@ export function TradingEventsStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (        <aside aria-label="Add Event Rule Sheet" className="fixed top-0 right-0 z-50 h-full w-full max-w-[560px] bg-surface shadow-2xl flex flex-col justify-between overflow-hidden transform transition-transform duration-300 ease-in-out" id="rule-sheet">
+      {so0 && (
+        <>
+        <aside aria-label="Add Event Rule Sheet" className="fixed top-0 right-0 z-50 h-full w-full max-w-[560px] bg-surface shadow-2xl flex flex-col justify-between overflow-hidden transform transition-transform duration-300 ease-in-out" id="rule-sheet">
           <div className="px-7 pt-6 pb-5 bg-surface-container-low shrink-0 relative shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -713,6 +715,7 @@ export function TradingEventsStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-on-surface/30 backdrop-blur-[3px] z-50 transition-opacity"></div>
         <div className="fixed top-0 right-0 h-full w-full max-w-[660px] bg-surface-container-lowest shadow-2xl z-50 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
           <div className="p-6 bg-surface-container-low/80 backdrop-blur-md">

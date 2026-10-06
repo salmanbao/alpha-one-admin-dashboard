@@ -835,7 +835,8 @@ export function PayoutsHistoryStitchPage() {
           </div>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-[#2e3230]/65 backdrop-blur-[3px] flex items-center justify-center p-4 hidden" id="reverse-dialog">
           <div className="bg-surface-container-lowest max-w-md w-full rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="w-12 h-12 rounded-xl bg-error-container text-error flex items-center justify-center"><MsIcon name="warning" className="text-[28px]" /></div>
@@ -862,6 +863,7 @@ export function PayoutsHistoryStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-[#1e1a13]/70 backdrop-blur-[3px] z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.28)] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
             <div className="h-1.5 w-full bg-gradient-to-r from-error via-tertiary to-error"></div>

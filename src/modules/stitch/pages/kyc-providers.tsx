@@ -613,7 +613,8 @@ export function KycProvidersStitchPage() {
           </div>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8 bg-on-background/50 backdrop-blur-[3px] overflow-y-auto" id="kyc-modal-overlay">
           <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl shadow-[0_12px_40px_rgba(46,50,48,0.18)] p-7 md:p-8 flex flex-col gap-6 my-auto max-h-[942px] overflow-y-auto">
             <div className="flex items-start justify-between gap-4">
@@ -743,6 +744,7 @@ export function KycProvidersStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-on-background/40 backdrop-blur-sm transition-opacity" id="modal-backdrop">
           <div className="w-full max-w-4xl bg-surface rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[942px] animate-in fade-in duration-200">
             <div className="px-7 py-5 bg-surface-container-low flex items-start justify-between gap-4">
@@ -982,6 +984,7 @@ export function KycProvidersStitchPage() {
         </>
       )}
       {so2 && (
+        <>
         <div className="fixed inset-0 top-16 left-0 md:left-72 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/60 backdrop-blur-sm overflow-y-auto">
           <div aria-describedby="dialog-description" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[560px] my-auto bg-surface rounded-2xl shadow-2xl p-6 sm:p-7 relative text-on-surface space-y-5 animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
             <div className="flex items-start justify-between gap-4">
@@ -1103,6 +1106,7 @@ export function KycProvidersStitchPage() {
         </>
       )}
       {so3 && (
+        <>
         <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-sm z-50 transition-opacity duration-300" id="drawer-backdrop"></div>
         <div className="fixed top-0 right-0 w-full sm:w-[640px] h-full bg-surface shadow-2xl z-50 flex flex-col justify-between overflow-hidden" id="kyc-config-drawer">
           <div className="p-6 bg-surface-container-low shrink-0 shadow-sm relative">

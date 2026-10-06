@@ -699,6 +699,7 @@ export function PayoutMethodsConfigStitchPage() {
         </section>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex justify-end bg-[#1e1a13]/35 backdrop-blur-[3px] transition-opacity duration-300" id="slideover-backdrop">
           <div className="w-full max-w-[590px] h-full bg-surface-container-lowest shadow-2xl flex flex-col z-50 animate-in slide-in-from-right duration-300">
             <div className="p-6 bg-surface-container-low flex flex-col gap-2 relative shrink-0 shadow-sm">
@@ -972,6 +973,7 @@ export function PayoutMethodsConfigStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/65 backdrop-blur-[4px] transition-opacity">
           <div className="relative w-full max-w-[620px] max-h-[942px] flex flex-col bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.35)] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="h-1.5 w-full bg-gradient-to-r from-error via-tertiary-container to-error"></div>

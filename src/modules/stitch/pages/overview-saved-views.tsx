@@ -488,7 +488,8 @@ export function OverviewSavedViewsStitchPage() {
           <div className="text-right">            <span>Checksum: 0x9f4a7c88b432... · SEC Rule 17a-4 / FINRA 4511 WORM Audited</span></div>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex justify-end bg-stone-900/60 backdrop-blur-sm transition-opacity" id="saveViewDrawerBackdrop">
           <div className="relative w-full max-w-[540px] bg-white h-screen shadow-2xl border-l border-stone-200 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
             <div className="px-6 py-5 border-b border-stone-200 bg-stone-50/80 flex items-start justify-between">
@@ -655,6 +656,7 @@ export function OverviewSavedViewsStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-[#2e3230]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all" id="shareModalOverlay">
           <div className="max-w-2xl w-full bg-surface-container-lowest rounded-2xl shadow-2xl border border-surface-variant overflow-hidden flex flex-col my-auto relative animate-in fade-in duration-200">
             <div className="px-6 py-5 border-b border-surface-variant/40 flex items-start justify-between bg-surface-container-low">

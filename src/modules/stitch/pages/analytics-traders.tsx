@@ -908,7 +908,9 @@ export function AnalyticsTradersStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (">
+      {so0 && (
+        <>
+        <footer className="w-full bg-surface-container-low px-8 py-3.5 mt-auto shadow-[0_-1px_6px_rgba(46,50,48,0.02)]">
           <div className="flex items-center justify-between text-xs text-on-surface-variant font-mono">
             <div className="flex items-center gap-4">
               <span>Core API Active v4.18.2</span>
