@@ -482,7 +482,9 @@ export function CheckoutExternalStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="relative w-full max-w-[620px] bg-[#faf8f5] rounded-2xl shadow-2xl p-6 sm:p-7 space-y-5 text-on-surface animate-in fade-in zoom-in-95 duration-150">
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-black/55 backdrop-blur-sm transition-opacity duration-200" id="modalOverlay">
+          <div className="relative w-full max-w-[620px] bg-[#faf8f5] rounded-2xl shadow-2xl p-6 sm:p-7 space-y-5 text-on-surface animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-4">
               <div className="shrink-0 w-12 h-12 rounded-full bg-error-container/60 text-error flex items-center justify-center"><MsIcon name="fmd_bad" className="text-[26px]" /></div>
               <div className="space-y-1.5 flex-1 min-w-0">
@@ -619,6 +621,7 @@ export function CheckoutExternalStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[680px] bg-[#faf8f5] shadow-[0_4px_30px_rgba(46,50,48,0.18)] flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
           <div className="p-6 bg-[#faf8f5] shadow-[0_1px_0_rgba(231,227,220,0.8)] shrink-0">
             <div className="flex items-start justify-between gap-4">

@@ -707,6 +707,7 @@ export function RiskCouponVsPayoutsStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-[#1e2220]/60 backdrop-blur-[3px] flex items-center justify-center p-4" id="modal-scrim">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[540px] rounded-xl bg-surface-container-lowest shadow-[0_20px_50px_rgba(46,50,48,0.22)] overflow-hidden transition-all duration-200 transform scale-100 flex flex-col" role="alertdialog">
             <div className="h-1.5 w-full bg-gradient-to-r from-tertiary-container via-error to-error"></div>
@@ -829,7 +830,9 @@ export function RiskCouponVsPayoutsStitchPage() {
         </div>
         </>
       )}
-      {so1 && (        <aside aria-labelledby="drilldown-title" aria-modal="true" className="fixed top-0 right-0 bottom-8 z-50 w-full max-w-[660px] bg-surface flex flex-col shadow-[-16px_0_40px_rgba(46,50,48,0.18)] transition-transform duration-300 ease-out" id="coupon-drilldown-drawer" role="dialog">
+      {so1 && (
+        <>
+        <aside aria-labelledby="drilldown-title" aria-modal="true" className="fixed top-0 right-0 bottom-8 z-50 w-full max-w-[660px] bg-surface flex flex-col shadow-[-16px_0_40px_rgba(46,50,48,0.18)] transition-transform duration-300 ease-out" id="coupon-drilldown-drawer" role="dialog">
           <div className="px-7 py-3.5 bg-surface-container flex items-center justify-between">
             <div className="flex items-center gap-2 text-[11px] font-mono font-bold tracking-widest text-outline uppercase">
               <span className="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>

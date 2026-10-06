@@ -506,7 +506,9 @@ export function AiQuotaStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="w-[620px] max-w-full bg-surface-container-lowest rounded-xl shadow-[0_12px_40px_rgba(46,50,48,0.18)] p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+        <>
+        <div className="fixed inset-0 left-72 top-16 bg-[#2e3230]/60 backdrop-blur-sm z-50 flex items-center justify-center p-6 overflow-y-auto">
+          <div className="w-[620px] max-w-full bg-surface-container-lowest rounded-xl shadow-[0_12px_40px_rgba(46,50,48,0.18)] p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
               <div className="inline-flex items-center gap-2 bg-surface-container px-3 py-1 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
@@ -630,7 +632,9 @@ export function AiQuotaStitchPage() {
         </div>
         </>
       )}
-      {so1 && (        <aside className="fixed top-16 right-0 bottom-0 z-50 w-full max-w-[660px] bg-surface-container-lowest shadow-2xl flex flex-col overflow-hidden">
+      {so1 && (
+        <>
+        <aside className="fixed top-16 right-0 bottom-0 z-50 w-full max-w-[660px] bg-surface-container-lowest shadow-2xl flex flex-col overflow-hidden">
           <div className="px-7 pt-6 pb-5 bg-surface-container-low flex flex-col gap-2 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

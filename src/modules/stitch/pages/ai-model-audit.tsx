@@ -497,7 +497,9 @@ export function AiModelAuditStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div aria-labelledby="certificateModalTitle" aria-modal="true" className="max-w-[720px] w-full bg-surface-container-lowest rounded-2xl shadow-xl p-7 relative transition-all duration-300 animate-in fade-in zoom-in-95 my-auto" role="dialog">
+        <>
+        <div className="fixed inset-0 top-16 left-72 bg-on-surface/40 backdrop-blur-sm z-50 flex items-center justify-center p-6 overflow-y-auto" id="certificateModalBackdrop">
+          <div aria-labelledby="certificateModalTitle" aria-modal="true" className="max-w-[720px] w-full bg-surface-container-lowest rounded-2xl shadow-xl p-7 relative transition-all duration-300 animate-in fade-in zoom-in-95 my-auto" role="dialog">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary via-primary-container to-tertiary-container rounded-t-2xl"></div>
             <div className="flex items-start justify-between gap-4 mt-1">
               <div className="space-y-2">
@@ -679,6 +681,7 @@ export function AiModelAuditStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 z-50 flex items-center justify-center p-6 bg-stone-900/60 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-2xl p-7 my-auto text-on-surface transform transition-all animate-in fade-in zoom-in-95 duration-200">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-error via-tertiary-container to-primary rounded-t-2xl"></div>

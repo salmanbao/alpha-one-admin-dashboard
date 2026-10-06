@@ -599,6 +599,7 @@ export function MarketingCampaignDetailStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm transition-opacity duration-200" id="alert-scrim">
           <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-[550px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.28)] p-7 space-y-5 animate-in fade-in zoom-in-95 duration-150" role="alertdialog">
             <div className="flex items-start gap-4">
@@ -684,7 +685,9 @@ export function MarketingCampaignDetailStitchPage() {
         </div>
         </>
       )}
-      {so1 && (        <aside aria-label="Edit Campaign Drawer" className="fixed top-16 right-0 bottom-0 w-full sm:w-[680px] lg:w-[730px] bg-background shadow-2xl z-50 flex flex-col border-l border-outline-variant/40 animate-in slide-in-from-right duration-300 ease-out">
+      {so1 && (
+        <>
+        <aside aria-label="Edit Campaign Drawer" className="fixed top-16 right-0 bottom-0 w-full sm:w-[680px] lg:w-[730px] bg-background shadow-2xl z-50 flex flex-col border-l border-outline-variant/40 animate-in slide-in-from-right duration-300 ease-out">
           <div className="px-7 py-5 bg-surface-container-lowest/80 backdrop-blur-md flex items-start justify-between border-b border-outline-variant/30 flex-shrink-0">
             <div className="flex flex-col pr-4">
               <div className="flex items-center gap-2 mb-1">
@@ -930,6 +933,7 @@ export function MarketingCampaignDetailStitchPage() {
         </>
       )}
       {so2 && (
+        <>
         <div aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm" id="unsaved-changes-modal" role="dialog">
           <div className="relative w-full max-w-[540px] bg-white rounded-xl border border-stone-200 p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-3.5">
@@ -987,6 +991,7 @@ export function MarketingCampaignDetailStitchPage() {
         </>
       )}
       {so3 && (
+        <>
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-sm transition-opacity"></div>
           <aside className="relative w-full max-w-xl bg-surface-container-low shadow-2xl flex flex-col h-full z-10 overflow-hidden font-body border-l border-surface-container-high">

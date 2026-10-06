@@ -630,7 +630,8 @@ export function AnalyticsAdvancedStitchPage() {
       </div>
       {so0 && (
         <>
-        <div className="fixed inset-0 bg-[#2e3230]/40 backdrop-blur-sm transition-opacity"></div>
+        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end" id="anomaly-investigation-drawer">
+          <div className="fixed inset-0 bg-[#2e3230]/40 backdrop-blur-sm transition-opacity"></div>
           <aside className="relative w-full max-w-[620px] bg-surface-container-lowest h-full shadow-[0_4px_24px_rgba(46,50,48,0.18)] flex flex-col z-10 border-l border-surface-container overflow-hidden">
             <div className="px-6 py-4 border-b border-surface-container bg-surface-container-low flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2.5">

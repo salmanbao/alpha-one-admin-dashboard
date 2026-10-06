@@ -571,7 +571,8 @@ export function Screen2faSetupDialogStitchPage() {
                 <span>SIEM Incident Ref #2FA-DIS-882049 · Hardware Security Module Session Revocation Armed</span>
               </div>
             </div>
-</div>
+          </div>
+        </div>
         </>
       )}
       {so1 && (

@@ -672,7 +672,9 @@ export function CertificatesIssuedStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="w-full max-w-[640px] bg-surface-bright text-on-surface shadow-2xl flex flex-col h-[calc(100vh-4rem)] z-50 overflow-hidden relative" id="sheet-drawer">
+        <>
+        <div className="fixed inset-0 top-16 left-72 bg-on-surface/40 backdrop-blur-sm z-50 flex justify-end transition-opacity duration-300" id="slideover-backdrop">
+          <div className="w-full max-w-[640px] bg-surface-bright text-on-surface shadow-2xl flex flex-col h-[calc(100vh-4rem)] z-50 overflow-hidden relative" id="sheet-drawer">
             <div className="p-6 pb-5 bg-surface-container-low relative">
               <div className="flex items-center justify-between mb-3.5">
                 <div className="flex items-center gap-2">

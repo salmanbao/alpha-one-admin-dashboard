@@ -609,7 +609,10 @@ export function PermissionsCatalogStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="px-7 pt-6 pb-5 bg-surface-container-low shrink-0 shadow-sm relative">
+        <>
+        <div className="fixed inset-0 bg-on-surface/40 backdrop-blur-sm z-50 transition-opacity duration-300" id="drawer-backdrop"></div>
+        <aside className="fixed top-0 right-0 h-full w-[620px] max-w-full bg-surface-container-lowest shadow-2xl z-50 flex flex-col overflow-hidden transition-transform duration-300" id="registration-drawer">
+          <div className="px-7 pt-6 pb-5 bg-surface-container-low shrink-0 shadow-sm relative">
             <div className="flex items-start justify-between gap-4">
               <div className="flex flex-col space-y-1">
                 <div className="flex items-center gap-2">
@@ -829,9 +832,14 @@ export function PermissionsCatalogStitchPage() {
               </button>
             </div>
           </div>
-        </aside>\n        </>\n      )}
+        </aside>
+        </>
+      )}
       {so1 && (
-        <div className="px-7 pt-6 pb-5 bg-surface-container-low/70 flex flex-col gap-2 relative">
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-[#2e3230]/65 backdrop-blur-sm" id="modal-container">
+          <div className="relative w-full max-w-4xl bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[942px]">
+            <div className="px-7 pt-6 pb-5 bg-surface-container-low/70 flex flex-col gap-2 relative">
               <div className="flex items-center justify-between">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-tertiary-fixed text-on-tertiary-fixed text-[11px] font-label font-bold tracking-wider uppercase">
                   <span className="w-1.5 h-1.5 rounded-full bg-tertiary inline-block"></span>
@@ -1019,7 +1027,9 @@ export function PermissionsCatalogStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
     </>
   );
 }

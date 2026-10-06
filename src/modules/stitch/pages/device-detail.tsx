@@ -485,7 +485,8 @@ export function DeviceDetailStitchPage() {
           </div>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/65 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="w-full max-w-[560px] bg-surface rounded-2xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.35)] overflow-hidden my-auto transform transition-all animate-in fade-in zoom-in-95 duration-200">
             <div className="h-1.5 w-full bg-error"></div>
@@ -596,6 +597,7 @@ export function DeviceDetailStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" id="logoutModal">
           <div className="w-full max-w-[540px] bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden flex flex-col transform transition-all duration-200 animate-in fade-in zoom-in-95">
             <div className="p-6 pb-4 space-y-4">

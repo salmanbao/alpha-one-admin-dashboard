@@ -559,6 +559,7 @@ export function NotificationsStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-stone-900/40 backdrop-blur-sm transition-opacity duration-300" id="modal-container">
           <div className="relative w-full max-w-3xl rounded-xl bg-surface shadow-2xl overflow-hidden my-auto flex flex-col max-h-[942px] animate-in fade-in zoom-in-95 duration-200">
             <div className="px-7 pt-6 pb-5 bg-surface-container-low flex flex-col gap-3 shrink-0">

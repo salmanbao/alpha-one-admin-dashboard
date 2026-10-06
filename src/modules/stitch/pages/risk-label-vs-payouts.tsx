@@ -618,7 +618,9 @@ export function RiskLabelVsPayoutsStitchPage() {
           </button>
         </div>
       </div>
-      ({so0 && (        <aside className="fixed right-0 top-0 bottom-0 w-full sm:w-[640px] max-w-full bg-surface-container-lowest shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
+      {so0 && (
+        <>
+        <aside className="fixed right-0 top-0 bottom-0 w-full sm:w-[640px] max-w-full bg-surface-container-lowest shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
           <div className="bg-surface-container-low px-7 py-5 flex flex-col gap-3 shadow-sm relative">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -896,7 +898,9 @@ export function RiskLabelVsPayoutsStitchPage() {
         </aside>
         </>
       )}
-      {so1 && (        <aside className="fixed right-0 top-0 bottom-0 w-full sm:w-[580px] max-w-[95vw] bg-[#fcfbf9] shadow-2xl z-50 flex flex-col justify-between overflow-y-auto" id="save-view-sheet">
+      {so1 && (
+        <>
+        <aside className="fixed right-0 top-0 bottom-0 w-full sm:w-[580px] max-w-[95vw] bg-[#fcfbf9] shadow-2xl z-50 flex flex-col justify-between overflow-y-auto" id="save-view-sheet">
           <div className="p-6 md:p-8 space-y-6">
             <div className="space-y-2">
               <div className="flex items-center justify-between">

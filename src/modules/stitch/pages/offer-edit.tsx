@@ -642,7 +642,8 @@ export function OfferEditStitchPage() {
           </div>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-sm z-50 flex justify-end transition-opacity duration-300">
           <div className="w-full max-w-[840px] h-full bg-surface-container-lowest shadow-2xl flex flex-col z-50 overflow-hidden transform transition-transform duration-300">
             <div className="px-7 pt-6 pb-4 bg-surface-container-low">
@@ -891,6 +892,7 @@ export function OfferEditStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-sm z-50 flex justify-end transition-opacity duration-300">
           <aside className="w-full max-w-[680px] h-full bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
             <div className="p-7 bg-surface-container-low/90 backdrop-blur-md flex flex-col gap-3">

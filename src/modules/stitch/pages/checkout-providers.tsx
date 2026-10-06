@@ -540,7 +540,9 @@ export function CheckoutProvidersStitchPage() {
           </div>
         </div>
       </div>
-      ({so0 && (        <aside className="fixed right-0 top-16 bottom-0 w-[680px] max-w-full bg-surface-container-lowest z-50 flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300">
+      {so0 && (
+        <>
+        <aside className="fixed right-0 top-16 bottom-0 w-[680px] max-w-full bg-surface-container-lowest z-50 flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300">
           <header className="p-6 bg-surface-container-low flex flex-col gap-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -825,6 +827,7 @@ export function CheckoutProvidersStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 z-50 flex items-center justify-center bg-on-surface/55 backdrop-blur-sm p-4 overflow-y-auto">
           <div aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[640px] my-auto bg-surface-bright rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-all duration-200" role="alertdialog">
             <div className="p-6 bg-surface-bright pb-5">

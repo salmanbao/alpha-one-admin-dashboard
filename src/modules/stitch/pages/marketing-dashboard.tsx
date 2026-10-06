@@ -487,6 +487,7 @@ export function MarketingDashboardStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 z-50 bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-6 overflow-y-auto" id="modalBackdrop">
           <div aria-labelledby="modalTitle" aria-modal="true" className="bg-surface-container-lowest text-on-surface w-full max-w-2xl rounded-xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200" role="dialog">
             <div className="px-7 pt-6 pb-5 bg-surface-container-low/70 flex items-start justify-between">

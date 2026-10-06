@@ -719,7 +719,9 @@ export function CookieAttributionStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (        <aside aria-labelledby="sheet-title" aria-modal="true" className="fixed right-0 top-0 bottom-0 w-full md:w-[700px] bg-surface-container-lowest shadow-2xl z-50 overflow-y-auto flex flex-col transition-transform duration-300 ease-out" id="attribution-sheet" role="dialog">
+      {so0 && (
+        <>
+        <aside aria-labelledby="sheet-title" aria-modal="true" className="fixed right-0 top-0 bottom-0 w-full md:w-[700px] bg-surface-container-lowest shadow-2xl z-50 overflow-y-auto flex flex-col transition-transform duration-300 ease-out" id="attribution-sheet" role="dialog">
           <div className="sticky top-0 bg-surface-container-lowest/95 backdrop-blur-md px-7 pt-6 pb-5 shadow-sm z-20">
             <div className="flex items-center justify-between pb-3">
               <div className="flex items-center gap-2">
@@ -1098,6 +1100,7 @@ export function CookieAttributionStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-inverse-surface/60 backdrop-blur-[6px] transition-opacity">
           <div aria-labelledby="modalTitle" aria-modal="true" className="w-full max-w-2xl bg-surface-container-lowest text-on-surface rounded-2xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.25)] flex flex-col max-h-[942px] overflow-hidden transition-all transform animate-in fade-in zoom-in-95 duration-200" id="attributionModal" role="dialog">
             <div className="px-6 pt-6 pb-4 bg-surface-container-low flex flex-col gap-2 relative">

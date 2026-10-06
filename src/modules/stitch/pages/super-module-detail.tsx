@@ -553,7 +553,10 @@ export function SuperModuleDetailStitchPage() {
         </footer>
       </div>
       {so0 && (
-        <div className="h-1.5 w-full bg-primary"></div>
+        <>
+        <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/60 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto px-6 py-10 transition-opacity duration-200" id="adr-modal-overlay">
+          <div className="max-w-3xl w-full bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto transition-all transform animate-in fade-in zoom-in-95 duration-150">
+            <div className="h-1.5 w-full bg-primary"></div>
             <div className="px-8 pt-7 pb-5 bg-surface-container-low/70 flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -740,9 +743,14 @@ export function SuperModuleDetailStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
       {so1 && (
-        <div className="flex items-start justify-between gap-4">
+        <>
+        <aside className="fixed top-16 right-0 bottom-0 w-full max-w-[720px] bg-surface-container-lowest shadow-2xl flex flex-col z-50 overflow-hidden transform transition-transform duration-300 ease-in-out" id="documentation-sheet">
+          <header className="px-8 py-5 bg-surface-container-low shrink-0 shadow-sm relative">
+            <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-widest uppercase bg-tertiary-container/30 text-on-tertiary-container">
@@ -934,7 +942,9 @@ export function SuperModuleDetailStitchPage() {
               </span>
             </div>
           </footer>
-        </aside>\n        </>\n      )}
+        </aside>
+        </>
+      )}
     </>
   );
 }

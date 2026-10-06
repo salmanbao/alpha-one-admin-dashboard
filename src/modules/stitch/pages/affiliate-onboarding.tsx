@@ -486,7 +486,9 @@ export function AffiliateOnboardingStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="max-w-xl w-full bg-[#fcfbf9] border border-stone-200 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+        <>
+        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="max-w-xl w-full bg-[#fcfbf9] border border-stone-200 rounded-xl shadow-2xl overflow-hidden flex flex-col">
             <div className="p-6 pb-4">
               <div className="flex items-start gap-3.5">
                 <div className="bg-emerald-100 text-[#4a7c59] p-2.5 rounded-lg inline-flex items-center justify-center shrink-0"><MsIcon name="forward_to_inbox" className="text-[24px]" /></div>

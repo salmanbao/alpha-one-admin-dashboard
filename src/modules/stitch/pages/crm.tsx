@@ -327,7 +327,8 @@ export function CrmStitchPage() {
           </section>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/65 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200" id="crmExportModal">
             <div className="px-8 pt-7 pb-5 bg-surface-container-low flex items-start justify-between gap-4">

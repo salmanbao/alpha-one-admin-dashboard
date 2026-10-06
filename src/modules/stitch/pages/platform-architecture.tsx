@@ -672,7 +672,8 @@ export function PlatformArchitectureStitchPage() {
           </div>
         </section>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-stone-900/60 backdrop-blur-sm transition-all animate-fadeIn" id="principle-deep-dive-modal">
           <div className="relative w-full max-w-3xl bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden my-8 transition-all flex flex-col max-h-[90vh]">
             <div className="px-6 py-5 bg-surface-container-lowest border-b border-surface-container-high shrink-0">
@@ -773,6 +774,7 @@ export function PlatformArchitectureStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-sm z-50 transition-opacity" id="bug-report-drawer-backdrop"></div>
         <aside aria-label="Report Platform Bug Slide-over" className="fixed right-0 top-0 bottom-0 w-full max-w-xl bg-surface-container-lowest border-l border-outline-variant shadow-2xl flex flex-col z-50 overflow-hidden font-body animate-in slide-in-from-right duration-300" id="bug-report-drawer">
           <div className="px-6 py-5 border-b border-surface-container bg-surface-container-low shrink-0">
