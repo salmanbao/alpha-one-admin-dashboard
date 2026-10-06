@@ -651,7 +651,10 @@ export function PlatformHealthStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="px-7 py-5 bg-surface-container-low flex items-start justify-between shadow-sm shrink-0">
+        <>
+        <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/40 backdrop-blur-sm z-50 flex justify-end transition-opacity duration-300" id="drawerBackdrop">
+          <div className="w-full max-w-[660px] h-full bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden relative" id="incidentDrawer">
+            <div className="px-7 py-5 bg-surface-container-low flex items-start justify-between shadow-sm shrink-0">
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2.5">
                   <span className="font-mono text-base font-bold text-on-surface">INC-8942</span>
@@ -826,8 +829,13 @@ export function PlatformHealthStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
-      {so1 && ( overflow-hidden transition-all duration-200">
+        </div>
+        </>
+      )}
+      {so1 && (
+        <>
+        <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/45 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="relative w-full max-w-[730px] my-auto bg-surface-container-lowest text-on-surface rounded-2xl shadow-[0_12px_48px_rgba(46,50,48,0.18)] overflow-hidden transition-all duration-200">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary-container"></div>
             <div className="px-7 pt-6 pb-4 bg-surface-container-low/70 flex items-start justify-between gap-4">
               <div className="flex items-start gap-4">
@@ -1019,7 +1027,9 @@ export function PlatformHealthStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
     </>
   );
 }

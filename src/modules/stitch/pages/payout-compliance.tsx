@@ -564,6 +564,7 @@ export function PayoutComplianceStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-[#1c1917]/40 backdrop-blur-[2px] transition-opacity duration-300" id="drawer-backdrop"></div>
         <aside aria-labelledby="sheet-title" aria-modal="true" className="fixed top-0 right-0 h-full w-full max-w-[590px] z-50 bg-surface-container-lowest shadow-[0_20px_50px_rgba(46,50,48,0.2)] flex flex-col transform transition-transform duration-300 ease-out overflow-hidden" id="report-sheet" role="dialog">
           <div className="px-8 pt-7 pb-6 bg-surface-container-low relative">
@@ -809,6 +810,7 @@ export function PayoutComplianceStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto" id="signoff-modal-container" style={{ backgroundColor: 'rgba(28, 25, 23, 0.65)', backdropFilter: 'blur(4px)' }}>
           <div className="relative w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6 my-auto animate-[fadeIn_0.2s_ease-out]">
             <div className="flex items-center justify-between flex-wrap gap-2">

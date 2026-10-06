@@ -639,6 +639,7 @@ export function CustomSegmentationStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div aria-labelledby="drawerTitle" aria-modal="true" className="fixed inset-0 z-50 overflow-hidden flex justify-end" id="cohortDrawerContainer" role="dialog">
           <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-[2px] transition-opacity duration-300" id="drawerBackdrop"></div>
           <div className="relative w-full max-w-[840px] bg-[#fcfbf9] text-on-surface shadow-2xl flex flex-col h-full z-10 animate-in slide-in-from-right duration-300">
@@ -1075,6 +1076,7 @@ export function CustomSegmentationStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="segment-modal-scrim">
           <div className="fixed top-0 right-0 h-full w-full max-w-[720px] bg-[#fcfbf9] shadow-[0_4px_30px_rgba(46,50,48,0.18)] z-50 flex flex-col justify-between overflow-hidden" id="segment-modal-drawer">
             <div className="px-8 pt-7 pb-5 bg-[#fcfbf9] shrink-0">

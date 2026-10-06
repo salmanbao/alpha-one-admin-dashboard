@@ -688,7 +688,8 @@ export function SupportTicketsStitchPage() {
           </div>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 bg-inverse-surface/40 backdrop-blur-sm z-50 transition-opacity flex justify-end" id="drawer-backdrop">
           <aside className="w-full max-w-[600px] h-screen bg-background flex flex-col shadow-2xl relative z-10 overflow-hidden transform transition-transform" id="batch-drawer">
             <div className="p-6 bg-surface-container-low flex items-start justify-between gap-4 shadow-sm">

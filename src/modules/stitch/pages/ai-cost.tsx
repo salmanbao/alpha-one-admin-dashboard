@@ -876,7 +876,9 @@ export function AiCostStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[942px] transition-all transform scale-100">
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-stone-900/55 backdrop-blur-sm" id="spend-cap-modal">
+          <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[942px] transition-all transform scale-100">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>
             <div className="p-6 pb-4 bg-surface-container-low flex items-start justify-between gap-4">
               <div>
@@ -1063,7 +1065,9 @@ export function AiCostStitchPage() {
         </div>
         </>
       )}
-      {so1 && (        <aside className="fixed right-0 top-16 bottom-0 w-[670px] max-w-[95vw] bg-surface-bright z-50 shadow-2xl flex flex-col transition-transform duration-300 ease-out overflow-hidden" id="slideover-sheet">
+      {so1 && (
+        <>
+        <aside className="fixed right-0 top-16 bottom-0 w-[670px] max-w-[95vw] bg-surface-bright z-50 shadow-2xl flex flex-col transition-transform duration-300 ease-out overflow-hidden" id="slideover-sheet">
           <div className="px-7 pt-6 pb-5 bg-surface-container-low flex flex-col gap-3 shadow-sm shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

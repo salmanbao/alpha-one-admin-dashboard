@@ -895,7 +895,10 @@ export function PlatformRolesStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && ( flex flex-col overflow-hidden max-h-[942px] animate-in fade-in zoom-in-95 duration-200">
+      {so0 && (
+        <>
+        <div className="fixed inset-0 z-50 bg-[#1e2220]/70 backdrop-blur-md flex items-center justify-center p-4 lg:p-8 overflow-y-auto" id="compare-modal-backdrop">
+          <div className="relative w-full max-w-5xl bg-surface-container-low rounded-2xl shadow-[0_24px_60px_rgba(30,34,32,0.28)] flex flex-col overflow-hidden max-h-[942px] animate-in fade-in zoom-in-95 duration-200">
             <div className="w-full h-1.5 bg-gradient-to-r from-primary via-primary-container to-tertiary"></div>
             <div className="px-8 pt-7 pb-6 bg-surface-container-lowest">
               <div className="flex items-start justify-between gap-6">
@@ -1211,8 +1214,13 @@ export function PlatformRolesStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
-      {so1 && ( overflow-hidden flex flex-col max-h-[942px]">
+        </div>
+        </>
+      )}
+      {so1 && (
+        <>
+        <div className="fixed inset-0 z-50 bg-inverse-surface/65 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto" id="permissionModalOverlay">
+          <div className="relative w-full max-w-4xl my-auto bg-surface-bright rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.22)] overflow-hidden flex flex-col max-h-[942px]">
             <div className="px-7 pt-6 pb-5 bg-surface-container-low flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1436,7 +1444,9 @@ export function PlatformRolesStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
     </>
   );
 }

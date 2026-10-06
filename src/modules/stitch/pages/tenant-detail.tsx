@@ -691,7 +691,10 @@ export function TenantDetailStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+        <>
+        <div className="fixed inset-0 z-50 overflow-hidden" id="clone-tenant-drawer-root">
+          <div className="absolute inset-0 bg-on-surface/40 backdrop-blur-[2px] transition-opacity duration-300"></div>
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
             <div className="w-screen max-w-[560px] bg-surface-container-lowest shadow-2xl flex flex-col justify-between border-l border-surface-container-high transform transition ease-in-out duration-300 relative z-10">
               <div className="px-6 py-5 bg-surface-container-low border-b border-surface-container flex items-start justify-between gap-4">
                 <div className="flex flex-col gap-1.5">
@@ -870,9 +873,14 @@ export function TenantDetailStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
       {so1 && (
-        <div className="p-6 space-y-5">
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/40 backdrop-blur-sm" id="suspend-modal-container">
+          <div className="bg-surface-container-lowest rounded-2xl shadow-2xl max-w-xl w-full border border-surface-container-high overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 space-y-5">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-xl bg-error-container/60 flex items-center justify-center text-error shrink-0"><MsIcon name="shield_lock" className="text-[28px]" /></div>
                 <div className="flex-1 min-w-0">
@@ -944,7 +952,9 @@ export function TenantDetailStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
     </>
   );
 }

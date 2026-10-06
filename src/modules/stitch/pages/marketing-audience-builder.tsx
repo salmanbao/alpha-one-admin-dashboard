@@ -523,6 +523,7 @@ export function MarketingAudienceBuilderStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-on-surface/40 backdrop-blur-sm transition-all duration-300" id="modal-container">
           <div className="relative w-full max-w-[620px] my-auto bg-surface-container-lowest rounded-xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.3)] overflow-hidden flex flex-col transition-all">
             <div className="px-7 pt-7 pb-5 bg-surface-container-low">
@@ -692,6 +693,7 @@ export function MarketingAudienceBuilderStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 bg-on-surface/40 backdrop-blur-[2px] z-50 transition-opacity duration-300" id="segmentSheetScrim"></div>
         <aside className="fixed top-0 right-0 h-full w-full max-w-[700px] bg-background z-50 shadow-2xl flex flex-col justify-between overflow-hidden transition-transform duration-300" id="segmentSheet">
           <div className="px-8 pt-7 pb-6 bg-surface-container-low shadow-sm flex items-start justify-between gap-6">

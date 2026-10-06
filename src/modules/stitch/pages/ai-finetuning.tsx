@@ -431,7 +431,9 @@ export function AiFinetuningStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_50px_rgba(46,50,48,0.22)] p-7 flex flex-col relative transition-all duration-300" role="alertdialog">
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/55 backdrop-blur-sm transition-opacity duration-200" id="cancel-dialog-container">
+          <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="w-full max-w-[620px] bg-surface-container-lowest rounded-2xl shadow-[0_20px_50px_rgba(46,50,48,0.22)] p-7 flex flex-col relative transition-all duration-300" role="alertdialog">
             <div className="flex items-start gap-4">
               <div className="w-11 h-11 shrink-0 rounded-2xl bg-error/10 text-error flex items-center justify-center"><MsIcon name="crisis_alert" className="text-[24px]" /></div>
               <div className="flex-1 min-w-0">
@@ -544,7 +546,9 @@ export function AiFinetuningStitchPage() {
         </div>
         </>
       )}
-      {so1 && (        <aside className="fixed top-16 right-0 bottom-0 w-[660px] bg-surface-container-lowest z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-out transform translate-x-0" id="sheetDrawer">
+      {so1 && (
+        <>
+        <aside className="fixed top-16 right-0 bottom-0 w-[660px] bg-surface-container-lowest z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-out transform translate-x-0" id="sheetDrawer">
           <div className="px-8 pt-7 pb-5 bg-surface-container-lowest flex flex-col gap-3 shadow-[0_1px_4px_rgba(46,50,48,0.04)] relative">
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-[11px] font-semibold tracking-wide uppercase">

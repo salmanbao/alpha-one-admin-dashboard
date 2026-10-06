@@ -424,7 +424,8 @@ export function EmailTemplateEditStitchPage() {
           </div>
         </main>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 bg-on-surface/40 backdrop-blur-sm z-50 transition-opacity duration-300" id="diff-backdrop"></div>
         <div className="fixed right-0 top-0 bottom-0 w-[670px] max-w-full bg-surface-bright shadow-2xl z-50 flex flex-col overflow-hidden transform transition-transform duration-300 ease-out" id="diff-sheet">
           <div className="px-8 pt-7 pb-6 bg-surface-container-low flex flex-col gap-4">

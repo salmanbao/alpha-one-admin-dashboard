@@ -653,7 +653,10 @@ export function DashboardManagerStitchPage() {
         </div>
       </div>
       {so1 && (
-        <div className="flex items-start gap-4">
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/60 backdrop-blur-md overflow-y-auto">
+          <div aria-describedby="dialog-desc" aria-labelledby="dialog-title" aria-modal="true" className="relative w-full max-w-[590px] bg-surface rounded-xl shadow-2xl p-6 sm:p-7 flex flex-col gap-5 my-auto animate-in fade-in zoom-in-95 duration-200" role="alertdialog">
+            <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-tertiary-fixed/60 text-on-tertiary-fixed-variant flex items-center justify-center shrink-0 shadow-sm"><MsIcon name="warning" className="text-[28px]" fill /></div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -791,7 +794,9 @@ export function DashboardManagerStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
     </>
   );
 }

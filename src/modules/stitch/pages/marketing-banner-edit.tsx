@@ -621,6 +621,7 @@ export function MarketingBannerEditStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/45 backdrop-blur-[3px] z-50 transition-opacity duration-300"></div>
         <aside className="fixed top-16 right-0 bottom-0 w-full max-w-[680px] bg-surface-bright shadow-2xl z-50 flex flex-col justify-between overflow-hidden">
           <div className="px-7 pt-6 pb-5 bg-surface-container-lowest shadow-[0_1px_4px_rgba(46,50,48,0.05)]">
@@ -851,6 +852,7 @@ export function MarketingBannerEditStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/60 backdrop-blur-sm z-50 flex items-center justify-center p-6 transition-all duration-200" id="modal-container">
           <div className="w-full max-w-[540px] bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-7 flex flex-col relative animate-[fadeIn_0.15s_ease-out]">
             <div className="flex items-start justify-between gap-4">

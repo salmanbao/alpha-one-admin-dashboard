@@ -703,6 +703,7 @@ export function OfferMatchingUsersStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex justify-end bg-inverse-surface/60 backdrop-blur-sm transition-opacity duration-300" id="slideOverBackdrop">
           <div className="relative w-full max-w-[700px] h-full bg-surface-bright shadow-2xl flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300 ease-out" id="slideOverDrawer">
             <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary-container to-tertiary shrink-0"></div>

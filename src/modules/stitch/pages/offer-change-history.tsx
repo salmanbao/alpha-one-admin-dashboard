@@ -695,7 +695,9 @@ export function OfferChangeHistoryStitchPage() {
           </div>
         </div>
       </div>
-      {so0 && (        <aside className="fixed top-16 right-0 bottom-0 w-full max-w-[820px] bg-surface-container-low shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
+      {so0 && (
+        <>
+        <aside className="fixed top-16 right-0 bottom-0 w-full max-w-[820px] bg-surface-container-low shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
           <div className="px-7 pt-6 pb-5 bg-surface-container flex flex-col gap-3.5 shadow-sm shrink-0">
             <div className="flex items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-2.5">
@@ -916,6 +918,7 @@ export function OfferChangeHistoryStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 bg-[#1e2220]/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]" id="modal-backdrop">
           <div className="relative w-full max-w-[560px] bg-surface-container-lowest rounded-2xl p-6 sm:p-7 shadow-[0_20px_50px_rgba(20,24,22,0.22)] flex flex-col gap-5 text-on-surface transform transition-all animate-[slideUp_0.25s_cubic-bezier(0.16,1,0.3,1)]">
             <div className="absolute top-0 left-6 right-6 h-1 bg-gradient-to-r from-tertiary-container via-tertiary to-tertiary-container rounded-b-full opacity-90"></div>

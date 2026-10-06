@@ -629,7 +629,9 @@ export function CertificateFontUploadStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div aria-labelledby="modal-title" aria-modal="true" className="relative w-full max-w-[580px] bg-[#faf8f5] text-on-surface rounded-2xl p-6 sm:p-7 shadow-[0_20px_50px_rgba(46,50,48,0.22)] overflow-hidden transition-transform animate-in fade-in zoom-in-95 duration-200" role="dialog">
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/60 backdrop-blur-sm transition-all duration-300" id="delete-modal-overlay">
+          <div aria-labelledby="modal-title" aria-modal="true" className="relative w-full max-w-[580px] bg-[#faf8f5] text-on-surface rounded-2xl p-6 sm:p-7 shadow-[0_20px_50px_rgba(46,50,48,0.22)] overflow-hidden transition-transform animate-in fade-in zoom-in-95 duration-200" role="dialog">
             <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full bg-error-container/40 filter blur-2xl pointer-events-none"></div>
             <div className="absolute -bottom-24 -left-24 w-48 h-48 rounded-full bg-tertiary-fixed/30 filter blur-2xl pointer-events-none"></div>
             <div className="relative z-10 flex items-start gap-4 pb-4">
@@ -750,7 +752,9 @@ export function CertificateFontUploadStitchPage() {
         </div>
         </>
       )}
-      {so1 && (        <aside className="fixed top-16 right-0 w-[640px] h-[calc(100vh-4rem)] bg-surface shadow-2xl z-50 flex flex-col justify-between overflow-hidden">
+      {so1 && (
+        <>
+        <aside className="fixed top-16 right-0 w-[640px] h-[calc(100vh-4rem)] bg-surface shadow-2xl z-50 flex flex-col justify-between overflow-hidden">
           <div className="px-8 pt-6 pb-5 bg-surface-container-low flex flex-col gap-3 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

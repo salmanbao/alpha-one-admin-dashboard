@@ -516,7 +516,9 @@ export function AnalyticsFirmStatisticsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="relative w-full max-w-[580px] h-full bg-white shadow-2xl border-l border-stone-200 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-200">
+        <>
+        <div className="fixed inset-0 z-50 flex justify-end bg-stone-900/40 backdrop-blur-[2px] transition-opacity" id="export-sheet-modal">
+          <div className="relative w-full max-w-[580px] h-full bg-white shadow-2xl border-l border-stone-200 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-200">
             <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100 bg-surface-container-lowest">
               <div className="space-y-1">
                 <div>

@@ -747,6 +747,7 @@ export function NotificationsManagementStitchPage() {
         </div>
       </div>
       {so0 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 bg-inverse-surface/40 backdrop-blur-sm z-50 flex justify-end transition-opacity duration-300">
           <aside className="w-full max-w-[660px] h-[calc(100vh-4rem)] bg-background flex flex-col shadow-2xl relative animate-in slide-in-from-right duration-300 overflow-hidden">
             <div className="px-8 pt-7 pb-5 bg-surface-container-low shrink-0 shadow-sm relative">
@@ -1047,6 +1048,7 @@ export function NotificationsManagementStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/65 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-[560px] bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-7 flex flex-col gap-5 my-8 transform transition-all">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-error via-tertiary to-error rounded-t-2xl"></div>

@@ -613,7 +613,9 @@ export function RiskAccountLabelAnalysisStitchPage() {
           </div>
         </section>
       </div>
-      {so0 && (        <footer className="w-full bg-surface-container-low px-8 py-3 flex items-center justify-between text-xs text-on-surface-variant shadow-[0_-1px_6px_rgba(46,50,48,0.04)]">
+      {so0 && (
+        <>
+        <footer className="w-full bg-surface-container-low px-8 py-3 flex items-center justify-between text-xs text-on-surface-variant shadow-[0_-1px_6px_rgba(46,50,48,0.04)]">
           <div className="flex items-center gap-4">
             <span>Gateway Route: <strong className="text-on-surface">LDN-01A (Primary)</strong></span>
             <span>•</span>

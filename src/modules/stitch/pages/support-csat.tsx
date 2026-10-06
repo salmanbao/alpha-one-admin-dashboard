@@ -720,7 +720,8 @@ export function SupportCsatStitchPage() {
           </div>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-[#2e3230]/55 backdrop-blur-[3px] flex items-center justify-center p-4 overflow-y-auto" id="disputeModalBackdrop">
           <div className="relative w-full max-w-[580px] my-6 bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_rgba(46,50,48,0.22)] p-7 flex flex-col gap-5 text-on-surface transition-all transform scale-100" id="disputeModalDialog">
             <button className="absolute top-5 right-5 p-1.5 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Close Dialog" onClick={() => setSo0(false)}><MsIcon name="close" className="text-[22px]" /></button>
@@ -847,6 +848,7 @@ export function SupportCsatStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 bg-black/45 z-50 transition-opacity backdrop-blur-[1.5px]"></div>
         <div className="fixed top-16 right-0 bottom-0 w-[640px] max-w-[95vw] bg-surface-container-lowest shadow-2xl z-50 flex flex-col overflow-hidden" id="drawer-container">
           <div className="px-7 pt-6 pb-5 bg-surface-container-lowest flex flex-col gap-2 shrink-0">

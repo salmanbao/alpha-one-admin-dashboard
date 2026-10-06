@@ -696,7 +696,9 @@ export function ChartOfAccountsStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="p-6 md:p-8 bg-surface-container-low shrink-0 space-y-4">
+        <>
+        <aside className="fixed right-0 top-16 bottom-0 w-full max-w-[720px] bg-surface-container-lowest z-50 shadow-2xl flex flex-col overflow-hidden transition-transform duration-300 translate-x-0" id="account-detail-drawer">
+          <div className="p-6 md:p-8 bg-surface-container-low shrink-0 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <span className="px-2.5 py-1 rounded bg-secondary-container text-on-secondary-container font-mono text-[11px] font-bold tracking-wider">                  {"             GL CODE #1010-01 // AUDIT INSPECTION           "}</span>
@@ -948,6 +950,7 @@ export function ChartOfAccountsStitchPage() {
         </>
       )}
       {so1 && (
+        <>
         <div className="fixed inset-0 top-16 left-72 bg-[#1a2e22]/45 backdrop-blur-sm z-50 transition-opacity"></div>
         <aside className="fixed top-16 right-0 bottom-0 w-full sm:w-[640px] z-50 bg-[#faf7f2] shadow-2xl flex flex-col justify-between overflow-hidden transition-transform ease-out duration-300" id="gl-provision-drawer">
           <div className="px-8 pt-7 pb-6 bg-[#fdfbf7] shadow-sm relative">

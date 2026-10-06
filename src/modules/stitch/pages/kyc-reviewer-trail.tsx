@@ -638,7 +638,8 @@ export function KycReviewerTrailStitchPage() {
           </footer>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-inverse-surface/50 backdrop-blur-sm overflow-y-auto" id="compliance-modal-overlay">
           <div className="relative w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-[0_20px_60px_-15px_rgba(46,50,48,0.25)] p-6 sm:p-8 flex flex-col space-y-6 my-auto max-h-[942px] overflow-y-auto">
             <div className="flex items-start justify-between gap-4">
@@ -806,7 +807,9 @@ export function KycReviewerTrailStitchPage() {
         </div>
         </>
       )}
-      {so1 && (        <aside className="fixed top-0 right-0 h-full w-full max-w-2xl bg-surface-container-lowest shadow-2xl z-50 flex flex-col justify-between overflow-hidden" id="inspector-drawer">
+      {so1 && (
+        <>
+        <aside className="fixed top-0 right-0 h-full w-full max-w-2xl bg-surface-container-lowest shadow-2xl z-50 flex flex-col justify-between overflow-hidden" id="inspector-drawer">
           <div className="p-6 bg-surface-container-low shrink-0">
             <div className="flex items-start justify-between gap-4 mb-2">
               <div className="space-y-1">

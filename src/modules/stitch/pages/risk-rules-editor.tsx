@@ -530,7 +530,8 @@ export function RiskRulesEditorStitchPage() {
           </div>
         </div>
       </div>
-      ({so0 && (
+      {so0 && (
+        <>
         <div className="fixed inset-0 z-50 bg-inverse-surface/65 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-[560px] bg-surface-container-lowest rounded-2xl shadow-2xl p-6 sm:p-7 relative overflow-hidden transition-all transform animate-in fade-in zoom-in-95 duration-200">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-tertiary via-error to-tertiary"></div>
@@ -654,7 +655,9 @@ export function RiskRulesEditorStitchPage() {
         </div>
         </>
       )}
-      {so1 && (        <footer className="w-full bg-surface-container-low px-8 py-3 flex items-center justify-between text-xs text-on-surface-variant shadow-[0_-1px_6px_rgba(46,50,48,0.04)]">
+      {so1 && (
+        <>
+        <footer className="w-full bg-surface-container-low px-8 py-3 flex items-center justify-between text-xs text-on-surface-variant shadow-[0_-1px_6px_rgba(46,50,48,0.04)]">
           <div className="flex items-center gap-4">
             <span>Gateway Route: <strong className="text-on-surface">LDN-01A (Primary)</strong></span>
             <span>•</span>

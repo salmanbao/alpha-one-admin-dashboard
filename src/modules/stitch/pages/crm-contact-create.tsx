@@ -295,7 +295,9 @@ export function CrmContactCreateStitchPage() {
           </div>
         </aside>
       </div>
-      {so0 && (        <aside className="fixed top-16 right-0 bottom-0 w-full max-w-2xl bg-surface shadow-2xl z-50 flex flex-col overflow-hidden animate-[slideLeft_0.25s_ease-out]" id="contact-slideover">
+      {so0 && (
+        <>
+        <aside className="fixed top-16 right-0 bottom-0 w-full max-w-2xl bg-surface shadow-2xl z-50 flex flex-col overflow-hidden animate-[slideLeft_0.25s_ease-out]" id="contact-slideover">
           <div className="p-6 bg-surface-container-low shrink-0 relative">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-4">
@@ -573,7 +575,9 @@ export function CrmContactCreateStitchPage() {
         </aside>
         </>
       )}
-      {so1 && (        <aside className="fixed top-16 right-0 bottom-0 w-full max-w-2xl bg-surface shadow-2xl z-50 flex flex-col overflow-hidden animate-[slideLeft_0.25s_ease-out]" id="contact-slideover">
+      {so1 && (
+        <>
+        <aside className="fixed top-16 right-0 bottom-0 w-full max-w-2xl bg-surface shadow-2xl z-50 flex flex-col overflow-hidden animate-[slideLeft_0.25s_ease-out]" id="contact-slideover">
           <div className="p-6 bg-surface-container-low shrink-0 relative">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-4">

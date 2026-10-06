@@ -628,7 +628,10 @@ export function TenantLifecycleStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="space-y-4">
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/60 backdrop-blur-sm transition-all" id="killSwitchModal">
+          <div className="max-w-xl w-full bg-surface rounded-2xl shadow-2xl p-6 sm:p-7 relative max-h-[942px] flex flex-col justify-between overflow-y-auto">
+            <div className="space-y-4">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-full bg-error-container text-error flex items-center justify-center shrink-0 shadow-sm"><MsIcon name="gpp_bad" className="text-[26px]" /></div>
                 <div>
@@ -737,9 +740,14 @@ export function TenantLifecycleStitchPage() {
               </div>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
       {so1 && (
-        <div className="flex items-center justify-between mb-3">
+        <>
+        <div className="fixed top-0 right-0 h-screen w-full max-w-2xl bg-surface-bright z-50 shadow-2xl flex flex-col justify-between overflow-hidden">
+          <div className="px-8 pt-7 pb-5 bg-surface-container-low shrink-0">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary-fixed text-on-primary-fixed-variant flex items-center gap-1">
 <MsIcon name="autorenew" className="text-[13px]" />
@@ -908,7 +916,9 @@ export function TenantLifecycleStitchPage() {
               </button>
             </div>
           </div>
-        </div>\n        </>\n      )}
+        </div>
+        </>
+      )}
     </>
   );
 }

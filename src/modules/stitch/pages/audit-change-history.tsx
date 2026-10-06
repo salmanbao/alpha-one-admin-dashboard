@@ -570,7 +570,9 @@ export function AuditChangeHistoryStitchPage() {
         </div>
       </div>
       {so0 && (
-        <div className="w-full max-w-[660px] my-auto bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-[fadeIn_0.2s_ease-out]">
+        <>
+        <div className="fixed inset-0 top-16 bg-on-surface/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-[660px] my-auto bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-[fadeIn_0.2s_ease-out]">
             <div className="p-6 pb-4 bg-surface-container-lowest">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3.5">
