@@ -902,7 +902,7 @@ export function PayoutMethodsConfigStitchPage() {
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-on-surface uppercase tracking-wider mb-1.5">Webhook Listener Secret</label>
-<input className="w-full px-3.5 py-2.5 rounded-lg bg-surface-container-low font-mono text-[11px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary shadow-sm" type="text" defaultValue="whsec_9912048201fa877c29e10294101bb2" />
+<input className="w-full px-3.5 py-2.5 rounded-lg bg-surface-container-low font-mono text-[11px] text-on-surface focus:outline-none focus:ring-2 focus:ring-primary shadow-sm" type="text" defaultValue="EXAMPLE_KEY_NOT_REAL" />
                   </div>
                 </div>
               </section>

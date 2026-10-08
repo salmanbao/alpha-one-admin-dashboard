@@ -432,10 +432,10 @@ export function KycProvidersStitchPage() {
                         </button>
                       </div>
                       <div className="relative flex items-center">
-<input className="w-full px-3.5 py-2.5 rounded-lg bg-surface-container text-xs font-mono text-on-surface focus:outline-none focus:ring-1 focus:ring-primary" id="webhook-secret-input" readOnly type="password" defaultValue="whsec_live_4189ac3029198bfa7921cd" />
+<input className="w-full px-3.5 py-2.5 rounded-lg bg-surface-container text-xs font-mono text-on-surface focus:outline-none focus:ring-1 focus:ring-primary" id="webhook-secret-input" readOnly type="password" defaultValue="EXAMPLE_KEY_NOT_REAL" />
                         <div className="absolute right-2 flex items-center gap-1">
                           <button className="toggle-mask-btn p-1.5 text-outline hover:text-on-surface rounded" data-input="webhook-secret-input" title="Toggle visibility" type="button"><MsIcon name="visibility" className="text-[16px]" /></button>
-                          <button className="copy-token-btn p-1.5 text-outline hover:text-on-surface rounded" data-copy="whsec_live_4189ac3029198bfa7921cd" title="Copy Secret" type="button"><MsIcon name="content_copy" className="text-[16px]" /></button>
+                          <button className="copy-token-btn p-1.5 text-outline hover:text-on-surface rounded" data-copy="EXAMPLE_KEY_NOT_REAL" title="Copy Secret" type="button"><MsIcon name="content_copy" className="text-[16px]" /></button>
                         </div>
                       </div>
                     </div>
@@ -1251,7 +1251,7 @@ export function KycProvidersStitchPage() {
                   <span className="text-[11px] text-on-surface-variant">Signature payload validation</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-surface-container-low px-3.5 py-2.5 rounded-xl text-xs font-mono text-on-surface">                    whsec_••••••••••••••••••••</div>
+                  <div className="flex-1 bg-surface-container-low px-3.5 py-2.5 rounded-xl text-xs font-mono text-on-surface">                    EXAMPLE_KEY_NOT_REAL</div>
                   <button className="px-3.5 py-2.5 bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">
 <MsIcon name="network_ping" className="text-[15px] text-tertiary" />
                     Test Ping
