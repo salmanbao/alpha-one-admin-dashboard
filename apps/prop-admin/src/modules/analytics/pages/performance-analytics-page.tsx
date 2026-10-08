@@ -26,7 +26,7 @@ export function TraderPerformancePage() {
     value: Math.round((Math.sin(i * 0.7) * 240 + Math.cos(i * 1.3) * 180)),
   }));
 
-  const totalPnl = equityCurve[equityCurve.length - 1]?.value - 25000 ?? 0;
+  const totalPnl = (equityCurve.at(-1)?.value ?? 25000) - 25000;
   const winRate = 62;
   const profitFactor = 1.8;
   const avgWin = 320;

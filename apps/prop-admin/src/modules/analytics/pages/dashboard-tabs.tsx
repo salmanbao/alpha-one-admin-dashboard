@@ -386,7 +386,7 @@ export function DashboardAccountsTab({ params }: { params: Record<string, string
   const phase1Accounts = accounts.filter((a) => a.phase && /1/i.test(String(a.phase))).length;
   const phase2Accounts = accounts.filter((a) => a.phase && /2/i.test(String(a.phase))).length;
   const fundedAccounts = traders.filter((t) => t.challengePhase === "funded").length;
-  const mt5Active = accounts.filter((a) => a.broker === "MT5" && a.status === "active").length;
+  const mt5Active = accounts.filter((a) => a.platform === "MT5" && a.status === "active").length;
   const dailyDdBreached = breaches.filter((b) => /daily/i.test(b.rule) && b.status === "open").length;
   const maxDdBreached = breaches.filter((b) => /max/i.test(b.rule) && b.status === "open").length;
   const blockedAccounts = accounts.filter((a) => a.status === "blocked").length;

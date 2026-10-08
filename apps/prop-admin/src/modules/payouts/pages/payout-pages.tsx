@@ -57,7 +57,7 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
 
   const columns: Column<Payout>[] = [
     { key: "reference", header: "Reference", cell: (p) => <span className="font-mono text-xs">{p.reference}</span>, sortValue: (p) => p.reference },
-    { key: "account", header: term("account"), cell: (p) => <span className="font-medium">{p.accountName}</span>, sortValue: (p) => p.accountName },
+    { key: "account", header: term("account"), cell: (p) => <span className="font-medium">{p.accountName}</span>, sortValue: (p) => p.accountName ?? "" },
     { key: "amount", header: "Amount", cell: (p) => <span className="font-semibold">{formatCurrency(p.amount, p.currency)}</span>, sortValue: (p) => p.amount },
     { key: "method", header: "Method", cell: (p) => p.method, sortValue: (p) => p.method },
     { key: "split", header: "Split", cell: (p) => `${p.profitSplit}%`, sortValue: (p) => p.profitSplit },

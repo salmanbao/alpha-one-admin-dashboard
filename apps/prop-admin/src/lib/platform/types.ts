@@ -7,13 +7,14 @@
  * See spec sections: 10, 11, 12, 13, 15, 17, 18, 20, 22, 45, 61.
  */
 
-import type { ComponentType } from "react";
+import type { ComponentType, CSSProperties } from "react";
+import type { TermKey } from "./terminology";
 
 /* ------------------------------------------------------------------ */
 /* Applications                                                        */
 /* ------------------------------------------------------------------ */
 
-export type ApplicationId = "prop-admin";
+export type ApplicationId = "super-admin" | "prop-admin" | "trader";
 
 /* ------------------------------------------------------------------ */
 /* Tenant                                                              */
@@ -108,7 +109,7 @@ export interface NavigationItem {
   id: string;
   label: string;
   /** Term key for white-label terminology, falls back to label */
-  termKey?: string;
+  termKey?: TermKey;
   href?: string;
   icon?: ComponentType<{ className?: string }>;
   children?: NavigationItem[];
@@ -205,7 +206,7 @@ export interface ModuleManifest {
   /** Whether this module is opt-in (not enabled by default) */
   optional?: boolean;
   /** Icon for catalog */
-  icon?: ComponentType<{ className?: string }>;
+  icon?: ComponentType<{ className?: string; style?: CSSProperties }>;
   /** Accent color for catalog card */
   accentColor?: string;
 }
