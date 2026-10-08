@@ -65,7 +65,7 @@ function useHasSize(ref: React.RefObject<HTMLDivElement | null>): boolean {
   return hasSize;
 }
 
-function ChartFrame({ height = 200, children }: { height?: number; children: React.ReactNode }) {
+function ChartFrame({ height = 200, children }: { height?: number; children: React.ReactElement }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const hasSize = useHasSize(frameRef);
   return (

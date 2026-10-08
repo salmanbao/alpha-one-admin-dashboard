@@ -8,6 +8,7 @@
  */
 
 import type { ComponentType } from "react";
+import type { TermKey } from "./terminology";
 
 /* ------------------------------------------------------------------ */
 /* Applications                                                        */
@@ -108,7 +109,7 @@ export interface NavigationItem {
   id: string;
   label: string;
   /** Term key for white-label terminology, falls back to label */
-  termKey?: string;
+  termKey?: TermKey;
   href?: string;
   icon?: ComponentType<{ className?: string }>;
   children?: NavigationItem[];

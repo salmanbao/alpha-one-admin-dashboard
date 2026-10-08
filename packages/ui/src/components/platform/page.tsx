@@ -107,7 +107,7 @@ export function MetricCard({
   value: string | number;
   delta?: number;
   deltaLabel?: string;
-  icon?: React.ComponentType<{ className?: string }>;
+  icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   tone?: "default" | "positive" | "negative" | "warning";
 }) {
   const toneColor =

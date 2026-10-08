@@ -3,7 +3,7 @@ import { Geist, Geist_Mono, Literata, Nunito_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
-export const materialSymbols = `
+const materialSymbols = `
   @font-face {
     font-family: 'Material Symbols Outlined';
     font-style: normal;
