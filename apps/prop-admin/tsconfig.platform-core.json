@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@pfaas/platform-core/types": ["../../packages/platform-core/src/lib/platform/types.ts"],
+      "@pfaas/platform-core/module-registry": ["../../packages/platform-core/src/lib/platform/module-registry.ts"],
+      "@pfaas/platform-core/permission-engine": ["../../packages/platform-core/src/lib/platform/permission-engine.ts"],
+      "@pfaas/platform-core/navigation-engine": ["../../packages/platform-core/src/lib/platform/navigation-engine.ts"],
+      "@pfaas/platform-core/theme-engine": ["../../packages/platform-core/src/lib/platform/theme-engine.ts"],
+      "@pfaas/platform-core/terminology": ["../../packages/platform-core/src/lib/platform/terminology.ts"],
+      "@pfaas/platform-core/currency": ["../../packages/platform-core/src/lib/platform/currency.ts"],
+      "@pfaas/platform-core/platform-context": ["../../packages/platform-core/src/platform-context.tsx"]
+    }
+  }
+}
