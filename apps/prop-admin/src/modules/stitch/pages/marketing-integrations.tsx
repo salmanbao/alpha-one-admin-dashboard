@@ -513,7 +513,7 @@ export function MarketingIntegrationsStitchPage() {
                   <p className="text-tsc font-sans text-[10px] uppercase font-bold tracking-wider">Payload Schema Spec</p>
                   <pre className="leading-relaxed">
                     &#123;
-  "api_key": "pk_live_*****************",
+  "api_key": "EXAMPLE_KEY_NOT_REAL",
   "revision": "2024-10-15",
   "rate_limit_rpm": 600
 &#125;
@@ -529,7 +529,7 @@ export function MarketingIntegrationsStitchPage() {
                   </span>
                 </div>
                 <div className="relative flex items-center">
-<input className="w-full pl-3.5 pr-20 py-2.5 rounded-xl bg-surface-container-low font-mono text-xs text-on-surface focus:outline-none" id="apiKeyInput" readOnly type="password" defaultValue="pk_live_89420188921820491823f8a" />
+<input className="w-full pl-3.5 pr-20 py-2.5 rounded-xl bg-surface-container-low font-mono text-xs text-on-surface focus:outline-none" id="apiKeyInput" readOnly type="password" defaultValue="EXAMPLE_KEY_NOT_REAL" />
                   <div className="absolute right-2 flex items-center gap-1">
                     <button className="p-1 rounded-md text-tsc hover:text-on-surface hover:bg-surface-container transition-colors" title="Toggle Visibility" type="button"><MsIcon name="visibility" className="text-[16px]" /></button>
                     <button className="p-1 rounded-md text-tsc hover:text-on-surface hover:bg-surface-container transition-colors" title="Copy Key" type="button"><MsIcon name="content_copy" className="text-[16px]" /></button>

@@ -766,7 +766,7 @@ export function KycProviderMarketplaceStitchPage() {
                 <div>
                   <label className="text-xs font-semibold text-on-surface block mb-1.5">Webhook Signing Secret (HMAC-SHA256)</label>
                   <div className="relative">
-<input className="w-full h-10 pl-3.5 pr-20 rounded-xl bg-surface-container-low border border-surface-container-high font-mono text-xs text-on-surface focus:outline-none" readOnly type="text" defaultValue="whsec_83d2919fabc094772bca54190" />
+<input className="w-full h-10 pl-3.5 pr-20 rounded-xl bg-surface-container-low border border-surface-container-high font-mono text-xs text-on-surface focus:outline-none" readOnly type="text" defaultValue="EXAMPLE_KEY_NOT_REAL" />
 <MsIcon name="verified" className="absolute right-3 top-1/2 -translate-y-1/2 text-primary text-[18px]" />
                   </div>
                 </div>

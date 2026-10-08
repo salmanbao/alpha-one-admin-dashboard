@@ -492,7 +492,7 @@ export function AccountKycStatusesStitchPage() {
                   <span className="text-[10px] text-outline font-mono">Vault Encrypted</span>
                 </div>
                 <div className="relative flex items-center">
-<input className="w-full pl-3 pr-10 py-2.5 rounded-lg bg-surface font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary shadow-inner" id="apiKeyInput" type="password" defaultValue="sk_live_••••••••••••ld4" />
+<input className="w-full pl-3 pr-10 py-2.5 rounded-lg bg-surface font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary shadow-inner" id="apiKeyInput" type="password" defaultValue="EXAMPLE_KEY_NOT_REAL" />
                   <button className="absolute right-3 text-outline hover:text-on-surface" type="button"><MsIcon name="visibility_off" className="text-[16px]" /></button>
                 </div>
               </div>
