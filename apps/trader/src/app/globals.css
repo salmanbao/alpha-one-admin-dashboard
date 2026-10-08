@@ -1,28 +1,444 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-@theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(222.2 84% 4.9%);
-  --color-muted: hsl(210 40% 96.1%);
-  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
-  --color-accent: hsl(210 40% 96.1%);
-  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(222.2 47.4% 11.2%);
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(222.2 47.4% 11.2%);
-  --color-border: hsl(214.3 31.8% 91.4%);
-  --color-input: hsl(214.3 31.8% 91.4%);
-  --color-ring: hsl(222.2 47.4% 11.2%);
-  --color-primary: hsl(222.2 47.4% 11.2%);
-  --color-primary-foreground: hsl(210 40% 98%);
-  --color-secondary: hsl(210 40% 96.1%);
-  --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
-  --color-destructive: hsl(0 84.2% 60.2%);
-  --color-destructive-foreground: hsl(210 40% 98%);
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-nunito-sans);
+  --font-serif: var(--font-literata);
+  --font-mono: var(--font-geist-mono);
+
+  /* ══ Stitch surface container tiers (Material-3 warm ramp) ══ */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sfc-lowest: var(--sfc-lowest);
+  --color-sfc-low: var(--sfc-low);
+  --color-sfc: var(--sfc);
+  --color-sfc-high: var(--sfc-high);
+  --color-sfc-highest: var(--sfc-highest);
+  --color-surface-tint: var(--terra-green);
+  --color-ink: var(--terra-ink);
+  --color-ink-variant: var(--terra-ink-variant);
+  --color-ink-soft: var(--terra-ink-soft);
+  --color-ink-muted: var(--terra-ink-muted);
+  --color-outline-variant: var(--terra-outline-variant);
+  --color-tp: var(--terra-green);
+  --color-tp-container: var(--terra-primary-container);
+  --color-tp-fixed: var(--terra-primary-fixed);
+  --color-tp-fixed-variant: var(--terra-primary-fixed-variant);
+  --color-tt: var(--terra-amber);
+  --color-tt-container: var(--terra-tertiary-container);
+  --color-tt-fixed: var(--terra-tertiary-fixed);
+  --color-tt-fixed-variant: var(--terra-tertiary-fixed-variant);
+  --color-tsc: var(--terra-secondary);
+  --color-tsc-container: var(--terra-secondary-container);
+  --color-terr: var(--terra-error);
+  --color-terr-container: var(--terra-error-container);
+
+  /* ══ Material/Stitch token aliases — the stitch_screens design system ══ */
+  --color-surface: var(--background);
+  --color-surface-bright: var(--background);
+  --color-surface-dim: var(--mat-surface-dim);
+  --color-surface-variant: var(--sfc-highest);
+  --color-surface-container-lowest: var(--sfc-lowest);
+  --color-surface-container-low: var(--sfc-low);
+  --color-surface-container: var(--sfc);
+  --color-surface-container-high: var(--sfc-high);
+  --color-surface-container-highest: var(--sfc-highest);
+  --color-on-surface: var(--terra-ink);
+  --color-on-surface-variant: var(--terra-ink-variant);
+  --color-on-background: var(--terra-ink);
+  --color-on-primary: var(--primary-foreground);
+  --color-on-primary-container: var(--mat-on-primary-container);
+  --color-on-primary-fixed: var(--mat-on-primary-fixed);
+  --color-on-primary-fixed-variant: var(--terra-primary-fixed-variant);
+  --color-primary-container: var(--terra-primary-container);
+  --color-primary-fixed: var(--terra-primary-fixed);
+  --color-primary-fixed-dim: var(--terra-primary-fixed-dim);
+  --color-primary-fixed-variant: var(--terra-primary-fixed-variant);
+  --color-secondary-container: var(--terra-secondary-container);
+  --color-secondary-fixed: var(--terra-secondary-container);
+  --color-secondary-fixed-dim: var(--mat-secondary-fixed-dim);
+  --color-secondary-fixed-variant: var(--terra-secondary);
+  --color-on-secondary: var(--mat-on-secondary);
+  --color-on-secondary-container: var(--mat-on-secondary-container);
+  --color-on-secondary-fixed: var(--mat-on-secondary-fixed);
+  --color-on-secondary-fixed-variant: var(--mat-on-secondary-fixed-variant);
+  --color-on-secondary-variant: var(--mat-on-secondary-fixed-variant);
+  --color-tertiary-container: var(--terra-tertiary-container);
+  --color-tertiary-fixed: var(--terra-tertiary-fixed);
+  --color-tertiary-fixed-dim: var(--mat-tertiary-fixed-dim);
+  --color-on-tertiary: var(--tertiary-foreground);
+  --color-on-tertiary-container: var(--mat-on-tertiary-container);
+  --color-on-tertiary-fixed: var(--mat-on-tertiary-fixed);
+  --color-on-tertiary-fixed-variant: var(--terra-tertiary-fixed-variant);
+  --color-error: var(--terra-error);
+  --color-error-container: var(--terra-error-container);
+  --color-on-error: var(--mat-on-error);
+  --color-on-error-container: var(--mat-on-error-container);
+  --color-outline: var(--mat-outline);
+  --color-inverse-surface: var(--mat-inverse-surface);
+  --color-inverse-on-surface: var(--mat-inverse-on-surface);
+  --color-inverse-primary: var(--mat-inverse-primary);
+
+  /* Stitch typography aliases (Literata display / Nunito body) */
+  --font-headline: var(--font-literata);
+  --font-display: var(--font-literata);
+  --font-body: var(--font-nunito-sans);
+  --font-label: var(--font-nunito-sans);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-* { box-sizing: border-box; }
-body { margin: 0; font-family: var(--font-sans); background: var(--color-background); color: var(--color-foreground); }
+/* ═══════════════════════════════════════════════════════════════ */
+/* TERRA — ORGANIC DESIGN SYSTEM                                     */
+/* "Rooted Warmth" — Calm, grounded, and human                       */
+/* ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Core palette — earthy and desaturated */
+  --terra-green: #4a7c59;
+  --terra-green-dark: #3a6147;
+  --terra-green-light: #6b9b78;
+  --terra-cream: #faf6f0;
+  --terra-cream-warm: #f5efe6;
+  --terra-amber: #705c30;
+  --terra-amber-light: #9c8350;
+  --terra-ink: #2e3230;
+  --terra-ink-soft: #5a5f5c;
+  --terra-ink-muted: #8a8f8c;
+  --terra-border: #e8e0d4;
+  --terra-border-soft: #f0ebe2;
+  --terra-surface: #f5efe6;
+  --terra-surface-elevated: #fefcf8;
+  --terra-shadow: rgba(46, 50, 48, 0.06);
+
+  /* ══ Material/Stitch aliases — light values ══ */
+  --terra-primary-fixed-dim: #8ecf9e;
+  --mat-surface-dim: #dbd7cf;
+  --mat-on-primary-container: #d8f0de;
+  --mat-on-primary-fixed: #002110;
+  --mat-secondary-fixed-dim: #d4ccbf;
+  --mat-on-secondary: #ffffff;
+  --mat-on-secondary-container: #5e5548;
+  --mat-on-secondary-fixed: #1e1a13;
+  --mat-on-secondary-fixed-variant: #4a4538;
+  --mat-tertiary-fixed-dim: #dcc48e;
+  --mat-on-tertiary-container: #554020;
+  --mat-on-tertiary-fixed: #221a05;
+  --mat-on-error: #ffffff;
+  --mat-on-error-container: #690005;
+  --mat-outline: #74796e;
+  --mat-inverse-surface: #2e3230;
+  --mat-inverse-on-surface: #f5f0e8;
+  --mat-inverse-primary: #8ecf9e;
+
+  /* ══ Stitch token layer — Material-3 warm container ramp ══ */
+  --sfc-lowest: #ffffff;
+  --sfc-low: #f5f1ea;
+  --sfc: #f0ece4;
+  --sfc-high: #eae6de;
+  --sfc-highest: #e4e0d8;
+  --terra-ink-variant: #4a4e4a;
+  --terra-outline-variant: #c4c8bc;
+  --terra-primary-container: #78a886;
+  --terra-primary-fixed: #c8e8d0;
+  --terra-primary-fixed-variant: #2a6038;
+  --terra-tertiary-container: #c4a66a;
+  --terra-tertiary-fixed: #f8e0a8;
+  --terra-tertiary-fixed-variant: #554020;
+  --terra-secondary: #6b6358;
+  --terra-secondary-container: #f0e8db;
+  --terra-error: #b83230;
+  --terra-error-container: #ffdad8;
+
+  /* Radius — large, soft, approachable */
+  --radius: 0.75rem;
+
+  /* Semantic mapping to Terra palette */
+  --background: var(--terra-cream);
+  --foreground: var(--terra-ink);
+  --card: var(--terra-surface-elevated);
+  --card-foreground: var(--terra-ink);
+  --popover: var(--terra-surface-elevated);
+  --popover-foreground: var(--terra-ink);
+  --primary: var(--terra-green);
+  --primary-foreground: #ffffff;
+  --secondary: var(--terra-cream-warm);
+  --secondary-foreground: var(--terra-ink);
+  --muted: var(--terra-cream-warm);
+  --muted-foreground: var(--terra-ink-muted);
+  --accent: var(--terra-amber);
+  --accent-foreground: #ffffff;
+  --tertiary: var(--terra-amber);
+  --tertiary-foreground: #ffffff;
+  --destructive: #b54848;
+  --border: var(--terra-border);
+  --input: var(--terra-border);
+  --ring: var(--terra-green);
+  --shadow-soft: 0 4px 20px var(--terra-shadow);
+
+  /* Chart palette — earthy, desaturated, no neon */
+  --chart-1: #4a7c59;
+  --chart-2: #705c30;
+  --chart-3: #8a7560;
+  --chart-4: #a39060;
+  --chart-5: #6b8f7a;
+
+  /* Sidebar — warm cream, never sterile */
+  --sidebar: var(--terra-cream-warm);
+  --sidebar-foreground: var(--terra-ink);
+  --sidebar-primary: var(--terra-green);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--terra-cream);
+  --sidebar-accent-foreground: var(--terra-green);
+  --sidebar-border: var(--terra-border-soft);
+  --sidebar-ring: var(--terra-green);
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* DARK MODE — Warm dark, not pure black                             */
+/* ═══════════════════════════════════════════════════════════════ */
+
+.dark {
+  --terra-cream: #1a1d1b;
+  --terra-cream-warm: #232624;
+  --terra-surface: #2a2d2b;
+  --terra-surface-elevated: #2d3130;
+  --terra-ink: #e8e3da;
+  --terra-ink-soft: #b0aba2;
+  --terra-ink-muted: #807c73;
+  --terra-border: #3a3d3b;
+  --terra-border-soft: #2e3130;
+  --terra-shadow: rgba(0, 0, 0, 0.2);
+
+  /* ══ Stitch dark equivalents (warm-dark container ramp) ══ */
+  --sfc-lowest: #262927;
+  --sfc-low: #2d312e;
+  --sfc: #33372f;
+  --sfc-high: #3a3e36;
+  --sfc-highest: #414540;
+  --terra-ink-variant: #b8b3aa;
+  --terra-outline-variant: #4a4e48;
+  --terra-primary-container: #3f6b4d;
+  --terra-primary-fixed: #22422e;
+  --terra-primary-fixed-variant: #a5d9b4;
+  --terra-primary-fixed-dim: #2c5237;
+
+  /* ══ Material/Stitch aliases — dark values ══ */
+  --mat-surface-dim: #171917;
+  --mat-on-primary-container: #d8f0de;
+  --mat-on-primary-fixed: #c8e8d0;
+  --mat-secondary-fixed-dim: #4a453d;
+  --mat-on-secondary: #1a1d1b;
+  --mat-on-secondary-container: #e8e3da;
+  --mat-on-secondary-fixed: #e8e3da;
+  --mat-on-secondary-fixed-variant: #e8e3da;
+  --mat-tertiary-fixed-dim: #6a5a30;
+  --mat-on-tertiary-container: #f8e0a8;
+  --mat-on-tertiary-fixed: #fbf2dd;
+  --mat-on-error: #ffffff;
+  --mat-on-error-container: #ffdad8;
+  --mat-outline: #6d726b;
+  --mat-inverse-surface: #e8e3da;
+  --mat-inverse-on-surface: #2e3230;
+  --mat-inverse-primary: #3a6147;
+  --terra-tertiary-container: #8a7440;
+  --terra-tertiary-fixed: #46391c;
+  --terra-tertiary-fixed-variant: #e3c98d;
+  --terra-secondary: #a39a8d;
+  --terra-secondary-container: #3a362e;
+  --terra-error: #e08581;
+  --terra-error-container: #4a2321;
+
+  --background: var(--terra-cream);
+  --foreground: var(--terra-ink);
+  --card: var(--terra-surface-elevated);
+  --card-foreground: var(--terra-ink);
+  --popover: var(--terra-surface-elevated);
+  --popover-foreground: var(--terra-ink);
+  --primary: var(--terra-green-light);
+  --primary-foreground: #1a1d1b;
+  --secondary: var(--terra-cream-warm);
+  --secondary-foreground: var(--terra-ink);
+  --muted: var(--terra-cream-warm);
+  --muted-foreground: var(--terra-ink-muted);
+  --accent: var(--terra-amber-light);
+  --accent-foreground: #1a1d1b;
+  --tertiary: var(--terra-amber-light);
+  --tertiary-foreground: #1a1d1b;
+  --destructive: #c46868;
+  --border: var(--terra-border);
+  --input: var(--terra-border);
+  --ring: var(--terra-green-light);
+  --shadow-soft: 0 4px 20px var(--terra-shadow);
+
+  --chart-1: #6b9b78;
+  --chart-2: #9c8350;
+  --chart-3: #8a7560;
+  --chart-4: #b3a070;
+  --chart-5: #8baf9a;
+
+  --sidebar: var(--terra-cream-warm);
+  --sidebar-foreground: var(--terra-ink);
+  --sidebar-primary: var(--terra-green-light);
+  --sidebar-primary-foreground: #1a1d1b;
+  --sidebar-accent: var(--terra-surface);
+  --sidebar-accent-foreground: var(--terra-green-light);
+  --sidebar-border: var(--terra-border-soft);
+  --sidebar-ring: var(--terra-green-light);
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* BASE STYLES                                                       */
+/* ═══════════════════════════════════════════════════════════════ */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-nunito-sans), system-ui, sans-serif;
+    line-height: 1.65;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-literata), Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* TERRA UTILITY CLASSES                                             */
+/* ═══════════════════════════════════════════════════════════════ */
+
+@layer utilities {
+  .shadow-terra {
+    box-shadow: var(--shadow-soft);
+  }
+  .shadow-terra-lg {
+    box-shadow: 0 8px 30px rgba(46, 50, 48, 0.08);
+  }
+  .bg-terra-surface {
+    background-color: var(--terra-surface);
+  }
+  .bg-terra-elevated {
+    background-color: var(--terra-surface-elevated);
+  }
+  .border-terra {
+    border-color: var(--terra-border);
+  }
+  .border-terra-soft {
+    border-color: var(--terra-border-soft);
+  }
+}
+
+/* Custom scrollbar — warm, thin, themed */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--terra-ink-muted) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--terra-ink-muted);
+    border-radius: 3px;
+    opacity: 0.4;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: var(--terra-green);
+  }
+}
+
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Card hover lift — very soft, warm shadow */
+.card-hover-lift {
+  transition: transform 250ms ease, box-shadow 250ms ease;
+}
+.card-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(46, 50, 48, 0.08);
+}
+
+/* Fade-in animation */
+.animate-in {
+  animation-duration: 300ms;
+  animation-fill-mode: both;
+}
+.fade-in {
+  animation-name: fadeIn;
+}
+.slide-in-from-left-2 {
+  animation-name: slideInFromLeft;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideInFromLeft {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Terra input styling — cream background, soft green focus */
+input, textarea, select {
+  background-color: var(--terra-cream);
+  border-radius: var(--radius-sm);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--terra-green);
+  box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.12);
+  outline: none;
+}
+
+/* Terra button — large touch target, soft corners */
+button {
+  border-radius: var(--radius-sm);
+  transition: all 200ms ease;
+}

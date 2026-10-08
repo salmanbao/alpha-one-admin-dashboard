@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 
 /**
- * Trader App — Route `/`
+ * Terra Trader App — Route `/`
  *
- * The trader experience starts at My Workspace (trader-detail).
+ * The trader experience starts at the Terra Dashboard.
  */
 export default function Home() {
-  redirect("/trader-detail");
+  redirect("/dashboard");
 }
