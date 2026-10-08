@@ -13,6 +13,8 @@ Pipeline:
   3. Emit src/modules/stitch/index.ts exporting `stitchViews` for the router.
 
 Run:  python3 tools/stitch2tsx.py
+      python3 tools/stitch2tsx.py --check <path>...   # exit 1 if secret-like strings found
+      python3 tools/stitch2tsx.py --scrub <path>...   # replace them with EXAMPLE_KEY_NOT_REAL
 """
 
 import json
@@ -24,6 +26,71 @@ from html.parser import HTMLParser
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCREENS = os.path.join(ROOT, "stitch_screens")
 OUT_DIR = os.path.join(ROOT, "src", "modules", "stitch", "pages")
+
+# ── secret scrubbing (docs/secret-scan.md) ──────────────────────────────────
+# The pattern deliberately uses [_] character classes so this file itself
+# never matches a raw secret scan (git grep -E '(sk|pk|rk)[_]live[_]|whsec[_]').
+SECRET_PATTERN = re.compile(
+    r"(?:sk|pk|rk)[_]live[_][A-Za-z0-9_.•*-]*|whsec[_][A-Za-z0-9_.•*-]*"
+)
+SECRET_REPLACEMENT = "EXAMPLE_KEY_NOT_REAL"
+SKIP_DIRS = {".git", "node_modules", ".vscode", ".next", ".turbo", "dist", "coverage"}
+
+
+def scrub_text(text):
+    """Replace every secret-like string. Returns (new_text, count)."""
+    return SECRET_PATTERN.subn(SECRET_REPLACEMENT, text)
+
+
+def _iter_files(paths):
+    for p in paths:
+        if os.path.isfile(p):
+            yield p
+        elif os.path.isdir(p):
+            for base, dirs, files in os.walk(p):
+                dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+                for f in files:
+                    yield os.path.join(base, f)
+
+
+def scan_paths(paths, scrub=False):
+    """Find secret-like strings under paths. Returns [(path, count), ...].
+
+    Never prints the matched text itself — only path and occurrence count.
+    """
+    hits = []
+    for path in _iter_files(paths):
+        try:
+            with open(path, encoding="utf8", errors="surrogateescape") as fh:
+                src = fh.read()
+        except OSError:
+            continue
+        n = len(SECRET_PATTERN.findall(src))
+        if not n:
+            continue
+        if scrub:
+            out, n = scrub_text(src)
+            with open(path, "w", encoding="utf8", errors="surrogateescape") as fh:
+                fh.write(out)
+        hits.append((path, n))
+    return hits
+
+
+def _cli(argv):
+    """--check: report and exit 1 on hits.  --scrub: replace, exit 0."""
+    mode, paths = argv[0], argv[1:]
+    if not paths:
+        print(f"usage: stitch2tsx.py {mode} <path>...", file=sys.stderr)
+        return 2
+    hits = scan_paths(paths, scrub=(mode == "--scrub"))
+    verb = "scrubbed" if mode == "--scrub" else "found"
+    for path, n in hits:
+        print(f"{path}: {n} secret-like match(es) {verb}")
+    total = sum(n for _, n in hits)
+    print(f"{mode}: {total} match(es) in {len(hits)} file(s)")
+    if mode == "--check":
+        return 1 if hits else 0
+    return 0
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Tree model
@@ -1050,4 +1117,6 @@ def main():
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in ("--check", "--scrub"):
+        sys.exit(_cli(sys.argv[1:]))
     sys.exit(main())
