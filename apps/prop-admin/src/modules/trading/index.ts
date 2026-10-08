@@ -1,0 +1,14 @@
+export { tradingModule } from "./manifest";
+export {
+  TradingOverviewStitchPage,
+  TradersStitchPage,
+  AccountsStitchPage,
+  PositionsStitchPage,
+} from "./pages/trading-stitch-pages";
+export { OrdersPage } from "./pages/orders-page";
+export { ObjectivesProgressPage } from "./pages/objectives-progress-page";
+export { RulesPage } from "./pages/rules-page";
+export { AccountBreachPage } from "./pages/account-breach-page";
+export { AccountProvisioningPage } from "./pages/account-provisioning-page";
+export { EvaluationPassedPage } from "./pages/evaluation-passed-page";
+export { PurchaseHistoryPage } from "./pages/purchase-history-page";
