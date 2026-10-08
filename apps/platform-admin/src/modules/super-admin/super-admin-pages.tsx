@@ -35,6 +35,8 @@ export { TenantViewAsPage } from "./tenant-view-as-page";
 export { AbuseSignalsPage } from "./abuse-signals-page";
 export { AnnouncementsPage } from "./announcements-page";
 export { PlatformAnalyticsPage } from "./platform-analytics-page";
+export { DashboardManagerPage } from "./dashboard-manager-page";
+export { PlatformAuditPage } from "./platform-audit-page";
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
