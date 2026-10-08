@@ -62,4 +62,3 @@ server.log
 stitch_screens/
 
 .turbo/
-.env*
