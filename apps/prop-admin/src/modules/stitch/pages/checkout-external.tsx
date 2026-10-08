@@ -218,7 +218,7 @@ export function CheckoutExternalStitchPage() {
                   </div>
                   <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                     <div className="relative flex-1 w-full">
-<input className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono text-on-surface select-all cursor-text focus:outline-none" id="secret-key-input" readOnly type="password" defaultValue="whsec_9fa821c4e72b901a8842cd49b389100e481c31ec" />
+<input className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-surface-container-low text-xs font-mono text-on-surface select-all cursor-text focus:outline-none" id="secret-key-input" readOnly type="password" defaultValue="EXAMPLE_KEY_NOT_REAL" />
                       <button className="absolute right-3 top-2.5 text-outline hover:text-on-surface transition-colors" id="toggle-secret-key" title="Toggle visibility" type="button"><MsIcon name="visibility" className="text-[18px]" /></button>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -807,7 +807,7 @@ export function CheckoutExternalStitchPage() {
 <MsIcon name="key" className="text-[18px] text-tertiary shrink-0" />
               <div className="truncate">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-tsc">HSM Signing Key</div>
-                <div className="text-xs font-mono font-medium text-on-surface truncate">whsec_941a8... (LDN-HSM-VAULT-04)</div>
+                <div className="text-xs font-mono font-medium text-on-surface truncate">EXAMPLE_KEY_NOT_REAL (LDN-HSM-VAULT-04)</div>
               </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">

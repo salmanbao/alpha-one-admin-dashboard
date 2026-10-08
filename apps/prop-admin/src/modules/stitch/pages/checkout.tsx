@@ -559,7 +559,7 @@ export function CheckoutStitchPage() {
 <MsIcon name="key" className="text-outline text-[16px] mt-0.5 flex-shrink-0" />
                     <span className="leading-relaxed">
                       Incoming purchase webhooks must be cryptographically signed using Ed25519 webhook secret key (
-                      <span className="font-mono text-[11px] text-on-surface font-semibold">whsec_941a8...</span>
+                      <span className="font-mono text-[11px] text-on-surface font-semibold">EXAMPLE_KEY_NOT_REAL</span>
                       ).
                     </span>
                   </div>
