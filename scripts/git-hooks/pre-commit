@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Secret scan gate. Committed but NOT installed.
+# Enable locally: git config core.hooksPath scripts/git-hooks
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+pattern='(sk|pk|rk)[_]live[_]|whsec[_]'
+rc=0
+hits=$(git grep -nE "$pattern" -- .) || rc=$?
+
+if [ "$rc" -eq 0 ]; then
+  echo "pre-commit: secret-like strings found in tracked files:" >&2
+  echo "$hits" >&2
+  echo "See docs/secret-scan.md (§1 reproduce, §7 remediation)." >&2
+  exit 1
+fi
+if [ "$rc" -gt 1 ]; then
+  echo "pre-commit: git grep failed (rc=$rc), failing closed" >&2
+  exit 1
+fi
+exit 0
