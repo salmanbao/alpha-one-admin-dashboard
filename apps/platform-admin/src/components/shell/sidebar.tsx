@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 
-type TermFn = (k: string) => string;
+type TermFn = (k: TermKey) => string;
 
 /**
  * Parse a navigation href that may include a query string (e.g.
@@ -147,7 +147,7 @@ function SidebarItem({
   t,
   tenant,
 }: {
-  item: ResolvedNavigation[number];
+  item: ResolvedNavigation;
   t: TermFn;
   tenant: Pick<TenantContext, "terminology"> | undefined;
 }) {
@@ -181,7 +181,7 @@ function SidebarItem({
               {Icon ? (
                 <Icon className={cn("h-4 w-4 shrink-0 transition-colors", active ? "opacity-100" : "opacity-70 group-hover:opacity-100")} />
               ) : null}
-              <span className="flex-1 text-left">{item.termKey ? t(item.termKey ?? "") : item.label}</span>
+              <span className="flex-1 text-left">{item.termKey ? t(item.termKey) : item.label}</span>
               {item.badge ? (
                 <Badge variant="secondary" className="h-4 px-1 text-[9px]">{item.badge}</Badge>
               ) : null}
@@ -252,7 +252,7 @@ function SidebarItem({
         ) : (
           <span className="h-1.5 w-1.5 rounded-full bg-current opacity-50" />
         )}
-        <span className="flex-1 truncate text-left">{item.termKey ? t(item.termKey ?? "") : item.label}</span>
+        <span className="flex-1 truncate text-left">{item.termKey ? t(item.termKey) : item.label}</span>
         {item.badge ? (
           <Badge variant={active ? "secondary" : "outline"} className="h-4 px-1 text-[9px]">{item.badge}</Badge>
         ) : null}

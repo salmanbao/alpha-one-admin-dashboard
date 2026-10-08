@@ -484,7 +484,7 @@ export interface TradingAccount {
   equity: number;
   leverage: string;
   currency: string;
-  status: "active" | "breached" | "passed" | "pending";
+  status: "active" | "breached" | "passed" | "pending" | "in-progress";
   createdAt: string;
 }
 
@@ -846,7 +846,7 @@ function seedChallenges(): Challenge[] {
   const out: Challenge[] = [];
   let n = 0;
   for (const t of traders) {
-    if (t.challengePhase === "none" || t.challengePhase === "funded") continue;
+    if (!t.challengePhase || t.challengePhase === "none" || t.challengePhase === "funded") continue;
     n++;
     const phase = t.challengePhase;
     const accountSize = phase === "phase-2" ? 25000 : 10000;

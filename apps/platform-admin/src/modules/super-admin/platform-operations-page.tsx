@@ -135,6 +135,15 @@ export function PlatformOperationsPage() {
   const degradedCount = services.filter((s) => s.status === "degraded").length;
   const downCount = services.filter((s) => s.status === "down").length;
 
+  const signals: { label: string; value: string; tone: "positive" | "warning" | "negative" }[] = [
+    { label: "Relay lag", value: "0.8s", tone: "positive" },
+    { label: "Event sync lag", value: "1.2s", tone: "positive" },
+    { label: "DLQ depth", value: "3", tone: "warning" },
+    { label: "Failed jobs (24h)", value: "7", tone: "warning" },
+    { label: "Queue depth", value: "142", tone: "positive" },
+    { label: "Provider degradation", value: "2 services", tone: "warning" },
+  ];
+
   return (
     <Page>
       <PageHeader
@@ -240,14 +249,7 @@ export function PlatformOperationsPage() {
           <Card>
             <CardHeader className="pb-2"><span className="text-sm font-medium">Real-time signals</span></CardHeader>
             <CardContent className="space-y-2">
-              {[
-                { label: "Relay lag", value: "0.8s", tone: "positive" as const },
-                { label: "Event sync lag", value: "1.2s", tone: "positive" as const },
-                { label: "DLQ depth", value: "3", tone: "warning" as const },
-                { label: "Failed jobs (24h)", value: "7", tone: "warning" as const },
-                { label: "Queue depth", value: "142", tone: "positive" as const },
-                { label: "Provider degradation", value: "2 services", tone: "warning" as const },
-              ].map((s) => (
+              {signals.map((s) => (
                 <div key={s.label} className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">{s.label}</span>
                   <Badge variant="outline" className={cn(
