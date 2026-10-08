@@ -10,14 +10,14 @@
 
 import { PlatformProvider } from "@pfaas/platform-core";
 import { Toaster } from "@/components/ui/toaster";
-import { tradersTenant, traderUser } from "@/lib/fixtures/trader-fixtures";
+import { terraTenant, terraUser } from "@/lib/fixtures/terra-fixtures";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <PlatformProvider
-      platformTenant={tradersTenant}
+      platformTenant={terraTenant}
       initialTenants={[]}
-      users={[traderUser]}
+      users={[terraUser]}
     >
       {children}
       <Toaster />
