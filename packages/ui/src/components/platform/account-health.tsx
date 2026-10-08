@@ -67,7 +67,9 @@ function HealthMetricRow({ metric, currency = "USD" }: { metric: HealthMetric; c
         <div className="flex items-center gap-2">
           <metric.icon className={cn("h-3.5 w-3.5", config.color)} />
           <span className="text-xs font-medium text-foreground">{metric.label}</span>
-          <Info className="h-3 w-3 cursor-help text-muted-foreground/50" title={metric.explanation} />
+          <span title={metric.explanation} className="cursor-help">
+            <Info className="h-3 w-3 text-muted-foreground/50" />
+          </span>
         </div>
         <Badge variant="outline" className={cn("text-[9px]", config.badgeClass)}>
           {config.label}
