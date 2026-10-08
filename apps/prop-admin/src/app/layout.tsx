@@ -4,7 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
 /* Material Symbols — the Stitch design language icon set (ligature font). */
-export const materialSymbols = `
+const materialSymbols = `
   @font-face {
     font-family: 'Material Symbols Outlined';
     font-style: normal;

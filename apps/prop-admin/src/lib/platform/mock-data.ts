@@ -430,7 +430,7 @@ export interface TradingAccount {
   equity: number;
   leverage: string;
   currency: string;
-  status: "active" | "breached" | "passed" | "pending";
+  status: "active" | "breached" | "passed" | "pending" | "in-progress" | "blocked";
   createdAt: string;
 }
 
@@ -491,6 +491,7 @@ export interface Payout {
   method: "bank-transfer" | "crypto" | "paypal" | "skrill";
   status: "pending" | "approved" | "processing" | "paid" | "rejected";
   profitSplit: number; // trader % share
+  accountName?: string;
   createdAt: string;
   processedAt?: string;
   reference: string;
@@ -576,6 +577,7 @@ export interface KycRecord {
   tenantId: string;
   traderId: string;
   traderName: string;
+  accountName?: string;
   status: "pending" | "review" | "approved" | "rejected" | "expired";
   documentType: "passport" | "driving-license" | "national-id";
   country: string;
@@ -589,6 +591,7 @@ export interface SupportTicket {
   tenantId: string;
   subject: string;
   traderName: string;
+  accountName?: string;
   category: "trading" | "payout" | "account" | "technical" | "billing";
   priority: "low" | "medium" | "high" | "urgent";
   status: "open" | "in-progress" | "waiting" | "resolved" | "closed";
@@ -792,7 +795,7 @@ function seedChallenges(): Challenge[] {
   const out: Challenge[] = [];
   let n = 0;
   for (const t of traders) {
-    if (t.challengePhase === "none" || t.challengePhase === "funded") continue;
+    if (!t.challengePhase || t.challengePhase === "none" || t.challengePhase === "funded") continue;
     n++;
     const phase = t.challengePhase;
     const accountSize = phase === "phase-2" ? 25000 : 10000;
@@ -1141,6 +1144,7 @@ export const auditLog: AuditEntry[] = (() => {
 export interface TimeSeriesPoint {
   date: string;
   value: number;
+  [key: string]: string | number;
 }
 
 export function revenueSeries(tenantId: string): TimeSeriesPoint[] {

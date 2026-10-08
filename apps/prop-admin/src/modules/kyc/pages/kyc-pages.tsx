@@ -116,7 +116,7 @@ export function KycOverviewPage() {
     exportToCsv(
       records,
       [
-        { key: "accountName", header: term("account"), value: (r) => r.accountName },
+        { key: "accountName", header: term("account"), value: (r) => r.accountName ?? "" },
         { key: "documentType", header: "Document", value: (r) => r.documentType },
         { key: "country", header: "Country", value: (r) => r.country },
         { key: "status", header: "Status", value: (r) => r.status },
@@ -129,7 +129,7 @@ export function KycOverviewPage() {
   };
 
   const recentColumns: Column<KycRecord>[] = [
-    { key: "account", header: term("account"), cell: (r) => <span className="font-medium">{r.accountName}</span>, sortValue: (r) => r.accountName },
+    { key: "account", header: term("account"), cell: (r) => <span className="font-medium">{r.accountName}</span>, sortValue: (r) => r.accountName ?? "" },
     { key: "documentType", header: "Document", cell: (r) => <span className="capitalize">{r.documentType}</span>, sortValue: (r) => r.documentType },
     { key: "country", header: "Country", cell: (r) => r.country, sortValue: (r) => r.country },
     {
@@ -388,7 +388,7 @@ export function KycReviewsPage() {
   const records = getTenantKyc(tid).map((r) => ({ ...r, status: effectiveKycStatus(r) }));
 
   const columns: Column<KycRecord>[] = [
-    { key: "account", header: term("account"), cell: (r) => <span className="font-medium">{r.accountName}</span>, sortValue: (r) => r.accountName },
+    { key: "account", header: term("account"), cell: (r) => <span className="font-medium">{r.accountName}</span>, sortValue: (r) => r.accountName ?? "" },
     {
       key: "documentType",
       header: "Document",
@@ -473,7 +473,7 @@ export function KycRiskPage() {
   const highRisk = records.filter((r) => r.riskLevel === "high");
 
   const highRiskColumns: Column<KycRecord>[] = [
-    { key: "account", header: term("account"), cell: (r) => <span className="font-medium">{r.accountName}</span>, sortValue: (r) => r.accountName },
+    { key: "account", header: term("account"), cell: (r) => <span className="font-medium">{r.accountName}</span>, sortValue: (r) => r.accountName ?? "" },
     {
       key: "documentType",
       header: "Document",

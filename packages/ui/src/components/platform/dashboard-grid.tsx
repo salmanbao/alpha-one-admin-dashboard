@@ -293,7 +293,7 @@ export function CustomizeDashboardDialog() {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             {presets.map((p) => {
               const PIcon = p.icon;
-              const activePreset = hiddenWidgets.size === p.hidden.size &&
+              const activePreset = hiddenWidgets.size === p.hidden.length &&
                 p.hidden.every((id) => hiddenWidgets.has(id));
               return (
                 <button
