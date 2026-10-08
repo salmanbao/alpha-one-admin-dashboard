@@ -222,6 +222,7 @@ interface SummaryKpi {
   label: string;
   value: string | number;
   delta?: number;
+  deltaLabel?: string;
   icon: React.ComponentType<{ className?: string }>;
   tone: "default" | "positive" | "negative" | "warning";
   href?: string;

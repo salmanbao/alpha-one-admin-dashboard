@@ -20,6 +20,7 @@ import { Badge } from "@pfaas/ui/badge";
 interface Point {
   t: string;
   v: number;
+  [key: string]: string | number;
 }
 
 const MAX_POINTS = 30;

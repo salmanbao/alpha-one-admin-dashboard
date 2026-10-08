@@ -213,7 +213,7 @@ export function RiskGroupVsPayoutsPage() {
 
   const exportCsv = () => {
     exportToCsv(
-      filtered,
+      filteredGroups,
       [
         { key: "challengeName", header: term("challenge"), value: (r: GroupRow) => r.challengeName },
         { key: "challengeType", header: "Type", value: (r) => r.challengeType },
@@ -228,7 +228,7 @@ export function RiskGroupVsPayoutsPage() {
     );
     toast({
       title: "Export complete",
-      description: `Exported ${filtered.length} group rows to CSV.`,
+      description: `Exported ${filteredGroups.length} group rows to CSV.`,
     });
   };
 

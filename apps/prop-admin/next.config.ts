@@ -9,8 +9,5 @@ import type { NextConfig } from "next";
 export default {
   output: "standalone",
   transpilePackages: ["@pfaas/ui"],
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   reactStrictMode: false,
 } satisfies NextConfig;
