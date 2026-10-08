@@ -1,0 +1,22 @@
+{
+  "name": "@pfaas/platform-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {},
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/lib/platform/types.ts",
+    "./module-registry": "./src/lib/platform/module-registry.ts",
+    "./permission-engine": "./src/lib/platform/permission-engine.ts",
+    "./navigation-engine": "./src/lib/platform/navigation-engine.ts",
+    "./theme-engine": "./src/lib/platform/theme-engine.ts",
+    "./terminology": "./src/lib/platform/terminology.ts",
+    "./currency": "./src/lib/platform/currency.ts",
+    "./platform-context": "./src/platform-context.tsx"
+  },
+  "peerDependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  }
+}
