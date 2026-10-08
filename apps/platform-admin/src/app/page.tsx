@@ -1,0 +1,3 @@
+"use client";
+/** * PFaaS Platform Admin — Main Page (route `/`) * * The single user-visible route. Renders the AppShell + DashboardRouter. */import { Providers } from "@/components/platform/providers";import { AppShell } from "@/components/shell/app-shell";import { DashboardRouter } from "@/components/platform/dashboard-router";
+export default function Home() {  return (    <Providers>      <AppShell>        <DashboardRouter />      </AppShell>    </Providers>  );}
