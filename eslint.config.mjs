@@ -1,50 +1,93 @@
-import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
-import nextTypescript from "eslint-config-next/typescript";
-import { dirname } from "path";
-import { fileURLToPath } from "url";
+import tsParser from "@typescript-eslint/parser";
+import reactHooks from "eslint-plugin-react-hooks";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
-  rules: {
-    // TypeScript rules
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-unused-vars": "off",
-    "@typescript-eslint/no-non-null-assertion": "off",
-    "@typescript-eslint/ban-ts-comment": "off",
-    "@typescript-eslint/prefer-as-const": "off",
-    "@typescript-eslint/no-unused-disable-directive": "off",
-    
-    // React rules
-    "react-hooks/exhaustive-deps": "off",
-    "react-hooks/purity": "off",
-    "react/no-unescaped-entities": "off",
-    "react/display-name": "off",
-    "react/prop-types": "off",
-    "react-compiler/react-compiler": "off",
-    
-    // Next.js rules
-    "@next/next/no-img-element": "off",
-    "@next/next/no-html-link-for-pages": "off",
-    
-    // General JavaScript rules
-    "prefer-const": "off",
-    "no-unused-vars": "off",
-    "no-console": "off",
-    "no-debugger": "off",
-    "no-empty": "off",
-    "no-irregular-whitespace": "off",
-    "no-case-declarations": "off",
-    "no-fallthrough": "off",
-    "no-mixed-spaces-and-tabs": "off",
-    "no-redeclare": "off",
-    "no-undef": "off",
-    "no-unreachable": "off",
-    "no-useless-escape": "off",
+// Monorepo-wide lint rules. Scope is deliberately limited to apps/** so that
+// packages/** (shared library code) and tooling files are not affected.
+//
+// The core rule here is no-restricted-imports: an app must never import from
+// another app. Cross-application sharing belongs in @pfaas/ui or
+// @pfaas/platform-core; anything app-specific should be duplicated (with a
+// TODO comment) rather than coupled.
+export default [
+  {
+    ignores: [
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/out/**",
+      "**/turbo/**",
+      "**/coverage/**",
+      "packages/**",
+      "**/*.d.ts",
+    ],
   },
-}, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
-}];
-
-export default eslintConfig;
+  {
+    files: ["apps/**/*.{ts,tsx,js,jsx,mjs}"],
+    plugins: {
+      "react-hooks": reactHooks,
+    },
+    linterOptions: {
+      reportUnusedDisableDirectives: "off",
+    },
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        ecmaFeatures: { jsx: true },
+      },
+      globals: {
+        console: "readonly",
+        window: "readonly",
+        document: "readonly",
+        process: "readonly",
+        localStorage: "readonly",
+        fetch: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
+        AbortController: "readonly",
+        URLSearchParams: "readonly",
+        TextEncoder: "readonly",
+        queueMicrotask: "readonly",
+        React: "readonly",
+        NodeJS: "readonly",
+      },
+    },
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/prop-admin/**",
+                "**/prop-admin",
+                "**/platform-admin/**",
+                "**/platform-admin",
+                "**/trader/**",
+                "**/trader",
+              ],
+              message:
+                "Cross-app imports are forbidden. Share code via @pfaas/ui or @pfaas/platform-core instead, or duplicate it locally with a TODO comment.",
+            },
+            {
+              group: [
+                "@pfaas/prop-admin",
+                "@pfaas/prop-admin/**",
+                "@pfaas/platform-admin",
+                "@pfaas/platform-admin/**",
+                "@pfaas/trader",
+                "@pfaas/trader/**",
+              ],
+              message:
+                "Cross-app imports are forbidden. Share code via @pfaas/ui or @pfaas/platform-core instead, or duplicate it locally with a TODO comment.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+];
