@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/platform/status";
 import { Trophy, Users, DollarSign, Calendar, Plus, Medal, Award, Crown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { usePlatform } from "@/lib/platform/platform-context";
 
 interface Competition {
   id: string;

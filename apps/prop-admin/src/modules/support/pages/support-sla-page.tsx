@@ -25,7 +25,7 @@
  *   < 80%   rose    #e11d48  (Off Target)
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   BarChart,
   Bar,
