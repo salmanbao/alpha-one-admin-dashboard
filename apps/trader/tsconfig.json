@@ -1,0 +1,69 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "noImplicitAny": false,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/lib/utils": [
+        "../../packages/ui/src/lib/utils"
+      ],
+      "@/hooks/*": [
+        "../../packages/ui/src/hooks/*"
+      ],
+      "@/components/ui/*": [
+        "../../packages/ui/src/components/ui/*"
+      ],
+      "@/components/platform/providers": [
+        "./src/components/platform/providers"
+      ],
+      "@/components/platform/*": [
+        "../../packages/ui/src/components/platform/*"
+      ],
+      "@/lib/platform/platform-context": [
+        "../../packages/platform-core/src/platform-context"
+      ],
+      "@/lib/platform/permission-engine": [
+        "../../packages/platform-core/src/lib/platform/permission-engine"
+      ],
+      "@/lib/platform/types": [
+        "../../packages/ui/src/lib/platform/types"
+      ],
+      "@/lib/platform/saved-views": [
+        "../../packages/ui/src/lib/platform/saved-views"
+      ],
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
