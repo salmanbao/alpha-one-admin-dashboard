@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "build:prop-admin": "turbo run build --filter=@pfaas/prop-admin",
+    "dev": "node init && turbo run dev",
+    "build": "node init && turbo run build",
+    "build:prop-admin": "node init && turbo run build --filter=@pfaas/prop-admin",
     "lint": "turbo run lint",
     "lint:cross-app": "eslint apps"
   },
