@@ -1,0 +1,16 @@
+# Gitleaks configuration — see docs/secret-scan.md for scan scope and masking conventions.
+title = "alpha-one secret scan"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "alpha-one-live-prefixed-keys"
+description = "sk/pk/rk live keys and whsec webhook secrets; [_] classes keep this file self-scan-clean"
+regex = '''(?:sk|pk|rk)[_]live[_][A-Za-z0-9_.•*-]{8,}|whsec[_][A-Za-z0-9_.•*-]{8,}'''
+entropy = 3.0
+keywords = ["live", "whsec"]
+
+[allowlist]
+description = "build artifacts, vendored deps, editor config"
+paths = ['''(\.git/|node_modules/|\.next/|\.turbo/|dist/|coverage/|\.vscode/)''']
