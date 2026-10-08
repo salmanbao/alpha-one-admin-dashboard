@@ -251,7 +251,7 @@ export function CheckoutProvidersStitchPage() {
                   <td className="px-4 py-4 font-mono text-[11px] text-on-surface-variant">
                     <div className="flex items-center gap-2">
 <MsIcon name="vpn_key" className="text-[14px] text-outline" />
-                      <span className="key-display" data-key="sk_live_stripe_94f2910a">sk_live_••••••••••••94f2</span>
+                      <span className="key-display" data-key="EXAMPLE_KEY_NOT_REAL">EXAMPLE_KEY_NOT_REAL</span>
                       <button className="text-outline hover:text-primary transition-colors"><MsIcon name="visibility" className="text-[14px]" /></button>
                     </div>
                   </td>

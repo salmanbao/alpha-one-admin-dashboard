@@ -121,7 +121,7 @@ const SEED_INTEGRATIONS: Integration[] = [
     connected: true,
     active: true,
     eventLogging: true,
-    secretKey: "pk_live_abc123def456",
+    secretKey: "EXAMPLE_KEY_NOT_REAL",
     lastSync: "2026-09-12T08:15:00.000Z",
   },
   {

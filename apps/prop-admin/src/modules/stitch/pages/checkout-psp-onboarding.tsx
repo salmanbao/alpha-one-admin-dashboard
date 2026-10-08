@@ -145,7 +145,7 @@ export function CheckoutPspOnboardingStitchPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="pk_live_51Oz99xQ0281hNqLzWv304M819KkP" />
+<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="EXAMPLE_KEY_NOT_REAL" />
                       <button className="p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Copy Key"><MsIcon name="content_copy" className="text-base" /></button>
                     </div>
                   </div>
@@ -156,7 +156,7 @@ export function CheckoutPspOnboardingStitchPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="relative w-full">
-<input className="w-full bg-surface-container-lowest rounded-xl pl-4 pr-10 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" id="secret-key-input" type="password" defaultValue="sk_live_••••••••••••1290" />
+<input className="w-full bg-surface-container-lowest rounded-xl pl-4 pr-10 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" id="secret-key-input" type="password" defaultValue="EXAMPLE_KEY_NOT_REAL" />
                         <button className="absolute right-3 top-2.5 text-outline hover:text-on-surface" type="button"><MsIcon name="visibility" className="text-base" /></button>
                       </div>
                       <button className="p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Copy Key"><MsIcon name="content_copy" className="text-base" /></button>
@@ -165,7 +165,7 @@ export function CheckoutPspOnboardingStitchPage() {
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-outline mb-1.5">Webhook Signing Secret</label>
                     <div className="flex items-center gap-2">
-<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="whsec_7b8a1c9e4f20389012cdbf881a2e9914" />
+<input className="w-full bg-surface-container-lowest rounded-xl px-4 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40" type="text" defaultValue="EXAMPLE_KEY_NOT_REAL" />
                       <button className="p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Copy Secret"><MsIcon name="content_copy" className="text-base" /></button>
                     </div>
                   </div>
@@ -449,7 +449,7 @@ export function CheckoutPspOnboardingStitchPage() {
                   <h3 className="text-xs font-bold font-label uppercase tracking-wide text-error">                    HTTP 401 Unauthorized: Invalid Secret Key Signature</h3>
                   <p className="text-xs text-on-surface-variant font-body leading-relaxed">
 
-              The restricted secret key <code className="px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface font-mono text-[11px] font-semibold">rk_live_••••••••••••••••••••••••••••••••</code> presented to Stripe API was rejected with <code className="text-error font-mono text-[11px] font-semibold">err_code: secret_key_revoked_or_invalid</code>. Additionally, the inbound ingestion endpoint returned a 504 Gateway Timeout on challenge echo.
+              The restricted secret key <code className="px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface font-mono text-[11px] font-semibold">EXAMPLE_KEY_NOT_REAL</code> presented to Stripe API was rejected with <code className="text-error font-mono text-[11px] font-semibold">err_code: secret_key_revoked_or_invalid</code>. Additionally, the inbound ingestion endpoint returned a 504 Gateway Timeout on challenge echo.
             
                   </p>
                 </div>
@@ -478,7 +478,7 @@ export function CheckoutPspOnboardingStitchPage() {
                       <div className="w-6 h-6 rounded-full bg-primary-fixed flex items-center justify-center text-primary shrink-0"><MsIcon name="check" className="text-[15px] font-bold" /></div>
                       <div>
                         <span className="text-xs font-bold text-on-surface block">Publishable Client Key Format</span>
-                        <span className="text-[11px] text-tsc font-mono">pk_live_510Z...KKP</span>
+                        <span className="text-[11px] text-tsc font-mono">EXAMPLE_KEY_NOT_REAL</span>
                       </div>
                     </div>
                     <div className="text-right">
