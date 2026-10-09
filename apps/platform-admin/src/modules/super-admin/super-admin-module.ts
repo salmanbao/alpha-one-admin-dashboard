@@ -38,6 +38,11 @@ import {
   Settings2,
   Lock,
   UserCheck,
+  Shield,
+  CreditCard,
+  HardDrive,
+  Percent,
+  Sparkles,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -64,9 +69,11 @@ const navigation: NavigationItem[] = [
 
       // ───────── Observability ─────────
       { id: "super.health", label: "Platform Health", href: "platform-health", icon: Server, application: ["super-admin"], group: "Observability" },
+      { id: "super.system-health", label: "System Health", href: "system-health", icon: Activity, application: ["super-admin"], group: "Observability" },
       { id: "super.providers", label: "Provider Registry", href: "provider-registry", icon: Globe, application: ["super-admin"], group: "Observability" },
       { id: "super.queues", label: "Cross-Tenant Queues", href: "cross-tenant-queues", icon: Layers, application: ["super-admin"], group: "Observability" },
       { id: "super.platform-audit", label: "Platform Audit", href: "platform-audit", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 65, group: "Observability" },
+      { id: "super.audit-log", label: "Audit Log", href: "audit-log", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 66, group: "Observability" },
 
       // ───────── Infrastructure ─────────
       { id: "super.deployments", label: "Deployments", href: "deployments", icon: GitBranch, application: ["super-admin"], group: "Infrastructure" },
@@ -90,9 +97,20 @@ const navigation: NavigationItem[] = [
 
       // ───────── Finance ─────────
       { id: "super.financials", label: "Financial Overview", href: "platform-financials", icon: DollarSign, application: ["super-admin"], group: "Finance" },
+      { id: "super.transactions", label: "Transactions", href: "platform-transactions", icon: CreditCard, application: ["super-admin"], group: "Finance" },
+
+      // ───────── Governance ─────────
+      { id: "super.platform-roles", label: "Platform Roles", href: "platform-roles", icon: Shield, application: ["super-admin"], group: "Governance" },
+      { id: "super.staff", label: "Platform Staff", href: "platform-staff", icon: Users, application: ["super-admin"], group: "Governance" },
 
       // ───────── Analytics ─────────
       { id: "super.analytics", label: "Platform Analytics", href: "platform-analytics", icon: BarChart3, application: ["super-admin"], group: "Analytics" },
+
+      // ───────── Platform Docs & Config ─────────
+      { id: "super.knowledge-base", label: "Knowledge Base", href: "knowledge-base", icon: BookOpen, application: ["super-admin"], group: "Platform Docs" },
+      { id: "super.changelog", label: "What's New", href: "changelog", icon: GitBranch, application: ["super-admin"], group: "Platform Docs" },
+      { id: "super.architecture", label: "Platform Architecture", href: "platform-architecture", icon: Server, application: ["super-admin"], group: "Platform Docs" },
+      { id: "super.getting-started", label: "Getting Started", href: "getting-started", icon: Sparkles, application: ["super-admin"], group: "Platform Docs" },
     ],
   },
 ];
@@ -128,6 +146,22 @@ const routes: RouteDefinition[] = [
   { path: "platform-financials", viewId: "platform-financials", label: "Platform Financials", application: ["super-admin"] },
   { path: "platform-analytics", viewId: "platform-analytics", label: "Platform Analytics", application: ["super-admin"] },
   { path: "platform-audit", viewId: "platform-audit", label: "Platform Audit Log", application: ["super-admin"], permission: "platform.audit.read" },
+  { path: "knowledge-base", viewId: "knowledge-base", label: "Knowledge Base", application: ["super-admin"] },
+  { path: "changelog", viewId: "changelog", label: "What's New", application: ["super-admin"] },
+  { path: "module-detail", viewId: "module-detail", label: "Module Detail", application: ["super-admin"] },
+  { path: "module-settings", viewId: "module-settings", label: "Module Settings", application: ["super-admin"] },
+  { path: "model-audit-log", viewId: "model-audit-log", label: "Model Audit Log", application: ["super-admin"] },
+  { path: "impersonation-audit", viewId: "impersonation-audit", label: "Impersonation Audit", application: ["super-admin"] },
+  { path: "ai-usage-quota", viewId: "ai-usage-quota", label: "AI Usage Quota", application: ["super-admin"] },
+  { path: "bridge-sync-log", viewId: "bridge-sync-log", label: "Bridge Sync Log", application: ["super-admin"] },
+  { path: "getting-started", viewId: "getting-started", label: "Getting Started", application: ["super-admin"] },
+  { path: "platform-architecture", viewId: "platform-architecture", label: "Platform Architecture", application: ["super-admin"] },
+  { path: "platform-overview", viewId: "platform-overview", label: "Platform Overview", application: ["super-admin"] },
+  { path: "platform-roles", viewId: "platform-roles", label: "Platform Roles", application: ["super-admin"] },
+  { path: "platform-staff", viewId: "platform-staff", label: "Platform Staff", application: ["super-admin"] },
+  { path: "platform-transactions", viewId: "platform-transactions", label: "Platform Transactions", application: ["super-admin"] },
+  { path: "system-health", viewId: "system-health", label: "System Health", application: ["super-admin"] },
+  { path: "audit-log", viewId: "audit-log", label: "Audit Log", application: ["super-admin"], permission: "platform.audit.read" },
 ];
 
 export const superAdminModule: FrontendModule = {

@@ -21,6 +21,7 @@ import { supportModule } from "@/modules/support/manifest";
 import { aiModule } from "@/modules/ai/manifest";
 import { auditModule } from "@/modules/audit/audit-module";
 import { settingsModule } from "@/modules/settings/settings-module";
+import { stitchModule } from "@/modules/stitch/manifest";
 
 let bootstrapped = false;
 export function bootstrapModules() {
@@ -43,4 +44,6 @@ export function bootstrapModules() {
   moduleRegistry.register(aiModule);
   // compliance modules — audit depends on settings, register after it.
   moduleRegistry.register(auditModule);
+  // optional stitch screens module
+  moduleRegistry.register(stitchModule);
 }
