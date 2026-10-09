@@ -6,7 +6,7 @@
  * target progress, equity curve, and quick stats.
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { cn } from "@pfaas/ui";
 import {
@@ -22,21 +22,42 @@ import {
 import {
   equityCurve30d,
   primaryAccount,
+  terraAccounts,
   terraPositions,
 } from "@/lib/fixtures/terra-fixtures";
 
 const ranges = ["7d", "30d", "90d"] as const;
 
 export function DashboardPage() {
+  const [selectedAccountId, setSelectedAccountId] = useState(primaryAccount.id);
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [range, setRange] = useState<(typeof ranges)[number]>("30d");
   const [riskAlertVisible, setRiskAlertVisible] = useState(true);
-  const acc = primaryAccount;
+
+  const acc = terraAccounts.find((a) => a.id === selectedAccountId) ?? primaryAccount;
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setAccountDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const curve =
     range === "7d"
       ? equityCurve30d.slice(-7)
       : range === "90d"
-        ? equityCurve30d // demo: same series
+        ? [
+            { x: "Jul 15", y: 95000 },
+            { x: "Aug 01", y: 97200 },
+            { x: "Aug 15", y: 98500 },
+            { x: "Sep 01", y: 99400 },
+            ...equityCurve30d,
+          ]
         : equityCurve30d;
 
   return (
@@ -45,9 +66,13 @@ export function DashboardPage() {
       <div className="flex flex-col items-stretch justify-between gap-4 rounded-xl bg-surface-container-low p-4 shadow-sm sm:p-5 lg:flex-row lg:items-center">
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           {/* Account selector */}
-          <div className="relative group">
+          <div className="relative" ref={dropdownRef}>
             <button
               type="button"
+              onClick={() => setAccountDropdownOpen((v) => !v)}
+              aria-expanded={accountDropdownOpen}
+              aria-haspopup="true"
+              aria-label="Select trading account"
               className="flex items-center gap-3 rounded-lg bg-surface-container-lowest px-4 py-2.5 text-left shadow-sm transition-all hover:bg-surface-container"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-fixed text-on-primary-fixed-variant">
@@ -67,10 +92,62 @@ export function DashboardPage() {
                   </span>
                 </span>
               </span>
-              <svg className="ml-2 h-4 w-4 text-on-surface-variant transition-transform group-hover:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                className={cn(
+                  "ml-2 h-4 w-4 text-on-surface-variant transition-transform",
+                  accountDropdownOpen && "rotate-180",
+                )}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="m6 9 6 6 6-6" />
               </svg>
             </button>
+
+            {accountDropdownOpen && (
+              <div className="absolute left-0 top-full z-50 mt-2 w-80 rounded-xl border border-outline-variant bg-surface-container-lowest p-2 shadow-lg">
+                <div className="border-b border-outline-variant/60 px-3 py-2 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                  Switch Trading Account
+                </div>
+                <div className="mt-1 space-y-1">
+                  {terraAccounts.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedAccountId(item.id);
+                        setAccountDropdownOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
+                        item.id === acc.id
+                          ? "bg-primary-fixed/40 font-semibold text-on-surface"
+                          : "hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface",
+                      )}
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-mono text-xs font-bold text-on-surface">
+                          #{item.login}
+                        </span>
+                        <span className="truncate text-xs text-on-surface-variant">
+                          {item.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="rounded bg-surface-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
+                          {item.phase}
+                        </span>
+                        {item.id === acc.id && (
+                          <span className="text-primary text-xs font-bold">✓</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           {/* Account state badge */}
           <TerraBadge tone="primary" dot pulse>
