@@ -118,6 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 onClick={() => setProfileOpen((v) => !v)}
                 aria-expanded={profileOpen}
                 aria-haspopup="true"
+                aria-label="User menu"
                 className="flex cursor-pointer items-center gap-2 rounded-md bg-sidebar-accent/40 p-1.5 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground">
