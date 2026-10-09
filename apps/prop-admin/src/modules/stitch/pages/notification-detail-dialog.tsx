@@ -17,6 +17,8 @@ import { MsIcon } from "@/components/stitch/stitch";
 export function NotificationDetailDialogStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  const [so2, setSo2] = React.useState(false);
+  const [so3, setSo3] = React.useState(false);
   return (
     <>
       <div className="flex flex-col w-full relative -mt-4 pb-12">
@@ -94,8 +96,8 @@ export function NotificationDetailDialogStitchPage() {
                     <span className="text-on-surface-variant font-mono text-[11px]">LD4 FIX Engine Bridge</span>
                   </div>
                 </div>
-                <button aria-label="Close dialog" className="group p-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all" type="button"><MsIcon name="close" className="text-[20px] transition-transform group-hover:rotate-90" /></button>
-              </div>
+                <button aria-label="Close dialog" className="group p-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all" type="button"><MsIcon name="close" className="text-[20px] transition-transform group-hover:rotate-90" />             </button>
+            </div>
               <div className="space-y-1.5">
                 <h2 className="font-headline text-2xl sm:text-2xl font-semibold text-on-surface tracking-tight leading-snug" id="dialog-title">                  Max Daily Drawdown Breach: Account #MT5-882049 (Elena Althaus)</h2>
                 <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-xs text-on-surface-variant font-mono">
@@ -283,8 +285,8 @@ export function NotificationDetailDialogStitchPage() {
                 <button className="px-3 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-xs" type="button">
 <MsIcon name="mark_email_unread" className="text-[16px]" />
                   <span>Mark as unread</span>
-                </button>
-              </div>
+                             </button>
+            </div>
               <div className="flex items-center gap-2.5">
                 <button className="px-3.5 py-2 rounded-xl bg-error-container/60 hover:bg-error-container text-error font-semibold text-xs transition-colors flex items-center gap-1.5" type="button">
 <MsIcon name="delete" className="text-[16px]" />
@@ -293,8 +295,8 @@ export function NotificationDetailDialogStitchPage() {
                 <button className="px-4.5 py-2 rounded-xl bg-primary text-on-primary font-semibold text-xs hover:bg-primary/95 transition-all flex items-center gap-2 shadow-sm" type="button">
                   <span>Open Related Entity</span>
 <MsIcon name="arrow_forward" className="text-[16px]" />
-                </button>
-              </div>
+                             </button>
+            </div>
             </div>
           </div>
         </div>
@@ -317,8 +319,8 @@ export function NotificationDetailDialogStitchPage() {
                     across trader instances or platform scopes.
                   </p>
                 </div>
-                <button className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer" title="Close Panel" type="button" onClick={() => setSo0(false)}><MsIcon name="close" className="text-[18px]" /></button>
-              </div>
+                <button className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer" title="Close Panel" type="button" onClick={() => setSo0(false)}><MsIcon name="close" className="text-[18px]" />             </button>
+            </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <div className="bg-surface-container-low rounded-xl p-4 space-y-3">
@@ -388,8 +390,8 @@ export function NotificationDetailDialogStitchPage() {
                   </button>
                   <button className="py-2.5 px-3 rounded-lg bg-surface-container text-on-surface-variant font-medium text-left hover:bg-surface-container-high transition-colors truncate" type="button" onClick={() => setSo0(false)}>                    Until Next Session (00:00 UTC)</button>
                 </div>
-                <button className="w-full py-2 px-3 rounded-lg bg-surface-container-low text-tsc text-[11px] font-medium text-center hover:bg-surface-container transition-colors" type="button">                  Indefinite / Until Manually Unmuted</button>
-              </div>
+                <button className="w-full py-2 px-3 rounded-lg bg-surface-container-low text-tsc text-[11px] font-medium text-center hover:bg-surface-container transition-colors" type="button">                  Indefinite / Until Manually Unmuted             </button>
+            </div>
               <div className="space-y-2.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-on-surface">Secondary Routing &amp; Telemetry</label>
                 <div className="space-y-2 bg-surface-container-low p-3 rounded-xl">
@@ -436,8 +438,8 @@ export function NotificationDetailDialogStitchPage() {
                 <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-semibold shadow-md hover:bg-[#3d6749] transition-all cursor-pointer" type="button" onClick={() => setSo0(false)}>
 <MsIcon name="notifications_off" className="text-[16px]" />
                   <span>Apply Mute Rule</span>
-                </button>
-              </div>
+                             </button>
+            </div>
             </div>
           </div>
         </div>
@@ -542,6 +544,136 @@ export function NotificationDetailDialogStitchPage() {
           </div>
         </div>
         </>
+      )}
+      {so2 && (
+        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/40 backdrop-blur-sm overflow-y-auto" id="muteNotificationTypeStreamSheet">
+          <div className="relative w-full max-w-2xl bg-surface-bright rounded-2xl shadow-2xl p-6 my-8 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center">
+                  <MsIcon name="notifications_off" className="text-[20px] text-tsc" />
+                </div>
+                <div>
+                  <div className="font-headline font-bold text-lg text-on-surface">Mute Notification Type</div>
+                  <div className="text-xs font-mono text-tsc">ALERT STREAM RULE MANAGEMENT</div>
+                </div>
+              </div>
+            <button className="w-8 h-8 rounded-lg flex items-center justify-center text-tsc hover:bg-surface-container hover:text-on-surface transition-colors" type="button" onClick={() => setSo2(false)}>
+                <MsIcon name="close" className="text-[20px]" />
+              </button>
+            </div>
+            <div className="space-y-4 mb-4">
+              <div>
+                <div className="text-xs font-bold text-tsc mb-1">Target Ingress Stream</div>
+                <div className="p-3 rounded-xl bg-surface-container-low">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-on-surface">Max Daily Drawdown Breach (kill-switch)</span>
+                    <span className="px-2 py-0.5 rounded-md bg-error-container text-on-error-container text-[10px] font-bold">Critical Risk & Surveillance</span>
+                  </div>
+                  <div className="text-xs text-tsc mt-1 font-mono">rule_code: #RL-DD50 · FIX 4.4 Ingress</div>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-bold text-tsc mb-1">Suppression Boundary (Scope)</div>
+                <div className="space-y-2 text-xs">
+                  <label className="flex items-center gap-3 p-3 rounded-lg bg-surface-container-low cursor-pointer hover:bg-surface-container transition-colors">
+                    <input defaultChecked className="text-primary accent-primary focus:ring-primary w-4 h-4" type="radio" name="mute_scope" />
+                    <div>
+                      <div className="font-semibold text-on-surface">This Trader Only</div>
+                      <div className="text-tsc mt-0.5">Elena Althaus · MT5 Account #MT5-882049</div>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-3 rounded-lg bg-surface-container-low cursor-pointer hover:bg-surface-container transition-colors">
+                    <input className="text-primary accent-primary focus:ring-primary w-4 h-4" type="radio" name="mute_scope" />
+                    <div>
+                      <div className="font-semibold text-on-surface">Tenant-wide Application</div>
+                      <div className="text-tsc mt-0.5">Alpha Capital Media — All 1,420 Active Trading Accounts</div>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 p-3 rounded-lg bg-surface-container-low cursor-pointer hover:bg-surface-container transition-colors">
+                    <input className="text-primary accent-primary focus:ring-primary w-4 h-4" type="radio" name="mute_scope" />
+                    <div>
+                      <div className="flex items-center gap-1.5 font-semibold text-on-surface">
+                        <span>Global Platform Scope</span>
+                        <MsIcon name="lock" className="text-[13px] text-tertiary" />
+                      </div>
+                      <div className="text-tsc mt-0.5">All 8 Platform Tenants (Super-Admin authorization required)</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-bold text-tsc mb-1">Mute Duration Window</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button className="py-2 px-3 rounded-lg bg-surface-container text-on-surface-variant text-xs font-medium hover:bg-surface-container-high transition-colors" type="button">1 Hour</button>
+                  <button className="py-2 px-3 rounded-lg bg-surface-container text-on-surface-variant text-xs font-medium hover:bg-surface-container-high transition-colors" type="button">4 Hours</button>
+                  <button className="py-2 px-3 rounded-lg bg-primary text-on-primary text-xs font-semibold shadow-sm" type="button">24 Hours (1 Day)</button>
+                  <button className="py-2 px-3 rounded-lg bg-surface-container text-on-surface-variant text-xs font-medium hover:bg-surface-container-high transition-colors" type="button">Until Next Session (00:00 UTC)</button>
+                </div>
+                <button className="w-full mt-2 py-2 px-3 rounded-lg bg-surface-container-low text-tsc text-xs font-medium text-center hover:bg-surface-container transition-colors" type="button">Indefinite / Until Manually Unmuted             </button>
+            </div>
+              <div>
+                <div className="text-xs font-bold text-tsc mb-1">Secondary Routing & Telemetry</div>
+                <div className="space-y-2 bg-surface-container-low p-3 rounded-xl">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input defaultChecked className="mt-0.5 w-4 h-4 rounded text-primary accent-primary focus:ring-0 opacity-70" disabled type="checkbox" />
+                    <div className="text-xs">
+                      <span className="font-semibold text-on-surface">Compliance SIEM & WORM Audit Ingress</span>
+                      <span className="block text-[10px] text-tertiary">Mandatory by SEC Rule 17a-4 / FINRA non-repudiation protocol</span>
+                    </div>
+                  </label>
+                  <div className="h-px bg-surface-container"></div>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input className="mt-0.5 w-4 h-4 rounded text-primary accent-primary focus:ring-primary" type="checkbox" />
+                    <div className="text-xs">
+                      <span className="font-medium text-on-surface">Route suppressed alerts to Operator Digest email</span>
+                      <span className="block text-[10px] text-tsc">Hourly batch summary instead of live bell broadcast</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-tsc mb-1">Regulatory Audit Reason</label>
+                <textarea className="w-full bg-surface-container rounded-xl p-3 text-xs text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary font-normal resize-none leading-relaxed" rows={3} placeholder="Describe the regulatory or operational reason for this mute..." />
+                <p className="text-[10px] text-tsc mt-1 leading-tight">This rationale will be signed with your cryptographic key and committed to the immutability stream.</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button className="px-4 py-2 rounded-lg bg-surface-container text-tsc text-xs font-semibold hover:bg-surface-container-high transition-colors" type="button" onClick={() => setSo2(false)}>Cancel</button>
+              <button className="px-5 py-2 rounded-lg bg-primary text-on-primary text-xs font-semibold shadow-sm hover:bg-primary/95 transition-all" type="button" onClick={() => setSo2(false)}>
+                <MsIcon name="notifications_off" className="inline mr-1" />
+                Apply Mute Rule
+              </button>
+            </div>
+          </div>
+        </div>
+        </>
+      )}
+      {so3 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/40 backdrop-blur-sm overflow-y-auto" id="snoozeNotificationAlertDialog">
+          <div className="relative w-full max-w-md bg-surface-bright rounded-2xl shadow-2xl p-6 my-8 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center"><MsIcon name="snooze" className="text-[20px] text-tsc" /></div>
+                <div><div className="font-headline font-bold text-lg text-on-surface">Snooze this notification?</div><div className="text-xs font-mono text-tsc">SURVEILLANCE OVERRIDE · EVT-94182</div></div>
+              </div>
+              <button className="w-8 h-8 rounded-lg flex items-center justify-center text-tsc hover:bg-surface-container hover:text-on-surface transition-colors" type="button" onClick={() => setSo3(false)}><MsIcon name="close" className="text-[20px]" /></button>
+            </div>
+            <div className="space-y-3 mb-4">
+              <div className="text-xs text-tsc leading-relaxed">Choose how long to suppress active audio and modal alerts for this breach. The incident record remains permanently signed in FINRA Rule 4511 WORM ledgers.</div>
+              <div><div className="text-xs font-bold text-on-surface mb-2">Suppression Window</div><div className="space-y-2">
+                <label className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-surface-container-low cursor-pointer hover:bg-surface-container transition-colors"><div className="flex items-center gap-3"><input className="text-primary accent-primary focus:ring-primary w-4 h-4" type="radio" name="snooze_duration" /><div><div className="text-xs font-semibold text-on-surface">1 Hour</div><div className="text-[11px] text-tsc">Resurfaces today at 15:38 UTC</div></div></div><span className="text-[11px] font-mono text-tsc">+60m</span></label>
+                <label className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-primary/10 text-primary cursor-pointer hover:bg-primary/20 transition-colors"><div className="flex items-center gap-3"><input defaultChecked className="text-primary accent-primary focus:ring-primary w-4 h-4" type="radio" name="snooze_duration" /><div><div className="text-xs font-semibold text-on-surface flex items-center gap-1.5"><span>4 Hours</span><span className="px-1.5 py-0.2 rounded bg-primary text-on-primary text-[10px] font-bold uppercase">Recommended</span></div><div className="text-[11px] text-tsc">Surfaces today at 18:38 UTC (Post-NY Fix)</div></div></div><span className="text-[11px] font-mono text-primary">+240m</span></label>
+                <label className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-surface-container-low cursor-pointer hover:bg-surface-container transition-colors"><div className="flex items-center gap-3"><input className="text-primary accent-primary focus:ring-primary w-4 h-4" type="radio" name="snooze_duration" /><div><div className="text-xs font-semibold text-on-surface">24 Hours (1 Day)</div><div className="text-[11px] text-tsc">Surfaces tomorrow at 14:38 UTC</div></div></div><span className="text-[11px] font-mono text-tsc">+1d</span></label>
+                <label className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-surface-container-low cursor-pointer hover:bg-surface-container transition-colors"><div className="flex items-center gap-3"><input className="text-primary accent-primary focus:ring-primary w-4 h-4" type="radio" name="snooze_duration" /><div><div className="text-xs font-semibold text-on-surface">1 Week</div><div className="text-[11px] text-tsc">Surfaces next Monday at market open</div></div></div><span className="text-[11px] font-mono text-tsc">+7d</span></label>
+              </div></div>
+            </div>
+            <div className="p-3 rounded-xl bg-surface-container-low mb-4"><label className="flex items-start gap-2.5 cursor-pointer"><input defaultChecked className="mt-0.5 w-4 h-4 rounded text-primary accent-primary focus:ring-primary" type="checkbox" /><div className="text-xs text-on-surface"><span className="font-semibold">Also snooze subsequent drawdown breaches</span><div className="text-[11px] text-tsc mt-0.5">Applies to Account #MT5-882049 until this temporary override expires.</div></div></label></div>
+            <div className="space-y-2 mb-4"><div className="text-xs font-bold text-on-surface mb-1">Operator Justification Note</div><textarea className="w-full bg-surface-container rounded-xl p-3 text-xs text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary resize-none leading-relaxed" rows={3} placeholder="Trader acknowledged via desk phone..." /><div className="text-[11px] text-tsc flex justify-between"><span className="flex items-center gap-1"><MsIcon name="lock" className="text-[13px] text-primary" /> Appended to officer sign-off</span><span>0 / 500 chars</span></div></div>
+            <div className="flex items-center justify-end gap-3"><button className="px-4 py-2 rounded-lg bg-surface-container text-tsc text-xs font-semibold hover:bg-surface-container-high transition-colors" type="button" onClick={() => setSo3(false)}>Cancel</button><button className="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm hover:bg-primary/95 transition-all flex items-center gap-2" type="button" onClick={() => setSo3(false)}><MsIcon name="snooze" className="text-[17px]" />Snooze for 4 Hours</button></div>
+          </div>
+        </div>
       )}
     </>
   );
