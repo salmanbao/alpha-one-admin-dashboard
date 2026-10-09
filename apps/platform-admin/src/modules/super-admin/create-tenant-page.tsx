@@ -695,10 +695,17 @@ function ModulesStep({
           const accent = m.manifest.accentColor ?? state.primaryColor;
           const isCore = CORE_MODULE_IDS.includes(m.manifest.id);
           return (
-            <button
+            <div
               key={m.manifest.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => toggle(m.manifest.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggle(m.manifest.id);
+                }
+              }}
               className={cn(
                 "flex flex-col items-start gap-2 rounded-lg border p-3 text-left transition-all hover:shadow-sm",
                 selected
@@ -727,7 +734,7 @@ function ModulesStep({
               {isCore ? (
                 <Badge variant="secondary" className="text-[9px]">Core</Badge>
               ) : null}
-            </button>
+            </div>
           );
         })}
       </div>

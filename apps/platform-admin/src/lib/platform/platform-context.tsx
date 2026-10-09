@@ -169,13 +169,13 @@ function readStoredUser(): AuthUser {
   if (typeof window !== "undefined") {
     try {
       const id = window.localStorage.getItem(DEMO_USER_KEY);
-      const found = (id && users.find((u) => u.id === id)) || users[1];
+      const found = (id && users.find((u) => u.id === id)) || users[0];
       // Merge persisted profile edits so name/email/avatar survive reloads
       const patch = readUserOverrides()[found.id];
       return patch ? { ...found, ...patch } : found;
     } catch { /* ignore */ }
   }
-  return users[1]; // Sarah Chen — prop-admin (default)
+  return users[0]; // Alex Morgan — super-admin (default)
 }
 
 function readStoredTenantId(): string | null {
@@ -206,7 +206,7 @@ function routerStateFromUrl(): RouterState {
 }
 
 export function PlatformProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser>(readStoredUser); // persisted, falls back to Sarah Chen
+  const [user, setUser] = useState<AuthUser>(readStoredUser); // persisted, falls back to Alex Morgan (super-admin)
   const [customTenants, setCustomTenants] = useState<TenantContext[]>(() => {
     // Tenants created at runtime (Create Tenant wizard) persist across reloads.
     if (typeof window === "undefined") return [];
@@ -217,10 +217,19 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   });
   const [tenant, setTenant] = useState<TenantContext>(() => {
     const storedId = readStoredTenantId();
-    const all = [...tenants, ...customTenants];
-    return all.find((t) => t.id === storedId)
-      ?? all.find((t) => t.id === user.tenantId)
-      ?? platformTenant;
+    if (storedId) {
+      const all = [...tenants, ...customTenants];
+      return all.find((t) => t.id === storedId) ?? platformTenant;
+    }
+    // No stored tenant: pick the tenant that matches the (default) user.
+    // Super-admin users use the platform pseudo-tenant; tenant-bound users
+    // use their own tenant.
+    const userTenant = users.find((u) => u.id === user.id)?.tenantId;
+    if (userTenant) {
+      const all = [...tenants, ...customTenants];
+      return all.find((t) => t.id === userTenant) ?? platformTenant;
+    }
+    return platformTenant;
   });
   const [themeMode, setThemeMode] = useState<"light" | "dark">(() => {
     // Persist theme choice so F5 doesn't reset it
@@ -230,7 +239,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       return t === "dark" ? "dark" : "light";
     } catch { return "light"; }
   });
-  const [router, setRouter] = useState<RouterState>(routerStateFromUrl);
+  const [router, setRouter] = useState<RouterState>(() => {
+    // First-boot: land super-admin users on the platform overview.
+    const isSuperAdmin = user.application === "super-admin";
+    const url = routerStateFromUrl();
+    if (url.view && url.view !== "overview") return url;
+    return { view: isSuperAdmin ? "super-overview" : "overview", params: {}, history: [isSuperAdmin ? "super-overview" : "overview"] };
+  });
   const [notifications, setNotifications] = useState<AppNotification[]>(seedNotifications);
   const [commandOpen, setCommandOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {

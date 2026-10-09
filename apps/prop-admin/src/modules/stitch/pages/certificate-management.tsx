@@ -17,6 +17,11 @@ import { MsIcon } from "@/components/stitch/stitch";
 export function CertificateManagementStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  const [so2, setSo2] = React.useState(false);
+  const [so3, setSo3] = React.useState(false);
+  const [so4, setSo4] = React.useState(false);
+  const [so5, setSo5] = React.useState(false);
+  const [so6, setSo6] = React.useState(false);
   return (
     <>
       <div className="flex flex-col w-full px-6 lg:px-10 py-6 max-w-[1720px] mx-auto space-y-6">
@@ -60,6 +65,13 @@ export function CertificateManagementStitchPage() {
             <button className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-on-surface transition-all shadow-sm" onClick={() => setSo0(true)}>
 <MsIcon name="verified_user" className="text-[17px] text-tsc" />
               <span>CA Signature Settings</span>
+            </button>              <button className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-on-surface transition-all shadow-sm">
+<MsIcon name="file_download" className="text-[17px] text-tsc" />
+              <span>Export Registry (CSV)</span>
+            </button>
+            <button className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-on-surface transition-all shadow-sm" onClick={() => setSo0(true)}>
+<MsIcon name="verified_user" className="text-[17px] text-tsc" />
+              <span>CA Signature Settings</span>
             </button>
             <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-xs font-bold text-on-primary transition-all shadow-md">
 <MsIcon name="add_circle" className="text-[18px]" />
@@ -74,7 +86,7 @@ export function CertificateManagementStitchPage() {
               <span>Templates</span>
               <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px]">6 Configured</span>
             </button>
-            <button className="flex items-center gap-2.5 px-4 py-2 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface transition-all" id="tab-typography-btn">
+            <button className="flex items-center gap-2.5 px-4 py-2 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface transition-all" id="tab-typography-btn" onClick={() => setSo1(true)}>
 <MsIcon name="format_paint" className="text-[17px]" />
               <span>Typography &amp; Fonts</span>
               <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant text-[10px]">8 Active Fonts</span>
