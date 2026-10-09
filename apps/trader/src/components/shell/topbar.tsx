@@ -51,6 +51,7 @@ export function Topbar() {
               )}
               aria-expanded={open}
               aria-haspopup="true"
+              aria-label="User menu"
             >
               <User className="h-4 w-4" />
               <span className="hidden sm:block">{user?.name ?? "Trader"}</span>
