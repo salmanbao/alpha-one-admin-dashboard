@@ -230,6 +230,118 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "knowledge-base": dynamic(
+    () =>
+      import("@/modules/super-admin/knowledge-base-page").then((m) => ({
+        default: m.KnowledgeBasePage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "changelog": dynamic(
+    () =>
+      import("@/modules/super-admin/changelog-page").then((m) => ({
+        default: m.ChangelogPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "module-detail": dynamic(
+    () =>
+      import("@/modules/super-admin/module-detail-page").then((m) => ({
+        default: m.ModuleDetailPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "module-settings": dynamic(
+    () =>
+      import("@/modules/super-admin/module-settings-page").then((m) => ({
+        default: m.ModuleSettingsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "model-audit-log": dynamic(
+    () =>
+      import("@/modules/super-admin/model-audit-log-page").then((m) => ({
+        default: m.ModelAuditLogPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "impersonation-audit": dynamic(
+    () =>
+      import("@/modules/super-admin/impersonation-audit-page").then((m) => ({
+        default: m.ImpersonationAuditPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "ai-usage-quota": dynamic(
+    () =>
+      import("@/modules/super-admin/ai-usage-quota-page").then((m) => ({
+        default: m.AiUsageQuotaPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "bridge-sync-log": dynamic(
+    () =>
+      import("@/modules/super-admin/bridge-sync-log-page").then((m) => ({
+        default: m.BridgeSyncLogPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "getting-started": dynamic(
+    () =>
+      import("@/modules/super-admin/getting-started-page").then((m) => ({
+        default: m.GettingStartedPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "platform-architecture": dynamic(
+    () =>
+      import("@/modules/super-admin/platform-architecture-page").then((m) => ({
+        default: m.PlatformArchitecturePage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "platform-overview": dynamic(
+    () =>
+      import("@/modules/super-admin/platform-overview-page").then((m) => ({
+        default: m.PlatformOverviewPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "platform-roles": dynamic(
+    () =>
+      import("@/modules/super-admin/platform-roles-page").then((m) => ({
+        default: m.PlatformRolesPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "platform-staff": dynamic(
+    () =>
+      import("@/modules/super-admin/platform-staff-page").then((m) => ({
+        default: m.PlatformStaffPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "platform-transactions": dynamic(
+    () =>
+      import("@/modules/super-admin/platform-transactions-page").then((m) => ({
+        default: m.PlatformTransactionsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "system-health": dynamic(
+    () =>
+      import("@/modules/super-admin/system-health-page").then((m) => ({
+        default: m.SystemHealthPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "audit-log": dynamic(
+    () =>
+      import("@/modules/super-admin/audit-log-page").then((m) => ({
+        default: m.AuditLogPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
 };
 
 const dynamicViews = new Map<string, ViewComponent>();
