@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Literata, Nunito_Sans } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
+import { Providers } from "@/components/platform/providers";
+import { AppShell } from "@/components/shell/app-shell";
 
 const materialSymbols = `
   @font-face {
@@ -76,11 +77,9 @@ export default function RootLayout({
         className={`${literata.variable} ${nunitoSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <style dangerouslySetInnerHTML={{ __html: materialSymbols }} />
-        <div className="bg-foreground text-background px-4 py-1 text-xs text-center font-medium">
-          PFaaS Platform Admin — Super Admin Console
-        </div>
-        {children}
-        <Toaster />
+        <Providers>
+          <AppShell>{children}</AppShell>
+        </Providers>
       </body>
     </html>
   );

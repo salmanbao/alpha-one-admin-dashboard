@@ -26,6 +26,18 @@ export { FeatureFlagsPage } from "./feature-flags-page";
 // Round 8b: deferred screens from the research inventory
 export { MySessionsPage } from "./my-sessions-page";
 export { SecurityOverviewPage } from "./security-overview-page";
+
+// Stitch screens — platform admin scope
+export { KnowledgeBasePage } from "./knowledge-base-page";
+export { ChangelogPage } from "./changelog-page";
+export { ModuleDetailPage } from "./module-detail-page";
+export { ModuleSettingsPage } from "./module-settings-page";
+export { ModelAuditLogPage } from "./model-audit-log-page";
+export { ImpersonationAuditPage } from "./impersonation-audit-page";
+export { AiUsageQuotaPage } from "./ai-usage-quota-page";
+export { BridgeSyncLogPage } from "./bridge-sync-log-page";
+export { GettingStartedPage } from "./getting-started-page";
+export { PlatformArchitecturePage } from "./platform-architecture-page";
 export { PlatformFinancialsPage } from "./platform-financials-page";
 export { GlobalDefaultsPage } from "./global-defaults-page";
 export { ReferenceDataPage } from "./reference-data-page";
@@ -37,6 +49,12 @@ export { AnnouncementsPage } from "./announcements-page";
 export { PlatformAnalyticsPage } from "./platform-analytics-page";
 export { DashboardManagerPage } from "./dashboard-manager-page";
 export { PlatformAuditPage } from "./platform-audit-page";
+export { PlatformOverviewPage } from "./platform-overview-page";
+export { PlatformRolesPage } from "./platform-roles-page";
+export { PlatformStaffPage } from "./platform-staff-page";
+export { PlatformTransactionsPage } from "./platform-transactions-page";
+export { SystemHealthPage } from "./system-health-page";
+export { AuditLogPage } from "./audit-log-page";
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
