@@ -47,6 +47,18 @@ interface CatalogEntry {
   icon: ModuleManifest["icon"];
   /** Module ids this module depends on (mirrors prop-admin). */
   dependencies?: string[];
+  /** Widget definitions (metadata only; components are in prop-admin bundle). */
+  widgets?: Array<{
+    id: string;
+    title: string;
+    module: string;
+    category: string;
+    component?: never;
+    permission: string;
+    feature?: string;
+    defaultSize: { w: number; h: number };
+    description?: string;
+  }>;
 }
 
 /** Keep in lockstep with prop-admin's module-bootstrap registration list. */
@@ -59,6 +71,7 @@ const CATALOG: CatalogEntry[] = [
     category: "core",
     accentColor: "#404040",
     icon: Settings,
+    widgets: [],
   },
   {
     id: "trading",
@@ -67,6 +80,13 @@ const CATALOG: CatalogEntry[] = [
     category: "core",
     accentColor: "#0f766e",
     icon: CandlestickChart,
+    widgets: [
+      { id: "trading-overview", title: "Trading Overview", module: "trading", category: "metric", permission: "trader.read", defaultSize: { w: 12, h: 1 }, description: "Aggregate trading KPIs across all traders." },
+      { id: "account-balance", title: "Account Balances", module: "trading", category: "chart", permission: "account.read", defaultSize: { w: 6, h: 2 }, description: "Distribution of account balances." },
+      { id: "trader-performance", title: "Trader Performance", module: "trading", category: "leaderboard", permission: "trader.read", defaultSize: { w: 6, h: 2 }, description: "Top trader performance leaderboard." },
+      { id: "open-positions", title: "Open Positions", module: "trading", category: "table", permission: "trader.read", defaultSize: { w: 12, h: 3 }, description: "Active position summary across all traders." },
+      { id: "position-pnl", title: "Position P&L", module: "trading", category: "chart", permission: "trader.read", defaultSize: { w: 6, h: 2 }, description: "Aggregate P&L by symbol and P&L %." },
+    ],
   },
   {
     id: "challenges",
@@ -75,6 +95,11 @@ const CATALOG: CatalogEntry[] = [
     category: "core",
     accentColor: "#15803d",
     icon: Target,
+    widgets: [
+      { id: "challenge-overview", title: "Challenge Overview", module: "challenges", category: "metric", permission: "challenge.read", defaultSize: { w: 12, h: 1 } },
+      { id: "challenge-progress", title: "Challenge Progress", module: "challenges", category: "progress", permission: "challenge.read", defaultSize: { w: 6, h: 2 } },
+      { id: "challenge-phases", title: "Phase Distribution", module: "challenges", category: "chart", permission: "challenge.read", defaultSize: { w: 6, h: 2 } },
+    ],
   },
   {
     id: "risk",
@@ -83,6 +108,12 @@ const CATALOG: CatalogEntry[] = [
     category: "core",
     accentColor: "#b91c1c",
     icon: ShieldCheck,
+    widgets: [
+      { id: "risk-overview", title: "Risk Overview", module: "risk", category: "metric", permission: "risk.read", defaultSize: { w: 12, h: 1 } },
+      { id: "risk-distribution", title: "Risk Distribution", module: "risk", category: "chart", permission: "risk.read", defaultSize: { w: 6, h: 2 } },
+      { id: "breach-trend", title: "Breach Trend (30d)", module: "risk", category: "chart", permission: "breach.read", defaultSize: { w: 6, h: 2 } },
+      { id: "open-breaches", title: "Open Breaches", module: "risk", category: "alert", permission: "breach.read", defaultSize: { w: 12, h: 2 } },
+    ],
   },
   {
     id: "payouts",
@@ -91,6 +122,12 @@ const CATALOG: CatalogEntry[] = [
     category: "core",
     accentColor: "#15803d",
     icon: Wallet,
+    widgets: [
+      { id: "payout-overview", title: "Payout Overview", module: "payouts", category: "metric", permission: "payout.read", defaultSize: { w: 12, h: 1 } },
+      { id: "payout-queue", title: "Pending Approvals", module: "payouts", category: "table", permission: "payout.approve", defaultSize: { w: 6, h: 3 } },
+      { id: "payout-trend", title: "Payout Trend (30d)", module: "payouts", category: "chart", permission: "payout.read", defaultSize: { w: 6, h: 2 } },
+      { id: "payout-method", title: "By Method", module: "payouts", category: "chart", permission: "payout.read", defaultSize: { w: 6, h: 2 } },
+    ],
   },
   {
     id: "support",
@@ -101,6 +138,11 @@ const CATALOG: CatalogEntry[] = [
     optional: true,
     dependencies: ["trading"],
     icon: LifeBuoy,
+    widgets: [
+      { id: "support-overview", title: "Support Overview", module: "support", category: "metric", permission: "support.read", defaultSize: { w: 12, h: 1 } },
+      { id: "support-recent-tickets", title: "Recent Tickets", module: "support", category: "table", permission: "support.read", defaultSize: { w: 12, h: 2 } },
+      { id: "support-priority", title: "Ticket Priority", module: "support", category: "chart", permission: "support.read", defaultSize: { w: 6, h: 2 } },
+    ],
   },
   {
     id: "stitch",
@@ -111,6 +153,11 @@ const CATALOG: CatalogEntry[] = [
     optional: true,
     dependencies: ["trading"],
     icon: Monitor,
+    widgets: [
+      { id: "stitch-overview", title: "Stitch Overview", module: "stitch", category: "metric", permission: "stitch.read", defaultSize: { w: 12, h: 1 } },
+      { id: "stitch-positions", title: "Positions", module: "stitch", category: "table", permission: "stitch.read", defaultSize: { w: 12, h: 3 } },
+      { id: "stitch-orders", title: "Order History", module: "stitch", category: "table", permission: "stitch.read", defaultSize: { w: 6, h: 2 } },
+    ],
   },
   // Growth — opt-in modules that expand the tenant's business surface.
   {
@@ -122,6 +169,14 @@ const CATALOG: CatalogEntry[] = [
     optional: true,
     dependencies: ["trading", "challenges"],
     icon: BarChart3,
+    widgets: [
+      { id: "analytics-overview", title: "Analytics Overview", module: "analytics", category: "metric", permission: "analytics.read", defaultSize: { w: 12, h: 1 } },
+      { id: "revenue", title: "Revenue (30d)", module: "analytics", category: "chart", permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
+      { id: "trader-growth", title: "Trader Growth", module: "analytics", category: "chart", permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
+      { id: "analytics-risk-distribution", title: "Risk Distribution", module: "analytics", category: "chart", permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
+      { id: "analytics-breach-trend", title: "Breach Trend", module: "analytics", category: "chart", permission: "analytics.read", defaultSize: { w: 6, h: 2 } },
+      { id: "advanced-analytics", title: "Advanced Analytics", module: "analytics", category: "ai", permission: "analytics.advanced.read", feature: "analytics.advanced", defaultSize: { w: 12, h: 2 } },
+    ],
   },
   {
     id: "affiliates",
@@ -132,6 +187,11 @@ const CATALOG: CatalogEntry[] = [
     optional: true,
     dependencies: ["trading"],
     icon: Megaphone,
+    widgets: [
+      { id: "affiliate-overview", title: "Affiliate Overview", module: "affiliates", category: "metric", permission: "affiliate.read", defaultSize: { w: 12, h: 1 } },
+      { id: "top-affiliates", title: "Top Affiliates", module: "affiliates", category: "leaderboard", permission: "affiliate.read", defaultSize: { w: 6, h: 2 } },
+      { id: "affiliate-revenue", title: "Affiliate Revenue", module: "affiliates", category: "chart", permission: "affiliate.read", defaultSize: { w: 6, h: 2 } },
+    ],
   },
   {
     id: "marketing",
@@ -142,6 +202,11 @@ const CATALOG: CatalogEntry[] = [
     optional: true,
     dependencies: ["trading"],
     icon: Megaphone,
+    widgets: [
+      { id: "marketing-overview", title: "Marketing Overview", module: "marketing", category: "metric", permission: "marketing.read", defaultSize: { w: 12, h: 1 } },
+      { id: "campaign-performance", title: "Campaign Performance", module: "marketing", category: "chart", permission: "marketing.read", defaultSize: { w: 6, h: 2 } },
+      { id: "channel-breakdown", title: "Channel Breakdown", module: "marketing", category: "chart", permission: "marketing.read", defaultSize: { w: 6, h: 2 } },
+    ],
   },
   {
     id: "crm",
@@ -152,6 +217,10 @@ const CATALOG: CatalogEntry[] = [
     optional: true,
     dependencies: ["trading"],
     icon: Contact,
+    widgets: [
+      { id: "crm-overview", title: "CRM Overview", module: "crm", category: "metric", permission: "crm.read", defaultSize: { w: 12, h: 1 } },
+      { id: "crm-pipeline", title: "Pipeline", module: "crm", category: "chart", permission: "crm.read", defaultSize: { w: 6, h: 2 } },
+    ],
   },
   // Advanced / compliance / AI.
   {
@@ -163,6 +232,11 @@ const CATALOG: CatalogEntry[] = [
     optional: true,
     dependencies: ["trading"],
     icon: Calculator,
+    widgets: [
+      { id: "accounting-overview", title: "Accounting Overview", module: "accounting", category: "metric", permission: "accounting.read", defaultSize: { w: 12, h: 1 } },
+      { id: "revenue-by-type", title: "Revenue by Type", module: "accounting", category: "chart", permission: "accounting.read", defaultSize: { w: 6, h: 2 } },
+      { id: "transaction-flow", title: "Transaction Flow", module: "accounting", category: "chart", permission: "accounting.read", defaultSize: { w: 6, h: 2 } },
+    ],
   },
   {
     id: "kyc",
@@ -173,6 +247,10 @@ const CATALOG: CatalogEntry[] = [
     optional: true,
     dependencies: ["trading"],
     icon: ShieldCheck,
+    widgets: [
+      { id: "kyc-overview", title: "KYC Overview", module: "kyc", category: "metric", permission: "kyc.read", defaultSize: { w: 12, h: 1 } },
+      { id: "kyc-queue", title: "KYC Queue", module: "kyc", category: "alert", permission: "kyc.read", defaultSize: { w: 12, h: 2 } },
+    ],
   },
   {
     id: "audit",
@@ -184,6 +262,7 @@ const CATALOG: CatalogEntry[] = [
     optional: true,
     dependencies: ["settings"],
     icon: ShieldCheck,
+    widgets: [],
   },
   {
     id: "ai",
@@ -194,6 +273,11 @@ const CATALOG: CatalogEntry[] = [
     optional: true,
     dependencies: ["trading", "analytics"],
     icon: Brain,
+    widgets: [
+      { id: "ai-overview", title: "AI Overview", module: "ai", category: "metric", permission: "ai.read", defaultSize: { w: 12, h: 1 } },
+      { id: "ai-insights", title: "AI Insights", module: "ai", category: "ai", permission: "ai.read", defaultSize: { w: 12, h: 2 } },
+      { id: "ai-confidence", title: "AI Confidence", module: "ai", category: "chart", permission: "ai.read", defaultSize: { w: 6, h: 2 } },
+    ],
   },
 ];
 
@@ -211,7 +295,7 @@ export const tenantModuleCatalog: FrontendModule[] = CATALOG.map((e) => ({
     supportedApplications: ["prop-admin"],
     dependencies: e.dependencies,
   },
-  // No navigation / routes / widgets — the prop-admin runtime owns those.
+  widgets: e.widgets,
 }));
 
 /** Catalog lookup for a single module id (e.g. provisioning step 6 refs). */
