@@ -6,6 +6,7 @@
  */
 
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/platform/status";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -77,22 +78,19 @@ export function CardGrid({ cards }: CardGridProps) {
             </div>
             <div className="flex items-center gap-2">
               {card.trendDirection === "up" && (
-                <StatusBadge
-                  tone="success"
-                  className="h-2 w-2"
-                />
+                <StatusBadge tone="success" className="h-4 px-1.5 text-[9px]">
+                  ↑
+                </StatusBadge>
               )}
               {card.trendDirection === "down" && (
-                <StatusBadge
-                  tone="danger"
-                  className="h-2 w-2"
-                />
+                <StatusBadge tone="danger" className="h-4 px-1.5 text-[9px]">
+                  ↓
+                </StatusBadge>
               )}
               {card.trendDirection === "neutral" && (
-                <StatusBadge
-                  tone="muted"
-                  className="h-2 w-2"
-                />
+                <StatusBadge tone="muted" className="h-4 px-1.5 text-[9px]">
+                  →
+                </StatusBadge>
               )}
               <span className="text-[10px] font-medium text-muted-foreground">
                 {card.trend > 0 ? "+" : ""}{card.trend}%
