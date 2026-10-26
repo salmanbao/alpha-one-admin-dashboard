@@ -5,6 +5,7 @@
  * Replay of a closed trade with step timeline and price path.
  */
 
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   TerraBadge,
@@ -27,6 +28,41 @@ const timeline = [
 export function TradeReplayPage() {
   const params = useSearchParams();
   const trade = terraTrades.find((t) => t.id === params.get("id")) ?? terraTrades[1];
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    if (currentStep >= timeline.length - 1) {
+      setIsPlaying(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setCurrentStep((s) => s + 1);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [isPlaying, currentStep]);
+
+  const handlePlay = () => {
+    if (isPlaying) {
+      setIsPlaying(false);
+    } else {
+      if (currentStep >= timeline.length - 1) {
+        setCurrentStep(0);
+      }
+      setIsPlaying(true);
+    }
+  };
+
+  const handlePrev = () => {
+    setIsPlaying(false);
+    setCurrentStep((s) => Math.max(0, s - 1));
+  };
+
+  const handleNext = () => {
+    setIsPlaying(false);
+    setCurrentStep((s) => Math.min(timeline.length - 1, s + 1));
+  };
 
   return (
     <div className="space-y-6">
@@ -46,20 +82,43 @@ export function TradeReplayPage() {
           description={`${trade.entry} → ${trade.exit} • ${trade.pips >= 0 ? "+" : ""}${trade.pips} pips`}
           actions={
             <div className="flex gap-2">
-              <button type="button" className="rounded-lg bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container">
+              <button
+                type="button"
+                onClick={handlePrev}
+                disabled={currentStep === 0}
+                className="rounded-lg bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container disabled:opacity-50"
+              >
                 ⏮
               </button>
-              <button type="button" className="rounded-lg bg-primary px-4 py-1.5 text-xs font-bold text-on-primary">
-                ▶ Play
+              <button
+                type="button"
+                onClick={handlePlay}
+                className="rounded-lg bg-primary px-4 py-1.5 text-xs font-bold text-on-primary"
+              >
+                {isPlaying ? "⏸ Pause" : "▶ Play"}
               </button>
-              <button type="button" className="rounded-lg bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container">
+              <button
+                type="button"
+                onClick={handleNext}
+                disabled={currentStep >= timeline.length - 1}
+                className="rounded-lg bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container disabled:opacity-50"
+              >
                 ⏭
               </button>
+              <span className="flex items-center px-2 text-xs font-medium text-on-surface-variant">
+                {currentStep + 1} / {timeline.length}
+              </span>
             </div>
           }
         />
         <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-outline-variant bg-surface-container-low/50 text-sm text-on-surface-variant">
-          Session replay chart — {trade.symbol} ({trade.entry} → {trade.exit})
+          <div className="text-center">
+            <p className="mb-2">Session replay chart — {trade.symbol} ({trade.entry} → {trade.exit})</p>
+            <p className="text-xs font-semibold text-on-surface">
+              Step {currentStep + 1}: {timeline[currentStep].step} at {timeline[currentStep].time}
+            </p>
+            <p className="text-xs text-on-surface-variant">{timeline[currentStep].note}</p>
+          </div>
         </div>
       </TerraCard>
 
@@ -67,14 +126,14 @@ export function TradeReplayPage() {
         <TerraSectionTitle title="Execution timeline" />
         <TerraTable
           head={["Step", "Time", "Note"]}
-          rows={timeline.map((t) => [
-            <TerraBadge key="s" tone={t.tone}>
+          rows={timeline.map((t, i) => [
+            <TerraBadge key="s" tone={i <= currentStep ? t.tone : "neutral"}>
               {t.step}
             </TerraBadge>,
-            <span key="t" className="font-mono text-xs">
+            <span key="t" className={i <= currentStep ? "font-mono text-xs" : "font-mono text-xs opacity-40"}>
               {t.time}
             </span>,
-            <span key="n" className="text-on-surface-variant">
+            <span key="n" className={i <= currentStep ? "text-on-surface-variant" : "text-on-surface-variant opacity-40"}>
               {t.note}
             </span>,
           ])}

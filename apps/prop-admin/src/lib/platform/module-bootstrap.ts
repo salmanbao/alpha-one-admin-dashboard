@@ -8,7 +8,9 @@
 
 import { moduleRegistry } from "./module-registry";
 import { tradingModule } from "@/modules/trading/manifest";
+import { tradersModule } from "@/modules/traders/manifest";
 import { challengesModule } from "@/modules/challenges/manifest";
+import { challengesModule as challengesModuleAlt } from "@/modules/challenges/manifest";
 import { riskModule } from "@/modules/risk/manifest";
 import { payoutsModule } from "@/modules/payouts/manifest";
 import { analyticsModule } from "@/modules/analytics/manifest";
@@ -22,14 +24,17 @@ import { aiModule } from "@/modules/ai/manifest";
 import { auditModule } from "@/modules/audit/audit-module";
 import { settingsModule } from "@/modules/settings/settings-module";
 import { stitchModule } from "@/modules/stitch/manifest";
+import { overviewModule } from "@/modules/overview/manifest";
 
 let bootstrapped = false;
 export function bootstrapModules() {
   if (bootstrapped) return;
   bootstrapped = true;
   moduleRegistry.register(settingsModule);
+  moduleRegistry.register(overviewModule);
   // core business modules
   moduleRegistry.register(tradingModule);
+  moduleRegistry.register(tradersModule);
   moduleRegistry.register(challengesModule);
   moduleRegistry.register(riskModule);
   moduleRegistry.register(payoutsModule);
