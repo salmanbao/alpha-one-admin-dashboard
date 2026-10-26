@@ -1094,6 +1094,26 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
           emptyTitle="No invoices yet"
           emptyDescription="Invoices will appear here after the first billing cycle."
         />
+        {/* Dunning / failed payments */}
+        <div className="rounded-lg border border-rose-500/10 bg-rose-50/40 p-3 text-xs text-rose-800 dark:text-rose-200 dark:bg-rose-950/20">
+          <div className="flex items-center gap-2 font-medium"><AlertTriangle className="h-3.5 w-3.5" /> Dunning (failed payments)</div>
+          <div className="mt-2 space-y-1.5">
+            {[
+              { invoice: "INV-2026-10-043", tenant: "Beta Trading", amount: 1900, attempts: 2, daysOverdue: 7 },
+              { invoice: "INV-2026-10-040", tenant: "Gamma Futures", amount: 4900, attempts: 1, daysOverdue: 3 },
+            ].map((d) => (
+              <div key={d.invoice} className="flex items-center gap-3 rounded-md border bg-white/70 p-2 dark:bg-rose-950/20">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium truncate">{d.invoice} · {d.tenant}</p>
+                  <p className="text-[10px] opacity-70">{d.attempts} attempts · {d.daysOverdue} days overdue</p>
+                </div>
+                <span className="font-bold">{formatCurrency(d.amount)}</span>
+                <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => toast({ title: "Retry scheduled", description: `Retrying ${d.invoice} via dunning flow.` })}>Retry</Button>
+                <Button size="sm" variant="destructive" className="h-6 px-2 text-[10px]" onClick={() => toast({ title: "Paused", description: `Dunning paused for ${d.invoice}.` })}>Pause</Button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
