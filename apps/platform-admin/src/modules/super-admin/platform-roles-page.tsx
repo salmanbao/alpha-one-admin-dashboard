@@ -30,7 +30,6 @@ import {
   XCircle,
   Lock,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
 
 // Demo platform roles
 const platformRoles = [
@@ -140,16 +139,7 @@ export function PlatformRolesPage() {
             <Button size="sm" variant="outline" onClick={() => navigate("role-management")}>
               Role editor
             </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                toast({
-                  title: "Role Creation",
-                  description: "Role editor will open with a blank template. Configure permissions and tenant scope, then save.",
-                });
-                navigate("role-management");
-              }}
-            >
+            <Button size="sm" onClick={() => {}}>
               <Plus className="mr-1 h-4 w-4" /> Create Role
             </Button>
           </>
@@ -223,29 +213,10 @@ export function PlatformRolesPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        toast({
-                          title: "Edit Role",
-                          description: `Opening role editor for ${role.name}.`,
-                        });
-                        navigate("role-management");
-                      }}
-                    >
+                    <Button size="sm" variant="outline">
                       <Edit2 className="mr-1 h-4 w-4" /> Edit
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        toast({
-                          title: "Role Duplicated",
-                          description: `${role.name} has been duplicated. A copy named "${role.name} (Copy)" is now in the role list.`,
-                        });
-                      }}
-                    >
+                    <Button size="sm" variant="outline">
                       <Copy className="mr-1 h-4 w-4" /> Duplicate
                     </Button>
                   </div>

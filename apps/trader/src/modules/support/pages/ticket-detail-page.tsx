@@ -5,7 +5,6 @@
  * Message thread with reply composer.
  */
 
-import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@pfaas/ui";
 import {
@@ -19,21 +18,6 @@ export function TicketDetailPage() {
   const params = useSearchParams();
   const ticket =
     supportTickets.find((t) => t.id === params.get("id")) ?? supportTickets[0];
-  const [reply, setReply] = useState("");
-  const [sent, setSent] = useState(false);
-  const [attachment, setAttachment] = useState<string | null>(null);
-
-  const handleSendReply = () => {
-    if (!reply.trim()) return;
-    setSent(true);
-    setReply("");
-    setTimeout(() => setSent(false), 3000);
-  };
-
-  const handleAttachFile = () => {
-    setAttachment("screenshot.png");
-    setTimeout(() => setAttachment(null), 2000);
-  };
 
   return (
     <div className="space-y-6">
@@ -83,37 +67,21 @@ export function TicketDetailPage() {
 
       <TerraCard>
         <div className="flex flex-col gap-3">
-          {sent && (
-            <div className="rounded-lg bg-primary-fixed/50 px-4 py-3 text-sm font-semibold text-on-primary-fixed-variant">
-              ✓ Reply sent successfully!
-            </div>
-          )}
-          {attachment && (
-            <div className="flex items-center gap-2 rounded-lg bg-surface-container-low px-4 py-3 text-sm text-on-surface-variant">
-              <span className="text-primary">📎</span> Attached: {attachment}
-              <span className="text-xs">(will be included with reply)</span>
-            </div>
-          )}
           <textarea
             placeholder="Type your reply…"
             rows={4}
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
             className="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm outline-none focus:border-primary"
           />
           <div className="flex justify-between">
             <button
               type="button"
-              onClick={handleAttachFile}
               className="rounded-xl bg-surface-container-low px-4 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container"
             >
               Attach file
             </button>
             <button
               type="button"
-              onClick={handleSendReply}
-              disabled={!reply.trim()}
-              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
             >
               Send reply
             </button>
