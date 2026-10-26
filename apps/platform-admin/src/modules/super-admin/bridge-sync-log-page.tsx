@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +41,14 @@ const initialEntries: BridgeSyncEntry[] = [
 ];
 
 export function BridgeSyncLogPage() {
-  const [entries, setEntries] = useState(initialEntries);
+  // Async seam (frontend-first): entries resolve via the mock layer
+  // (read-only log — no local mutation).
+  const {
+    data: entries = [],
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => initialEntries, { delayMs: 450 }), []);
   const [search, setSearch] = useState("");
   const [bridgeFilter, setBridgeFilter] = useState("all");
 
@@ -79,6 +88,13 @@ export function BridgeSyncLogPage() {
         actions={<Button size="sm" variant="outline"><RefreshCw className="mr-1 h-4 w-4" /> Retry Failed</Button>}
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={entries.length > 0}
+          loadingLabel="Loading bridge sync log…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Events" value={entries.length} icon={Server} />
           <MetricCard label="Successes" value={successes} icon={CheckCircle2} tone="positive" />
@@ -158,6 +174,7 @@ export function BridgeSyncLogPage() {
           </div>
           <p className="mt-1">Failed syncs are automatically queued for retry. Manual retry available via the Retry Failed button. All events are recorded in the WORM audit store.</p>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

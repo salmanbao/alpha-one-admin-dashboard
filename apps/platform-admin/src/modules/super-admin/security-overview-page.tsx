@@ -1,6 +1,8 @@
 "use client";
 
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/platform/status";
@@ -18,7 +20,7 @@ interface SecurityEvent {
   timestamp: string;
 }
 
-const events: SecurityEvent[] = [
+const demoEvents: SecurityEvent[] = [
   { id: "SE-001", type: "Failed login", severity: "warning", actor: "unknown@example.com", detail: "3 failed attempts from new IP", ip: "203.0.113.10", timestamp: "15m ago" },
   { id: "SE-002", type: "Suspicious login", severity: "critical", actor: "admin@gammafutures.com", detail: "Login from anomalous location (Russia) — blocked", ip: "198.51.100.42", timestamp: "1h ago" },
   { id: "SE-003", type: "MFA challenge", severity: "warning", actor: "sarah@alphacapital.com", detail: "TOTP verification required after device change", ip: "192.168.1.1", timestamp: "2h ago" },
@@ -40,6 +42,15 @@ const columns: Column<SecurityEvent>[] = [
 ];
 
 export function SecurityOverviewPage() {
+  // Async seam (frontend-first): data resolves via the mock layer so the
+  // loading skeleton + error/retry states are exercised.
+  const {
+    data: loadedData,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => demoEvents, { delayMs: 450 }), []);
+  const events = loadedData ?? [];
   const failedLogins = events.filter((e) => e.type === "Failed login").length;
   const suspiciousLogins = events.filter((e) => e.type === "Suspicious login").length;
   const anomalyBlocks = events.filter((e) => e.severity === "critical").length;
@@ -48,6 +59,13 @@ export function SecurityOverviewPage() {
     <Page>
       <PageHeader title="Security Overview" description="Platform security posture — logins, anomalies, credential rotation, and certificate health." icon={Lock} />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={loadedData !== undefined}
+          loadingLabel="Loading security events…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Failed Logins (24h)" value={failedLogins} icon={XCircle} tone={failedLogins > 2 ? "warning" : "positive"} />
           <MetricCard label="Suspicious Logins" value={suspiciousLogins} icon={ShieldAlert} tone={suspiciousLogins > 0 ? "negative" : "positive"} />
@@ -106,6 +124,7 @@ export function SecurityOverviewPage() {
             <DataTable columns={columns} data={events} rowKey={(e) => e.id} searchableText={(e) => `${e.type} ${e.actor} ${e.detail}`} searchPlaceholder="Search security events…" pageSize={10} emptyTitle="No events" emptyDescription="Security events will appear here." />
           </CardContent>
         </Card>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

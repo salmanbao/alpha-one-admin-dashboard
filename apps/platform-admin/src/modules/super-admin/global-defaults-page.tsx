@@ -1,11 +1,24 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { recordAudit } from "@/lib/platform/console-store";
+import { Save, RotateCcw } from "lucide-react";
 import { Settings2, Building2, DollarSign, Clock, ShieldCheck } from "lucide-react";
 
 interface DefaultSetting {
@@ -37,12 +50,92 @@ const defaults: DefaultSetting[] = [
   { id: "d14", category: "Notifications", name: "Quiet hours default", value: "22:00-07:00", type: "text", description: "Default quiet-hours window for notifications." },
 ];
 
+/** Editable value shape: text/number/select share `value`; toggles use `toggle`. */
+type SettingValues = Record<string, { value: string; toggle: boolean }>;
+
+const initialValues: SettingValues = Object.fromEntries(
+  defaults.map((d) => [d.id, { value: d.value, toggle: d.toggleValue ?? false }]),
+);
+
 export function GlobalDefaultsPage() {
+  const { user, pushNotification } = usePlatform();
+  const [values, setValues] = useState<SettingValues>(initialValues);
+  const [saved, setSaved] = useState<SettingValues>(initialValues);
+
   const categories = Array.from(new Set(defaults.map((d) => d.category)));
+  const dirty = useMemo(
+    () => JSON.stringify(values) !== JSON.stringify(saved),
+    [values, saved],
+  );
+  const changedCount = useMemo(
+    () =>
+      defaults.filter(
+        (d) =>
+          values[d.id].value !== saved[d.id].value ||
+          values[d.id].toggle !== saved[d.id].toggle,
+      ).length,
+    [values, saved],
+  );
+
+  const setValue = (id: string, patch: Partial<SettingValues[string]>) =>
+    setValues((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+
+  const handleSave = () => {
+    const changed = defaults
+      .filter(
+        (d) =>
+          values[d.id].value !== saved[d.id].value ||
+          values[d.id].toggle !== saved[d.id].toggle,
+      )
+      .map((d) => `${d.name}: ${saved[d.id].toggle ? "on" : saved[d.id].value || "off"} → ${values[d.id].toggle ? "on" : values[d.id].value || "off"}`);
+    setSaved(values);
+    recordAudit({
+      actor: user?.name ?? "Platform Admin",
+      action: "console.operator_action",
+      target: "global_defaults",
+      severity: "info",
+      detail: `Updated ${changed.length} platform default${changed.length === 1 ? "" : "s"} — ${changed.join("; ")}`,
+    });
+    pushNotification({
+      title: "Global defaults saved",
+      message: `${changed.length} default${changed.length === 1 ? "" : "s"} updated — applies to new tenants only.`,
+      severity: "success",
+      module: "super-admin",
+    });
+    toast({
+      title: "Defaults saved",
+      description: `${changed.length} change${changed.length === 1 ? "" : "s"} recorded in the platform audit log.`,
+    });
+  };
+
+  const handleReset = () => {
+    setValues(saved);
+    toast({
+      title: "Changes discarded",
+      description: "Defaults restored to the last saved state.",
+    });
+  };
 
   return (
     <Page>
-      <PageHeader title="Global Defaults" description="Platform-wide default settings. Tenants can override these unless marked as locked." icon={Settings2} />
+      <PageHeader
+        title="Global Defaults"
+        description="Platform-wide default settings. Tenants can override these unless marked as locked."
+        icon={Settings2}
+        actions={
+          <>
+            {dirty ? (
+              <Button variant="outline" size="sm" onClick={handleReset}>
+                <RotateCcw className="mr-1 h-4 w-4" /> Discard changes
+              </Button>
+            ) : null}
+            <Button size="sm" onClick={handleSave} disabled={!dirty}>
+              <Save className="mr-1 h-4 w-4" /> Save defaults
+              {dirty ? ` (${changedCount})` : ""}
+            </Button>
+          </>
+        }
+      />
       <PageContent>
         <div className="rounded-lg border border-amber-500/20 bg-amber-50/30 p-3 text-xs text-muted-foreground dark:bg-amber-950/10">
           <p className="font-medium text-foreground">Platform defaults vs tenant overrides</p>
@@ -62,13 +155,35 @@ export function GlobalDefaultsPage() {
                     <p className="text-xs text-muted-foreground">{d.description}</p>
                   </div>
                   {d.isToggle ? (
-                    <Switch checked={d.toggleValue} aria-label={d.name} />
+                    <Switch
+                      checked={values[d.id].toggle}
+                      onCheckedChange={(c) => setValue(d.id, { toggle: c })}
+                      aria-label={d.name}
+                    />
                   ) : d.type === "select" ? (
-                    <select className="h-8 rounded-md border border-input bg-background px-2 text-xs" defaultValue={d.value}>
-                      {d.options?.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
+                    <Select
+                      value={values[d.id].value}
+                      onValueChange={(v) => setValue(d.id, { value: v })}
+                    >
+                      <SelectTrigger className="h-8 w-32 text-xs" aria-label={d.name}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {d.options?.map((o) => (
+                          <SelectItem key={o} value={o}>
+                            {o}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : (
-                    <Input className="h-8 w-32 text-xs" defaultValue={d.value} />
+                    <Input
+                      className="h-8 w-32 text-xs"
+                      value={values[d.id].value}
+                      onChange={(e) => setValue(d.id, { value: e.target.value })}
+                      aria-label={d.name}
+                      type={d.type === "number" ? "number" : "text"}
+                    />
                   )}
                   <Badge variant="outline" className="text-[9px]">Platform default</Badge>
                 </div>

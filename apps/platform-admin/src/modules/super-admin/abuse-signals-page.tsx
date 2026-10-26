@@ -7,6 +7,8 @@ import { StatusBadge } from "@/components/platform/status";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { AlertTriangle, Eye, Users, Globe, Network, Fingerprint } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 
 interface AbuseSignal {
   id: string;
@@ -39,18 +41,33 @@ const columns: Column<AbuseSignal>[] = [
 ];
 
 export function AbuseSignalsPage() {
-  const critical = signals.filter((s) => s.severity === "critical").length;
-  const high = signals.filter((s) => s.severity === "high").length;
+  // Async seam (frontend-first): resolves through the mock layer so the
+  // loading skeleton and error+retry states are real, not dead code.
+  const {
+    data: rows,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => signals, { delayMs: 400 }), []);
+  const critical = rows?.filter((s) => s.severity === "critical").length ?? 0;
+  const high = rows?.filter((s) => s.severity === "high").length ?? 0;
 
   return (
     <Page>
       <PageHeader title="Cross-Tenant Abuse Signals" description="Observe and investigate cross-tenant abuse. The platform console observes; tenant-level risk decisions belong to the tenant/risk domain." icon={AlertTriangle} />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={rows !== undefined}
+          loadingLabel="Loading abuse signals…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MetricCard label="Total Signals" value={signals.length} icon={AlertTriangle} />
+          <MetricCard label="Total Signals" value={rows?.length ?? 0} icon={AlertTriangle} />
           <MetricCard label="Critical" value={critical} icon={AlertTriangle} tone={critical > 0 ? "negative" : "positive"} />
           <MetricCard label="High" value={high} icon={Eye} tone={high > 0 ? "warning" : "positive"} />
-          <MetricCard label="Tenants Affected" value={new Set(signals.flatMap((s) => s.affectedTenants)).size} icon={Users} />
+          <MetricCard label="Tenants Affected" value={new Set((rows ?? []).flatMap((s) => s.affectedTenants)).size} icon={Users} />
         </div>
 
         <div className="rounded-lg border border-amber-500/20 bg-amber-50/30 p-3 text-xs text-muted-foreground dark:bg-amber-950/10">
@@ -61,9 +78,10 @@ export function AbuseSignalsPage() {
         <Card>
           <CardHeader className="pb-2"><span className="text-sm font-medium">Active abuse signals</span></CardHeader>
           <CardContent>
-            <DataTable columns={columns} data={signals} rowKey={(s) => s.id} searchableText={(s) => `${s.type} ${s.detail} ${s.evidence}`} searchPlaceholder="Search signals…" pageSize={10} emptyTitle="No signals" emptyDescription="Abuse signals will appear here when detected." />
+            <DataTable columns={columns} data={rows ?? []} rowKey={(s) => s.id} searchableText={(s) => `${s.type} ${s.detail} ${s.evidence}`} searchPlaceholder="Search signals…" pageSize={10} emptyTitle="No signals" emptyDescription="Abuse signals will appear here when detected." />
           </CardContent>
         </Card>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +39,15 @@ const statusTone = (s: Announcement["status"]) =>
   s === "visible" ? "success" : s === "scheduled" ? "info" : s === "expired" ? "muted" : "warning";
 
 export function AnnouncementsPage() {
+  // Async seam (frontend-first): hydrate via the mock layer so the
+  // loading skeleton + error/retry states are exercised; local
+  // interactive state below stays authoritative once loaded.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const [announcements, setAnnouncements] = useState(initial);
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
@@ -71,6 +82,13 @@ export function AnnouncementsPage() {
         actions={<Button size="sm" onClick={() => setShowForm(!showForm)}><Plus className="mr-1 h-4 w-4" /> Create</Button>}
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading announcements…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Visible" value={visible} icon={CheckCircle2} tone="positive" />
           <MetricCard label="Scheduled" value={scheduled} icon={Clock} />
@@ -137,6 +155,7 @@ export function AnnouncementsPage() {
             </Card>
           ))}
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

@@ -9,6 +9,8 @@
 
 import { useState, useMemo } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { StatusBadge } from "@/components/platform/status";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -44,19 +46,19 @@ import {
 } from "lucide-react";
 
 // Demo audit events
-const auditEvents = [
-  { id: "evt-001", timestamp: "2026-10-08T14:32:15Z", actor: "Marcus Vance", actorRole: "Platform Admin", action: "tenant.update", target: "Alpha Capital Media", targetType: "Tenant", details: "Updated billing plan from Scale to Enterprise", region: "us-east-1", severity: "info" },
+const demoAuditEvents = [
+  { id: "evt-001", timestamp: "2026-10-08T14:32:15Z", actor: "Marcus Vance", actorRole: "Platform Admin", action: "tenant.update", target: "Alpha Capital", targetType: "Tenant", details: "Updated billing plan from Scale to Enterprise", region: "us-east-1", severity: "info" },
   { id: "evt-002", timestamp: "2026-10-08T14:28:42Z", actor: "Sarah Chen", actorRole: "Security Officer", action: "user.suspend", target: "david.park@pfaas.io", targetType: "User", details: "Suspended user due to inactivity policy (30 days)", region: "us-east-1", severity: "warning" },
   { id: "evt-003", timestamp: "2026-10-08T14:15:00Z", actor: "James Rodriguez", actorRole: "Billing Admin", action: "billing.payout", target: "Beta Trading", targetType: "Tenant", details: "Initiated payout of $28,900.00 USD", region: "us-east-1", severity: "info" },
-  { id: "evt-004", timestamp: "2026-10-08T13:55:23Z", actor: "Marcus Vance", actorRole: "Platform Admin", action: "module.enable", target: "Analytics", targetType: "Module", details: "Enabled Analytics module for Gamma Fund tenant", region: "eu-west-1", severity: "info" },
+  { id: "evt-004", timestamp: "2026-10-08T13:55:23Z", actor: "Marcus Vance", actorRole: "Platform Admin", action: "module.enable", target: "Analytics", targetType: "Module", details: "Enabled Analytics module for Gamma Futures tenant", region: "eu-west-1", severity: "info" },
   { id: "evt-005", timestamp: "2026-10-08T13:42:18Z", actor: "Emily Kim", actorRole: "Tenant Operator", action: "support.ticket", target: "TC-2847", targetType: "Ticket", details: "Resolved support ticket #2847 - Account verification", region: "us-east-1", severity: "info" },
   { id: "evt-006", timestamp: "2026-10-08T13:30:00Z", actor: "Sarah Chen", actorRole: "Security Officer", action: "security.breach", target: "acct-beta-7", targetType: "Account", details: "Max drawdown exceeded - automatic breach triggered", region: "us-east-2", severity: "critical" },
   { id: "evt-007", timestamp: "2026-10-08T13:15:45Z", actor: "System", actorRole: "Automated", action: "system.backup", target: "Alpha Capital DB", targetType: "Database", details: "Scheduled backup completed successfully", region: "us-east-1", severity: "info" },
-  { id: "evt-008", timestamp: "2026-10-08T12:58:30Z", actor: "Marcus Vance", actorRole: "Platform Admin", action: "tenant.create", target: "Omega Prop House", targetType: "Tenant", details: "Created new tenant with Enterprise L4 plan", region: "us-east-1", severity: "info" },
-  { id: "evt-009", timestamp: "2026-10-08T12:45:00Z", actor: "James Rodriguez", actorRole: "Billing Admin", action: "billing.invoice", target: "Delta Prop", targetType: "Tenant", details: "Generated monthly invoice #INV-2026-10-045", region: "us-east-1", severity: "info" },
+  { id: "evt-008", timestamp: "2026-10-08T12:58:30Z", actor: "Marcus Vance", actorRole: "Platform Admin", action: "tenant.create", target: "Gamma Futures", targetType: "Tenant", details: "Created new tenant with Enterprise L4 plan", region: "us-east-1", severity: "info" },
+  { id: "evt-009", timestamp: "2026-10-08T12:45:00Z", actor: "James Rodriguez", actorRole: "Billing Admin", action: "billing.invoice", target: "Alpha Capital", targetType: "Tenant", details: "Generated monthly invoice #INV-2026-10-045", region: "us-east-1", severity: "info" },
   { id: "evt-010", timestamp: "2026-10-08T12:30:15Z", actor: "Lisa Thompson", actorRole: "Support Agent", action: "support.ticket", target: "TC-2848", targetType: "Ticket", details: "Created support ticket - Withdrawal request inquiry", region: "us-east-1", severity: "info" },
   { id: "evt-011", timestamp: "2026-10-08T12:15:00Z", actor: "Sarah Chen", actorRole: "Security Officer", action: "security.audit", target: "Platform Audit Log", targetType: "System", details: "Exported audit log for compliance review Q3 2026", region: "us-east-1", severity: "info" },
-  { id: "evt-012", timestamp: "2026-10-08T11:55:22Z", actor: "Anna Martinez", actorRole: "Tenant Operator", action: "tenant.update", target: "Gamma Fund", targetType: "Tenant", details: "Updated tenant branding colors and logo", region: "eu-central-1", severity: "info" },
+  { id: "evt-012", timestamp: "2026-10-08T11:55:22Z", actor: "Anna Martinez", actorRole: "Tenant Operator", action: "tenant.update", target: "Gamma Futures", targetType: "Tenant", details: "Updated tenant branding colors and logo", region: "eu-central-1", severity: "info" },
 ];
 
 const actionIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -115,6 +117,15 @@ export function AuditLogPage() {
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
 
+  // Async seam (frontend-first): event stream resolves via the mock layer.
+  const {
+    data: loadedEvents,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => demoAuditEvents, { delayMs: 450 }), []);
+  const auditEvents = loadedEvents ?? [];
+
   const filtered = useMemo(() => {
     return auditEvents.filter((evt) => {
       const matchesSearch =
@@ -127,12 +138,12 @@ export function AuditLogPage() {
       const matchesSeverity = severityFilter === "all" || evt.severity === severityFilter;
       return matchesSearch && matchesAction && matchesSeverity;
     });
-  }, [search, actionFilter, severityFilter]);
+  }, [auditEvents, search, actionFilter, severityFilter]);
 
   const actions = useMemo(() => {
     const set = new Set(auditEvents.map((e) => e.action));
     return Array.from(set).sort();
-  }, []);
+  }, [auditEvents]);
 
   const stats = useMemo(() => ({
     total: auditEvents.length,
@@ -140,7 +151,7 @@ export function AuditLogPage() {
     warning: auditEvents.filter((e) => e.severity === "warning").length,
     info: auditEvents.filter((e) => e.severity === "info").length,
     actors: new Set(auditEvents.map((e) => e.actor)).size,
-  }), []);
+  }), [auditEvents]);
 
   return (
     <Page>
@@ -150,6 +161,10 @@ export function AuditLogPage() {
         icon={ScrollText}
         actions={
           <>
+            {/* Chain: platform-audit → here → model/change history */}
+            <Button variant="ghost" size="sm" onClick={() => navigate("model-audit-log")}>
+              Model / change history
+            </Button>
             <Button variant="outline" size="sm">
               <Download className="mr-1 h-4 w-4" /> Export
             </Button>
@@ -160,6 +175,13 @@ export function AuditLogPage() {
         }
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={loadedEvents !== undefined}
+          loadingLabel="Loading audit events…"
+        >
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="Total Events (24h)" value={stats.total} icon={ScrollText} />
@@ -325,6 +347,7 @@ export function AuditLogPage() {
             </div>
           </CardContent>
         </Card>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

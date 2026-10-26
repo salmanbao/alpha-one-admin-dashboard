@@ -106,7 +106,7 @@ const seedNotifications: AppNotification[] = [
     read: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
     actionLabel: "Review",
-    actionHref: "payouts",
+    actionHref: "cross-tenant-queues",
   },
   {
     id: "n2",
@@ -117,7 +117,7 @@ const seedNotifications: AppNotification[] = [
     read: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
     actionLabel: "Investigate",
-    actionHref: "breaches",
+    actionHref: "abuse-signals",
   },
   {
     id: "n3",
@@ -128,7 +128,7 @@ const seedNotifications: AppNotification[] = [
     read: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
     actionLabel: "Open",
-    actionHref: "kyc",
+    actionHref: "cross-tenant-queues",
   },
   {
     id: "n4",
@@ -189,7 +189,7 @@ function readStoredTenantId(): string | null {
 
 /** Parse the current URL (?view=tenant-detail&id=…) into router state. */
 function routerStateFromUrl(): RouterState {
-  const fallback: RouterState = { view: "overview", params: {}, history: ["overview"] };
+  const fallback: RouterState = { view: "super-overview", params: {}, history: ["super-overview"] };
   if (typeof window === "undefined") return fallback;
   try {
     const usp = new URLSearchParams(window.location.search);
@@ -240,11 +240,11 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     } catch { return "light"; }
   });
   const [router, setRouter] = useState<RouterState>(() => {
-    // First-boot: land super-admin users on the platform overview.
-    const isSuperAdmin = user.application === "super-admin";
+    // First-boot: land on the platform overview. Legacy bookmarks with the
+    // removed `?view=overview` sentinel (copied from prop-admin) fall back too.
     const url = routerStateFromUrl();
     if (url.view && url.view !== "overview") return url;
-    return { view: isSuperAdmin ? "super-overview" : "overview", params: {}, history: [isSuperAdmin ? "super-overview" : "overview"] };
+    return { view: "super-overview", params: {}, history: ["super-overview"] };
   });
   const [notifications, setNotifications] = useState<AppNotification[]>(seedNotifications);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -395,7 +395,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
     try {
       const usp = new URLSearchParams();
-      if (router.view && router.view !== "overview") usp.set(ROUTE_PARAM, router.view);
+      if (router.view && router.view !== "super-overview") usp.set(ROUTE_PARAM, router.view);
       Object.entries(router.params).forEach(([k, v]) => usp.set(k, v));
       const qs = usp.toString();
       const nextUrl = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
@@ -429,7 +429,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setRouter((r) => {
       if (r.history.length < 2) return r;
       const history = r.history.slice(0, -1);
-      const view = history[history.length - 1] ?? "overview";
+      const view = history[history.length - 1] ?? "super-overview";
       return { view, params: {}, history };
     });
   }, []);

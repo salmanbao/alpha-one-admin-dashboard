@@ -2,10 +2,12 @@
 
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { BarSeries, AreaSeries } from "@/components/platform/charts";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
+import { usePlatform } from "@/lib/platform/platform-context";
 import {
   tenants as allTenants,
   getTenantTraders,
@@ -14,6 +16,8 @@ import {
   hashStr,
 } from "@/lib/platform/mock-data";
 import type { TenantContext } from "@/lib/platform/types";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { BarChart3, Users, Wallet, TrendingUp, DollarSign, Activity } from "lucide-react";
 
 interface TenantMetric {
@@ -25,17 +29,32 @@ interface TenantMetric {
 }
 
 export function PlatformAnalyticsPage() {
-  const rows: TenantMetric[] = allTenants
-    .filter((t) => t.id !== "platform")
-    .map((t) => {
-      const traders = getTenantTraders(t.id).length;
-      const accounts = getTenantAccounts(t.id).length;
-      const fundedAccounts = getTenantAccounts(t.id).filter((a) => a.phase === "funded").length;
-      const payoutVolume = getTenantPayouts(t.id)
-        .filter((p) => p.status === "paid")
-        .reduce((s, p) => s + p.amount, 0);
-      return { tenant: t, traders, accounts, fundedAccounts, payoutVolume };
-    });
+  const { navigate } = usePlatform();
+  // Async seam (frontend-first): cross-tenant metrics resolve via the mock layer.
+  const {
+    data: rows = [],
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(
+    () =>
+      mockAsync(
+        () =>
+          allTenants
+            .filter((t) => t.id !== "platform")
+            .map((t): TenantMetric => {
+              const traders = getTenantTraders(t.id).length;
+              const accounts = getTenantAccounts(t.id).length;
+              const fundedAccounts = getTenantAccounts(t.id).filter((a) => a.phase === "funded").length;
+              const payoutVolume = getTenantPayouts(t.id)
+                .filter((p) => p.status === "paid")
+                .reduce((s, p) => s + p.amount, 0);
+              return { tenant: t, traders, accounts, fundedAccounts, payoutVolume };
+            }),
+        { delayMs: 450 },
+      ),
+    [],
+  );
 
   const totalTraders = rows.reduce((s, r) => s + r.traders, 0);
   const totalAccounts = rows.reduce((s, r) => s + r.accounts, 0);
@@ -66,8 +85,24 @@ export function PlatformAnalyticsPage() {
 
   return (
     <Page>
-      <PageHeader title="Platform Analytics" description="Cross-tenant comparisons — growth, usage, revenue, and provider consumption." icon={BarChart3} />
+      <PageHeader
+        title="Platform Analytics"
+        description="Cross-tenant comparisons — growth, usage, revenue, and provider consumption."
+        icon={BarChart3}
+        actions={
+          <Button size="sm" variant="outline" onClick={() => navigate("ai-usage-quota")}>
+            AI usage & quotas
+          </Button>
+        }
+      />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={rows.length > 0}
+          loadingLabel="Loading analytics…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Traders" value={formatCompact(totalTraders)} icon={Users} tone="positive" />
           <MetricCard label="Total Accounts" value={formatCompact(totalAccounts)} icon={Activity} />
@@ -111,6 +146,7 @@ export function PlatformAnalyticsPage() {
             </ul>
           </CardContent>
         </Card>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

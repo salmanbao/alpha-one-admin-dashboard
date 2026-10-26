@@ -1,6 +1,8 @@
 "use client";
 
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -8,10 +10,25 @@ import { roles as allRoles } from "@/lib/platform/mock-data";
 import { UserCheck, ShieldCheck, Lock, Users } from "lucide-react";
 
 export function RoleManagementPage() {
+  // Async seam (frontend-first): content resolves via the mock layer so
+  // the loading skeleton + error/retry states are exercised.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   return (
     <Page>
       <PageHeader title="Platform Role Management" description="Manage platform roles, permissions, and scope assignments." icon={UserCheck} />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading roles…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Roles" value={allRoles.length} icon={UserCheck} />
           <MetricCard label="Super Admin" value={allRoles.filter((r) => r.application === "super-admin").length} icon={ShieldCheck} tone="positive" />
@@ -56,6 +73,7 @@ export function RoleManagementPage() {
           <p className="font-medium text-foreground">Role governance</p>
           <p className="mt-1">Platform roles control access to the super-admin console. Tenant roles (prop-admin, trader) control access within individual tenants. Role changes are audited and require two-operator approval for privilege escalation.</p>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

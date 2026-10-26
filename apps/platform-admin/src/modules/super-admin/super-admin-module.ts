@@ -37,12 +37,13 @@ import {
   BookOpen,
   Settings2,
   Lock,
-  UserCheck,
   Shield,
   CreditCard,
   HardDrive,
   Percent,
   Sparkles,
+  LifeBuoy,
+  Gauge,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -66,6 +67,7 @@ const navigation: NavigationItem[] = [
       { id: "super.incidents", label: "Incidents", href: "incident-center", icon: AlertTriangle, application: ["super-admin"], group: "Operations" },
       { id: "super.jobs", label: "Jobs", href: "jobs-dashboard", icon: Zap, application: ["super-admin"], group: "Operations" },
       { id: "super.approvals", label: "Approval Center", href: "approval-center", icon: ShieldCheck, application: ["super-admin"], group: "Operations" },
+      { id: "super.support-assist", label: "Support Assist", href: "support-assist", icon: LifeBuoy, application: ["super-admin"], group: "Operations" },
 
       // ───────── Observability ─────────
       { id: "super.health", label: "Platform Health", href: "platform-health", icon: Server, application: ["super-admin"], group: "Observability" },
@@ -73,7 +75,9 @@ const navigation: NavigationItem[] = [
       { id: "super.providers", label: "Provider Registry", href: "provider-registry", icon: Globe, application: ["super-admin"], group: "Observability" },
       { id: "super.queues", label: "Cross-Tenant Queues", href: "cross-tenant-queues", icon: Layers, application: ["super-admin"], group: "Observability" },
       { id: "super.platform-audit", label: "Platform Audit", href: "platform-audit", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 65, group: "Observability" },
-      { id: "super.audit-log", label: "Audit Log", href: "audit-log", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 66, group: "Observability" },
+      { id: "super.usage-metering", label: "Usage Metering", href: "usage-metering", icon: Gauge, application: ["super-admin"], group: "Observability" },
+      // `audit-log` nav entry folded into the Platform Audit page's chain
+      // (platform-audit → audit-log → model-audit-log); route stays registered.
 
       // ───────── Infrastructure ─────────
       { id: "super.deployments", label: "Deployments", href: "deployments", icon: GitBranch, application: ["super-admin"], group: "Infrastructure" },
@@ -86,12 +90,15 @@ const navigation: NavigationItem[] = [
       { id: "super.global-defaults", label: "Global Defaults", href: "global-defaults", icon: Settings2, application: ["super-admin"], group: "Platform Config" },
       { id: "super.reference-data", label: "Reference Data", href: "reference-data", icon: BookOpen, application: ["super-admin"], group: "Platform Config" },
       { id: "super.announcements", label: "Announcements", href: "announcements", icon: Bell, application: ["super-admin"], group: "Platform Config" },
+      { id: "super.notifications", label: "Notifications", href: "notifications", icon: Bell, application: ["super-admin"], group: "Platform Config" },
 
       // ───────── Security ─────────
       { id: "super.security", label: "Security Overview", href: "security-overview", icon: Lock, application: ["super-admin"], group: "Security" },
       { id: "super.sessions", label: "My Sessions", href: "my-sessions", icon: ShieldCheck, application: ["super-admin"], group: "Security" },
-      { id: "super.operators", label: "Operator Directory", href: "operator-directory", icon: Users, application: ["super-admin"], group: "Security" },
-      { id: "super.roles", label: "Role Management", href: "role-management", icon: UserCheck, application: ["super-admin"], group: "Security" },
+      // `operator-directory` nav entry folded into Platform Staff (Governance);
+      // route stays registered and is linked from the platform-staff page.
+      // `role-management` nav entry folded into Platform Roles (Governance);
+      // route stays registered and is linked from the platform-roles page.
       { id: "super.view-as", label: "Tenant View-As", href: "tenant-view-as", icon: Eye, application: ["super-admin"], group: "Security" },
       { id: "super.abuse", label: "Abuse Signals", href: "abuse-signals", icon: AlertTriangle, application: ["super-admin"], group: "Security" },
 
@@ -121,6 +128,9 @@ const routes: RouteDefinition[] = [
   { path: "create-tenant", viewId: "create-tenant", label: "Create Tenant", application: ["super-admin"] },
   { path: "tenant-detail", viewId: "tenant-detail", label: "Tenant Detail", application: ["super-admin"] },
   { path: "tenant-lifecycle", viewId: "tenant-lifecycle", label: "Tenant Lifecycle", application: ["super-admin"] },
+  { path: "provisioning-saga", viewId: "provisioning-saga", label: "Provisioning Saga", application: ["super-admin"] },
+  { path: "usage-metering", viewId: "usage-metering", label: "Usage Metering", application: ["super-admin"] },
+  { path: "support-assist", viewId: "support-assist", label: "Support Assist", application: ["super-admin"] },
   { path: "platform-operations", viewId: "platform-operations", label: "Operations Home", application: ["super-admin"] },
   { path: "emergency-controls", viewId: "emergency-controls", label: "Emergency Controls", application: ["super-admin"] },
   { path: "incident-center", viewId: "incident-center", label: "Incident Center", application: ["super-admin"] },
@@ -137,6 +147,7 @@ const routes: RouteDefinition[] = [
   { path: "global-defaults", viewId: "global-defaults", label: "Global Defaults", application: ["super-admin"] },
   { path: "reference-data", viewId: "reference-data", label: "Reference Data", application: ["super-admin"] },
   { path: "announcements", viewId: "announcements", label: "Announcements", application: ["super-admin"] },
+  { path: "notifications", viewId: "notifications", label: "Notifications", application: ["super-admin"] },
   { path: "security-overview", viewId: "security-overview", label: "Security Overview", application: ["super-admin"] },
   { path: "my-sessions", viewId: "my-sessions", label: "My Sessions", application: ["super-admin"] },
   { path: "operator-directory", viewId: "operator-directory", label: "Operator Directory", application: ["super-admin"] },

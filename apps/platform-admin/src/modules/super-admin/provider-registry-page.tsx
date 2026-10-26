@@ -11,6 +11,8 @@
  */
 
 import { useState } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -48,7 +50,7 @@ interface Provider {
   config: string;
 }
 
-const providers: Provider[] = [
+const demoProviders: Provider[] = [
   {
     id: "metaapi",
     name: "MetaApi",
@@ -139,6 +141,15 @@ const statusTone = (s: Provider["status"]) =>
   s === "operational" ? "success" : s === "degraded" ? "warning" : "danger";
 
 export function ProviderRegistryPage() {
+  // Async seam (frontend-first): data resolves via the mock layer so the
+  // loading skeleton + error/retry states are exercised.
+  const {
+    data: loadedData,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => demoProviders, { delayMs: 450 }), []);
+  const providers = loadedData ?? [];
   const [selected, setSelected] = useState<Provider | null>(null);
   const operational = providers.filter((p) => p.status === "operational").length;
   const degraded = providers.filter((p) => p.status === "degraded").length;
@@ -151,6 +162,13 @@ export function ProviderRegistryPage() {
         icon={Globe}
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={loadedData !== undefined}
+          loadingLabel="Loading provider registry…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Providers" value={providers.length} icon={Globe} />
           <MetricCard label="Operational" value={operational} icon={CheckCircle2} tone="positive" />
@@ -233,6 +251,7 @@ export function ProviderRegistryPage() {
             </CardContent>
           </Card>
         )}
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );
