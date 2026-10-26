@@ -85,12 +85,13 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 export function AccountWorkspaceStitchPage() {
-  const { runtime, navigate } = usePlatform();
+  const { runtime, navigate, tenant, router } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
+  const accountId = router.params.id || "a0";
   const currency = runtime.tenant?.currency ?? "USD";
 
   const accounts = getTenantAccounts(tid);
-  const account = accounts[0] ?? {
+  const account = accounts.find((a) => a.id === accountId) ?? accounts[0] ?? {
     id: "a0", tenantId: tid, traderId: "t0", traderName: "Elena Althaus", login: "MT5-882049",
     platform: "MT5" as const, type: "funded" as const, phase: "funded" as const,
     balance: 100000, equity: 106720, leverage: "1:100", currency: "USD", status: "active" as const, createdAt: "",
@@ -118,7 +119,7 @@ export function AccountWorkspaceStitchPage() {
         subtitle={`${account.platform} · ${trader?.name ?? "Trader"} · ${account.type}`}
         actions={
           <>
-            <StitchButton variant="surface" icon="open_in_new" onClick={() => navigate("trader-detail")}>View Trader</StitchButton>
+            <StitchButton variant="surface" icon="open_in_new" onClick={() => navigate("trader-detail", { id: account.traderId })}>View Trader</StitchButton>
             <StitchButton variant="surface" icon="sticky_note_2" onClick={() => setNoteOpen(true)}>Add Note</StitchButton>
             <StitchButton variant="surface" icon="sync" onClick={() => setSyncOpen(true)}>Sync Account</StitchButton>
             <StitchButton variant="destructive" icon="block" onClick={() => setBlockOpen(true)}>Block</StitchButton>
