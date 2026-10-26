@@ -5,6 +5,7 @@
  * Journal entry list with mood, tags, P&L and notes.
  */
 
+import { useState } from "react";
 import { TerraBadge, TerraCard, TerraPageHeader, TerraStat, formatSignedMoney } from "@/components/terra/terra-ui";
 import { journalEntries } from "@/lib/fixtures/terra-fixtures";
 
@@ -17,6 +18,15 @@ const moodTone = {
 
 export function TradingJournalPage() {
   const total = journalEntries.reduce((s, e) => s + e.pnl, 0);
+  const [showNewEntry, setShowNewEntry] = useState(false);
+  const [newEntry, setNewEntry] = useState({ title: "", notes: "", mood: "disciplined" });
+
+  const handleCreateEntry = () => {
+    if (!newEntry.title.trim()) return;
+    alert(`Journal entry "${newEntry.title}" created successfully!\n\nMood: ${newEntry.mood}\nNotes: ${newEntry.notes || "(no notes)"}`);
+    setShowNewEntry(false);
+    setNewEntry({ title: "", notes: "", mood: "disciplined" });
+  };
 
   return (
     <div className="space-y-6">
@@ -24,11 +34,79 @@ export function TradingJournalPage() {
         title="Trading Journal"
         description="Review your trades, mindset and lessons"
         actions={
-          <button type="button" className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90">
+          <button
+            type="button"
+            onClick={() => setShowNewEntry(true)}
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
+          >
             + New Entry
           </button>
         }
       />
+
+      {showNewEntry && (
+        <TerraCard className="border-primary">
+          <div className="space-y-4">
+            <h3 className="font-headline text-lg font-bold text-on-surface">New Journal Entry</h3>
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                Title
+              </label>
+              <input
+                type="text"
+                value={newEntry.title}
+                onChange={(e) => setNewEntry({ ...newEntry, title: e.target.value })}
+                placeholder="e.g. Good discipline on EURUSD"
+                className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                Mood
+              </label>
+              <select
+                value={newEntry.mood}
+                onChange={(e) => setNewEntry({ ...newEntry, mood: e.target.value })}
+                className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:border-primary"
+              >
+                <option value="disciplined">Disciplined</option>
+                <option value="confident">Confident</option>
+                <option value="patient">Patient</option>
+                <option value="frustrated">Frustrated</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                Notes
+              </label>
+              <textarea
+                value={newEntry.notes}
+                onChange={(e) => setNewEntry({ ...newEntry, notes: e.target.value })}
+                placeholder="What did you learn from this trade?"
+                rows={3}
+                className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleCreateEntry}
+                disabled={!newEntry.title.trim()}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90 disabled:opacity-50"
+              >
+                Save Entry
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowNewEntry(false)}
+                className="rounded-xl bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </TerraCard>
+      )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <TerraCard className="p-5">

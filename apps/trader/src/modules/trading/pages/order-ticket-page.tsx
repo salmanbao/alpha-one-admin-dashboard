@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@pfaas/ui";
 import {
@@ -16,10 +17,36 @@ import {
 import { marketWatch } from "@/lib/fixtures/terra-fixtures";
 
 export function OrderTicketPage() {
+  const router = useRouter();
   const [symbol, setSymbol] = useState(marketWatch[0].symbol);
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [lots, setLots] = useState("0.50");
+  const [submitted, setSubmitted] = useState(false);
   const selected = marketWatch.find((m) => m.symbol === symbol) ?? marketWatch[0];
+
+  const handlePlaceOrder = () => {
+    setSubmitted(true);
+    setTimeout(() => {
+      router.push("/order-detail?id=ord-55011");
+    }, 2000);
+  };
+
+  if (submitted) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-6 text-center">
+        <div className="rounded-full bg-primary-fixed p-6">
+          <span className="text-6xl">✓</span>
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-on-surface">Order Placed Successfully</h2>
+          <p className="mt-2 text-on-surface-variant">
+            {side.toUpperCase()} {lots} {symbol} @ {side === "buy" ? selected.ask : selected.bid}
+          </p>
+          <p className="mt-1 text-sm text-on-surface-variant">Redirecting to order details...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -117,6 +144,7 @@ export function OrderTicketPage() {
 
               <button
                 type="button"
+                onClick={handlePlaceOrder}
                 className={cn(
                   "w-full rounded-xl py-3 text-sm font-bold uppercase tracking-wide shadow-sm transition-all active:scale-[0.99]",
                   side === "buy"
