@@ -6,7 +6,6 @@
  */
 
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import {
   TerraBadge,
   TerraCard,
@@ -47,18 +46,8 @@ export function PayoutDetailPage() {
     },
   ];
 
-  const handleDownloadReceipt = () => {
-    alert(`Receipt ${payout.reference} downloaded successfully!\n\nAmount: ${formatMoney(payout.amount)}\nMethod: ${payout.method}\nStatus: ${payout.status}`);
-  };
-
   return (
     <div className="space-y-6">
-      <Link
-        href="/payout-history"
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
-      >
-        ← Back to Payout History
-      </Link>
       <TerraPageHeader
         title={`Payout ${payout.reference}`}
         description={`Account #${payout.accountLogin} • ${payout.method}`}
@@ -128,7 +117,6 @@ export function PayoutDetailPage() {
           </div>
           <button
             type="button"
-            onClick={handleDownloadReceipt}
             className="rounded-xl bg-surface-container-low px-5 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container"
           >
             Download receipt

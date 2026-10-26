@@ -31,7 +31,6 @@ import {
   LogOut,
   Key,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
 
 // Demo platform staff
 const platformStaff = [
@@ -209,15 +208,7 @@ export function PlatformStaffPage() {
             <Button size="sm" variant="outline" onClick={() => navigate("operator-directory")}>
               Directory
             </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                toast({
-                  title: "Staff Invitation Sent",
-                  description: "An invitation email has been sent to the new staff member. They will appear in the directory once they accept.",
-                });
-              }}
-            >
+            <Button size="sm" onClick={() => {}}>
               <Plus className="mr-1 h-4 w-4" /> Invite Staff
             </Button>
           </>

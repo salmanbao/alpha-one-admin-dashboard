@@ -5,6 +5,7 @@
  * Statement with period selector, balance summary and trade table.
  */
 
+import { useState } from "react";
 import {
   TerraCard,
   TerraPageHeader,
@@ -17,24 +18,43 @@ import {
 import { terraTrades, primaryAccount } from "@/lib/fixtures/terra-fixtures";
 
 export function AccountStatementPage() {
+  const [period, setPeriod] = useState<"Sep" | "Oct">("Oct");
+  const [downloaded, setDownloaded] = useState(false);
   const deposits = 0;
   const closedPnl = terraTrades.reduce((s, t) => s + t.pnl, 0);
+
+  const handleDownload = () => {
+    setDownloaded(true);
+    setTimeout(() => setDownloaded(false), 3000);
+  };
 
   return (
     <div className="space-y-6">
       <TerraPageHeader
         title="Account Statement"
-        description={`${primaryAccount.name} • Login #${primaryAccount.login} • October 2026`}
+        description={`${primaryAccount.name} • Login #${primaryAccount.login} • ${period === "Oct" ? "October" : "September"} 2026`}
         actions={
           <div className="flex gap-2">
-            <button type="button" className="rounded-xl bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container">
+            <button
+              type="button"
+              onClick={() => setPeriod("Sep")}
+              className={`rounded-xl px-4 py-2 text-sm ${period === "Sep" ? "bg-primary font-bold text-on-primary" : "bg-surface-container-low font-semibold text-on-surface hover:bg-surface-container"}`}
+            >
               Sep
             </button>
-            <button type="button" className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary">
+            <button
+              type="button"
+              onClick={() => setPeriod("Oct")}
+              className={`rounded-xl px-4 py-2 text-sm ${period === "Oct" ? "bg-primary font-bold text-on-primary" : "bg-surface-container-low font-semibold text-on-surface hover:bg-surface-container"}`}
+            >
               Oct
             </button>
-            <button type="button" className="rounded-xl bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container">
-              Download PDF
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="rounded-xl bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container"
+            >
+              {downloaded ? "✓ Downloaded" : "Download PDF"}
             </button>
           </div>
         }
