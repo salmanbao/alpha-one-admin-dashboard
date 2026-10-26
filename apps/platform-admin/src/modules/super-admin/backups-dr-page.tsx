@@ -103,6 +103,48 @@ export function BackupsDrPage() {
           </CardContent>
         </Card>
 
+        {/* Backup artifacts */}
+        <Card>
+          <CardHeader className="pb-2"><span className="text-sm font-medium">Backup artifacts</span></CardHeader>
+          <CardContent className="space-y-2">
+            {[
+              { id: "WAL-2026-10-26-18h", type: "WAL", size: "2.1 GB", checksum: "sha256:a8f2…", retention: "7d", location: "s3://pfaas-backups/wal/" },
+              { id: "FULL-2026-10-24-36h", type: "Full", size: "14.7 GB", checksum: "sha256:3e7b…", retention: "30d", location: "s3://pfaas-backups/full/" },
+            ].map((a) => (
+              <div key={a.id} className="flex items-center gap-3 rounded-md border p-2 text-xs">
+                <HardDrive className="h-4 w-4 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{a.id}</p>
+                  <p className="text-muted-foreground truncate">{a.type} · {a.size} · {a.checksum}</p>
+                </div>
+                <Badge variant="outline" className="text-[10px]">{a.retention}</Badge>
+                <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => toast({ title: "Point-in-time restore queued", description: `Restoring from ${a.id} to current state.` })}>
+                  Restore PITR
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Drill stepper (progress view when active) */}
+        <Card>
+          <CardHeader className="pb-2"><span className="text-sm font-medium">Restore drill progress</span></CardHeader>
+          <CardContent className="space-y-2">
+            {[
+              { step: "Provision isolated env", status: "done" as const },
+              { step: "Restore latest WAL", status: "done" as const },
+              { step: "Verify service health", status: "pending" as const },
+              { step: "Confirm data consistency", status: "pending" as const },
+            ].map((s) => (
+              <div key={s.step} className="flex items-center gap-3 rounded-md border p-2 text-xs">
+                <div className={`h-2 w-2 rounded-full ${s.status === "done" ? "bg-emerald-500" : "bg-amber-400"}`} />
+                <span className="font-medium">{s.step}</span>
+                <Badge variant="outline" className={`text-[9px] ${s.status === "done" ? "text-emerald-600" : "text-amber-600"}`}>{s.status === "done" ? "Completed" : "In progress"}</Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
         {/* Actions */}
         <div className="flex flex-wrap gap-2">
           <Button variant="default" onClick={handleVerify}>
