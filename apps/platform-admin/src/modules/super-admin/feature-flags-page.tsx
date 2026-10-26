@@ -18,6 +18,8 @@ import { StatusBadge } from "@/components/platform/status";
 import { Flag, ToggleLeft, ToggleRight, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { SensitiveActionDialog } from "@/components/platform/sensitive-action-dialog";
+import { TwoFactorDialog } from "@/components/platform/two-factor-dialog";
 
 interface FeatureFlag {
   id: string;
@@ -55,8 +57,16 @@ export function FeatureFlagsPage() {
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const [flags, setFlags] = useState<FeatureFlag[]>(initialFlags);
+  const [pendingKillSwitchId, setPendingKillSwitchId] = useState<string | null>(null);
 
   const toggleFlag = (id: string) => {
+    const flag = flags.find((f) => f.id === id);
+    if (!flag) return;
+    if (flag.isKillSwitch) {
+      // Kill switches require 2FA via SensitiveActionDialog
+      setPendingKillSwitchId(id);
+      return;
+    }
     setFlags((prev) =>
       prev.map((f) => {
         if (f.id === id) {
@@ -73,10 +83,30 @@ export function FeatureFlagsPage() {
     );
   };
 
-  const enabled = flags.filter((f) => f.enabled).length;
+  const handleKillSwitchExecute = async (reason: string) => {
+    const flag = flags.find((f) => f.id === pendingKillSwitchId);
+    if (!flag) return;
+    setFlags((prev) =>
+      prev.map((f) => {
+        if (f.id === flag.id) {
+          const next = { ...f, enabled: !f.enabled };
+          toast({
+            title: `${f.name} ${next.enabled ? "enabled" : "disabled"}`,
+            description: `Scope: ${next.scope} · Kill switch change audited. Reason: ${reason}.`,
+            variant: next.isKillSwitch && next.enabled ? "destructive" : "default",
+          });
+          return next;
+        }
+        return f;
+      }),
+    );
+    setPendingKillSwitchId(null);
+  };
+
   const disabled = flags.filter((f) => !f.enabled).length;
   const killSwitches = flags.filter((f) => f.isKillSwitch).length;
   const activeKillSwitches = flags.filter((f) => f.isKillSwitch && f.enabled).length;
+  const enabled = flags.filter((f) => f.enabled).length;
 
   return (
     <Page>
@@ -156,6 +186,19 @@ export function FeatureFlagsPage() {
         </div>
         </PageAsyncBoundary>
       </PageContent>
+
+      {/* Kill switch 2FA gate */}
+      <SensitiveActionDialog
+        open={pendingKillSwitchId !== null}
+        onOpenChange={(o) => { if (!o) setPendingKillSwitchId(null); }}
+        actionKey={pendingKillSwitchId ? `kill-switch-${pendingKillSwitchId}` : "kill-switch"}
+        title="Kill switch toggle"
+        consequence="Kill switches affect ALL tenants and environments. Confirm this action requires 2FA verification."
+        blastRadius={["All production services", "All active user sessions", "Global platform state"]}
+        confirmPhrase="Enable 2FA"
+        requireReason
+        onExecute={handleKillSwitchExecute}
+      />
     </Page>
   );
 }
