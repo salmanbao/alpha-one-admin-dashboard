@@ -39,7 +39,7 @@ export function RoleEditorPage() {
     { id: "tenants:read", label: "Tenants: Read" },
     { id: "tenants:write", label: "Tenants: Write" },
     { id: "approvals:manage", label: "Approvals: Manage" },
-    { id: "security:overview", label =: "Security: Overview" },
+    { id: "security:overview", label: "Security: Overview" },
   ];
 
   return (
@@ -227,6 +227,3 @@ export function PermissionMatrix({ permissions }: { permissions: string[] }) {
       ))}
     </div>
   );
-}
-ENDOFFILE
-echo "Role editor created"
