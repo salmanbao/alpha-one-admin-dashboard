@@ -3,12 +3,14 @@
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency } from "@/components/platform/status";
 import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
+import { toast } from "@/hooks/use-toast";
 import type { TenantContext } from "@/lib/platform/types";
 import { DollarSign, TrendingUp, TrendingDown, Receipt, CheckCircle2, Clock } from "lucide-react";
 
@@ -116,6 +118,32 @@ export function PlatformFinancialsPage() {
           <CardHeader className="pb-2"><span className="text-sm font-medium">Per-tenant revenue</span></CardHeader>
           <CardContent>
             <DataTable columns={columns} data={rows} rowKey={(r) => r.tenant.id} searchableText={(r) => r.tenant.name} searchPlaceholder="Search tenants…" pageSize={20} emptyTitle="No data" emptyDescription="Tenants will appear here." />
+          </CardContent>
+        </Card>
+
+        {/* Plan / Pricing Catalog (reference for all call sites) */}
+        <Card>
+          <CardHeader className="pb-2"><span className="text-sm font-medium">Plan catalog</span></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {[
+              { id: "starter", name: "Starter", price: 890, features: "Core trading, 5 accounts, basic analytics" },
+              { id: "growth", name: "Growth", price: 1900, features: "15 accounts, advanced analytics, API access" },
+              { id: "scale", name: "Scale", price: 4900, features: "50 accounts, priority support, custom integrations" },
+              { id: "enterprise", name: "Enterprise", price: null, features: "Unlimited, SLA, dedicated infra, custom pricing" },
+            ].map((p) => (
+              <div key={p.id} className="flex items-center justify-between rounded-md border p-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium capitalize">{p.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{p.features}</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="font-bold tabular-nums">{p.price ? `$${p.price}/mo` : "Custom"}</span>
+                  <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => toast({ title: "Plan details", description: `${p.name} plan configuration opened.` })}>
+                    Configure
+                  </Button>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
 
