@@ -11,6 +11,18 @@ import { TerraBadge, TerraCard, TerraPageHeader, TerraSectionTitle } from "@/com
 export function DocumentViewerPage() {
   const [unlocked, setUnlocked] = useState(false);
   const [code, setCode] = useState("");
+  const [resent, setResent] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
+
+  const handleResend = () => {
+    setResent(true);
+    setTimeout(() => setResent(false), 3000);
+  };
+
+  const handleDownload = () => {
+    setDownloaded(true);
+    setTimeout(() => setDownloaded(false), 3000);
+  };
 
   return (
     <div className="space-y-6">
@@ -48,9 +60,15 @@ export function DocumentViewerPage() {
           >
             Unlock document
           </button>
-          <button type="button" className="text-xs font-semibold text-primary hover:underline">
-            Resend code to my email
-          </button>
+          {resent ? (
+            <p className="text-xs font-semibold text-primary">
+              ✓ New code sent — check your inbox.
+            </p>
+          ) : (
+            <button type="button" onClick={handleResend} className="text-xs font-semibold text-primary hover:underline">
+              Resend code to my email
+            </button>
+          )}
         </TerraCard>
       ) : (
         <TerraCard>
@@ -66,7 +84,12 @@ export function DocumentViewerPage() {
           <div className="flex h-96 items-center justify-center rounded-xl border border-dashed border-outline-variant bg-surface-container-low/50 text-sm text-on-surface-variant">
             Document preview — 268 KB PDF
           </div>
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="mt-4 flex items-center justify-end gap-2">
+            {downloaded && (
+              <span className="text-xs font-semibold text-primary">
+                ✓ Downloaded — tax-statement-q3.pdf
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setUnlocked(false)}
@@ -76,6 +99,7 @@ export function DocumentViewerPage() {
             </button>
             <button
               type="button"
+              onClick={handleDownload}
               className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary hover:bg-primary/90"
             >
               Download
