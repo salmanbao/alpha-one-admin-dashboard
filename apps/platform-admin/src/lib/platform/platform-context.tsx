@@ -73,7 +73,7 @@ export interface PlatformContextValue {
   /* impersonation (P0-4) */
   isImpersonating: boolean;
   impersonationSession: { tenantId: string; started: number; expires: number } | null;
-  startImpersonation: (tenantId: string) => void;
+  startImpersonation: (session: { tenantId: string; tenantName?: string; operator?: { id: string; name: string } }) => void;
   endImpersonation: () => void;
   renewImpersonation: () => void;
   /* command menu */
@@ -463,10 +463,10 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   [],
 );
   // Impersonation helpers
-  const startImpersonation = (tenantId: string) => {
+  const startImpersonation = (session: { tenantId: string; tenantName?: string; operator?: { id: string; name: string } }) => {
     const now = Date.now();
     const expires = now + 15 * 60 * 1000; // 15 minutes
-    setImpersonationSession({ tenantId, started: now, expires });
+    setImpersonationSession({ tenantId: session.tenantId, started: now, expires });
     setIsImpersonating(true);
   };
   const endImpersonation = () => {
