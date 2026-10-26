@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { useUserSwitcher } from "@/lib/platform/platform-context";
 import { users } from "@/lib/platform/mock-data";
 import { StatusBadge } from "@/components/platform/status";
+import { ApprovalInboxBadge } from "@/components/platform/approval-flow";
 import { ActivityTicker } from "@/components/shell/activity-ticker";
 import { WhatsNewButton } from "@/components/shell/whats-new";
 import { HelpDropdown } from "@/components/shell/help-dropdown";
@@ -189,6 +190,8 @@ export function Topbar() {
         >
           {themeMode === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
+
+        <ApprovalInboxBadge onClick={() => navigate("approval-center")} />
 
         {/* Notifications */}
         <DropdownMenu>

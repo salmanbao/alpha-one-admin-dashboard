@@ -99,7 +99,7 @@ export function TenantViewAsPage() {
     const targetUser = allUsers.find((u) => u.id === selectedUserId);
     const targetTenant = allTenants.find((t) => t.id === selectedTenantId);
     if (!targetUser || !targetTenant) return;
-    startImpersonation(targetTenant.id);
+    startImpersonation({ tenantId: targetTenant.id, tenantName: targetTenant.name, operator: { id: currentUser.id, name: currentUser.name } });
     setUser(targetUser);
     setTenant(targetTenant);
     navigate("super-overview");
