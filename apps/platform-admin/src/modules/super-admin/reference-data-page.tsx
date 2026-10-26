@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { CURRENCIES } from "@/lib/platform/currency";
-import { BookOpen, Globe, DollarSign, Server, Layers, Flag, FileText } from "lucide-react";
+import { BookOpen, Globe, DollarSign, Server, Layers, Flag, FileText, Plus, Edit2, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 
 interface RefEntry {
   id: string;
@@ -64,11 +66,15 @@ const columns: Column<RefEntry>[] = [
   { key: "name", header: "Name", cell: (r) => <span className="text-sm">{r.name}</span>, sortValue: (r) => r.name },
   { key: "category", header: "Category", cell: (r) => <Badge variant="outline" className="text-[10px]">{r.category}</Badge>, sortValue: (r) => r.category },
   { key: "description", header: "Description", cell: (r) => <span className="text-xs text-muted-foreground">{r.description}</span> },
+  { key: "actions", header: "Actions", cell: () => (
+    <div className="flex gap-1">
+      <Button size="sm" variant="ghost" className="text-xs"><Edit2 className="mr-1 h-3 w-3" />Edit</Button>
+      <Button size="sm" variant="ghost" className="text-xs text-rose-600 hover:text-rose-600"><Trash2 className="mr-1 h-3 w-3" />Delete</Button>
+    </div>
+  )},
 ];
 
 export function ReferenceDataPage() {
-  // Async seam (frontend-first): content resolves via the mock layer so
-  // the loading skeleton + error/retry states are exercised.
   const {
     data: hydrated,
     loading,
@@ -95,18 +101,18 @@ export function ReferenceDataPage() {
           <MetricCard label="Rule Types" value={ruleTypes.length} icon={Layers} />
         </div>
 
-        <div className="rounded-lg border border-amber-500/20 bg-amber-50/30 p-3 text-xs text-muted-foreground dark:bg-amber-950/10">
-          <p className="font-medium text-foreground">Data governance</p>
-          <p className="mt-1">This is an administrative data-governance workspace. Reference data changes affect ALL tenants. Modifications should be rare, reviewed, and audited. Do not casually modify these values.</p>
-        </div>
-
         <Card>
           <CardHeader className="pb-2"><span className="text-sm font-medium">Reference entries ({allEntries.length})</span></CardHeader>
           <CardContent>
             <DataTable columns={columns} data={allEntries} rowKey={(r) => r.id} searchableText={(r) => `${r.code} ${r.name} ${r.category}`} searchPlaceholder="Search reference data…" pageSize={20} emptyTitle="No entries" emptyDescription="Reference data will appear here." />
           </CardContent>
         </Card>
-        </PageAsyncBoundary>
+
+        <div className="rounded-lg border border-amber-500/20 bg-amber-50/30 p-3 text-xs text-muted-foreground dark:bg-amber-950/10">
+          <p className="font-medium text-foreground">Data governance</p>
+          <p className="mt-1">This is an administrative data-governance workspace. Reference data changes affect ALL tenants. Modifications should be rare, reviewed, and audited. Do not casually modify these values.</p>
+        </div>
+      </PageAsyncBoundary>
       </PageContent>
     </Page>
   );
