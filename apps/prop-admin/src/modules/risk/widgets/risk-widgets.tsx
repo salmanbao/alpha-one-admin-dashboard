@@ -74,7 +74,7 @@ export function OpenBreachesWidget() {
         <li key={b.id}>
           <button
             type="button"
-            onClick={() => navigate("risk-breaches", { focus: b.id })}
+            onClick={() => navigate("breaches", { focus: b.id })}
             aria-label={`Investigate breach for ${b.traderName}`}
             className="flex w-full items-center gap-2.5 rounded-md border bg-card p-2 text-left transition hover:bg-accent/40"
           >

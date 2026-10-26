@@ -490,7 +490,7 @@ function buildTraderAttentionGroups(
         detail: `${myBreaches.length} ${myBreaches.length === 1 ? "breach" : "breaches"} (${critical} critical) — review risk rules`,
         count: myBreaches.length,
         icon: ShieldAlert,
-        navigateTo: "risk-breaches",
+        navigateTo: "breaches",
         navigateLabel: "Review my breaches",
       });
     }
