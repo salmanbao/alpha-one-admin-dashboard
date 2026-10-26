@@ -6,27 +6,31 @@
  */
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { TerraBadge, TerraCard, TerraPageHeader, TerraSectionTitle, TerraStat, formatMoney } from "@/components/terra/terra-ui";
-import { primaryAccount, terraPayouts } from "@/lib/fixtures/terra-fixtures";
+import { terraPayouts, terraAccounts } from "@/lib/fixtures/terra-fixtures";
 
-const checklist = [
+const checklist = (account: { balance: number; pnl: number }) => [
   { label: "Account active and in good standing", ok: true, note: "Verified" },
-  { label: "Minimum balance > $1,000", ok: true, note: `${primaryAccount.balance} balance` },
-  { label: "P&L is positive since last payout", ok: true, note: `+${primaryAccount.pnl}` },
+  { label: "Minimum balance > $1,000", ok: true, note: `${account.balance} balance` },
+  { label: "P&L is positive since last payout", ok: true, note: `+${account.pnl}` },
   { label: "No open risk breaches", ok: true, note: "Clear" },
   { label: "Payout method configured", ok: true, note: "Bank Transfer (Wise)" },
   { label: "Bi-weekly window is open", ok: true, note: "Next window opens in 4 days" },
 ];
 
 export function PayoutEligibilityPage() {
+  const params = useSearchParams();
+  const accountId = params.get("id") || "acc-092841";
+  const account = terraAccounts.find((a) => a.id === accountId) ?? terraAccounts[0];
   const last = terraPayouts[0];
-  const availableSince = primaryAccount.payoutNote ? "Available in 4 days" : "Aware 14 days";
+  const availableSince = account.payoutNote ? "Available in 4 days" : "Aware 14 days";
 
   return (
     <div className="space-y-6">
       <TerraPageHeader
         title="Payout Eligibility"
-        description={`${primaryAccount.name} • Login #${primaryAccount.login}`}
+        description={`${account.name} • Login #${account.login}`}
         actions={
           <>
             <TerraBadge tone="primary">Eligible</TerraBadge>
@@ -42,7 +46,7 @@ export function PayoutEligibilityPage() {
           <TerraCard>
             <TerraSectionTitle title="Eligibility checklist" />
             <div className="space-y-3">
-              {checklist.map((c) => (
+              {checklist(account).map((c) => (
                 <div key={c.label} className="flex items-center justify-between rounded-xl bg-surface-container-low px-4 py-3">
                   <div>
                     <p className="text-sm font-semibold text-on-surface">{c.label}</p>
@@ -80,11 +84,11 @@ export function PayoutEligibilityPage() {
           <div className="space-y-3 rounded-xl bg-surface-container-low p-4">
             <div className="flex justify-between text-sm">
               <span className="text-on-surface-variant">Eligible amount</span>
-              <span className="font-bold text-on-surface">{formatMoney(primaryAccount.balance)}</span>
+              <span className="font-bold text-on-surface">{formatMoney(account.balance)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-on-surface-variant">Recommended</span>
-              <span className="font-bold text-primary">{formatMoney(primaryAccount.pnl)}</span>
+              <span className="font-bold text-primary">{formatMoney(account.pnl)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-on-surface-variant">Status</span>
