@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "@/hooks/use-toast";
 import {
   DollarSign,
   Search,
@@ -30,6 +31,7 @@ import {
   Download,
   CreditCard,
   Banknote,
+  Eye,
 } from "lucide-react";
 
 // Demo platform transactions
@@ -208,6 +210,7 @@ export function PlatformTransactionsPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Method</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -244,6 +247,24 @@ export function PlatformTransactionsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge tone={statusTones[tx.status]}>{tx.status}</StatusBadge>
+                      </td>
+                      <td className="px-4 py-3 flex items-center gap-2">
+                        {/* Detail (Eye) */}
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-[11px]" onClick={() => alert(`TX Detail\n\n${tx.id}\nTenant: ${tx.tenant}\nType: ${tx.type}\nAmount: ${formatCurrency(tx.amount)}\nFee: ${tx.fee > 0 ? `$${tx.fee.toFixed(2)}` : "—"}\nMethod: ${tx.method}\nDate: ${new Date(tx.date).toLocaleString()}\nStatus: ${tx.status}`)}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        {/* Refund (for completed/refund/revenue) */}
+                        {(tx.type === "refund" || tx.type === "revenue" || tx.type === "chargeback") && (
+                          <Button size="sm" variant="destructive" className="h-7 px-2 text-[10px] gap-1" onClick={() => toast({ title: "Refund requested", description: `${tx.id} (${tx.tenant}) — refund of ${formatCurrency(tx.amount)}. Audited.` })}>
+                            Refund
+                          </Button>
+                        )}
+                        {/* Retry (for pending/failed) */}
+                        {(tx.status === "pending" || tx.status === "failed") && (
+                          <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Retry queued", description: `Retrying ${tx.id}. Audited.` })}>
+                            <RefreshCw className="h-3 w-3" /> Retry
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}
