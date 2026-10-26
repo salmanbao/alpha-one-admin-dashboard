@@ -138,6 +138,29 @@ export function DeploymentsPage() {
           </CardContent>
         </Card>
 
+        {/* Service-level breakdown */}
+        <Card>
+          <CardHeader className="pb-2"><span className="text-sm font-medium">Service-level breakdown (current)</span></CardHeader>
+          <CardContent className="space-y-2 text-xs">
+            {[
+              { name: "Account Sync (MT5)", version: "v1.8.0", health: "healthy" as const },
+              { name: "Payout Reconciliation", version: "v1.8.0", health: "healthy" as const },
+              { name: "Notification Batch", version: "v1.8.0", health: "healthy" as const },
+              { name: "Document Generation", version: "v1.8.0", health: "healthy" as const },
+              { name: "Provider Health Check", version: "v1.8.0", health: "running" as const },
+              { name: "Audit Archive", version: "v1.8.0", health: "paused" as const },
+              { name: "Risk Engine", version: "v1.8.0", health: "healthy" as const },
+            ].map((svc) => (
+              <div key={svc.name} className="flex items-center gap-2 rounded-md border p-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <span className="font-medium">{svc.name}</span>
+                <Badge variant="outline" className="text-[9px]">{svc.version}</Badge>
+                <span className="ml-auto text-[10px] font-medium text-muted-foreground uppercase">{svc.health}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
         {/* Deployment controls info */}
         <div className="rounded-lg border border-amber-500/20 bg-amber-50/30 p-3 text-xs text-muted-foreground dark:bg-amber-950/10">
           <p className="font-medium text-foreground">Deployment controls</p>
