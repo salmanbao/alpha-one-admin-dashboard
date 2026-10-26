@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   TerraBadge,
   TerraCard,
@@ -14,10 +15,12 @@ import {
   TerraSectionTitle,
   formatMoney,
 } from "@/components/terra/terra-ui";
-import { primaryAccount, terraPayouts, withdrawalMethods } from "@/lib/fixtures/terra-fixtures";
+import { terraPayouts, withdrawalMethods, terraAccounts } from "@/lib/fixtures/terra-fixtures";
 
 export function PayoutRequestPage() {
-  const acc = primaryAccount;
+  const params = useSearchParams();
+  const accountId = params.get("id") || "acc-100030";
+  const acc = terraAccounts.find((a) => a.id === accountId) ?? terraAccounts[0];
   const minPayout = 100;
   const [amount, setAmount] = useState("");
   const [methodId, setMethodId] = useState("wm-wise");
