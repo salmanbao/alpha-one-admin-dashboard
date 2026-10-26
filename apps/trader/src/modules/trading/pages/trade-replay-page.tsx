@@ -33,11 +33,13 @@ export function TradeReplayPage() {
 
   useEffect(() => {
     if (!isPlaying) return;
-    if (currentStep >= timeline.length - 1) {
-      setIsPlaying(false);
-      return;
-    }
-    const timer = setTimeout(() => setCurrentStep((s) => s + 1), 1500);
+    const timer = setTimeout(() => {
+      if (currentStep >= timeline.length - 1) {
+        setIsPlaying(false);
+      } else {
+        setCurrentStep((s) => s + 1);
+      }
+    }, 1500);
     return () => clearTimeout(timer);
   }, [isPlaying, currentStep]);
 
