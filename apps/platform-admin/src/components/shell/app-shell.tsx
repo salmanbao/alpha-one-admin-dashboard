@@ -17,6 +17,7 @@ import { CommandMenu } from "./command-menu";
 import { GlobalSearchDialog } from "./global-search";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { OnboardingWizard } from "./onboarding-wizard";
+import { ImpersonationBanner } from "@/components/platform/impersonation-banner";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { setSearchOpen } = usePlatform();
@@ -42,6 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
+        <ImpersonationBanner />
         <main className="flex-1 px-4 py-4 md:px-6 md:py-6">
           <div className="md:hidden">
             <MobileNav />

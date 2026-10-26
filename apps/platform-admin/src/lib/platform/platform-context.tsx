@@ -70,6 +70,12 @@ export interface PlatformContextValue {
   markRead: (id: string) => void;
   markAllRead: () => void;
   pushNotification: (n: Omit<AppNotification, "id" | "createdAt" | "read">) => void;
+  /* impersonation (P0-4) */
+  isImpersonating: boolean;
+  impersonationSession: { tenantId: string; started: number; expires: number } | null;
+  startImpersonation: (tenantId: string) => void;
+  endImpersonation: () => void;
+  renewImpersonation: () => void;
   /* command menu */
   commandOpen: boolean;
   setCommandOpen: (open: boolean) => void;
@@ -275,6 +281,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   });
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [isImpersonating, setIsImpersonating] = useState(false);
+  const [impersonationSession, setImpersonationSession] = useState<{ tenantId: string; started: number; expires: number } | null>(null);
 
   // Reload hiddenWidgets + sidebarCollapsed whenever the active tenant
   // changes — otherwise switching tenants leaves stale per-tenant state.
@@ -441,19 +449,36 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setNotifications((n) => n.map((x) => ({ ...x, read: true })));
   }, []);
   const pushNotification = useCallback(
-    (n: Omit<AppNotification, "id" | "createdAt" | "read">) => {
-      setNotifications((list) => [
-        {
-          ...n,
-          id: `n-${Date.now()}`,
-          createdAt: new Date().toISOString(),
-          read: false,
-        },
-        ...list,
-      ]);
-    },
-    [],
-  );
+  (n: Omit<AppNotification, "id" | "createdAt" | "read">) => {
+    setNotifications((list) => [
+      {
+        ...n,
+        id: `n-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        read: false,
+      },
+      ...list,
+    ]);
+  },
+  [],
+);
+  // Impersonation helpers
+  const startImpersonation = (tenantId: string) => {
+    const now = Date.now();
+    const expires = now + 15 * 60 * 1000; // 15 minutes
+    setImpersonationSession({ tenantId, started: now, expires });
+    setIsImpersonating(true);
+  };
+  const endImpersonation = () => {
+    setImpersonationSession(null);
+    setIsImpersonating(false);
+  };
+  const renewImpersonation = () => {
+    if (!impersonationSession) return;
+    const now = Date.now();
+    const expires = now + 15 * 60 * 1000; // 15 minutes
+    setImpersonationSession({ tenantId: impersonationSession.tenantId, started: now, expires });
+  };
 
   // Compute the module runtime context
   const runtime: ModuleRuntimeContext = useMemo(
@@ -498,6 +523,11 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     setCustomizeOpen,
     searchOpen,
     setSearchOpen,
+    isImpersonating,
+    impersonationSession,
+    startImpersonation,
+    endImpersonation,
+    renewImpersonation,
   };
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>;
