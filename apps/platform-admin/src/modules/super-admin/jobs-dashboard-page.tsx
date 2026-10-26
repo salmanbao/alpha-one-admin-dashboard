@@ -7,6 +7,7 @@
  * holder, failure count, and retry state.
  */
 
+import { useState } from "react";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,9 @@ import { Zap, CheckCircle2, AlertTriangle, XCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 
 interface Job {
   id: string;
@@ -68,6 +72,38 @@ export function JobsDashboardPage() {
   const failed = rows?.filter((j) => j.status === "failed").length ?? 0;
   const paused = rows?.filter((j) => j.status === "paused").length ?? 0;
 
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  const handleRowClick = (job: Job) => {
+    setSelectedJob(job);
+    setIsSheetOpen(true);
+  };
+
+  const handleRunNow = () => {
+    if (!selectedJob) return;
+    toast({ title: "Job triggered", description: `${selectedJob.name} — run queued` });
+    setIsSheetOpen(false);
+  };
+
+  const handlePause = () => {
+    if (!selectedJob) return;
+    toast({ title: "Job paused", description: `${selectedJob.name} — paused` });
+    setIsSheetOpen(false);
+  };
+
+  const handleRetry = () => {
+    if (!selectedJob) return;
+    toast({ title: "Retry queued", description: `${selectedJob.name} — retry scheduled` });
+    setIsSheetOpen(false);
+  };
+
+  const handleResume = () => {
+    if (!selectedJob) return;
+    toast({ title: "Job resumed", description: `${selectedJob.name} — resumed` });
+    setIsSheetOpen(false);
+  };
+
   return (
     <Page>
       <PageHeader
@@ -108,7 +144,70 @@ export function JobsDashboardPage() {
           pageSize={20}
           emptyTitle="No jobs"
           emptyDescription="Background jobs will appear here."
+          onRowClick={handleRowClick}
         />
+
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetHeader>
+            <SheetTitle>{selectedJob?.name}</SheetTitle>
+            <SheetDescription>Job ID: {selectedJob?.id}</SheetDescription>
+          </SheetHeader>
+          <SheetContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <p className="font-medium text-muted-foreground">Status</p>
+                <p className="mt-0.5 text-muted-foreground">{selectedJob?.status}</p>
+              </div>
+              <div>
+                <p className="font-medium text-muted-foreground">Last Run</p>
+                <p className="mt-0.5 text-muted-foreground">{selectedJob?.lastRun}</p>
+              </div>
+              <div>
+                <p className="font-medium text-muted-foreground">Duration</p>
+                <p className="mt-0.5 text-muted-foreground">{selectedJob?.duration}</p>
+              </div>
+              <div>
+                <p className="font-medium text-muted-foreground">Next Run</p>
+                <p className="mt-0.5 text-muted-foreground">{selectedJob?.nextRun}</p>
+              </div>
+              <div>
+                <p className="font-medium text-muted-foreground">Lock Holder</p>
+                <p className="mt-0.5 font-mono">{selectedJob?.lockHolder}</p>
+              </div>
+              <div>
+                <p className="font-medium text-muted-foreground">Failures</p>
+                <p className="mt-0.5 text-rose-600 font-medium">{selectedJob?.failureCount}</p>
+              </div>
+              <div>
+                <p className="font-medium text-muted-foreground">Last Failure</p>
+                <p className="mt-0.5 text-muted-foreground">{selectedJob?.lastFailure}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="default" onClick={handleRunNow}>
+                Run Now
+              </Button>
+              {selectedJob?.status === "running" && (
+                <Button size="sm" variant="outline" onClick={handlePause}>
+                  Pause
+                </Button>
+              )}
+              {selectedJob?.status === "failed" && (
+                <Button size="sm" variant="default" onClick={handleRetry}>
+                  Retry
+                </Button>
+              )}
+              {selectedJob?.status === "paused" && (
+                <Button size="sm" variant="default" onClick={handleResume}>
+                  Resume
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={() => setIsSheetOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
         </PageAsyncBoundary>
       </PageContent>
     </Page>

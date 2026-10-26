@@ -358,7 +358,7 @@ export function PlatformStaffPage() {
                         </StatusBadge>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button size="icon" variant="ghost" className="h-8 w-8">
+                        <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Staff actions" aria-hidden={false}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </td>

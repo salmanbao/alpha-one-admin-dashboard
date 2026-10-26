@@ -9,6 +9,13 @@ import { AlertTriangle, Eye, Users, Globe, Network, Fingerprint } from "lucide-r
 import { cn } from "@/lib/utils";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface AbuseSignal {
   id: string;

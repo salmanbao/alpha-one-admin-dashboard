@@ -15,8 +15,11 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/platform/status";
+import { SensitiveActionDialog } from "@/components/platform/sensitive-action-dialog";
 import { GitBranch, CheckCircle2, Clock, ArrowDownCircle, Container, GitCommit } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 interface Deployment {
   version: string;
@@ -47,6 +50,22 @@ export function DeploymentsPage() {
   } = useAsyncMock(() => mockAsync(() => demoDeployments, { delayMs: 450 }), []);
   const deployments = loadedData ?? [];
   const current = deployments.find((d) => d.isCurrent);
+
+  const [rollbackOpen, setRollbackOpen] = useState(false);
+  const [rollbackTarget, setRollbackTarget] = useState<Deployment | null>(null);
+
+  const handleRollback = (d: Deployment) => {
+    setRollbackTarget(d);
+    setRollbackOpen(true);
+  };
+
+  const handleRollbackExecute = async (reason: string) => {
+    if (!rollbackTarget) return;
+    await new Promise((r) => setTimeout(r, 800));
+    toast({ title: "Rollback initiated", description: `${rollbackTarget.version} rollback queued — reason: ${reason}` });
+    setRollbackOpen(false);
+    setRollbackTarget(null);
+  };
 
   return (
     <Page>
@@ -110,7 +129,7 @@ export function DeploymentsPage() {
                   </p>
                 </div>
                 {!d.isCurrent && d.status !== "failed" && (
-                  <Button size="sm" variant="outline" className="text-xs">
+                  <Button size="sm" variant="outline" className="text-xs" onClick={() => handleRollback(d)}>
                     <ArrowDownCircle className="mr-1 h-3 w-3" /> Rollback
                   </Button>
                 )}
@@ -126,6 +145,17 @@ export function DeploymentsPage() {
         </div>
         </PageAsyncBoundary>
       </PageContent>
+      <SensitiveActionDialog
+        open={rollbackOpen}
+        onOpenChange={(o) => { if (!o) { setRollbackOpen(false); setRollbackTarget(null); } }}
+        actionKey="rollback"
+        title={`Rollback to ${rollbackTarget?.version ?? "previous version"}`}
+        consequence="Production traffic will be redirected to the previous version. Active connections may be interrupted."
+        blastRadius={["All production services", "Active user sessions", "In-flight transactions"]}
+        confirmPhrase="Rollback"
+        requireReason
+        onExecute={handleRollbackExecute}
+      />
     </Page>
   );
 }
