@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   TerraBadge,
   TerraCard,
@@ -20,6 +21,7 @@ export function PayoutRequestPage() {
   const minPayout = 100;
   const [amount, setAmount] = useState("");
   const [methodId, setMethodId] = useState("wm-wise");
+  const [submitted, setSubmitted] = useState(false);
   const method = withdrawalMethods.find((m) => m.id === methodId) ?? withdrawalMethods[0];
 
   const asked = Number(amount);
@@ -28,6 +30,39 @@ export function PayoutRequestPage() {
     asked >= minPayout &&
     asked <= acc.balance * 0.5 &&
     asked <= acc.equity - 2000;
+
+  if (submitted) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-6 text-center">
+        <div className="rounded-full bg-primary-fixed p-6">
+          <span className="text-6xl">✓</span>
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-on-surface">Payout Request Submitted</h2>
+          <p className="mt-2 text-on-surface-variant">
+            Your request for {formatMoney(asked)} via {method.name} has been received.
+          </p>
+          <p className="mt-1 text-sm text-on-surface-variant">
+            Reference: PO-2026-0415 • Expected processing: {method.eta}
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Link
+            href="/payout-history"
+            className="rounded-xl bg-primary px-6 py-3 text-sm font-bold text-on-primary hover:bg-primary/90"
+          >
+            View Payout History
+          </Link>
+          <Link
+            href="/overview"
+            className="rounded-xl border border-outline-variant px-6 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-low"
+          >
+            Back to Overview
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -140,6 +175,7 @@ export function PayoutRequestPage() {
           <button
             type="button"
             disabled={!valid}
+            onClick={() => setSubmitted(true)}
             className="rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {valid ? "Submit Payout Request" : "Enter a valid amount"}

@@ -5,6 +5,7 @@
  * Eligibility checklist + next payout summary.
  */
 
+import Link from "next/link";
 import { TerraBadge, TerraCard, TerraPageHeader, TerraSectionTitle, TerraStat, formatMoney } from "@/components/terra/terra-ui";
 import { primaryAccount, terraPayouts } from "@/lib/fixtures/terra-fixtures";
 
@@ -90,9 +91,12 @@ export function PayoutEligibilityPage() {
               <TerraBadge tone="primary">{availableSince}</TerraBadge>
             </div>
           </div>
-          <button type="button" className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary hover:bg-primary/90">
+          <Link
+            href="/payout-request"
+            className="w-full rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary hover:bg-primary/90 text-center block"
+          >
             Open Payout
-          </button>
+          </Link>
         </TerraCard>
       </div>
     </div>
