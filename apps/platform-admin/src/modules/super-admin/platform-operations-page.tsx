@@ -15,6 +15,8 @@
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -121,6 +123,15 @@ const severityIcon: Record<AttentionItem["severity"], ComponentType<{ className?
 };
 
 export function PlatformOperationsPage() {
+  // Async seam (frontend-first): hydrate via the mock layer so the
+  // loading skeleton + error/retry states are exercised; store-driven
+  // state below stays authoritative once loaded.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const { navigate } = usePlatform();
 
   const activeTenants = allTenants.filter((t) => t.status === "active").length;
@@ -159,6 +170,9 @@ export function PlatformOperationsPage() {
               </span>
               Live
             </Badge>
+            <Button size="sm" variant="outline" onClick={() => navigate("bridge-sync-log")}>
+              <GitBranch className="mr-1 h-4 w-4" /> Bridge sync
+            </Button>
             <Button size="sm" variant="outline" onClick={() => navigate("emergency-controls")}>
               <ShieldCheck className="mr-1 h-4 w-4" /> Emergency
             </Button>
@@ -166,6 +180,13 @@ export function PlatformOperationsPage() {
         }
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading operations…"
+        >
         {/* Attention Center — "3 things need attention" */}
         {attentionItems.length > 0 && (
           <Card className="border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
@@ -320,6 +341,7 @@ export function PlatformOperationsPage() {
             </div>
           </CardContent>
         </Card>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

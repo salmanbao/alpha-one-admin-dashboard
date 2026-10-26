@@ -188,6 +188,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  notifications: dynamic(
+    () =>
+      import("@/modules/super-admin/notifications-page").then((m) => ({
+        default: m.NotificationsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "platform-analytics": dynamic(
     () =>
       import("@/modules/super-admin/platform-analytics-page").then((m) => ({
@@ -213,6 +220,27 @@ export const viewRegistry: Record<string, ViewComponent> = {
     () =>
       import("@/modules/super-admin/tenant-lifecycle-page").then((m) => ({
         default: m.TenantLifecyclePage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "provisioning-saga": dynamic(
+    () =>
+      import("@/modules/super-admin/provisioning-saga-page").then((m) => ({
+        default: m.ProvisioningSagaPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "usage-metering": dynamic(
+    () =>
+      import("@/modules/super-admin/usage-metering-page").then((m) => ({
+        default: m.UsageMeteringPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "support-assist": dynamic(
+    () =>
+      import("@/modules/super-admin/support-assist-page").then((m) => ({
+        default: m.SupportAssistPage,
       })),
     { loading: ViewSkeleton },
   ),

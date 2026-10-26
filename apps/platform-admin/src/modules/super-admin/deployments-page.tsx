@@ -9,6 +9,8 @@
  */
 
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +28,7 @@ interface Deployment {
   isCurrent?: boolean;
 }
 
-const deployments: Deployment[] = [
+const demoDeployments: Deployment[] = [
   { version: "v1.8.0", timestamp: "3h ago", commit: "a4f2c9b", digest: "sha256:8e9f…d2c1", status: "production", services: 12, isCurrent: true },
   { version: "v1.7.9", timestamp: "2d ago", commit: "b7e3d1a", digest: "sha256:5c1d…9a3f", status: "production", services: 12 },
   { version: "v1.7.8", timestamp: "5d ago", commit: "c2f8a4e", digest: "sha256:3b7e…1f2c", status: "production", services: 12 },
@@ -35,6 +37,15 @@ const deployments: Deployment[] = [
 ];
 
 export function DeploymentsPage() {
+  // Async seam (frontend-first): data resolves via the mock layer so the
+  // loading skeleton + error/retry states are exercised.
+  const {
+    data: loadedData,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => demoDeployments, { delayMs: 450 }), []);
+  const deployments = loadedData ?? [];
   const current = deployments.find((d) => d.isCurrent);
 
   return (
@@ -45,6 +56,13 @@ export function DeploymentsPage() {
         icon={GitBranch}
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={loadedData !== undefined}
+          loadingLabel="Loading deployments…"
+        >
         {/* Current deployment */}
         {current && (
           <Card className="border-emerald-500/30 bg-emerald-50/30 dark:bg-emerald-950/10">
@@ -106,6 +124,7 @@ export function DeploymentsPage() {
           <p className="font-medium text-foreground">Deployment controls</p>
           <p className="mt-1">Deploy, rollback, and restart service actions require elevated permissions and two-operator approval for production deployments. Contact your platform operations lead.</p>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

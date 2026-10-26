@@ -18,6 +18,7 @@ import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import type { TenantContext } from "@/lib/platform/types";
+import { startProvisioning } from "@/lib/platform/provisioning-saga";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,6 +114,8 @@ interface WizardState {
   // Admin user
   adminEmail: string;
   adminName: string;
+  // SSO (AUTH-24/25) — when contracted, saga sub-step 3a runs.
+  contractSso: boolean;
 }
 
 const INITIAL_STATE: WizardState = {
@@ -131,6 +134,7 @@ const INITIAL_STATE: WizardState = {
   enabledModules: [...CORE_MODULE_IDS],
   adminEmail: "",
   adminName: "",
+  contractSso: false,
 };
 
 /* ------------------------------------------------------------------ */
@@ -190,11 +194,15 @@ function FieldRow({
 /* ------------------------------------------------------------------ */
 
 export function CreateTenantPage() {
-  const { navigate, registerTenant, pushNotification } = usePlatform();
+  const { navigate, registerTenant, pushNotification, user } = usePlatform();
   const [state, setState] = useState<WizardState>(INITIAL_STATE);
   const [step, setStep] = useState(0);
 
-  const allModules = moduleRegistry.getAll();
+  // Tenant modules only — the console's own super-admin module is never a
+  // tenant entitlement. The catalog lives in lib/platform/module-catalog.ts.
+  const allModules = moduleRegistry
+    .getAll()
+    .filter((m) => m.manifest.id !== "super-admin");
 
   /* ---- Validation per step ---- */
   const stepValid = (i: number): boolean => {
@@ -247,28 +255,40 @@ export function CreateTenantPage() {
       enabledFeatures: [],
       terminology: {},
       plan: state.plan,
-      status: "trial",
+      status: "provisioning",
       createdAt: new Date().toISOString(),
     };
     // Register the tenant in the platform roster WITHOUT hijacking the
     // operator's context — the super-admin stays in the Platform shell and
-    // is taken to the tenant detail page as the wizard promises. Previously
-    // this called setTenant(), which swapped the whole sidebar into the new
-    // tenant's module set and yanked the operator out of the admin flow.
+    // is taken to the live saga view the wizard now feeds (CON-03). The
+    // tenant starts `provisioning` (03 §3.5 step 2) and the saga runner
+    // drives it to `onboarding` on completion.
     registerTenant(newTenant);
+
+    // Kick off the provisioning saga (CON-03 ← 03 §3.5). Sub-step 3a runs
+    // only when the tenant contracted SSO.
+    const job = startProvisioning({
+      tenantId: id,
+      tenantName: state.name,
+      slug: state.slug,
+      plan: state.plan,
+      sso: state.contractSso,
+      createdBy: user?.name ?? "Console operator",
+    });
+
     pushNotification({
-      title: "Tenant created",
-      message: `${state.name} is ready for configuration.`,
-      severity: "success",
+      title: "Provisioning started",
+      message: `${state.name} — saga ${job.id} is running. Follow progress on the live view.`,
+      severity: "info",
       module: "super-admin",
     });
     toast({
-      title: "Tenant created",
-      description: `${state.name} is ready for configuration.`,
+      title: "Provisioning started",
+      description: `${state.name} — follow the 9-step saga on the live view.`,
     });
     setState(INITIAL_STATE);
     setStep(0);
-    navigate("tenant-detail", { id });
+    navigate("provisioning-saga", { job: job.id, tenant: id });
   };
 
   /* ---- Step content renderer ---- */
@@ -482,6 +502,27 @@ function BasicsStep({
           </Select>
         </FieldRow>
       </div>
+
+      {/* SSO contract → provisioning sub-step 3a (AUTH-24/25) */}
+      <div className="rounded-lg border bg-muted/30 p-3">
+        <label className="flex cursor-pointer items-start gap-2.5">
+          <Checkbox
+            checked={state.contractSso}
+            onCheckedChange={(v) => update({ contractSso: v === true })}
+            className="mt-0.5"
+          />
+          <span className="space-y-0.5">
+            <span className="text-sm font-medium leading-none">
+              Tenant contracted SSO (SAML / OIDC)
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Runs provisioning sub-step 3a (AUTH-24/25): registers the org&apos;s external IdP,
+              assigns SSO roles, and issues the SCIM token. Leave unchecked if the tenant signs in
+              with local credentials only.
+            </span>
+          </span>
+        </label>
+      </div>
     </div>
   );
 }
@@ -624,6 +665,8 @@ function BrandingStep({
             </div>
           </div>
           <div className="mt-4 flex gap-2">
+            {/* Theme preview samples — decorative (not interactive), so they
+                stay out of the tab order and hidden from screen readers. */}
             <Button
               size="sm"
               className="text-white"
@@ -632,6 +675,8 @@ function BrandingStep({
                 borderColor: state.primaryColor,
                 borderRadius: state.radius,
               }}
+              tabIndex={-1}
+              aria-hidden="true"
             >
               Primary button
             </Button>
@@ -643,6 +688,8 @@ function BrandingStep({
                 borderColor: state.accentColor,
                 borderRadius: state.radius,
               }}
+              tabIndex={-1}
+              aria-hidden="true"
             >
               Accent button
             </Button>
@@ -790,10 +837,14 @@ function AdminStep({
       <Card className="bg-muted/20">
         <CardContent className="space-y-2 pt-6 text-xs text-muted-foreground">
           <p>
-            <strong className="text-foreground">What happens next?</strong> After you click
-            Create, the tenant is provisioned in <Badge variant="outline" className="text-[9px]">trial</Badge> status,
-            the admin user is invited, and you'll be taken to the tenant detail page where you
-            can refine configuration, billing, and modules.
+            <strong className="text-foreground">What happens next?</strong> Creating starts the
+            provisioning saga (CON-03 ← 03 §3.5): the tenant enters{" "}
+            <Badge variant="outline" className="text-[9px]">provisioning</Badge> status and you're
+            taken to the live saga view. Any step can block (e.g. DNS at step 5) — the view
+            surfaces the blocker with a Retry that resumes idempotently. On completion the tenant
+            becomes <Badge variant="outline" className="text-[9px]">onboarding</Badge>, the admin
+            user is invited, and you can refine configuration, billing, and modules from the
+            tenant detail page.
           </p>
         </CardContent>
       </Card>
@@ -873,6 +924,14 @@ function ReviewStep({
         <ReviewCard title="Administrator">
           <ReviewRow label="Name" value={state.adminName} />
           <ReviewRow label="Email" value={state.adminEmail} mono />
+          <ReviewRow
+            label="SSO"
+            value={
+              <Badge variant="outline" className="text-[10px]">
+                {state.contractSso ? "Contracted (sub-step 3a)" : "Local credentials only"}
+              </Badge>
+            }
+          />
         </ReviewCard>
         <ReviewCard title={`Modules (${selectedModules.length})`}>
           <div className="flex flex-wrap gap-1">
@@ -887,7 +946,9 @@ function ReviewStep({
       <Separator />
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          Tenant will be created in <Badge variant="outline" className="text-[9px]">trial</Badge> status.
+          Provisioning starts in <Badge variant="outline" className="text-[9px]">provisioning</Badge>{" "}
+          status and moves to <Badge variant="outline" className="text-[9px]">onboarding</Badge> once
+          the saga completes.
         </p>
         <Button size="sm" onClick={onCreate} className="gap-1.5">
           <Check className="h-4 w-4" /> Create tenant

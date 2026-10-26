@@ -13,11 +13,18 @@
  *   6. Configuration  — edit tenant settings (name, currency, branding, etc.)
  *   7. Risk           — risk summary + quick nav to tenant risk workspace
  *
- * Destructive actions (Suspend, Terminate) use AlertDialog with explicit
- * consequence explanations (UX §24). One primary action per surface (§22).
+ * Destructive actions (Suspend, Terminate) route through
+ * SensitiveActionDialog (Phase C, CON-06): consequence-first review with
+ * blast radius + required reason, then a 2FA step-up, then — for the
+ * nuclear set — a two-operator approval request (10-min window, decided
+ * in the Approval Center) before the status change applies. Reactivate is
+ * a recovery action: 2FA + reason, no second operator. One primary
+ * action per surface (§22).
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import {
@@ -75,6 +82,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { SensitiveActionDialog } from "@/components/platform/sensitive-action-dialog";
+import { markApprovalExecuted, recordAudit, useConsoleStore } from "@/lib/platform/console-store";
+import { useProvisioningStore } from "@/lib/platform/provisioning-saga";
 import { toast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { cn } from "@/lib/utils";
@@ -102,6 +112,8 @@ import {
   TrendingUp,
   LogIn,
   Shield,
+  GitBranch,
+  ArrowRight,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -126,7 +138,13 @@ const tenantStatusTone = (s: string) =>
           ? "muted"
           : s === "invited"
             ? "info"
-            : "warning";
+            : s === "provisioning"
+              ? "info"
+              : s === "provisioning_failed"
+                ? "danger"
+                : s === "onboarding"
+                  ? "info"
+                  : "warning";
 
 /* ------------------------------------------------------------------ */
 /* Page                                                               */
@@ -135,6 +153,11 @@ const tenantStatusTone = (s: string) =>
 export function TenantDetailPage() {
   const { router, navigate, availableTenants, setTenant, pushNotification, user } = usePlatform();
   const tenantId = router.params.id;
+  const provisioning = useProvisioningStore();
+  const provJob = useMemo(
+    () => provisioning.jobs.find((j) => j.tenantId === tenantId),
+    [provisioning.jobs, tenantId],
+  );
 
   const foundTenant = useMemo(
     () => availableTenants.find((t) => t.id === tenantId && t.id !== "platform"),
@@ -144,6 +167,15 @@ export function TenantDetailPage() {
   // Local working copy so module toggles / config edits are reflected
   // immediately in this surface and also pushed to global context.
   const [localTenant, setLocalTenant] = useState<TenantContext | null>(foundTenant ?? null);
+
+  // Async seam (frontend-first): detail hydration resolves via the mock
+  // layer (loading skeleton + error/retry) while header state stays live.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const term = makeTermResolver(localTenant ?? undefined);
 
   // KPI data — pulled from mock domain functions
@@ -180,6 +212,51 @@ export function TenantDetailPage() {
   // active tab is the correct action.)
   const [activeTab, setActiveTab] = useState<string>("overview");
 
+  /* ---- Two-operator closure (CON-06): when operator B approves a
+   * `tenant.*` request in the Approval Center, apply the status change
+   * here. Each approval id is applied exactly once. ---- */
+  const consoleStore = useConsoleStore();
+  const appliedApprovals = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!localTenant) return;
+    for (const a of consoleStore.approvals) {
+      if (a.tenantId !== localTenant.id) continue;
+      if (!a.actionKey.startsWith("tenant.")) continue;
+      if (a.status !== "approved" && a.status !== "executed") continue;
+      if (appliedApprovals.current.has(a.id)) continue;
+      appliedApprovals.current.add(a.id);
+      const status: TenantContext["status"] = a.actionKey.includes("suspend")
+        ? "suspended"
+        : a.actionKey.includes("terminate")
+          ? "terminated"
+          : "active";
+      const verb =
+        status === "suspended" ? "suspended" : status === "terminated" ? "terminated" : "reactivated";
+      const updated: TenantContext = { ...localTenant, status };
+      setLocalTenant(updated);
+      setTenant(updated);
+      pushNotification({
+        title: `Tenant ${verb}`,
+        message: `${localTenant.name} is now ${status} — two-operator approval satisfied.`,
+        severity: status === "active" ? "success" : "warning",
+        module: "super-admin",
+      });
+      recordAudit({
+        actor: a.approver?.name ?? "System",
+        action: "console.escalation_approved",
+        target: `tenant.${status}`,
+        tenantId: localTenant.id,
+        severity: status === "active" ? "info" : "critical",
+        detail: `${verb} ${localTenant.name} (approved by ${a.approver?.name ?? "unknown"}; initiated by ${a.initiator.name})`,
+      });
+      markApprovalExecuted(a.id);
+      toast({
+        title: `Tenant ${verb}`,
+        description: `Approved by ${a.approver?.name ?? "second operator"} — ${localTenant.name} is now ${status}.`,
+      });
+    }
+  }, [consoleStore.approvals, localTenant, setTenant, pushNotification]);
+
   if (!localTenant) {
     return (
       <Page>
@@ -206,8 +283,12 @@ export function TenantDetailPage() {
       ? (PLAN_COST[localTenant.plan] as number)
       : 4900;
 
-  /* ---- Apply status change with toast + notification ---- */
-  const applyStatus = (status: TenantContext["status"], verb: string) => {
+  /* ---- Pending sensitive action (Phase C: one dialog, three actions) ---- */
+  type LifecycleAction = "suspend" | "reactivate" | "terminate";
+  const [pendingAction, setPendingAction] = useState<LifecycleAction | null>(null);
+
+  /* ---- Apply status change with toast + notification + audit ---- */
+  const applyStatus = (status: TenantContext["status"], verb: string, reason: string) => {
     const updated: TenantContext = { ...localTenant, status };
     setLocalTenant(updated);
     setTenant(updated);
@@ -218,9 +299,17 @@ export function TenantDetailPage() {
         status === "suspended" || status === "terminated" ? "warning" : "success",
       module: "super-admin",
     });
+    recordAudit({
+      actor: user.name,
+      action: "console.operator_action",
+      target: `tenant.${status}`,
+      tenantId: localTenant.id,
+      severity: status === "active" ? "info" : "critical",
+      detail: `${verb} ${localTenant.name} (2FA verified) — reason: ${reason}`,
+    });
     toast({
       title: `Tenant ${verb}`,
-      description: `${localTenant.name} is now ${status}.`,
+      description: `${localTenant.name} is now ${status}. Recorded in the audit trail.`,
     });
   };
 
@@ -319,75 +408,91 @@ export function TenantDetailPage() {
             </Button>
 
             {localTenant.status === "active" || localTenant.status === "trial" ? (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    <Pause className="mr-1 h-4 w-4" />Suspend
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Suspend {localTenant.name}?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      The tenant will lose all platform access immediately. Trader logins,
-                      open positions, and payout processing are paused. Admin users can still
-                      log in to manage suspended-state tasks. This is reversible — you can
-                      reactivate the tenant at any time.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className={cn("bg-destructive text-white hover:bg-destructive/90")}
-                      onClick={() => applyStatus("suspended", "suspended")}
-                    >
-                      Suspend tenant
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button size="sm" variant="outline" onClick={() => setPendingAction("suspend")}>
+                <Pause className="mr-1 h-4 w-4" />Suspend
+              </Button>
             ) : null}
 
             {localTenant.status === "suspended" ? (
-              <Button
-                size="sm"
-                onClick={() => applyStatus("active", "reactivated")}
-              >
+              <Button size="sm" onClick={() => setPendingAction("reactivate")}>
                 <Play className="mr-1 h-4 w-4" />Reactivate
               </Button>
             ) : null}
 
             {localTenant.status !== "terminated" ? (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="destructive">
-                    <Ban className="mr-1 h-4 w-4" />Terminate
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Terminate {localTenant.name}?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      All trader data, accounts, payouts, and audit logs for this tenant will be
-                      permanently archived. The tenant will lose all platform access immediately.
-                      This action cannot be reversed from the standard admin UI — recovery
-                      requires a platform-level data restoration request.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className={cn("bg-destructive text-white hover:bg-destructive/90")}
-                      onClick={() => applyStatus("terminated", "terminated")}
-                    >
-                      Terminate tenant
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button size="sm" variant="destructive" onClick={() => setPendingAction("terminate")}>
+                <Ban className="mr-1 h-4 w-4" />Terminate
+              </Button>
             ) : null}
           </>
         }
+      />
+
+      {/* ── Sensitive lifecycle action: consequence → reason → 2FA →
+           (terminate: two-operator approval) → execute ───────────── */}
+      <SensitiveActionDialog
+        open={pendingAction !== null}
+        onOpenChange={(o) => { if (!o) setPendingAction(null); }}
+        actionKey={`tenant.${pendingAction ?? "unknown"}`}
+        title={
+          pendingAction === "suspend"
+            ? `Suspend ${localTenant.name}`
+            : pendingAction === "terminate"
+              ? `Terminate ${localTenant.name}`
+              : `Reactivate ${localTenant.name}`
+        }
+        consequence={
+          pendingAction === "suspend"
+            ? `Suspending ${localTenant.name} takes effect immediately once approved: trader logins, new positions, and payouts stop. Admins keep console access for suspended-state tasks. Reversible.`
+            : pendingAction === "terminate"
+              ? `Terminating ${localTenant.name} is irreversible from this console: all trader data, accounts, payouts, and audit logs are archived, and platform access ends immediately.`
+              : `Reactivating ${localTenant.name} restores trader logins, purchases, and payout processing immediately.`
+        }
+        blastRadius={
+          pendingAction === "suspend"
+            ? [
+                "All traders lose console access; open positions cannot be closed manually",
+                "Payout queue freezes until reactivation",
+                "Purchases, evaluations, and account transitions stop",
+                "Admin users retain access for suspended-state management",
+              ]
+            : pendingAction === "terminate"
+              ? [
+                  "All traders permanently lose access",
+                  "Accounts are closed out; payouts are voided",
+                  "Data is archived — recovery needs a platform-level restore request",
+                  "Cannot be reversed from the admin console",
+                ]
+              : [
+                  "Trading, purchases, and payouts resume",
+                  "Any suspended-state restrictions are lifted",
+                ]
+        }
+        confirmPhrase={pendingAction === "terminate" ? localTenant.name : undefined}
+        twoOperator={pendingAction === "terminate"}
+        requireReason
+        tenantId={localTenant.id}
+        detail={
+          pendingAction === "terminate"
+            ? "Runbook TEN-09 · termination requires a second operator"
+            : pendingAction === "suspend"
+              ? "Runbook TEN-04 · suspension requires a second operator"
+              : "Recovery action · 2FA only"
+        }
+        onExecute={(reason) =>
+          pendingAction === "suspend"
+            ? applyStatus("suspended", "suspended", reason)
+            : pendingAction === "terminate"
+              ? applyStatus("terminated", "terminated", reason)
+              : applyStatus("active", "reactivated", reason)
+        }
+        onApprovalInitiated={(request) => {
+          setPendingAction(null);
+          toast({
+            title: "Approval requested",
+            description: `${request.actionLabel} — a second operator must approve within 10 minutes.`,
+          });
+        }}
       />
 
       {/* KPI row */}
@@ -420,6 +525,59 @@ export function TenantDetailPage() {
         />
       </div>
 
+      {provJob && (provJob.state === "running" || provJob.state === "blocked") ? (
+        (() => {
+          const doneOrSkipped = provJob.steps.filter(
+            (s) => s.state === "completed" || s.state === "skipped" || s.state === "compensated",
+          ).length;
+          const currentStep = provJob.steps.find(
+            (s) => s.state === "running" || s.state === "pending" || s.state === "failed",
+          );
+          return (
+            <div
+              className={cn(
+                "flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm",
+                provJob.state === "blocked"
+                  ? "border-amber-500/50 bg-amber-50/60 dark:bg-amber-950/20"
+                  : "border-sky-500/40 bg-sky-50/50 dark:bg-sky-950/20",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <GitBranch
+                  className={cn(
+                    "h-4 w-4 shrink-0",
+                    provJob.state === "blocked" ? "text-amber-600" : "text-sky-600",
+                  )}
+                />
+                <span>
+                  Provisioning in progress — step {currentStep?.num ?? "…"} of{" "}
+                  {provJob.steps.length} ({doneOrSkipped} done).{" "}
+                  {provJob.state === "blocked" ? (
+                    <span className="font-medium text-amber-700 dark:text-amber-400">
+                      Blocked: {provJob.blocker?.message}
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate("provisioning-saga", { job: provJob.id })}
+              >
+                View saga <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          );
+        })()
+      ) : null}
+
+      <PageAsyncBoundary
+        loading={loading}
+        error={error}
+        onRetry={retry}
+        hasData={hydrated !== undefined}
+        loadingLabel="Loading tenant…"
+      >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="flex flex-wrap justify-start">
           <TabsTrigger value="overview" className="gap-1"><Activity className="h-3 w-3" />Overview</TabsTrigger>
@@ -456,6 +614,7 @@ export function TenantDetailPage() {
           <RiskTab tenant={localTenant} breaches={tenantBreaches} accountsCount={tenantAccounts.length} />
         </TabsContent>
       </Tabs>
+      </PageAsyncBoundary>
     </Page>
   );
 }
@@ -476,7 +635,11 @@ function paymentMethodFor(tenant: TenantContext): string {
 }
 
 function OverviewTab({ tenant }: { tenant: TenantContext }) {
-  const allModules = moduleRegistry.getAll();
+  // Only tenant-facing modules belong in a per-tenant adoption metric — the
+  // console's own super-admin module is not a tenant entitlement.
+  const allModules = moduleRegistry
+    .getAll()
+    .filter((m) => m.manifest.id !== "super-admin");
   const summary = [
     { label: "Tenant ID", value: tenant.id, mono: true },
     { label: "Slug", value: tenant.slug },
@@ -565,7 +728,11 @@ function ModulesTab({
   onChange: (t: TenantContext) => void;
   onPersist: (t: TenantContext) => void;
 }) {
-  const allModules = moduleRegistry.getAll();
+  // Entitlements are tenant modules only — super-admin is the console's own
+  // module and must never appear as a toggleable tenant entitlement.
+  const allModules = moduleRegistry
+    .getAll()
+    .filter((m) => m.manifest.id !== "super-admin");
 
   const toggle = (moduleId: string) => {
     const enabled = new Set(tenant.enabledModules);
@@ -1210,7 +1377,8 @@ function RiskTab({
             onClick={() => {
               // Round 7 fix: actually navigate to the risk workspace
               // (previously toast-only — "Navigating to X (demo)" but no nav).
-              navigate("risk");
+              // The console's cross-tenant risk workspace is the queues view.
+              navigate("cross-tenant-queues");
             }}
           >
             <ShieldAlert className="h-3.5 w-3.5" />Open risk workspace
@@ -1220,7 +1388,7 @@ function RiskTab({
             variant="outline"
             className="w-full justify-start gap-1.5"
             onClick={() => {
-              navigate("risk-breaches");
+              navigate("abuse-signals");
             }}
           >
             <AlertTriangle className="h-3.5 w-3.5" />View open breaches

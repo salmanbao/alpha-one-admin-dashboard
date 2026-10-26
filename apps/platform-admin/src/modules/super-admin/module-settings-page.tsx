@@ -25,10 +25,13 @@ interface ModuleParam {
   scope: "global" | "tenant" | "module";
 }
 
-export function ModuleSettingsPage() {
+export function ModuleSettingsPage({ params: routeParams }: { params?: Record<string, string> }) {
   const allModules = moduleRegistry.getAll();
-  const [selectedModuleId, setSelectedModuleId] = useState(allModules[0]?.manifest.id ?? "");
-  const [params, setParams] = useState<ModuleParam[]>([
+  // Deep-link support: the Service Catalog passes `?module=<id>`.
+  const [selectedModuleId, setSelectedModuleId] = useState(
+    routeParams?.module ?? allModules[0]?.manifest.id ?? "",
+  );
+  const [moduleParams, setModuleParams] = useState<ModuleParam[]>([
     { key: "max_daily_drawdown", label: "Max Daily Drawdown", type: "number", defaultValue: "5", value: "5", description: "Maximum daily drawdown percentage before trading halts.", scope: "tenant" },
     { key: "max_drawdown", label: "Max Drawdown", type: "number", defaultValue: "10", value: "10", description: "Absolute max drawdown before account suspension.", scope: "tenant" },
     { key: "leverage", label: "Default Leverage", type: "select", defaultValue: "100", value: "100", options: ["1", "10", "25", "50", "100", "200"], description: "Default leverage applied to new trading accounts.", scope: "tenant" },
@@ -38,7 +41,7 @@ export function ModuleSettingsPage() {
   ]);
 
   const updateParam = (key: string, value: string) => {
-    setParams((prev) => prev.map((p) => (p.key === key ? { ...p, value } : p)));
+    setModuleParams((prev) => prev.map((p) => (p.key === key ? { ...p, value } : p)));
   };
 
   const selectedModule = allModules.find((m) => m.manifest.id === selectedModuleId);
@@ -87,7 +90,7 @@ export function ModuleSettingsPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {params.map((p) => (
+              {moduleParams.map((p) => (
                 <div key={p.key} className="rounded-md border p-3">
                   <div className="flex items-center justify-between mb-1">
                     <div>
@@ -120,7 +123,7 @@ export function ModuleSettingsPage() {
               ))}
               <div className="flex gap-2 mt-2">
                 <Button size="sm" onClick={() => toast({ title: "Settings saved", description: "Module parameters updated." })}>Save Changes</Button>
-                <Button size="sm" variant="outline" onClick={() => setParams((prev) => prev.map((p) => ({ ...p, value: p.defaultValue })))}>Reset to Defaults</Button>
+                <Button size="sm" variant="outline" onClick={() => setModuleParams((prev) => prev.map((p) => ({ ...p, value: p.defaultValue })))}>Reset to Defaults</Button>
               </div>
             </CardContent>
           </Card>

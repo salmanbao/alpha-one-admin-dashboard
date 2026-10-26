@@ -29,9 +29,14 @@ const moduleVersions: ModuleVersion[] = [
   { version: "v4.17.3", status: "deprecated", deployed: "1w ago", tenants: 0 },
 ];
 
-export function ModuleDetailPage() {
+export function ModuleDetailPage({ params }: { params?: Record<string, string> }) {
   const allModules = moduleRegistry.getAll();
-  const [selectedModule, setSelectedModule] = useState<typeof allModules[0] | null>(null);
+  // Deep-link support: the Service Catalog passes `?module=<id>` so the
+  // detail view opens on the card the operator clicked.
+  const [selectedModule, setSelectedModule] = useState<typeof allModules[0] | null>(() => {
+    const wanted = params?.module;
+    return (wanted ? allModules.find((m) => m.manifest.id === wanted) : undefined) ?? null;
+  });
   const [showKillSwitch, setShowKillSwitch] = useState(false);
   const [showOverrides, setShowOverrides] = useState(false);
   const [fleetDisabled, setFleetDisabled] = useState(false);
@@ -158,7 +163,19 @@ export function ModuleDetailPage() {
                       <p className="text-xs text-muted-foreground">Deployed {v.deployed} · {v.tenants} tenant{v.tenants !== 1 ? "s" : ""}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="ghost" className="text-xs">History</Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs"
+                        onClick={() =>
+                          toast({
+                            title: `${v.version} release history`,
+                            description: `${v.deployed} · ${v.tenants} tenant${v.tenants !== 1 ? "s" : ""} · ${v.status}`,
+                          })
+                        }
+                      >
+                        History
+                      </Button>
                       {v.status === "deprecated" && <Badge variant="outline" className="text-[9px] text-rose-600 border-rose-500/30">Deprecated</Badge>}
                     </div>
                   </div>
@@ -197,7 +214,17 @@ export function ModuleDetailPage() {
                     ))}
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm">Save Overrides</Button>
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        toast({
+                          title: "Overrides saved",
+                          description: `Tenant parameter overrides for ${selected.name} were stored (mock — backend pending).`,
+                        })
+                      }
+                    >
+                      Save Overrides
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => setShowOverrides(false)}>Cancel</Button>
                   </div>
                 </CardContent>

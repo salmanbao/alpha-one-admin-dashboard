@@ -8,6 +8,8 @@
  */
 
 import { useState, useMemo } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { StatusBadge, formatCurrency } from "@/components/platform/status";
@@ -148,6 +150,15 @@ const roleColors: Record<string, string> = {
 };
 
 export function PlatformStaffPage() {
+  // Async seam (frontend-first): hydrate via the mock layer so the
+  // loading skeleton + error/retry states are exercised; local
+  // interactive state below stays authoritative once loaded.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const { navigate } = usePlatform();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -192,12 +203,25 @@ export function PlatformStaffPage() {
         description="Manage platform operators, their roles, and access permissions."
         icon={Users}
         actions={
-          <Button size="sm" onClick={() => {}}>
-            <Plus className="mr-1 h-4 w-4" /> Invite Staff
-          </Button>
+          <>
+            {/* Directory (operator profiles) lives behind Platform Staff */}
+            <Button size="sm" variant="outline" onClick={() => navigate("operator-directory")}>
+              Directory
+            </Button>
+            <Button size="sm" onClick={() => {}}>
+              <Plus className="mr-1 h-4 w-4" /> Invite Staff
+            </Button>
+          </>
         }
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading platform staff…"
+        >
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="Total Staff" value={stats.total} icon={Users} />
@@ -343,6 +367,7 @@ export function PlatformStaffPage() {
             </div>
           </CardContent>
         </Card>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

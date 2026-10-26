@@ -11,6 +11,8 @@
  */
 
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +20,14 @@ import { StatusBadge } from "@/components/platform/status";
 import { Database, CheckCircle2, Clock, RefreshCw, ShieldCheck, AlertTriangle, HardDrive } from "lucide-react";
 
 export function BackupsDrPage() {
+  // Async seam (frontend-first): status payload resolves via the mock layer.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
+
   return (
     <Page>
       <PageHeader
@@ -26,6 +36,13 @@ export function BackupsDrPage() {
         icon={Database}
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading backup status…"
+        >
         {/* KPI strip */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Last WAL Backup" value="18h ago" icon={HardDrive} tone="positive" />
@@ -97,6 +114,7 @@ export function BackupsDrPage() {
             The last restore drill was 14 days ago. The recommended cadence is every 7 days. Running a drill verifies that backups can be restored and that all services recover correctly. The drill runs in an isolated environment and does not affect production data.
           </p>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

@@ -45,9 +45,9 @@ export function HelpDropdown() {
     .some((m) => m.manifest.id === "support");
 
   const openArchitectureOverview = () => {
-    // The standalone Help page IS the platform architecture overview —
-    // navigate there instead of firing a phantom dialog event.
-    navigate("help");
+    // The standalone platform-architecture page IS the architecture
+    // overview — navigate there instead of firing a phantom dialog event.
+    navigate("platform-architecture");
   };
 
   const openKeyboardShortcuts = () => {
@@ -86,7 +86,7 @@ export function HelpDropdown() {
       });
       return;
     }
-    navigate("support-tickets");
+    navigate("knowledge-base");
   };
 
   const showAbout = () => {

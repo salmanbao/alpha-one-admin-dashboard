@@ -210,6 +210,67 @@ export function WidgetSkeleton() {
   );
 }
 
+/**
+ * PageSkeleton (§31) — structural loading placeholder mirroring the
+ * platform page anatomy: KPI card row → filter bar → table rows. Used by
+ * `PageAsyncBoundary` while a page's async mock data is in flight.
+ */
+export function PageSkeleton({ label = "Loading…" }: { label?: string }) {
+  return (
+    <div role="status" aria-label={label} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full rounded-lg" />
+        ))}
+      </div>
+      <Skeleton className="h-9 w-full rounded-md" />
+      <div className="space-y-2 rounded-lg border border-border p-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 w-full" />
+        ))}
+      </div>
+      <span className="sr-only">{label}</span>
+    </div>
+  );
+}
+
+/**
+ * PageAsyncBoundary — turns a page's `useAsyncMock` state into the three
+ * mandatory states: structural skeleton while loading, ErrorState with
+ * Retry on failure, children once loaded. Wraps page *content* (keep the
+ * PageHeader outside so the operator keeps context during a refetch).
+ */
+export function PageAsyncBoundary({
+  loading,
+  error,
+  onRetry,
+  hasData = false,
+  loadingLabel,
+  errorTitle,
+  children,
+}: {
+  loading: boolean;
+  error?: Error;
+  onRetry?: () => void;
+  /** True once at least one payload has loaded — suppresses the skeleton on refetches. */
+  hasData?: boolean;
+  loadingLabel?: string;
+  errorTitle?: string;
+  children: ReactNode;
+}) {
+  if (loading && !hasData) return <PageSkeleton label={loadingLabel} />;
+  if (error && !hasData) {
+    return (
+      <ErrorState
+        title={errorTitle ?? "Couldn't load this page"}
+        description={`${error.message} — this is a simulated failure (mock layer); when the backend lands the same retry path fetches real data.`}
+        onRetry={onRetry}
+      />
+    );
+  }
+  return children;
+}
+
 export function WidgetSuspense({ children }: { children: ReactNode }) {
   return (
     <Suspense fallback={<WidgetSkeleton />}>{children}</Suspense>

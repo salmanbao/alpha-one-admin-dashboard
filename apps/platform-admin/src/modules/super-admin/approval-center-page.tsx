@@ -1,238 +1,176 @@
 "use client";
 
 /**
- * Approval Center — research item #16.
+ * Approval Center (docs/21 CON-32)
  *
- * Two-operator approval queue for dangerous actions:
- *   - Tenant suspension
- *   - Tenant termination
- *   - Platform halt
- *   - Relay pause
- *   - Kill switch
- *   - Financial adjustments
+ * Two-operator approval queue for the nuclear set (tenant suspend/
+ * terminate, platform halt, relay pause, flag kill-switches).
  *
- * Self-approval must be impossible.
+ * Phase B: fully wired to the console store — pending requests show the
+ * exact action + blast radius, a live 10-minute countdown, and 2FA-gated
+ * Approve/Reject. Self-approval is structurally denied: the Approve
+ * button is disabled for the initiator, and the store returns a 403-shaped
+ * error even if that guard were bypassed. Requests initiated from the
+ * safety screens (Phase C) land here.
  */
 
 import { useState } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  ApprovalRequestCard,
+  useApprovalRequests,
+} from "@/components/platform/approval-flow";
+import {
+  initiateApproval,
+  useConsoleStore,
+} from "@/lib/platform/console-store";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { EmptyState } from "@/components/platform/guards";
 import { toast } from "@/hooks/use-toast";
-import { ShieldCheck, Clock, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ShieldCheck, Clock, CheckCircle2, XCircle, AlertTriangle, Sparkles } from "lucide-react";
 
-interface ApprovalRequest {
-  id: string;
-  action: string;
-  requestedBy: string;
-  tenant: string;
-  risk: "high" | "critical" | "extreme";
-  age: string;
-  reason: string;
-  blastRadius: string;
-}
-
-const pendingApprovals: ApprovalRequest[] = [
+const DEMO_ACTIONS = [
   {
-    id: "APR-001",
-    action: "Suspend Tenant",
-    requestedBy: "Sarah Chen",
-    tenant: "Gamma Futures",
-    risk: "high",
-    age: "23m",
-    reason: "Recurring billing failures — 3 invoices past due",
-    blastRadius: "1 tenant · 8 traders · All accounts frozen",
+    actionKey: "tenant.terminate",
+    actionLabel: "Terminate tenant Gamma Futures",
+    blastRadius: [
+      "All 8 traders permanently lose access",
+      "2 funded accounts ($46k) are closed out at market",
+      "Data export window: 72 hours, then purged",
+    ],
+    detail: "Runbook TEN-09 · abuse investigation AB-131",
   },
   {
-    id: "APR-002",
-    action: "Relay Pause",
-    requestedBy: "Marcus Webb",
-    tenant: "All tenants (platform-wide)",
-    risk: "critical",
-    age: "8m",
-    reason: "Event bus consumer lag detected — investigating DLQ depth",
-    blastRadius: "ALL tenants · Event delivery paused · Trading continues",
+    actionKey: "control.platform_halt",
+    actionLabel: "Platform halt (all tenants)",
+    blastRadius: [
+      "All trading halts across every tenant",
+      "Payouts, evaluations, and API access stop",
+      "Estimated blast radius: $1.4M monthly volume",
+    ],
+    detail: "Incident ladder rung 3 · OPS-11",
   },
   {
-    id: "APR-003",
-    action: "Credit Note — $4,200",
-    requestedBy: "Priya Nair",
-    tenant: "Alpha Capital",
-    risk: "high",
-    age: "1h 12m",
-    reason: "Duplicate charge — invoice INV-2024-008. Manual credit note requested.",
-    blastRadius: "1 tenant · Financial adjustment · Reversed charge",
-  },
-  {
-    id: "APR-004",
-    action: "Platform Halt",
-    requestedBy: "Daniel Cooper",
-    tenant: "ALL TENANTS",
-    risk: "extreme",
-    age: "3m",
-    reason: "Suspected data breach — isolating platform while investigating",
-    blastRadius: "ALL trading · ALL payouts · ALL evaluations · ALL API access",
+    actionKey: "control.flag_kill_switch",
+    actionLabel: "Kill-switch: disable auto_payout flag fleet-wide",
+    blastRadius: ["Payout automation halts for all tenants", "Manual payouts unaffected"],
+    detail: "Flag rollback of v1.8.2",
   },
 ];
 
-const riskTone = (r: ApprovalRequest["risk"]) =>
-  r === "extreme" ? "danger" : r === "critical" ? "warning" : "info";
-
-const riskBadge = (r: ApprovalRequest["risk"]) => {
-  if (r === "extreme") return "border-rose-500/40 bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400";
-  if (r === "critical") return "border-amber-500/40 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400";
-  return "border-slate-500/40 bg-slate-100 text-slate-700 dark:bg-slate-950 dark:text-slate-400";
-};
-
 export function ApprovalCenterPage() {
-  const [resolved, setResolved] = useState<Set<string>>(new Set());
+  // Async seam (frontend-first): hydrate via the mock layer so the
+  // loading skeleton + error/retry states are exercised; store-driven
+  // state below stays authoritative once loaded.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
+  const { user } = usePlatform();
+  const store = useConsoleStore();
+  const approvals = useApprovalRequests();
+  const [demoIdx, setDemoIdx] = useState(0);
 
-  const handleApprove = (req: ApprovalRequest) => {
-    setResolved((prev) => new Set(prev).add(req.id));
+  const pending = approvals.filter((a) => a.status === "pending_approval");
+  const closed = approvals.filter((a) => a.status !== "pending_approval");
+  const expiringSoon = pending.filter((a) => a.expiresAt - Date.now() < 2 * 60 * 1000);
+
+  const simulate = () => {
+    const spec = DEMO_ACTIONS[demoIdx % DEMO_ACTIONS.length];
+    const request = initiateApproval({
+      ...spec,
+      initiator: { id: user.id, name: user.name },
+    });
+    setDemoIdx((i) => i + 1);
     toast({
-      title: "Approved",
-      description: `${req.action} for ${req.tenant} approved. 2FA verified. Audit ID: APR-${Date.now().toString(36).toUpperCase()}`,
+      title: "Demo request created",
+      description: `${request.actionLabel} — you are the initiator, so you can't approve it yourself. Switch user (topbar) to approve.`,
     });
   };
-
-  const handleReject = (req: ApprovalRequest) => {
-    setResolved((prev) => new Set(prev).add(req.id));
-    toast({
-      title: "Rejected",
-      description: `${req.action} for ${req.tenant} rejected. Audit ID: APR-${Date.now().toString(36).toUpperCase()}`,
-      variant: "destructive",
-    });
-  };
-
-  const active = pendingApprovals.filter((a) => !resolved.has(a.id));
 
   return (
     <Page>
       <PageHeader
         title="Approval Center"
-        description="Two-operator approval queue for dangerous actions. Self-approval is impossible."
+        description="Two-operator approval queue for dangerous actions. Operator A initiates (2FA) → operator B approves (2FA, 10-min window) → executes. Self-approval is impossible."
         icon={ShieldCheck}
+        actions={
+          <Button size="sm" variant="ghost" onClick={simulate}>
+            <Sparkles className="mr-1 h-4 w-4" /> Simulate request (demo)
+          </Button>
+        }
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading approvals…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MetricCard label="Pending" value={active.length} icon={Clock} tone={active.length > 0 ? "warning" : "positive"} />
-          <MetricCard label="High Risk" value={active.filter((a) => a.risk === "high").length} icon={AlertTriangle} />
-          <MetricCard label="Critical" value={active.filter((a) => a.risk === "critical").length} icon={AlertTriangle} tone="warning" />
-          <MetricCard label="Extreme" value={active.filter((a) => a.risk === "extreme").length} icon={AlertTriangle} tone={active.some((a) => a.risk === "extreme") ? "negative" : "positive"} />
+          <MetricCard label="Pending" value={pending.length} icon={Clock} tone={pending.length > 0 ? "warning" : "positive"} />
+          <MetricCard label="Expiring < 2 min" value={expiringSoon.length} icon={AlertTriangle} tone={expiringSoon.length > 0 ? "negative" : "positive"} />
+          <MetricCard label="Approved / executed" value={store.audit.filter((a) => a.action === "console.escalation_approved").length} icon={CheckCircle2} tone="positive" />
+          <MetricCard label="Rejected" value={store.audit.filter((a) => a.action === "console.escalation_rejected").length} icon={XCircle} />
         </div>
 
-        {active.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <div className="rounded-full bg-emerald-100 p-3 dark:bg-emerald-950">
-              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-            </div>
-            <p className="text-sm font-medium">All clear</p>
-            <p className="text-xs text-muted-foreground">No approvals pending. All dangerous actions have been resolved.</p>
-          </div>
+        {/* ── Pending queue ─────────────────────────────────────── */}
+        {pending.length === 0 ? (
+          <EmptyState
+            title="All clear"
+            description="No approvals pending. Dangerous actions land here the moment a second operator's review is required."
+            icon={CheckCircle2}
+            hint="Use “Simulate request (demo)” to exercise the approval flow."
+          />
         ) : (
           <div className="space-y-3">
-            {active.map((req) => (
-              <Card key={req.id} className={cn(
-                req.risk === "extreme" && "border-rose-500/40 ring-1 ring-rose-500/20",
-                req.risk === "critical" && "border-amber-500/40",
-              )}>
-                <CardContent className="p-4">
-                  <div className="flex flex-wrap items-start gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold">{req.action}</h3>
-                        <Badge variant="outline" className={cn("text-[10px] capitalize", riskBadge(req.risk))}>
-                          {req.risk} risk
-                        </Badge>
-                        <Badge variant="outline" className="text-[10px]">{req.id}</Badge>
-                        <Badge variant="outline" className="text-[10px] tabular-nums">{req.age} old</Badge>
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-                        <div><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Requested by</p><p className="font-medium">{req.requestedBy}</p></div>
-                        <div><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Target</p><p className="font-medium">{req.tenant}</p></div>
-                        <div><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Blast radius</p><p className="font-medium text-amber-700 dark:text-amber-400">{req.blastRadius}</p></div>
-                      </div>
-                      <div className="mt-2">
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Reason</p>
-                        <p className="text-xs">{req.reason}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="destructive">
-                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Approve
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Approve {req.action}?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              You are approving: {req.action} for {req.tenant}.<br />
-                              Blast radius: {req.blastRadius}<br />
-                              Requested by: {req.requestedBy}<br />
-                              <strong className="text-rose-600">2FA verification will be required. This action is permanently logged in the audit trail.</strong>
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-rose-600 text-white hover:bg-rose-700"
-                              onClick={() => handleApprove(req)}
-                            >
-                              Approve (requires 2FA)
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="outline">
-                            <XCircle className="mr-1 h-3.5 w-3.5" /> Reject
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Reject {req.action}?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              The requesting operator will be notified. This rejection is also audited.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleReject(req)}>Reject</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            {pending.map((req) => (
+              <ApprovalRequestCard
+                key={req.id}
+                request={req}
+                onDecided={(r, decision) => {
+                  if (decision === "reject") {
+                    toast({
+                      title: "Rejected",
+                      description: `${r.actionLabel} — rejection recorded in the audit trail.`,
+                      variant: "destructive",
+                    });
+                  }
+                }}
+              />
             ))}
           </div>
         )}
+
+        {/* ── Closed history ────────────────────────────────────── */}
+        {closed.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Recently closed
+            </p>
+            {closed.map((req) => (
+              <ApprovalRequestCard key={req.id} request={req} />
+            ))}
+          </div>
+        ) : null}
 
         {/* Self-approval rule */}
         <div className="rounded-lg border border-amber-500/20 bg-amber-50/30 p-3 text-xs text-muted-foreground dark:bg-amber-950/10">
           <p className="font-medium text-foreground">Two-operator approval</p>
           <p className="mt-1">
-            Actions requested by the current operator cannot be self-approved — a different operator must review and approve.
-            All approvals require 2FA verification and are permanently logged in the platform audit trail with the actor, target, reason, and timestamp.
+            The approval token names the initiator — a self-approval is rejected as a 403, not a
+            warning. Every decision requires the approver&apos;s 2FA and is permanently logged in the
+            platform audit trail (actor, target, blast radius, timestamp). Pending requests expire
+            10 minutes after initiation.
           </p>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

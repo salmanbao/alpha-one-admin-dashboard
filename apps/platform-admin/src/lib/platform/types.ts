@@ -57,7 +57,20 @@ export interface TenantContext {
   terminology: Record<string, string>;
   /** Plan tier */
   plan: "starter" | "growth" | "scale" | "enterprise";
-  status: "active" | "trial" | "suspended" | "invited" | "terminated";
+  /**
+   * Lifecycle per docs/03 §3.5 + docs/21 CON-06: provisioning saga runs
+   * `provisioning → onboarding` (steps 2 and 9); terminal failure lands
+   * `provisioning_failed` until an operator resumes from the console.
+   */
+  status:
+    | "active"
+    | "trial"
+    | "suspended"
+    | "invited"
+    | "terminated"
+    | "provisioning"
+    | "provisioning_failed"
+    | "onboarding";
   createdAt: string;
 }
 
