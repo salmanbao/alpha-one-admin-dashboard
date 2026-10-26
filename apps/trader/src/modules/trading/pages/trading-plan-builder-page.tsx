@@ -5,6 +5,7 @@
  * Structured plan form: strategy, sessions, risk rules.
  */
 
+import { useState } from "react";
 import { TerraCard, TerraPageHeader, TerraSectionTitle, TerraBadge } from "@/components/terra/terra-ui";
 
 const planSections = [
@@ -44,6 +45,20 @@ const planSections = [
 ];
 
 export function TradingPlanBuilderPage() {
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [draft, setDraft] = useState<Record<string, string>>(() => {
+    const d: Record<string, string> = {};
+    planSections.forEach((s) => s.items.forEach((i) => { d[i.label] = i.value; }));
+    return d;
+  });
+
+  const handleSave = () => {
+    setEditing(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
   return (
     <div className="space-y-6">
       <TerraPageHeader
@@ -52,12 +67,32 @@ export function TradingPlanBuilderPage() {
         actions={
           <>
             <TerraBadge tone="success">Active plan v4</TerraBadge>
-            <button type="button" className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90">
-              Edit plan
-            </button>
+            {editing ? (
+              <button
+                type="button"
+                onClick={handleSave}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
+              >
+                Save Plan
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
+              >
+                Edit plan
+              </button>
+            )}
           </>
         }
       />
+
+      {saved && (
+        <div className="rounded-xl bg-primary-fixed/50 px-4 py-3 text-sm font-semibold text-on-primary-fixed-variant">
+          ✓ Plan saved — your rules are up to date.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {planSections.map((s) => (
@@ -69,7 +104,16 @@ export function TradingPlanBuilderPage() {
                   <span className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
                     {i.label}
                   </span>
-                  <span className="text-sm font-semibold text-on-surface">{i.value}</span>
+                  {editing ? (
+                    <input
+                      type="text"
+                      value={draft[i.label] ?? i.value}
+                      onChange={(e) => setDraft({ ...draft, [i.label]: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-2.5 py-1.5 text-sm font-semibold text-on-surface outline-none focus:border-primary"
+                    />
+                  ) : (
+                    <span className="text-sm font-semibold text-on-surface">{draft[i.label] ?? i.value}</span>
+                  )}
                 </div>
               ))}
             </div>
