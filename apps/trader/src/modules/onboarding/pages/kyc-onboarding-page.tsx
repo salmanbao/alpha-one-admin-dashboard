@@ -14,6 +14,11 @@ const steps = ["Personal info", "Documents", "Review"];
 
 export function KycOnboardingPage() {
   const [step, setStep] = useState(0);
+  const [uploaded, setUploaded] = useState<Record<string, boolean>>({});
+
+  const handleUpload = (doc: string) => {
+    setUploaded((u) => ({ ...u, [doc]: true }));
+  };
 
   return (
     <div className="space-y-6">
@@ -96,12 +101,19 @@ export function KycOnboardingPage() {
                     className="flex items-center justify-between rounded-xl border border-dashed border-outline-variant px-4 py-5"
                   >
                     <span className="text-sm font-semibold text-on-surface">{doc}</span>
-                    <button
-                      type="button"
-                      className="rounded-xl bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface hover:bg-surface-container"
-                    >
-                      Upload
-                    </button>
+                    {uploaded[doc] ? (
+                      <span className="flex items-center gap-2 rounded-xl bg-primary-fixed/50 px-4 py-2 text-xs font-bold text-on-primary-fixed-variant">
+                        ✓ Uploaded
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleUpload(doc)}
+                        className="rounded-xl bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface hover:bg-surface-container"
+                      >
+                        Upload
+                      </button>
+                    )}
                   </div>
                 ),
               )}
@@ -117,7 +129,8 @@ export function KycOnboardingPage() {
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
+                disabled={Object.keys(uploaded).length < 2}
+                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90 disabled:opacity-50"
               >
                 Continue
               </button>
@@ -136,7 +149,7 @@ export function KycOnboardingPage() {
                 ["Date of birth", "1990-04-12"],
                 ["Nationality", "United States"],
                 ["Address", "123 Market St, San Francisco, CA 94103"],
-                ["Documents", "ID + proof of address uploaded"],
+                ["Documents", Object.keys(uploaded).length >= 2 ? "ID + proof of address uploaded" : `${Object.keys(uploaded).length} of 2 uploaded`],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between rounded-xl bg-surface-container-low px-4 py-2.5">
                   <span className="text-on-surface-variant">{k}</span>
