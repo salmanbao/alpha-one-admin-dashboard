@@ -225,6 +225,20 @@ function renderWidgetInto(
   const moduleName = moduleInfo?.manifest.name ?? widget.module;
   const Comp = widget.component;
 
+  // Widgets defined in the tenant module catalog have metadata only
+  // (components live in the prop-admin bundle). Render a placeholder so the
+  // dashboard manager still shows a configured widget slot without crashing.
+  if (!Comp) {
+    const moduleInfo = moduleRegistry.get(widget.module);
+    return (
+      <div className="flex h-full items-center justify-center rounded-lg border border-dashed bg-muted/50">
+        <span className="text-xs text-muted-foreground">
+          {widget.title} ({widget.module}) — widget preview requires prop-admin bundle
+        </span>
+      </div>
+    );
+  }
+
   // Synthesize a placement for the widget instance id (grid coords read at runtime)
   const placement: DashboardWidgetPlacement = {
     widgetId: widget.id,
