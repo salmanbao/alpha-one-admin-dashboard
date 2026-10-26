@@ -300,11 +300,11 @@ export function AuditLogPage() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button size="icon" variant="ghost" className="h-8 w-8">
-                        <Eye className="h-4 w-4" />
+                      <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`View event ${evt.id}`}>
+                        <Eye className="h-4 w-4" aria-hidden="true" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8">
-                        <Download className="h-4 w-4" />
+                      <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Download event ${evt.id}`}>
+                        <Download className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>

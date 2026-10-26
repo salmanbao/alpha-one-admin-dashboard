@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/platform/status";
 import { Database, CheckCircle2, Clock, RefreshCw, ShieldCheck, AlertTriangle, HardDrive } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 export function BackupsDrPage() {
   // Async seam (frontend-first): status payload resolves via the mock layer.
@@ -27,6 +28,14 @@ export function BackupsDrPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
+
+  const handleVerify = () => {
+    toast({ title: "Backup verification started", description: "Integrity check queued — results will appear in backup status" });
+  };
+
+  const handleStartDrill = () => {
+    toast({ title: "Restore drill started", description: "Isolated restore environment provisioned — drill progress will update in restore history" });
+  };
 
   return (
     <Page>
@@ -96,10 +105,10 @@ export function BackupsDrPage() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2">
-          <Button variant="default">
+          <Button variant="default" onClick={handleVerify}>
             <RefreshCw className="mr-1 h-4 w-4" /> Verify backup now
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleStartDrill}>
             <ShieldCheck className="mr-1 h-4 w-4" /> Start restore drill
           </Button>
         </div>
