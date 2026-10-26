@@ -83,13 +83,14 @@ const TABS = ["Overview", "Accounts", "Positions", "Performance", "KYC", "Risk",
 type Tab = (typeof TABS)[number];
 
 export function TraderDetailStitchPage() {
-  const { runtime, navigate, tenant } = usePlatform();
+  const { runtime, navigate, tenant, router } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
+  const traderId = router.params.id || "t0";
   const tenantCur = runtime.tenant?.currency ?? "USD";
 
   const traders = getTenantTraders(tid);
-  const trader: Trader = traders[0] ?? {
+  const trader: Trader = traders.find((t) => t.id === traderId) ?? traders[0] ?? {
     id: "t0", tenantId: tid, name: "Elena Althaus", email: "elena@example.com", country: "DE",
     status: "active" as const, equity: 0, totalPnl: 0, trades: 0, winRate: 0, joinedAt: "", userId: "u0",
   };
@@ -217,7 +218,7 @@ export function TraderDetailStitchPage() {
         <StitchCard className="p-0">
           <StitchTable
             keyOf={(a) => a.id}
-            onRowClick={() => navigate("account-workspace")}
+            onRowClick={(row) => navigate("account-workspace", { id: row.id })}
             rows={accounts}
             columns={[
               { header: "Login", cell: (a) => <span className="font-mono text-xs font-semibold text-ink">{a.login}</span> },
