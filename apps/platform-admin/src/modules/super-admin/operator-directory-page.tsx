@@ -1,6 +1,8 @@
 "use client";
 
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/platform/status";
@@ -10,7 +12,7 @@ import type { AuthUser } from "@/lib/platform/types";
 import { Users, ShieldCheck, KeyRound, Clock, AlertTriangle, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const platformOperators = allUsers.filter((u) => u.application === "super-admin" || u.application === "prop-admin");
+const demoOperators = allUsers.filter((u) => u.application === "super-admin" || u.application === "prop-admin");
 
 const roleBadge = (r: string) =>
   r === "super-admin" ? "border-rose-500/30 text-rose-700 dark:text-rose-400" :
@@ -75,6 +77,15 @@ const columns: Column<AuthUser>[] = [
 ];
 
 export function OperatorDirectoryPage() {
+  // Async seam (frontend-first): data resolves via the mock layer so the
+  // loading skeleton + error/retry states are exercised.
+  const {
+    data: loadedData,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => demoOperators, { delayMs: 450 }), []);
+  const platformOperators = loadedData ?? [];
   const withMfa = platformOperators.length;
   const activeSessions = platformOperators.length;
 
@@ -87,6 +98,13 @@ export function OperatorDirectoryPage() {
         actions={<Button size="sm"><UserPlus className="mr-1 h-4 w-4" /> Invite operator</Button>}
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={loadedData !== undefined}
+          loadingLabel="Loading operators…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Operators" value={platformOperators.length} icon={Users} />
           <MetricCard label="With MFA" value={withMfa} icon={KeyRound} tone="positive" />
@@ -94,6 +112,7 @@ export function OperatorDirectoryPage() {
           <MetricCard label="Suspended" value={0} icon={AlertTriangle} tone="positive" />
         </div>
         <DataTable columns={columns} data={platformOperators} rowKey={(u) => u.id} searchableText={(u) => `${u.name} ${u.email} ${u.roles.join(" ")}`} searchPlaceholder="Search operators…" pageSize={20} emptyTitle="No operators" emptyDescription="Invite operators to get started." />
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

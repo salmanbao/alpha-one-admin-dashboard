@@ -61,7 +61,7 @@ export function Breadcrumbs() {
     <Breadcrumb className="mb-3">
       <BreadcrumbList>
         <BreadcrumbItem>
-          <BreadcrumbLink onClick={() => navigate("overview")} className="cursor-pointer">
+          <BreadcrumbLink onClick={() => navigate("super-overview")} className="cursor-pointer">
             <Home className="h-3.5 w-3.5" />
           </BreadcrumbLink>
         </BreadcrumbItem>

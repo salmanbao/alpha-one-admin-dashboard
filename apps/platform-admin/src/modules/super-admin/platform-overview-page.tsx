@@ -10,6 +10,8 @@
 
 import { useMemo } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -29,7 +31,7 @@ import {
   CheckCircle2,
   ChevronRight,
 } from "lucide-react";
-import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
+import { tenants as rosterTenants, getTenantTraders } from "@/lib/platform/mock-data";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 
 const tenantStatusTone = (s: string) =>
@@ -47,6 +49,16 @@ const tenantStatusTone = (s: string) =>
 
 export function PlatformOverviewPage() {
   const { navigate } = usePlatform();
+
+  // Async seam (frontend-first): the tenant roster resolves via the mock
+  // layer so the dashboard exercises real loading/error/retry states.
+  const {
+    data: loadedTenants,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => rosterTenants, { delayMs: 500 }), []);
+  const allTenants = loadedTenants ?? [];
 
   // KPIs
   const totalTraders = allTenants.reduce((s, t) => s + getTenantTraders(t.id).length, 0);
@@ -95,6 +107,13 @@ export function PlatformOverviewPage() {
         }
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={loadedTenants !== undefined}
+          loadingLabel="Loading platform overview…"
+        >
         {/* Compliance badges */}
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
@@ -304,6 +323,7 @@ export function PlatformOverviewPage() {
             </CardContent>
           </Card>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,11 +31,20 @@ const initialQuotas: TenantQuota[] = [
   { tenant: "Alpha Capital", model: "ai-insights-v2", monthlyQuota: 50000, used: 38420, remaining: 11580, rateLimit: 100, requests: 2840, resetsAt: "in 3d", status: "warning", spend: 1240 },
   { tenant: "Beta Trading", model: "ai-insights-v2", monthlyQuota: 50000, used: 12400, remaining: 37600, rateLimit: 100, requests: 1120, resetsAt: "in 5d", status: "normal", spend: 380 },
   { tenant: "Gamma Futures", model: "predictive-analytics-v1", monthlyQuota: 30000, used: 28900, remaining: 1100, rateLimit: 50, requests: 1890, resetsAt: "in 1d", status: "exceeded", spend: 2100 },
-  { tenant: "Delta Capital", model: "ai-cost-tracker", monthlyQuota: 20000, used: 5600, remaining: 14400, rateLimit: 50, requests: 620, resetsAt: "in 6d", status: "normal", spend: 180 },
-  { tenant: "Epsilon Markets", model: "fine-tune-job-v1", monthlyQuota: 10000, used: 9800, remaining: 200, rateLimit: 10, requests: 980, resetsAt: "in 12h", status: "exceeded", spend: 890 },
+  { tenant: "Alpha Capital", model: "ai-cost-tracker", monthlyQuota: 20000, used: 5600, remaining: 14400, rateLimit: 50, requests: 620, resetsAt: "in 6d", status: "normal", spend: 180 },
+  { tenant: "Beta Trading", model: "fine-tune-job-v1", monthlyQuota: 10000, used: 9800, remaining: 200, rateLimit: 10, requests: 980, resetsAt: "in 12h", status: "exceeded", spend: 890 },
 ];
 
 export function AiUsageQuotaPage() {
+  // Async seam (frontend-first): hydrate via the mock layer so the
+  // loading skeleton + error/retry states are exercised; local
+  // interactive state below stays authoritative once loaded.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const [quotas, setQuotas] = useState(initialQuotas);
   const [tenantFilter, setTenantFilter] = useState("all");
 
@@ -55,6 +66,13 @@ export function AiUsageQuotaPage() {
         actions={<Button size="sm" variant="outline"><DollarSign className="mr-1 h-4 w-4" /> Reset Counters</Button>}
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading AI usage…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Used" value={totalUsed > 999 ? `${(totalUsed / 1000).toFixed(0)}k` : totalUsed} icon={Activity} />
           <MetricCard label="Total Quota" value={totalQuota > 999 ? `${(totalQuota / 1000).toFixed(0)}k` : totalQuota} icon={BarChart3} />
@@ -193,6 +211,7 @@ export function AiUsageQuotaPage() {
           </div>
           <p className="mt-1">Rate limits are enforced at the model API gateway. Tenants exceeding quota receive HTTP 429 responses. Quota overrides take effect immediately.</p>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

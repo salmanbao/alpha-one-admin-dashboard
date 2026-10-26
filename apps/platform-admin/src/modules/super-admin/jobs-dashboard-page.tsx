@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/platform/status";
 import { Zap, CheckCircle2, AlertTriangle, XCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 
 interface Job {
   id: string;
@@ -54,10 +56,17 @@ const columns: Column<Job>[] = [
 ];
 
 export function JobsDashboardPage() {
-  const succeeded = jobs.filter((j) => j.status === "succeeded").length;
-  const running = jobs.filter((j) => j.status === "running").length;
-  const failed = jobs.filter((j) => j.status === "failed").length;
-  const paused = jobs.filter((j) => j.status === "paused").length;
+  // Async seam (frontend-first): loading skeleton + error/retry via mock layer.
+  const {
+    data: rows,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => jobs, { delayMs: 400 }), []);
+  const succeeded = rows?.filter((j) => j.status === "succeeded").length ?? 0;
+  const running = rows?.filter((j) => j.status === "running").length ?? 0;
+  const failed = rows?.filter((j) => j.status === "failed").length ?? 0;
+  const paused = rows?.filter((j) => j.status === "paused").length ?? 0;
 
   return (
     <Page>
@@ -67,6 +76,13 @@ export function JobsDashboardPage() {
         icon={Zap}
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={rows !== undefined}
+          loadingLabel="Loading jobs…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Succeeded" value={succeeded} icon={CheckCircle2} tone="positive" />
           <MetricCard label="Running" value={running} icon={Clock} tone="positive" />
@@ -85,7 +101,7 @@ export function JobsDashboardPage() {
 
         <DataTable
           columns={columns}
-          data={jobs}
+          data={rows ?? []}
           rowKey={(j) => j.id}
           searchableText={(j) => `${j.name} ${j.status}`}
           searchPlaceholder="Search jobs…"
@@ -93,6 +109,7 @@ export function JobsDashboardPage() {
           emptyTitle="No jobs"
           emptyDescription="Background jobs will appear here."
         />
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -65,12 +67,27 @@ const columns: Column<RefEntry>[] = [
 ];
 
 export function ReferenceDataPage() {
+  // Async seam (frontend-first): content resolves via the mock layer so
+  // the loading skeleton + error/retry states are exercised.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const categories = Array.from(new Set(allEntries.map((e) => e.category)));
 
   return (
     <Page>
       <PageHeader title="Master Reference Data" description="Controlled reference data — currencies, countries, platforms, rule types, account types, status definitions." icon={BookOpen} />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading reference data…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Currencies" value={currencies.length} icon={DollarSign} />
           <MetricCard label="Countries" value={countries.length} icon={Globe} />
@@ -89,6 +106,7 @@ export function ReferenceDataPage() {
             <DataTable columns={columns} data={allEntries} rowKey={(r) => r.id} searchableText={(r) => `${r.code} ${r.name} ${r.category}`} searchPlaceholder="Search reference data…" pageSize={20} emptyTitle="No entries" emptyDescription="Reference data will appear here." />
           </CardContent>
         </Card>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

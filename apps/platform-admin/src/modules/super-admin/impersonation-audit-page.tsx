@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +32,7 @@ const initialEntries: ImpersonationEntry[] = [
   { id: "IMP-001", operator: "Alex Morgan", operatorRole: "super-admin", targetTenant: "Alpha Capital", targetAdmin: "sarah@alphacapital.com", action: "impersonate", duration: "12m", timestamp: "15m ago", reason: "Investigate payout workflow", status: "normal", ip: "192.168.1.1" },
   { id: "IMP-002", operator: "Marcus Vance", operatorRole: "super-admin", targetTenant: "Beta Trading", targetAdmin: "tom@betatrading.io", action: "view_as", duration: "8m", timestamp: "1h ago", reason: "Verify dashboard configuration", status: "normal", ip: "10.0.0.42" },
   { id: "IMP-003", operator: "Sarah Chen", operatorRole: "super-admin", targetTenant: "Gamma Futures", targetAdmin: "linda@gammafutures.com", action: "impersonate", duration: "23m", timestamp: "2h ago", reason: "Review KYC queue", status: "flagged", ip: "203.0.113.5" },
-  { id: "IMP-004", operator: "Tom Harper", operatorRole: "super-admin", targetTenant: "Delta Capital", targetAdmin: "maya@deltacapital.io", action: "revert", duration: "35m", timestamp: "3h ago", reason: "Completed configuration review", status: "normal", ip: "198.51.100.1" },
+  { id: "IMP-004", operator: "Tom Harper", operatorRole: "super-admin", targetTenant: "Gamma Futures", targetAdmin: "linda@gammafutures.com", action: "revert", duration: "35m", timestamp: "3h ago", reason: "Completed configuration review", status: "normal", ip: "198.51.100.1" },
   { id: "IMP-005", operator: "Lisa Park", operatorRole: "super-admin", targetTenant: "Alpha Capital", targetAdmin: "sarah@alphacapital.com", action: "impersonate", duration: "4h 12m", timestamp: "1d ago", reason: "Emergency payout investigation", status: "audited", ip: "192.168.1.1" },
   { id: "IMP-006", operator: "James Wright", operatorRole: "prop-admin", targetTenant: "Beta Trading", targetAdmin: "tom@betatrading.io", action: "flagged", duration: "2m", timestamp: "1d ago", reason: "Privilege escalation attempt detected", status: "flagged", ip: "45.33.22.11" },
   { id: "IMP-007", operator: "Alex Morgan", operatorRole: "super-admin", targetTenant: "Gamma Futures", targetAdmin: "linda@gammafutures.com", action: "session_ended", duration: "18m", timestamp: "2d ago", reason: "Session terminated by operator", status: "normal", ip: "192.168.1.1" },
@@ -38,7 +40,14 @@ const initialEntries: ImpersonationEntry[] = [
 ];
 
 export function ImpersonationAuditPage() {
-  const [entries, setEntries] = useState(initialEntries);
+  // Async seam (frontend-first): entries resolve via the mock layer
+  // (read-only log — no local mutation).
+  const {
+    data: entries = [],
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => initialEntries, { delayMs: 450 }), []);
   const [search, setSearch] = useState("");
 
   const filtered = entries.filter((e) => {
@@ -74,6 +83,13 @@ export function ImpersonationAuditPage() {
         actions={<Button size="sm" variant="outline"><Shield className="mr-1 h-4 w-4" /> Audit Now</Button>}
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={entries.length > 0}
+          loadingLabel="Loading impersonation history…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Sessions" value={totalSessions} icon={UserCheck} />
           <MetricCard label="Flagged" value={flagged} icon={AlertTriangle} tone="negative" />
@@ -136,6 +152,7 @@ export function ImpersonationAuditPage() {
             </div>
           </CardContent>
         </Card>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

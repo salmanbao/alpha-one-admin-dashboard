@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency } from "@/components/platform/status";
-import { tenants as allTenants, getTenantTraders, getTenantAccounts } from "@/lib/platform/mock-data";
+import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import type { TenantContext } from "@/lib/platform/types";
 import { DollarSign, TrendingUp, TrendingDown, Receipt, CheckCircle2, Clock } from "lucide-react";
 
@@ -19,13 +21,30 @@ interface TenantRevenue {
 }
 
 export function PlatformFinancialsPage() {
-  const rows: TenantRevenue[] = allTenants.filter((t) => t.id !== "platform").map((t) => {
-    const planRevenue = t.plan === "enterprise" ? 4900 : t.plan === "scale" ? 1900 : 890;
-    const traders = getTenantTraders(t.id).length;
-    const usageRevenue = Math.round(traders * 12); // $12/trader/month
-    const passThrough = Math.round(traders * 35); // pass-through margin
-    return { tenant: t, planRevenue, usageRevenue, passThrough, total: planRevenue + usageRevenue + passThrough };
-  });
+  // Async seam (frontend-first): the revenue roll-up is "fetched" through the
+  // mock layer so the skeleton / error+retry states are exercised.
+  const {
+    data: rows = [],
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(
+    () =>
+      mockAsync(
+        () =>
+          allTenants
+            .filter((t) => t.id !== "platform")
+            .map((t): TenantRevenue => {
+              const planRevenue = t.plan === "enterprise" ? 4900 : t.plan === "scale" ? 1900 : 890;
+              const traders = getTenantTraders(t.id).length;
+              const usageRevenue = Math.round(traders * 12); // $12/trader/month
+              const passThrough = Math.round(traders * 35); // pass-through margin
+              return { tenant: t, planRevenue, usageRevenue, passThrough, total: planRevenue + usageRevenue + passThrough };
+            }),
+        { delayMs: 450 },
+      ),
+    [],
+  );
 
   const mrr = rows.reduce((s, r) => s + r.total, 0);
   const arr = mrr * 12;
@@ -46,6 +65,13 @@ export function PlatformFinancialsPage() {
     <Page>
       <PageHeader title="Platform Financials" description="Revenue, billing, and metering across all tenants." icon={DollarSign} />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={rows.length > 0}
+          loadingLabel="Loading financials…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="MRR" value={formatCurrency(mrr)} icon={TrendingUp} tone="positive" />
           <MetricCard label="ARR (projected)" value={formatCurrency(arr)} icon={DollarSign} tone="positive" />
@@ -97,6 +123,7 @@ export function PlatformFinancialsPage() {
           <p className="font-medium text-foreground">Billing mode</p>
           <p className="mt-1">Currently in manual contract mode (V1/V2). V3 will add the full productized billing engine with plans, add-ons, subscriptions, usage-based billing, dunning, and self-service tenant signup.</p>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

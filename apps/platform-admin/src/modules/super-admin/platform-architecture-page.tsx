@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +32,14 @@ const pillars: ArchitecturePillar[] = [
 ];
 
 export function PlatformArchitecturePage() {
+  // Async seam (frontend-first): content resolves via the mock layer so
+  // the loading skeleton + error/retry states are exercised.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const [search, setSearch] = useState("");
   const activePillars = pillars.filter((p) => p.status === "active").length;
 
@@ -52,6 +62,13 @@ export function PlatformArchitecturePage() {
         }
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading architecture…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Active Pillars" value={activePillars} icon={CheckCircle2} tone="positive" />
           <MetricCard label="Beta Modules" value={pillars.filter((p) => p.status === "beta").length} icon={Activity} />
@@ -142,6 +159,7 @@ export function PlatformArchitecturePage() {
             </CardContent>
           </Card>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

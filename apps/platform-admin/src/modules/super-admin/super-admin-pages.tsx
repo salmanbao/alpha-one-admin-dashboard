@@ -123,7 +123,16 @@ export function SuperAdminOverviewPage() {
 
   return (
     <Page>
-      <PageHeader title="Platform Overview" description="PFaaS platform health and tenant summary." icon={BarChart3} />
+      <PageHeader
+        title="Platform Overview"
+        description="PFaaS platform health and tenant summary."
+        icon={BarChart3}
+        actions={
+          <Button size="sm" variant="outline" onClick={() => navigate("platform-overview")}>
+            Detailed metrics
+          </Button>
+        }
+      />
       <PageContent>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Active Tenants" value={allTenants.length} delta={3} icon={Building2} tone="positive" />
@@ -278,6 +287,7 @@ export function TenantsPage() {
 
 export function ModuleCatalogPage() {
   const allModules = moduleRegistry.getAll();
+  const { navigate } = usePlatform();
   return (
     <Page>
       <PageHeader title="Service Catalog" description="All modules available on the platform." icon={Package} />
@@ -287,7 +297,11 @@ export function ModuleCatalogPage() {
             const Icon = m.manifest.icon;
             const adopters = allTenants.filter((t) => t.enabledModules.includes(m.manifest.id)).length;
             return (
-              <Card key={m.manifest.id}>
+              <Card
+                key={m.manifest.id}
+                className="cursor-pointer transition-colors hover:border-primary/40"
+                onClick={() => navigate("module-detail", { module: m.manifest.id })}
+              >
                 <CardHeader className="pb-2">
                   <div className="flex items-start gap-3">
                     <div className="rounded-md p-2" style={{ background: `${m.manifest.accentColor}1a`, color: m.manifest.accentColor }}>
@@ -320,6 +334,30 @@ export function ModuleCatalogPage() {
                       ))}
                     </div>
                   ) : null}
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 flex-1 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate("module-detail", { module: m.manifest.id });
+                      }}
+                    >
+                      Details
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 flex-1 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate("module-settings", { module: m.manifest.id });
+                      }}
+                    >
+                      Configure
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );

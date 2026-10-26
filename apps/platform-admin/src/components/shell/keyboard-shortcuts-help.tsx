@@ -15,7 +15,6 @@
 
 import { useEffect, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { moduleRegistry } from "@/lib/platform/module-registry";
 import { resolveTermsInString } from "@/lib/platform/terminology";
 import {
   Dialog,
@@ -38,22 +37,17 @@ const SHORTCUTS: Shortcut[] = [
   { keys: "/", label: "Open global search", icon: Search, group: "Global" },
   { keys: "?", label: "Show this help", icon: Keyboard, group: "Global" },
   { keys: "Esc", label: "Close dialog / menu", icon: ArrowLeft, group: "Global" },
-  { keys: "G D", label: "Go to dashboard", icon: Command, group: "Navigation" },
-  { keys: "G S", label: "Go to settings", icon: Settings2, group: "Navigation" },
-  { keys: "G T", label: "Go to traders", icon: Command, group: "Navigation" },
-  { keys: "G A", label: "Go to analytics", icon: Command, group: "Navigation" },
-  { keys: "G P", label: "Go to payouts", icon: Command, group: "Navigation" },
-  { keys: "G R", label: "Go to risk", icon: Command, group: "Navigation" },
+  { keys: "G D", label: "Go to platform overview", icon: Command, group: "Navigation" },
+  { keys: "G S", label: "Go to global defaults", icon: Settings2, group: "Navigation" },
+  { keys: "G T", label: "Go to tenants", icon: Command, group: "Navigation" },
+  { keys: "G A", label: "Go to platform analytics", icon: Command, group: "Navigation" },
+  { keys: "G P", label: "Go to platform financials", icon: Command, group: "Navigation" },
+  { keys: "G R", label: "Go to abuse signals", icon: Command, group: "Navigation" },
   { keys: "B", label: "Toggle sidebar (desktop)", icon: Command, group: "View" },
 ];
 
 export function KeyboardShortcutsHelp() {
-  const { setCommandOpen, setSearchOpen, navigate, sidebarCollapsed, setSidebarCollapsed, tenant, runtime } = usePlatform();
-  // Round 7 fix: gate `g <key>` shortcuts on the target module being
-  // enabled for the current tenant (mirrors Round 3's command-menu fix).
-  const enabledModules = moduleRegistry.getEnabledModules(runtime);
-  const isModuleEnabled = (id: string) =>
-    enabledModules.some((m) => m.manifest.id === id);
+  const { setCommandOpen, setSearchOpen, navigate, sidebarCollapsed, setSidebarCollapsed, tenant } = usePlatform();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -82,23 +76,24 @@ export function KeyboardShortcutsHelp() {
       }
       // `g <next-key>` navigation — listen for `g`, then the next key.
       // Command-menu.tsx handles `g d` and `g s`; we own `g t/a/p/r`.
-      // Round 7: gate each navigation on its module being enabled for
-      // the current tenant (avoid dead-end navigation into a ForbiddenState).
+      // Targets are always-registered console views (the old
+      // isModuleEnabled gates checked *tenant* modules, which never
+      // exist in the platform realm, so every chord here was dead).
       if (e.key === "g") {
         const onKey = (ev: KeyboardEvent) => {
           const next = ev.key.toLowerCase();
-          if (next === "t" && isModuleEnabled("trading")) {
+          if (next === "t") {
             ev.preventDefault();
-            navigate("trading-traders");
-          } else if (next === "a" && isModuleEnabled("analytics")) {
+            navigate("tenants");
+          } else if (next === "a") {
             ev.preventDefault();
-            navigate("analytics");
-          } else if (next === "p" && isModuleEnabled("payouts")) {
+            navigate("platform-analytics");
+          } else if (next === "p") {
             ev.preventDefault();
-            navigate("payouts");
-          } else if (next === "r" && isModuleEnabled("risk")) {
+            navigate("platform-financials");
+          } else if (next === "r") {
             ev.preventDefault();
-            navigate("risk");
+            navigate("abuse-signals");
           }
           // `g d` / `g s` are handled by command-menu.tsx's own listener
           // (which only reacts to `d` and `s`), so they fall through.
@@ -113,7 +108,7 @@ export function KeyboardShortcutsHelp() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [navigate, sidebarCollapsed, setSidebarCollapsed, isModuleEnabled]);
+  }, [navigate, sidebarCollapsed, setSidebarCollapsed]);
 
   // Also expose a global to open it from the command menu
   useEffect(() => {

@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { resolveTermsInString } from "@/lib/platform/terminology";
-import { moduleRegistry } from "@/lib/platform/module-registry";
+import { can } from "@/lib/platform/permission-engine";
+import { viewRegistry } from "@/lib/platform/view-router";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -46,7 +47,6 @@ export function Topbar() {
     tenant,
     setTenant,
     availableTenants,
-    runtime,
     themeMode,
     setThemeMode,
     notifications,
@@ -119,7 +119,7 @@ export function Topbar() {
                   if (match) switchUser(match);
                   // Leave tenant-scoped views behind: the current view may not
                   // exist (or mean something else) in the target tenant's context.
-                  navigate("overview");
+                  navigate("super-overview");
                 }}
                 className="gap-2"
               >
@@ -147,7 +147,13 @@ export function Topbar() {
             <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
               Switch user (demo)
             </DropdownMenuLabel>
-            {users.map((u) => (
+            {/* The console is the platform realm (docs/21): only super-admin
+                operators exist here. Filtering out other applications' users
+                keeps every switch target able to see the full sidebar — a
+                non-super-admin stored user used to render an empty nav. */}
+            {users
+              .filter((u) => u.application === "super-admin")
+              .map((u) => (
               <DropdownMenuItem
                 key={u.id}
                 onClick={() => switchUser(u)}
@@ -208,17 +214,11 @@ export function Topbar() {
                 <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
               ) : (
                 notifications.slice(0, 10).map((n) => {
-                  // Only follow the deep-link if the destination view's owning
-                  // module is enabled for this tenant — otherwise navigating
-                  // would dead-end in a "module not enabled" ForbiddenState.
-                  const viewModule = moduleRegistry
-                    .getAll()
-                    .flatMap((m) => (m.routes ?? []).map((r) => ({ viewId: r.viewId, moduleId: m.manifest.id })))
-                    .find((r) => r.viewId === n.actionHref)?.moduleId;
-                  const moduleEnabled =
-                    !viewModule ||
-                    moduleRegistry.getEnabledModules(runtime).some((m) => m.manifest.id === viewModule);
-                  const dest = moduleEnabled ? n.actionHref : undefined;
+                  // Only follow the deep-link if the destination is a real
+                  // console view (the old module-enabled gate checked tenant
+                  // modules, which never match platform-realm routes — every
+                  // notification action used to dead-end as a no-op).
+                  const dest = n.actionHref && viewRegistry[n.actionHref] ? n.actionHref : undefined;
                   return (
                   <button
                     key={n.id}
@@ -292,23 +292,30 @@ export function Topbar() {
               </div>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate("profile")}>Profile</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("settings", { tab: "general" })}>Settings</DropdownMenuItem>
-            {/* Round 7 fix: filter Audit log menu item by audit-module-enabled
-                so tenants without the audit module don't dead-end into a
-                ForbiddenState (mirrors Round 3's command-menu fix). */}
-            {moduleRegistry.getEnabledModules(runtime).some((m) => m.manifest.id === "audit") && (
-              <DropdownMenuItem onClick={() => navigate("audit")}>Audit log</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("operator-directory")}>Profile</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("global-defaults")}>Settings</DropdownMenuItem>
+            {/* Audit is a permission-gated platform view (platform.audit.read),
+                not a tenant module — the old `moduleRegistry.id === "audit"`
+                check never matched, so this item never rendered. */}
+            {can("platform.audit.read", user) && (
+              <DropdownMenuItem onClick={() => navigate("platform-audit")}>Audit log</DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-rose-600 focus:text-rose-600"
-              onClick={() =>
+              onClick={() => {
+                // CON-01/30 — terminate the console session and return to
+                // the login + 2FA gate (clears boot so the flow is clean).
+                try {
+                  window.sessionStorage.removeItem("pfaas:session");
+                  window.sessionStorage.removeItem("pfaas:booted");
+                } catch { /* ignore */ }
                 toast({
                   title: "Signed out",
-                  description: "Session terminated (demo)",
-                })
-              }
+                  description: "Console session terminated. 2FA required on next sign-in.",
+                });
+                window.location.href = "/";
+              }}
             >
               Sign out
             </DropdownMenuItem>

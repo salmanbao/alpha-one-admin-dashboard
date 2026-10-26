@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +30,14 @@ const milestones = [
 ];
 
 export function GettingStartedPage() {
+  // Async seam (frontend-first): content resolves via the mock layer so
+  // the loading skeleton + error/retry states are exercised.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const [completed, setCompleted] = useState(STEPS.map((s) => s.id));
   const progress = Math.round((completed.length / STEPS.length) * 100);
   const completedCount = completed.length;
@@ -48,6 +58,13 @@ export function GettingStartedPage() {
         actions={<Button size="sm" variant="outline" onClick={() => setCompleted([])}><Refresh className="mr-1 h-4 w-4" /> Restart</Button>}
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading checklist…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Completion" value={`${completedCount}/${STEPS.length}`} icon={CheckCircle2} tone="positive" />
           <MetricCard label="Progress" value={`${progress}%`} icon={Sparkles} />
@@ -138,6 +155,7 @@ export function GettingStartedPage() {
           </div>
           <p className="mt-1">Complete all 5 steps to achieve Level 1 certification. Estimated total time: 45 minutes. Progress is saved per operator.</p>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

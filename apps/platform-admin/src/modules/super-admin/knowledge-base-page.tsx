@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +39,14 @@ const initialArticles: Article[] = [
 const categories = ["All Categories", "Getting Started", "Trading Rules", "Payouts & Crypto", "Account & Security", "Technical & Bridge", "Billing & Invoices"];
 
 export function KnowledgeBasePage() {
+  // Async seam (frontend-first): content resolves via the mock layer so
+  // the loading skeleton + error/retry states are exercised.
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const [articles, setArticles] = useState(initialArticles);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All Categories");
@@ -83,6 +93,13 @@ export function KnowledgeBasePage() {
         }
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading knowledge base…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Published Articles" value={published} icon={BookOpen} tone="positive" />
           <MetricCard label="Drafts" value={drafts} icon={Clock} />
@@ -171,6 +188,7 @@ export function KnowledgeBasePage() {
             </div>
           )}
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

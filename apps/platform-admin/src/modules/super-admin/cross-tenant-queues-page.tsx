@@ -11,6 +11,8 @@
  */
 
 import { useMemo } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -41,7 +43,17 @@ interface QueueRow {
 export function CrossTenantQueuesPage() {
   const { navigate } = usePlatform();
 
-  const rows = useMemo<QueueRow[]>(() => {
+  // Async seam (frontend-first): queue roll-up resolves via the mock layer.
+  const {
+    data: rows = [] as QueueRow[],
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(
+    () =>
+      mockAsync(
+        () => {
+          return (function (): QueueRow[] {
     return allTenants
       .filter((t) => t.id !== "platform")
       .map((t) => {
@@ -61,7 +73,12 @@ export function CrossTenantQueuesPage() {
         };
       })
       .sort((a, b) => b.total - a.total);
-  }, []);
+          })();
+        },
+        { delayMs: 450 },
+      ),
+    [],
+  );
 
   const totalKyc = rows.reduce((s, r) => s + r.kyc, 0);
   const totalRisk = rows.reduce((s, r) => s + r.risk, 0);
@@ -166,6 +183,13 @@ export function CrossTenantQueuesPage() {
         icon={Inbox}
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={rows.length > 0}
+          loadingLabel="Loading queues…"
+        >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <MetricCard label="Total KYC Pending" value={totalKyc} icon={ShieldAlert} tone={totalKyc > 10 ? "warning" : "positive"} />
           <MetricCard label="Open Breaches" value={totalRisk} icon={AlertTriangle} tone={totalRisk > 5 ? "negative" : "positive"} />
@@ -193,6 +217,7 @@ export function CrossTenantQueuesPage() {
           emptyTitle="No tenants"
           emptyDescription="Tenants will appear here once provisioned."
         />
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

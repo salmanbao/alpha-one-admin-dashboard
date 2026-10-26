@@ -10,12 +10,17 @@
  * Each stage card shows count + tenant names + color-coded badge. Clicking
  * a stage filters the table below by that stage. The table includes a
  * lifecycle-action button per row (Suspend / Reactivate / Terminate)
- * appropriate to the current status. Destructive actions use AlertDialog
- * with explicit consequence text (§24).
+ * appropriate to the current status. Phase C (CON-06): destructive
+ * actions route through SensitiveActionDialog — consequence + required
+ * reason + 2FA, and Suspend/Terminate additionally require a second
+ * operator's approval (10-min window, decided in the Approval Center)
+ * before the status change applies.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import type { TenantContext } from "@/lib/platform/types";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -30,17 +35,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SensitiveActionDialog } from "@/components/platform/sensitive-action-dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  markApprovalExecuted,
+  recordAudit,
+  useConsoleStore,
+} from "@/lib/platform/console-store";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -60,6 +60,12 @@ import {
 /* ------------------------------------------------------------------ */
 
 type LifecycleStage = "invited" | "trial" | "active" | "suspended" | "terminated";
+type LifecycleAction = "suspend" | "reactivate" | "terminate";
+
+interface PendingAction {
+  tenant: TenantContext;
+  action: LifecycleAction;
+}
 
 const STAGES: {
   id: LifecycleStage;
@@ -81,8 +87,19 @@ const STAGES: {
 /* ------------------------------------------------------------------ */
 
 export function TenantLifecyclePage() {
-  const { availableTenants, setTenant, navigate, pushNotification } = usePlatform();
+  const { availableTenants, setTenant, navigate, pushNotification, user } = usePlatform();
   const [activeFilter, setActiveFilter] = useState<LifecycleStage | "all">("all");
+  const [pending, setPending] = useState<PendingAction | null>(null);
+
+  // Async seam (frontend-first): roster hydration resolves via the mock
+  // layer; `availableTenants` itself stays reactive (runtime-created
+  // tenants appear without a refetch).
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
 
   const tenants = availableTenants.filter((t) => t.id !== "platform");
 
@@ -105,11 +122,13 @@ export function TenantLifecyclePage() {
   const filteredTenants =
     activeFilter === "all" ? tenants : (buckets[activeFilter] ?? []);
 
-  /* ---- Apply status change ---- */
+  /* ---- Apply status change (with audit trail) ---- */
   const applyStatus = (
     tenant: TenantContext,
     status: TenantContext["status"],
     verb: string,
+    reason: string,
+    approver?: string,
   ) => {
     const updated: TenantContext = { ...tenant, status };
     setTenant(updated);
@@ -120,11 +139,45 @@ export function TenantLifecyclePage() {
         status === "suspended" || status === "terminated" ? "warning" : "success",
       module: "super-admin",
     });
+    recordAudit({
+      actor: approver ?? user.name,
+      action: approver ? "console.escalation_approved" : "console.operator_action",
+      target: `tenant.${status}`,
+      tenantId: tenant.id,
+      severity: status === "active" ? "info" : "critical",
+      detail: approver
+        ? `${verb} ${tenant.name} (two-operator approval satisfied; initiated by ${user.name})`
+        : `${verb} ${tenant.name} (2FA verified) — reason: ${reason}`,
+    });
     toast({
       title: `Tenant ${verb}`,
-      description: `${tenant.name} is now ${status}.`,
+      description: `${tenant.name} is now ${status}.${approver ? ` Approved by ${approver}.` : " Recorded in the audit trail."}`,
     });
   };
+
+  /* ---- Two-operator closure (CON-06): apply approved tenant actions ---- */
+  const consoleStore = useConsoleStore();
+  const appliedApprovals = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const a of consoleStore.approvals) {
+      if (!a.actionKey.startsWith("tenant.")) continue;
+      if (a.status !== "approved" && a.status !== "executed") continue;
+      if (appliedApprovals.current.has(a.id)) continue;
+      const tenant = availableTenants.find((t) => t.id === a.tenantId);
+      if (!tenant) continue;
+      appliedApprovals.current.add(a.id);
+      const status: TenantContext["status"] = a.actionKey.includes("suspend")
+        ? "suspended"
+        : a.actionKey.includes("terminate")
+          ? "terminated"
+          : "active";
+      const verb =
+        status === "suspended" ? "suspended" : status === "terminated" ? "terminated" : "reactivated";
+      applyStatus(tenant, status, verb, "", a.approver?.name);
+      markApprovalExecuted(a.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consoleStore.approvals, availableTenants]);
 
   /* ---- Table columns ---- */
   const columns: Column<TenantContext>[] = [
@@ -187,7 +240,13 @@ export function TenantLifecyclePage() {
     {
       key: "actions",
       header: "Actions",
-      cell: (t) => <RowActions tenant={t} onApply={applyStatus} onView={() => navigate("tenant-detail", { id: t.id })} />,
+      cell: (t) => (
+        <RowActions
+          tenant={t}
+          onAction={(action) => setPending({ tenant: t, action })}
+          onView={() => navigate("tenant-detail", { id: t.id })}
+        />
+      ),
     },
   ];
 
@@ -217,6 +276,13 @@ export function TenantLifecyclePage() {
         }
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={hydrated !== undefined}
+          loadingLabel="Loading tenants…"
+        >
         {/* KPI row summary */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           {STAGES.map((s) => {
@@ -355,7 +421,72 @@ export function TenantLifecyclePage() {
             </div>
           </CardContent>
         </Card>
+        </PageAsyncBoundary>
       </PageContent>
+
+      {/* ── Sensitive lifecycle action (one dialog for all rows) ── */}
+      <SensitiveActionDialog
+        open={pending !== null}
+        onOpenChange={(o) => { if (!o) setPending(null); }}
+        actionKey={`tenant.${pending?.action ?? "unknown"}`}
+        title={
+          pending
+            ? `${pending.action === "suspend" ? "Suspend" : pending.action === "terminate" ? "Terminate" : "Reactivate"} ${pending.tenant.name}`
+            : ""
+        }
+        consequence={
+          pending?.action === "suspend"
+            ? `Suspending ${pending.tenant.name} takes effect once approved: trader logins, purchases, and payouts stop; admins retain console access. Reversible.`
+            : pending?.action === "terminate"
+              ? `Terminating ${pending.tenant.name} is irreversible from this console: all data is archived and platform access ends.`
+              : pending
+                ? `Reactivating ${pending.tenant.name} restores trading, purchases, and payouts immediately.`
+                : ""
+        }
+        blastRadius={
+          pending?.action === "suspend"
+            ? [
+                "Traders lose console access; open positions can't be closed manually",
+                "Payout queue freezes until reactivation",
+                "Admins retain access for suspended-state management",
+              ]
+            : pending?.action === "terminate"
+              ? [
+                  "All traders permanently lose access",
+                  "Accounts closed out; payouts voided",
+                  "Data archived — recovery needs a platform-level restore",
+                ]
+              : pending
+                ? ["Trading, purchases, and payouts resume", "Suspension restrictions lift"]
+                : undefined
+        }
+        confirmPhrase={pending?.action === "terminate" ? pending.tenant.name : undefined}
+        twoOperator={pending?.action !== "reactivate"}
+        requireReason
+        tenantId={pending?.tenant.id}
+        detail={
+          pending?.action === "terminate"
+            ? "Runbook TEN-09 · two-operator approval"
+            : pending?.action === "suspend"
+              ? "Runbook TEN-04 · two-operator approval"
+              : "Recovery action · 2FA only"
+        }
+        onExecute={(reason) => {
+          if (!pending) return;
+          const verb =
+            pending.action === "suspend" ? "suspended" : pending.action === "terminate" ? "terminated" : "reactivated";
+          const status: TenantContext["status"] =
+            pending.action === "suspend" ? "suspended" : pending.action === "terminate" ? "terminated" : "active";
+          applyStatus(pending.tenant, status, verb, reason);
+        }}
+        onApprovalInitiated={(request) => {
+          setPending(null);
+          toast({
+            title: "Approval requested",
+            description: `${request.actionLabel} — a second operator must approve within 10 minutes.`,
+          });
+        }}
+      />
     </Page>
   );
 }
@@ -366,11 +497,11 @@ export function TenantLifecyclePage() {
 
 function RowActions({
   tenant,
-  onApply,
+  onAction,
   onView,
 }: {
   tenant: TenantContext;
-  onApply: (t: TenantContext, status: TenantContext["status"], verb: string) => void;
+  onAction: (action: LifecycleAction) => void;
   onView: () => void;
 }) {
   const isActive = tenant.status === "active" || tenant.status === "trial";
@@ -392,36 +523,17 @@ function RowActions({
       </Button>
 
       {isActive ? (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 gap-1 text-xs text-amber-600 hover:text-amber-700"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Pause className="h-3 w-3" />Suspend
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Suspend {tenant.name}?</AlertDialogTitle>
-              <AlertDialogDescription>
-                The tenant will lose platform access immediately. Trader logins and
-                payout processing are paused. This is reversible — reactivate at any time.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className={cn("bg-amber-600 text-white hover:bg-amber-700")}
-                onClick={() => onApply(tenant, "suspended", "suspended")}
-              >
-                Suspend tenant
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1 text-xs text-amber-600 hover:text-amber-700"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAction("suspend");
+          }}
+        >
+          <Pause className="h-3 w-3" />Suspend
+        </Button>
       ) : null}
 
       {isSuspended ? (
@@ -431,7 +543,7 @@ function RowActions({
           className="h-7 gap-1 text-xs text-emerald-600 hover:text-emerald-700"
           onClick={(e) => {
             e.stopPropagation();
-            onApply(tenant, "active", "reactivated");
+            onAction("reactivate");
           }}
         >
           <Play className="h-3 w-3" />Reactivate
@@ -439,37 +551,17 @@ function RowActions({
       ) : null}
 
       {!isTerminated ? (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Ban className="h-3 w-3" />Terminate
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Terminate {tenant.name}?</AlertDialogTitle>
-              <AlertDialogDescription>
-                All trader data, accounts, payouts, and audit logs for this tenant will be
-                permanently archived. The tenant will lose all platform access immediately.
-                This action cannot be reversed from the standard admin UI.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className={cn("bg-destructive text-white hover:bg-destructive/90")}
-                onClick={() => onApply(tenant, "terminated", "terminated")}
-              >
-                Terminate tenant
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAction("terminate");
+          }}
+        >
+          <Ban className="h-3 w-3" />Terminate
+        </Button>
       ) : null}
     </div>
   );

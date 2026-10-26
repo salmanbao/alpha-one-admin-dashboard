@@ -81,39 +81,34 @@ export function CommandMenu() {
       }
     }
     // Audit sub-pages — explicit flat-labeled shortcuts so operators can
-    // jump to audit destinations even when the audit module sidebar isn't
-    // expanded (e.g. on tenants that haven't opted into the audit module
-    // but still need to inspect a known viewId). `g a` is already bound to
-    // `navigate("analytics")` by the keyboard-shortcuts-help listener, so
-    // we leave the shortcut empty here per the "only if not taken" rule.
+    // jump straight into the audit chain (platform-wide → event log →
+    // model/change history) without walking the sidebar. The old targets
+    // (`audit`, `audit-user-events`, `audit-user-events-enhanced`,
+    // `audit-change-history`) were prop-admin view-ids that don't exist in
+    // this console. `g a` is bound to `platform-analytics` by the
+    // keyboard-shortcuts-help listener, so we leave the shortcut empty here
+    // per the "only if not taken" rule.
     out.push(
+      {
+        id: "nav-platform-audit",
+        label: "Platform Audit",
+        group: "Navigation",
+        icon: History,
+        run: () => navigate("platform-audit"),
+      },
       {
         id: "nav-audit-log",
         label: "Audit Log",
         group: "Navigation",
         icon: History,
-        run: () => navigate("audit"),
+        run: () => navigate("audit-log"),
       },
       {
-        id: "nav-audit-user-events",
-        label: "User Events",
+        id: "nav-model-audit-log",
+        label: "Model Audit Log (change history)",
         group: "Navigation",
         icon: History,
-        run: () => navigate("audit-user-events"),
-      },
-      {
-        id: "nav-audit-user-events-enhanced",
-        label: "Enhanced Events",
-        group: "Navigation",
-        icon: History,
-        run: () => navigate("audit-user-events-enhanced"),
-      },
-      {
-        id: "nav-audit-change-history",
-        label: "Change History",
-        group: "Navigation",
-        icon: History,
-        run: () => navigate("audit-change-history"),
+        run: () => navigate("model-audit-log"),
       },
     );
     // quick actions
@@ -124,7 +119,7 @@ export function CommandMenu() {
         group: "Quick actions",
         icon: LayoutDashboard,
         shortcut: "G D",
-        run: () => navigate("overview"),
+        run: () => navigate("super-overview"),
       },
       {
         id: "qa-settings",
@@ -132,7 +127,7 @@ export function CommandMenu() {
         group: "Quick actions",
         icon: SettingsIcon,
         shortcut: "G S",
-        run: () => navigate("settings"),
+        run: () => navigate("global-defaults"),
       },
       {
         id: "qa-notifications",
@@ -145,7 +140,7 @@ export function CommandMenu() {
         id: "qa-audit",
         label: "View audit log",
         group: "Quick actions",
-        run: () => navigate("audit"),
+        run: () => navigate("platform-audit"),
       },
       {
         id: "qa-theme-toggle",
@@ -169,12 +164,14 @@ export function CommandMenu() {
             : users.find((u) => u.tenantId === t.id && u.application === user.application);
           if (match) switchUser(match);
           // Reset to overview — the current view may not exist in the target tenant
-          navigate("overview");
+          navigate("super-overview");
         },
       });
     }
-    // user switching (switchUser also syncs the tenant to match the user)
-    for (const u of users) {
+    // user switching (switchUser also syncs the tenant to match the user).
+    // Console realm only — super-admin operators (docs/21 CON-01); other
+    // applications' users have no sidebar entries here and rendered empty.
+    for (const u of users.filter((u) => u.application === "super-admin")) {
       out.push({
         id: `user-${u.id}`,
         label: `Switch user → ${u.name} (${u.roles[0]})`,
@@ -190,7 +187,7 @@ export function CommandMenu() {
         label: "Manage modules",
         group: "Quick actions",
         icon: Package,
-        run: () => navigate("settings", { tab: "modules" }),
+        run: () => navigate("module-catalog"),
       });
     }
     // keyboard shortcuts help
@@ -228,8 +225,8 @@ export function CommandMenu() {
       }
       if (e.key === "g") {
         const onKey = (ev: KeyboardEvent) => {
-          if (ev.key === "d") navigate("overview");
-          if (ev.key === "s") navigate("settings");
+          if (ev.key === "d") navigate("super-overview");
+          if (ev.key === "s") navigate("global-defaults");
           window.removeEventListener("keydown", onKey);
         };
         window.addEventListener("keydown", onKey, { once: true });
@@ -271,7 +268,7 @@ export function CommandMenu() {
         <CommandGroup heading="Help">
           <CommandItem
             onSelect={() => {
-              navigate("help");
+              navigate("platform-architecture");
               setCommandOpen(false);
             }}
           >

@@ -368,6 +368,30 @@ export const users: AuthUser[] = [
     application: "super-admin",
     lastActiveAt: hoursAgo(1),
   },
+  // Additional platform operators (super-admin realm). Ids match the
+  // console-store's approval seeds (`op-priya`, `op-marcus`) so the
+  // two-operator CON-32 flow is demoable: initiate as one, switch user,
+  // approve as another.
+  {
+    id: "op-priya",
+    name: "Priya Shah",
+    email: "priya@pfaas.io",
+    initials: "PS",
+    roles: ["super-admin"],
+    permissions: ["*"],
+    application: "super-admin",
+    lastActiveAt: hoursAgo(2),
+  },
+  {
+    id: "op-marcus",
+    name: "Marcus Webb",
+    email: "marcus@pfaas.io",
+    initials: "MW",
+    roles: ["super-admin"],
+    permissions: ["*"],
+    application: "super-admin",
+    lastActiveAt: hoursAgo(4),
+  },
   {
     id: "user-alpha-admin",
     tenantId: "tenant-alpha",

@@ -17,6 +17,10 @@
  */
 
 import { useMemo, useState } from "react";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { useConsoleStore } from "@/lib/platform/console-store";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge } from "@/components/platform/status";
@@ -38,9 +42,10 @@ import {
   Download,
   Building2,
 } from "lucide-react";
-import { getPlatformAudit, tenants } from "@/lib/platform/mock-data";
+import { getPlatformAudit } from "@/lib/platform/mock-data";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import type { AuditEntry } from "@/lib/platform/types";
+import type { AuditRecord } from "@/lib/platform/console-store";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
@@ -52,11 +57,43 @@ const severityTone = (sev: string): "danger" | "warning" | "info" =>
 const severityIcon = (sev: string) =>
   sev === "critical" ? ShieldAlert : sev === "warning" ? ShieldQuestion : Activity;
 
-const tenantName = (tid?: string): string | null => {
-  if (!tid) return null;
-  if (tid === "platform") return "Platform";
-  return tenants.find((t) => t.id === tid)?.name ?? null;
+/** Resolve a tenant id to a display name, including runtime-created tenants. */
+const makeTenantName = (roster: { id: string; name: string }[]) => {
+  return (tid?: string): string | null => {
+    if (!tid) return null;
+    if (tid === "platform") return "Platform";
+    return roster.find((t) => t.id === tid)?.name ?? null;
+  };
 };
+
+/** Human-readable entity category for a raw `target` string. */
+const entityLabel = (target?: string): string => {
+  if (!target) return "Console";
+  if (target.startsWith("INC")) return "Incident";
+  if (target.startsWith("tenant-")) return "Tenant"; // bare tenant id
+  if (target.includes(".")) {
+    const [head, tail] = target.split(".");
+    if (head === "control") return "Emergency control";
+    if (head === "tenant") return `Tenant status → ${tail}`;
+    if (head === "provisioning") return "Provisioning saga";
+    return head;
+  }
+  return "Platform setting"; // e.g. `global_defaults`
+};
+
+/** Map a live console-store record onto the shared AuditEntry shape. */
+const consoleEntry = (r: AuditRecord): AuditEntry => ({
+  id: r.id,
+  timestamp: new Date(r.at).toISOString(),
+  actor: r.actor,
+  action: r.action,
+  entity: entityLabel(r.target),
+  entityId: r.target,
+  summary: r.detail ?? r.action,
+  severity: r.severity,
+  module: "console",
+  tenantId: r.tenantId,
+});
 
 const formatTimestamp = (iso: string): string => {
   const d = new Date(iso);
@@ -74,14 +111,43 @@ const formatTimestamp = (iso: string): string => {
 /* ------------------------------------------------------------------ */
 
 export function PlatformAuditPage() {
+  const { navigate, availableTenants } = usePlatform();
+  const consoleStore = useConsoleStore();
   const [tenantFilter, setTenantFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
 
-  const allEvents = useMemo(() => getPlatformAudit(), []);
+  const tenantName = useMemo(
+    () => makeTenantName(availableTenants),
+    [availableTenants],
+  );
+
+  // Seed stream loads through the mock layer (loading/error/retry states);
+  // live console-store records merge in reactively on top of it.
+  const {
+    data: seeded,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => getPlatformAudit(), { delayMs: 450 }), []);
+
+  const allEvents = useMemo<AuditEntry[]>(() => {
+    // Live console-store events (lifecycle changes, escalations, provisioning,
+    // support assist…) merge with the seeded cross-tenant trail, newest first.
+    const live = consoleStore.audit.map(consoleEntry);
+    return [...live, ...(seeded ?? [])].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+  }, [consoleStore.audit, seeded]);
 
   const filtered = useMemo(() => {
     return allEvents.filter((e) => {
-      if (tenantFilter !== "all" && e.tenantId !== tenantFilter) return false;
+      if (tenantFilter === "platform") {
+        // Seeded platform entries carry tenantId="platform"; live console
+        // records without a tenant scope are platform-wide too.
+        if (e.tenantId !== "platform" && e.tenantId !== undefined) return false;
+      } else if (tenantFilter !== "all" && e.tenantId !== tenantFilter) {
+        return false;
+      }
       if (search.trim()) {
         const q = search.toLowerCase();
         return (
@@ -235,12 +301,28 @@ export function PlatformAuditPage() {
         description="Cross-tenant audit trail of all admin, user, and system actions across the entire platform."
         icon={ScrollText}
         actions={
-          <Button size="sm" variant="outline" onClick={handleExport}>
-            <Download className="mr-1 h-4 w-4" /> Export CSV
-          </Button>
+          <>
+            {/* Audit chain: platform-wide → event log → model/change history */}
+            <Button size="sm" variant="ghost" onClick={() => navigate("audit-log")}>
+              Event log
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => navigate("model-audit-log")}>
+              Model audit
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleExport}>
+              <Download className="mr-1 h-4 w-4" /> Export CSV
+            </Button>
+          </>
         }
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={seeded !== undefined}
+          loadingLabel="Loading audit trail…"
+        >
         {/* KPI row — visual hierarchy per spec §41 */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Events" value={totalEvents} icon={Activity} tone="default" />
@@ -272,11 +354,13 @@ export function PlatformAuditPage() {
             <SelectContent>
               <SelectItem value="all">All Tenants</SelectItem>
               <SelectItem value="platform">Platform (platform-wide)</SelectItem>
-              {tenants.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.name}
-                </SelectItem>
-              ))}
+              {availableTenants
+                .filter((t) => t.id !== "platform")
+                .map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
           <input
@@ -306,6 +390,7 @@ export function PlatformAuditPage() {
           emptyTitle="No audit events"
           emptyDescription="No events match the current tenant filter or search."
         />
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

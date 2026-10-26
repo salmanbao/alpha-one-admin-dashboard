@@ -8,6 +8,8 @@
  */
 
 import { useState, useMemo } from "react";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
@@ -31,19 +33,19 @@ import {
 } from "lucide-react";
 
 // Demo platform transactions
-const platformTransactions = [
+const demoTransactions = [
   { id: "tx-001", tenant: "Alpha Capital", type: "payout", amount: 42500, currency: "USD", status: "completed", date: "2026-10-08T14:30:00Z", fee: 127.50, method: "wire" },
   { id: "tx-002", tenant: "Beta Trading", type: "payout", amount: 28900, currency: "USD", status: "processing", date: "2026-10-08T13:15:00Z", fee: 86.70, method: "wire" },
-  { id: "tx-003", tenant: "Gamma Fund", type: "refund", amount: 1500, currency: "USD", status: "completed", date: "2026-10-08T11:45:00Z", fee: 0, method: "credit" },
-  { id: "tx-004", tenant: "Delta Prop", type: "payout", amount: 56000, currency: "USD", status: "pending", date: "2026-10-08T10:00:00Z", fee: 168, method: "wire" },
+  { id: "tx-003", tenant: "Gamma Futures", type: "refund", amount: 1500, currency: "USD", status: "completed", date: "2026-10-08T11:45:00Z", fee: 0, method: "credit" },
+  { id: "tx-004", tenant: "Alpha Capital", type: "payout", amount: 56000, currency: "USD", status: "pending", date: "2026-10-08T10:00:00Z", fee: 168, method: "wire" },
   { id: "tx-005", tenant: "Alpha Capital", type: "revenue", amount: 125000, currency: "USD", status: "completed", date: "2026-10-08T09:30:00Z", fee: 0, method: "platform" },
-  { id: "tx-006", tenant: "Epsilon Markets", type: "payout", amount: 18750, currency: "USD", status: "completed", date: "2026-10-07T16:45:00Z", fee: 56.25, method: "wire" },
-  { id: "tx-007", tenant: "Zeta Trading", type: "chargeback", amount: 3200, currency: "USD", status: "processing", date: "2026-10-07T15:20:00Z", fee: 96, method: "credit" },
+  { id: "tx-006", tenant: "Beta Trading", type: "payout", amount: 18750, currency: "USD", status: "completed", date: "2026-10-07T16:45:00Z", fee: 56.25, method: "wire" },
+  { id: "tx-007", tenant: "Gamma Futures", type: "chargeback", amount: 3200, currency: "USD", status: "processing", date: "2026-10-07T15:20:00Z", fee: 96, method: "credit" },
   { id: "tx-008", tenant: "Beta Trading", type: "payout", amount: 34200, currency: "USD", status: "completed", date: "2026-10-07T14:00:00Z", fee: 102.60, method: "wire" },
-  { id: "tx-009", tenant: "Gamma Fund", type: "revenue", amount: 89000, currency: "USD", status: "completed", date: "2026-10-07T11:00:00Z", fee: 0, method: "platform" },
-  { id: "tx-010", tenant: "Delta Prop", type: "refund", amount: 2500, currency: "USD", status: "completed", date: "2026-10-07T09:15:00Z", fee: 0, method: "credit" },
+  { id: "tx-009", tenant: "Gamma Futures", type: "revenue", amount: 89000, currency: "USD", status: "completed", date: "2026-10-07T11:00:00Z", fee: 0, method: "platform" },
+  { id: "tx-010", tenant: "Alpha Capital", type: "refund", amount: 2500, currency: "USD", status: "completed", date: "2026-10-07T09:15:00Z", fee: 0, method: "credit" },
   { id: "tx-011", tenant: "Alpha Capital", type: "payout", amount: 67800, currency: "USD", status: "processing", date: "2026-10-07T08:30:00Z", fee: 203.40, method: "wire" },
-  { id: "tx-012", tenant: "Theta Capital", type: "payout", amount: 45300, currency: "USD", status: "pending", date: "2026-10-06T17:00:00Z", fee: 135.90, method: "wire" },
+  { id: "tx-012", tenant: "Beta Trading", type: "payout", amount: 45300, currency: "USD", status: "pending", date: "2026-10-06T17:00:00Z", fee: 135.90, method: "wire" },
 ];
 
 const typeColors: Record<string, string> = {
@@ -62,6 +64,13 @@ const statusTones: Record<string, "success" | "info" | "warning" | "danger"> = {
 
 export function PlatformTransactionsPage() {
   const { navigate } = usePlatform();
+  const {
+    data: loadedData,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => demoTransactions, { delayMs: 450 }), []);
+  const platformTransactions = loadedData ?? [];
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -76,7 +85,7 @@ export function PlatformTransactionsPage() {
       const matchesStatus = statusFilter === "all" || tx.status === statusFilter;
       return matchesSearch && matchesType && matchesStatus;
     });
-  }, [search, typeFilter, statusFilter]);
+  }, [platformTransactions, search, typeFilter, statusFilter]);
 
   const stats = useMemo(() => ({
     totalVolume: platformTransactions.reduce((s, tx) => s + tx.amount, 0),
@@ -88,7 +97,7 @@ export function PlatformTransactionsPage() {
       acc[tx.type] = (acc[tx.type] ?? 0) + tx.amount;
       return acc;
     }, {} as Record<string, number>),
-  }), []);
+  }), [platformTransactions]);
 
   return (
     <Page>
@@ -108,6 +117,13 @@ export function PlatformTransactionsPage() {
         }
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={loadedData !== undefined}
+          loadingLabel="Loading transactions…"
+        >
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="Total Volume (24h)" value={formatCurrency(stats.totalVolume)} delta={12} icon={TrendingUp} tone="positive" />
@@ -243,6 +259,7 @@ export function PlatformTransactionsPage() {
             </div>
           </CardContent>
         </Card>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

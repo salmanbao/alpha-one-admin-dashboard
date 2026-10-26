@@ -9,6 +9,8 @@
 
 import { useState, useMemo } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { StatusBadge } from "@/components/platform/status";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -33,10 +35,11 @@ import {
   Percent,
   Thermometer,
   Network,
+  GitBranch,
 } from "lucide-react";
 
 // Demo services
-const services = [
+const demoServices = [
   { id: "api-gateway", name: "API Gateway", status: "operational", latency: "42ms", uptime: 99.97, region: "us-east-1", icon: Globe },
   { id: "database", name: "Primary Database", status: "operational", latency: "8ms", uptime: 99.99, region: "us-east-1", icon: Database },
   { id: "database-replica", name: "Database Replica (NY4)", status: "operational", latency: "12ms", uptime: 99.99, region: "ny4", icon: Database },
@@ -61,11 +64,19 @@ const statusTones: Record<string, "success" | "warning" | "danger" | "info"> = {
 export function SystemHealthPage() {
   const { navigate } = usePlatform();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  // Async seam (frontend-first): service status resolves via the mock layer.
+  const {
+    data: loadedServices,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(() => mockAsync(() => demoServices, { delayMs: 400 }), []);
+  const services = loadedServices ?? [];
 
   const filtered = useMemo(() => {
     if (statusFilter === "all") return services;
     return services.filter((s) => s.status === statusFilter);
-  }, [statusFilter]);
+  }, [services, statusFilter]);
 
   const stats = useMemo(() => ({
     operational: services.filter((s) => s.status === "operational").length,
@@ -75,7 +86,7 @@ export function SystemHealthPage() {
     avgUptime: services.reduce((s, svc) => s + svc.uptime, 0) / services.length,
     totalIncidents: 3,
     activeIncidents: 1,
-  }), []);
+  }), [services]);
 
   return (
     <Page>
@@ -85,16 +96,26 @@ export function SystemHealthPage() {
         icon={Server}
         actions={
           <>
+            <Button variant="outline" size="sm" onClick={() => navigate("bridge-sync-log")}>
+              <GitBranch className="mr-1 h-4 w-4" /> Bridge sync
+            </Button>
             <Button variant="outline" size="sm">
               <Activity className="mr-1 h-4 w-4" /> Live Monitor
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => navigate("incident-center")}>
               <Clock className="mr-1 h-4 w-4" /> Incident History
             </Button>
           </>
         }
       />
       <PageContent>
+        <PageAsyncBoundary
+          loading={loading}
+          error={error}
+          onRetry={retry}
+          hasData={loadedServices !== undefined}
+          loadingLabel="Loading system health…"
+        >
         {/* Status badges */}
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="default" className="bg-emerald-600 text-white">
@@ -314,6 +335,7 @@ export function SystemHealthPage() {
             </CardContent>
           </Card>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );
