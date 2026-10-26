@@ -65,7 +65,12 @@ export function CommandMenu() {
           label: item.label,
           group: "Navigation",
           icon: item.icon ?? LayoutDashboard,
-          run: () => navigate(item.effectiveHref!),
+          run: () => {
+            const href = item.effectiveHref!;
+            const qIdx = href.indexOf("?");
+            if (qIdx > -1) navigate(href.slice(0, qIdx), Object.fromEntries(new URLSearchParams(href.slice(qIdx + 1))));
+            else navigate(href);
+          },
         });
       }
       for (const c of item.children ?? []) {
@@ -75,7 +80,12 @@ export function CommandMenu() {
             label: `${item.label} › ${c.label}`,
             group: "Navigation",
             icon: c.icon ?? item.icon,
-            run: () => navigate(c.href!),
+            run: () => {
+              const href = c.href!;
+              const qIdx = href.indexOf("?");
+              if (qIdx > -1) navigate(href.slice(0, qIdx), Object.fromEntries(new URLSearchParams(href.slice(qIdx + 1))));
+              else navigate(href);
+            },
           });
         }
       }
