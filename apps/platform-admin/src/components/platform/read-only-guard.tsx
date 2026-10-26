@@ -4,6 +4,7 @@ import { ShieldAlert, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ReactNode } from "react";
+import React from "react";
 
 export function ReadOnlyGuard({ children }: { children: ReactNode }) {
   const { isImpersonating } = usePlatform();
