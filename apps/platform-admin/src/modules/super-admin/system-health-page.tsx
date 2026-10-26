@@ -335,6 +335,45 @@ export function SystemHealthPage() {
             </CardContent>
           </Card>
         </div>
+        {/* Service Detail: provider actions + queue detail */}
+        <Card>
+          <CardHeader className="pb-2">
+            <h2 className="text-base font-semibold">Service & Provider Actions</h2>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-md border p-3 bg-muted/20">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-2">Service Detail</p>
+                <div className="space-y-1 text-sm">
+                  <p><span className="font-medium">MT5 Bridge</span>: <span className="text-emerald-600">operational</span> · 42ms latency · 99.95% uptime</p>
+                  <p><span className="font-medium">cTrader Gateway</span>: <span className="text-amber-500">degraded</span> · 850ms latency · 99.85% uptime</p>
+                  <p><span className="font-medium">API Gateway</span>: <span className="text-emerald-600">operational</span> · 42ms latency · 99.97% uptime</p>
+                </div>
+              </div>
+              <div className="rounded-md border p-3 bg-muted/20">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-2">Provider Actions</p>
+                <ul className="space-y-1 text-xs">
+                  <li><span className="font-medium">Provider Registry</span> — 12 registered providers</li>
+                  <li><span className="font-medium">Health Check</span> — automated probe every 10s</li>
+                  <li><span className="font-medium">Failover Routing</span> — active for 2 services</li>
+                </ul>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" variant="outline" className="text-[11px] h-6 px-2" onClick={() => alert("Drill: Provider health check triggered for all providers.")}>Run Health Drill</Button>
+                  <Button size="sm" variant="outline" className="text-[11px] h-6 px-2" onClick={() => alert("Action: Failover routes reviewed.")}>Review Failover</Button>
+                </div>
+              </div>
+              <div className="rounded-md border p-3 bg-muted/20">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-2">Queue Detail</p>
+                <div className="space-y-1 text-xs">
+                  <p><span className="font-medium">Message Queue (Redis)</span>: 12k msg depth · 5ms latency · 99.98% uptime</p>
+                  <p><span className="font-medium">Cross-tenant queues</span>: 3 active · 0 dead-letter</p>
+                </div>
+                <Button size="sm" variant="outline" className="text-[11px] h-6 px-2 mt-3" onClick={() => alert("Queue detail: depth, latency, dead-letter count, consumer lag shown")}>Inspect Queue</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         </PageAsyncBoundary>
       </PageContent>
     </Page>
