@@ -77,7 +77,7 @@ export function ClosedPositionsPage() {
         title="My Closed Positions"
         description="View your trading history and closed positions"
         actions={
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => alert("Mock: export closed positions")}>
             <Clock className="h-4 w-4 mr-2" />
             Export History
           </Button>

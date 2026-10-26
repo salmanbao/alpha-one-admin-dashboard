@@ -68,7 +68,7 @@ export function PositionsPage() {
         title="My Open Positions"
         description="View and manage your currently open trading positions"
         actions={
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => alert("Mock: open new position ticket")}>
             <Plus className="h-4 w-4 mr-2" />
             New Position
           </Button>
