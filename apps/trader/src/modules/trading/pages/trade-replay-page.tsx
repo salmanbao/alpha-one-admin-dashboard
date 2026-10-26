@@ -37,9 +37,7 @@ export function TradeReplayPage() {
       setIsPlaying(false);
       return;
     }
-    const timer = setTimeout(() => {
-      setCurrentStep((s) => s + 1);
-    }, 1500);
+    const timer = setTimeout(() => setCurrentStep((s) => s + 1), 1500);
     return () => clearTimeout(timer);
   }, [isPlaying, currentStep]);
 
@@ -47,9 +45,7 @@ export function TradeReplayPage() {
     if (isPlaying) {
       setIsPlaying(false);
     } else {
-      if (currentStep >= timeline.length - 1) {
-        setCurrentStep(0);
-      }
+      if (currentStep >= timeline.length - 1) setCurrentStep(0);
       setIsPlaying(true);
     }
   };

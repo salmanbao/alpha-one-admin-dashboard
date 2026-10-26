@@ -34,20 +34,6 @@ export function TradeHistoryPage() {
   const wins = terraTrades.filter((t) => t.pnl > 0);
   const totalPnl = terraTrades.reduce((s, t) => s + t.pnl, 0);
 
-  const handleExportCsv = () => {
-    const headers = ["Ticket", "Symbol", "Side", "Lots", "Entry", "Exit", "Pips", "P&L", "Closed"];
-    const rows = trades.map((t) => [t.ticket, t.symbol, t.side, t.lots.toFixed(2), t.entry, t.exit, t.pips, t.pnl, t.closedAt]);
-    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `trade-history-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    alert(`Exported ${trades.length} trades to CSV successfully!`);
-  };
-
   return (
     <div className="space-y-6">
       <TerraPageHeader
@@ -56,7 +42,6 @@ export function TradeHistoryPage() {
         actions={
           <button
             type="button"
-            onClick={handleExportCsv}
             className="rounded-xl bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container"
           >
             Export CSV
