@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { resolveNavigation, type ResolvedNavigation } from "@/lib/platform/navigation-engine";
+import { useNavBadges } from "@/lib/platform/nav-badges";
 import { makeTermResolver, resolveTermsInString, type TermKey } from "@/lib/platform/terminology";
 import type { TenantContext } from "@/lib/platform/types";
 import { cn } from "@/lib/utils";
@@ -151,6 +152,14 @@ function SidebarItem({
   tenant: Pick<TenantContext, "terminology"> | undefined;
 }) {
   const { router, navigate } = usePlatform();
+  // Live count badges (PRD §4.6.2 pending_evaluations, pending_payouts,
+  // …) — modules push counts into the platform nav-badges store; this
+  // subscription re-renders the badge whenever a count changes.
+  const navBadges = useNavBadges();
+  const dynBadge = (href?: string): string | undefined => {
+    const n = href ? navBadges.get(href) : undefined;
+    return n !== undefined && n > 0 ? String(n) : undefined;
+  };
   // Local href handler — resolves optional "?key=value" query strings
   // (e.g. "settings?tab=branding") into navigate(view, params). Defined
   // here because `go` in the parent Sidebar scope is not visible below.
@@ -192,6 +201,7 @@ function SidebarItem({
               {(item.children ?? []).map((c, idx) => {
                 const CIcon = c.icon;
                 const cActive = router.view === c.href;
+                const cBadge = dynBadge(c.href) ?? c.badge;
                 const prev = idx > 0 ? item.children?.[idx - 1] : undefined;
                 const showGroupHeader =
                   idx > 0 &&
@@ -218,8 +228,8 @@ function SidebarItem({
                     >
                       {CIcon ? <CIcon className="h-3.5 w-3.5" /> : <span className="h-1 w-1 rounded-full bg-current opacity-60" />}
                       <span className="flex-1 text-left">{resolveTermsInString(c.label, tenant)}</span>
-                      {c.badge ? (
-                        <Badge variant="secondary" className="h-4 px-1 text-[9px]">{c.badge}</Badge>
+                      {cBadge ? (
+                        <Badge variant="secondary" className="h-4 px-1 text-[9px]">{cBadge}</Badge>
                       ) : null}
                     </button>
                   </li>
@@ -252,8 +262,8 @@ function SidebarItem({
           <span className="h-1.5 w-1.5 rounded-full bg-current opacity-50" />
         )}
         <span className="flex-1 truncate text-left">{item.termKey ? t(item.termKey) : item.label}</span>
-        {item.badge ? (
-          <Badge variant={active ? "secondary" : "outline"} className="h-4 px-1 text-[9px]">{item.badge}</Badge>
+        {dynBadge(item.effectiveHref) ?? item.badge ? (
+          <Badge variant={active ? "secondary" : "outline"} className="h-4 px-1 text-[9px]">{dynBadge(item.effectiveHref) ?? item.badge}</Badge>
         ) : null}
       </button>
     </li>

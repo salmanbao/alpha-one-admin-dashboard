@@ -17,8 +17,13 @@ import {
   ShoppingCart,
   Server,
   RefreshCw,
+  ClipboardCheck,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
+// Eager-load the evaluation store at boot so the sidebar "Evaluation
+// Queue" count badge (PRD §4.6.2 pending_evaluations) is seeded before
+// the user ever opens the queue.
+import "@/modules/trading/evaluation-store";
 import { TradingOverviewWidget } from "./widgets/trading-overview-widget";
 import { OpenPositionsWidget } from "./widgets/trading-overview-widget";
 import { TraderPerformanceWidget } from "./widgets/trading-overview-widget";
@@ -39,6 +44,7 @@ const navigation: NavigationItem[] = [
       { id: "trading.add-account", label: "Add Account", href: "trading-add-account", icon: UserPlus, permission: "account.write" },
       { id: "trading.closed-positions", label: "Closed Positions", href: "closed-positions", icon: Archive, permission: "account.read" },
       { id: "trading.orders", label: "Orders", href: "orders", icon: ShoppingCart, permission: "account.read" },
+      { id: "trading.evaluation-queue", label: "Evaluation Queue", href: "evaluation-queue", icon: ClipboardCheck, permission: "evaluation.read" },
 
       // ───────── Operations (M13 — bulk ops + trading server connections) ─────────
       { id: "trading.bulk-operations", label: "Bulk Operations", href: "bulk-account-operations", icon: Users, permission: "account.write", group: "Operations" },
@@ -71,6 +77,7 @@ const routes: RouteDefinition[] = [
   { path: "order-detail", viewId: "order-detail", label: "Order Detail", permission: "account.read", module: "trading" },
   { path: "account-provisioning", viewId: "account-provisioning", label: "Account Provisioning", permission: "trader.read", module: "trading" },
   { path: "evaluation-passed", viewId: "evaluation-passed", label: "Evaluation Passed", permission: "trader.read", module: "trading" },
+  { path: "evaluation-queue", viewId: "evaluation-queue", label: "Evaluation Queue", permission: "evaluation.read", module: "trading" },
   { path: "purchase-history", viewId: "purchase-history", label: "Purchase History", permission: "trader.read", module: "trading" },
   // Operations (M13)
   { path: "bulk-account-operations", viewId: "bulk-account-operations", label: "Bulk Account Operations", permission: "account.write", module: "trading" },

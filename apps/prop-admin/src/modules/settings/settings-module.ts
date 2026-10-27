@@ -37,6 +37,7 @@ import {
   HeartPulse,
   Scale,
   Files,
+  Megaphone,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -72,6 +73,7 @@ const navigation: NavigationItem[] = [
       // ───────── Communications ─────────
       { id: "settings.email-templates", label: "Email Templates", href: "email-templates", icon: Mail, permission: "settings.manage", group: "Communications" },
       { id: "settings.notifications-mgmt", label: "Notifications Mgmt", href: "notifications-management", icon: Bell, permission: "settings.manage", group: "Communications" },
+      { id: "settings.announcements", label: "Announcements", href: "announcements", icon: Megaphone, permission: "settings.manage", group: "Communications" },
 
       // ───────── Certificates ─────────
       { id: "settings.certificates", label: "Certificates", href: "certificate-management", icon: Award, permission: "settings.manage", group: "Certificates" },
@@ -105,6 +107,7 @@ const routes: RouteDefinition[] = [
   { path: "certificates-issued", viewId: "certificates-issued", label: "Issued Certificates", permission: "settings.manage", module: "settings" },
   { path: "certificate-detail", viewId: "certificate-detail", label: "Certificate Detail", permission: "settings.manage", module: "settings" },
   { path: "notifications-management", viewId: "notifications-management", label: "Notifications Management", permission: "settings.manage", module: "settings" },
+  { path: "announcements", viewId: "announcements", label: "Announcements", permission: "settings.manage", module: "settings" },
   { path: "notification-edit", viewId: "notification-edit", label: "Notification Edit", permission: "settings.manage", module: "settings" },
   { path: "utilities", viewId: "utilities", label: "Utilities", permission: "settings.manage", module: "settings" },
   { path: "email-template-edit", viewId: "email-template-edit", label: "Email Template Edit", permission: "settings.manage", module: "settings" },
