@@ -238,6 +238,7 @@ export const roles: RoleDefinition[] = [
       "challenge.create",
       "challenge.update",
       "challenge.delete",
+      "evaluation.read",
       "risk.read",
       "risk.configure",
       "breach.read",
