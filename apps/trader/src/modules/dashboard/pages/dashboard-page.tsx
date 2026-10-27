@@ -18,14 +18,23 @@ import {
   TerraStat,
   formatMoney,
   formatSignedMoney,
+  type TerraTone,
 } from "@/components/terra/terra-ui";
 import {
+  announcements,
   equityCurve30d,
   primaryAccount,
   terraPositions,
 } from "@/lib/fixtures/terra-fixtures";
 
 const ranges = ["7d", "30d", "90d"] as const;
+
+const annTone: Record<string, TerraTone> = {
+  platform: "secondary",
+  payouts: "primary",
+  community: "tertiary",
+  product: "success",
+};
 
 export function DashboardPage() {
   const [range, setRange] = useState<(typeof ranges)[number]>("30d");
@@ -325,6 +334,52 @@ export function DashboardPage() {
           </TerraCard>
         </div>
       </div>
+
+      {/* Announcements / News (M12 Overview) */}
+      <TerraCard>
+        <TerraSectionTitle
+          title="Announcements & News"
+          description="Platform updates, payout cycles and community events."
+          actions={
+            <Link
+              href="/notification-center"
+              className="text-xs font-bold text-primary hover:text-on-primary-fixed-variant"
+            >
+              All notifications →
+            </Link>
+          }
+        />
+        <div className="space-y-3">
+          {announcements.map((a) => (
+            <div
+              key={a.id}
+              className={
+                a.pinned
+                  ? "flex items-start gap-3 rounded-xl border border-primary-fixed bg-primary-fixed/30 p-4"
+                  : "flex items-start gap-3 rounded-xl bg-surface-container-low p-4"
+              }
+            >
+              <span className="mt-0.5">
+                <TerraBadge tone={annTone[a.tag] ?? "neutral"}>
+                  {a.pinned ? `pinned • ${a.tag}` : a.tag}
+                </TerraBadge>
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <p className="text-sm font-bold text-on-surface">{a.title}</p>
+                  <span className="text-[11px] text-on-surface-variant">
+                    {new Date(a.at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-on-surface-variant">{a.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </TerraCard>
     </div>
   );
 }

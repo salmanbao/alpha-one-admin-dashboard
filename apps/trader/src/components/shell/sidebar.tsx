@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   ArrowDownToLine,
   ArrowLeftRight,
+  Award,
   BadgeCheck,
   Banknote,
   BarChart3,
@@ -139,6 +140,7 @@ const sections: NavSection[] = [
   ]},
   { id: "finance", label: "Finance", icon: FileText, children: [
     { href: "/account-statement", label: "Account Statement", icon: FileSpreadsheet },
+    { href: "/certificates", label: "Certificates", icon: Award },
     { href: "/documents", label: "Documents", icon: FolderOpen, activePrefixes: ["/document-viewer"] },
     { href: "/tax-documents", label: "Tax Documents", icon: FileText, activePrefixes: ["/tax-statement-detail"] },
   ]},

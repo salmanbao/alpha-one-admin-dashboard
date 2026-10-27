@@ -7,7 +7,9 @@
 
 import Link from "next/link";
 import {
+  TerraAreaChart,
   TerraBadge,
+  TerraBarChart,
   TerraCard,
   TerraPageHeader,
   TerraProgress,
@@ -17,11 +19,23 @@ import {
   formatMoney,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { primaryAccount, terraObjectives, terraPositions } from "@/lib/fixtures/terra-fixtures";
+import {
+  challengeTimeline,
+  dailyPnl14d,
+  equityCurve30d,
+  primaryAccount,
+  terraObjectives,
+  terraPositions,
+} from "@/lib/fixtures/terra-fixtures";
 
 export function AccountDetailPage() {
   const acc = primaryAccount;
   const accountPositions = terraPositions.filter((p) => p.accountId === acc.id);
+  const tl = challengeTimeline;
+  const daysRemaining = Math.max(0, tl.maxCalendarDays - tl.elapsedDays);
+  const timeUsedPct = Math.round((tl.elapsedDays / tl.maxCalendarDays) * 100);
+  const deadline = new Date(tl.startedAt);
+  deadline.setDate(deadline.getDate() + tl.maxCalendarDays);
 
   return (
     <div className="space-y-6">
@@ -59,9 +73,56 @@ export function AccountDetailPage() {
         </TerraCard>
       </div>
 
+      {/* Evaluation timeline (M12: trading days counter + time remaining) */}
+      <TerraCard>
+        <TerraSectionTitle
+          title="Evaluation timeline"
+          description="Phase 1 calendar clock and trading-day requirement."
+          actions={
+            <TerraBadge tone={daysRemaining <= 5 ? "error" : "primary"} dot={daysRemaining <= 5}>
+              {daysRemaining} days remaining
+            </TerraBadge>
+          }
+        />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <TerraStat
+            label="Trading Days"
+            value={`${tl.tradingDays}`}
+            sub={`minimum ${tl.minTradingDays} — met ✓`}
+            tone="positive"
+          />
+          <TerraStat
+            label="Time Remaining"
+            value={`${daysRemaining} days`}
+            sub={`of ${tl.maxCalendarDays}-day limit`}
+          />
+          <TerraStat
+            label="Calendar Day"
+            value={`${tl.elapsedDays} of ${tl.maxCalendarDays}`}
+            sub={`${timeUsedPct}% elapsed`}
+          />
+          <TerraStat
+            label="Consistency"
+            value={`${tl.bestDayPct}% of profit`}
+            sub={`cap ${tl.consistencyCap}% — on track`}
+            tone="positive"
+          />
+        </div>
+        <div className="mt-4">
+          <TerraProgress value={timeUsedPct} height="h-2" />
+          <div className="mt-1.5 flex justify-between text-[11px] text-on-surface-variant">
+            <span>Started {new Date(tl.startedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+            <span>
+              Deadline{" "}
+              {deadline.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            </span>
+          </div>
+        </div>
+      </TerraCard>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Objectives progress */}
-        <div className="lg:col-span-2">
+        {/* Objectives progress + charts */}
+        <div className="space-y-6 lg:col-span-2">
           <TerraCard>
             <TerraSectionTitle
               title="Objectives Progress"
@@ -103,6 +164,36 @@ export function AccountDetailPage() {
                 );
               })}
             </div>
+          </TerraCard>
+
+          {/* Equity curve (M12) */}
+          <TerraCard>
+            <TerraSectionTitle
+              title="Equity Curve · 30 days"
+              description="Daily equity snapshots for this challenge."
+            />
+            <TerraAreaChart
+              data={equityCurve30d}
+              formatValue={(v) => formatMoney(Math.round(v))}
+            />
+          </TerraCard>
+
+          {/* Daily P&L bar chart (M12) */}
+          <TerraCard>
+            <TerraSectionTitle
+              title="Daily P&L"
+              description="Realized profit and loss per trading day."
+              actions={
+                <TerraBadge tone="primary">
+                  {dailyPnl14d.filter((d) => d.y > 0).length} green /{" "}
+                  {dailyPnl14d.filter((d) => d.y < 0).length} red
+                </TerraBadge>
+              }
+            />
+            <TerraBarChart
+              data={dailyPnl14d}
+              formatValue={(v) => formatSignedMoney(Math.round(v))}
+            />
           </TerraCard>
         </div>
 
