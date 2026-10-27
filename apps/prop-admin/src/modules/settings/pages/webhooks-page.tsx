@@ -204,8 +204,15 @@ export function WebhooksPage() {
   const stats = useMemo(() => {
     const active = endpoints.filter((e) => e.status === "active").length;
     const failing = endpoints.filter((e) => e.status === "failing").length;
+    // Window is anchored to the newest delivery rather than Date.now()
+    // so the fixed demo timestamps stay meaningful over time.
+    const newest = deliveries.reduce(
+      (max, d) => Math.max(max, new Date(d.deliveredAt).getTime()),
+      0,
+    );
+    const windowStart = newest - 1000 * 60 * 60 * 48;
     const last24 = deliveries.filter(
-      (d) => Date.now() - new Date(d.deliveredAt).getTime() < 1000 * 60 * 60 * 48,
+      (d) => new Date(d.deliveredAt).getTime() >= windowStart,
     ).length;
     const ok = deliveries.filter((d) => d.ok).length;
     const successRate = deliveries.length ? (ok / deliveries.length) * 100 : 100;

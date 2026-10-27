@@ -25,7 +25,7 @@ export function PendingTasksStitchPage() {
       <div className="flex flex-col w-full pb-16 space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
           <nav className="flex items-center gap-2 text-xs font-medium text-tsc">
-            <a className="hover:text-primary transition-colors flex items-center gap-1" href="#" onClick={(e) => e.preventDefault()}>
+            <a className="hover:text-primary transition-colors flex items-center gap-1" href="#" onClick={(e) => { e.preventDefault(); go("overview"); }}>
 <MsIcon name="home" className="text-[14px]" />
               <span>Home</span>
             </a>
