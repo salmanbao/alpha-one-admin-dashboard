@@ -4,7 +4,7 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import { getTenantPayouts, getTraderPayouts, getTraderForUser, type Payout } from "@/lib/platform/mock-data";
 import { exportToCsv } from "@/lib/platform/export-utils";
-import { applyPayoutDecision, effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
+import { applyPayoutDecision, effectivePayoutStatus, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency } from "@/components/platform/status";
@@ -14,6 +14,7 @@ import { AttentionCenter } from "@/components/platform/attention-center";
 import { EmptyState } from "@/components/platform/guards";
 import { Wallet, Banknote, Clock, CheckCircle2, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,7 +65,16 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
     {
       key: "status",
       header: "Status",
-      cell: (p) => <ExplainableStateBadge status={p.status} entityType="payout" />,
+      cell: (p) => (
+        <div className="flex flex-wrap items-center gap-1">
+          <ExplainableStateBadge status={p.status} entityType="payout" />
+          {payoutEscalated(p.reference) ? (
+            <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-700 dark:text-amber-400">
+              Escalated
+            </Badge>
+          ) : null}
+        </div>
+      ),
       sortValue: (p) => p.status,
     },
     { key: "created", header: "Requested", cell: (p) => <span className="text-xs text-muted-foreground">{new Date(p.createdAt).toLocaleDateString("en-US")}</span>, sortValue: (p) => p.createdAt },
@@ -123,7 +133,40 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            {/* Escalate → PRD multi-level approval: payout stays pending
+                but requires senior sign-off (badge on the status cell). */}
+            {!payoutEscalated(p.reference) ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-amber-700 hover:text-amber-800"
+                onClick={() => {
+                  applyPayoutDecision(p.reference, "escalated");
+                  toast({
+                    title: "Payout escalated",
+                    description: `${p.traderName}'s payout escalated for senior approval.`,
+                  });
+                }}
+              >
+                Escalate
+              </Button>
+            ) : null}
           </div>
+        ) : p.status === "approved" ? (
+          /* PRD POST /payouts/:id/process — send the approved payout to
+             the payment processor (approved → processing everywhere). */
+          <Button
+            size="sm"
+            onClick={() => {
+              applyPayoutDecision(p.reference, "processing");
+              toast({
+                title: "Payout processing",
+                description: `${p.traderName}'s payout sent to the payment processor.`,
+              });
+            }}
+          >
+            Process
+          </Button>
         ) : null,
     },
   ];
