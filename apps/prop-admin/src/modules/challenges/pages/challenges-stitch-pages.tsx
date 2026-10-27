@@ -114,7 +114,39 @@ export function ChallengesOverviewStitchPage() {
   const challenges = getTenantChallenges(tid);
   const [extendTarget, setExtendTarget] = React.useState<Challenge | null>(null);
   const [failTarget, setFailTarget] = React.useState<Challenge | null>(null);
+  // EVL-20 manual override hardening — reason + 2FA step-up are captured
+  // before the force-fail is applied (see confirmForceFail below).
+  const [failReason, setFailReason] = React.useState("");
+  const [failCode, setFailCode] = React.useState("");
+  const [failError, setFailError] = React.useState<string | null>(null);
   const [payoutTarget, setPayoutTarget] = React.useState<Challenge | null>(null);
+
+  const closeFail = () => {
+    setFailTarget(null);
+    setFailReason("");
+    setFailCode("");
+    setFailError(null);
+  };
+
+  const confirmForceFail = () => {
+    // override.reason_required — a recorded reason is mandatory.
+    if (failReason.trim().length < 10) {
+      setFailError("A recorded reason is required (at least 10 characters) before an override can be applied.");
+      return;
+    }
+    // Step-up: EVL-20 requires MFA re-verification within 5 minutes.
+    if (!/^\d{6}$/.test(failCode.trim())) {
+      setFailError("Step-up verification failed — enter your 6-digit authenticator code to confirm this override.");
+      return;
+    }
+    setFailError(null);
+    const overrideId = `ovr-${Math.random().toString(36).slice(2, 8)}`;
+    toast({
+      title: "Override recorded",
+      description: `EVL-20 force-fail applied to ${failTarget?.traderName ?? "challenge"} — reason + 2FA step-up captured (audit ${overrideId}).`,
+    });
+    closeFail();
+  };
 
   const active = challenges.filter((c) => c.status === "in-progress");
   const passed = challenges.filter((c) => c.status === "passed" || c.status === "funded");
@@ -172,16 +204,45 @@ export function ChallengesOverviewStitchPage() {
         destructive={false}
         onConfirm={() => toast({ title: "Challenge extended" })}
       />
-      {/* Force fail confirm */}
-      <StitchConfirm
-        open={!!failTarget} onOpenChange={(o) => !o && setFailTarget(null)} icon="gpp_bad"
+      {/* Force fail confirm — EVL-20 hardened: recorded reason + 2FA step-up */}
+      <StitchSheet
+        open={!!failTarget} onOpenChange={(o) => !o && closeFail()} icon="gpp_bad"
         title={`Force fail ${failTarget?.traderName ?? ""}?`}
-        body="The challenge ends immediately as failed. Open positions are closed and the trader is notified. This cannot be undone."
-        confirmLabel="Force Fail"
-        onConfirm={() => toast({ title: "Challenge marked failed" })}
+        footer={<>
+          <StitchButton variant="surface" onClick={closeFail}>Cancel</StitchButton>
+          <StitchButton variant="destructive" onClick={confirmForceFail}>Force Fail</StitchButton>
+        </>}
       >
-        <Field label="Reason (required)"><Textarea className="stitch-input" /></Field>
-      </StitchConfirm>
+        <div className="space-y-3">
+          <p className="text-sm leading-relaxed text-ink-variant">
+            The challenge ends immediately as failed. Open positions are closed and the trader is notified. This cannot be undone.
+          </p>
+          <Field label="Reason (required)">
+            <Textarea
+              className="stitch-input"
+              value={failReason}
+              onChange={(e) => { setFailReason(e.target.value); if (failError) setFailError(null); }}
+              placeholder="Why is this override being applied? Stored on the override record."
+              rows={3}
+            />
+          </Field>
+          <Field label="2FA step-up (required)">
+            <Input
+              className="stitch-input"
+              inputMode="numeric"
+              maxLength={6}
+              value={failCode}
+              onChange={(e) => { setFailCode(e.target.value.replace(/\D/g, "")); if (failError) setFailError(null); }}
+              placeholder="6-digit authenticator code"
+              aria-label="6-digit authenticator code"
+            />
+            <p className="text-[11px] text-ink-variant">Re-verification expires 5 minutes after sign-in (EVL-20). Demo: any 6 digits.</p>
+          </Field>
+          {failError ? (
+            <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-xs font-semibold text-error">{failError}</p>
+          ) : null}
+        </div>
+      </StitchSheet>
       {/* Issue payout sheet */}
       <StitchSheet
         open={!!payoutTarget} onOpenChange={(o) => !o && setPayoutTarget(null)} icon="payments"

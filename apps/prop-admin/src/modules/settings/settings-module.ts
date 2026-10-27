@@ -36,6 +36,7 @@ import {
   Webhook,
   HeartPulse,
   Scale,
+  Files,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -55,6 +56,9 @@ const navigation: NavigationItem[] = [
       { id: "settings.banners", label: "Banners", href: "banner-management", icon: Image, permission: "settings.manage", group: "Branding & White-label" },
       { id: "settings.mkt-integrations", label: "Marketing Integrations", href: "marketing-integrations", icon: Plug, permission: "settings.manage", group: "Branding & White-label" },
       { id: "settings.social-media", label: "Social Media Links", href: "social-media-links", icon: Share2, permission: "settings.manage", group: "Branding & White-label" },
+
+      // ───────── Website Content (M16 CMS) ─────────
+      { id: "settings.content", label: "Content Management", href: "content-management", icon: Files, permission: "settings.manage", group: "Website Content" },
 
       // ───────── Security & Access ─────────
       { id: "settings.users", label: "User Management", href: "user-management", icon: UsersRound, permission: "settings.manage", group: "Security & Access" },
@@ -115,6 +119,7 @@ const routes: RouteDefinition[] = [
   { path: "team-members", viewId: "team-members", label: "Team Members", permission: "settings.manage", module: "settings" },
   { path: "roles-management", viewId: "roles-management", label: "Roles Management", permission: "settings.manage", module: "settings" },
   { path: "terms-policies", viewId: "terms-policies", label: "Terms & Policies", permission: "settings.manage", module: "settings" },
+  { path: "content-management", viewId: "content-management", label: "Content Management", permission: "settings.manage", module: "settings" },
   { path: "system-health", viewId: "system-health", label: "System Health", permission: "settings.manage", module: "settings" },
   { path: "webhooks", viewId: "webhooks", label: "Webhooks & Events", permission: "settings.manage", module: "settings" },
 ];
