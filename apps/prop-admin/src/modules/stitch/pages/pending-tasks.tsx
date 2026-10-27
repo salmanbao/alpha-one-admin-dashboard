@@ -13,8 +13,11 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { usePlatform } from "@/lib/platform/platform-context";
 
 export function PendingTasksStitchPage() {
+  const { navigate } = usePlatform();
+  const go = (view: string) => navigate(view);
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
   return (
@@ -587,13 +590,13 @@ export function PendingTasksStitchPage() {
             </p>
           </div>
           <div className="flex items-center gap-4 shrink-0 font-medium">
-            <a className="hover:text-primary transition-colors" href="#" onClick={(e) => e.preventDefault()}>Platform Overview</a>
+            <a className="hover:text-primary transition-colors" href="#" onClick={(e) => { e.preventDefault(); go("overview"); }}>Platform Overview</a>
             <span className="text-outline-variant">·</span>
-            <a className="hover:text-primary transition-colors" href="#" onClick={(e) => e.preventDefault()}>System Health</a>
+            <a className="hover:text-primary transition-colors" href="#" onClick={(e) => { e.preventDefault(); go("system-health"); }}>System Health</a>
             <span className="text-outline-variant">·</span>
-            <a className="hover:text-primary transition-colors" href="#" onClick={(e) => e.preventDefault()}>Audit Log</a>
+            <a className="hover:text-primary transition-colors" href="#" onClick={(e) => { e.preventDefault(); go("audit"); }}>Audit Log</a>
             <span className="text-outline-variant">·</span>
-            <a className="hover:text-primary transition-colors" href="#" onClick={(e) => e.preventDefault()}>Platform Staff</a>
+            <a className="hover:text-primary transition-colors" href="#" onClick={(e) => { e.preventDefault(); go("user-management"); }}>Platform Staff</a>
           </div>
         </footer>
       {so0 && (

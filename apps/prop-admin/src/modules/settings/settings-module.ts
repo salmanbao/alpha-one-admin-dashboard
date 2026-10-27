@@ -33,6 +33,8 @@ import {
   Share2,
   Fingerprint,
   ShieldCheck,
+  Webhook,
+  HeartPulse,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -70,11 +72,15 @@ const navigation: NavigationItem[] = [
       { id: "settings.font-upload", label: "Font Upload", href: "certificate-font-upload", icon: Type, permission: "settings.manage", group: "Certificates" },
       { id: "settings.cert-issued", label: "Issued Certificates", href: "certificates-issued", icon: Award, permission: "settings.manage", group: "Certificates" },
 
+      // ───────── Integrations ─────────
+      { id: "settings.webhooks", label: "Webhooks & Events", href: "webhooks", icon: Webhook, permission: "settings.manage", group: "Integrations" },
+
       // ───────── System ─────────
       { id: "settings.general", label: "General", href: "settings?tab=general", icon: SettingsIcon, permission: "settings.manage", group: "System" },
       { id: "settings.modules", label: "Modules", href: "settings?tab=modules", icon: Package, permission: "settings.manage", group: "System" },
       { id: "settings.roles", label: "Roles & Permissions", href: "settings?tab=roles", icon: Users, permission: "settings.manage", group: "System" },
       { id: "settings.notifications", label: "Notifications Matrix", href: "settings?tab=notifications", icon: Bell, permission: "settings.manage", group: "System" },
+      { id: "settings.system-health", label: "System Health", href: "system-health", icon: HeartPulse, permission: "settings.manage", group: "System" },
       { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage", group: "System" },
     ],
   },
@@ -103,6 +109,8 @@ const routes: RouteDefinition[] = [
   { path: "kyc-providers", viewId: "kyc-providers", label: "KYC Providers", permission: "settings.manage", module: "settings" },
   { path: "token-detail", viewId: "token-detail", label: "Token Detail", permission: "settings.manage", module: "settings" },
   { path: "terms-policies", viewId: "terms-policies", label: "Terms & Policies", permission: "settings.manage", module: "settings" },
+  { path: "system-health", viewId: "system-health", label: "System Health", permission: "settings.manage", module: "settings" },
+  { path: "webhooks", viewId: "webhooks", label: "Webhooks & Events", permission: "settings.manage", module: "settings" },
 ];
 
 export const settingsModule: FrontendModule = {
