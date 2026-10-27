@@ -563,6 +563,23 @@ function NotificationPreviewCard({
 }: {
   notification: ScheduledNotification;
 }) {
+  // Simulated trader-side interaction: Dismiss removes the notification
+  // from the preview; View opens it on the trader dashboard.
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) {
+    return (
+      <div
+        role="region"
+        aria-label="Notification preview"
+        className="flex items-center justify-between gap-3 rounded-lg border border-dashed bg-background p-3 text-xs text-muted-foreground shadow-sm"
+      >
+        <span>Notification dismissed by trader (preview).</span>
+        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setDismissed(false)}>
+          Restore
+        </Button>
+      </div>
+    );
+  }
   return (
     <div
       role="region"
@@ -585,10 +602,19 @@ function NotificationPreviewCard({
         </div>
         <p className="mt-1 text-xs text-muted-foreground">{notification.content}</p>
         <div className="mt-2 flex items-center gap-2">
-          <Button size="sm" variant="outline" className="h-7 text-xs">
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setDismissed(true)}>
             Dismiss
           </Button>
-          <Button size="sm" className="h-7 text-xs">
+          <Button
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() =>
+              toast({
+                title: "Opening notification",
+                description: `"${notification.title}" shown on the trader dashboard preview.`,
+              })
+            }
+          >
             View
           </Button>
         </div>

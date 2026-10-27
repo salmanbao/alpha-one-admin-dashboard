@@ -46,6 +46,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
+import { startImpersonation } from "@/lib/platform/impersonation";
 import { cn } from "@/lib/utils";
 
 function MsIconSafe({ name = "more_vert" }: { name?: string }) {
@@ -530,12 +531,14 @@ function ResyncSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: 
 
 function ImpersonateSheet({ open, onOpenChange, name }: { open: boolean; onOpenChange: (o: boolean) => void; name: string }) {
   const [ack, setAck] = React.useState(false);
+  const { user } = usePlatform();
   return (
     <StitchSheet
       open={open} onOpenChange={onOpenChange} icon="swap_horiz" title={`Login as ${name}?`}
       footer={<>
         <StitchButton variant="surface" onClick={() => onOpenChange(false)}>Cancel</StitchButton>
-        <StitchButton variant="primary" disabled={!ack} onClick={() => { onOpenChange(false); toast({ title: "Impersonation session started", description: "All actions are audited." }); }}>Begin Session</StitchButton>
+        {/* PRD L5494 — session start pushes impersonation_started + opens the shell exit banner. */}
+        <StitchButton variant="primary" disabled={!ack} onClick={() => { onOpenChange(false); startImpersonation(name, user?.name ?? "Platform Admin"); }}>Begin Session</StitchButton>
       </>}
     >
       <div className="space-y-3">

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { KycRecord } from "@/lib/platform/mock-data";
+import { kycRecords as seedKyc } from "@/lib/platform/mock-data";
+import { setNavBadge } from "@/lib/platform/nav-badges";
 
 /**
  * Session-scoped KYC decision store.
@@ -19,7 +21,21 @@ let version = 0;
 
 function emit() {
   version += 1;
+  syncBadge();
   listeners.forEach((l) => l());
+}
+
+/**
+ * PRD §4.6.2 pending_kyc sidebar badge — every record still awaiting a
+ * decision (pending or in review) counts, across all tenants.
+ */
+function syncBadge() {
+  let n = 0;
+  for (const r of seedKyc) {
+    const s = effectiveKycStatus(r);
+    if (s === "pending" || s === "review") n += 1;
+  }
+  setNavBadge("kyc", n);
 }
 
 export function applyKycDecision(recordId: string, decision: KycDecision) {
@@ -58,3 +74,7 @@ export function useKycVersion(): number {
   }, []);
   return v;
 }
+
+// Seed the sidebar badge at boot (this module is imported by the kyc
+// manifest, which module-bootstrap loads eagerly).
+syncBadge();

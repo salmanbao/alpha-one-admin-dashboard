@@ -17,9 +17,14 @@ import { CommandMenu } from "./command-menu";
 import { GlobalSearchDialog } from "./global-search";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { OnboardingWizard } from "./onboarding-wizard";
+import { useImpersonation, endImpersonation } from "@/lib/platform/impersonation";
+import { Button } from "@/components/ui/button";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { setSearchOpen } = usePlatform();
+  // PRD L5494 impersonation service — while a session is active the shell
+  // shows a persistent banner; only Exit (impersonation_ended) closes it.
+  const impersonation = useImpersonation();
 
   // "/" opens global search when not typing in an input
   useEffect(() => {
@@ -42,6 +47,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
+        {/* Impersonation banner — persistent until the session is exited. */}
+        {impersonation ? (
+          <div
+            role="status"
+            className="flex flex-wrap items-center justify-between gap-2 border-b bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400 md:px-6"
+          >
+            <span className="flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
+              Impersonating <span className="font-bold">{impersonation.name}</span>
+              <span className="font-normal opacity-70">
+                · all actions audited under {impersonation.impersonator} · started{" "}
+                {new Date(impersonation.startedAt).toLocaleTimeString()}
+              </span>
+            </span>
+            <Button size="sm" variant="outline" className="h-7 border-amber-500/40 px-3 text-[11px] text-amber-700 hover:bg-amber-500/20 dark:text-amber-400" onClick={endImpersonation}>
+              Exit Impersonation
+            </Button>
+          </div>
+        ) : null}
         <main className="flex-1 px-4 py-4 md:px-6 md:py-6">
           <div className="md:hidden">
             <MobileNav />

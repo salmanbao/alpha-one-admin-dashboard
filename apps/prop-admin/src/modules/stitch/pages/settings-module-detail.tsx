@@ -13,12 +13,44 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { toast } from "@/hooks/use-toast";
+
+/** Schema inspector payloads — the tab pair (JSON/YAML) switches between these. */
+const SCHEMA_JSON = `{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "module": "mod_trading_core",
+  "version": "2.8.4",
+  "properties": {
+    "default_leverage": { "type": "integer", "default": 100, "maximum": 200 },
+    "max_open_lots": { "type": "number", "default": 50.0 },
+    "fix_heartbeat_interval_ms": { "type": "integer", "default": 1000 },
+    "slippage_tolerance_pips": { "type": "number", "default": 1.5 },
+    "emergency_kill_switch_enabled": { "type": "boolean", "default": true }
+  },
+  "required": ["default_leverage", "fix_heartbeat_interval_ms"]
+}`;
+
+const SCHEMA_YAML = `$schema: "http://json-schema.org/draft-07/schema#"
+module: mod_trading_core
+version: "2.8.4"
+properties:
+  default_leverage: { type: integer, default: 100, maximum: 200 }
+  max_open_lots: { type: number, default: 50.0 }
+  fix_heartbeat_interval_ms: { type: integer, default: 1000 }
+  slippage_tolerance_pips: { type: number, default: 1.5 }
+  emergency_kill_switch_enabled: { type: boolean, default: true }
+required:
+  - default_leverage
+  - fix_heartbeat_interval_ms`;
 
 export function SettingsModuleDetailStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
   const [so2, setSo2] = React.useState(false);
   const [so3, setSo3] = React.useState(false);
+  // Schema inspector format + storage engine radio (live UI state).
+  const [schemaFmt, setSchemaFmt] = React.useState<"json" | "yaml">("json");
+  const [ingest, setIngest] = React.useState<"redis" | "direct">("redis");
   return (
     <>
       <div className="flex flex-col w-full space-y-8">
@@ -73,13 +105,18 @@ export function SettingsModuleDetailStitchPage() {
             </div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <button className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs font-semibold text-error hover:bg-error-container hover:text-on-error-container transition-all shadow-sm" id="btn-disable-module" onClick={() => setSo3(true)}>
+            <button className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs font-semibold text-error hover:bg-error-container hover:text-on-error-container transition-all shadow-sm" id="btn-disable-module" onClick={() => setSo1(true)}>
 <MsIcon name="power_settings_new" className="text-[17px]" />
               <span>Disable Module</span>
             </button>
-            <button className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface hover:bg-surface-container transition-all shadow-sm">
+            <button className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface hover:bg-surface-container transition-all shadow-sm" onClick={() => setSo0(true)}>
 <MsIcon name="tune" className="text-[17px] text-tsc" />
               <span>Configure Module</span>
+            </button>
+            {/* Tenant parameter overrides sheet (so3) — global tenant config. */}
+            <button className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs font-semibold text-on-surface hover:bg-surface-container transition-all shadow-sm" onClick={() => setSo3(true)}>
+<MsIcon name="domain" className="text-[17px] text-tsc" />
+              <span>Tenant Overrides</span>
             </button>
             <a className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-xs font-bold text-on-primary hover:bg-primary-container hover:text-on-primary-container transition-all shadow-md" href="#" onClick={(e) => e.preventDefault()}>
 <MsIcon name="rocket_launch" className="text-[17px]" />
@@ -216,6 +253,11 @@ export function SettingsModuleDetailStitchPage() {
                   </div>
                   <p className="text-xs text-tsc mt-0.5">Granular operations authorized through institutional token claims</p>
                 </div>
+                {/* RBAC edit modal (so2) — leads to Sign & Broadcast */}
+                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-xs font-semibold text-on-surface transition-all shadow-sm" onClick={() => setSo2(true)}>
+<MsIcon name="edit" className="text-[15px] text-tsc" />
+                  Edit Permissions
+                </button>
                 <div className="relative w-full sm:w-56">
 <MsIcon name="filter_list" className="absolute left-2.5 top-2.5 text-tsc text-[16px]" />
 <input className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface-container-low rounded-lg text-on-surface placeholder:text-tsc focus:outline-none focus:bg-surface transition-all" id="perm-search" placeholder="Filter permission key..." type="text" />
@@ -278,31 +320,21 @@ export function SettingsModuleDetailStitchPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center p-0.5 bg-surface-container-low rounded-lg text-xs font-semibold">
-                    <button className="px-2.5 py-1 rounded bg-surface text-primary shadow-sm" id="tab-json">JSON</button>
-                    <button className="px-2.5 py-1 rounded text-tsc hover:text-on-surface" id="tab-yaml">YAML</button>
+                    <button className={`px-2.5 py-1 rounded shadow-sm transition-colors ${schemaFmt === "json" ? "bg-surface text-primary" : "text-tsc hover:text-on-surface"}`} id="tab-json" onClick={() => setSchemaFmt("json")}>JSON</button>
+                    <button className={`px-2.5 py-1 rounded shadow-sm transition-colors ${schemaFmt === "yaml" ? "bg-surface text-primary" : "text-tsc hover:text-on-surface"}`} id="tab-yaml" onClick={() => setSchemaFmt("yaml")}>YAML</button>
                   </div>
-                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-xs font-semibold text-on-surface transition-all" id="btn-copy-schema">
+                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-xs font-semibold text-on-surface transition-all" id="btn-copy-schema" onClick={() => {
+                    const text = schemaFmt === "json" ? SCHEMA_JSON : SCHEMA_YAML;
+                    navigator.clipboard?.writeText(text).catch(() => undefined);
+                    toast({ title: "Schema copied", description: `${schemaFmt.toUpperCase()} schema for mod_trading_core copied to clipboard.` });
+                  }}>
 <MsIcon name="content_copy" className="text-[15px]" />
                     <span id="copy-text">Copy Schema</span>
                   </button>
                 </div>
               </div>
               <div className="p-4 rounded-xl bg-surface-container-low font-mono text-xs text-on-surface overflow-x-auto leading-relaxed">
-                <pre className="text-[12px]" id="schema-code">
-<span className="text-tsc">&#123;</span>
-  <span className="text-primary font-semibold">"$schema"</span>: <span className="text-tertiary">{"\"http://json-schema.org/draft-07/schema#\""}</span>,
-  <span className="text-primary font-semibold">"module"</span>: <span className="text-tertiary">"mod_trading_core"</span>,
-  <span className="text-primary font-semibold">"version"</span>: <span className="text-tertiary">"2.8.4"</span>,
-  <span className="text-primary font-semibold">"properties"</span>: &#123;
-    <span className="text-primary font-semibold">"default_leverage"</span>: &#123; <span className="text-tsc">"type"</span>: <span className="text-tertiary">"integer"</span>, <span className="text-tsc">"default"</span>: 100, <span className="text-tsc">"maximum"</span>: 200 &#125;,
-    <span className="text-primary font-semibold">"max_open_lots"</span>: &#123; <span className="text-tsc">"type"</span>: <span className="text-tertiary">"number"</span>, <span className="text-tsc">"default"</span>: 50.0 &#125;,
-    <span className="text-primary font-semibold">"fix_heartbeat_interval_ms"</span>: &#123; <span className="text-tsc">"type"</span>: <span className="text-tertiary">"integer"</span>, <span className="text-tsc">"default"</span>: 1000 &#125;,
-    <span className="text-primary font-semibold">"slippage_tolerance_pips"</span>: &#123; <span className="text-tsc">"type"</span>: <span className="text-tertiary">"number"</span>, <span className="text-tsc">"default"</span>: 1.5 &#125;,
-    <span className="text-primary font-semibold">"emergency_kill_switch_enabled"</span>: &#123; <span className="text-tsc">"type"</span>: <span className="text-tertiary">"boolean"</span>, <span className="text-tsc">"default"</span>: true &#125;
-  &#125;,
-  <span className="text-primary font-semibold">"required"</span>: [<span className="text-tertiary">"default_leverage"</span>, <span className="text-tertiary">"fix_heartbeat_interval_ms"</span>]
-<span className="text-tsc">&#125;</span>
-                </pre>
+                <pre className="text-[12px]" id="schema-code">{schemaFmt === "json" ? SCHEMA_JSON : SCHEMA_YAML}</pre>
               </div>
             </div>
           </div>
@@ -616,11 +648,14 @@ export function SettingsModuleDetailStitchPage() {
                     <span className="text-[10px] text-tsc">Latency ~0.18ms</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 bg-surface-container p-1 rounded-lg">
-                    <button className="py-2 px-3 rounded-md text-xs font-bold bg-background text-on-surface shadow-sm text-center flex items-center justify-center gap-1.5 transition-all" type="button">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    <button className={`text-center flex items-center justify-center gap-1.5 transition-all py-2 px-3 rounded-md text-xs ${ingest === "redis" ? "font-bold bg-background text-on-surface shadow-sm" : "font-semibold text-tsc hover:text-on-surface"}`} type="button" onClick={() => setIngest("redis")}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${ingest === "redis" ? "bg-primary" : "bg-tsc/40"}`}></span>
                       In-Memory Redis 7.2
                     </button>
-                    <button className="py-2 px-3 rounded-md text-xs font-semibold text-tsc hover:text-on-surface text-center flex items-center justify-center gap-1.5 transition-all" type="button">                      Direct Pass-through</button>
+                    <button className={`text-center flex items-center justify-center gap-1.5 transition-all py-2 px-3 rounded-md text-xs ${ingest === "direct" ? "font-bold bg-background text-on-surface shadow-sm" : "font-semibold text-tsc hover:text-on-surface"}`} type="button" onClick={() => setIngest("direct")}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${ingest === "direct" ? "bg-primary" : "bg-tsc/40"}`}></span>
+                      Direct Pass-through
+                    </button>
                   </div>
                 </div>
               </div>
@@ -684,7 +719,7 @@ export function SettingsModuleDetailStitchPage() {
           </div>
           <div className="p-6 bg-surface-container-low shadow-[0_-4px_20px_rgba(46,50,48,0.04)] space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <button className="px-3.5 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-on-surface flex items-center gap-2 transition-all cursor-pointer" type="button">
+              <button className="px-3.5 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-bold text-on-surface flex items-center gap-2 transition-all cursor-pointer" type="button" onClick={() => toast({ title: "Dry-run passed (0.42ms)", description: "Schema valid · 0 conflicts · no changes applied. Ready to save & deploy." })}>
                 <span className="w-2 h-2 rounded-full bg-primary animate-ping"></span>
                 <span>Dry-Run (0.42ms)</span>
                 <span className="text-tertiary">⚡</span>
@@ -813,7 +848,7 @@ export function SettingsModuleDetailStitchPage() {
             </div>
             <div className="flex items-center justify-end gap-3 pt-2">
               <button className="px-4 py-2.5 rounded-xl bg-surface-container text-xs font-semibold text-on-surface hover:bg-surface-container-high transition-colors" id="btn-cancel" type="button" onClick={() => setSo1(false)}>                Cancel &amp; Keep Module Active</button>
-              <button className="px-5 py-2.5 rounded-xl bg-error text-on-error text-xs font-bold shadow-sm hover:brightness-110 active:scale-[0.99] transition-all flex items-center gap-2" id="btn-confirm-disable" type="button" onClick={() => setSo1(false)}>
+              <button className="px-5 py-2.5 rounded-xl bg-error text-on-error text-xs font-bold shadow-sm hover:brightness-110 active:scale-[0.99] transition-all flex items-center gap-2" id="btn-confirm-disable" type="button" onClick={() => { setSo1(false); toast({ title: "Module disabled", description: "mod_trading_core deactivated across 8 tenants — FIX bridge connectivity halted.", variant: "destructive" }); }}>
 <MsIcon name="power_settings_new" className="text-[16px]" />
                 <span>Confirm &amp; Disable Engine (8 Tenants)</span>
               </button>
@@ -1065,8 +1100,8 @@ export function SettingsModuleDetailStitchPage() {
                   <span>SEC 17a-4 WORM Certified · Enclave: <strong className="text-on-surface font-semibold">LD4-KMS-01</strong></span>
                 </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                  <button className="px-4 py-2.5 rounded-xl bg-surface-container text-xs font-bold text-on-surface hover:bg-surface-container-high transition-colors" type="button" onClick={() => setSo2(false)}>                    Cancel &amp; Revert</button>
-                  <button className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary text-xs font-bold shadow-sm transition-all flex items-center gap-2" type="button">
+                  <button className="px-4 py-2.5 rounded-xl bg-surface-container text-xs font-bold text-on-surface hover:bg-surface-container-high transition-colors" type="button" onClick={() => { setSo2(false); toast({ title: "RBAC changes reverted", description: "Unsigned mutations discarded — module permissions unchanged." }); }}>                    Cancel &amp; Revert</button>
+                  <button className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary text-xs font-bold shadow-sm transition-all flex items-center gap-2" type="button" onClick={() => { setSo2(false); toast({ title: "RBAC mutation signed & broadcast", description: "2/2 quorum signatures collected · HSM-signed and propagated to all edge nodes (WORM-logged)." }); }}>
 <MsIcon name="lock_open" className="text-[16px]" />
                     <span>Sign &amp; Broadcast RBAC Mutation (2/2)</span>
                   </button>
@@ -1313,7 +1348,7 @@ export function SettingsModuleDetailStitchPage() {
           </div>
           <div className="flex-shrink-0 bg-surface-container-lowest px-8 py-5 shadow-[0_-1px_0_rgba(74,78,74,0.08)] space-y-3.5">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <button className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors flex items-center justify-center gap-1.5" id="dryRunBtn" type="button">
+              <button className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors flex items-center justify-center gap-1.5" id="dryRunBtn" type="button" onClick={() => toast({ title: "Simulation passed (0.38ms)", description: "3 overrides validated against ACM tenant risk mandate · 0 policy violations." })}>
                 <span>Dry-Run Simulation (0.38ms)</span>
                 <span className="text-tertiary">⚡</span>
               </button>
