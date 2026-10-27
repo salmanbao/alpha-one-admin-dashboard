@@ -269,6 +269,49 @@ export const challengeTimeline = {
 };
 
 /* ------------------------------------------------------------------ */
+/* Scaling plan (M3-3C Scaling Plan Engine + M10 post-payout check)   */
+/* ------------------------------------------------------------------ */
+
+export const scalingPlan = {
+  accountId: "acc-092841",
+  currentTier: "$25,000",
+  nextTier: "$50,000",
+  currentSplit: "80/20",
+  nextSplit: "85/15",
+  consecutivePayouts: 2, // of 3 required
+  requiredPayouts: 3,
+  fundedDays: 95,
+  requiredFundedDays: 90,
+  gainPct: 9.68,
+  requiredGainPct: 10,
+  history: [
+    { reference: "PO-2187", at: daysAgo(16), counted: true },
+    { reference: "PO-2154", at: daysAgo(30), counted: true },
+    { reference: "PO-2119", at: daysAgo(44), counted: true },
+    { reference: "PO-2098", at: daysAgo(58), counted: false, note: "below minimum" },
+  ],
+};
+
+/* ------------------------------------------------------------------ */
+/* Payout schedule (M10 Payout Scheduling)                             */
+/* ------------------------------------------------------------------ */
+
+export const payoutScheduleOptions = [
+  "On-demand",
+  "Bi-weekly",
+  "Monthly",
+] as const;
+
+export const payoutSchedule = {
+  current: "Bi-weekly" as (typeof payoutScheduleOptions)[number],
+  cycleDays: 14,
+  windowOpensAt: daysFromNow(4),
+  windowClosesAt: daysFromNow(7),
+  cutoffNote: "Requests cut off Fridays 23:59 UTC",
+  autoSubmit: false,
+};
+
+/* ------------------------------------------------------------------ */
 /* Certificates (M12 + M19 Funded Trader Certificate)                  */
 /* ------------------------------------------------------------------ */
 

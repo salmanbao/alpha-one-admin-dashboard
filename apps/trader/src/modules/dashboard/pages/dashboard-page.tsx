@@ -24,6 +24,7 @@ import {
   announcements,
   equityCurve30d,
   primaryAccount,
+  scalingPlan,
   terraPositions,
 } from "@/lib/fixtures/terra-fixtures";
 
@@ -331,6 +332,29 @@ export function DashboardPage() {
                 Open Risk Dashboard →
               </Link>
             </div>
+          </TerraCard>
+          <TerraCard>
+            <TerraSectionTitle
+              title="Scaling Progress"
+              actions={<TerraBadge tone="primary">{scalingPlan.consecutivePayouts}/{scalingPlan.requiredPayouts}</TerraBadge>}
+            />
+            <p className="text-xs text-on-surface-variant">
+              {scalingPlan.consecutivePayouts} consecutive counted payouts toward
+              scaling to{" "}
+              <strong className="text-on-surface">{scalingPlan.nextTier}</strong> at
+              a <strong className="text-primary">{scalingPlan.nextSplit}</strong>{" "}
+              split.
+            </p>
+            <TerraProgress
+              value={Math.round((scalingPlan.consecutivePayouts / scalingPlan.requiredPayouts) * 100)}
+              className="mt-3"
+            />
+            <Link
+              href="/payout-eligibility"
+              className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-on-primary-fixed-variant"
+            >
+              View scaling plan →
+            </Link>
           </TerraCard>
         </div>
       </div>
