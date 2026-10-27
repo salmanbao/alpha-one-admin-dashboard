@@ -49,6 +49,10 @@ import {
   Plug,
   FileCheck,
   FileCode,
+  FileText,
+  Megaphone,
+  TrendingDown,
+  CalendarClock,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -112,6 +116,8 @@ const navigation: NavigationItem[] = [
       // ───────── Finance ─────────
       { id: "super.financials", label: "Financial Overview", href: "platform-financials", icon: DollarSign, application: ["super-admin"], group: "Finance" },
       { id: "super.transactions", label: "Transactions", href: "platform-transactions", icon: CreditCard, application: ["super-admin"], group: "Finance" },
+      { id: "super.tax-currency", label: "Tax & Currency", href: "tax-currency", icon: Percent, application: ["super-admin"], group: "Finance" },
+      { id: "super.churn-prevention", label: "Churn Prevention", href: "churn-prevention", icon: TrendingDown, application: ["super-admin"], group: "Finance" },
 
       // ───────── Governance ─────────
       { id: "super.platform-roles", label: "Platform Roles", href: "platform-roles", icon: Shield, application: ["super-admin"], group: "Governance" },
@@ -129,6 +135,11 @@ const navigation: NavigationItem[] = [
 
       // ───────── Analytics ─────────
       { id: "super.analytics", label: "Platform Analytics", href: "platform-analytics", icon: BarChart3, application: ["super-admin"], group: "Analytics" },
+      { id: "super.scheduled-reports", label: "Scheduled Reports", href: "scheduled-reports", icon: CalendarClock, application: ["super-admin"], group: "Analytics" },
+
+      // ───────── Content & Marketing ─────────
+      { id: "super.content-management", label: "Content Management", href: "content-management", icon: FileText, application: ["super-admin"], group: "Content & Marketing" },
+      { id: "super.marketing", label: "Marketing", href: "marketing", icon: Megaphone, application: ["super-admin"], group: "Content & Marketing" },
 
       // ───────── Platform Docs & Config ─────────
       { id: "super.knowledge-base", label: "Knowledge Base", href: "knowledge-base", icon: BookOpen, application: ["super-admin"], group: "Platform Docs" },
@@ -198,6 +209,11 @@ const routes: RouteDefinition[] = [
   { path: "compliance-reports", viewId: "compliance-reports", label: "Compliance Reports", application: ["super-admin"] },
   { path: "notification-templates", viewId: "notification-templates", label: "Notification Templates", application: ["super-admin"] },
   { path: "backup-policies", viewId: "backup-policies", label: "Backup Policies", application: ["super-admin"] },
+  { path: "content-management", viewId: "content-management", label: "Content Management", application: ["super-admin"] },
+  { path: "marketing", viewId: "marketing", label: "Marketing", application: ["super-admin"] },
+  { path: "churn-prevention", viewId: "churn-prevention", label: "Churn Prevention", application: ["super-admin"] },
+  { path: "scheduled-reports", viewId: "scheduled-reports", label: "Scheduled Reports", application: ["super-admin"] },
+  { path: "tax-currency", viewId: "tax-currency", label: "Tax & Currency", application: ["super-admin"] },
 ];
 
 export const superAdminModule: FrontendModule = {
