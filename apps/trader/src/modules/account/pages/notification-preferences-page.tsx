@@ -32,12 +32,23 @@ export function NotificationPreferencesPage() {
       ]),
     ),
   );
+  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   function toggle(cat: string, ch: string) {
     setState((s) => ({
       ...s,
       [cat]: { ...s[cat], [ch]: !s[cat][ch] },
     }));
+    setDirty(true);
+    setSaved(false);
+  }
+
+  function handleSave() {
+    // Frontend-only demo: no PUT /notifications/preferences call.
+    setDirty(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 4000);
   }
 
   return (
@@ -100,10 +111,17 @@ export function NotificationPreferencesPage() {
         </div>
       </TerraCard>
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-3">
+        {saved && (
+          <span className="text-xs font-bold text-primary" role="status">
+            ✓ Preferences saved (demo — not persisted)
+          </span>
+        )}
         <button
           type="button"
-          className="rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary hover:bg-primary/90"
+          onClick={handleSave}
+          disabled={!dirty}
+          className="rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Save preferences
         </button>
