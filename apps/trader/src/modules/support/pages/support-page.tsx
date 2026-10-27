@@ -15,6 +15,12 @@ import {
   TerraSectionTitle,
 } from "@/components/terra/terra-ui";
 import { supportTickets } from "@/lib/fixtures/terra-fixtures";
+import {
+  createTicket,
+  loadClosedIds,
+  loadLocalTickets,
+  type SupportTicket,
+} from "@/lib/support-store";
 
 const statusTone = {
   open: "primary",
@@ -140,7 +146,141 @@ function LiveChat() {
   );
 }
 
+function NewTicketComposer({ onCreated }: { onCreated: (t: SupportTicket) => void }) {
+  const [subject, setSubject] = useState("");
+  const [category, setCategory] = useState("Accounts");
+  const [priority, setPriority] = useState<"high" | "normal" | "low">("normal");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (subject.trim().length < 5) {
+      setError("Subject must be at least 5 characters.");
+      return;
+    }
+    if (message.trim().length < 10) {
+      setError("Please describe the issue in at least 10 characters.");
+      return;
+    }
+    // Frontend-only demo: persisted to localStorage, no API call.
+    onCreated(
+      createTicket({
+        subject: subject.trim(),
+        category,
+        priority,
+        message: message.trim(),
+      }),
+    );
+  };
+
+  const inputClass =
+    "w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm outline-none focus:border-primary";
+
+  return (
+    <TerraCard>
+      <TerraSectionTitle
+        title="New ticket"
+        description="Tell us what's going on — we usually reply within 4 hours."
+      />
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <label className="block">
+          <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+            Subject
+          </span>
+          <input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="e.g. Credentials not arriving for #92841"
+            className={inputClass}
+          />
+        </label>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              Category
+            </span>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className={inputClass}
+            >
+              {["Accounts", "Payouts", "Rules", "Platform", "KYC"].map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              Priority
+            </span>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as typeof priority)}
+              className={inputClass}
+            >
+              <option value="high">High</option>
+              <option value="normal">Normal</option>
+              <option value="low">Low</option>
+            </select>
+          </label>
+        </div>
+        <label className="block">
+          <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+            Message
+          </span>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={4}
+            placeholder="Describe the issue — include account/login numbers where relevant."
+            className={inputClass}
+          />
+        </label>
+        {error && (
+          <p role="alert" className="text-xs font-bold text-error">
+            {error}
+          </p>
+        )}
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="submit"
+            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
+          >
+            Create ticket
+          </button>
+        </div>
+        <p className="text-right text-[11px] text-on-surface-variant">
+          Demo — tickets are stored in this browser only.
+        </p>
+      </form>
+    </TerraCard>
+  );
+}
+
 export function SupportPage() {
+  const [localTickets, setLocalTickets] = useState<SupportTicket[]>([]);
+  const [closedIds, setClosedIds] = useState<string[]>([]);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [created, setCreated] = useState<SupportTicket | null>(null);
+
+  // Hydrate after mount — localStorage is unavailable during SSG.
+  useEffect(() => {
+    setLocalTickets(loadLocalTickets());
+    setClosedIds(loadClosedIds());
+  }, []);
+
+  const allTickets = [...localTickets, ...supportTickets].map((t) =>
+    closedIds.includes(t.id) ? { ...t, status: "closed" as const } : t,
+  );
+
+  const handleCreated = (t: SupportTicket) => {
+    setLocalTickets((prev) => [t, ...prev]);
+    setComposerOpen(false);
+    setCreated(t);
+    setTimeout(() => setCreated(null), 6000);
+  };
+
   return (
     <div className="space-y-6">
       <TerraPageHeader
@@ -154,18 +294,31 @@ export function SupportPage() {
             >
               Help Center
             </Link>
-            <Link
-              href="/ticket-detail"
+            <button
+              type="button"
+              onClick={() => setComposerOpen((v) => !v)}
               className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
             >
-              + New ticket
-            </Link>
+              {composerOpen ? "Cancel" : "+ New ticket"}
+            </button>
           </>
         }
       />
 
+      {created && (
+        <div
+          role="status"
+          className="rounded-xl bg-primary-fixed/50 px-4 py-3 text-sm font-semibold text-on-primary-fixed-variant"
+        >
+          ✓ Ticket #{created.id.replace("tk-", "")} created — you can track
+          replies right here. (Demo — stored in this browser.)
+        </div>
+      )}
+
+      {composerOpen && <NewTicketComposer onCreated={handleCreated} />}
+
       <div className="space-y-3">
-        {supportTickets.map((t) => (
+        {allTickets.map((t) => (
           <Link key={t.id} href={`/ticket-detail?id=${t.id}`}>
             <TerraCard className="flex items-center justify-between gap-4">
               <div>
