@@ -480,6 +480,68 @@ export interface TerraTrade {
   comment?: string;
 }
 
+/* ------------------------------------------------------------------ */
+/* Extended closed-trade history (deterministic fill)                  */
+/* Declared before terraTrades — feeds table pagination (20/page)      */
+/* + richer analytics without hand-writing 40 entries.                 */
+/* ------------------------------------------------------------------ */
+
+const histMeta: Record<string, { base: number; decimals: number; pip: number }> = {
+  EURUSD: { base: 1.0845, decimals: 5, pip: 0.0001 },
+  XAUUSD: { base: 2641.5, decimals: 2, pip: 0.1 },
+  GBPJPY: { base: 189.42, decimals: 3, pip: 0.01 },
+  USDCAD: { base: 1.3712, decimals: 5, pip: 0.0001 },
+  NZDUSD: { base: 0.6121, decimals: 5, pip: 0.0001 },
+  AUDUSD: { base: 0.6684, decimals: 5, pip: 0.0001 },
+  USDJPY: { base: 149.82, decimals: 3, pip: 0.01 },
+  EURJPY: { base: 162.31, decimals: 3, pip: 0.01 },
+};
+
+const histSymbols = Object.keys(histMeta);
+
+const histComments = [
+  "London open continuation",
+  "NY session reversal",
+  "Range fade at daily level",
+  "Trend pullback entry",
+  "Breakout retest",
+  "Mean reversion scalp",
+];
+
+const extendedTrades: TerraTrade[] = Array.from({ length: 41 }, (_, i) => {
+  const symbol = histSymbols[i % histSymbols.length];
+  const meta = histMeta[symbol];
+  const side: "long" | "short" = i % 3 === 0 ? "short" : "long";
+  const win = i % 4 !== 3;
+  const pips = win ? 9 + ((i * 11) % 47) : -(7 + ((i * 5) % 28));
+  const lots = Math.round((0.2 + (i % 4) * 0.15) * 100) / 100;
+  const entry = Number(
+    (meta.base + ((i % 7) - 3) * meta.pip * 4).toFixed(meta.decimals),
+  );
+  const exit = Number(
+    (side === "long" ? entry + pips * meta.pip : entry - pips * meta.pip).toFixed(
+      meta.decimals,
+    ),
+  );
+  const ticket = String(83_960 - i * 7);
+  return {
+    id: `trd-${ticket}`,
+    ticket,
+    symbol,
+    side,
+    lots,
+    entry,
+    exit,
+    pips,
+    pnl: Math.round(pips * lots * 10),
+    openedAt: daysAgo(6 + ((i * 3) % 24)),
+    closedAt: daysAgo(6 + ((i * 3) % 24)),
+    accountId:
+      i % 5 === 0 ? "acc-092841" : i % 7 === 0 ? "acc-098412" : "acc-100030",
+    comment: win ? histComments[i % histComments.length] : undefined,
+  };
+});
+
 export const terraTrades: TerraTrade[] = [
   {
     id: "trd-84012",
@@ -552,6 +614,7 @@ export const terraTrades: TerraTrade[] = [
     closedAt: daysAgo(5),
     accountId: "acc-100030",
   },
+  ...extendedTrades,
 ];
 
 /* ------------------------------------------------------------------ */
