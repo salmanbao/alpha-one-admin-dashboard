@@ -35,7 +35,8 @@ interface Order {
 const challenges = ["2-Step Standard", "1-Step Turbo", "2-Step Gen Z", "Instant Funded"];
 const methods = ["Visa", "Mastercard", "Crypto (USDT)", "PayPal", "Match2Pay"];
 
-function buildOrders(tid: string): Order[] {
+/** Build the tenant's challenge purchase orders (shared with trader-360 Payments). */
+export function buildOrders(tid: string): Order[] {
   const traders = getTenantTraders(tid);
   return traders.slice(0, 20).map((t, i) => {
     const seed = hashStr(tid + t.id + i);

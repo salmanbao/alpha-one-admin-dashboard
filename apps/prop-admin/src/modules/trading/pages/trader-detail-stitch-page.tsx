@@ -7,7 +7,13 @@
  *  - trader_detail_suspended_rule_breached_state
  *  - trader_audit_log_elena_althaus (Change History tab deep-dive)
  *
- * 7 tabs: Overview / Accounts / Positions / Performance / KYC / Risk / Change History.
+ * 11 tabs: Overview / Accounts / Payments / Payouts / Positions /
+ * Performance / KYC / Risk / Activity Log / Internal Notes / Change History.
+ * (PRD §4.8.2 tabs: Accounts, Payments, Payouts, KYC, Risk, Activity Log,
+ *  Internal Notes — plus the stitch-native extras.)
+ *
+ * Header actions: Add Note, Impersonate, Edit, Suspend ⇄ Reactivate (PRD
+ * §4.8.2 Suspend/Reactivate wired to the trader-status store).
  */
 
 import * as React from "react";
@@ -20,9 +26,18 @@ import {
   getTenantKyc,
   getTenantBreaches,
   getTenantAudit,
+  getTenantUserEvents,
+  getTraderPayouts,
   getTenant,
   type Trader,
 } from "@/lib/platform/mock-data";
+import { buildOrders } from "@/modules/trading/pages/orders-page";
+import { effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
+import {
+  applyTraderStatus,
+  effectiveTraderStatus,
+  useTraderStatusVersion,
+} from "@/modules/trading/trader-store";
 import {
   StitchPageHeader,
   StitchCard,
@@ -80,26 +95,43 @@ function money(v: number, currency = "USD", compact = false) {
   }).format(v);
 }
 
-const TABS = ["Overview", "Accounts", "Positions", "Performance", "KYC", "Risk", "Change History"] as const;
+const TABS = ["Overview", "Accounts", "Payments", "Payouts", "Positions", "Performance", "KYC", "Risk", "Activity Log", "Internal Notes", "Change History"] as const;
 type Tab = (typeof TABS)[number];
 
+/** Internal note — PRD trader-360 "Internal Notes" tab (add/remove). */
+interface InternalNote {
+  id: string;
+  body: string;
+  author: string;
+  at: string;
+  pinned?: boolean;
+}
+
 export function TraderDetailStitchPage() {
-  const { runtime, navigate, tenant, router } = usePlatform();
+  const { runtime, navigate, tenant, router, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const traderId = router.params.id || "t0";
   const tenantCur = runtime.tenant?.currency ?? "USD";
 
   const traders = getTenantTraders(tid);
-  const trader: Trader = traders.find((t) => t.id === traderId) ?? traders[0] ?? {
+  const traderSeed: Trader = traders.find((t) => t.id === traderId) ?? traders[0] ?? {
     id: "t0", tenantId: tid, name: "Elena Althaus", email: "elena@example.com", country: "DE",
     status: "active" as const, equity: 0, totalPnl: 0, trades: 0, winRate: 0, joinedAt: "", userId: "u0",
   };
+  // Session status overrides (suspend/reactivate from list or here).
+  useTraderStatusVersion();
+  const trader: Trader = { ...traderSeed, status: effectiveTraderStatus(traderSeed) };
   const accounts = getTenantAccounts(tid).filter((a) => a.traderId === trader.id);
   const positions = getTenantPositions(tid).filter((p) => p.traderId === trader.id);
   const kyc = getTenantKyc(tid).find((k) => k.traderId === trader.id);
   const breaches = getTenantBreaches(tid).filter((b) => b.traderId === trader.id);
   const audit = getTenantAudit(tid).slice(0, 12);
+  // PRD trader-360 Payouts + Activity Log tabs — subscribe to payout
+  // decisions so this list tracks the queue's live status.
+  usePayoutVersion();
+  const traderPayouts = getTraderPayouts(trader.id);
+  const activity = getTenantUserEvents(tid).filter((e) => e.userEmail === trader.email);
 
   const [tab, setTab] = React.useState<Tab>("Overview");
   const [addNoteOpen, setAddNoteOpen] = React.useState(false);
@@ -108,7 +140,13 @@ export function TraderDetailStitchPage() {
   const [payoutScheduleOpen, setPayoutScheduleOpen] = React.useState(false);
   const [resyncOpen, setResyncOpen] = React.useState(false);
   const [suspendOpen, setSuspendOpen] = React.useState(false);
+  const [reactivateOpen, setReactivateOpen] = React.useState(false);
   const [kycRejectOpen, setKycRejectOpen] = React.useState(false);
+  // PRD trader-360 "Internal Notes" tab — session notes (add/remove).
+  const [notes, setNotes] = React.useState<InternalNote[]>([
+    { id: "n1", body: "Verified source of funds — bank statements match deposit pattern.", author: "Sarah Chen", at: "2025-05-12 09:14 UTC", pinned: true },
+    { id: "n2", body: "Asked support about scaling plan rules; forwarded docs.", author: "Maya Okafor", at: "2025-05-18 16:40 UTC" },
+  ]);
 
   const tenantData = getTenant(tid);
   const isChallengePhase = trader.challengePhase === "phase-1" || trader.challengePhase === "phase-2";
@@ -138,7 +176,13 @@ export function TraderDetailStitchPage() {
             <StitchButton variant="surface" icon="sticky_note_2" onClick={() => setAddNoteOpen(true)}>Add Note</StitchButton>
             <StitchButton variant="surface" icon="swap_horiz" onClick={() => setImpersonateOpen(true)}>Impersonate</StitchButton>
             <StitchButton variant="surface" icon="edit" onClick={() => setEditOpen(true)}>Edit</StitchButton>
-            <StitchButton variant="destructive" icon="pause_circle" onClick={() => setSuspendOpen(true)}>Suspend</StitchButton>
+            {/* PRD §4.8.2 — Suspend and Reactivate are the same toggle; the
+                header shows the action matching the effective status. */}
+            {trader.status === "suspended" || trader.status === "breached" ? (
+              <StitchButton variant="primary" icon="play_circle" onClick={() => setReactivateOpen(true)}>Reactivate</StitchButton>
+            ) : (
+              <StitchButton variant="destructive" icon="pause_circle" onClick={() => setSuspendOpen(true)}>Suspend</StitchButton>
+            )}
           </>
         }
       />
@@ -231,6 +275,55 @@ export function TraderDetailStitchPage() {
               { header: "Status", cell: (a) => <StitchStateBadge state={a.status} tone={a.status === "active" ? "positive" : a.status === "breached" ? "negative" : "muted"} /> },
             ]}
             emptyState={<EmptyHint title="No accounts" body="This trader has no provisioned accounts yet." />}
+          />
+        </StitchCard>
+      ) : null}
+
+      {tab === "Payments" ? (
+        <StitchCard className="p-0">
+          <StitchCardHeader
+            icon="receipt_long"
+            title="Payments"
+            description="Challenge purchase orders tied to this trader"
+            right={<StitchButton variant="surface" icon="download" onClick={() => toast({ title: "Export ready", description: "Payment history exported to CSV." })}>Export CSV</StitchButton>}
+          />
+          <StitchTable
+            keyOf={(o) => o.id}
+            rows={buildOrders(tid).filter((o) => o.traderId === trader.id)}
+            columns={[
+              { header: "Order", cell: (o) => <span className="font-mono text-xs font-semibold text-ink">{o.id}</span> },
+              { header: "Challenge", cell: (o) => o.challenge },
+              { header: "Amount", cell: (o) => money(o.amount, o.currency), numeric: true },
+              { header: "Method", cell: (o) => <StitchPill tone="muted">{o.paymentMethod}</StitchPill> },
+              { header: "Provider", cell: (o) => o.paymentProvider },
+              { header: "Status", cell: (o) => <StitchStateBadge state={o.status} tone={o.status === "paid" ? "positive" : o.status === "failed" ? "negative" : o.status === "refunded" ? "warning" : "info"} /> },
+              { header: "Date", cell: (o) => <span className="text-ink-variant">{new Date(o.createdAt).toLocaleDateString()}</span> },
+            ]}
+            emptyState={<EmptyHint title="No payments yet" body="Challenge purchases made by this trader will appear here." />}
+          />
+        </StitchCard>
+      ) : null}
+
+      {tab === "Payouts" ? (
+        <StitchCard className="p-0">
+          <StitchCardHeader
+            icon="payments"
+            title="Payouts"
+            description="Withdrawal requests from this trader"
+            right={<StitchButton variant="surface" onClick={() => navigate("payouts")}>Open Payout Queue</StitchButton>}
+          />
+          <StitchTable
+            keyOf={(p) => p.id}
+            rows={traderPayouts}
+            columns={[
+              { header: "Reference", cell: (p) => <span className="font-mono text-xs">{p.reference}</span> },
+              { header: "Amount", cell: (p) => <span className="font-semibold text-ink">{money(p.amount, p.currency)}</span>, numeric: true },
+              { header: "Split", cell: (p) => `${p.profitSplit}%` },
+              { header: "Method", cell: (p) => <StitchPill tone="muted">{p.method}</StitchPill> },
+              { header: "Status", cell: (p) => <StitchStateBadge state={effectivePayoutStatus(p)} tone={effectivePayoutStatus(p) === "paid" ? "positive" : effectivePayoutStatus(p) === "rejected" ? "negative" : "warning"} /> },
+              { header: "Requested", cell: (p) => <span className="text-ink-variant">{new Date(p.createdAt).toLocaleDateString()}</span> },
+            ]}
+            emptyState={<EmptyHint title="No payouts yet" body="Withdrawal requests submitted by this trader will appear here for review." />}
           />
         </StitchCard>
       ) : null}
@@ -328,6 +421,69 @@ export function TraderDetailStitchPage() {
         </div>
       ) : null}
 
+      {tab === "Activity Log" ? (
+        <StitchCard>
+          <StitchCardHeader
+            icon="bolt"
+            title="Activity Log"
+            description={`${activity.length} events recorded for ${trader.email}`}
+          />
+          {activity.length === 0 ? (
+            <EmptyHint title="No activity yet" body="Logins, orders, payouts and breaches for this trader stream here." />
+          ) : (
+            <StitchTimeline
+              items={activity.map((e) => ({
+                dotClass: e.eventType === "BREACH_DETECTED" || e.eventType === "KYC_REJECTED" ? "bg-terr" : "bg-tp",
+                title: e.eventType.replaceAll("_", " "),
+                time: e.timestamp,
+                body: e.description,
+              }))}
+            />
+          )}
+        </StitchCard>
+      ) : null}
+
+      {tab === "Internal Notes" ? (
+        <StitchCard>
+          <StitchCardHeader
+            icon="sticky_note_2"
+            title="Internal Notes"
+            description="Staff-only notes — never visible to the trader"
+            right={<StitchButton variant="primary" icon="add" onClick={() => setAddNoteOpen(true)}>Add Note</StitchButton>}
+          />
+          {notes.length === 0 ? (
+            <EmptyHint title="No internal notes" body="Capture context for other staff — verification calls, exceptions, escalations." />
+          ) : (
+            <div className="space-y-2">
+              {notes
+                .slice()
+                .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+                .map((n) => (
+                  <div key={n.id} className="rounded-lg bg-sfc-low px-3 py-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-xs font-medium leading-relaxed text-ink">
+                        {n.pinned ? <StitchPill tone="info" icon="keep">Pinned</StitchPill> : null} {n.body}
+                      </p>
+                      <button
+                        type="button"
+                        aria-label="Delete note"
+                        onClick={() => {
+                          setNotes((prev) => prev.filter((x) => x.id !== n.id));
+                          toast({ title: "Note removed" });
+                        }}
+                        className="shrink-0 rounded p-1 text-ink-muted transition-colors hover:bg-sfc hover:text-terr"
+                      >
+                        <MsIconSafe name="delete" />
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[10px] text-ink-variant">{n.author} · {n.at}</p>
+                  </div>
+                ))}
+            </div>
+          )}
+        </StitchCard>
+      ) : null}
+
       {tab === "Change History" ? (
         <StitchCard>
           <StitchCardHeader
@@ -348,7 +504,24 @@ export function TraderDetailStitchPage() {
       ) : null}
 
       {/* ── Wired sheets/dialogs ── */}
-      <AddNoteSheet open={addNoteOpen} onOpenChange={setAddNoteOpen} targetName={trader.name} />
+      <AddNoteSheet
+        open={addNoteOpen}
+        onOpenChange={setAddNoteOpen}
+        targetName={trader.name}
+        onAdd={(body, pinned) => {
+          setNotes((prev) => [
+            {
+              id: `n${Date.now()}`,
+              body,
+              author: user?.name ?? "Admin",
+              at: new Date().toISOString().replace("T", " ").slice(0, 16) + " UTC",
+              pinned,
+            },
+            ...prev,
+          ]);
+          toast({ title: "Note saved", description: "Added to Internal Notes — staff only." });
+        }}
+      />
       <EditTraderSheet open={editOpen} onOpenChange={setEditOpen} trader={trader} />
       <PayoutScheduleSheet open={payoutScheduleOpen} onOpenChange={setPayoutScheduleOpen} />
       <ResyncSheet open={resyncOpen} onOpenChange={setResyncOpen} />
@@ -359,7 +532,24 @@ export function TraderDetailStitchPage() {
         title={`Suspend ${trader.name}?`}
         body="All trading will halt immediately. Open positions will remain open. Reversible from the trader profile."
         confirmLabel="Suspend Trader"
-        onConfirm={() => toast({ title: "Trader suspended" })}
+        onConfirm={() => {
+          applyTraderStatus(trader.id, "suspended");
+          toast({ title: "Trader suspended", description: `${trader.name} can no longer trade.` });
+        }}
+      />
+      {/* PRD §4.8.2 Reactivate — restore a suspended/breached trader. */}
+      <StitchConfirm
+        open={reactivateOpen}
+        onOpenChange={setReactivateOpen}
+        icon="play_circle"
+        title={`Reactivate ${trader.name}?`}
+        body="Trading access will be restored immediately. Breached accounts keep their current state. This action is logged."
+        confirmLabel="Reactivate Trader"
+        destructive={false}
+        onConfirm={() => {
+          applyTraderStatus(trader.id, "active");
+          toast({ title: "Trader reactivated", description: `${trader.name} can trade again.` });
+        }}
       />
       <StitchConfirm
         open={kycRejectOpen}
@@ -430,8 +620,15 @@ function SimpleCurve({ points }: { points: number[] }) {
 
 /* ── Sheets ── */
 
-function AddNoteSheet({ open, onOpenChange, targetName }: { open: boolean; onOpenChange: (o: boolean) => void; targetName: string }) {
+function AddNoteSheet({ open, onOpenChange, targetName, onAdd }: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  targetName: string;
+  /** PRD trader-360 Internal Notes — called with the note body + pin flag. */
+  onAdd?: (body: string, pinned: boolean) => void;
+}) {
   const [pinned, setPinned] = React.useState(false);
+  const [body, setBody] = React.useState("");
   return (
     <StitchSheet
       open={open} onOpenChange={onOpenChange} icon="sticky_note_2"
@@ -439,11 +636,11 @@ function AddNoteSheet({ open, onOpenChange, targetName }: { open: boolean; onOpe
       description="Notes are timestamped and attributed to your admin ID"
       footer={<>
         <StitchButton variant="surface" onClick={() => onOpenChange(false)}>Cancel</StitchButton>
-        <StitchButton variant="primary" onClick={() => { onOpenChange(false); toast({ title: "Note saved" }); }}>Save Note</StitchButton>
+        <StitchButton variant="primary" disabled={!body.trim()} onClick={() => { onAdd?.(body.trim(), pinned); setBody(""); setPinned(false); onOpenChange(false); }}>Save Note</StitchButton>
       </>}
     >
       <div className="space-y-3">
-        <Field label="Note"><Textarea className="stitch-input min-h-24" /></Field>
+        <Field label="Note"><Textarea className="stitch-input min-h-24" value={body} onChange={(e) => setBody(e.target.value)} placeholder="e.g. Called trader about payout verification — docs match." /></Field>
         <Field label="Visibility">
           <div className="flex gap-2">
             <label className="flex flex-1 items-center gap-2 rounded-lg bg-sfc-low px-3 py-2.5 text-xs font-medium text-ink"><Checkbox defaultChecked className="border-ink-variant/40" />Internal Only</label>
