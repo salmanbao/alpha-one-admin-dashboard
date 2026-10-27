@@ -426,6 +426,41 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "content-management": dynamic(
+    () =>
+      import("@/modules/super-admin/content-management-page").then((m) => ({
+        default: m.ContentManagementPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  marketing: dynamic(
+    () =>
+      import("@/modules/super-admin/marketing-page").then((m) => ({
+        default: m.MarketingPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "churn-prevention": dynamic(
+    () =>
+      import("@/modules/super-admin/churn-prevention-page").then((m) => ({
+        default: m.ChurnPreventionPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "scheduled-reports": dynamic(
+    () =>
+      import("@/modules/super-admin/scheduled-reports-page").then((m) => ({
+        default: m.ScheduledReportsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "tax-currency": dynamic(
+    () =>
+      import("@/modules/super-admin/tax-currency-page").then((m) => ({
+        default: m.TaxCurrencyPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
 };
 
 const dynamicViews = new Map<string, ViewComponent>();
