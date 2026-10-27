@@ -391,6 +391,27 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "webhooks": dynamic(
+    () =>
+      import("@/modules/super-admin/webhooks-page").then((m) => ({
+        default: m.WebhooksPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "integrations": dynamic(
+    () =>
+      import("@/modules/super-admin/integrations-page").then((m) => ({
+        default: m.IntegrationsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "compliance-reports": dynamic(
+    () =>
+      import("@/modules/super-admin/compliance-reports-page").then((m) => ({
+        default: m.ComplianceReportsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
 };
 
 const dynamicViews = new Map<string, ViewComponent>();
