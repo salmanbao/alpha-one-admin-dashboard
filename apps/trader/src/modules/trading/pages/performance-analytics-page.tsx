@@ -23,8 +23,18 @@ const tabs = ["Overview", "Symbols", "Sessions"] as const;
 export function PerformanceAnalyticsPage() {
   const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
 
-  const wins = terraTrades.filter((t) => t.pnl > 0).length;
+  const winTrades = terraTrades.filter((t) => t.pnl > 0);
+  const lossTrades = terraTrades.filter((t) => t.pnl < 0);
+  const wins = winTrades.length;
   const winRate = Math.round((wins / terraTrades.length) * 100);
+  const avgWin = winTrades.length
+    ? winTrades.reduce((s, t) => s + t.pnl, 0) / winTrades.length
+    : 0;
+  const avgLoss = lossTrades.length
+    ? lossTrades.reduce((s, t) => s + t.pnl, 0) / lossTrades.length
+    : 0;
+  const expectancy =
+    (winRate / 100) * avgWin + (1 - winRate / 100) * avgLoss;
 
   const bySymbol = terraTrades.reduce<Record<string, { pnl: number; count: number }>>(
     (acc, t) => {
@@ -52,6 +62,42 @@ export function PerformanceAnalyticsPage() {
         </TerraCard>
         <TerraCard className="p-5">
           <TerraStat label="Avg Hold" value="4h 22m" sub="per trade" />
+        </TerraCard>
+      </div>
+
+      {/* Avg win/loss analytics (M12) */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <TerraCard className="p-5">
+          <TerraStat
+            label="Avg Win"
+            value={formatSignedMoney(avgWin)}
+            sub={`${winTrades.length} winners`}
+            tone="positive"
+          />
+        </TerraCard>
+        <TerraCard className="p-5">
+          <TerraStat
+            label="Avg Loss"
+            value={formatSignedMoney(avgLoss)}
+            sub={`${lossTrades.length} losers`}
+            tone="negative"
+          />
+        </TerraCard>
+        <TerraCard className="p-5">
+          <TerraStat
+            label="Expectancy"
+            value={formatSignedMoney(Math.round(expectancy * 10) / 10)}
+            sub="per trade"
+            tone={expectancy >= 0 ? "positive" : "negative"}
+          />
+        </TerraCard>
+        <TerraCard className="p-5">
+          <TerraStat
+            label="Largest Loss"
+            value={formatSignedMoney(Math.min(...terraTrades.map((t) => t.pnl)))}
+            sub="single trade"
+            tone="negative"
+          />
         </TerraCard>
       </div>
 

@@ -194,6 +194,147 @@ export const equityCurve30d: { x: string; y: number }[] = [
 ];
 
 /* ------------------------------------------------------------------ */
+/* Announcements / news (M12 Overview)                                 */
+/* ------------------------------------------------------------------ */
+
+export const announcements = [
+  {
+    id: "an-1",
+    tag: "platform" as const,
+    title: "DXtrade server maintenance — Sunday 02:00 UTC",
+    body: "TerraMarkets-Live02 will be unavailable for ~30 minutes. Open positions are unaffected.",
+    at: hoursAgo(6),
+    pinned: true,
+  },
+  {
+    id: "an-2",
+    tag: "payouts" as const,
+    title: "Payout window opens every other Friday",
+    body: "Request a payout any time — eligible requests are processed on the next bi-weekly cycle.",
+    at: daysAgo(2),
+    pinned: false,
+  },
+  {
+    id: "an-3",
+    tag: "community" as const,
+    title: "October Growth Sprint — $10,000 prize pool",
+    body: "Funded traders are automatically entered. Climb the leaderboard before month end.",
+    at: daysAgo(5),
+    pinned: false,
+  },
+  {
+    id: "an-4",
+    tag: "product" as const,
+    title: "Trade Replay now supports 30-day history",
+    body: "Replay any closed trade tick-by-tick from the Trading section of your dashboard.",
+    at: daysAgo(9),
+    pinned: false,
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/* Daily P&L (last 14 trading days — feeds the bar chart)              */
+/* ------------------------------------------------------------------ */
+
+export const dailyPnl14d: { x: string; y: number }[] = [
+  { x: "Sep 22", y: 120 },
+  { x: "Sep 23", y: 180 },
+  { x: "Sep 24", y: 120 },
+  { x: "Sep 25", y: -60 },
+  { x: "Sep 26", y: 170 },
+  { x: "Sep 27", y: -80 },
+  { x: "Sep 28", y: 140 },
+  { x: "Sep 29", y: 90 },
+  { x: "Sep 30", y: -60 },
+  { x: "Oct 01", y: 140 },
+  { x: "Oct 02", y: -60 },
+  { x: "Oct 03", y: 150 },
+  { x: "Oct 04", y: 70 },
+  { x: "Oct 06", y: 60 },
+];
+
+/* ------------------------------------------------------------------ */
+/* Challenge timeline (M12 Challenge Detail View)                      */
+/* ------------------------------------------------------------------ */
+
+export const challengeTimeline = {
+  accountId: "acc-100030",
+  startedAt: daysAgo(12),
+  maxCalendarDays: 30,
+  elapsedDays: 12,
+  tradingDays: 12,
+  minTradingDays: 4,
+  bestDayPct: 38, // consistency rule: best day as % of total profit
+  consistencyCap: 45,
+};
+
+/* ------------------------------------------------------------------ */
+/* Certificates (M12 + M19 Funded Trader Certificate)                  */
+/* ------------------------------------------------------------------ */
+
+export interface TerraCertificate {
+  id: string;
+  title: string;
+  program: string;
+  accountSize?: string;
+  issuedAt: string;
+  credentialId: string;
+  kind: "funded" | "phase" | "completion";
+  status: "issued" | "pending" | "locked";
+}
+
+export const terraCertificates: TerraCertificate[] = [
+  {
+    id: "cert-funded-92841",
+    title: "Funded Trader Certificate",
+    program: "Terra Flash Instant $25K",
+    accountSize: "$25,000",
+    issuedAt: daysAgo(95),
+    credentialId: "TT-FND-92841-2026",
+    kind: "funded",
+    status: "issued",
+  },
+  {
+    id: "cert-p1-100030",
+    title: "Phase 1 Evaluation Passed",
+    program: "Terra Pro $100K",
+    accountSize: "$100,000",
+    issuedAt: daysAgo(46),
+    credentialId: "TT-P1-100030-2026",
+    kind: "phase",
+    status: "issued",
+  },
+  {
+    id: "cert-p2-098412",
+    title: "Phase 2 Evaluation Passed",
+    program: "Terra Starter $25K",
+    accountSize: "$25,000",
+    issuedAt: daysAgo(30),
+    credentialId: "TT-P2-098412-2026",
+    kind: "phase",
+    status: "issued",
+  },
+  {
+    id: "cert-consistency",
+    title: "Consistency Mastery Badge",
+    program: "Terra Pro $100K — Phase 2",
+    issuedAt: daysFromNow(0),
+    credentialId: "Pending completion of Phase 2",
+    kind: "completion",
+    status: "pending",
+  },
+  {
+    id: "cert-scaling",
+    title: "Scaling to $200K Certificate",
+    program: "Terra Pro $100K — Funded",
+    issuedAt: daysFromNow(0),
+    credentialId: "Unlocks at 90 days funded + 10% gain",
+    kind: "completion",
+    status: "locked",
+  },
+];
+
+/* ------------------------------------------------------------------ */
 /* Open positions                                                      */
 /* ------------------------------------------------------------------ */
 

@@ -323,6 +323,127 @@ export function TerraAreaChart({
 }
 
 /* ------------------------------------------------------------------ */
+/* Simple inline SVG bar chart (daily P&L pattern — M12)               */
+/* ------------------------------------------------------------------ */
+
+export function TerraBarChart({
+  data,
+  height = 220,
+  formatValue,
+}: {
+  data: { x: string; y: number }[];
+  height?: number;
+  formatValue?: (v: number) => string;
+}) {
+  if (data.length < 1) return null;
+
+  const W = 680;
+  const H = 240;
+  const padL = 48;
+  const padR = 10;
+  const padT = 16;
+  const padB = 30;
+
+  const values = data.map((d) => d.y);
+  const max = Math.max(...values, 0);
+  const min = Math.min(...values, 0);
+  const span = max - min || 1;
+  const lo = min - span * 0.1;
+  const hi = max + span * 0.1;
+
+  const plotW = W - padL - padR;
+  const slot = plotW / data.length;
+  const barW = Math.max(4, slot * 0.62);
+  const sy = (v: number) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+  const zeroY = sy(0);
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1];
+  const tickCount = Math.min(7, data.length);
+  const xTickIdx = Array.from({ length: tickCount }, (_, i) =>
+    Math.round((i / (tickCount - 1 || 1)) * (data.length - 1)),
+  );
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      className="w-full overflow-visible"
+      style={{ height }}
+      role="img"
+      aria-label="Daily P&L bar chart"
+    >
+      <g opacity="0.4">
+        {gridLines.map((g) => {
+          const y = padT + g * (H - padT - padB);
+          const v = hi - g * (hi - lo);
+          return (
+            <g key={g}>
+              <line
+                x1={padL}
+                x2={W - padR}
+                y1={y}
+                y2={y}
+                stroke="#c4c8bc"
+                strokeDasharray="4 4"
+                strokeWidth="0.8"
+              />
+              <text
+                x={padL - 8}
+                y={y + 3}
+                textAnchor="end"
+                className="fill-current text-[9px] text-on-surface-variant"
+              >
+                {formatValue ? formatValue(v) : Math.round(v)}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+      {data.map((d, i) => {
+        const x = padL + i * slot + (slot - barW) / 2;
+        const y = d.y >= 0 ? sy(d.y) : zeroY;
+        const barH = Math.max(1.5, Math.abs(sy(d.y) - zeroY));
+        return (
+          <g key={`${d.x}-${i}`}>
+            <rect
+              x={x}
+              y={y}
+              width={barW}
+              height={barH}
+              rx={2.5}
+              fill={d.y >= 0 ? "#4a7c59" : "#b83230"}
+              opacity={0.92}
+            >
+              <title>{`${d.x}: ${formatValue ? formatValue(d.y) : Math.round(d.y)}`}</title>
+            </rect>
+          </g>
+        );
+      })}
+      <line
+        x1={padL}
+        x2={W - padR}
+        y1={zeroY}
+        y2={zeroY}
+        stroke="#8f8b83"
+        strokeWidth="1"
+      />
+      <g className="fill-current text-[10px] text-on-surface-variant opacity-80">
+        {xTickIdx.map((i) => (
+          <text
+            key={i}
+            x={padL + i * slot + slot / 2}
+            y={H - 8}
+            textAnchor={i === 0 ? "start" : i === data.length - 1 ? "end" : "middle"}
+          >
+            {data[i].x}
+          </text>
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Page header (content pages inside the shell)                        */
 /* ------------------------------------------------------------------ */
 
