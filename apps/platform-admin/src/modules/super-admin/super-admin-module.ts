@@ -48,6 +48,7 @@ import {
   Webhook,
   Plug,
   FileCheck,
+  FileCode,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -86,6 +87,7 @@ const navigation: NavigationItem[] = [
       // ───────── Infrastructure ─────────
       { id: "super.deployments", label: "Deployments", href: "deployments", icon: GitBranch, application: ["super-admin"], group: "Infrastructure" },
       { id: "super.backups", label: "Backups & DR", href: "backups-dr", icon: Database, application: ["super-admin"], group: "Infrastructure" },
+      { id: "super.backup-policies", label: "Backup Policies", href: "backup-policies", icon: HardDrive, application: ["super-admin"], group: "Infrastructure" },
 
       // ───────── Platform Config ─────────
       { id: "super.catalog", label: "Service Catalog", href: "module-catalog", icon: Package, application: ["super-admin"], group: "Platform Config" },
@@ -95,6 +97,7 @@ const navigation: NavigationItem[] = [
       { id: "super.reference-data", label: "Reference Data", href: "reference-data", icon: BookOpen, application: ["super-admin"], group: "Platform Config" },
       { id: "super.announcements", label: "Announcements", href: "announcements", icon: Bell, application: ["super-admin"], group: "Platform Config" },
       { id: "super.notifications", label: "Notifications", href: "notifications", icon: Bell, application: ["super-admin"], group: "Platform Config" },
+      { id: "super.notification-templates", label: "Notification Templates", href: "notification-templates", icon: FileCode, application: ["super-admin"], group: "Platform Config" },
 
       // ───────── Security ─────────
       { id: "super.security", label: "Security Overview", href: "security-overview", icon: Lock, application: ["super-admin"], group: "Security" },
@@ -193,6 +196,8 @@ const routes: RouteDefinition[] = [
   { path: "webhooks", viewId: "webhooks", label: "Webhooks", application: ["super-admin"] },
   { path: "integrations", viewId: "integrations", label: "Integrations", application: ["super-admin"] },
   { path: "compliance-reports", viewId: "compliance-reports", label: "Compliance Reports", application: ["super-admin"] },
+  { path: "notification-templates", viewId: "notification-templates", label: "Notification Templates", application: ["super-admin"] },
+  { path: "backup-policies", viewId: "backup-policies", label: "Backup Policies", application: ["super-admin"] },
 ];
 
 export const superAdminModule: FrontendModule = {
