@@ -212,6 +212,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "token-detail": dynamic(() => import("@/modules/settings/pages/token-detail-page").then((m) => ({ default: m.TokenDetailPage })), { loading: ViewSkeleton }),
   "audit-user-events-enhanced": dynamic(() => import("@/modules/audit/enhanced-user-events-page").then((m) => ({ default: m.EnhancedUserEventsPage })), { loading: ViewSkeleton }),
   "kyc-providers": dynamic(() => import("@/modules/settings/pages/kyc-providers-page").then((m) => ({ default: m.KycProvidersPage })), { loading: ViewSkeleton }),
+  "system-health": dynamic(() => import("@/modules/settings/pages/system-health-page").then((m) => ({ default: m.SystemHealthPage })), { loading: ViewSkeleton }),
+  webhooks: dynamic(() => import("@/modules/settings/pages/webhooks-page").then((m) => ({ default: m.WebhooksPage })), { loading: ViewSkeleton }),
   /* stitch — screens wired from modules/stitch/pages */
   "2fa-setup-dialog": dynamic(() => import("@/modules/stitch/pages/2fa-setup-dialog").then((m) => ({ default: m.Screen2faSetupDialogStitchPage })), { loading: ViewSkeleton }),
   "notification-center": dynamic(() => import("@/modules/stitch/pages/notification-center").then((m) => ({ default: m.NotificationCenterStitchPage })), { loading: ViewSkeleton }),
