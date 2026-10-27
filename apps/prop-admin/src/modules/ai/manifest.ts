@@ -5,7 +5,7 @@
  * an assistant chat, and model configuration. Depends on Trading + Analytics.
  */
 
-import { Brain, Sparkles, Bot, Settings2, TrendingUp, AlertTriangle, DollarSign } from "lucide-react";
+import { Brain, Sparkles, Bot, Settings2, TrendingUp, AlertTriangle, DollarSign, Database, Download, ShieldCheck, Library, Gauge } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { AiOverviewWidget, AiInsightsWidget, AiConfidenceWidget } from "./widgets/ai-widgets";
 
@@ -28,6 +28,15 @@ const navigation: NavigationItem[] = [
       { id: "ai.predictive", label: "Predictive Analytics", href: "ai-predictive", icon: TrendingUp, permission: "ai.read", order: 86, group: "Advanced Analytics" },
       { id: "ai.anomaly", label: "Anomaly Detection", href: "ai-anomaly", icon: AlertTriangle, permission: "ai.read", order: 87, group: "Advanced Analytics" },
       { id: "ai.cost", label: "Cost Tracking", href: "ai-cost", icon: DollarSign, permission: "ai.read", order: 88, group: "Advanced Analytics" },
+
+      // ───────── Training ─────────
+      { id: "ai.finetuning", label: "Fine-tuning", href: "ai-finetuning", icon: Database, permission: "ai.read", group: "Training" },
+      { id: "ai.training-export", label: "Training Export", href: "ai-training-export", icon: Download, permission: "ai.read", group: "Training" },
+
+      // ───────── Governance ─────────
+      { id: "ai.prompt-library", label: "Prompt Library", href: "ai-prompt-library", icon: Library, permission: "ai.read", group: "Governance" },
+      { id: "ai.quota", label: "Quotas", href: "ai-quota", icon: Gauge, permission: "ai.read", group: "Governance" },
+      { id: "ai.model-audit", label: "Model Audit", href: "ai-model-audit", icon: ShieldCheck, permission: "ai.read", group: "Governance" },
     ],
   },
 ];
@@ -40,6 +49,13 @@ const routes: RouteDefinition[] = [
   { path: "ai-predictive", viewId: "ai-predictive", label: "AI Predictive Analytics", permission: "ai.read", module: "ai" },
   { path: "ai-anomaly", viewId: "ai-anomaly", label: "AI Anomaly Detection", permission: "ai.read", module: "ai" },
   { path: "ai-cost", viewId: "ai-cost", label: "AI Cost Tracking", permission: "ai.read", module: "ai" },
+  // Training
+  { path: "ai-finetuning", viewId: "ai-finetuning", label: "AI Fine-tuning", permission: "ai.read", module: "ai" },
+  { path: "ai-training-export", viewId: "ai-training-export", label: "AI Training Export", permission: "ai.read", module: "ai" },
+  // Governance
+  { path: "ai-prompt-library", viewId: "ai-prompt-library", label: "AI Prompt Library", permission: "ai.read", module: "ai" },
+  { path: "ai-quota", viewId: "ai-quota", label: "AI Quotas", permission: "ai.read", module: "ai" },
+  { path: "ai-model-audit", viewId: "ai-model-audit", label: "AI Model Audit", permission: "ai.read", module: "ai" },
 ];
 
 const widgets: WidgetDefinition[] = [

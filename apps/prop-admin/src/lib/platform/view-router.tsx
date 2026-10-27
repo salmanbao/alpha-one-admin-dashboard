@@ -214,6 +214,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "kyc-providers": dynamic(() => import("@/modules/settings/pages/kyc-providers-page").then((m) => ({ default: m.KycProvidersPage })), { loading: ViewSkeleton }),
   "system-health": dynamic(() => import("@/modules/settings/pages/system-health-page").then((m) => ({ default: m.SystemHealthPage })), { loading: ViewSkeleton }),
   webhooks: dynamic(() => import("@/modules/settings/pages/webhooks-page").then((m) => ({ default: m.WebhooksPage })), { loading: ViewSkeleton }),
+  "content-management": dynamic(() => import("@/modules/settings/pages/content-management-page").then((m) => ({ default: m.ContentManagementPage })), { loading: ViewSkeleton }),
   /* stitch — screens wired from modules/stitch/pages */
   "2fa-setup-dialog": dynamic(() => import("@/modules/stitch/pages/2fa-setup-dialog").then((m) => ({ default: m.Screen2faSetupDialogStitchPage })), { loading: ViewSkeleton }),
   "notification-center": dynamic(() => import("@/modules/stitch/pages/notification-center").then((m) => ({ default: m.NotificationCenterStitchPage })), { loading: ViewSkeleton }),
