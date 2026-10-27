@@ -44,6 +44,7 @@ import {
   Sparkles,
   LifeBuoy,
   Gauge,
+  Key,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -110,6 +111,11 @@ const navigation: NavigationItem[] = [
       { id: "super.platform-roles", label: "Platform Roles", href: "platform-roles", icon: Shield, application: ["super-admin"], group: "Governance" },
       { id: "super.staff", label: "Platform Staff", href: "platform-staff", icon: Users, application: ["super-admin"], group: "Governance" },
 
+      // ───────── Developer (API Gateway) ─────────
+      { id: "super.api-keys", label: "API Keys", href: "api-keys", icon: Key, application: ["super-admin"], group: "Developer" },
+      { id: "super.rate-limits", label: "Rate Limits", href: "rate-limits", icon: Lock, application: ["super-admin"], group: "Developer" },
+      { id: "super.api-analytics", label: "API Analytics", href: "api-analytics", icon: Activity, application: ["super-admin"], group: "Developer" },
+
       // ───────── Analytics ─────────
       { id: "super.analytics", label: "Platform Analytics", href: "platform-analytics", icon: BarChart3, application: ["super-admin"], group: "Analytics" },
 
@@ -173,6 +179,9 @@ const routes: RouteDefinition[] = [
   { path: "platform-transactions", viewId: "platform-transactions", label: "Platform Transactions", application: ["super-admin"] },
   { path: "system-health", viewId: "system-health", label: "System Health", application: ["super-admin"] },
   { path: "audit-log", viewId: "audit-log", label: "Audit Log", application: ["super-admin"], permission: "platform.audit.read" },
+  { path: "api-keys", viewId: "api-keys", label: "API Keys", application: ["super-admin"] },
+  { path: "rate-limits", viewId: "rate-limits", label: "Rate Limits", application: ["super-admin"] },
+  { path: "api-analytics", viewId: "api-analytics", label: "API Analytics", application: ["super-admin"] },
 ];
 
 export const superAdminModule: FrontendModule = {
