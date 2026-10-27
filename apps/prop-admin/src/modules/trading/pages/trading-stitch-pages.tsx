@@ -51,6 +51,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { exportToCsv } from "@/lib/platform/export-utils";
+import {
+  applyTraderStatus,
+  effectiveTraderStatus,
+  useTraderStatusVersion,
+} from "@/modules/trading/trader-store";
 
 /* ═══════════════════════════════════════════════════════════════ */
 /* Trading Overview (view-id: trading)                              */
@@ -436,6 +442,8 @@ export function TradersStitchPage() {
   const tid = runtime.tenant?.id ?? "platform";
   const traders = getTenantTraders(tid);
   const currency = runtime.tenant?.currency ?? "USD";
+  // Session status overrides (suspend / reactivate) render everywhere.
+  useTraderStatusVersion();
 
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [phaseFilter, setPhaseFilter] = React.useState("all");
@@ -444,17 +452,24 @@ export function TradersStitchPage() {
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = React.useState(false);
   const [suspendTarget, setSuspendTarget] = React.useState<Trader | null>(null);
+  const [reactivateTarget, setReactivateTarget] = React.useState<Trader | null>(null);
   const [resetTarget, setResetTarget] = React.useState<Trader | null>(null);
   const [messageTarget, setMessageTarget] = React.useState<Trader | null>(null);
   const [impersonateTarget, setImpersonateTarget] = React.useState<Trader | null>(null);
   const [bulkSuspendOpen, setBulkSuspendOpen] = React.useState(false);
 
   const countries = React.useMemo(() => Array.from(new Set(traders.map((t) => t.country))).sort(), [traders]);
+  // Status list derives from effective statuses so a session suspend shows
+  // up as a filter option immediately.
+  const statuses = React.useMemo(
+    () => Array.from(new Set(traders.map((t) => effectiveTraderStatus(t)))).sort(),
+    [traders],
+  );
 
   const filtered = React.useMemo(
     () =>
       traders.filter((t) => {
-        if (statusFilter !== "all" && t.status !== statusFilter) return false;
+        if (statusFilter !== "all" && effectiveTraderStatus(t) !== statusFilter) return false;
         if (phaseFilter !== "all" && (t.challengePhase ?? "none") !== phaseFilter) return false;
         if (countryFilter !== "all" && t.country !== countryFilter) return false;
         if (query && !(`${t.name} ${t.email}`.toLowerCase().includes(query.toLowerCase()))) return false;
@@ -462,6 +477,24 @@ export function TradersStitchPage() {
       }),
     [traders, statusFilter, phaseFilter, countryFilter, query],
   );
+
+  const handleExportAll = () => {
+    exportToCsv(
+      filtered,
+      [
+        { key: "name", header: "Name", value: (t) => t.name },
+        { key: "email", header: "Email", value: (t) => t.email },
+        { key: "country", header: "Country", value: (t) => t.country },
+        { key: "status", header: "Status", value: (t) => effectiveTraderStatus(t) },
+        { key: "challengePhase", header: "Phase", value: (t) => t.challengePhase ?? "none" },
+        { key: "trades", header: "Trades", value: (t) => t.trades },
+        { key: "winRate", header: "Win %", value: (t) => t.winRate },
+        { key: "equity", header: "Equity", value: (t) => t.equity },
+        { key: "totalPnl", header: "Total P&L", value: (t) => t.totalPnl },
+      ],
+      `traders-${Date.now()}.csv`,
+    );
+  };
 
   const activeCount =
     (statusFilter !== "all" ? 1 : 0) + (phaseFilter !== "all" ? 1 : 0) + (countryFilter !== "all" ? 1 : 0);
@@ -486,6 +519,9 @@ export function TradersStitchPage() {
         subtitle={`${traders.length} ${plural(term("account")).toLowerCase()} in this tenant.`}
         actions={
           <>
+            <StitchButton variant="surface" icon="download" onClick={handleExportAll}>
+              Export CSV
+            </StitchButton>
             <StitchButton variant="surface" icon="visibility" onClick={() => toast({ title: "Saved view", description: "Current filters saved as a view." })}>
               Save View
             </StitchButton>
@@ -505,7 +541,7 @@ export function TradersStitchPage() {
           <StitchNativeSelect
             value={statusFilter}
             onChange={setStatusFilter}
-            options={[{ value: "all", label: "All statuses" }, ...Array.from(new Set(traders.map((t) => t.status))).map((s) => ({ value: s, label: s }))]}
+            options={[{ value: "all", label: "All statuses" }, ...statuses.map((s) => ({ value: s, label: s }))]}
           />
           <StitchNativeSelect
             value={phaseFilter}
@@ -568,6 +604,7 @@ export function TradersStitchPage() {
             keyOf={(t) => t.id}
             onRowClick={(t) => navigate("trader-detail")}
             rows={filtered}
+            pageSize={10}
             columns={[
               {
                 header: (
@@ -605,7 +642,7 @@ export function TradersStitchPage() {
                 ),
               },
               { header: "Country", cell: (t) => <StitchPill tone="muted">{t.country}</StitchPill> },
-              { header: "Status", cell: (t) => <StitchStateBadge state={t.status} tone={statusTone(t.status)} meaning={`${t.status} trader`} /> },
+              { header: "Status", cell: (t) => <StitchStateBadge state={effectiveTraderStatus(t)} tone={statusTone(effectiveTraderStatus(t))} meaning={`${effectiveTraderStatus(t)} trader`} /> },
               { header: "Phase", cell: (t) => <StitchPill tone="muted">{t.challengePhase ?? "none"}</StitchPill> },
               { header: "Trades", cell: (t) => t.trades, numeric: true },
               { header: "Win %", cell: (t) => `${t.winRate}%`, numeric: true },
@@ -622,7 +659,7 @@ export function TradersStitchPage() {
               },
               {
                 header: "",
-                cell: (t) => <TraderRowMenu trader={t} onSuspend={() => setSuspendTarget(t)} onReset={() => setResetTarget(t)} onMessage={() => setMessageTarget(t)} onImpersonate={() => setImpersonateTarget(t)} />,
+                cell: (t) => <TraderRowMenu trader={t} onSuspend={() => setSuspendTarget(t)} onReactivate={() => setReactivateTarget(t)} onReset={() => setResetTarget(t)} onMessage={() => setMessageTarget(t)} onImpersonate={() => setImpersonateTarget(t)} />,
                 className: "w-10",
               },
             ]}
@@ -639,7 +676,24 @@ export function TradersStitchPage() {
         title={`Suspend ${suspendTarget?.name ?? "account"}?`}
         body="All trading will halt immediately. Open positions will remain open. This is reversible from the trader profile."
         confirmLabel="Suspend Trader"
-        onConfirm={() => toast({ title: "Trader suspended", description: `${suspendTarget?.name} can no longer trade.` })}
+        onConfirm={() => {
+          if (suspendTarget) applyTraderStatus(suspendTarget.id, "suspended");
+          toast({ title: "Trader suspended", description: `${suspendTarget?.name} can no longer trade.` });
+        }}
+      />
+      {/* PRD POST /traders/:id/reactivate — restore a suspended/breached trader. */}
+      <StitchConfirm
+        open={!!reactivateTarget}
+        onOpenChange={(o) => !o && setReactivateTarget(null)}
+        icon="play_circle"
+        title={`Reactivate ${reactivateTarget?.name ?? "trader"}?`}
+        body="Trading access will be restored immediately. Any previously breached accounts remain in their current state. This action is logged."
+        confirmLabel="Reactivate Trader"
+        destructive={false}
+        onConfirm={() => {
+          if (reactivateTarget) applyTraderStatus(reactivateTarget.id, "active");
+          toast({ title: "Trader reactivated", description: `${reactivateTarget?.name} can trade again.` });
+        }}
       />
       <StitchConfirm
         open={!!resetTarget}
@@ -660,16 +714,21 @@ export function TradersStitchPage() {
         title={`Suspend ${selected.size} traders?`}
         body="All selected traders will be suspended immediately. Open positions remain. Each action is logged in the audit trail."
         confirmLabel="Suspend Traders"
-        onConfirm={() => { toast({ title: "Traders suspended", description: `${selected.size} accounts suspended.` }); setSelected(new Set()); }}
+        onConfirm={() => {
+          selected.forEach((id) => applyTraderStatus(id, "suspended"));
+          toast({ title: "Traders suspended", description: `${selected.size} accounts suspended.` });
+          setSelected(new Set());
+        }}
       />
     </div>
   );
 }
 
 /* Per-row kebab menu (traders_directory) */
-function TraderRowMenu({ trader, onSuspend, onReset, onMessage, onImpersonate }: {
+function TraderRowMenu({ trader, onSuspend, onReactivate, onReset, onMessage, onImpersonate }: {
   trader: Trader;
   onSuspend: () => void;
+  onReactivate: () => void;
   onReset: () => void;
   onMessage: () => void;
   onImpersonate: () => void;
@@ -681,13 +740,19 @@ function TraderRowMenu({ trader, onSuspend, onReset, onMessage, onImpersonate }:
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+  // PRD §4.8.1/§4.8.2 — Suspend and Reactivate are the same status toggle
+  // seen from both ends: suspended/breached traders offer Reactivate.
+  const status = effectiveTraderStatus(trader);
+  const suspended = status === "suspended" || status === "breached";
   const items: { label: string; icon: string; action: () => void; danger?: boolean }[] = [
     { label: "View Profile", icon: "person", action: () => (window as unknown as { __pfNav?: (v: string) => void }).__pfNav?.("trader-detail") },
     { label: "Edit Trader", icon: "edit", action: () => toast({ title: "Edit trader", description: `${trader.name} — edit sheet coming from profile workspace.` }) },
     { label: "Reset Password", icon: "lock_reset", action: onReset },
     { label: "Message Trader", icon: "mail", action: onMessage },
     { label: "Impersonate", icon: "swap_horiz", action: onImpersonate, danger: true },
-    { label: "Suspend", icon: "pause_circle", action: onSuspend, danger: true },
+    suspended
+      ? { label: "Reactivate", icon: "play_circle", action: onReactivate }
+      : { label: "Suspend", icon: "pause_circle", action: onSuspend, danger: true },
   ];
   return (
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
