@@ -13,14 +13,56 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { exportToCsv } from "@/lib/platform/export-utils";
+import { toast } from "@/hooks/use-toast";
+
+const STAFF = [
+  { i: 0, name: "Marcus Vance", email: "marcus.vance@terradesk.io", role: "CRO / Level 4 Ops", status: "Active" },
+  { i: 1, name: "David Chen", email: "david.chen@terradesk.io", role: "Lead Risk Officer", status: "Active" },
+  { i: 2, name: "Sofia Rodriguez", email: "sofia.rodriguez@terradesk.io", role: "Compliance Analyst", status: "Active" },
+  { i: 3, name: "Arthur Pendelton", email: "arthur.pendelton@terradesk.io", role: "Security Engineer", status: "Active" },
+  { i: 4, name: "Chloe Dupont", email: "chloe.dupont@terradesk.io", role: "Support Lead", status: "Active" },
+  { i: 5, name: "Henrik Lindqvist", email: "henrik.lindqvist@terradesk.io", role: "Senior Desk Auditor", status: "Expiring Soon" },
+  { i: 6, name: "Amara Okafor", email: "amara.okafor@terradesk.io", role: "Junior Risk Analyst", status: "Active" },
+  { i: 7, name: "Lucas Meyer", email: "lucas.meyer@terradesk.io", role: "Billing & Settlement", status: "Active" },
+  { i: 8, name: "Elena Kova", email: "elena.kova@auditors.global", role: "SecOps Auditor", status: "Pending Acceptance" },
+  { i: 9, name: "Tobias Richter", email: "tobias.richter@terradesk.io", role: "Support Specialist", status: "Revoked" },
+];
+
+const PAGE_SIZE = 6;
 
 export function TeamMembersStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  const [inviteOpen, setInviteOpen] = React.useState(false);
+  const [openMenu, setOpenMenu] = React.useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = React.useState({ name: "Tobias Richter", email: "tobias.richter@terradesk.io" });
+  const [search, setSearch] = React.useState("");
+  const [roleFilter, setRoleFilter] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("");
+  const [page, setPage] = React.useState(0);
+  const { navigate } = usePlatform();
+
+  const closeMenu = () => setOpenMenu(null);
+  const filteredStaff = STAFF.filter((s) => {
+    const q = search.trim().toLowerCase();
+    return (
+      (!q || `${s.name} ${s.email} ${s.role}`.toLowerCase().includes(q)) &&
+      (!roleFilter || s.role === roleFilter) &&
+      (!statusFilter || s.status === statusFilter)
+    );
+  });
+  const maxPage = Math.max(0, Math.ceil(filteredStaff.length / PAGE_SIZE) - 1);
+  const currentPage = Math.min(page, maxPage);
+  const pageStaff = filteredStaff.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
+  const rowVisible = (i: number) => pageStaff.some((s) => s.i === i);
+
   return (
     <>
       <div className="flex flex-col w-full">
-        <div className="hidden fixed inset-0 z-50 overflow-y-auto bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4" id="inviteModal">
+        {openMenu !== null ? <div className="fixed inset-0 z-20" aria-hidden="true" onClick={closeMenu} /> : null}
+        <div className={`${inviteOpen ? "" : "hidden "}fixed inset-0 z-50 overflow-y-auto bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4`} id="inviteModal">
           <div className="relative w-full max-w-xl bg-surface-container-lowest rounded-xl shadow-2xl p-8 space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -30,7 +72,7 @@ export function TeamMembersStitchPage() {
                   <p className="text-xs text-on-surface-variant font-medium">Issue delegated enclave credentials into tenant directory</p>
                 </div>
               </div>
-              <button className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"><MsIcon name="close" className="text-xl" /></button>
+              <button onClick={() => setInviteOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"><MsIcon name="close" className="text-xl" /></button>
             </div>
             <div className="space-y-4">
               <div>
@@ -72,8 +114,8 @@ export function TeamMembersStitchPage() {
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 pt-2">
-              <button className="px-4 py-2.5 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-colors">                Cancel</button>
-              <button className="px-5 py-2.5 rounded-lg text-sm font-bold bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container shadow-sm transition-all flex items-center gap-2" onClick={() => setSo0(true)}>
+              <button onClick={() => setInviteOpen(false)} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-colors">                Cancel</button>
+              <button className="px-5 py-2.5 rounded-lg text-sm font-bold bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container shadow-sm transition-all flex items-center gap-2" onClick={() => { setInviteOpen(false); setSo0(true); }}>
 <MsIcon name="lock" className="text-sm" />
                 <span>Generate Enclave Invite</span>
               </button>
@@ -118,11 +160,11 @@ export function TeamMembersStitchPage() {
               </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <button className="px-4 py-2.5 rounded-xl bg-surface-container-lowest text-on-surface text-sm font-semibold hover:bg-surface-container shadow-sm flex items-center gap-2 transition-all">
+              <button className="px-4 py-2.5 rounded-xl bg-surface-container-lowest text-on-surface text-sm font-semibold hover:bg-surface-container shadow-sm flex items-center gap-2 transition-all" onClick={() => exportToCsv(STAFF, [{ key: "name", header: "Name", value: (s) => s.name }, { key: "email", header: "Email", value: (s) => s.email }, { key: "role", header: "Role", value: (s) => s.role }, { key: "status", header: "Status", value: (s) => s.status }], "team-members.csv") }>
 <MsIcon name="download" className="text-[18px] text-on-surface-variant" />
                 <span>Export CSV</span>
               </button>
-              <button className="px-4 py-2.5 rounded-xl bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container text-sm font-bold shadow-[0_2px_8px_rgba(74,124,89,0.25)] flex items-center gap-2 transition-all">
+              <button className="px-4 py-2.5 rounded-xl bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container text-sm font-bold shadow-[0_2px_8px_rgba(74,124,89,0.25)] flex items-center gap-2 transition-all" onClick={() => setInviteOpen(true)}>
 <MsIcon name="person_add" className="text-[18px]" />
                 <span>+ Invite User</span>
               </button>
@@ -180,10 +222,10 @@ export function TeamMembersStitchPage() {
               <div className="flex flex-wrap items-center gap-3 flex-1">
                 <div className="relative flex-1 min-w-[260px] max-w-md">
 <MsIcon name="search" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant" />
-<input className="w-full pl-10 pr-4 py-2 rounded-lg bg-surface-container-low text-on-surface text-sm focus:outline-none focus:bg-surface-container placeholder:text-on-surface-variant/60 transition-colors" id="staffSearchInput" placeholder="Search staff by name, email, or role..." type="text" />
+<input className="w-full pl-10 pr-4 py-2 rounded-lg bg-surface-container-low text-on-surface text-sm focus:outline-none focus:bg-surface-container placeholder:text-on-surface-variant/60 transition-colors" id="staffSearchInput" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} placeholder="Search staff by name, email, or role..." type="text" />
                 </div>
                 <div className="relative">
-                  <select className="appearance-none pl-3.5 pr-8 py-2 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold focus:outline-none focus:bg-surface-container transition-colors cursor-pointer" id="roleFilterSelect">
+                  <select className="appearance-none pl-3.5 pr-8 py-2 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold focus:outline-none focus:bg-surface-container transition-colors cursor-pointer" id="roleFilterSelect" value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(0); }}>
                     <option value="">All Roles (8)</option>
                     <option value="CRO / Level 4 Ops">CRO / Level 4 Ops</option>
                     <option value="Lead Risk Officer">Lead Risk Officer</option>
@@ -197,7 +239,7 @@ export function TeamMembersStitchPage() {
 <MsIcon name="expand_more" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant pointer-events-none" />
                 </div>
                 <div className="relative">
-                  <select className="appearance-none pl-3.5 pr-8 py-2 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold focus:outline-none focus:bg-surface-container transition-colors cursor-pointer" id="statusFilterSelect">
+                  <select className="appearance-none pl-3.5 pr-8 py-2 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold focus:outline-none focus:bg-surface-container transition-colors cursor-pointer" id="statusFilterSelect" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}>
                     <option value="">All Assignment Statuses</option>
                     <option value="Active">Active</option>
                     <option value="Expiring Soon">Expiring Soon</option>
@@ -206,12 +248,12 @@ export function TeamMembersStitchPage() {
                   </select>
 <MsIcon name="expand_more" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant pointer-events-none" />
                 </div>
-                <button className="px-3 py-2 rounded-lg text-xs font-bold text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors flex items-center gap-1.5">
+                <button onClick={() => { setSearch(""); setRoleFilter(""); setStatusFilter(""); setPage(0); }} className="px-3 py-2 rounded-lg text-xs font-bold text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors flex items-center gap-1.5">
 <MsIcon name="restart_alt" className="text-sm" />
                   <span>Reset Filters</span>
                 </button>
               </div>
-              <div className="flex items-center justify-end text-xs font-semibold text-on-surface-variant">                <span id="showingCount">Showing 10 of 14 Staff Members</span></div>
+              <div className="flex items-center justify-end text-xs font-semibold text-on-surface-variant">                <span id="showingCount">{`Showing ${pageStaff.length} of ${filteredStaff.length} Staff Members`}</span></div>
             </div>
           </div>
           <div className="bg-surface-container-lowest rounded-xl shadow-[0_1px_6px_rgba(46,50,48,0.04)] overflow-hidden">
@@ -229,7 +271,7 @@ export function TeamMembersStitchPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-container-high/60 text-sm">
-                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="CRO / Level 4 Ops" data-status="Active">
+                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="CRO / Level 4 Ops" data-status="Active" style={{ display: rowVisible(0) ? undefined : "none" }}>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-on-primary text-xs shrink-0 shadow-sm">                          MV</div>
@@ -263,13 +305,17 @@ export function TeamMembersStitchPage() {
                     </td>
                     <td className="py-4 px-4">                      <span className="font-mono text-xs text-on-surface-variant">Permanent</span></td>
                     <td className="py-4 px-6 text-right relative">
-                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><MsIcon name="more_vert" className="text-lg leading-none" /></button>
-                      <div className="hidden absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none" id="menu-1">
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" aria-haspopup="menu" aria-expanded={openMenu === "menu-1"} onClick={() => setOpenMenu((v) => (v === "menu-1" ? null : "menu-1"))}><MsIcon name="more_vert" className="text-lg leading-none" /></button>
+                      <div className={`${openMenu === "menu-1" ? "" : "hidden "}absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none`} id="menu-1">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("roles-management"); }}>
 <MsIcon name="edit" className="text-sm" />
                           Edit Role Assignment
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); toast({ title: "Password reset forced", description: "Marcus Vance must set a new password at next sign-in. All sessions were signed out." }); }}>
+<MsIcon name="lock_reset" className="text-sm" />
+                          Force Password Reset
+                        </button>
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("audit-log"); }}>
 <MsIcon name="history" className="text-sm" />
                           View Audit Timeline
                         </button>
@@ -280,7 +326,7 @@ export function TeamMembersStitchPage() {
                       </div>
                     </td>
                   </tr>
-                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Lead Risk Officer" data-status="Active">
+                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Lead Risk Officer" data-status="Active" style={{ display: rowVisible(1) ? undefined : "none" }}>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center font-bold text-on-surface text-xs shrink-0">                          DC</div>
@@ -314,24 +360,28 @@ export function TeamMembersStitchPage() {
                     </td>
                     <td className="py-4 px-4">                      <span className="font-mono text-xs text-on-surface-variant">Dec 31, 2025</span></td>
                     <td className="py-4 px-6 text-right relative">
-                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><MsIcon name="more_vert" className="text-lg leading-none" /></button>
-                      <div className="hidden absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none" id="menu-2">
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" aria-haspopup="menu" aria-expanded={openMenu === "menu-2"} onClick={() => setOpenMenu((v) => (v === "menu-2" ? null : "menu-2"))}><MsIcon name="more_vert" className="text-lg leading-none" /></button>
+                      <div className={`${openMenu === "menu-2" ? "" : "hidden "}absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none`} id="menu-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("roles-management"); }}>
 <MsIcon name="edit" className="text-sm" />
                           Edit Role Assignment
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); toast({ title: "Password reset forced", description: "David Chen must set a new password at next sign-in. All sessions were signed out." }); }}>
+<MsIcon name="lock_reset" className="text-sm" />
+                          Force Password Reset
+                        </button>
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("audit-log"); }}>
 <MsIcon name="history" className="text-sm" />
                           View Audit Timeline
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2" onClick={() => { setRevokeTarget({ name: "David Chen", email: "david.chen@terradesk.io" }); closeMenu(); setSo1(true); }}>
 <MsIcon name="block" className="text-sm" />
                           Remove Access
                         </button>
                       </div>
                     </td>
                   </tr>
-                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Compliance Analyst" data-status="Active">
+                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Compliance Analyst" data-status="Active" style={{ display: rowVisible(2) ? undefined : "none" }}>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center font-bold text-on-secondary-fixed text-xs shrink-0">                          SR</div>
@@ -365,24 +415,28 @@ export function TeamMembersStitchPage() {
                     </td>
                     <td className="py-4 px-4">                      <span className="font-mono text-xs text-on-surface-variant">Nov 30, 2025</span></td>
                     <td className="py-4 px-6 text-right relative">
-                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><MsIcon name="more_vert" className="text-lg leading-none" /></button>
-                      <div className="hidden absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none" id="menu-3">
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" aria-haspopup="menu" aria-expanded={openMenu === "menu-3"} onClick={() => setOpenMenu((v) => (v === "menu-3" ? null : "menu-3"))}><MsIcon name="more_vert" className="text-lg leading-none" /></button>
+                      <div className={`${openMenu === "menu-3" ? "" : "hidden "}absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none`} id="menu-3">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("roles-management"); }}>
 <MsIcon name="edit" className="text-sm" />
                           Edit Role Assignment
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); toast({ title: "Password reset forced", description: "Sofia Rodriguez must set a new password at next sign-in. All sessions were signed out." }); }}>
+<MsIcon name="lock_reset" className="text-sm" />
+                          Force Password Reset
+                        </button>
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("audit-log"); }}>
 <MsIcon name="history" className="text-sm" />
                           View Audit Timeline
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2" onClick={() => { setRevokeTarget({ name: "Sofia Rodriguez", email: "sofia.rodriguez@terradesk.io" }); closeMenu(); setSo1(true); }}>
 <MsIcon name="block" className="text-sm" />
                           Remove Access
                         </button>
                       </div>
                     </td>
                   </tr>
-                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Security Engineer" data-status="Active">
+                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Security Engineer" data-status="Active" style={{ display: rowVisible(3) ? undefined : "none" }}>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center font-bold text-on-surface text-xs shrink-0">                          AP</div>
@@ -416,24 +470,28 @@ export function TeamMembersStitchPage() {
                     </td>
                     <td className="py-4 px-4">                      <span className="font-mono text-xs text-on-surface-variant">Permanent</span></td>
                     <td className="py-4 px-6 text-right relative">
-                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><MsIcon name="more_vert" className="text-lg leading-none" /></button>
-                      <div className="hidden absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none" id="menu-4">
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" aria-haspopup="menu" aria-expanded={openMenu === "menu-4"} onClick={() => setOpenMenu((v) => (v === "menu-4" ? null : "menu-4"))}><MsIcon name="more_vert" className="text-lg leading-none" /></button>
+                      <div className={`${openMenu === "menu-4" ? "" : "hidden "}absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none`} id="menu-4">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("roles-management"); }}>
 <MsIcon name="edit" className="text-sm" />
                           Edit Role Assignment
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); toast({ title: "Password reset forced", description: "Arthur Pendelton must set a new password at next sign-in. All sessions were signed out." }); }}>
+<MsIcon name="lock_reset" className="text-sm" />
+                          Force Password Reset
+                        </button>
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("audit-log"); }}>
 <MsIcon name="history" className="text-sm" />
                           View Audit Timeline
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2" onClick={() => { setRevokeTarget({ name: "Arthur Pendelton", email: "arthur.pendelton@terradesk.io" }); closeMenu(); setSo1(true); }}>
 <MsIcon name="block" className="text-sm" />
                           Remove Access
                         </button>
                       </div>
                     </td>
                   </tr>
-                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Support Lead" data-status="Active">
+                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Support Lead" data-status="Active" style={{ display: rowVisible(4) ? undefined : "none" }}>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center font-bold text-on-surface text-xs shrink-0">                          CD</div>
@@ -467,24 +525,28 @@ export function TeamMembersStitchPage() {
                     </td>
                     <td className="py-4 px-4">                      <span className="font-mono text-xs text-on-surface-variant">Oct 15, 2025</span></td>
                     <td className="py-4 px-6 text-right relative">
-                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><MsIcon name="more_vert" className="text-lg leading-none" /></button>
-                      <div className="hidden absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none" id="menu-5">
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" aria-haspopup="menu" aria-expanded={openMenu === "menu-5"} onClick={() => setOpenMenu((v) => (v === "menu-5" ? null : "menu-5"))}><MsIcon name="more_vert" className="text-lg leading-none" /></button>
+                      <div className={`${openMenu === "menu-5" ? "" : "hidden "}absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none`} id="menu-5">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("roles-management"); }}>
 <MsIcon name="edit" className="text-sm" />
                           Edit Role Assignment
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); toast({ title: "Password reset forced", description: "Chloe Dupont must set a new password at next sign-in. All sessions were signed out." }); }}>
+<MsIcon name="lock_reset" className="text-sm" />
+                          Force Password Reset
+                        </button>
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("audit-log"); }}>
 <MsIcon name="history" className="text-sm" />
                           View Audit Timeline
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2" onClick={() => { setRevokeTarget({ name: "Chloe Dupont", email: "chloe.dupont@terradesk.io" }); closeMenu(); setSo1(true); }}>
 <MsIcon name="block" className="text-sm" />
                           Remove Access
                         </button>
                       </div>
                     </td>
                   </tr>
-                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Senior Desk Auditor" data-status="Expiring Soon">
+                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Senior Desk Auditor" data-status="Expiring Soon" style={{ display: rowVisible(5) ? undefined : "none" }}>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-tertiary-fixed flex items-center justify-center font-bold text-on-tertiary-fixed text-xs shrink-0">                          HL</div>
@@ -518,24 +580,28 @@ export function TeamMembersStitchPage() {
                     </td>
                     <td className="py-4 px-4">                      <span className="font-mono text-xs text-tertiary font-bold">Jun 01, 2025</span></td>
                     <td className="py-4 px-6 text-right relative">
-                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><MsIcon name="more_vert" className="text-lg leading-none" /></button>
-                      <div className="hidden absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none" id="menu-6">
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" aria-haspopup="menu" aria-expanded={openMenu === "menu-6"} onClick={() => setOpenMenu((v) => (v === "menu-6" ? null : "menu-6"))}><MsIcon name="more_vert" className="text-lg leading-none" /></button>
+                      <div className={`${openMenu === "menu-6" ? "" : "hidden "}absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none`} id="menu-6">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("roles-management"); }}>
 <MsIcon name="edit" className="text-sm" />
                           Edit Role Assignment
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); toast({ title: "Password reset forced", description: "Henrik Lindqvist must set a new password at next sign-in. All sessions were signed out." }); }}>
+<MsIcon name="lock_reset" className="text-sm" />
+                          Force Password Reset
+                        </button>
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("audit-log"); }}>
 <MsIcon name="history" className="text-sm" />
                           View Audit Timeline
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2" onClick={() => { setRevokeTarget({ name: "Henrik Lindqvist", email: "henrik.lindqvist@terradesk.io" }); closeMenu(); setSo1(true); }}>
 <MsIcon name="block" className="text-sm" />
                           Remove Access
                         </button>
                       </div>
                     </td>
                   </tr>
-                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Junior Risk Analyst" data-status="Active">
+                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Junior Risk Analyst" data-status="Active" style={{ display: rowVisible(6) ? undefined : "none" }}>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center font-bold text-on-surface text-xs shrink-0">                          AO</div>
@@ -569,24 +635,28 @@ export function TeamMembersStitchPage() {
                     </td>
                     <td className="py-4 px-4">                      <span className="font-mono text-xs text-on-surface-variant">Aug 12, 2026</span></td>
                     <td className="py-4 px-6 text-right relative">
-                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><MsIcon name="more_vert" className="text-lg leading-none" /></button>
-                      <div className="hidden absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none" id="menu-7">
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" aria-haspopup="menu" aria-expanded={openMenu === "menu-7"} onClick={() => setOpenMenu((v) => (v === "menu-7" ? null : "menu-7"))}><MsIcon name="more_vert" className="text-lg leading-none" /></button>
+                      <div className={`${openMenu === "menu-7" ? "" : "hidden "}absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none`} id="menu-7">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("roles-management"); }}>
 <MsIcon name="edit" className="text-sm" />
                           Edit Role Assignment
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); toast({ title: "Password reset forced", description: "Amara Okafor must set a new password at next sign-in. All sessions were signed out." }); }}>
+<MsIcon name="lock_reset" className="text-sm" />
+                          Force Password Reset
+                        </button>
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("audit-log"); }}>
 <MsIcon name="history" className="text-sm" />
                           View Audit Timeline
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2" onClick={() => { setRevokeTarget({ name: "Amara Okafor", email: "amara.okafor@terradesk.io" }); closeMenu(); setSo1(true); }}>
 <MsIcon name="block" className="text-sm" />
                           Remove Access
                         </button>
                       </div>
                     </td>
                   </tr>
-                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Billing & Settlement" data-status="Active">
+                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="Billing & Settlement" data-status="Active" style={{ display: rowVisible(7) ? undefined : "none" }}>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center font-bold text-on-surface text-xs shrink-0">                          LM</div>
@@ -620,24 +690,28 @@ export function TeamMembersStitchPage() {
                     </td>
                     <td className="py-4 px-4">                      <span className="font-mono text-xs text-on-surface-variant">Dec 31, 2025</span></td>
                     <td className="py-4 px-6 text-right relative">
-                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><MsIcon name="more_vert" className="text-lg leading-none" /></button>
-                      <div className="hidden absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none" id="menu-8">
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" aria-haspopup="menu" aria-expanded={openMenu === "menu-8"} onClick={() => setOpenMenu((v) => (v === "menu-8" ? null : "menu-8"))}><MsIcon name="more_vert" className="text-lg leading-none" /></button>
+                      <div className={`${openMenu === "menu-8" ? "" : "hidden "}absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none`} id="menu-8">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("roles-management"); }}>
 <MsIcon name="edit" className="text-sm" />
                           Edit Role Assignment
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); toast({ title: "Password reset forced", description: "Lucas Meyer must set a new password at next sign-in. All sessions were signed out." }); }}>
+<MsIcon name="lock_reset" className="text-sm" />
+                          Force Password Reset
+                        </button>
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("audit-log"); }}>
 <MsIcon name="history" className="text-sm" />
                           View Audit Timeline
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2" onClick={() => { setRevokeTarget({ name: "Lucas Meyer", email: "lucas.meyer@terradesk.io" }); closeMenu(); setSo1(true); }}>
 <MsIcon name="block" className="text-sm" />
                           Remove Access
                         </button>
                       </div>
                     </td>
                   </tr>
-                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="SecOps Auditor" data-status="Pending Acceptance">
+                  <tr className="hover:bg-surface-container-low/40 transition-colors staff-row" data-role="SecOps Auditor" data-status="Pending Acceptance" style={{ display: rowVisible(8) ? undefined : "none" }}>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-secondary-fixed-dim flex items-center justify-center font-bold text-on-secondary-fixed text-xs shrink-0">                          EK</div>
@@ -671,20 +745,20 @@ export function TeamMembersStitchPage() {
                     </td>
                     <td className="py-4 px-4">                      <span className="font-mono text-xs text-tertiary font-medium">48h Timeout</span></td>
                     <td className="py-4 px-6 text-right relative">
-                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><MsIcon name="more_vert" className="text-lg leading-none" /></button>
-                      <div className="hidden absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none" id="menu-9">
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" aria-haspopup="menu" aria-expanded={openMenu === "menu-9"} onClick={() => setOpenMenu((v) => (v === "menu-9" ? null : "menu-9"))}><MsIcon name="more_vert" className="text-lg leading-none" /></button>
+                      <div className={`${openMenu === "menu-9" ? "" : "hidden "}absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none`} id="menu-9">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); toast({ title: "Invitation resent", description: "A new secure invite link was emailed to elena.kova@auditors.global." }); }}>
 <MsIcon name="send" className="text-sm" />
                           Resend Invitation Link
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-error hover:bg-error-container/40 flex items-center gap-2" onClick={() => { setRevokeTarget({ name: "Elena Kova", email: "elena.kova@auditors.global" }); closeMenu(); setSo1(true); }}>
 <MsIcon name="close" className="text-sm" />
                           Revoke Invite
                         </button>
                       </div>
                     </td>
                   </tr>
-                  <tr className="hover:bg-surface-container-low/40 transition-colors opacity-75 staff-row" data-role="Support Specialist" data-status="Revoked">
+                  <tr className="hover:bg-surface-container-low/40 transition-colors opacity-75 staff-row" data-role="Support Specialist" data-status="Revoked" style={{ display: rowVisible(9) ? undefined : "none" }}>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center font-bold text-on-surface-variant text-xs shrink-0">                          TR</div>
@@ -718,29 +792,55 @@ export function TeamMembersStitchPage() {
                     </td>
                     <td className="py-4 px-4">                      <span className="font-mono text-xs text-error font-medium">Expired Mar 31</span></td>
                     <td className="py-4 px-6 text-right relative">
-                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><MsIcon name="more_vert" className="text-lg leading-none" /></button>
-                      <div className="hidden absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none" id="menu-10">
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2">
+                      <button className="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" aria-haspopup="menu" aria-expanded={openMenu === "menu-10"} onClick={() => setOpenMenu((v) => (v === "menu-10" ? null : "menu-10"))}><MsIcon name="more_vert" className="text-lg leading-none" /></button>
+                      <div className={`${openMenu === "menu-10" ? "" : "hidden "}absolute right-6 top-10 w-48 bg-surface-container-lowest rounded-xl shadow-xl py-1.5 z-30 text-left border-none`} id="menu-10">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container flex items-center gap-2" onClick={() => { closeMenu(); navigate("audit-log"); }}>
 <MsIcon name="history" className="text-sm" />
                           View Audit Timeline
                         </button>
-                        <button className="w-full px-4 py-2 text-xs font-semibold text-primary hover:bg-primary-container/20 flex items-center gap-2">
+                        <button className="w-full px-4 py-2 text-xs font-semibold text-primary hover:bg-primary-container/20 flex items-center gap-2" onClick={() => { closeMenu(); toast({ title: "Member restored", description: "Tobias Richter has been re-provisioned with active access." }); }}>
 <MsIcon name="restore" className="text-sm" />
                           Restore &amp; Re-provision
                         </button>
                       </div>
                     </td>
                   </tr>
+                                  {filteredStaff.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-xs text-on-surface-variant">No staff match the current filters.</td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             </div>
             <div className="px-6 py-4 bg-surface-container-low/40 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <span className="text-xs font-semibold text-on-surface-variant">                Showing 1 to 10 of 14 staff operators</span>
+              <span className="text-xs font-semibold text-on-surface-variant">
+                {`Showing ${filteredStaff.length === 0 ? 0 : currentPage * PAGE_SIZE + 1} to ${currentPage * PAGE_SIZE + pageStaff.length} of ${filteredStaff.length} staff operators`}
+              </span>
               <div className="flex items-center gap-1.5">
-                <button className="px-3 py-1.5 rounded-lg text-xs font-semibold text-on-surface-variant/50 bg-surface-container-low cursor-not-allowed">                  Previous</button>
-                <button className="w-8 h-8 rounded-lg text-xs font-bold bg-primary text-on-primary flex items-center justify-center shadow-sm">                  1</button>
-                <button className="w-8 h-8 rounded-lg text-xs font-bold text-on-surface-variant hover:bg-surface-container flex items-center justify-center transition-colors">                  2</button>
-                <button className="px-3 py-1.5 rounded-lg text-xs font-semibold text-on-surface hover:bg-surface-container transition-colors">                  Next</button>
+                <button
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${currentPage === 0 ? "text-on-surface-variant/50 bg-surface-container-low cursor-not-allowed" : "text-on-surface hover:bg-surface-container transition-colors"}`}
+                  disabled={currentPage === 0}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                >
+                  Previous
+                </button>
+                {Array.from({ length: maxPage + 1 }, (_, i) => (
+                  <button
+                    key={i}
+                    className={`w-8 h-8 rounded-lg text-xs font-bold flex items-center justify-center ${currentPage === i ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:bg-surface-container transition-colors"}`}
+                    onClick={() => setPage(i)}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+                <button
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${currentPage >= maxPage ? "text-on-surface-variant/50 bg-surface-container-low cursor-not-allowed" : "text-on-surface hover:bg-surface-container transition-colors"}`}
+                  disabled={currentPage >= maxPage}
+                  onClick={() => setPage((p) => Math.min(maxPage, p + 1))}
+                >
+                  Next
+                </button>
               </div>
             </div>
           </div>
@@ -1023,7 +1123,7 @@ export function TeamMembersStitchPage() {
               <button className="px-4 py-2.5 rounded-xl bg-transparent hover:bg-surface-container text-tsc hover:text-on-surface text-xs font-semibold transition-all" type="button" onClick={() => setSo0(false)}>                Cancel</button>
               <div className="flex items-center gap-3">
                 <button className="px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-semibold transition-all shadow-xs" type="button" onClick={() => setSo0(false)}>                  Save as Draft</button>
-                <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#4a7c59] hover:bg-[#3d6749] text-white text-xs font-semibold transition-all shadow-sm" type="button" onClick={() => setSo0(false)}>
+                <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#4a7c59] hover:bg-[#3d6749] text-white text-xs font-semibold transition-all shadow-sm" type="button" onClick={() => { toast({ title: "Staff invite dispatched", description: "Enclave credentials and the invite link were sent to the operator." }); setSo0(false); }}>
 <MsIcon name="send" className="text-[17px]" />
                   <span>+ Dispatch Staff Invite &amp; Enclave Key</span>
                 </button>
@@ -1061,13 +1161,13 @@ export function TeamMembersStitchPage() {
             <div className="p-4 rounded-xl bg-surface-container-low flex flex-col gap-3 shadow-sm">
               <div className="flex items-center justify-between pb-2 border-b border-surface-container">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-tsc text-on-secondary flex items-center justify-center font-bold text-sm shadow-sm">                    TR</div>
+                  <div className="w-10 h-10 rounded-xl bg-tsc text-on-secondary flex items-center justify-center font-bold text-sm shadow-sm">                    {revokeTarget.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}</div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-on-surface">Tobias Richter</span>
+                      <span className="font-bold text-sm text-on-surface">{revokeTarget.name}</span>
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-container text-tsc tracking-wider">STAFF</span>
                     </div>
-                    <p className="text-xs text-tsc">tobias.richter@terradesk.io</p>
+                    <p className="text-xs text-tsc">{revokeTarget.email}</p>
                   </div>
                 </div>
                 <span className="text-[11px] font-bold text-error px-2 py-0.5 rounded bg-error-container">CRITICAL</span>
@@ -1128,7 +1228,7 @@ export function TeamMembersStitchPage() {
             </div>
             <div className="pt-2 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
               <button className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold text-tsc hover:text-on-surface bg-surface-container hover:bg-surface-container-high transition-colors text-center" type="button" onClick={() => setSo1(false)}>                Cancel &amp; Retain Operator</button>
-              <button className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-on-error bg-error hover:bg-red-700 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow" id="confirm-revoke-btn" type="button" onClick={() => setSo1(false)}>
+              <button className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-on-error bg-error hover:bg-red-700 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow" id="confirm-revoke-btn" type="button" onClick={() => { toast({ title: "Access revoked", description: `${revokeTarget.name}'s access was revoked and all sessions terminated.`, variant: "destructive" }); setSo1(false); }}>
 <MsIcon name="lock_reset" className="text-[16px]" />
                 Confirm &amp; Revoke Access Permanently
               </button>
