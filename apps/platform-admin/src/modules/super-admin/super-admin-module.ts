@@ -45,6 +45,9 @@ import {
   LifeBuoy,
   Gauge,
   Key,
+  Webhook,
+  Plug,
+  FileCheck,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -116,6 +119,11 @@ const navigation: NavigationItem[] = [
       { id: "super.rate-limits", label: "Rate Limits", href: "rate-limits", icon: Lock, application: ["super-admin"], group: "Developer" },
       { id: "super.api-analytics", label: "API Analytics", href: "api-analytics", icon: Activity, application: ["super-admin"], group: "Developer" },
 
+      // ───────── Integrations ─────────
+      { id: "super.webhooks", label: "Webhooks", href: "webhooks", icon: Webhook, application: ["super-admin"], group: "Integrations" },
+      { id: "super.integrations", label: "Integrations", href: "integrations", icon: Plug, application: ["super-admin"], group: "Integrations" },
+      { id: "super.compliance-reports", label: "Compliance Reports", href: "compliance-reports", icon: FileCheck, application: ["super-admin"], group: "Integrations" },
+
       // ───────── Analytics ─────────
       { id: "super.analytics", label: "Platform Analytics", href: "platform-analytics", icon: BarChart3, application: ["super-admin"], group: "Analytics" },
 
@@ -182,6 +190,9 @@ const routes: RouteDefinition[] = [
   { path: "api-keys", viewId: "api-keys", label: "API Keys", application: ["super-admin"] },
   { path: "rate-limits", viewId: "rate-limits", label: "Rate Limits", application: ["super-admin"] },
   { path: "api-analytics", viewId: "api-analytics", label: "API Analytics", application: ["super-admin"] },
+  { path: "webhooks", viewId: "webhooks", label: "Webhooks", application: ["super-admin"] },
+  { path: "integrations", viewId: "integrations", label: "Integrations", application: ["super-admin"] },
+  { path: "compliance-reports", viewId: "compliance-reports", label: "Compliance Reports", application: ["super-admin"] },
 ];
 
 export const superAdminModule: FrontendModule = {
