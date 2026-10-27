@@ -5,7 +5,7 @@
  * a knowledge base, and SLA metrics. Depends on Trading (trader context).
  */
 
-import { LifeBuoy, MessageSquare, BookOpen, Inbox, Clock } from "lucide-react";
+import { LifeBuoy, MessageSquare, BookOpen, Inbox, Clock, Smile, FileText, Mail } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { SupportOverviewWidget, RecentTicketsWidget, TicketPriorityWidget } from "./widgets/support-widgets";
 
@@ -20,6 +20,12 @@ const navigation: NavigationItem[] = [
       { id: "support.tickets", label: "My Tickets", href: "support-tickets", icon: Inbox, permission: ["support.read", "support.self"] },
       { id: "support.sla", label: "SLA Management", href: "support-sla", icon: Clock, permission: "support.read", order: 84 },
       { id: "support.knowledge", label: "Knowledge", href: "support-knowledge", icon: BookOpen, permission: ["support.read", "support.self"] },
+
+      // ───────── Helpdesk (M20) ─────────
+      { id: "support.csat", label: "CSAT Surveys", href: "support-csat", icon: Smile, permission: "support.read", group: "Helpdesk" },
+      { id: "support.canned-responses", label: "Canned Responses", href: "support-canned-responses", icon: MessageSquare, permission: "support.read", group: "Helpdesk" },
+      { id: "support.knowledge-editor", label: "Knowledge Editor", href: "support-knowledge-editor", icon: FileText, permission: "support.read", group: "Helpdesk" },
+      { id: "support.contact", label: "Contact Form", href: "support-contact", icon: Mail, permission: "support.read", group: "Helpdesk" },
     ],
   },
 ];
@@ -29,6 +35,11 @@ const routes: RouteDefinition[] = [
   { path: "support-tickets", viewId: "support-tickets", label: "Support Tickets", permission: ["support.read", "support.self"], module: "support" },
   { path: "support-knowledge", viewId: "support-knowledge", label: "Knowledge Base", permission: ["support.read", "support.self"], module: "support" },
   { path: "support-sla", viewId: "support-sla", label: "SLA Management", permission: "support.read", module: "support" },
+  // Helpdesk (M20)
+  { path: "support-csat", viewId: "support-csat", label: "CSAT Surveys", permission: "support.read", module: "support" },
+  { path: "support-canned-responses", viewId: "support-canned-responses", label: "Canned Responses", permission: "support.read", module: "support" },
+  { path: "support-knowledge-editor", viewId: "support-knowledge-editor", label: "Knowledge Base Editor", permission: "support.read", module: "support" },
+  { path: "support-contact", viewId: "support-contact", label: "Contact Form", permission: "support.read", module: "support" },
 ];
 
 const widgets: WidgetDefinition[] = [

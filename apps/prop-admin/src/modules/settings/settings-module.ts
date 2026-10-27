@@ -62,6 +62,8 @@ const navigation: NavigationItem[] = [
       { id: "settings.tokens", label: "API Tokens", href: "token-management", icon: KeyRound, permission: "settings.manage", group: "Security & Access" },
       { id: "settings.device-activities", label: "Device Activities", href: "device-activities", icon: Fingerprint, permission: "settings.manage", group: "Security & Access" },
       { id: "settings.kyc-providers", label: "KYC Providers", href: "kyc-providers", icon: ShieldCheck, permission: "settings.manage", order: 75, group: "Security & Access" },
+      { id: "settings.team-members", label: "Team Members", href: "team-members", icon: Users, permission: "settings.manage", group: "Security & Access" },
+      { id: "settings.roles-management", label: "Roles Management", href: "roles-management", icon: ShieldCheck, permission: "settings.manage", group: "Security & Access" },
 
       // ───────── Communications ─────────
       { id: "settings.email-templates", label: "Email Templates", href: "email-templates", icon: Mail, permission: "settings.manage", group: "Communications" },
@@ -110,6 +112,8 @@ const routes: RouteDefinition[] = [
   { path: "device-activities", viewId: "device-activities", label: "Device Activities", permission: "settings.manage", module: "settings" },
   { path: "kyc-providers", viewId: "kyc-providers", label: "KYC Providers", permission: "settings.manage", module: "settings" },
   { path: "token-detail", viewId: "token-detail", label: "Token Detail", permission: "settings.manage", module: "settings" },
+  { path: "team-members", viewId: "team-members", label: "Team Members", permission: "settings.manage", module: "settings" },
+  { path: "roles-management", viewId: "roles-management", label: "Roles Management", permission: "settings.manage", module: "settings" },
   { path: "terms-policies", viewId: "terms-policies", label: "Terms & Policies", permission: "settings.manage", module: "settings" },
   { path: "system-health", viewId: "system-health", label: "System Health", permission: "settings.manage", module: "settings" },
   { path: "webhooks", viewId: "webhooks", label: "Webhooks & Events", permission: "settings.manage", module: "settings" },
