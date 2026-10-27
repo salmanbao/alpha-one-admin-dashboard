@@ -34,6 +34,7 @@ import {
   Send,
   ShieldAlert,
   X,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +55,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const RISK_TONE: Record<KycRecord["riskLevel"], "success" | "warning" | "danger"> = {
   low: "success",
@@ -199,6 +207,53 @@ export function KycOverviewPage() {
 }
 
 /**
+ * PRD §4.13 — "Review Documents" opens a document viewer modal showing the
+ * submitted ID document (front/back) plus a selfie alongside the record
+ * metadata. Rendered as mock document cards (no image assets in this build).
+ */
+function KycDocumentViewer({ record, open, onOpenChange }: {
+  record: KycRecord;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const docLabel = record.documentType.replace("-", " ");
+  const docs = [
+    { id: "front", title: `${docLabel} (front)`, detail: `${record.country} · uploaded ${new Date(record.submittedAt).toLocaleDateString()}` },
+    { id: "back", title: `${docLabel} (back)`, detail: "MRZ / barcode region" },
+    { id: "selfie", title: "Selfie / liveness", detail: "Face match score 94%" },
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileSearch className="h-4 w-4" /> Document review — {record.traderName}
+          </DialogTitle>
+          <DialogDescription>
+            {docLabel} · {record.country} · risk {record.riskLevel}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {docs.map((d) => (
+            <div key={d.id} className="rounded-lg border bg-muted/30 p-3">
+              <div className="mb-2 flex h-24 items-center justify-center rounded-md border border-dashed bg-card text-xs text-muted-foreground">
+                <FileText className="h-6 w-6" />
+              </div>
+              <p className="text-xs font-medium">{d.title}</p>
+              <p className="text-[10px] text-muted-foreground">{d.detail}</p>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
+          Verified against provider {record.documentType === "passport" ? "Onfido" : "Sumsub"} · OCR + MRZ checksum passed · no tamper signals detected.
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
  * Per-record action cell — Approve (primary), Reject (destructive w/ AlertDialog),
  * and "Request Info" (opens a dialog with document-type checkboxes + freeform
  * instructions). Mirrors the PayoutReviewActions pattern from
@@ -209,6 +264,9 @@ function KycRecordActions({ record }: { record: KycRecord }) {
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
   const [instructions, setInstructions] = useState("");
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const toggleDoc = (doc: string) => {
     setSelectedDocs((prev) => {
@@ -226,6 +284,16 @@ function KycRecordActions({ record }: { record: KycRecord }) {
 
   return (
     <div className="flex gap-1">
+      {/* PRD §4.13 — "Review Documents" opens the document viewer modal
+          before the reviewer Approves/Rejects. */}
+      <Button
+        size="sm"
+        variant="outline"
+        title="Review documents"
+        onClick={() => setViewerOpen(true)}
+      >
+        <Eye className="h-3 w-3" /> Review
+      </Button>
       <PermissionGuard
         permission="kyc.approve"
         fallback={<span className="text-xs text-muted-foreground">—</span>}
@@ -246,8 +314,10 @@ function KycRecordActions({ record }: { record: KycRecord }) {
           Approve
         </Button>
 
-        {/* Reject — AlertDialog friction (§24 Destructive Actions) */}
-        <AlertDialog>
+        {/* Reject — AlertDialog friction (§24 Destructive Actions). PRD
+            requires a captured reason (onReject(reason)); validated before
+            the destructive confirm is enabled. */}
+        <AlertDialog open={rejectOpen} onOpenChange={setRejectOpen}>
           <AlertDialogTrigger asChild>
             <Button
               size="sm"
@@ -273,16 +343,30 @@ function KycRecordActions({ record }: { record: KycRecord }) {
                 eligible. This action is logged in the audit trail.
               </div>
             </AlertDialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor={`kyc-reject-${record.id}`} className="text-xs text-muted-foreground">
+                Reason for rejection (required)
+              </Label>
+              <Textarea
+                id={`kyc-reject-${record.id}`}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g. Proof of address is older than 3 months."
+                className="min-h-[72px]"
+              />
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
+                disabled={!rejectReason.trim()}
                 onClick={() => {
                   applyKycDecision(record.id, "rejected");
                   toast({
                     title: "KYC rejected",
-                    description: `${record.traderName}'s submission has been rejected.`,
+                    description: `${record.traderName}'s submission was rejected — ${rejectReason.trim()}`,
                     variant: "destructive",
                   });
+                  setRejectReason("");
                 }}
                 className="bg-rose-600 text-white hover:bg-rose-700"
               >
@@ -376,6 +460,8 @@ function KycRecordActions({ record }: { record: KycRecord }) {
           </AlertDialogContent>
         </AlertDialog>
       </PermissionGuard>
+
+      <KycDocumentViewer record={record} open={viewerOpen} onOpenChange={setViewerOpen} />
     </div>
   );
 }
