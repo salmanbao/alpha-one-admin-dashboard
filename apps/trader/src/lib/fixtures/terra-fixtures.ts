@@ -953,6 +953,78 @@ export const notifications = [
 ];
 
 /* ------------------------------------------------------------------ */
+/* Communication history (M11 CRM — cross-channel log)                 */
+/* ------------------------------------------------------------------ */
+
+export interface CommunicationEntry {
+  id: string;
+  channel: "email" | "sms" | "push";
+  subject: string;
+  body: string;
+  at: string;
+  status: "opened" | "delivered" | "sent";
+}
+
+export const communicationLog: CommunicationEntry[] = [
+  {
+    id: "cm-1",
+    channel: "email",
+    subject: "Payout PO-2201 is on its way",
+    body: "$1,936.00 via Bank Transfer (Wise) — expected within 2 business days.",
+    at: hoursAgo(5),
+    status: "opened",
+  },
+  {
+    id: "cm-2",
+    channel: "email",
+    subject: "62% of your Phase 1 profit target reached",
+    body: "Account #100030 is $1,140 away from the target. Keep your daily loss buffer intact.",
+    at: daysAgo(1),
+    status: "opened",
+  },
+  {
+    id: "cm-3",
+    channel: "push",
+    subject: "Daily loss buffer at 40%",
+    body: "You have used 60% of the daily loss allowance on #100030.",
+    at: daysAgo(1),
+    status: "delivered",
+  },
+  {
+    id: "cm-4",
+    channel: "sms",
+    subject: "to +1 (415) •••• 4402",
+    body: "Terra: payout PO-2187 ($2,100.00) has been PAID. Track it in your dashboard.",
+    at: daysAgo(16),
+    status: "delivered",
+  },
+  {
+    id: "cm-5",
+    channel: "email",
+    subject: "Phase 1 passed — account upgraded",
+    body: "Congratulations! Phase 2 credentials were delivered to this address.",
+    at: daysAgo(46),
+    status: "opened",
+  },
+  {
+    id: "cm-6",
+    channel: "email",
+    subject: "KYC reminder: document expires in 30 days",
+    body: "Re-upload your proof of address to keep payouts flowing without interruption.",
+    at: daysAgo(61),
+    status: "sent",
+  },
+  {
+    id: "cm-7",
+    channel: "push",
+    subject: "Welcome to TerraTrader, Tom 🎉",
+    body: "Your first challenge is ready — check the Objectives page to track progress.",
+    at: daysAgo(120),
+    status: "delivered",
+  },
+];
+
+/* ------------------------------------------------------------------ */
 /* Support tickets                                                     */
 /* ------------------------------------------------------------------ */
 
