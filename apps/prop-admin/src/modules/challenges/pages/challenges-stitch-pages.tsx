@@ -565,12 +565,22 @@ export function ChallengeWizardStitchPage() {
 export function ChallengeTypesStitchPage() {
   const [addOpen, setAddOpen] = React.useState(false);
   const [disableTarget, setDisableTarget] = React.useState<string | null>(null);
+  const [archiveTarget, setArchiveTarget] = React.useState<string | null>(null);
   const { navigate } = usePlatform();
-  const TYPES = [
+  // PRD §4.18 duplicate/archive mutate the template list — keep it in state
+  // so both actions visibly change the table instead of only toasting.
+  const [types, setTypes] = React.useState([
     { name: "2-Phase Standard", phases: 2, sizes: "10K–100K", split: "80%", active: true, sold30d: 412 },
     { name: "1-Phase Turbo", phases: 1, sizes: "25K–50K", split: "75%", active: true, sold30d: 168 },
     { name: "Instant Funded", phases: 0, sizes: "25K–100K", split: "70%", active: false, sold30d: 54 },
-  ];
+  ]);
+
+  const duplicateType = (name: string) => {
+    const src = types.find((t) => t.name === name);
+    if (!src) return;
+    setTypes((prev) => [...prev, { ...src, name: `${src.name} (Copy)`, active: false, sold30d: 0 }]);
+    toast({ title: "Challenge duplicated", description: `${src.name} (Copy) created as a draft — disabled until you publish it.` });
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -585,7 +595,7 @@ export function ChallengeTypesStitchPage() {
         <StitchTable
           keyOf={(t) => t.name}
           onRowClick={() => navigate("challenge-edit")}
-          rows={TYPES}
+          rows={types}
           columns={[
             { header: "Name", cell: (t) => <span className="font-semibold text-ink">{t.name}</span> },
             { header: "Phases", cell: (t) => t.phases, numeric: true },
@@ -596,8 +606,12 @@ export function ChallengeTypesStitchPage() {
             {
               header: "",
               cell: (t) => (
-                <div onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <StitchButton variant="surface" className="h-7 px-2" onClick={() => setDisableTarget(t.name)}>{t.active ? "Disable" : "Enable"}</StitchButton>
+                  {/* PRD §4.18 POST /challenges/:id/duplicate */}
+                  <StitchButton variant="surface" className="h-7 px-2" icon="content_copy" onClick={() => duplicateType(t.name)}>Duplicate</StitchButton>
+                  {/* PRD §4.18 DELETE /challenges/:id — archive */}
+                  <StitchButton variant="surface" className="h-7 px-2" icon="inventory_2" onClick={() => setArchiveTarget(t.name)}>Archive</StitchButton>
                 </div>
               ),
             },
@@ -625,6 +639,16 @@ export function ChallengeTypesStitchPage() {
         body="New purchases will be blocked immediately. Existing challenges continue unchanged."
         confirmLabel="Disable Type"
         onConfirm={() => toast({ title: "Type disabled" })}
+      />
+      <StitchConfirm
+        open={!!archiveTarget} onOpenChange={(o) => !o && setArchiveTarget(null)} icon="inventory_2"
+        title={`Archive ${archiveTarget ?? ""}?`}
+        body="The template is removed from the shop and cannot be purchased. Existing challenge instances continue running to completion."
+        confirmLabel="Archive Type"
+        onConfirm={() => {
+          setTypes((prev) => prev.filter((t) => t.name !== archiveTarget));
+          toast({ title: "Challenge archived", description: `${archiveTarget} moved to the archive.`, variant: "destructive" });
+        }}
       />
     </div>
   );

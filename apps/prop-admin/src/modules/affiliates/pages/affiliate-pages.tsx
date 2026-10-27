@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver } from "@/lib/platform/terminology";
 import { getTenantAffiliates, affiliateCampaigns, type Affiliate, type AffiliateCampaign } from "@/lib/platform/mock-data";
@@ -10,6 +11,16 @@ import { StatusBadge, campaignStatusTone, formatCurrency, formatCompact } from "
 import { AreaSeries } from "@/components/platform/charts";
 import { Megaphone, Users, Target, DollarSign, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 
 const tierTone = (tier: string) =>
@@ -134,6 +145,31 @@ export function AffiliatesListPage() {
   const currency = runtime.tenant?.currency ?? "USD";
   const aff = getTenantAffiliates(tid);
 
+  // PRD §4.18 affiliate lifecycle (approve / suspend / commission rate)
+  // lives in session state so the table reflects each decision instantly.
+  const [statusOverrides, setStatusOverrides] = React.useState<Record<string, Affiliate["status"]>>({});
+  const [rates, setRates] = React.useState<Record<string, number>>({});
+  const [rateTarget, setRateTarget] = React.useState<Affiliate | null>(null);
+  const [rateValue, setRateValue] = React.useState("25");
+
+  const items = aff.map((a) => ({ ...a, status: statusOverrides[a.id] ?? a.status }));
+
+  const approve = (a: Affiliate) => {
+    setStatusOverrides((prev) => ({ ...prev, [a.id]: "active" }));
+    toast({ title: "Affiliate approved", description: `${a.name} can now refer traders and earn commission.` });
+  };
+  const suspend = (a: Affiliate) => {
+    setStatusOverrides((prev) => ({ ...prev, [a.id]: "suspended" }));
+    toast({ title: "Affiliate suspended", description: `${a.name}'s links are disabled and payouts are held.`, variant: "destructive" });
+  };
+  const saveRate = () => {
+    if (!rateTarget) return;
+    const pct = Math.min(60, Math.max(0, Number(rateValue) || 0));
+    setRates((prev) => ({ ...prev, [rateTarget.id]: pct }));
+    toast({ title: "Commission rate updated", description: `${rateTarget.name} → ${pct}% of generated revenue.` });
+    setRateTarget(null);
+  };
+
   const columns: Column<Affiliate>[] = [
     { key: "name", header: "Name", cell: (a) => <span className="font-medium">{a.name}</span>, sortValue: (a) => a.name },
     { key: "code", header: "Code", cell: (a) => <span className="font-mono text-xs">{a.code}</span>, sortValue: (a) => a.code },
@@ -152,10 +188,37 @@ export function AffiliatesListPage() {
       sortValue: (a) => a.commissionEarned,
     },
     {
+      key: "rate",
+      header: "Rate",
+      cell: (a) => (
+        <button
+          type="button"
+          className="rounded-md bg-surface-container px-2 py-0.5 text-xs font-semibold hover:bg-surface-container-high"
+          onClick={() => { setRateTarget(a); setRateValue(String(rates[a.id] ?? 25)); }}
+        >
+          {rates[a.id] ?? 25}%
+        </button>
+      ),
+      sortValue: (a) => rates[a.id] ?? 25,
+    },
+    {
       key: "status",
       header: "Status",
       cell: (a) => <StatusBadge tone={affiliateStatusTone(a.status)} className="capitalize">{a.status}</StatusBadge>,
       sortValue: (a) => a.status,
+    },
+    {
+      key: "actions",
+      header: "",
+      cell: (a) => (
+        <div className="flex items-center justify-end gap-1.5">
+          {a.status !== "active" ? (
+            <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => approve(a)}>Approve</Button>
+          ) : (
+            <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700" onClick={() => suspend(a)}>Suspend</Button>
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -165,13 +228,44 @@ export function AffiliatesListPage() {
       <PageContent>
         <DataTable
           columns={columns}
-          data={aff}
+          data={items}
           rowKey={(a) => a.id}
           searchableText={(a) => `${a.name} ${a.code} ${a.tier} ${a.status}`}
           searchPlaceholder="Search affiliates…"
           emptyTitle="No affiliates"
           emptyDescription="This tenant has no affiliate partners yet."
         />
+
+        {/* PRD §4.18 PATCH /affiliates/:id — commission rate dialog */}
+        <Dialog open={!!rateTarget} onOpenChange={(o) => !o && setRateTarget(null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Commission rate</DialogTitle>
+              <DialogDescription>
+                {rateTarget ? `${rateTarget.name} (${rateTarget.code})` : ""}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="commission-rate" className="text-xs">Revenue share (%)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="commission-rate"
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={rateValue}
+                  onChange={(e) => setRateValue(e.target.value)}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted-foreground">0–60% of referred revenue</span>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setRateTarget(null)}>Cancel</Button>
+              <Button size="sm" onClick={saveRate}>Save rate</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </PageContent>
     </Page>
   );
