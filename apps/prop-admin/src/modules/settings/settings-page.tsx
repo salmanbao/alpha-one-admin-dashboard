@@ -526,7 +526,19 @@ function BrandingTab() {
               <p className="text-sm font-semibold" style={{ color: branding.primaryColor }}>{branding.name}</p>
               <p className="text-xs text-muted-foreground">{branding.tagline}</p>
             </div>
-            <Button size="sm" className="ml-auto text-white" style={{ background: branding.primaryColor }}>Brand button</Button>
+            <Button
+              size="sm"
+              className="ml-auto text-white"
+              style={{ background: branding.primaryColor }}
+              onClick={() =>
+                toast({
+                  title: "Brand button preview",
+                  description: `CTA rendered with ${branding.name} primary color ${branding.primaryColor}.`,
+                })
+              }
+            >
+              Brand button
+            </Button>
           </div>
         </div>
         <Button size="sm" onClick={save}><Check className="mr-1 h-4 w-4" /> Apply branding</Button>

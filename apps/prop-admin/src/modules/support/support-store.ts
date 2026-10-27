@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { SupportTicket } from "@/lib/platform/mock-data";
+import { supportTickets as seedTickets } from "@/lib/platform/mock-data";
+import { setNavBadge } from "@/lib/platform/nav-badges";
 
 /**
  * Session-scoped support ticket store.
@@ -18,7 +20,21 @@ let version = 0;
 
 function emit() {
   version += 1;
+  syncBadge();
   listeners.forEach((l) => l());
+}
+
+/**
+ * PRD §4.6.2 open_tickets sidebar badge — every ticket not yet
+ * resolved/closed counts, across all tenants.
+ */
+function syncBadge() {
+  let n = 0;
+  for (const t of seedTickets) {
+    const s = effectiveTicketStatus(t);
+    if (s !== "resolved" && s !== "closed") n += 1;
+  }
+  setNavBadge("support", n);
 }
 
 /** Mark a ticket resolved for this session. */
@@ -66,3 +82,7 @@ export function useTicketVersion(): number {
   }, []);
   return v;
 }
+
+// Seed the sidebar badge at boot (this module is imported by the support
+// manifest, which module-bootstrap loads eagerly).
+syncBadge();

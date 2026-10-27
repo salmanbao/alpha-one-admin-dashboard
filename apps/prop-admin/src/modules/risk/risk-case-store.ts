@@ -19,6 +19,7 @@ import {
   getTenantPayouts,
   hashStr,
 } from "@/lib/platform/mock-data";
+import { setNavBadge } from "@/lib/platform/nav-badges";
 
 export type RiskSeverity = "critical" | "high" | "medium" | "low";
 
@@ -207,7 +208,22 @@ let seq = 9700;
 
 function emit() {
   version += 1;
+  syncBadge();
   listeners.forEach((l) => l());
+}
+
+/**
+ * PRD §4.6.2 critical_risk_cases sidebar badge — every critical case that
+ * is not resolved/dismissed counts, across all seeded tenants.
+ */
+function syncBadge() {
+  let n = 0;
+  casesByTenant.forEach((arr) => {
+    for (const c of arr) {
+      if (c.severity === "critical" && c.status !== "resolved" && c.status !== "dismissed") n += 1;
+    }
+  });
+  setNavBadge("risk", n);
 }
 
 function ensure(tid: string): RiskCase[] {
@@ -223,6 +239,11 @@ function ensure(tid: string): RiskCase[] {
 export function getRiskCases(tid: string): RiskCase[] {
   return ensure(tid);
 }
+
+// Seed the sidebar badge at boot: materialize each seeded tenant's cases
+// so critical_risk_cases (PRD §4.6.2) has a count on first paint.
+for (const tid of ["tenant-alpha", "tenant-beta", "tenant-gamma"]) ensure(tid);
+syncBadge();
 
 function update(tid: string, id: string, patch: Partial<RiskCase>): RiskCase | undefined {
   const arr = ensure(tid);

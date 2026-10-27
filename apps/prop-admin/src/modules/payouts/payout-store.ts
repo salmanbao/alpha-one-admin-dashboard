@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { Payout } from "@/lib/platform/mock-data";
+import { payouts as seedPayouts } from "@/lib/platform/mock-data";
+import { setNavBadge } from "@/lib/platform/nav-badges";
 
 /**
  * Session-scoped payout decision store.
@@ -28,7 +30,20 @@ let version = 0;
 
 function emit() {
   version += 1;
+  syncBadge();
   listeners.forEach((l) => l());
+}
+
+/**
+ * PRD §4.6.2 pending_payouts sidebar badge — count every payout still
+ * pending after session decisions (escalated/info-requested stay pending).
+ */
+function syncBadge() {
+  let n = 0;
+  for (const p of seedPayouts) {
+    if (effectivePayoutStatus(p) === "pending") n += 1;
+  }
+  setNavBadge("payouts", n);
 }
 
 /** Record a decision for a payout (keyed by its unique reference). */
@@ -81,3 +96,7 @@ export function usePayoutVersion(): number {
   }, []);
   return v;
 }
+
+// Seed the sidebar badge at boot (this module is imported by the payouts
+// manifest, which module-bootstrap loads eagerly).
+syncBadge();
