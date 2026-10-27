@@ -67,6 +67,7 @@ import {
   CalendarClock,
   Download,
   FileText,
+  Mail,
   Megaphone,
   Pencil,
   Pin,
@@ -358,6 +359,12 @@ export function AnnouncementsPage() {
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [form, setForm] = useState<AnnForm>(emptyForm);
+  // PRD §4.17 POST /bulk/email — operator-composed broadcast to traders.
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkAudience, setBulkAudience] = useState("all");
+  const [bulkSubject, setBulkSubject] = useState("");
+  const [bulkBody, setBulkBody] = useState("");
+  const [bulkSending, setBulkSending] = useState(false);
 
   const challenges = Array.from(
     new Set(getTenantChallenges(tid).map((c) => c.name)),
@@ -374,6 +381,29 @@ export function AnnouncementsPage() {
   const openCreate = () => {
     setForm({ ...emptyForm, publishedAt: toLocalInput(new Date().toISOString()) });
     setComposerOpen(true);
+  };
+
+  // PRD §4.17 POST /bulk/email — queued broadcast with async status polling.
+  const sendBulkEmail = () => {
+    if (!bulkSubject.trim() || !bulkBody.trim() || bulkSending) return;
+    setBulkSending(true);
+    const audienceLabel =
+      bulkAudience === "all"
+        ? "all traders"
+        : bulkAudience === "active"
+          ? "active traders"
+          : "funded traders";
+    // Mock async: the bulk operation resolves after a short queue delay.
+    window.setTimeout(() => {
+      setBulkSending(false);
+      setBulkOpen(false);
+      toast({
+        title: "Bulk email queued",
+        description: `"${bulkSubject.trim()}" dispatched to ${audienceLabel} (POST /bulk/email — track via GET /bulk/:id/status).`,
+      });
+      setBulkSubject("");
+      setBulkBody("");
+    }, 700);
   };
 
   const openEdit = (a: Announcement) => {
@@ -568,6 +598,10 @@ export function AnnouncementsPage() {
             <Button size="sm" variant="outline" onClick={handleExport}>
               <Download className="mr-1 h-3.5 w-3.5" /> Export
             </Button>
+            {/* PRD §4.17 POST /bulk/email — operator email broadcast */}
+            <Button size="sm" variant="outline" onClick={() => setBulkOpen(true)}>
+              <Mail className="mr-1 h-3.5 w-3.5" /> Bulk Email
+            </Button>
             <Button size="sm" onClick={openCreate}>
               <Plus className="mr-1 h-3.5 w-3.5" /> New Announcement
             </Button>
@@ -604,6 +638,73 @@ export function AnnouncementsPage() {
           onFormChange={setForm}
           challenges={challenges}
         />
+
+        {/* PRD §4.17 POST /bulk/email — bulk email broadcast dialog */}
+        <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Bulk email broadcast</DialogTitle>
+              <DialogDescription>
+                Sends an email to the selected trader segment. Queued as a bulk operation —
+                progress is tracked via GET /bulk/:id/status.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="bulk-audience" className="text-xs">
+                  Audience
+                </Label>
+                <Select value={bulkAudience} onValueChange={setBulkAudience}>
+                  <SelectTrigger id="bulk-audience" className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All traders</SelectItem>
+                    <SelectItem value="active">Active traders</SelectItem>
+                    <SelectItem value="funded">Funded traders</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="bulk-subject" className="text-xs">
+                  Subject *
+                </Label>
+                <Input
+                  id="bulk-subject"
+                  value={bulkSubject}
+                  onChange={(e) => setBulkSubject(e.target.value)}
+                  placeholder="e.g. Platform maintenance this weekend"
+                  maxLength={150}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="bulk-body" className="text-xs">
+                  Message *
+                </Label>
+                <Textarea
+                  id="bulk-body"
+                  value={bulkBody}
+                  onChange={(e) => setBulkBody(e.target.value)}
+                  placeholder="Write the email body sent to each trader…"
+                  rows={5}
+                  maxLength={5000}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkOpen(false)} disabled={bulkSending}>
+                Cancel
+              </Button>
+              <Button
+                onClick={sendBulkEmail}
+                disabled={bulkSending || !bulkSubject.trim() || !bulkBody.trim()}
+              >
+                <Mail className="mr-1 h-3.5 w-3.5" />
+                {bulkSending ? "Queuing…" : "Send Broadcast"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </PageContent>
     </Page>
   );
