@@ -3,7 +3,7 @@
  * Includes Breaches (spec section 7 — Breaches is a sub-area of Risk).
  */
 
-import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2, DollarSign, Copy, ArrowLeftRight, MapPin, CalendarClock } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2, DollarSign, Copy, ArrowLeftRight, MapPin, CalendarClock, Settings2, Bell } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { RiskOverviewWidget, RiskDistributionWidget, BreachTrendWidget, OpenBreachesWidget } from "./widgets/risk-widgets";
 
@@ -39,6 +39,11 @@ const navigation: NavigationItem[] = [
       // ───────── Geographic & IP Risk ─────────
       { id: "risk.unprofitable", label: "Unprofitable Countries", href: "risk-unprofitable-countries", icon: Globe2, permission: "risk.read", group: "Geographic & IP Risk" },
       { id: "risk.ip-addresses", label: "Account IP Addresses", href: "account-ip-addresses", icon: MapPin, permission: "risk.read", group: "Geographic & IP Risk" },
+
+      // ───────── Rules & Alerts (M14) ─────────
+      { id: "risk.rules-editor", label: "Rules Editor", href: "risk-rules-editor", icon: Settings2, permission: "risk.configure", group: "Rules & Alerts" },
+      { id: "risk.alert-subscriptions", label: "Alert Subscriptions", href: "risk-alert-subscription", icon: Bell, permission: "risk.read", group: "Rules & Alerts" },
+      { id: "risk.vpn-proxy", label: "VPN / Proxy Detection", href: "vpn-proxy-detection-dashboard", icon: Globe2, permission: "risk.read", group: "Rules & Alerts" },
     ],
   },
 ];
@@ -66,6 +71,10 @@ const routes: RouteDefinition[] = [
   { path: "inverse-trading-events", viewId: "inverse-trading-events", label: "Inverse Trading Events", permission: "risk.read", module: "risk" },
   { path: "account-ip-addresses", viewId: "account-ip-addresses", label: "Account IP Addresses", permission: "risk.read", module: "risk" },
   { path: "weekend-trades", viewId: "weekend-trades", label: "Weekend Trades", permission: "risk.read", module: "risk" },
+  // Rules & Alerts (M14)
+  { path: "risk-rules-editor", viewId: "risk-rules-editor", label: "Risk Rules Editor", permission: "risk.configure", module: "risk" },
+  { path: "risk-alert-subscription", viewId: "risk-alert-subscription", label: "Alert Subscriptions", permission: "risk.read", module: "risk" },
+  { path: "vpn-proxy-detection-dashboard", viewId: "vpn-proxy-detection-dashboard", label: "VPN / Proxy Detection", permission: "risk.read", module: "risk" },
 ];
 
 const widgets: WidgetDefinition[] = [
