@@ -21,14 +21,18 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Moon, Sun } from "lucide-react";
 import { Sidebar } from "./sidebar";
-import { terraTenant } from "@/lib/fixtures/terra-fixtures";
+import { notifications, terraTenant } from "@/lib/fixtures/terra-fixtures";
+
+const THEME_KEY = "terra-theme";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [dark, setDark] = useState(false);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -39,6 +43,22 @@ export function AppShell({ children }: { children: ReactNode }) {
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
+
+  // Restore stored theme preference after mount (html has suppressHydrationWarning)
+  useEffect(() => {
+    const isDark = localStorage.getItem(THEME_KEY) === "dark";
+    setDark(isDark);
+    document.documentElement.classList.toggle("dark", isDark);
+  }, []);
+
+  const toggleDark = () => {
+    const next = !dark;
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem(THEME_KEY, next ? "dark" : "light");
+    setDark(next);
+  };
+
+  const unreadCount = notifications.filter((n) => n.unread).length;
 
   // Login page renders without the shell
   if (pathname === "/login") {
@@ -93,9 +113,26 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="h-1.5 w-1.5 rounded-full bg-sidebar-primary animate-pulse" />
               <span>Active</span>
             </div>
+            {/* Dark-mode toggle (PRD §3.5.3) */}
+            <button
+              type="button"
+              aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+              onClick={toggleDark}
+              className="rounded-full p-2 text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+            >
+              {dark ? (
+                <Sun className="h-[18px] w-[18px]" />
+              ) : (
+                <Moon className="h-[18px] w-[18px]" />
+              )}
+            </button>
             <Link
               href="/notification-center"
-              aria-label="Notifications"
+              aria-label={
+                unreadCount > 0
+                  ? `Notifications, ${unreadCount} unread`
+                  : "Notifications"
+              }
               className="relative rounded-full p-2 text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
             >
               <svg
@@ -110,7 +147,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
                 <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
               </svg>
-              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-destructive ring-2 ring-sidebar-border" />
+              {unreadCount > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-white ring-2 ring-background">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              ) : (
+                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-destructive ring-2 ring-sidebar-border" />
+              )}
             </Link>
             <div className="relative" ref={profileRef}>
               <button
@@ -156,6 +199,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                     className="block rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent/60"
                   >
                     Profile &amp; Security
+                  </Link>
+                  <Link
+                    href="/2fa-setup"
+                    onClick={() => setProfileOpen(false)}
+                    className="block rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent/60"
+                  >
+                    Two-Factor Auth
                   </Link>
                   <Link
                     href="/login"
