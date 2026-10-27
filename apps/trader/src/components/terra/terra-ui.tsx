@@ -503,7 +503,7 @@ export function TerraTable({
   head,
   rows,
 }: {
-  head: string[];
+  head: ReactNode[];
   rows: ReactNode[][];
 }) {
   return (
@@ -511,9 +511,9 @@ export function TerraTable({
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead>
           <tr className="border-b border-outline-variant/60 bg-surface-container-low">
-            {head.map((h) => (
+            {head.map((h, i) => (
               <th
-                key={h}
+                key={i}
                 className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant"
               >
                 {h}
