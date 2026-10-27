@@ -577,7 +577,7 @@ function TerminologyTab() {
 }
 
 function ModulesTab() {
-  const { tenant, setTenant, runtime, user } = usePlatform();
+  const { tenant, setTenant, runtime, user, navigate } = usePlatform();
   const allModules = moduleRegistry.getAll().filter((m) => {
     // Only show modules that support the current application
     if (!m.manifest.supportedApplications || m.manifest.supportedApplications.length === 0) return true;
@@ -602,7 +602,17 @@ function ModulesTab() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Module Catalog</span>
-          <Badge variant="secondary">{tenant.enabledModules.length} enabled</Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={() => navigate("settings-module-detail")}
+            >
+              Module Detail
+            </Button>
+            <Badge variant="secondary">{tenant.enabledModules.length} enabled</Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">

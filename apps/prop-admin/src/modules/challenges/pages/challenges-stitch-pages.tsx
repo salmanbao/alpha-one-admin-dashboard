@@ -78,8 +78,8 @@ function chTone(s: Challenge["status"]): "positive" | "negative" | "warning" | "
     default: return "muted";
   }
 }
-function Select_({ children }: { children: React.ReactNode }) {
-  return <select className="h-9 w-full rounded-lg bg-sfc-lowest px-3 text-xs text-ink shadow-sm outline-none focus:ring-1 focus:ring-tp">{children}</select>;
+function Select_({ children, defaultValue }: { children: React.ReactNode; defaultValue?: string }) {
+  return <select className="h-9 w-full rounded-lg bg-sfc-lowest px-3 text-xs text-ink shadow-sm outline-none focus:ring-1 focus:ring-tp" defaultValue={defaultValue}>{children}</select>;
 }
 
 function RowMenu({ items }: { items: { label: string; icon: string; action: () => void; danger?: boolean }[] }) {
@@ -456,16 +456,37 @@ export function FailedChallengesStitchPage() {
 
 export function ChallengeWizardStitchPage() {
   const { navigate } = usePlatform();
-  const STEPS = ["Basics", "Trading Rules", "Risk Rules", "Payout Rules", "Review"];
+  // PRD §4.10 — exact 7-step wizard (raw.md L13195).
+  const STEPS = ["Basic Info", "Pricing & Sizes", "Phase Configuration", "Trading Rules", "Scaling Plan", "Add-ons", "Review & Publish"];
   const [step, setStep] = React.useState(0);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  // Account size rows (size / price / profit split) — add + remove (PRD
+  // accountSizes array with Plus/Trash2 row controls).
+  const [sizes, setSizes] = React.useState([
+    { id: "s1", size: 10000, price: 99, split: 80 },
+    { id: "s2", size: 25000, price: 199, split: 80 },
+    { id: "s3", size: 50000, price: 299, split: 80 },
+  ]);
+  // Phase rows — PRD phases array (targets, losses, days per phase).
+  const [phases, setPhases] = React.useState([
+    { id: "p1", label: "Phase 1", target: 10, daily: 5, overall: 10, minDays: 5, timeLimited: true },
+    { id: "p2", label: "Phase 2", target: 5, daily: 5, overall: 10, minDays: 5, timeLimited: true },
+  ]);
+  // Add-ons — PRD addOns array (name / price) with add + remove.
+  const [addOns, setAddOns] = React.useState([
+    { id: "a1", name: "Express payout (24h)", price: 49 },
+    { id: "a2", name: "Weekend holding pass", price: 29 },
+  ]);
+
+  const updateRow = <T extends { id: string }>(rows: T[], id: string, patch: Partial<T>, set: (v: T[]) => void) =>
+    set(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 
   return (
     <div className="flex flex-col gap-6">
       <StitchPageHeader
         icon="design_services"
         title="Create Challenge"
-        subtitle="Define a reusable challenge template in five guided steps."
+        subtitle="Define a reusable challenge template in seven guided steps."
         actions={<StitchButton variant="ghost" icon="visibility" onClick={() => setPreviewOpen(true)}>Trader Preview</StitchButton>}
       />
 
@@ -486,43 +507,161 @@ export function ChallengeWizardStitchPage() {
           <div className="space-y-4">
             <Field label="Challenge Name"><Input className="stitch-input" defaultValue="2-Phase Standard" /></Field>
             <Field label="Description"><Textarea className="stitch-input" /></Field>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Account Sizes (USD, comma separated)"><Input className="stitch-input" defaultValue="10000, 25000, 50000, 100000" /></Field>
-              <Field label="Price (USD)"><Input className="stitch-input" type="number" defaultValue={549} /></Field>
+            <Field label="Type">
+              <Select_ defaultValue="2-step"><option>1-step</option><option>2-step</option><option>3-step</option><option>instant</option></Select_>
+            </Field>
+          </div>
+        ) : null}
+
+        {step === 1 ? (
+          <div className="space-y-4">
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold text-ink">Account sizes &amp; pricing</p>
+                <StitchButton
+                  variant="surface"
+                  icon="add"
+                  onClick={() => setSizes((prev) => [...prev, { id: `s${Date.now()}`, size: 100000, price: 499, split: 80 }])}
+                >
+                  Add size
+                </StitchButton>
+              </div>
+              <div className="space-y-2">
+                {sizes.map((row) => (
+                  <div key={row.id} className="flex items-end gap-2 rounded-lg bg-sfc-low p-3">
+                    <Field label="Size (USD)"><Input className="stitch-input" type="number" value={row.size} onChange={(e) => updateRow(sizes, row.id, { size: Number(e.target.value) }, setSizes)} /></Field>
+                    <Field label="Price (USD)"><Input className="stitch-input" type="number" value={row.price} onChange={(e) => updateRow(sizes, row.id, { price: Number(e.target.value) }, setSizes)} /></Field>
+                    <Field label="Profit split %"><Input className="stitch-input" type="number" value={row.split} onChange={(e) => updateRow(sizes, row.id, { split: Number(e.target.value) }, setSizes)} /></Field>
+                    <button
+                      type="button"
+                      aria-label="Remove size"
+                      disabled={sizes.length === 1}
+                      onClick={() => setSizes((prev) => prev.filter((x) => x.id !== row.id))}
+                      className="mb-1.5 rounded-lg p-2 text-ink-muted transition-colors hover:bg-terr-container hover:text-terr disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <MsIconSafe name="delete" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="Payout Frequency"><Select_><option>Weekly</option><option>Bi-Weekly</option><option>Monthly</option></Select_></Field>
+              <Field label="First Withdrawal Delay"><Input className="stitch-input" defaultValue="14 days" /></Field>
+              <Field label="Min Payout Amount"><Input className="stitch-input" type="number" defaultValue={100} /></Field>
             </div>
           </div>
         ) : null}
-        {step === 1 ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Profit Target %"><Input className="stitch-input" type="number" defaultValue={10} /></Field>
-            <Field label="Min Trading Days"><Input className="stitch-input" type="number" defaultValue={5} /></Field>
-            <Field label="Time Limit (days)"><Input className="stitch-input" type="number" defaultValue={30} /></Field>
-            <Field label="Leverage"><Select_><option>1:100</option><option>1:50</option><option>1:30</option></Select_></Field>
-          </div>
-        ) : null}
+
         {step === 2 ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Daily Drawdown %"><Input className="stitch-input" type="number" defaultValue={5} /></Field>
-            <Field label="Max Drawdown %"><Input className="stitch-input" type="number" defaultValue={10} /></Field>
-            <label className="flex items-center justify-between rounded-lg bg-sfc-low px-3 py-2.5 text-xs font-medium text-ink">Allow weekend holding<Switch defaultChecked /></label>
-            <label className="flex items-center justify-between rounded-lg bg-sfc-low px-3 py-2.5 text-xs font-medium text-ink">Allow news trading<Switch defaultChecked={false} /></label>
+          <div className="space-y-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold text-ink">Phases</p>
+              <StitchButton
+                variant="surface"
+                icon="add"
+                onClick={() => setPhases((prev) => [...prev, { id: `p${Date.now()}`, label: `Phase ${prev.length + 1}`, target: 8, daily: 5, overall: 10, minDays: 5, timeLimited: true }])}
+              >
+                Add phase
+              </StitchButton>
+            </div>
+            <div className="space-y-3">
+              {phases.map((p) => (
+                <div key={p.id} className="rounded-xl border border-outline-variant/60 bg-sfc-low p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-bold text-ink">{p.label}</span>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${p.label}`}
+                      disabled={phases.length === 1}
+                      onClick={() => setPhases((prev) => prev.filter((x) => x.id !== p.id))}
+                      className="rounded-lg p-1.5 text-ink-muted transition-colors hover:bg-terr-container hover:text-terr disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <MsIconSafe name="delete" />
+                    </button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <Field label="Profit Target %"><Input className="stitch-input" type="number" value={p.target} onChange={(e) => updateRow(phases, p.id, { target: Number(e.target.value) }, setPhases)} /></Field>
+                    <Field label="Max Daily Loss %"><Input className="stitch-input" type="number" value={p.daily} onChange={(e) => updateRow(phases, p.id, { daily: Number(e.target.value) }, setPhases)} /></Field>
+                    <Field label="Max Overall Loss %"><Input className="stitch-input" type="number" value={p.overall} onChange={(e) => updateRow(phases, p.id, { overall: Number(e.target.value) }, setPhases)} /></Field>
+                    <Field label="Min Trading Days"><Input className="stitch-input" type="number" value={p.minDays} onChange={(e) => updateRow(phases, p.id, { minDays: Number(e.target.value) }, setPhases)} /></Field>
+                    <label className="flex items-center justify-between self-end rounded-lg bg-sfc px-3 py-2.5 text-xs font-medium text-ink">
+                      Time limited
+                      <Switch checked={p.timeLimited} onCheckedChange={(v) => updateRow(phases, p.id, { timeLimited: v === true }, setPhases)} />
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : null}
+
         {step === 3 ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Profit Split (trader %)"><Input className="stitch-input" type="number" defaultValue={80} /></Field>
-            <Field label="Payout Frequency"><Select_><option>Weekly</option><option>Bi-Weekly</option><option>Monthly</option></Select_></Field>
-            <Field label="First Withdrawal Delay"><Input className="stitch-input" defaultValue="14 days" /></Field>
-            <Field label="Min Payout Amount"><Input className="stitch-input" type="number" defaultValue={100} /></Field>
+            <Field label="Leverage"><Select_><option>1:100</option><option>1:50</option><option>1:30</option></Select_></Field>
+            <Field label="Max Lot Size"><Input className="stitch-input" type="number" defaultValue={10} /></Field>
+            <label className="flex items-center justify-between rounded-lg bg-sfc-low px-3 py-2.5 text-xs font-medium text-ink">Allow weekend holding<Switch defaultChecked /></label>
+            <label className="flex items-center justify-between rounded-lg bg-sfc-low px-3 py-2.5 text-xs font-medium text-ink">Allow news trading<Switch defaultChecked={false} /></label>
+            <label className="flex items-center justify-between rounded-lg bg-sfc-low px-3 py-2.5 text-xs font-medium text-ink">Allow EA / copy trading<Switch defaultChecked /></label>
+            <label className="flex items-center justify-between rounded-lg bg-sfc-low px-3 py-2.5 text-xs font-medium text-ink">Consistency rule<Switch defaultChecked={false} /></label>
           </div>
         ) : null}
+
         {step === 4 ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex items-center justify-between rounded-lg bg-sfc-low px-3 py-2.5 text-xs font-medium text-ink">Enable scaling plan<Switch defaultChecked /></label>
+            <label className="flex items-center justify-between rounded-lg bg-sfc-low px-3 py-2.5 text-xs font-medium text-ink">Increase split on scale<Switch defaultChecked /></label>
+            <Field label="Trigger payouts"><Input className="stitch-input" type="number" defaultValue={4} /></Field>
+            <Field label="Scale % per step"><Input className="stitch-input" type="number" defaultValue={25} /></Field>
+            <Field label="Max scale amount"><Input className="stitch-input" type="number" defaultValue={200000} /></Field>
+            <Field label="Max profit split %"><Input className="stitch-input" type="number" defaultValue={90} /></Field>
+            <div className="rounded-xl border-l-4 border-tp bg-tp-fixed/40 p-4 sm:col-span-2">
+              <p className="text-xs font-bold text-tp-fixed-variant">How scaling works</p>
+              <p className="mt-1 text-xs text-ink-variant">After 4 qualifying payouts the account scales +25% up to $200,000, with the split stepping toward 90%.</p>
+            </div>
+          </div>
+        ) : null}
+
+        {step === 5 ? (
+          <div className="space-y-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold text-ink">Add-ons</p>
+              <StitchButton
+                variant="surface"
+                icon="add"
+                onClick={() => setAddOns((prev) => [...prev, { id: `a${Date.now()}`, name: "New add-on", price: 19 }])}
+              >
+                Add add-on
+              </StitchButton>
+            </div>
+            <div className="space-y-2">
+              {addOns.map((row) => (
+                <div key={row.id} className="flex items-end gap-2 rounded-lg bg-sfc-low p-3">
+                  <Field label="Name"><Input className="stitch-input" value={row.name} onChange={(e) => updateRow(addOns, row.id, { name: e.target.value }, setAddOns)} /></Field>
+                  <Field label="Price (USD)"><Input className="stitch-input w-32" type="number" value={row.price} onChange={(e) => updateRow(addOns, row.id, { price: Number(e.target.value) }, setAddOns)} /></Field>
+                  <button
+                    type="button"
+                    aria-label="Remove add-on"
+                    onClick={() => setAddOns((prev) => prev.filter((x) => x.id !== row.id))}
+                    className="mb-1.5 rounded-lg p-2 text-ink-muted transition-colors hover:bg-terr-container hover:text-terr"
+                  >
+                    <MsIconSafe name="delete" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {step === 6 ? (
           <div className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-2">
               <StitchDetailRow label="Name" value="2-Phase Standard" />
-              <StitchDetailRow label="Profit Target" value="10%" />
-              <StitchDetailRow label="Daily / Max DD" value="5% / 10%" />
-              <StitchDetailRow label="Profit Split" value="80 / 20" />
+              <StitchDetailRow label="Type" value="2-step" />
+              <StitchDetailRow label="Sizes" value={sizes.map((s) => `$${s.size.toLocaleString()}`).join(", ")} />
+              <StitchDetailRow label="Phases" value={phases.map((p) => `${p.label}: ${p.target}%`).join(" · ")} />
+              <StitchDetailRow label="Profit Split" value={`${sizes[0]?.split ?? 80} / ${100 - (sizes[0]?.split ?? 80)}`} />
+              <StitchDetailRow label="Add-ons" value={`${addOns.length} (${addOns.map((a) => a.name).join(", ")})`} />
             </div>
             <div className="rounded-xl border-l-4 border-tp bg-tp-fixed/40 p-4">
               <p className="text-xs font-bold text-tp-fixed-variant">Ready to publish</p>
@@ -534,8 +673,8 @@ export function ChallengeWizardStitchPage() {
 
       <div className="flex items-center justify-between rounded-xl bg-sfc-low px-4 py-3 shadow-sm">
         <StitchButton variant="ghost" icon="arrow_back" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))}>Back</StitchButton>
-        <span className="text-xs font-semibold text-ink-variant">Step {step + 1} of 5</span>
-        {step < 4 ? <StitchButton variant="primary" onClick={() => setStep((s) => Math.min(4, s + 1))}>Next</StitchButton>
+        <span className="text-xs font-semibold text-ink-variant">Step {step + 1} of {STEPS.length}</span>
+        {step < STEPS.length - 1 ? <StitchButton variant="primary" onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}>Next</StitchButton>
           : <StitchButton variant="primary" icon="publish" onClick={() => { toast({ title: "Challenge published" }); navigate("challenge-types"); }}>Publish</StitchButton>}
       </div>
 

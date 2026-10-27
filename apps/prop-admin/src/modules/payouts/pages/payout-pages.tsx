@@ -110,7 +110,7 @@ const payoutExportColumns = (
 ];
 
 function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
-  const { runtime, tenant, user } = usePlatform();
+  const { runtime, tenant, user, navigate } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   // Round 7: trader application users see only THEIR OWN payouts; admins
@@ -145,6 +145,17 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
       sortValue: (p) => p.status,
     },
     { key: "created", header: "Requested", cell: (p) => <span className="text-xs text-muted-foreground">{new Date(p.createdAt).toLocaleDateString("en-US")}</span>, sortValue: (p) => p.createdAt },
+    {
+      // PRD §4.9 — row drill-down into the payout detail view (audit trail,
+      // timeline, reverse-payout action). Was unreachable until now.
+      key: "detail",
+      header: "",
+      cell: (p) => (
+        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => navigate("payout-detail")}>
+          Details
+        </Button>
+      ),
+    },
     {
       key: "actions",
       header: "Actions",
