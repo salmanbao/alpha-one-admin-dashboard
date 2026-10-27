@@ -62,6 +62,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "account-breach": dynamic(() => import("@/modules/trading/pages/account-breach-page").then((m) => ({ default: m.AccountBreachPage })), { loading: ViewSkeleton }),
   "account-provisioning": dynamic(() => import("@/modules/trading/pages/account-provisioning-page").then((m) => ({ default: m.AccountProvisioningPage })), { loading: ViewSkeleton }),
   "evaluation-passed": dynamic(() => import("@/modules/trading/pages/evaluation-passed-page").then((m) => ({ default: m.EvaluationPassedPage })), { loading: ViewSkeleton }),
+  "evaluation-queue": dynamic(() => import("@/modules/trading/pages/evaluation-queue-page").then((m) => ({ default: m.EvaluationQueuePage })), { loading: ViewSkeleton }),
   "purchase-history": dynamic(() => import("@/modules/trading/pages/purchase-history-page").then((m) => ({ default: m.PurchaseHistoryPage })), { loading: ViewSkeleton }),
 
   /* challenges */
@@ -200,6 +201,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "certificates-issued": dynamic(() => import("@/modules/settings/pages/certificates-issued-page").then((m) => ({ default: m.CertificatesIssuedPage })), { loading: ViewSkeleton }),
   "certificate-detail": dynamic(() => import("@/modules/settings/pages/certificate-detail-page").then((m) => ({ default: m.CertificateDetailPage })), { loading: ViewSkeleton }),
   "notifications-management": dynamic(() => import("@/modules/settings/pages/notifications-management-page").then((m) => ({ default: m.NotificationsManagementPage })), { loading: ViewSkeleton }),
+  "announcements": dynamic(() => import("@/modules/settings/pages/announcements-page").then((m) => ({ default: m.AnnouncementsPage })), { loading: ViewSkeleton }),
   "notification-edit": dynamic(() => import("@/modules/settings/pages/notification-edit-page").then((m) => ({ default: m.NotificationEditPage })), { loading: ViewSkeleton }),
   "utilities": dynamic(() => import("@/modules/settings/pages/utilities-page").then((m) => ({ default: m.UtilitiesPage })), { loading: ViewSkeleton }),
   "email-template-edit": dynamic(() => import("@/modules/settings/pages/email-template-edit-page").then((m) => ({ default: m.EmailTemplateEditPage })), { loading: ViewSkeleton }),
