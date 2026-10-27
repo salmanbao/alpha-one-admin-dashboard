@@ -13,8 +13,11 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { toast } from "@/hooks/use-toast";
 
 export function PayoutDetailStitchPage() {
+  const { navigate } = usePlatform();
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
   return (
@@ -22,7 +25,7 @@ export function PayoutDetailStitchPage() {
       <div className="flex flex-col w-full space-y-6 pb-28">
         <div className="flex flex-wrap items-center justify-between gap-4 bg-surface-container-low px-5 py-3 rounded-xl shadow-sm">
           <div className="flex items-center gap-3 flex-wrap">
-            <a className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-primary hover:bg-surface-container transition-colors" href="#" onClick={() => setSo0(true)}>
+            <a className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-primary hover:bg-surface-container transition-colors" href="#" onClick={(e) => { e.preventDefault(); navigate("payouts"); }}>
 <MsIcon name="arrow_back" className="text-[16px]" />
               <span>Back to Payouts</span>
             </a>
@@ -272,7 +275,7 @@ export function PayoutDetailStitchPage() {
 <MsIcon name="search" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]" />
 <input className="pl-8 pr-3 py-1.5 text-xs rounded-lg bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-1 focus:ring-primary w-40" placeholder="Filter audit trail..." type="text" />
                   </div>
-                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-on-primary hover:opacity-90 transition-opacity">
+                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-on-primary hover:opacity-90 transition-opacity" type="button" onClick={() => setSo0(true)}>
 <MsIcon name="add_comment" className="text-[16px]" />
                     <span>+ Add Note</span>
                   </button>
@@ -775,7 +778,7 @@ export function PayoutDetailStitchPage() {
               </div>
               <div className="flex items-center justify-end gap-3 pt-1">
                 <button className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors shadow-xs" id="cancel-note-btn" type="button" onClick={() => setSo0(false)}>                  Cancel</button>
-                <button className="px-5 py-2.5 text-xs font-semibold rounded-xl bg-primary hover:bg-primary-container text-on-primary hover:text-on-primary-fixed shadow-md hover:shadow-lg transition-all flex items-center gap-2 group" id="submit-note-btn" type="button">
+                <button className="px-5 py-2.5 text-xs font-semibold rounded-xl bg-primary hover:bg-primary-container text-on-primary hover:text-on-primary-fixed shadow-md hover:shadow-lg transition-all flex items-center gap-2 group" id="submit-note-btn" type="button" onClick={() => { toast({ title: "Audit note sealed", description: "Note appended to the immutable payout audit trail." }); setSo0(false); }}>
                   <span>Append &amp; Seal Audit Note</span>
 <MsIcon name="arrow_forward" className="text-[16px] group-hover:translate-x-0.5 transition-transform" />
                 </button>
@@ -897,7 +900,7 @@ export function PayoutDetailStitchPage() {
               </div>
               <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
                 <button className="px-4 py-2 rounded-lg bg-surface-container-highest hover:bg-surface-container text-xs font-bold text-on-surface transition-colors" type="button" onClick={() => setSo1(false)}>                  Cancel &amp; Keep Settled</button>
-                <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-error hover:bg-on-error-container text-on-error text-xs font-bold shadow-sm transition-all hover:shadow" type="button" onClick={() => setSo1(false)}>
+                <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-error hover:bg-on-error-container text-on-error text-xs font-bold shadow-sm transition-all hover:shadow" type="button" onClick={() => { toast({ title: "Payout reversed", description: "PO-94102 clawback initiated — $24,500.00 returned to treasury pending compliance review.", variant: "destructive" }); setSo1(false); }}>
                   <span>Confirm &amp; Reverse Payout ($24,500.00)</span>
 <MsIcon name="warning" className="text-[15px]" />
                 </button>

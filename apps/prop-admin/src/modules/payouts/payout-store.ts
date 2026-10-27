@@ -14,7 +14,13 @@ import type { Payout } from "@/lib/platform/mock-data";
  * so a decision made anywhere updates every payout view instantly —
  * instead of the previous toast-only behavior that left rows pending.
  */
-export type PayoutDecision = "approved" | "rejected" | "info-requested";
+export type PayoutDecision =
+  | "approved"
+  | "rejected"
+  | "info-requested"
+  | "processing"
+  | "paid"
+  | "escalated";
 
 const decisions = new Map<string, { status: PayoutDecision; at: string }>();
 const listeners = new Set<() => void>();
@@ -37,8 +43,13 @@ export function getPayoutDecision(reference: string) {
 
 /**
  * Effective status of a payout, honoring session decisions.
- * "info-requested" keeps the payout pending (the trader was contacted,
- * the queue position is unchanged).
+ * - "info-requested" keeps the payout pending (the trader was contacted,
+ *   the queue position is unchanged).
+ * - "escalated" (PRD §4.5 multi-level approval) also keeps the payout
+ *   pending — it waits for senior sign-off; surfaces read
+ *   `payoutEscalated()` to surface the escalation badge.
+ * - "processing" / "paid" advance the lifecycle (PRD POST
+ *   /payouts/:id/process).
  */
 export function effectivePayoutStatus(
   p: Pick<Payout, "reference" | "status">,
@@ -47,7 +58,15 @@ export function effectivePayoutStatus(
   if (!d) return p.status;
   if (d.status === "approved") return "approved";
   if (d.status === "rejected") return "rejected";
+  if (d.status === "processing") return "processing";
+  if (d.status === "paid") return "paid";
+  if (d.status === "escalated") return "pending";
   return p.status;
+}
+
+/** True when the payout was escalated for senior/multi-level approval. */
+export function payoutEscalated(reference: string): boolean {
+  return decisions.get(reference)?.status === "escalated";
 }
 
 /** Subscribe the calling component to store mutations (re-renders on change). */
