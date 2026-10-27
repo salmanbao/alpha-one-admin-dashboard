@@ -591,6 +591,7 @@ export function StitchTable<T>({
   emptyState,
   keyOf,
   className,
+  pageSize,
 }: {
   columns: {
     header: React.ReactNode;
@@ -603,7 +604,16 @@ export function StitchTable<T>({
   emptyState?: React.ReactNode;
   keyOf: (row: T) => React.Key;
   className?: string;
+  /** PRD §4.8.1 — when set, the table pages with Previous/Next controls. */
+  pageSize?: number;
 }) {
+  // Pagination (PRD trader list "Previous/Next"). Optional so existing
+  // call sites keep their unpaged behavior.
+  const totalPages = pageSize ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1;
+  const [page, setPage] = React.useState(1);
+  const pageSafe = Math.min(page, totalPages);
+  const paged = pageSize ? rows.slice((pageSafe - 1) * pageSize, pageSafe * pageSize) : rows;
+
   return (
     <div className={cn("overflow-x-auto rounded-xl bg-sfc-low/40", className)}>
       {rows.length === 0 && emptyState ? (
@@ -627,7 +637,7 @@ export function StitchTable<T>({
             </tr>
           </thead>
           <tbody className="divide-y divide-sfc-high/60 text-ink-variant">
-            {rows.map((row) => (
+            {paged.map((row) => (
               <tr
                 key={keyOf(row)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
@@ -649,6 +659,34 @@ export function StitchTable<T>({
           </tbody>
         </table>
       )}
+      {pageSize && rows.length > 0 && totalPages > 1 ? (
+        <div className="flex items-center justify-between border-t border-sfc-high/60 px-3.5 py-2.5 text-xs text-ink-variant">
+          <span>
+            Showing {(pageSafe - 1) * pageSize + 1}–{Math.min(pageSafe * pageSize, rows.length)} of {rows.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={pageSafe <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="rounded-lg border border-outline-variant px-2.5 py-1 font-semibold text-ink transition-colors hover:bg-sfc disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span className="font-medium text-ink">
+              {pageSafe} / {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={pageSafe >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="rounded-lg border border-outline-variant px-2.5 py-1 font-semibold text-ink transition-colors hover:bg-sfc disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
