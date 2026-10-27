@@ -15,6 +15,8 @@ import {
   Archive,
   User,
   ShoppingCart,
+  Server,
+  RefreshCw,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { TradingOverviewWidget } from "./widgets/trading-overview-widget";
@@ -37,6 +39,11 @@ const navigation: NavigationItem[] = [
       { id: "trading.add-account", label: "Add Account", href: "trading-add-account", icon: UserPlus, permission: "account.write" },
       { id: "trading.closed-positions", label: "Closed Positions", href: "closed-positions", icon: Archive, permission: "account.read" },
       { id: "trading.orders", label: "Orders", href: "orders", icon: ShoppingCart, permission: "account.read" },
+
+      // ───────── Operations (M13 — bulk ops + trading server connections) ─────────
+      { id: "trading.bulk-operations", label: "Bulk Operations", href: "bulk-account-operations", icon: Users, permission: "account.write", group: "Operations" },
+      { id: "trading.server-catalog", label: "Server Catalog", href: "server-catalog", icon: Server, permission: "account.read", group: "Operations" },
+      { id: "trading.bridge-sync-log", label: "Bridge Sync Log", href: "bridge-sync-log", icon: RefreshCw, permission: "account.read", group: "Operations" },
     ],
   },
 ];
@@ -65,6 +72,10 @@ const routes: RouteDefinition[] = [
   { path: "account-provisioning", viewId: "account-provisioning", label: "Account Provisioning", permission: "trader.read", module: "trading" },
   { path: "evaluation-passed", viewId: "evaluation-passed", label: "Evaluation Passed", permission: "trader.read", module: "trading" },
   { path: "purchase-history", viewId: "purchase-history", label: "Purchase History", permission: "trader.read", module: "trading" },
+  // Operations (M13)
+  { path: "bulk-account-operations", viewId: "bulk-account-operations", label: "Bulk Account Operations", permission: "account.write", module: "trading" },
+  { path: "server-catalog", viewId: "server-catalog", label: "Trading Server Catalog", permission: "account.read", module: "trading" },
+  { path: "bridge-sync-log", viewId: "bridge-sync-log", label: "Bridge Sync Log", permission: "account.read", module: "trading" },
 ];
 
 const widgets: WidgetDefinition[] = [

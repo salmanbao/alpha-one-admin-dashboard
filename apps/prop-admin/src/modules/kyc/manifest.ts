@@ -5,7 +5,7 @@
  * verification, document reviews, and risk assessment. Depends on Trading.
  */
 
-import { ShieldCheck, FileSearch, AlertTriangle, FileCheck } from "lucide-react";
+import { ShieldCheck, FileSearch, AlertTriangle, FileCheck, History, Store } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { KycOverviewWidget, KycQueueWidget } from "./widgets/kyc-widgets";
 
@@ -19,6 +19,11 @@ const navigation: NavigationItem[] = [
       { id: "kyc.overview", label: "Overview", href: "kyc", icon: ShieldCheck, permission: "kyc.read" },
       { id: "kyc.reviews", label: "Reviews", href: "kyc-reviews", icon: FileSearch, permission: "kyc.read" },
       { id: "kyc.risk", label: "Risk", href: "kyc-risk", icon: AlertTriangle, permission: "kyc.read" },
+
+      // ───────── AML Operations (M9/M13) ─────────
+      { id: "kyc.aml-cases", label: "AML Cases", href: "kyc-aml-cases", icon: AlertTriangle, permission: "kyc.read", group: "AML Operations" },
+      { id: "kyc.reviewer-trail", label: "Reviewer Trail", href: "kyc-reviewer-trail", icon: History, permission: "kyc.read", group: "AML Operations" },
+      { id: "kyc.provider-marketplace", label: "Provider Marketplace", href: "kyc-provider-marketplace", icon: Store, permission: "kyc.read", group: "AML Operations" },
     ],
   },
 ];
@@ -30,6 +35,10 @@ const routes: RouteDefinition[] = [
   { path: "kyc-document-requests", viewId: "kyc-document-requests", label: "Document Requests", permission: "kyc.read", module: "kyc" },
   { path: "kyc-onboarding", viewId: "kyc-onboarding", label: "KYC Onboarding", permission: "kyc.read", module: "kyc" },
   { path: "kyc-status", viewId: "kyc-status", label: "KYC Status", permission: "kyc.read", module: "kyc" },
+  // AML Operations (M9/M13)
+  { path: "kyc-aml-cases", viewId: "kyc-aml-cases", label: "AML Cases", permission: "kyc.read", module: "kyc" },
+  { path: "kyc-reviewer-trail", viewId: "kyc-reviewer-trail", label: "Reviewer Trail", permission: "kyc.read", module: "kyc" },
+  { path: "kyc-provider-marketplace", viewId: "kyc-provider-marketplace", label: "KYC Provider Marketplace", permission: "kyc.read", module: "kyc" },
 ];
 
 const widgets: WidgetDefinition[] = [
