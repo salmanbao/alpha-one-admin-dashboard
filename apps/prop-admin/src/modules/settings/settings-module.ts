@@ -35,6 +35,7 @@ import {
   ShieldCheck,
   Webhook,
   HeartPulse,
+  Scale,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -81,6 +82,7 @@ const navigation: NavigationItem[] = [
       { id: "settings.roles", label: "Roles & Permissions", href: "settings?tab=roles", icon: Users, permission: "settings.manage", group: "System" },
       { id: "settings.notifications", label: "Notifications Matrix", href: "settings?tab=notifications", icon: Bell, permission: "settings.manage", group: "System" },
       { id: "settings.system-health", label: "System Health", href: "system-health", icon: HeartPulse, permission: "settings.manage", group: "System" },
+      { id: "settings.terms", label: "Terms & Policies", href: "terms-policies", icon: Scale, permission: "settings.manage", group: "System" },
       { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage", group: "System" },
     ],
   },
