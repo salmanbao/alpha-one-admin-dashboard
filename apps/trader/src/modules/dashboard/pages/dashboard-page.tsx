@@ -24,8 +24,10 @@ import {
   announcements,
   equityCurve30d,
   primaryAccount,
+  recentActivity,
   scalingPlan,
   terraPositions,
+  type ActivityEntry,
 } from "@/lib/fixtures/terra-fixtures";
 
 const ranges = ["7d", "30d", "90d"] as const;
@@ -36,6 +38,35 @@ const annTone: Record<string, TerraTone> = {
   community: "tertiary",
   product: "success",
 };
+
+const actTone: Record<ActivityEntry["kind"], TerraTone> = {
+  trade: "primary",
+  payout: "tertiary",
+  milestone: "success",
+  kyc: "secondary",
+  challenge: "primary",
+  system: "neutral",
+};
+
+const actIcon: Record<ActivityEntry["kind"], string> = {
+  trade: "📈",
+  payout: "💸",
+  milestone: "🎯",
+  kyc: "🪪",
+  challenge: "🏆",
+  system: "🛠️",
+};
+
+function activityTime(iso: string) {
+  const d = new Date(iso);
+  const diffMs = Date.now() - d.getTime();
+  const hrs = Math.floor(diffMs / 3_600_000);
+  if (hrs < 1) return "just now";
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 export function DashboardPage() {
   const [range, setRange] = useState<(typeof ranges)[number]>("30d");
@@ -403,6 +434,67 @@ export function DashboardPage() {
             </div>
           ))}
         </div>
+      </TerraCard>
+
+      {/* Recent Activity timeline (M3 §3.6 GET /dashboard/recent-activity) */}
+      <TerraCard>
+        <TerraSectionTitle
+          title="Recent Activity"
+          description="Your latest trades, payouts and account milestones."
+          actions={
+            <Link
+              href="/notification-center"
+              className="text-xs font-bold text-primary hover:text-on-primary-fixed-variant"
+            >
+              Full history →
+            </Link>
+          }
+        />
+        <ol className="relative space-y-4 border-l border-outline-variant/60 pl-6">
+          {recentActivity.map((a) => {
+            const inner = (
+              <>
+                <span
+                  aria-hidden="true"
+                  className="absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full bg-surface-container-lowest ring-2 ring-outline-variant/60"
+                >
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                </span>
+                <div className="flex items-start justify-between gap-3 rounded-xl bg-surface-container-low px-4 py-3 transition-colors hover:bg-surface-container">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="mt-0.5 text-lg" aria-hidden="true">
+                      {actIcon[a.kind]}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-on-surface">{a.title}</p>
+                      <p className="mt-0.5 text-xs text-on-surface-variant">{a.detail}</p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <span className="whitespace-nowrap text-[11px] font-semibold text-on-surface-variant">
+                      {activityTime(a.at)}
+                    </span>
+                    <TerraBadge tone={actTone[a.kind]}>{a.kind}</TerraBadge>
+                  </div>
+                </div>
+              </>
+            );
+            return (
+              <li key={a.id} className="relative">
+                {a.href ? (
+                  <Link
+                    href={a.href}
+                    className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  inner
+                )}
+              </li>
+            );
+          })}
+        </ol>
       </TerraCard>
     </div>
   );
