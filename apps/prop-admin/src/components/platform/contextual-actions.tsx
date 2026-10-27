@@ -5,7 +5,7 @@
  *
  * Surfaces actions where the user's decision happens, with one
  * clear primary action and secondary actions. Used for:
- * - Payout review (Approve / Reject / Request Info)
+ * - Payout review (Approve / Reject / Request Info / Escalate)
  * - Breach resolution (Investigate / Resolve / Contact trader)
  * - KYC review (Approve / Reject / Request resubmission)
  *
@@ -27,10 +27,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Check, X, FileQuestion, ChevronRight, ShieldAlert, MessageCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Check, X, FileQuestion, ChevronRight, ShieldAlert, MessageCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/components/platform/status";
-import { applyPayoutDecision } from "@/modules/payouts/payout-store";
+import { applyPayoutDecision, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { resolveBreach } from "@/modules/risk/breach-store";
 import type { ComponentType } from "react";
 
@@ -164,6 +165,10 @@ export function PayoutReviewActions({
   const { pushNotification, runtime } = usePlatform();
   const tenant = runtime.tenant;
   const currencyFmt = formatCurrency(amount, currency || runtime.tenant?.currency || "USD");
+  // Escalation (PRD §4.5 multi-level approval) is a session decision —
+  // re-render the panel when it changes.
+  usePayoutVersion();
+  const escalated = payoutEscalated(payoutId);
 
   const actions: ContextualAction[] = [
     {
@@ -214,10 +219,35 @@ export function PayoutReviewActions({
     },
   ];
 
+  // Escalate → multi-level approval: the payout stays pending but now
+  // requires senior sign-off; hidden once escalated (shows the badge).
+  if (!escalated) {
+    actions.push({
+      id: "escalate",
+      label: "Escalate",
+      icon: AlertTriangle,
+      variant: "secondary",
+      onAction: () => {
+        applyPayoutDecision(payoutId, "escalated");
+        toast({
+          title: "Payout escalated",
+          description: resolveTermsInString(`${traderName}'s payout escalated for senior approval.`, tenant),
+        });
+      },
+    });
+  }
+
   return (
     <ContextualActionPanel
       contextLabel={payoutId}
       contextDetail={`${traderName} · ${currencyFmt}`}
+      statusBadge={
+        escalated ? (
+          <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
+            Escalated · senior sign-off
+          </Badge>
+        ) : undefined
+      }
       actions={actions}
       compact
     />
