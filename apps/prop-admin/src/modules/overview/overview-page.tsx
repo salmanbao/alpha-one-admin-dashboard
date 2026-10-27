@@ -131,6 +131,13 @@ export function OverviewPage() {
           </div>
         ) : null}
 
+        {/* PRD §4.7 — Recent Payouts + Risk Alerts dashboard widgets
+            (GET /dashboard/recent-payouts, GET /dashboard/risk-alerts). */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <RecentPayoutsWidget tid={tid} navigate={navigate} />
+          <RiskAlertsWidget tid={tid} navigate={navigate} />
+        </div>
+
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
           <div className="min-w-0">
             <DashboardGrid key={refreshKey} />
@@ -213,6 +220,124 @@ export function OverviewPage() {
       </PageContent>
       <CustomizeDashboardDialog />
     </Page>
+  );
+}
+
+/**
+ * PRD §4.7 — "Recent Payouts" widget (GET /dashboard/recent-payouts).
+ * Rows drill into the payout-detail view (the PRD clock/drill-down
+ * affordance that previously had no entry point).
+ */
+function RecentPayoutsWidget({ tid, navigate }: { tid: string; navigate: (v: string) => void }) {
+  const recent = [...getTenantPayouts(tid)]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+  return (
+    <div className="rounded-lg border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between border-b pb-2">
+        <div className="flex items-center gap-2">
+          <Wallet className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground">Recent Payouts</h2>
+        </div>
+        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => navigate("payouts")}>
+          View all
+        </Button>
+      </div>
+      {recent.length === 0 ? (
+        <p className="py-6 text-center text-xs text-muted-foreground">No payout activity yet.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {recent.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                onClick={() => navigate("payout-detail")}
+                className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted/60"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-medium text-foreground">{p.traderName}</span>
+                  <span className="block text-[10px] text-muted-foreground">
+                    {p.reference} · {new Date(p.createdAt).toLocaleDateString()}
+                  </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs font-semibold tabular-nums text-foreground">
+                    {formatCurrency(p.amount, p.currency)}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={`text-[9px] ${
+                      p.status === "paid"
+                        ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
+                        : p.status === "rejected"
+                          ? "border-rose-500/40 text-rose-700 dark:text-rose-400"
+                          : "border-amber-500/40 text-amber-700 dark:text-amber-400"
+                    }`}
+                  >
+                    {p.status}
+                  </Badge>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * PRD §4.7 — "Risk Alerts" widget (GET /dashboard/risk-alerts).
+ * Lists open breaches ordered severity-first; rows drill into Risk.
+ */
+function RiskAlertsWidget({ tid, navigate }: { tid: string; navigate: (v: string) => void }) {
+  const open = getTenantBreaches(tid)
+    .filter((b) => b.status === "open")
+    .sort((a, b) => (a.severity === "critical" ? -1 : 0) - (b.severity === "critical" ? -1 : 0));
+  return (
+    <div className="rounded-lg border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between border-b pb-2">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-rose-500" />
+          <h2 className="text-sm font-semibold text-foreground">Risk Alerts</h2>
+        </div>
+        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => navigate("breaches")}>
+          View all
+        </Button>
+      </div>
+      {open.length === 0 ? (
+        <p className="py-6 text-center text-xs text-muted-foreground">
+          No active alerts — every tenant is within its risk rules.
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {open.slice(0, 5).map((b) => (
+            <li key={b.id}>
+              <button
+                type="button"
+                onClick={() => navigate("risk-cases")}
+                className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted/60"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-medium text-foreground">{b.type}</span>
+                  <span className="block truncate text-[10px] text-muted-foreground">{b.rule}</span>
+                </span>
+                <Badge
+                  variant="outline"
+                  className={`shrink-0 text-[9px] ${
+                    b.severity === "critical"
+                      ? "border-rose-500/40 text-rose-700 dark:text-rose-400"
+                      : "border-amber-500/40 text-amber-700 dark:text-amber-400"
+                  }`}
+                >
+                  {b.severity}
+                </Badge>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
