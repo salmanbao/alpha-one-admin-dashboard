@@ -1227,6 +1227,133 @@ export const supportTickets = [
 ];
 
 /* ------------------------------------------------------------------ */
+/* Help Center articles (M3 §3.9 knowledge base)                       */
+/* ------------------------------------------------------------------ */
+
+export interface HelpArticle {
+  id: string;
+  category: string;
+  title: string;
+  popular: boolean;
+  answer: string;
+}
+
+export const helpArticles: HelpArticle[] = [
+  {
+    id: "ha-1",
+    category: "challenges",
+    title: "How is the daily loss limit calculated?",
+    popular: true,
+    answer:
+      "The daily loss limit is measured on equity (balance + floating P&L) at 00:00 UTC. It includes realised losses, floating losses and commissions for the current trading day. Hitting 100% of the allowance breaches the account, so we recommend risking well under 1% per trade.",
+  },
+  {
+    id: "ha-2",
+    category: "payouts",
+    title: "When is my first payout available?",
+    popular: true,
+    answer:
+      "Your first payout request becomes available 14 calendar days after your first winning day on a funded account. After that, payouts can be requested every 14 days. Requests submitted before 12:00 UTC are typically processed the same business day.",
+  },
+  {
+    id: "ha-3",
+    category: "platform",
+    title: "Which platforms can I trade on?",
+    popular: true,
+    answer:
+      "Terra supports MetaTrader 5 (desktop, web and mobile) as the primary platform. All challenge and funded accounts are provisioned on MT5 — download links and credentials are available on the Trading Credentials page.",
+  },
+  {
+    id: "ha-4",
+    category: "security",
+    title: "How do I reset my trading password?",
+    popular: true,
+    answer:
+      "Open Trading Credentials, find the account and press “Reset password”. A fresh investor password is emailed to your registered address within minutes and the old password stops working immediately. Platform (master) password resets require support verification.",
+  },
+  {
+    id: "ha-5",
+    category: "challenges",
+    title: "Can I hold positions over the weekend?",
+    popular: true,
+    answer:
+      "Yes — positions may be held across the weekend on funded accounts. During evaluation, holding through the Friday close is allowed but strongly discouraged: gap risk counts toward your drawdown the moment markets reopen Sunday 22:00 UTC.",
+  },
+  {
+    id: "ha-6",
+    category: "kyc",
+    title: "How long does KYC verification take?",
+    popular: true,
+    answer:
+      "Most identity checks are approved within a few hours and never longer than 2 business days. You'll receive an in-app notification and an email as soon as your status changes. Payouts stay locked until Level 2 verification is approved.",
+  },
+  {
+    id: "ha-7",
+    category: "challenges",
+    title: "What is the consistency rule?",
+    popular: false,
+    answer:
+      "Your best trading day must not exceed 30% of total profit at the time of a payout request or phase completion. This keeps performance steady rather than depending on one lucky day. The objectives page shows your current consistency ratio live.",
+  },
+  {
+    id: "ha-8",
+    category: "challenges",
+    title: "How many trading days are required?",
+    popular: false,
+    answer:
+      "Phase 1 requires a minimum of 4 trading days with at least one position per day. There is no maximum — the 30-day calendar limit is the only deadline. Days with no market movement (holidays) don't count against you.",
+  },
+  {
+    id: "ha-9",
+    category: "getting-started",
+    title: "How do I get my MT5 credentials?",
+    popular: false,
+    answer:
+      "Credentials are issued automatically once your purchase or evaluation starts — check the Trading Credentials page and your registered email. If more than an hour has passed, open a support ticket with your login number and we'll re-provision the account.",
+  },
+  {
+    id: "ha-10",
+    category: "getting-started",
+    title: "What happens after I pass Phase 1?",
+    popular: false,
+    answer:
+      "Phase 2 credentials are issued automatically and your account upgrades in place — same login style, new phase label. You'll get a notification, an email, and the evaluation-passed screen summarising your stats before Phase 2 begins.",
+  },
+  {
+    id: "ha-11",
+    category: "payouts",
+    title: "Which withdrawal methods are supported?",
+    popular: false,
+    answer:
+      "Bank transfer (Wise), USDT (TRC-20) and Ripple (XRP) are available out of the box, and you can add more from Withdrawal Methods. Bank transfers are free; crypto methods pass through the network fee only.",
+  },
+  {
+    id: "ha-12",
+    category: "security",
+    title: "How do I enable two-factor authentication?",
+    popular: false,
+    answer:
+      "Go to Profile & Security → Two-Factor Auth, scan the QR code with an authenticator app and enter the 6-digit code to confirm. Once enabled, new devices require the code at sign-in and sensitive actions (payouts, password changes) ask for it again.",
+  },
+  {
+    id: "ha-13",
+    category: "kyc",
+    title: "Which documents do I need for KYC?",
+    popular: false,
+    answer:
+      "Level 1 needs a government-issued photo ID (passport or driving licence). Level 2 adds a recent proof of address (utility bill or bank statement, issued within 3 months). Both must be clear, uncropped and match your profile details.",
+  },
+  {
+    id: "ha-14",
+    category: "platform",
+    title: "Can I run EAs or copy trading?",
+    popular: false,
+    answer:
+      "Expert Advisors are allowed as long as they don't exploit platform latency or tick data. Third-party copy trading between accounts is permitted; copy services that mirror other traders' signals across multiple Terra accounts are not.",
+  },
+];
+
+/* ------------------------------------------------------------------ */
 /* Documents                                                           */
 /* ------------------------------------------------------------------ */
 
