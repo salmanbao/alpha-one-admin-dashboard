@@ -1025,6 +1025,78 @@ export const communicationLog: CommunicationEntry[] = [
 ];
 
 /* ------------------------------------------------------------------ */
+/* Recent activity timeline (M3 §3.6 GET /dashboard/recent-activity)   */
+/* ------------------------------------------------------------------ */
+
+export interface ActivityEntry {
+  id: string;
+  kind: "trade" | "payout" | "milestone" | "kyc" | "challenge" | "system";
+  title: string;
+  detail: string;
+  at: string;
+  href?: string;
+}
+
+export const recentActivity: ActivityEntry[] = [
+  {
+    id: "ac-1",
+    kind: "trade",
+    title: "Closed XAUUSD long · +$412.80",
+    detail: "Ticket #88214 · 0.40 lots · +28.4 pips",
+    at: hoursAgo(2),
+    href: "/trade-detail?id=tr-1",
+  },
+  {
+    id: "ac-2",
+    kind: "milestone",
+    title: "62% of profit target reached",
+    detail: "Account #100030 · $1,140 remaining",
+    at: hoursAgo(6),
+    href: "/objectives",
+  },
+  {
+    id: "ac-3",
+    kind: "payout",
+    title: "Payout PO-2201 moved to processing",
+    detail: "$1,936.00 via Bank Transfer (Wise)",
+    at: hoursAgo(9),
+    href: "/payout-detail?id=po-2201",
+  },
+  {
+    id: "ac-4",
+    kind: "system",
+    title: "MT5 credentials delivered",
+    detail: "Login #92841 · TerraMarkets-Live02",
+    at: daysAgo(1),
+    href: "/trading-credentials",
+  },
+  {
+    id: "ac-5",
+    kind: "challenge",
+    title: "Trading day 12 logged",
+    detail: "Minimum 4 trading days — requirement met ✓",
+    at: daysAgo(1),
+    href: "/account-detail",
+  },
+  {
+    id: "ac-6",
+    kind: "kyc",
+    title: "Identity verification approved",
+    detail: "Level 2 — payouts unlocked",
+    at: daysAgo(3),
+    href: "/kyc-verification-status",
+  },
+  {
+    id: "ac-7",
+    kind: "challenge",
+    title: "Phase 1 passed — account upgraded",
+    detail: "Terra Pro $100K · Phase 2 credentials issued",
+    at: daysAgo(46),
+    href: "/evaluation-passed",
+  },
+];
+
+/* ------------------------------------------------------------------ */
 /* Support tickets                                                     */
 /* ------------------------------------------------------------------ */
 
