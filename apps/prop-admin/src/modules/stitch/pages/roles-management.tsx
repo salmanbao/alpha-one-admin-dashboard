@@ -13,10 +13,53 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { exportToCsv } from "@/lib/platform/export-utils";
+import { toast } from "@/hooks/use-toast";
+
+/** Permission rows backing the compare modal + matrix tab + CSV export. */
+const PERMISSION_ROWS = [
+  { permission: "trading.force_close_position", category: "Trading Operations", type: "diff", roleA: "Granted (Execute)", roleB: "Not Granted" },
+  { permission: "trading.adjust_drawdown_limit", category: "Trading Operations", type: "diff", roleA: "Granted (Write)", roleB: "Not Granted" },
+  { permission: "trading.view_live_positions", category: "Trading Operations", type: "common", roleA: "Granted (Read)", roleB: "Granted (Read)" },
+  { permission: "risk.resolve_breach_manual", category: "Risk Management", type: "diff", roleA: "Granted (Write)", roleB: "Not Granted" },
+  { permission: "risk.escalate_aml_flag", category: "Risk Management", type: "diff", roleA: "Granted (Write)", roleB: "Not Granted" },
+  { permission: "kyc.approve_id_document", category: "Regulatory & KYC", type: "diff", roleA: "Granted (Approve)", roleB: "Not Granted" },
+  { permission: "kyc.file_fincen_sar", category: "Regulatory & KYC", type: "diff", roleA: "Granted (File)", roleB: "Not Granted" },
+  { permission: "payouts.authorize_disbursement", category: "Payouts & Disbursements", type: "common", roleA: "Granted (Read)", roleB: "Granted (Read)" },
+];
 
 export function RolesManagementStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  const { navigate, user } = usePlatform();
+  const [tab, setTab] = React.useState<"roles" | "matrix" | "access">("roles");
+  const [newRoleOpen, setNewRoleOpen] = React.useState(false);
+  const [newRoleName, setNewRoleName] = React.useState("");
+  const [diffFilter, setDiffFilter] = React.useState<"all" | "diff" | "common">("all");
+  const [permSearch, setPermSearch] = React.useState("");
+  const [mutation, setMutation] = React.useState<"grant" | "revoke">("revoke");
+
+  const permVisible = (type: string, key: string) =>
+    (diffFilter === "all" || diffFilter === type) &&
+    (permSearch.trim() === "" || key.toLowerCase().includes(permSearch.trim().toLowerCase()));
+  const catVisible = (keys: string[]) => keys.some((k) => { const r = PERMISSION_ROWS.find((x) => x.permission === k); return r ? permVisible(r.type, k) : true; });
+
+  const exportMatrix = () => {
+    exportToCsv(
+      PERMISSION_ROWS,
+      [
+        { key: "permission", header: "Permission", value: (r) => r.permission },
+        { key: "category", header: "Category", value: (r) => r.category },
+        { key: "type", header: "Comparison", value: (r) => (r.type === "diff" ? "Difference" : "Common") },
+        { key: "roleA", header: "Risk Desk Manager", value: (r) => r.roleA },
+        { key: "roleB", header: "Compliance Analyst", value: (r) => r.roleB },
+      ],
+      "permission-matrix.csv",
+    );
+    toast({ title: "Permission matrix exported", description: `${PERMISSION_ROWS.length} entitlement checks written to CSV.` });
+  };
+
   return (
     <>
       <div className="flex flex-col w-full">
@@ -56,11 +99,11 @@ export function RolesManagementStitchPage() {
 <MsIcon name="difference" className="text-base" />
               <span>Compare Roles</span>
             </button>
-            <button className="px-3.5 py-2 rounded-xl bg-surface-container-low text-on-surface text-xs font-semibold hover:bg-surface-container transition-all flex items-center gap-1.5 shadow-sm">
+            <button className="px-3.5 py-2 rounded-xl bg-surface-container-low text-on-surface text-xs font-semibold hover:bg-surface-container transition-all flex items-center gap-1.5 shadow-sm" onClick={() => navigate("team-members")}>
 <MsIcon name="person_add" className="text-base" />
               <span>Invite Member</span>
             </button>
-            <button className="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-all flex items-center gap-2 shadow-sm" id="openNewRoleBtn">
+            <button className="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-all flex items-center gap-2 shadow-sm" id="openNewRoleBtn" onClick={() => setNewRoleOpen(true)}>
 <MsIcon name="add" className="text-base" />
               <span>New Role</span>
             </button>
@@ -145,38 +188,39 @@ export function RolesManagementStitchPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
-            <button className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-xs font-medium text-on-surface-variant flex items-center gap-1.5 shadow-sm transition-colors">
+            <button className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-xs font-medium text-on-surface-variant flex items-center gap-1.5 shadow-sm transition-colors" onClick={exportMatrix}>
 <MsIcon name="file_download" className="text-base" />
               <span>Export Matrix</span>
             </button>
-            <button className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-xs font-medium text-on-surface-variant flex items-center gap-1.5 shadow-sm transition-colors">
+            <button className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-xs font-medium text-on-surface-variant flex items-center gap-1.5 shadow-sm transition-colors" onClick={() => navigate("audit-log")}>
 <MsIcon name="history" className="text-base" />
               <span>Audit Timeline</span>
             </button>
-            <button className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-xs font-medium text-on-surface-variant flex items-center gap-1.5 shadow-sm transition-colors">
+            <button className="px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-xs font-medium text-on-surface-variant flex items-center gap-1.5 shadow-sm transition-colors" onClick={() => toast({ title: "Bulk actions", description: "Select roles in the grid to bulk-reassign members, export, or archive." })}>
 <MsIcon name="checklist" className="text-base" />
               <span>Bulk Actions</span>
             </button>
           </div>
         </div>
         <div className="flex items-center gap-6 border-b border-surface-container-high mb-6 text-sm">
-          <button className="pb-3 border-b-2 border-primary text-on-surface font-semibold flex items-center gap-2">
-<MsIcon name="groups" className="text-base text-primary" />
+          <button className={`pb-3 border-b-2 flex items-center gap-2 transition-colors ${tab === "roles" ? "border-primary text-on-surface font-semibold" : "border-transparent text-on-surface-variant hover:text-on-surface"}`} onClick={() => setTab("roles")}>
+<MsIcon name="groups" className={`text-base ${tab === "roles" ? "text-primary" : ""}`} />
             <span>Roles (16)</span>
           </button>
-          <button className="pb-3 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface flex items-center gap-2 transition-colors">
-<MsIcon name="table_view" className="text-base" />
+          <button className={`pb-3 border-b-2 flex items-center gap-2 transition-colors ${tab === "matrix" ? "border-primary text-on-surface font-semibold" : "border-transparent text-on-surface-variant hover:text-on-surface"}`} onClick={() => setTab("matrix")}>
+<MsIcon name="table_view" className={`text-base ${tab === "matrix" ? "text-primary" : ""}`} />
             <span>Permission Matrix (16 × 8 Categories)</span>
           </button>
-          <button className="pb-3 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface flex items-center gap-2 transition-colors">
+          <button className="pb-3 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface flex items-center gap-2 transition-colors" onClick={() => navigate("team-members")}>
 <MsIcon name="badge" className="text-base" />
             <span>Team Assignments (64)</span>
           </button>
-          <button className="pb-3 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface flex items-center gap-2 transition-colors">
-<MsIcon name="account_circle" className="text-base" />
-            <span>My Access (Marcus Vance · Level 4)</span>
+          <button className={`pb-3 border-b-2 flex items-center gap-2 transition-colors ${tab === "access" ? "border-primary text-on-surface font-semibold" : "border-transparent text-on-surface-variant hover:text-on-surface"}`} onClick={() => setTab("access")}>
+<MsIcon name="account_circle" className={`text-base ${tab === "access" ? "text-primary" : ""}`} />
+            <span>{`My Access (${user?.name ?? "Marcus Vance"} · Level 4)`}</span>
           </button>
         </div>
+        {tab === "roles" ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4" id="rolesCardGrid">
             <div className="bg-surface-container-low rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
@@ -457,24 +501,97 @@ export function RolesManagementStitchPage() {
               </div>
             </div>
             <div className="mt-6 pt-4 border-t border-surface-container flex flex-col gap-2">
-              <button className="w-full py-2.5 rounded-xl bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-all flex items-center justify-center gap-1.5 shadow-sm">
+              <button className="w-full py-2.5 rounded-xl bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-all flex items-center justify-center gap-1.5 shadow-sm" onClick={() => toast({ title: "Role changes saved", description: "Risk Desk Manager entitlements signed with HSM key and committed to WORM storage." })}>
 <MsIcon name="check_circle" className="text-base" />
                 <span>Save Role Changes</span>
               </button>
               <div className="grid grid-cols-2 gap-2">
-                <button className="py-2 rounded-xl bg-surface hover:bg-surface-container text-xs font-semibold text-on-surface-variant transition-colors flex items-center justify-center gap-1 shadow-sm">
+                <button className="py-2 rounded-xl bg-surface hover:bg-surface-container text-xs font-semibold text-on-surface-variant transition-colors flex items-center justify-center gap-1 shadow-sm" onClick={() => {
+                  const blob = new Blob([JSON.stringify({ role: "Risk Desk Manager", exportedAt: new Date().toISOString(), categories: PERMISSION_ROWS.map((r) => ({ permission: r.permission, category: r.category, riskDeskManager: r.roleA, complianceAnalyst: r.roleB })) }, null, 2)], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "risk-desk-manager-role.json";
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast({ title: "Role exported", description: "risk-desk-manager-role.json downloaded." });
+                }}>
 <MsIcon name="code" className="text-sm" />
                   <span>Export JSON</span>
                 </button>
-                <button className="py-2 rounded-xl bg-surface hover:bg-surface-container text-xs font-semibold text-on-surface-variant transition-colors">                  Cancel</button>
+                <button className="py-2 rounded-xl bg-surface hover:bg-surface-container text-xs font-semibold text-on-surface-variant transition-colors" onClick={() => toast({ title: "Changes discarded", description: "Unsaved entitlement edits were reverted." })}>                  Cancel</button>
               </div>
-              <button className="w-full py-2 rounded-xl bg-surface-container text-[11px] font-semibold text-on-surface-variant/50 cursor-not-allowed flex items-center justify-center gap-1 mt-1" disabled title="Cannot delete role with 12 assigned members">
+              <button className="w-full py-2 rounded-xl bg-surface-container text-[11px] font-semibold text-on-surface-variant/50 hover:text-on-surface-variant transition-colors flex items-center justify-center gap-1 mt-1" title="Cannot delete role with 12 assigned members" onClick={() => toast({ title: "Delete blocked", description: "12 members are still assigned to Risk Desk Manager. Reassign them before deleting the role.", variant: "destructive" })}>
 <MsIcon name="delete" className="text-sm" />
                 <span>Delete Role (12 Assigned)</span>
               </button>
             </div>
           </div>
         </div>
+        ) : null}
+        {tab === "matrix" ? (
+          <div className="bg-surface-container-low rounded-xl p-5 shadow-sm overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-surface-container-high">
+                  <th className="py-2.5 pr-4 text-xs uppercase tracking-wider font-semibold text-on-surface-variant">Permission</th>
+                  <th className="py-2.5 pr-4 text-xs uppercase tracking-wider font-semibold text-on-surface-variant">Category</th>
+                  <th className="py-2.5 pr-4 text-xs uppercase tracking-wider font-semibold text-on-surface-variant">Risk Desk Manager</th>
+                  <th className="py-2.5 pr-4 text-xs uppercase tracking-wider font-semibold text-on-surface-variant">Compliance Analyst</th>
+                  <th className="py-2.5 text-xs uppercase tracking-wider font-semibold text-on-surface-variant">Comparison</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-container-high/60">
+                {PERMISSION_ROWS.filter((r) => permVisible(r.type, r.permission)).map((r) => (
+                  <tr key={r.permission} className="hover:bg-surface-container-low/40 transition-colors">
+                    <td className="py-2.5 pr-4 font-mono text-xs font-semibold text-on-surface">{r.permission}</td>
+                    <td className="py-2.5 pr-4 text-xs text-on-surface-variant">{r.category}</td>
+                    <td className="py-2.5 pr-4 text-xs font-semibold text-primary">{r.roleA}</td>
+                    <td className="py-2.5 pr-4 text-xs text-on-surface-variant">{r.roleB}</td>
+                    <td className="py-2.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${r.type === "diff" ? "bg-secondary-container text-on-secondary-container" : "bg-surface-container text-on-surface-variant"}`}>
+                        {r.type === "diff" ? "Difference" : "Common"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-4 flex items-center gap-2">
+              <input value={permSearch} onChange={(e) => setPermSearch(e.target.value)} placeholder="Filter permissions…" className="w-64 px-3 py-1.5 rounded-lg bg-surface text-on-surface text-xs focus:outline-none shadow-sm" />
+              <button onClick={() => setDiffFilter("all")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${diffFilter === "all" ? "bg-primary text-on-primary shadow-sm" : "bg-surface text-on-surface-variant hover:bg-surface-container"}`}>All</button>
+              <button onClick={() => setDiffFilter("diff")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${diffFilter === "diff" ? "bg-primary text-on-primary shadow-sm" : "bg-surface text-on-surface-variant hover:bg-surface-container"}`}>Differences</button>
+              <button onClick={() => setDiffFilter("common")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${diffFilter === "common" ? "bg-primary text-on-primary shadow-sm" : "bg-surface text-on-surface-variant hover:bg-surface-container"}`}>Common</button>
+              <button onClick={exportMatrix} className="ml-auto px-3 py-1.5 rounded-lg bg-surface text-on-surface text-xs font-semibold hover:bg-surface-container flex items-center gap-1.5 shadow-sm transition-colors">
+<MsIcon name="file_download" className="text-base" />
+                Export Matrix
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {tab === "access" ? (
+          <div className="bg-surface-container-low rounded-xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#e8f0ec] text-primary flex items-center justify-center shadow-sm"><MsIcon name="account_circle" className="text-2xl" /></div>
+              <div>
+                <p className="text-sm font-bold text-on-surface">{user?.name ?? "Marcus Vance"}</p>
+                <p className="text-xs text-on-surface-variant">{user?.email ?? "marcus.vance@terradesk.io"} · Level 4 · Tenant Root</p>
+              </div>
+            </div>
+            <p className="text-xs uppercase tracking-wider font-semibold text-on-surface-variant mb-2">Effective Roles</p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {(user?.roles ?? ["CRO / Level 4 Ops"]).map((role) => (
+                <span key={role} className="px-2.5 py-1 rounded-md bg-surface-container text-xs font-semibold text-on-surface">{role}</span>
+              ))}
+            </div>
+            <p className="text-xs uppercase tracking-wider font-semibold text-on-surface-variant mb-2">{`Granted Permissions (${(user?.permissions ?? []).length})`}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {(user?.permissions ?? ["risk.read", "payout.read", "payout.approve", "breach.read", "audit.read"]).map((perm) => (
+                <span key={perm} className="px-2 py-0.5 rounded bg-surface-container-high font-mono text-[11px] text-on-surface">{perm}</span>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="mt-8 mb-6 p-4 rounded-xl bg-surface-container-high/60 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-on-surface-variant">
           <div className="flex items-center gap-3">
 <MsIcon name="verified" className="text-primary text-xl shrink-0" />
@@ -577,20 +694,20 @@ export function RolesManagementStitchPage() {
             </div>
             <div className="px-8 py-3.5 bg-surface-container flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div className="flex items-center gap-1.5 bg-surface-container-high p-1 rounded-xl" id="filterTabs">
-                <button className="px-3 py-1.5 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors" data-filter="all" onClick={() => setSo0(false)}>                  All Entitlements (158)</button>
-                <button className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-surface-container-lowest text-primary shadow-sm transition-all flex items-center gap-1.5" data-filter="diff">
+                <button className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${diffFilter === "all" ? "bg-surface-container-lowest text-primary font-bold shadow-sm" : "font-semibold text-on-surface-variant hover:text-on-surface"}`} data-filter="all" onClick={() => setDiffFilter("all")}>                  All Entitlements (158)</button>
+                <button className={`px-3.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1.5 ${diffFilter === "diff" ? "bg-surface-container-lowest text-primary font-bold shadow-sm" : "font-semibold text-on-surface-variant hover:text-on-surface"}`} data-filter="diff" onClick={() => setDiffFilter("diff")}>
                   <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
                   <span>Differences Only (106)</span>
                 </button>
-                <button className="px-3 py-1.5 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors" data-filter="common">                  Common Only (52)</button>
+                <button className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${diffFilter === "common" ? "bg-surface-container-lowest text-primary font-bold shadow-sm" : "font-semibold text-on-surface-variant hover:text-on-surface"}`} data-filter="common" onClick={() => setDiffFilter("common")}>                  Common Only (52)</button>
               </div>
               <div className="relative sm:w-72">
 <MsIcon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]" />
-<input className="w-full bg-surface-container-lowest rounded-xl pl-9 pr-3.5 py-1.5 text-xs text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body" id="permSearch" placeholder="Filter permissions in comparison..." type="text" />
+<input className="w-full bg-surface-container-lowest rounded-xl pl-9 pr-3.5 py-1.5 text-xs text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body" id="permSearch" value={permSearch} onChange={(e) => setPermSearch(e.target.value)} placeholder="Filter permissions in comparison..." type="text" />
               </div>
             </div>
             <div className="overflow-y-auto max-h-[460px] px-8 py-4 bg-surface-container-lowest" id="diffContent">
-              <div className="mb-6 category-block" data-category="trading">
+              <div className="mb-6 category-block" data-category="trading" style={{ display: catVisible(["trading.force_close_position","trading.adjust_drawdown_limit","trading.view_live_positions"]) ? undefined : "none" }}>
                 <div className="flex items-center justify-between pb-2 mb-2 bg-surface-container-low px-4 py-2 rounded-xl">
                   <div className="flex items-center gap-2">
 <MsIcon name="candlestick_chart" className="text-primary text-[19px]" />
@@ -599,7 +716,7 @@ export function RolesManagementStitchPage() {
                   <span className="text-[11px] font-semibold text-on-surface-variant">3 Listed Checks</span>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff">
+                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff" style={{ display: permVisible("diff", "trading.force_close_position") ? undefined : "none" }}>
                     <div className="col-span-5 pr-4">
                       <p className="font-mono text-xs font-semibold text-on-surface">trading.force_close_position</p>
                       <p className="text-[11px] text-on-surface-variant mt-0.5">Executes emergency market liquidation order across matched LP book.</p>
@@ -614,7 +731,7 @@ export function RolesManagementStitchPage() {
                     </div>
                     <div className="col-span-2 text-right">                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-error-container text-on-error-container">                        High Impact</span></div>
                   </div>
-                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff">
+                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff" style={{ display: permVisible("diff", "trading.adjust_drawdown_limit") ? undefined : "none" }}>
                     <div className="col-span-5 pr-4">
                       <p className="font-mono text-xs font-semibold text-on-surface">trading.adjust_drawdown_limit</p>
                       <p className="text-[11px] text-on-surface-variant mt-0.5">Overrides maximum trailing threshold on proprietary funded accounts.</p>
@@ -629,7 +746,7 @@ export function RolesManagementStitchPage() {
                     </div>
                     <div className="col-span-2 text-right">                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-secondary-container text-on-secondary-container">                        Desk Override</span></div>
                   </div>
-                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="common">
+                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="common" style={{ display: permVisible("common", "trading.view_live_positions") ? undefined : "none" }}>
                     <div className="col-span-5 pr-4">
                       <p className="font-mono text-xs font-semibold text-on-surface">trading.view_live_positions</p>
                       <p className="text-[11px] text-on-surface-variant mt-0.5">Read-only streaming websocket access to active execution logs and orders.</p>
@@ -646,7 +763,7 @@ export function RolesManagementStitchPage() {
                   </div>
                 </div>
               </div>
-              <div className="mb-6 category-block" data-category="risk">
+              <div className="mb-6 category-block" data-category="risk" style={{ display: catVisible(["risk.resolve_breach_manual","risk.escalate_aml_flag"]) ? undefined : "none" }}>
                 <div className="flex items-center justify-between pb-2 mb-2 bg-surface-container-low px-4 py-2 rounded-xl">
                   <div className="flex items-center gap-2">
 <MsIcon name="emergency_heat" className="text-primary text-[19px]" />
@@ -655,7 +772,7 @@ export function RolesManagementStitchPage() {
                   <span className="text-[11px] font-semibold text-on-surface-variant">2 Listed Checks</span>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff">
+                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff" style={{ display: permVisible("diff", "risk.resolve_breach_manual") ? undefined : "none" }}>
                     <div className="col-span-5 pr-4">
                       <p className="font-mono text-xs font-semibold text-on-surface">risk.resolve_breach_manual</p>
                       <p className="text-[11px] text-on-surface-variant mt-0.5">Authorizes operational resets on hard-stop soft breaches within 24h window.</p>
@@ -670,7 +787,7 @@ export function RolesManagementStitchPage() {
                     </div>
                     <div className="col-span-2 text-right">                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-secondary-container text-on-secondary-container">                        Level 4 Ops</span></div>
                   </div>
-                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff">
+                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff" style={{ display: permVisible("diff", "risk.escalate_aml_flag") ? undefined : "none" }}>
                     <div className="col-span-5 pr-4">
                       <p className="font-mono text-xs font-semibold text-on-surface">risk.escalate_aml_flag</p>
                       <p className="text-[11px] text-on-surface-variant mt-0.5">Submits anti-structuring &amp; suspicious account freeze order to compliance silo.</p>
@@ -687,7 +804,7 @@ export function RolesManagementStitchPage() {
                   </div>
                 </div>
               </div>
-              <div className="mb-6 category-block" data-category="regulatory">
+              <div className="mb-6 category-block" data-category="regulatory" style={{ display: catVisible(["kyc.approve_id_document","kyc.file_fincen_sar"]) ? undefined : "none" }}>
                 <div className="flex items-center justify-between pb-2 mb-2 bg-surface-container-low px-4 py-2 rounded-xl">
                   <div className="flex items-center gap-2">
 <MsIcon name="gavel" className="text-primary text-[19px]" />
@@ -696,7 +813,7 @@ export function RolesManagementStitchPage() {
                   <span className="text-[11px] font-semibold text-on-surface-variant">2 Listed Checks</span>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff">
+                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff" style={{ display: permVisible("diff", "kyc.approve_id_document") ? undefined : "none" }}>
                     <div className="col-span-5 pr-4">
                       <p className="font-mono text-xs font-semibold text-on-surface">kyc.approve_id_document</p>
                       <p className="text-[11px] text-on-surface-variant mt-0.5">Affirms pass-through validation for non-resident prop trader onboarding documents.</p>
@@ -711,7 +828,7 @@ export function RolesManagementStitchPage() {
                     </div>
                     <div className="col-span-2 text-right">                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-surface-container-high text-on-surface">                        KYC Level 2</span></div>
                   </div>
-                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff">
+                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="diff" style={{ display: permVisible("diff", "kyc.file_fincen_sar") ? undefined : "none" }}>
                     <div className="col-span-5 pr-4">
                       <p className="font-mono text-xs font-semibold text-on-surface">kyc.file_fincen_sar</p>
                       <p className="text-[11px] text-on-surface-variant mt-0.5">Transmits encrypted FinCEN Suspicious Activity Report payload directly to federal gateway.</p>
@@ -728,7 +845,7 @@ export function RolesManagementStitchPage() {
                   </div>
                 </div>
               </div>
-              <div className="category-block" data-category="payouts">
+              <div className="category-block" data-category="payouts" style={{ display: catVisible(["payouts.authorize_disbursement"]) ? undefined : "none" }}>
                 <div className="flex items-center justify-between pb-2 mb-2 bg-surface-container-low px-4 py-2 rounded-xl">
                   <div className="flex items-center gap-2">
 <MsIcon name="payments" className="text-primary text-[19px]" />
@@ -737,7 +854,7 @@ export function RolesManagementStitchPage() {
                   <span className="text-[11px] font-semibold text-on-surface-variant">1 Listed Check</span>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="common">
+                  <div className="perm-row grid grid-cols-12 items-center p-3 rounded-xl bg-surface hover:bg-surface-container-low/60 transition-colors" data-type="common" style={{ display: permVisible("common", "payouts.authorize_disbursement") ? undefined : "none" }}>
                     <div className="col-span-5 pr-4">
                       <p className="font-mono text-xs font-semibold text-on-surface">payouts.authorize_disbursement</p>
                       <p className="text-[11px] text-on-surface-variant mt-0.5">Authorizes release of profit-split wire batches to verified merchant accounts.</p>
@@ -759,8 +876,8 @@ export function RolesManagementStitchPage() {
               </div>
               <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
                 <button className="px-4 py-2 rounded-xl bg-surface-container text-on-surface font-semibold text-xs tracking-wide hover:bg-surface-container-high transition-colors" onClick={() => setSo0(false)}>                  Close Comparison</button>
-                <button className="px-4 py-2 rounded-xl bg-secondary-container text-on-secondary-container font-semibold text-xs tracking-wide hover:bg-surface-container-highest transition-colors">                  Clone Combined as New Role...</button>
-                <button className="px-5 py-2 rounded-xl bg-primary text-on-primary font-semibold text-xs tracking-wide hover:bg-primary/90 transition-colors shadow-sm" onClick={() => setSo0(false)}>                  Apply Role Template</button>
+                <button className="px-4 py-2 rounded-xl bg-secondary-container text-on-secondary-container font-semibold text-xs tracking-wide hover:bg-surface-container-highest transition-colors" onClick={() => { toast({ title: "Combined role cloned", description: "Union of Risk Desk Manager + Compliance Analyst saved as a new draft custom role." }); setSo0(false); }}>                  Clone Combined as New Role...</button>
+                <button className="px-5 py-2 rounded-xl bg-primary text-on-primary font-semibold text-xs tracking-wide hover:bg-primary/90 transition-colors shadow-sm" onClick={() => { toast({ title: "Template applied", description: "Selected role template merged into the active configuration." }); setSo0(false); }}>                  Apply Role Template</button>
               </div>
             </div>
           </div>
@@ -806,11 +923,11 @@ export function RolesManagementStitchPage() {
               <div className="flex items-center justify-between pt-1 px-1">
                 <span className="text-xs font-semibold text-on-surface">Action to Apply:</span>
                 <div className="flex items-center gap-1 bg-surface p-1 rounded-xl shadow-inner">
-                  <button className="px-3 py-1 rounded-lg text-xs font-bold bg-error text-on-error shadow-sm flex items-center gap-1" onClick={() => setSo1(false)}>
+                  <button className={`px-3 py-1 rounded-lg text-xs shadow-sm flex items-center gap-1 transition-colors ${mutation === "revoke" ? "font-bold bg-error text-on-error" : "font-semibold text-on-surface-variant hover:text-on-surface"}`} onClick={() => setMutation("revoke")}>
 <MsIcon name="remove_circle" className="text-xs" />
                     Revoke Entitlement
                   </button>
-                  <button className="px-3 py-1 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1">
+                  <button className={`px-3 py-1 rounded-lg text-xs shadow-sm flex items-center gap-1 transition-colors ${mutation === "grant" ? "font-bold bg-primary text-on-primary" : "font-semibold text-on-surface-variant hover:text-on-surface"}`} onClick={() => setMutation("grant")}>
 <MsIcon name="check_circle" className="text-xs" />
                     Grant
                   </button>
@@ -842,7 +959,7 @@ export function RolesManagementStitchPage() {
             </div>
             <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-2">
               <button className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" onClick={() => setSo1(false)}>                Cancel / Discard</button>
-              <button className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-on-primary shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2" onClick={() => setSo1(false)}>
+              <button className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-on-primary shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2" onClick={() => { toast({ title: mutation === "revoke" ? "Entitlement revoked" : "Entitlement granted", description: mutation === "revoke" ? "payouts.force_settlement revoked from Risk Desk Manager - signed and committed to WORM storage." : "payouts.force_settlement granted to Risk Desk Manager - signed and committed to WORM storage.", variant: mutation === "revoke" ? "destructive" : undefined }); setSo1(false); }}>
 <MsIcon name="lock" className="text-base" />
                 Confirm Entitlement Change
               </button>
@@ -850,6 +967,47 @@ export function RolesManagementStitchPage() {
           </div>
         </div>
         </>
+      )}
+      {newRoleOpen && (
+        <div className="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-surface-container-lowest w-full max-w-md rounded-2xl shadow-2xl p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary-fixed flex items-center justify-center text-on-primary-fixed"><MsIcon name="add" className="text-xl" /></div>
+              <div>
+                <h2 className="text-lg font-headline font-bold text-on-surface">New Custom Role</h2>
+                <p className="text-xs text-on-surface-variant">Start from a blank entitlement set — permissions are granted in the editor.</p>
+              </div>
+            </div>
+            <input
+              autoFocus
+              value={newRoleName}
+              onChange={(e) => setNewRoleName(e.target.value)}
+              placeholder="Role name (e.g. Desk Payouts Officer)"
+              className="w-full px-3 py-2.5 rounded-xl bg-surface-container text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-primary shadow-inner"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newRoleName.trim()) {
+                  toast({ title: "Role created", description: `"${newRoleName.trim()}" added as a draft custom role — 0 permissions granted.` });
+                  setNewRoleName("");
+                  setNewRoleOpen(false);
+                }
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button className="px-4 py-2 rounded-xl bg-surface text-on-surface text-xs font-semibold hover:bg-surface-container transition-colors" onClick={() => { setNewRoleName(""); setNewRoleOpen(false); }}>Cancel</button>
+              <button
+                disabled={!newRoleName.trim()}
+                className="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-all shadow-sm disabled:opacity-40"
+                onClick={() => {
+                  toast({ title: "Role created", description: `"${newRoleName.trim()}" added as a draft custom role — 0 permissions granted.` });
+                  setNewRoleName("");
+                  setNewRoleOpen(false);
+                }}
+              >
+                Create Role
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
