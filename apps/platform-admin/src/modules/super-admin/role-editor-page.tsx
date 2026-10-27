@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { roles as allRoles } from "@/lib/platform/mock-data";
 import { RoleDefinition } from "@/lib/platform/types";
@@ -22,7 +22,7 @@ export function RoleEditorPage() {
   const role = roles.find((r) => r.id === editRoleId);
   const [name, setName] = useState(role?.name ?? "");
   const [description, setDescription] = useState(role?.description ?? "");
-  const [appScope, setAppScope] = useState(role?.application ?? "super-admin");
+  const [appScope, setAppScope] = useState<string>(role?.application ?? "super-admin");
   const [permissions, setPermissions] = useState(role?.permissions ?? []);
 
   const allPermissions = [
@@ -128,9 +128,9 @@ export function RoleEditorPage() {
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select application" />
                     <SelectContent>
-                      <SelectItem label="Super Admin" value="super-admin" />
-                      <SelectItem label="Prop Admin" value="prop-admin" />
-                      <SelectItem label="Trader" value="trader" />
+                      <SelectItem value="super-admin">Super Admin</SelectItem>
+                      <SelectItem value="prop-admin">Prop Admin</SelectItem>
+                      <SelectItem value="trader">Trader</SelectItem>
                     </SelectContent>
                   </SelectTrigger>
                 </Select>
@@ -175,7 +175,7 @@ export function RoleEditorPage() {
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button
-                variant="primary"
+                variant="default"
                 disabled={!name || permissions.length === 0}
                 onClick={() => {
                   toast({ title: "Role Saved", description: `${name} updated with ${permissions.length} permissions.` });
@@ -227,3 +227,4 @@ export function PermissionMatrix({ permissions }: { permissions: string[] }) {
       ))}
     </div>
   );
+}

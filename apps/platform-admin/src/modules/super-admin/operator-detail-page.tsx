@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Modal, ModalContent, ModalHeader, ModalFooter, ModalDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { users as allUsers, roles as allRoles } from "@/lib/platform/mock-data";
 import { AuthUser, TenantContext } from "@/lib/platform/types";
@@ -27,7 +27,7 @@ export function OperatorDetailPage() {
 
   const detailOperator = operators.find((o) => o.id === selectedUserId);
 
-  const inviteFormOpen = useState(false);
+  const [inviteFormOpen, setInviteFormOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({
     name: "",
     email: "",
@@ -38,7 +38,7 @@ export function OperatorDetailPage() {
   const handleSubmit = () => {
     toast({ title: "Invitation sent", description: `${inviteForm.name} (${inviteForm.email}) invited.` });
     setInviteForm((f) => ({ ...f, name: "", email: "", roles: [], application: "super-admin" }));
-    inviteFormOpen[0](false);
+    setInviteFormOpen(false);
   };
 
   return (
@@ -55,7 +55,7 @@ export function OperatorDetailPage() {
                   </Button>
                 ))}
               </div>
-              <Button variant="outline" size="sm" className="gap-1" onClick={() => inviteFormOpen[0](true)}>
+              <Button variant="outline" size="sm" className="gap-1" onClick={() => setInviteFormOpen(true)}>
                 <UserPlus className="mr-1 h-3.5 w-3.5" /> Invite
               </Button>
             </div>
@@ -84,16 +84,18 @@ export function OperatorDetailPage() {
         </Card>
 
         {/* Invite modal */}
-        <Modal open={inviteFormOpen} onClose={() => inviteFormOpen(false)}>
-          <ModalHeader>
-            <ModalTitle>Invite Operator</ModalTitle>
-            <ModalDescription>Enter details for the new operator invitation.</ModalDescription>
-          </ModalHeader>
-          <ModalFooter>
-            <Button variant="outline" onClick={() => inviteFormOpen(false)}>Cancel</Button>
-            <Button variant="primary" onClick={handleSubmit}>Send Invite</Button>
-          </ModalFooter>
-        </Modal>
+        <Dialog open={inviteFormOpen} onOpenChange={setInviteFormOpen}>
+          <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite Operator</DialogTitle>
+            <DialogDescription>Enter details for the new operator invitation.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteFormOpen(false)}>Cancel</Button>
+            <Button variant="default" onClick={handleSubmit}>Send Invite</Button>
+          </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </PageContent>
     </Page>
   );
@@ -155,4 +157,3 @@ function permLabelShort(id: string): string {
   const m = permLabel(id);
   return m?.label ?? id;
 }
-ENDOFFILE
