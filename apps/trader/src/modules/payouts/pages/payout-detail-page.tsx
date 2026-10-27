@@ -135,6 +135,68 @@ export function PayoutDetailPage() {
           </button>
         </TerraCard>
       </div>
+
+      {/* Post-payout account actions (M10) */}
+      {payout.status === "paid" && (
+        <TerraCard>
+          <TerraSectionTitle
+            title="Post-payout account actions"
+            description={`Choose what happens to account #${payout.accountLogin} now that ${formatMoney(payout.amount)} has been paid.`}
+            actions={<TerraBadge tone="success" dot>Action required</TerraBadge>}
+          />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="flex flex-col gap-3 rounded-xl bg-surface-container-low p-4">
+              <p className="text-sm font-bold text-on-surface">Reset balance</p>
+              <p className="flex-1 text-xs text-on-surface-variant">
+                Restart the account at its initial balance, keeping the same challenge
+                and rules. Ideal after locking in profit.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  alert(
+                    `Reset requested for #${payout.accountLogin}\n\nThe account balance will return to its initial value after the next sync. (Demo — no backend call.)`,
+                  )
+                }
+                className="rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-on-primary hover:bg-primary/90"
+              >
+                Reset balance
+              </button>
+            </div>
+            <div className="flex flex-col gap-3 rounded-xl bg-surface-container-low p-4">
+              <p className="text-sm font-bold text-on-surface">Continue trading</p>
+              <p className="flex-1 text-xs text-on-surface-variant">
+                Keep the remaining balance and keep trading toward your next payout
+                window — nothing changes.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  alert(
+                    `Continuing trading on #${payout.accountLogin} — no changes applied. (Demo)`,
+                  )
+                }
+                className="rounded-xl bg-surface-container-low px-4 py-2.5 text-xs font-bold text-on-surface ring-1 ring-outline-variant/60 hover:bg-surface-container"
+              >
+                Continue trading
+              </button>
+            </div>
+            <div className="flex flex-col gap-3 rounded-xl bg-surface-container-low p-4">
+              <p className="text-sm font-bold text-on-surface">Scaling eligibility</p>
+              <p className="flex-1 text-xs text-on-surface-variant">
+                Counted payouts push you toward the next account tier and a better
+                profit split. See where you stand.
+              </p>
+              <Link
+                href={`/payout-eligibility?id=${payout.account}`}
+                className="rounded-xl bg-surface-container-low px-4 py-2.5 text-center text-xs font-bold text-on-surface ring-1 ring-outline-variant/60 hover:bg-surface-container"
+              >
+                Check scaling →
+              </Link>
+            </div>
+          </div>
+        </TerraCard>
+      )}
     </div>
   );
 }
