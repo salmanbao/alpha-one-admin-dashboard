@@ -122,6 +122,9 @@ export function AccountWorkspaceStitchPage() {
             <StitchButton variant="surface" icon="open_in_new" onClick={() => navigate("trader-detail", { id: account.traderId })}>View Trader</StitchButton>
             <StitchButton variant="surface" icon="sticky_note_2" onClick={() => setNoteOpen(true)}>Add Note</StitchButton>
             <StitchButton variant="surface" icon="sync" onClick={() => setSyncOpen(true)}>Sync Account</StitchButton>
+            {/* PRD §4.18 /accounts/:id/extend + /enable */}
+            <StitchButton variant="surface" icon="schedule" onClick={() => toast({ title: "Time limit extended", description: `${account.login} deadline pushed +7 days (POST /accounts/:id/extend).` })}>Extend Time</StitchButton>
+            <StitchButton variant="surface" icon="toggle_on" onClick={() => toast({ title: "Account re-enabled", description: `${account.login} trading access restored (POST /accounts/:id/enable).` })}>Re-enable</StitchButton>
             <StitchButton variant="destructive" icon="block" onClick={() => setBlockOpen(true)}>Block</StitchButton>
           </>
         }
@@ -305,6 +308,9 @@ function ConfigurationTab({ account, onBlock, onReset }: { account: ReturnType<t
           <StitchButton variant="surface" icon="save" onClick={() => toast({ title: "Saved — still editing" })}>Save and Continue</StitchButton>
         </div>
         <div className="flex gap-2">
+          {/* PRD §4.18 /accounts/:id/override-pass · override-fail — manual evaluation decisions */}
+          <StitchButton variant="primary" icon="task_alt" onClick={() => toast({ title: "Manual pass recorded", description: `${account.login} marked as passed by operator override.` })}>Override Pass</StitchButton>
+          <StitchButton variant="destructive" icon="gpp_bad" onClick={() => toast({ title: "Manual fail recorded", description: `${account.login} marked as failed by operator override.`, variant: "destructive" })}>Override Fail</StitchButton>
           <StitchButton variant="destructive" icon="block" onClick={onBlock}>Block Account</StitchButton>
           <StitchButton variant="outline" icon="restart_alt" onClick={onReset}>Reset Account</StitchButton>
         </div>
