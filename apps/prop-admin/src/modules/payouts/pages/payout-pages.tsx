@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import { getTenantPayouts, getTraderPayouts, getTraderForUser, type Payout } from "@/lib/platform/mock-data";
@@ -27,6 +28,72 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+
+/**
+ * PRD §4.9 — Reject requires a reason (onReject(reason)). Controlled
+ * AlertDialog so the reason can be validated before the destructive
+ * confirm is enabled; the reason is surfaced in the toast (audit trail).
+ */
+function PayoutRejectButton({ p }: { p: Payout }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+
+  const confirmReject = () => {
+    applyPayoutDecision(p.reference, "rejected");
+    toast({
+      title: "Payout rejected",
+      description: `${p.traderName}'s payout was rejected — ${reason.trim()}`,
+      variant: "destructive",
+    });
+    setOpen(false);
+    setReason("");
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700">
+          Reject
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Reject this payout?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You are about to reject the payout of {formatCurrency(p.amount, p.currency)} for {p.traderName}.
+          </AlertDialogDescription>
+          <div className="rounded-md border border-rose-500/20 bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
+            <span className="font-medium">Consequence:</span> Rejecting this payout will notify the trader and reverse any pending fees. The trader will need to re-request. This action is logged.
+          </div>
+        </AlertDialogHeader>
+        <div className="space-y-1.5">
+          <Label htmlFor={`payout-reject-${p.id}`} className="text-xs text-muted-foreground">
+            Reason for rejection (required)
+          </Label>
+          <Textarea
+            id={`payout-reject-${p.id}`}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Account breached the 5% daily loss limit during the payout window."
+            className="min-h-[72px]"
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-rose-600 text-white hover:bg-rose-700"
+            disabled={!reason.trim()}
+            onClick={confirmReject}
+          >
+            Reject
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 const payoutExportColumns = (
   traderTerm: string,
@@ -98,41 +165,9 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
             </Button>
             {/* §24 Destructive Actions — Reject is high-consequence (notifies
                 trader, reverses pending fees, forces re-request). AlertDialog
-                friction matches PayoutReviewActions inline pattern. */}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700">
-                  Reject
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Reject this payout?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    You are about to reject the payout of {formatCurrency(p.amount, p.currency)} for {p.traderName}.
-                  </AlertDialogDescription>
-                  <div className="rounded-md border border-rose-500/20 bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
-                    <span className="font-medium">Consequence:</span> Rejecting this payout will notify the trader and reverse any pending fees. The trader will need to re-request. This action is logged.
-                  </div>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-rose-600 text-white hover:bg-rose-700"
-                    onClick={() => {
-                      applyPayoutDecision(p.reference, "rejected");
-                      toast({
-                        title: "Payout rejected",
-                        description: `${p.traderName}'s payout was rejected.`,
-                        variant: "destructive",
-                      });
-                    }}
-                  >
-                    Reject
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                friction matches PayoutReviewActions inline pattern; PRD
+                requires a captured reason (onReject(reason)). */}
+            <PayoutRejectButton p={p} />
             {/* Escalate → PRD multi-level approval: payout stays pending
                 but requires senior sign-off (badge on the status cell). */}
             {!payoutEscalated(p.reference) ? (
