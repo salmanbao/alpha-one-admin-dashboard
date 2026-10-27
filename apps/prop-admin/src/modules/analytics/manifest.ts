@@ -5,7 +5,7 @@
  * prove plug-and-play behavior. It depends on Trading + Accounts.
  */
 
-import { BarChart3, TrendingUp, Users, DollarSign, Activity, Brain, Building2, CalendarClock, Repeat, CreditCard, ShoppingBag, CandlestickChart } from "lucide-react";
+import { BarChart3, TrendingUp, Users, DollarSign, Activity, Brain, Building2, CalendarClock, Repeat, CreditCard, ShoppingBag, CandlestickChart, Send, FileText, LayoutGrid, Filter, Cookie } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { RevenueWidget, TraderGrowthWidget, RiskDistributionWidget, BreachTrendWidget, AnalyticsOverviewWidget, AdvancedAnalyticsWidget } from "./widgets/analytics-widgets";
 
@@ -42,6 +42,16 @@ const navigation: NavigationItem[] = [
       { id: "analytics.payouts", label: "Dashboard: Payouts", href: "dashboard-payouts", icon: DollarSign, permission: "analytics.read", group: "Dashboards" },
       { id: "analytics.orders", label: "Dashboard: Orders", href: "dashboard-orders", icon: ShoppingBag, permission: "analytics.read", group: "Dashboards" },
       { id: "analytics.positions", label: "Dashboard: Positions", href: "dashboard-positions", icon: CandlestickChart, permission: "analytics.read", group: "Dashboards" },
+
+      // ───────── Reporting & Exports (M15) ─────────
+      { id: "analytics.scheduled-exports", label: "Scheduled Exports", href: "scheduled-exports", icon: Send, permission: "analytics.read", group: "Reporting & Exports" },
+      { id: "analytics.saved-reports", label: "Saved Reports", href: "saved-reports", icon: FileText, permission: "analytics.read", group: "Reporting & Exports" },
+      { id: "analytics.dashboard-templates", label: "Dashboard Templates", href: "dashboard-template-library", icon: LayoutGrid, permission: "analytics.read", group: "Reporting & Exports" },
+
+      // ───────── Audiences & Segmentation (M15) ─────────
+      { id: "analytics.cohort-builder", label: "Cohort Builder", href: "cohort-builder", icon: Users, permission: "analytics.read", group: "Audiences & Segmentation" },
+      { id: "analytics.custom-segmentation", label: "Custom Segmentation", href: "custom-segmentation", icon: Filter, permission: "analytics.read", group: "Audiences & Segmentation" },
+      { id: "analytics.cookie-attribution", label: "Cookie Attribution", href: "cookie-attribution", icon: Cookie, permission: "analytics.read", group: "Audiences & Segmentation" },
     ],
   },
   { id: "analytics.trader-performance", label: "My Performance", href: "trader-performance", permission: "analytics.read" },
@@ -62,6 +72,14 @@ const routes: RouteDefinition[] = [
   { path: "dashboard-orders", viewId: "dashboard-orders", label: "Dashboard: Orders", permission: "analytics.read", module: "analytics" },
   { path: "dashboard-positions", viewId: "dashboard-positions", label: "Dashboard: Positions", permission: "analytics.read", module: "analytics" },
   { path: "trader-performance", viewId: "trader-performance", label: "My Performance", permission: "analytics.read", module: "analytics" },
+  // Reporting & Exports (M15)
+  { path: "scheduled-exports", viewId: "scheduled-exports", label: "Scheduled Exports", permission: "analytics.read", module: "analytics" },
+  { path: "saved-reports", viewId: "saved-reports", label: "Saved Reports", permission: "analytics.read", module: "analytics" },
+  { path: "dashboard-template-library", viewId: "dashboard-template-library", label: "Dashboard Template Library", permission: "analytics.read", module: "analytics" },
+  // Audiences & Segmentation (M15)
+  { path: "cohort-builder", viewId: "cohort-builder", label: "Cohort Builder", permission: "analytics.read", module: "analytics" },
+  { path: "custom-segmentation", viewId: "custom-segmentation", label: "Custom Segmentation", permission: "analytics.read", module: "analytics" },
+  { path: "cookie-attribution", viewId: "cookie-attribution", label: "Cookie Attribution", permission: "analytics.read", module: "analytics" },
 ];
 
 const widgets: WidgetDefinition[] = [
