@@ -46,9 +46,32 @@ export function PerformanceAnalyticsPage() {
     {},
   );
 
+  const handleExportReport = () => {
+    alert(
+      "Performance Report (PDF) — export started\n\n" +
+        `Win rate: ${winRate}%\n` +
+        `Net P&L: ${formatSignedMoney(terraTrades.reduce((s, t) => s + t.pnl, 0))}\n` +
+        `Expectancy: ${formatSignedMoney(Math.round(expectancy * 10) / 10)} per trade\n\n` +
+        "Branded TerraTrader cover, equity curve, symbol & session breakdown. " +
+        "You'll also receive it by email. (Demo — no backend call.)",
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <TerraPageHeader title="Performance Analytics" description="Last 30 days across all accounts" />
+      <TerraPageHeader
+        title="Performance Analytics"
+        description="Last 30 days across all accounts"
+        actions={
+          <button
+            type="button"
+            onClick={handleExportReport}
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary shadow-sm hover:bg-primary/90"
+          >
+            Export report (PDF)
+          </button>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <TerraCard className="p-5">
