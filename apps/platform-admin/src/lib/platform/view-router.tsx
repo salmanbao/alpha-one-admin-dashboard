@@ -370,6 +370,27 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "api-keys": dynamic(
+    () =>
+      import("@/modules/super-admin/api-keys-page").then((m) => ({
+        default: m.ApiKeysPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "rate-limits": dynamic(
+    () =>
+      import("@/modules/super-admin/rate-limits-page").then((m) => ({
+        default: m.RateLimitsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "api-analytics": dynamic(
+    () =>
+      import("@/modules/super-admin/api-analytics-page").then((m) => ({
+        default: m.ApiAnalyticsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
 };
 
 const dynamicViews = new Map<string, ViewComponent>();

@@ -21,7 +21,7 @@
  * When prop-admin adds or renames a module, update this catalog too.
  */
 
-import type { FrontendModule, ModuleManifest } from "@/lib/platform/types";
+import type { FrontendModule, ModuleManifest, WidgetCategory } from "@/lib/platform/types";
 import {
   BarChart3,
   Brain,
@@ -52,7 +52,7 @@ interface CatalogEntry {
     id: string;
     title: string;
     module: string;
-    category: string;
+    category: WidgetCategory;
     component?: never;
     permission: string;
     feature?: string;
@@ -295,7 +295,7 @@ export const tenantModuleCatalog: FrontendModule[] = CATALOG.map((e) => ({
     supportedApplications: ["prop-admin"],
     dependencies: e.dependencies,
   },
-  widgets: e.widgets,
+  widgets: e.widgets as FrontendModule["widgets"],
 }));
 
 /** Catalog lookup for a single module id (e.g. provisioning step 6 refs). */
