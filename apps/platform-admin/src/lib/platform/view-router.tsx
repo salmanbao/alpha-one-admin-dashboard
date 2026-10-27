@@ -412,6 +412,20 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "notification-templates": dynamic(
+    () =>
+      import("@/modules/super-admin/notification-templates-page").then((m) => ({
+        default: m.NotificationTemplatesPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "backup-policies": dynamic(
+    () =>
+      import("@/modules/super-admin/backup-policies-page").then((m) => ({
+        default: m.BackupPoliciesPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
 };
 
 const dynamicViews = new Map<string, ViewComponent>();
