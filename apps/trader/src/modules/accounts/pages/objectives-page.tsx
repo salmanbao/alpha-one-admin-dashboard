@@ -13,15 +13,20 @@ import {
   formatMoney,
 } from "@/components/terra/terra-ui";
 import { terraObjectives } from "@/lib/fixtures/terra-fixtures";
+import { useActiveAccount } from "@/lib/platform/account-context";
 
 export function ObjectivesPage() {
   const completed = terraObjectives.filter((o) => o.status === "complete").length;
+  // Objectives are scoped to the account currently selected in the header
+  // switcher — the header copy follows it so the trader always knows which
+  // account's targets they are reviewing.
+  const { activeAccount } = useActiveAccount();
 
   return (
     <div className="space-y-6">
       <TerraPageHeader
         title="Objectives Progress"
-        description="Terra Pro $100K • Phase 1 evaluation objectives"
+        description={`${activeAccount.name} • Login #${activeAccount.login} • ${activeAccount.phase} evaluation objectives`}
         actions={
           <TerraBadge tone="primary">
             {completed}/{terraObjectives.length} complete

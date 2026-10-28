@@ -15,9 +15,13 @@ import {
   TerraSectionTitle,
 } from "@/components/terra/terra-ui";
 import { marketWatch } from "@/lib/fixtures/terra-fixtures";
+import { useActiveAccount } from "@/lib/platform/account-context";
 
 export function OrderTicketPage() {
   const router = useRouter();
+  // The ticket writes to the active trading account — show it explicitly so
+  // the trader always knows which account an order will land on.
+  const { activeAccount } = useActiveAccount();
   const [symbol, setSymbol] = useState(marketWatch[0].symbol);
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [lots, setLots] = useState("0.50");
@@ -48,7 +52,10 @@ export function OrderTicketPage() {
 
   return (
     <div className="space-y-6">
-      <TerraPageHeader title="Order Ticket" description="Place a new order on your active account" />
+      <TerraPageHeader
+        title="Order Ticket"
+        description={`Place a new order on #${activeAccount.login} • ${activeAccount.name} — switch accounts from the header`}
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

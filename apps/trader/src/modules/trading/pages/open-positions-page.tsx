@@ -6,39 +6,75 @@
  */
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   TerraBadge,
   TerraCard,
+  TerraEmpty,
   TerraPageHeader,
   TerraStat,
   TerraTable,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { terraPositions } from "@/lib/fixtures/terra-fixtures";
+import { terraAccounts, terraPositions } from "@/lib/fixtures/terra-fixtures";
+import { useActiveAccount } from "@/lib/platform/account-context";
 
 export function OpenPositionsPage() {
-  const totalPnl = terraPositions.reduce((s, p) => s + p.pnl, 0);
-  const lots = terraPositions.reduce((s, p) => s + p.lots, 0);
+  const { activeAccount, activeAccountId } = useActiveAccount();
+  // Scope: the active trading account by default (follows the header
+  // switcher); "All accounts" shows the cross-account view.
+  const [scopeAll, setScopeAll] = useState(false);
+  const rows = scopeAll
+    ? terraPositions
+    : terraPositions.filter((p) => p.accountId === activeAccountId);
+
+  const totalPnl = rows.reduce((s, p) => s + p.pnl, 0);
+  const lots = rows.reduce((s, p) => s + p.lots, 0);
 
   return (
     <div className="space-y-6">
       <TerraPageHeader
         title="Open Positions"
-        description="Live positions across all your accounts"
+        description={
+          scopeAll
+            ? "Live positions across all your accounts"
+            : `Live positions on #${activeAccount.login} • ${activeAccount.name}`
+        }
         actions={
-          <Link
-            href="/order-ticket"
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
-          >
-            + New Order
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Scope toggle — active account (follows switcher) vs all accounts */}
+            <div className="flex items-center rounded-xl bg-surface-container-low p-0.5" role="group" aria-label="Position scope">
+              <button
+                type="button"
+                aria-pressed={!scopeAll}
+                onClick={() => setScopeAll(false)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${!scopeAll ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
+              >
+                This account
+              </button>
+              <button
+                type="button"
+                aria-pressed={scopeAll}
+                onClick={() => setScopeAll(true)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${scopeAll ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
+              >
+                All accounts
+              </button>
+            </div>
+            <Link
+              href="/order-ticket"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
+            >
+              + New Order
+            </Link>
+          </div>
         }
       />
 
       {/* Summary strip */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <TerraCard className="p-5">
-          <TerraStat label="Open Positions" value={terraPositions.length} />
+          <TerraStat label="Open Positions" value={rows.length} />
         </TerraCard>
         <TerraCard className="p-5">
           <TerraStat
@@ -51,14 +87,20 @@ export function OpenPositionsPage() {
           <TerraStat label="Total Volume" value={`${lots.toFixed(2)} lots`} />
         </TerraCard>
         <TerraCard className="p-5">
-          <TerraStat label="Winning" value={terraPositions.filter((p) => p.pnl > 0).length} sub={`of ${terraPositions.length}`} />
+          <TerraStat label="Winning" value={rows.filter((p) => p.pnl > 0).length} sub={`of ${rows.length}`} />
         </TerraCard>
       </div>
 
       <TerraCard>
+        {rows.length === 0 ? (
+          <TerraEmpty
+            title="No open positions"
+            description={`#${activeAccount.login} has no open positions right now. Switch accounts or place a new order.`}
+          />
+        ) : (
         <TerraTable
           head={["Symbol", "Side", "Lots", "Entry", "Current", "SL", "TP", "P&L", "Account"]}
-          rows={terraPositions.map((p) => [
+          rows={rows.map((p) => [
             <Link key="s" href={`/trade-detail?id=${p.id}`} className="font-semibold text-primary hover:underline">
               {p.symbol}
             </Link>,
@@ -74,11 +116,11 @@ export function OpenPositionsPage() {
               {formatSignedMoney(p.pnl)}
             </span>,
             <span key="a" className="font-mono text-xs text-on-surface-variant">
-              #{terraPositions.find((t) => t.id === p.id)?.accountId.replace("acc-", "")}
+              #{terraAccounts.find((a) => a.id === p.accountId)?.login ?? p.accountId.replace("acc-", "")}
             </span>,
           ])}
         />
-      </TerraCard>
+        )}      </TerraCard>
     </div>
   );
 }

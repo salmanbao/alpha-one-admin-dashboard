@@ -15,13 +15,19 @@ import {
   formatMoney,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { terraTrades, primaryAccount } from "@/lib/fixtures/terra-fixtures";
+import { terraTrades } from "@/lib/fixtures/terra-fixtures";
+import { useActiveAccount } from "@/lib/platform/account-context";
 
 export function AccountStatementPage() {
   const [period, setPeriod] = useState<"Sep" | "Oct">("Oct");
   const [downloaded, setDownloaded] = useState(false);
+  // Statement is scoped to the active trading account (header switcher);
+  // the trade list, P&L and balances all follow it.
+  const { activeAccount } = useActiveAccount();
+  const accTrades = terraTrades.filter((t) => t.accountId === activeAccount.id);
   const deposits = 0;
-  const closedPnl = terraTrades.reduce((s, t) => s + t.pnl, 0);
+  const closedPnl = accTrades.reduce((s, t) => s + t.pnl, 0);
+  const openingBalance = activeAccount.balance - closedPnl - deposits;
 
   const handleDownload = () => {
     setDownloaded(true);
@@ -32,7 +38,7 @@ export function AccountStatementPage() {
     <div className="space-y-6">
       <TerraPageHeader
         title="Account Statement"
-        description={`${primaryAccount.name} • Login #${primaryAccount.login} • ${period === "Oct" ? "October" : "September"} 2026`}
+        description={`${activeAccount.name} • Login #${activeAccount.login} • ${period === "Oct" ? "October" : "September"} 2026`}
         actions={
           <div className="flex gap-2">
             <button
@@ -62,7 +68,7 @@ export function AccountStatementPage() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <TerraCard className="p-5">
-          <TerraStat label="Opening Balance" value={formatMoney(100000)} />
+          <TerraStat label="Opening Balance" value={formatMoney(openingBalance)} />
         </TerraCard>
         <TerraCard className="p-5">
           <TerraStat label="Closed P&L" value={formatSignedMoney(closedPnl)} tone={closedPnl >= 0 ? "positive" : "negative"} />
@@ -71,15 +77,15 @@ export function AccountStatementPage() {
           <TerraStat label="Deposits" value={formatMoney(deposits)} />
         </TerraCard>
         <TerraCard className="p-5">
-          <TerraStat label="Closing Balance" value={formatMoney(primaryAccount.balance)} tone="positive" />
+          <TerraStat label="Closing Balance" value={formatMoney(activeAccount.balance)} tone="positive" />
         </TerraCard>
       </div>
 
       <TerraCard>
-        <TerraSectionTitle title="Closed positions" description="All closed trades in the statement period" />
+        <TerraSectionTitle title="Closed positions" description={`Closed trades on #${activeAccount.login} in the statement period`} />
         <TerraTable
           head={["Ticket", "Symbol", "Lots", "Entry", "Exit", "Pips", "P&L", "Closed"]}
-          rows={terraTrades.map((t) => [
+          rows={accTrades.map((t) => [
             <span key="t" className="font-mono text-xs font-bold">{t.ticket}</span>,
             <span key="s" className="font-semibold">{t.symbol}</span>,
             t.lots.toFixed(2),

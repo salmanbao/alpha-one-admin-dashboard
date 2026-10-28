@@ -19,6 +19,8 @@ import {
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
 import { terraTrades } from "@/lib/fixtures/terra-fixtures";
+import { useActiveAccount } from "@/lib/platform/account-context";
+import { toast } from "@/hooks/use-toast";
 
 const filters = ["All", "Wins", "Losses"] as const;
 const PAGE_SIZE = 20;
@@ -39,14 +41,26 @@ export function TradeHistoryPage() {
   });
   const [page, setPage] = useState(0);
 
+  // Account scope — follows the header switcher; "All accounts" shows the
+  // cross-account history. Filters/sort/pagination run on top of the pool.
+  const { activeAccount, activeAccountId } = useActiveAccount();
+  const [scopeAll, setScopeAll] = useState(false);
+  const pool = useMemo(
+    () =>
+      scopeAll
+        ? terraTrades
+        : terraTrades.filter((t) => t.accountId === activeAccountId),
+    [scopeAll, activeAccountId],
+  );
+
   const symbols = useMemo(
-    () => ["All", ...Array.from(new Set(terraTrades.map((t) => t.symbol)))],
-    [],
+    () => ["All", ...Array.from(new Set(pool.map((t) => t.symbol)))],
+    [pool],
   );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return terraTrades.filter((t) => {
+    return pool.filter((t) => {
       const outcomeOk =
         filter === "All" ? true : filter === "Wins" ? t.pnl > 0 : t.pnl < 0;
       const symbolOk = symbol === "All" ? true : t.symbol === symbol;
@@ -58,7 +72,7 @@ export function TradeHistoryPage() {
         (t.comment?.toLowerCase().includes(q) ?? false);
       return outcomeOk && symbolOk && sideOk && queryOk;
     });
-  }, [filter, symbol, side, query]);
+  }, [pool, filter, symbol, side, query]);
 
   const sorted = useMemo(() => {
     const dir = sort.dir === "asc" ? 1 : -1;
@@ -91,16 +105,17 @@ export function TradeHistoryPage() {
         : { key, dir: key === "ticket" || key === "symbol" ? "asc" : "desc" },
     );
 
-  const wins = terraTrades.filter((t) => t.pnl > 0);
-  const losses = terraTrades.filter((t) => t.pnl < 0);
-  const totalPnl = terraTrades.reduce((s, t) => s + t.pnl, 0);
-  const winRate = Math.round((wins.length / terraTrades.length) * 100);
+  const wins = pool.filter((t) => t.pnl > 0);
+  const losses = pool.filter((t) => t.pnl < 0);
+  const totalPnl = pool.reduce((s, t) => s + t.pnl, 0);
+  const winRate = pool.length ? Math.round((wins.length / pool.length) * 100) : 0;
   const avgWin = wins.length
     ? wins.reduce((s, t) => s + t.pnl, 0) / wins.length
     : 0;
   const avgLoss = losses.length
     ? losses.reduce((s, t) => s + t.pnl, 0) / losses.length
     : 0;
+  const bestTrade = pool.length ? Math.max(...pool.map((t) => t.pnl)) : 0;
 
   const handleExportCsv = () => {
     const headers = ["Ticket", "Symbol", "Side", "Lots", "Entry", "Exit", "Pips", "P&L", "Closed"];
@@ -110,10 +125,13 @@ export function TradeHistoryPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `trade-history-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `${scopeAll ? "all-accounts" : `acc-${activeAccount.login}`}-trade-history-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    alert(`Exported ${sorted.length} trades to CSV successfully!`);
+    toast({
+      title: "Export ready",
+      description: `Exported ${sorted.length} trades to CSV (${scopeAll ? "all accounts" : `#${activeAccount.login}`}).`,
+    });
   };
 
   const headCell = (label: string, key?: SortKey) =>
@@ -140,22 +158,47 @@ export function TradeHistoryPage() {
     <div className="space-y-6">
       <TerraPageHeader
         title="Trade History"
-        description="Closed trades across all your accounts"
+        description={
+          scopeAll
+            ? "Closed trades across all your accounts"
+            : `Closed trades on #${activeAccount.login} • ${activeAccount.name}`
+        }
         actions={
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            className="rounded-xl bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container"
-          >
-            Export CSV
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Scope toggle — active account (follows switcher) vs all accounts */}
+            <div className="flex items-center rounded-xl bg-surface-container-low p-0.5" role="group" aria-label="Trade scope">
+              <button
+                type="button"
+                aria-pressed={!scopeAll}
+                onClick={() => { setScopeAll(false); setPage(0); }}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${!scopeAll ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
+              >
+                This account
+              </button>
+              <button
+                type="button"
+                aria-pressed={scopeAll}
+                onClick={() => { setScopeAll(true); setPage(0); }}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${scopeAll ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
+              >
+                All accounts
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="rounded-xl bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container"
+            >
+              Export CSV
+            </button>
+          </div>
         }
       />
 
       {/* Trade analytics (M12: win rate, avg win/loss) */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
         <TerraCard className="p-5">
-          <TerraStat label="Closed Trades" value={terraTrades.length} sub="last 30 days" />
+          <TerraStat label="Closed Trades" value={pool.length} sub={scopeAll ? "last 30 days" : `#${activeAccount.login}`} />
         </TerraCard>
         <TerraCard className="p-5">
           <TerraStat label="Net P&L" value={formatSignedMoney(totalPnl)} tone={totalPnl >= 0 ? "positive" : "negative"} />
@@ -164,7 +207,7 @@ export function TradeHistoryPage() {
           <TerraStat
             label="Win Rate"
             value={`${winRate}%`}
-            sub={`${wins.length} of ${terraTrades.length}`}
+            sub={`${wins.length} of ${pool.length}`}
             tone="positive"
           />
         </TerraCard>
@@ -187,7 +230,7 @@ export function TradeHistoryPage() {
         <TerraCard className="p-5">
           <TerraStat
             label="Best Trade"
-            value={formatSignedMoney(Math.max(...terraTrades.map((t) => t.pnl)))}
+            value={formatSignedMoney(bestTrade)}
             tone="positive"
           />
         </TerraCard>

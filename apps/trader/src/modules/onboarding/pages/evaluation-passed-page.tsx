@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { TerraBadge, TerraCard, TerraPageHeader, TerraStat, formatMoney } from "@/components/terra/terra-ui";
-import { primaryAccount } from "@/lib/fixtures/terra-fixtures";
+import { useActiveAccount } from "@/lib/platform/account-context";
 
 const nextSteps = [
   { title: "Funded account credentials", note: "Email delivered when the new account is live", done: false },
@@ -16,7 +16,9 @@ const nextSteps = [
 ];
 
 export function EvaluationPassedPage() {
-  const acc = primaryAccount;
+  // The celebration copy names the account that passed — follows the
+  // active trading account from the header switcher.
+  const { activeAccount: acc } = useActiveAccount();
 
   return (
     <div className="space-y-6">
