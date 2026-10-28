@@ -23,6 +23,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Moon, Sun } from "lucide-react";
 import { Sidebar } from "./sidebar";
+import { AccountSwitcher } from "./account-switcher";
 import { notifications, terraTenant } from "@/lib/fixtures/terra-fixtures";
 
 const THEME_KEY = "terra-theme";
@@ -103,8 +104,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
           </div>
 
-          {/* Right: status, notifications, profile */}
+          {/* Right: active account switcher, status, notifications, profile */}
           <div className="ml-auto flex items-center gap-1">
+            {/* Active trading account — global switcher (all screens) */}
+            <AccountSwitcher />
             <div className="hidden items-center gap-2 rounded-full bg-sidebar-accent/60 px-3 py-1 text-xs font-semibold tracking-wide text-sidebar-primary-foreground md:flex">
               <span className="h-1.5 w-1.5 rounded-full bg-sidebar-primary animate-pulse" />
               <span>Markets Open · 24/5</span>

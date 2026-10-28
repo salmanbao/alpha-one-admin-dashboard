@@ -17,6 +17,8 @@ import {
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
 import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
+import { useActiveAccount } from "@/lib/platform/account-context";
+import { toast } from "@/hooks/use-toast";
 
 function StatusChip({ status }: { status: string }) {
   if (status === "active")
@@ -32,6 +34,10 @@ function StatusChip({ status }: { status: string }) {
 }
 
 export function MyAccountsPage() {
+  // The globally active account (header switcher) — used to highlight the
+  // current card and to power the per-card "Set active" action.
+  const { activeAccountId, setActiveAccountId } = useActiveAccount();
+
   if (terraAccounts.length === 0) {
     return (
       <div className="space-y-6">
@@ -60,8 +66,13 @@ export function MyAccountsPage() {
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        {terraAccounts.map((acc) => (
-          <TerraCard key={acc.id} className="flex flex-col justify-between gap-5">
+        {terraAccounts.map((acc) => {
+          const isActive = acc.id === activeAccountId;
+          return (
+          <TerraCard
+            key={acc.id}
+            className={`flex flex-col justify-between gap-5 ${isActive ? "ring-2 ring-primary/60 shadow-terra-lg" : ""}`}
+          >
             {/* Top row */}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
@@ -74,6 +85,11 @@ export function MyAccountsPage() {
                   <TerraBadge tone="secondary">{acc.phase}</TerraBadge>
                 )}
                 <StatusChip status={acc.status} />
+                {isActive && (
+                  <TerraBadge tone="success" dot>
+                    Viewing Now
+                  </TerraBadge>
+                )}
               </div>
               <span className="rounded-md bg-surface-container px-2.5 py-0.5 text-xs font-semibold text-on-surface-variant">
                 {acc.platform}
@@ -150,24 +166,43 @@ export function MyAccountsPage() {
             {/* Footer actions */}
             <div className="flex items-center justify-between gap-3 border-t border-outline-variant/40 pt-4">
               <Link
-                href="/account-detail"
+                href={`/account-detail?id=${acc.id}`}
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-primary transition-colors hover:text-on-primary-fixed-variant sm:text-sm"
               >
                 <span>View Account</span>
                 <span>→</span>
               </Link>
-              <Link
-                href="/trading-credentials"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface transition-colors hover:bg-surface-container"
-              >
-                <svg className="h-4 w-4 text-on-surface-variant" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="m21 2-2 2m-7.6 7.6a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L19.5 4.5m0 0 2.5 2.5-3 3-2.5-2.5" />
-                </svg>
-                <span>Credentials</span>
-              </Link>
+              <div className="flex items-center gap-2">
+                {!isActive && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveAccountId(acc.id);
+                      toast({
+                        title: "Account switched",
+                        description: `Now viewing #${acc.login} ${acc.name}. Dashboard, positions, risk and payouts follow this account.`,
+                      });
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/20"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Set active
+                  </button>
+                )}
+                <Link
+                  href="/trading-credentials"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface transition-colors hover:bg-surface-container"
+                >
+                  <svg className="h-4 w-4 text-on-surface-variant" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="m21 2-2 2m-7.6 7.6a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L19.5 4.5m0 0 2.5 2.5-3 3-2.5-2.5" />
+                  </svg>
+                  <span>Credentials</span>
+                </Link>
+              </div>
             </div>
           </TerraCard>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

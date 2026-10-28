@@ -63,7 +63,7 @@ export function MyChallengesPage() {
               <TerraProgress value={acc.targetProgress} />
             </div>
             <Link
-              href="/account-detail"
+              href={`/account-detail?id=${acc.id}`}
               className="mt-auto rounded-xl bg-surface-container-low py-2 text-center text-xs font-bold text-on-surface hover:bg-surface-container"
             >
               View challenge →

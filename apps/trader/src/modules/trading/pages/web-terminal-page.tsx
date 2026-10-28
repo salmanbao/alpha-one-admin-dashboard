@@ -12,7 +12,7 @@ import {
   TerraPageHeader,
   TerraSectionTitle,
 } from "@/components/terra/terra-ui";
-import { primaryAccount } from "@/lib/fixtures/terra-fixtures";
+import { useActiveAccount } from "@/lib/platform/account-context";
 
 const platforms = [
   { name: "MT5 Web Terminal", note: "Full desktop parity in your browser", status: "ready" as const },
@@ -21,7 +21,9 @@ const platforms = [
 ];
 
 export function WebTerminalPage() {
-  const acc = primaryAccount;
+  // Credentials are per-account — follow the active trading account so the
+  // login/server/platform shown always match the account being traded.
+  const { activeAccount: acc } = useActiveAccount();
 
   return (
     <div className="space-y-6">

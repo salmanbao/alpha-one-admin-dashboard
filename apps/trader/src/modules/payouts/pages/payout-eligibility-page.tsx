@@ -19,11 +19,11 @@ import {
 } from "@/components/terra/terra-ui";
 import {
   terraPayouts,
-  terraAccounts,
   scalingPlan,
   payoutSchedule,
   payoutScheduleOptions,
 } from "@/lib/fixtures/terra-fixtures";
+import { useSyncActiveAccount } from "@/lib/platform/account-context";
 
 const checklist = (account: { balance: number; pnl: number }) => [
   { label: "Account active and in good standing", ok: true, note: "Verified" },
@@ -40,8 +40,9 @@ function fmtDate(iso: string) {
 
 export function PayoutEligibilityPage() {
   const params = useSearchParams();
-  const accountId = params.get("id") || "acc-092841";
-  const account = terraAccounts.find((a) => a.id === accountId) ?? terraAccounts[0];
+  // ?id= deep link wins (from payout detail / links), otherwise follow the
+  // globally active trading account from the header switcher.
+  const account = useSyncActiveAccount(params.get("id"));
   const availableSince = account.payoutNote ? "Available in 4 days" : "Aware 14 days";
   const [schedule, setSchedule] = useState(payoutSchedule.current);
   const [savedAt, setSavedAt] = useState<string | null>(null);

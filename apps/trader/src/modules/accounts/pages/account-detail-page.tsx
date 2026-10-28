@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@pfaas/ui";
 import {
   TerraAreaChart,
@@ -29,17 +30,20 @@ import {
   challengeTimeline,
   dailyPnl14d,
   equityCurve30d,
-  primaryAccount,
   terraObjectives,
   terraPositions,
   terraTrades,
 } from "@/lib/fixtures/terra-fixtures";
+import { useSyncActiveAccount } from "@/lib/platform/account-context";
 
 const detailTabs = ["Charts & Analytics", "Trade History", "Credentials"] as const;
 
 export function AccountDetailPage() {
   const [tab, setTab] = useState<(typeof detailTabs)[number]>("Charts & Analytics");
-  const acc = primaryAccount;
+  // Account scope: ?id= from My Accounts deep links, otherwise the globally
+  // active account from the header switcher (URL and switcher stay in sync).
+  const params = useSearchParams();
+  const acc = useSyncActiveAccount(params.get("id"));
   const accountPositions = terraPositions.filter((p) => p.accountId === acc.id);
   const accountTrades = terraTrades.filter((t) => t.accountId === acc.id);
   const tl = challengeTimeline;
@@ -78,8 +82,8 @@ export function AccountDetailPage() {
         actions={
           <>
             <TerraBadge tone="secondary">{acc.phase}</TerraBadge>
-            <TerraBadge tone="primary" dot pulse>
-              ACTIVE
+            <TerraBadge tone={acc.status === "active" ? "primary" : acc.status === "breached" ? "error" : "secondary"} dot pulse={acc.status === "active"}>
+              {acc.status.toUpperCase()}
             </TerraBadge>
           </>
         }
@@ -106,7 +110,10 @@ export function AccountDetailPage() {
         </TerraCard>
       </div>
 
-      {/* Evaluation timeline (M12: trading days counter + time remaining) */}
+      {/* Evaluation timeline (M12: trading days counter + time remaining).
+          The detailed clock fixture is anchored to #100030 — other accounts
+          get their own account-scoped snapshot so nothing renders stale. */}
+      {tl.accountId === acc.id ? (
       <TerraCard>
         <TerraSectionTitle
           title="Evaluation timeline"
@@ -152,6 +159,41 @@ export function AccountDetailPage() {
           </div>
         </div>
       </TerraCard>
+      ) : (
+      <TerraCard>
+        <TerraSectionTitle
+          title="Evaluation timeline"
+          description={
+            acc.phase === "Funded"
+              ? "Funded account — the evaluation clock is complete."
+              : `${acc.phase} snapshot for this account.`
+          }
+          actions={<TerraBadge tone="secondary">{acc.phase}</TerraBadge>}
+        />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <TerraStat
+            label="Profit Target"
+            value={formatMoney(acc.profitTarget)}
+            sub={`${acc.targetProgress}% reached`}
+            tone={acc.targetProgress >= 100 ? "positive" : undefined}
+          />
+          <TerraStat
+            label="Daily Loss Remaining"
+            value={formatMoney(acc.dailyLossRemaining)}
+          />
+          <TerraStat
+            label="Max DD Remaining"
+            value={formatMoney(acc.maxDdRemaining)}
+          />
+          <TerraStat
+            label="Account Status"
+            value={acc.status === "active" ? "In good standing" : acc.status === "standby" ? "Standby" : acc.status === "breached" ? "Breached" : acc.status}
+            sub={`#${acc.login}`}
+            tone={acc.status === "active" ? "positive" : acc.status === "breached" ? "negative" : undefined}
+          />
+        </div>
+      </TerraCard>
+      )}
 
       {/* Tabs: Charts & Analytics / Trade History / Credentials (PRD §3.7.1) */}
       <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Account sections">
