@@ -435,6 +435,12 @@ export interface TradingAccount {
   currency: string;
   status: "active" | "breached" | "passed" | "pending" | "in-progress" | "blocked";
   createdAt: string;
+  /**
+   * Link to the challenge phase config (plan) this account was enrolled under.
+   * Drives payout math (profit split, account size as starting balance) —
+   * see lib/payout-math.ts. Absent only on legacy seeds.
+   */
+  phaseConfigId?: string;
 }
 
 export interface Position {
@@ -684,9 +690,25 @@ function seedAccounts(): TradingAccount[] {
         : t.challengePhase === "phase-2"
         ? ["phase-1", "phase-2"]
         : ["phase-1"];
+    // Spread the trader's realised P&L across their accounts so each account's
+    // balance reflects profit already banked (above the plan's starting size).
+    // This keeps payout eligibility (lib/payout-math.ts) demo-coherent:
+    // funded accounts can have realised profit above the plan account size.
+    const realisedDelta = Math.round(t.totalPnl / phases.length);
     for (const phase of phases) {
       n++;
       const isFunded = phase === "funded";
+      const baseSize = isFunded ? 50000 : 10000;
+      // Account balance = plan starting size + realised profit/loss to date.
+      const balance = baseSize + realisedDelta;
+      // Equity = balance + floating P&L. The trader-level floating P&L
+      // (equity − accountBalance) is scaled from the trader's seed balance to
+      // this account's balance so the numbers stay coherent (previously the
+      // trader's equity was copied verbatim, producing equity < balance).
+      const floating = Math.round((t.equity - t.accountBalance) * (balance / t.accountBalance));
+      // Phase config linkage — drives payout split + starting balance:
+      // funded → Instant Funded (pc-6, 90% split); challenges → 2-Step phases.
+      const phaseConfigId = isFunded ? "pc-6" : phase === "phase-2" ? "pc-2" : "pc-1";
       out.push({
         id: `acct-${t.tenantId}-${n}`,
         tenantId: t.tenantId,
@@ -696,12 +718,13 @@ function seedAccounts(): TradingAccount[] {
         platform: n % 3 === 0 ? "DXTrade" : "MT5",
         type: isFunded ? "funded" : "challenge",
         phase,
-        balance: isFunded ? 50000 : 10000,
-        equity: Math.round(t.equity),
+        balance,
+        equity: balance + floating,
         leverage: "1:100",
         currency: t.tenantId === "tenant-beta" ? "GBP" : "USD",
         status: t.status === "breached" ? "breached" : isFunded ? "active" : "in-progress",
         createdAt: t.joinedAt,
+        phaseConfigId,
       });
     }
   }
@@ -1272,6 +1295,25 @@ export function getTenantPositions(tenantId: string): Position[] {
 export function getTraderForUser(user: { traderId?: string; application?: string }): Trader | null {
   if (!user.traderId) return null;
   return traders.find((t) => t.id === user.traderId) ?? null;
+}
+
+/** The KYC record for one trader (self-service payout gating). */
+export function getTraderKyc(traderId: string): KycRecord | null {
+  return kycRecords.find((k) => k.traderId === traderId) ?? null;
+}
+
+/**
+ * Preview fallback for trader-self-service views opened by an admin user
+ * (no user↔trader link): the first funded, non-breached trader in the
+ * tenant. Callers must label the data as a preview — an admin is looking at
+ * another trader's numbers, not their own.
+ */
+export function getFirstFundedTrader(tenantId: string): Trader | null {
+  return (
+    traders.find(
+      (t) => t.tenantId === tenantId && t.challengePhase === "funded" && t.status === "active",
+    ) ?? null
+  );
 }
 
 /** All trading accounts owned by this trader (across phases / brokers). */
