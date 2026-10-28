@@ -43,9 +43,11 @@ export function MarketplacePage() {
           <>
             <Link
               href="/challenge-comparison"
+              target="_blank"
+              rel="noopener noreferrer"
               className="rounded-xl bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container"
             >
-              Compare programs
+              Compare programs ↗
             </Link>
             <Link
               href="/purchase-history"

@@ -18,9 +18,17 @@ import {
 } from "@/components/terra/terra-ui";
 import { terraAccounts, terraPositions } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
+import { DetailDialog } from "@/components/terra/detail-dialog";
+import { TradeDetailContent } from "./trade-detail-page";
 
 export function OpenPositionsPage() {
   const { activeAccount, activeAccountId } = useActiveAccount();
+  // Quick-view overlay: clicking a symbol opens the trade detail in a
+  // dialog on top of the live table — the positions view is never lost.
+  const [quickPosId, setQuickPosId] = useState<string | null>(null);
+  const quickPos = quickPosId
+    ? (terraPositions.find((p) => p.id === quickPosId) ?? null)
+    : null;
   // Scope: the active trading account by default (follows the header
   // switcher); "All accounts" shows the cross-account view.
   const [scopeAll, setScopeAll] = useState(false);
@@ -101,9 +109,15 @@ export function OpenPositionsPage() {
         <TerraTable
           head={["Symbol", "Side", "Lots", "Entry", "Current", "SL", "TP", "P&L", "Account"]}
           rows={rows.map((p) => [
-            <Link key="s" href={`/trade-detail?id=${p.id}`} className="font-semibold text-primary hover:underline">
+            <button
+              key="s"
+              type="button"
+              aria-haspopup="dialog"
+              onClick={() => setQuickPosId(p.id)}
+              className="text-left font-semibold text-primary hover:underline"
+            >
               {p.symbol}
-            </Link>,
+            </button>,
             <TerraBadge key="sd" tone={p.side === "long" ? "primary" : "error"}>
               {p.side === "long" ? "Long" : "Short"}
             </TerraBadge>,
@@ -121,6 +135,23 @@ export function OpenPositionsPage() {
           ])}
         />
         )}      </TerraCard>
+
+      {/* Quick-view overlay — inspect a trade without leaving live positions */}
+      <DetailDialog
+        open={quickPos !== null}
+        onOpenChange={(o) => {
+          if (!o) setQuickPosId(null);
+        }}
+        title={quickPos ? `${quickPos.symbol} position` : "Trade detail"}
+        description={
+          quickPos
+            ? `${quickPos.side === "long" ? "Long" : "Short"} • ${quickPos.lots.toFixed(2)} lots • opened ${new Date(quickPos.openedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+            : undefined
+        }
+        fullPageHref={quickPos ? `/trade-detail?id=${quickPos.id}` : undefined}
+      >
+        {quickPos && <TradeDetailContent id={quickPos.id} embedded />}
+      </DetailDialog>
     </div>
   );
 }

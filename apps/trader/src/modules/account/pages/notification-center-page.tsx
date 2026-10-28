@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { cn } from "@pfaas/ui";
+import Link from "next/link";
 import {
   TerraBadge,
   TerraCard,
@@ -17,10 +18,19 @@ import {
   type TerraTone,
 } from "@/components/terra/terra-ui";
 import { communicationLog, notifications } from "@/lib/fixtures/terra-fixtures";
+import { DetailDialog } from "@/components/terra/detail-dialog";
 
 const filters = ["All", "Unread", "Milestones", "Payouts", "Risk"] as const;
 const modes = ["In-App Feed", "Communication History"] as const;
 const channels = ["All", "Email", "SMS", "Push"] as const;
+
+/** Contextual deep link per notification type (preview → related screen). */
+const notifAction: Record<string, { href: string; label: string }> = {
+  milestone: { href: "/objectives", label: "View objectives →" },
+  payout: { href: "/payout-history", label: "View payout history →" },
+  risk: { href: "/risk-dashboard", label: "Open risk dashboard →" },
+  system: { href: "/help-center", label: "Open help center →" },
+};
 
 const typeIcon = {
   milestone: "🎯",
@@ -46,6 +56,12 @@ export function NotificationCenterPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
   const [channel, setChannel] = useState<(typeof channels)[number]>("All");
   const [readIds, setReadIds] = useState<string[]>([]);
+  // Quick-view overlay: a notification opens in a preview dialog on top
+  // of the feed (read-and-dismiss with a contextual action).
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detail = detailId
+    ? (notifications.find((n) => n.id === detailId) ?? null)
+    : null;
 
   const isUnread = (id: string) =>
     notifications.find((n) => n.id === id)?.unread && !readIds.includes(id);
@@ -135,7 +151,14 @@ export function NotificationCenterPage() {
                 <span className="mt-0.5 text-xl">{typeIcon[n.type as keyof typeof typeIcon] ?? "🔔"}</span>
                 <div className="flex-1">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-bold text-on-surface">{n.title}</p>
+                    <button
+                      type="button"
+                      aria-haspopup="dialog"
+                      onClick={() => setDetailId(n.id)}
+                      className="text-left text-sm font-bold text-on-surface hover:text-primary"
+                    >
+                      {n.title}
+                    </button>
                     <span className="text-[11px] text-on-surface-variant">
                       {new Date(n.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
@@ -229,6 +252,56 @@ export function NotificationCenterPage() {
           </TerraCard>
         </>
       )}
+
+      {/* Quick-view overlay — preview a notification in place */}
+      <DetailDialog
+        open={detail !== null}
+        onOpenChange={(o) => {
+          if (!o) setDetailId(null);
+        }}
+        title={detail ? detail.title : "Notification"}
+        description={
+          detail
+            ? `${detail.type} • ${new Date(detail.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
+            : undefined
+        }
+      >
+        {detail && (
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 rounded-xl bg-surface-container-low p-4">
+              <span className="text-2xl">
+                {typeIcon[detail.type as keyof typeof typeIcon] ?? "🔔"}
+              </span>
+              <div className="flex-1">
+                <p className="text-sm text-on-surface">{detail.body}</p>
+                {isUnread(detail.id) && (
+                  <TerraBadge tone="primary" dot className="mt-2">
+                    Unread
+                  </TerraBadge>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Link
+                href={notifAction[detail.type]?.href ?? "/notification-center"}
+                onClick={() => setDetailId(null)}
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                {notifAction[detail.type]?.label ?? "Open related screen →"}
+              </Link>
+              {isUnread(detail.id) && (
+                <button
+                  type="button"
+                  onClick={() => setReadIds((ids) => [...ids, detail.id])}
+                  className="rounded-xl bg-surface-container-low px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container"
+                >
+                  ✓ Mark read
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </DetailDialog>
     </div>
   );
 }

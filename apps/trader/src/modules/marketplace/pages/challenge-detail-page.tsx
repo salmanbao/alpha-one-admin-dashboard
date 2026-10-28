@@ -130,9 +130,11 @@ export function ChallengeDetailPage() {
             </Link>
             <Link
               href="/challenge-comparison"
+              target="_blank"
+              rel="noopener noreferrer"
               className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container"
             >
-              Compare programs
+              Compare programs ↗
             </Link>
           </TerraCard>
         </div>

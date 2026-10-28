@@ -3,6 +3,12 @@
 /**
  * Trade Detail — converted from stitch_screens/trade_detail
  * Single trade summary with execution details and timeline.
+ *
+ * Split into `TradeDetailContent({ id, embedded })` so it renders both
+ * as the route (`/trade-detail?id=`) and inside the quick-view dialog
+ * on Trade History / Open Positions (`embedded` hides page chrome —
+ * the dialog header and footer provide navigation instead).
+ * Replay opens in a new tab: session replay is a heavy, parallel task.
  */
 
 import Link from "next/link";
@@ -17,10 +23,16 @@ import {
 } from "@/components/terra/terra-ui";
 import { terraTrades } from "@/lib/fixtures/terra-fixtures";
 
-export function TradeDetailPage() {
-  const params = useSearchParams();
+export function TradeDetailContent({
+  id,
+  embedded = false,
+}: {
+  id: string | null;
+  /** true when rendered inside the quick-view dialog (page chrome hidden). */
+  embedded?: boolean;
+}) {
   const trade =
-    terraTrades.find((t) => t.id === params.get("id")) ?? terraTrades[0];
+    terraTrades.find((t) => t.id === id) ?? terraTrades[0];
   const fmt = (d: string) =>
     new Date(d).toLocaleString("en-US", {
       month: "short",
@@ -29,28 +41,36 @@ export function TradeDetailPage() {
       minute: "2-digit",
     });
 
+  const actions = (
+    <>
+      <TerraBadge tone={trade.side === "long" ? "primary" : "error"}>
+        {trade.side === "long" ? "Long" : "Short"}
+      </TerraBadge>
+      <TerraBadge tone={trade.pnl >= 0 ? "success" : "error"}>
+        {formatSignedMoney(trade.pnl)}
+      </TerraBadge>
+      <Link
+        href={`/trade-replay?id=${trade.id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
+      >
+        Replay trade ↗
+      </Link>
+    </>
+  );
+
   return (
     <div className="space-y-6">
-      <TerraPageHeader
-        title={`Trade #${trade.ticket}`}
-        description={`${trade.symbol} • ${trade.side === "long" ? "Long" : "Short"} • ${trade.lots.toFixed(2)} lots`}
-        actions={
-          <>
-            <TerraBadge tone={trade.side === "long" ? "primary" : "error"}>
-              {trade.side === "long" ? "Long" : "Short"}
-            </TerraBadge>
-            <TerraBadge tone={trade.pnl >= 0 ? "success" : "error"}>
-              {formatSignedMoney(trade.pnl)}
-            </TerraBadge>
-            <Link
-              href={`/trade-replay?id=${trade.id}`}
-              className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
-            >
-              Replay trade
-            </Link>
-          </>
-        }
-      />
+      {embedded ? (
+        <div className="flex flex-wrap items-center gap-2">{actions}</div>
+      ) : (
+        <TerraPageHeader
+          title={`Trade #${trade.ticket}`}
+          description={`${trade.symbol} • ${trade.side === "long" ? "Long" : "Short"} • ${trade.lots.toFixed(2)} lots`}
+          actions={actions}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -91,7 +111,7 @@ export function TradeDetailPage() {
             <TerraSectionTitle title="Result" />
             <div className="flex flex-col items-center gap-1 rounded-xl bg-surface-container-low p-6 text-center">
               <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                Net P&L
+                Net P&amp;L
               </span>
               <span
                 className={`font-headline text-3xl font-bold tabular-nums ${
@@ -110,14 +130,21 @@ export function TradeDetailPage() {
               </p>
             )}
           </TerraCard>
-          <Link
-            href="/trade-history"
-            className="block rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
-          >
-            ← Back to Trade History
-          </Link>
+          {!embedded && (
+            <Link
+              href="/trade-history"
+              className="block rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
+            >
+              ← Back to Trade History
+            </Link>
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+export function TradeDetailPage() {
+  const params = useSearchParams();
+  return <TradeDetailContent id={params.get("id")} />;
 }

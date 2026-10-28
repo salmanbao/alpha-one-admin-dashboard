@@ -55,9 +55,11 @@ export function TradingCredentialsPage() {
             </button>
             <Link
               href="/web-terminal"
+              target="_blank"
+              rel="noopener noreferrer"
               className="rounded-xl bg-surface-container-low px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container"
             >
-              Open in Web Terminal
+              Open in Web Terminal ↗
             </Link>
           </div>
         </TerraCard>
