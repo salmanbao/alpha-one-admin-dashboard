@@ -116,7 +116,8 @@
 "support-knowledge-editor": "knowledge_article_editor",
 "kyc": "kyc_aml_overview",
 "kyc-provider-marketplace": "kyc_provider_marketplace",
-"kyc-providers": "kyc_provider_settings",
+"kyc-provider-settings": "kyc_provider_settings",
+"kyc-providers": "kyc_providers",
 "kyc-record-detail": "kyc_record_detail_elena_althaus_kyc_94182",
 "kyc-reviews": "kyc_reviews",
 "kyc-risk": "kyc_risk",
@@ -369,7 +370,7 @@
 "knowledge_base": "support-knowledge",
 "kyc_aml_overview": "kyc",
 "kyc_provider_marketplace": "kyc-provider-marketplace",
-"kyc_provider_settings": "kyc-providers",
+"kyc_provider_settings": "kyc-provider-settings",
 "kyc_providers": "kyc-providers",
 "kyc_record_detail_elena_althaus_kyc_94182": "kyc-record-detail",
 "kyc_reviews": "kyc-reviews",
@@ -1447,9 +1448,11 @@
 "kyc_provider_marketplace_connect_provider_sheet_state",
 "kyc_provider_marketplace_side_by_side_comparison_spec_matrix_modal_state"
 ],
-"kyc-providers": [
+"kyc-provider-settings": [
 "kyc_provider_settings_switch_active_provider_confirmation_alertdialog_state",
-"kyc_provider_settings_test_connection_diagnostic_ping_state",
+"kyc_provider_settings_test_connection_diagnostic_ping_state"
+],
+"kyc-providers": [
 "kyc_providers_deactivate_provider_confirmation_alertdialog_state",
 "kyc_providers_edit_configuration_sheet_state"
 ],
@@ -2044,6 +2047,7 @@
 "kyc",
 "kyc-aml-cases",
 "kyc-provider-marketplace",
+"kyc-provider-settings",
 "kyc-providers",
 "kyc-record-detail",
 "kyc-reviewer-trail",
@@ -2913,10 +2917,15 @@
 "tag": "NEW",
 "batch": "Batch 29 \u2014 KYC (1 existing + 4 new)"
 },
+"kyc-provider-settings": {
+"title": "KYC Provider Settings",
+"tag": "NEW",
+"batch": "Batch 29 \u2014 KYC (1 existing + 4 new)"
+},
 "kyc-providers": {
 "title": "KYC Providers",
 "tag": "EXISTING",
-"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 206-210)"
+"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 200-204)"
 },
 "kyc-reviewer-trail": {
 "title": "Reviewer Audit Trail",
@@ -3166,377 +3175,377 @@
 "settings": {
 "title": "Settings Landing",
 "tag": "EXISTING",
-"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 196-200)"
+"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 190-194)"
 },
 "user-management": {
 "title": "User Management",
 "tag": "EXISTING",
-"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 196-200)"
+"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 190-194)"
 },
 "team-members": {
 "title": "Team Members",
 "tag": "EXISTING",
-"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 196-200)"
+"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 190-194)"
 },
 "group-management": {
 "title": "Group Management",
 "tag": "EXISTING",
-"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 196-200)"
+"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 190-194)"
 },
 "banner-management": {
 "title": "Banner Management",
 "tag": "EXISTING",
-"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 196-200)"
+"batch": "Batch 40 \u2014 Settings Landing Cluster (Screens 190-194)"
 },
 "marketing-integrations": {
 "title": "Marketing Integrations",
 "tag": "EXISTING",
-"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 201-205)"
+"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 195-199)"
 },
 "social-media-links": {
 "title": "Social Media Links",
 "tag": "EXISTING",
-"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 201-205)"
+"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 195-199)"
 },
 "marketing-banner-edit": {
 "title": "Marketing Banner Edit",
 "tag": "EXISTING",
-"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 201-205)"
+"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 195-199)"
 },
 "token-management": {
 "title": "Token Management",
 "tag": "EXISTING",
-"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 201-205)"
+"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 195-199)"
 },
 "token-detail": {
 "title": "Token Detail",
 "tag": "EXISTING",
-"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 201-205)"
+"batch": "Batch 41 \u2014 Marketing + Token Cluster (Screens 195-199)"
 },
 "device-activities": {
 "title": "Device Activities",
 "tag": "EXISTING",
-"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 206-210)"
+"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 200-204)"
 },
 "email-templates": {
 "title": "Email Templates",
 "tag": "EXISTING",
-"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 206-210)"
+"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 200-204)"
 },
 "email-template-edit": {
 "title": "Email Template Edit",
 "tag": "EXISTING",
-"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 206-210)"
+"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 200-204)"
 },
 "notifications-management": {
 "title": "Notifications Management",
 "tag": "EXISTING",
-"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 206-210)"
+"batch": "Batch 42 \u2014 Devices + KYC + Email Cluster (Screens 200-204)"
 },
 "notification-edit": {
 "title": "Notification Edit",
 "tag": "EXISTING",
-"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 211-215)"
+"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 205-209)"
 },
 "certificate-management": {
 "title": "Certificate Management",
 "tag": "EXISTING",
-"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 211-215)"
+"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 205-209)"
 },
 "certificate-template-designer": {
 "title": "Certificate Template Designer",
 "tag": "EXISTING",
-"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 211-215)"
+"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 205-209)"
 },
 "certificate-detail": {
 "title": "Certificate Detail",
 "tag": "EXISTING",
-"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 211-215)"
+"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 205-209)"
 },
 "certificates-issued": {
 "title": "Certificates Issued",
 "tag": "EXISTING",
-"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 211-215)"
+"batch": "Batch 43 \u2014 Notifications + Certificates Cluster (Screens 205-209)"
 },
 "certificate-font-upload": {
 "title": "Certificate Font Upload",
 "tag": "EXISTING",
-"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 216-220)"
+"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 210-214)"
 },
 "utilities": {
 "title": "Utilities",
 "tag": "EXISTING",
-"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 216-220)"
+"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 210-214)"
 },
 "roles-management": {
 "title": "Roles Management",
 "tag": "EXISTING",
-"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 216-220)"
+"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 210-214)"
 },
 "csv-import-dialog": {
 "title": "CSV Import Dialog",
 "tag": "NEW",
-"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 216-220)"
+"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 210-214)"
 },
 "add-group-sheet": {
 "title": "Add Group Sheet",
 "tag": "NEW",
-"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 216-220)"
+"batch": "Batch 44 \u2014 Settings Detail + Settings NEW #1 Cluster (Screens 210-214)"
 },
 "kyc-provider-marketplace": {
 "title": "Add KYC Provider Marketplace",
 "tag": "NEW",
-"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 221-225)"
+"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 215-219)"
 },
 "user-audit-timeline": {
 "title": "Per-User Audit Timeline \u2014 Settings Context",
 "tag": "NEW",
-"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 221-225)"
+"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 215-219)"
 },
 "device-detail": {
 "title": "Device Detail View",
 "tag": "NEW",
-"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 221-225)"
+"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 215-219)"
 },
 "settings-module-detail": {
 "title": "Settings Module Detail",
 "tag": "NEW",
-"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 221-225)"
+"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 215-219)"
 },
 "super-overview": {
 "title": "Platform Overview",
 "tag": "EXISTING",
-"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 221-225)"
+"batch": "Batch 45 \u2014 Settings NEW #2 + Super-Admin Start (Screens 215-219)"
 },
 "tenants": {
 "title": "Tenants",
 "tag": "EXISTING",
-"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 226-230)"
+"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 220-224)"
 },
 "module-catalog": {
 "title": "Module Catalog",
 "tag": "EXISTING",
-"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 226-230)"
+"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 220-224)"
 },
 "platform-health": {
 "title": "Platform Health",
 "tag": "EXISTING",
-"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 226-230)"
+"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 220-224)"
 },
 "create-tenant": {
 "title": "Create Tenant",
 "tag": "EXISTING",
-"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 226-230)"
+"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 220-224)"
 },
 "tenant-detail": {
 "title": "Tenant Detail",
 "tag": "EXISTING",
-"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 226-230)"
+"batch": "Batch 46 \u2014 Super-Admin Tenant Cluster (Screens 220-224)"
 },
 "tenant-lifecycle": {
 "title": "Tenant Lifecycle",
 "tag": "EXISTING",
-"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 231-235)"
+"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 225-229)"
 },
 "dashboard-manager": {
 "title": "Dashboard Manager",
 "tag": "EXISTING",
-"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 231-235)"
+"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 225-229)"
 },
 "platform-audit": {
 "title": "Platform Audit",
 "tag": "EXISTING",
-"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 231-235)"
+"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 225-229)"
 },
 "platform-staff": {
 "title": "Platform Staff",
 "tag": "EXISTING",
-"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 231-235)"
+"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 225-229)"
 },
 "platform-roles": {
 "title": "Platform Roles",
 "tag": "EXISTING",
-"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 231-235)"
+"batch": "Batch 47 \u2014 Super-Admin Lifecycle + Audit Cluster (Screens 225-229)"
 },
 "role-audit": {
 "title": "Role Audit Log",
 "tag": "EXISTING",
-"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 236-240)"
+"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 230-234)"
 },
 "permissions-catalog": {
 "title": "Permissions Catalog",
 "tag": "EXISTING",
-"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 236-240)"
+"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 230-234)"
 },
 "super-module-detail": {
 "title": "Module Detail \u2014 Super-Admin",
 "tag": "NEW",
-"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 236-240)"
+"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 230-234)"
 },
 "service-detail": {
 "title": "Service Detail",
 "tag": "NEW",
-"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 236-240)"
+"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 230-234)"
 },
 "super-admin-user-audit-timeline": {
 "title": "Per-User Audit Timeline \u2014 Super-Admin Context",
 "tag": "NEW",
-"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 236-240)"
+"batch": "Batch 48 \u2014 Super-Admin Audit + NEW Cluster (Screens 230-234)"
 },
 "tenant-billing-detail": {
 "title": "Tenant Billing Detail",
 "tag": "NEW",
-"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 241-245)"
+"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 235-239)"
 },
 "incident-management": {
 "title": "Incident Management",
 "tag": "NEW",
-"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 241-245)"
+"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 235-239)"
 },
 "tenant-impersonation-audit": {
 "title": "Tenant Impersonation Audit Trail",
 "tag": "NEW",
-"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 241-245)"
+"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 235-239)"
 },
 "platform-module-toggle": {
 "title": "Platform-wide Module Enable/Disable",
 "tag": "NEW",
-"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 241-245)"
+"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 235-239)"
 },
 "pending-tasks": {
 "title": "Pending Tasks",
 "tag": "EXISTING",
-"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 241-245)"
+"batch": "Batch 49 \u2014 Super-Admin NEW Cluster + Pendings Start (Screens 235-239)"
 },
 "pending-task-detail": {
 "title": "Pending Task Detail",
 "tag": "NEW",
-"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 246-250)"
+"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 240-244)"
 },
 "my-tasks": {
 "title": "My Tasks",
 "tag": "NEW",
-"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 246-250)"
+"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 240-244)"
 },
 "pending-snoozed-resolved": {
 "title": "Snoozed / Resolved History",
 "tag": "NEW",
-"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 246-250)"
+"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 240-244)"
 },
 "pending-bulk-assign": {
 "title": "Pending Task Bulk-Assign / Bulk-Resolve",
 "tag": "NEW",
-"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 246-250)"
+"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 240-244)"
 },
 "profile": {
 "title": "Profile",
 "tag": "EXISTING",
-"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 246-250)"
+"batch": "Batch 50 \u2014 Pendings NEW + Profile Start (Screens 240-244)"
 },
 "change-password-dialog": {
 "title": "Change Password Dialog",
 "tag": "NEW",
-"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 251-255)"
+"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 245-249)"
 },
 "2fa-setup-dialog": {
 "title": "2FA Setup Dialog",
 "tag": "NEW",
-"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 251-255)"
+"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 245-249)"
 },
 "connected-sessions-detail": {
 "title": "Connected Sessions Detail",
 "tag": "NEW",
-"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 251-255)"
+"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 245-249)"
 },
 "notification-preferences-matrix": {
 "title": "Notification Preferences Matrix",
 "tag": "NEW",
-"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 251-255)"
+"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 245-249)"
 },
 "profile-api-tokens": {
 "title": "API Tokens Cross-link",
 "tag": "NEW",
-"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 251-255)"
+"batch": "Batch 51 \u2014 Profile NEW Cluster (Screens 245-249)"
 },
 "notifications": {
 "title": "Notification Center",
 "tag": "EXISTING",
-"batch": "Batch 52 \u2014 Notifications Module (Screens 256-260)"
+"batch": "Batch 52 \u2014 Notifications Module (Screens 250-254)"
 },
 "notification-detail-dialog": {
 "title": "Notification Detail Dialog",
 "tag": "NEW",
-"batch": "Batch 52 \u2014 Notifications Module (Screens 256-260)"
+"batch": "Batch 52 \u2014 Notifications Module (Screens 250-254)"
 },
 "notifications-archived": {
 "title": "Archived / Snoozed Notifications",
 "tag": "NEW",
-"batch": "Batch 52 \u2014 Notifications Module (Screens 256-260)"
+"batch": "Batch 52 \u2014 Notifications Module (Screens 250-254)"
 },
 "notifications-module-feed": {
 "title": "Per-Module Notification Feed",
 "tag": "NEW",
-"batch": "Batch 52 \u2014 Notifications Module (Screens 256-260)"
+"batch": "Batch 52 \u2014 Notifications Module (Screens 250-254)"
 },
 "notification-preferences-matrix-notifications": {
 "title": "Notification Preferences Matrix \u2014 Notifications Context",
 "tag": "NEW",
-"batch": "Batch 52 \u2014 Notifications Module (Screens 256-260)"
+"batch": "Batch 52 \u2014 Notifications Module (Screens 250-254)"
 },
 "help": {
 "title": "Help",
 "tag": "EXISTING",
-"batch": "Batch 53 \u2014 Help Module (Screens 261-265)"
+"batch": "Batch 53 \u2014 Help Module (Screens 255-259)"
 },
 "help-center-faq": {
 "title": "Help Center / FAQ",
 "tag": "NEW",
-"batch": "Batch 53 \u2014 Help Module (Screens 261-265)"
+"batch": "Batch 53 \u2014 Help Module (Screens 255-259)"
 },
 "help-changelog": {
 "title": "Changelog / What's New",
 "tag": "NEW",
-"batch": "Batch 53 \u2014 Help Module (Screens 261-265)"
+"batch": "Batch 53 \u2014 Help Module (Screens 255-259)"
 },
 "support-contact": {
 "title": "Support Contact",
 "tag": "NEW",
-"batch": "Batch 53 \u2014 Help Module (Screens 261-265)"
+"batch": "Batch 53 \u2014 Help Module (Screens 255-259)"
 },
 "help-onboarding": {
 "title": "Onboarding / Getting Started",
 "tag": "NEW",
-"batch": "Batch 53 \u2014 Help Module (Screens 261-265)"
+"batch": "Batch 53 \u2014 Help Module (Screens 255-259)"
 },
 "help-module-detail": {
 "title": "Module Detail \u2014 Help Context",
 "tag": "NEW",
-"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 266-270)"
+"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 260-264)"
 },
 "overview": {
 "title": "Overview",
 "tag": "EXISTING",
-"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 266-270)"
+"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 260-264)"
 },
 "overview-widget-config": {
 "title": "Per-Widget Configuration Dialogs",
 "tag": "NEW",
-"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 266-270)"
+"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 260-264)"
 },
 "dashboard-template-library": {
 "title": "Dashboard Template Library",
 "tag": "NEW",
-"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 266-270)"
+"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 260-264)"
 },
 "overview-saved-views": {
 "title": "Saved Views / Multi-dashboard Switcher",
 "tag": "NEW",
-"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 266-270)"
+"batch": "Batch 54 \u2014 Help NEW + Overview Module (Screens 260-264)"
 },
 "overview-onboarding-tour": {
 "title": "Onboarding Tour",
 "tag": "NEW",
-"batch": "Batch 55 \u2014 Overview NEW (Screen 271)"
+"batch": "Batch 55 \u2014 Overview NEW (Screen 265)"
 }
 }
 }
