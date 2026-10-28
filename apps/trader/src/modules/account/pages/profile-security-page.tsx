@@ -8,6 +8,7 @@
  */
 
 import { useRef, useState } from "react";
+import { toast } from "@/hooks/use-toast";
 import {
   TerraBadge,
   TerraCard,
@@ -43,11 +44,10 @@ export function ProfileSecurityPage() {
     if (!file) return;
     setAvatar(URL.createObjectURL(file));
     // Frontend-only demo: no upload endpoint.
-    alert(
-      `Avatar updated: ${file.name}\n\n` +
-        "Preview applied locally. A real deployment would PUT /profile/avatar. " +
-        "(Demo — no backend call.)",
-    );
+    toast({
+      title: "Avatar updated",
+      description: `${file.name} — preview applied locally. A real deployment would PUT /profile/avatar. (Demo — no backend call.)`,
+    });
   };
 
   const handlePassword = () => {

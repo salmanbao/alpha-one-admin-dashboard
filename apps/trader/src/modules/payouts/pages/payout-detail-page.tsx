@@ -15,6 +15,7 @@ import {
   formatMoney,
 } from "@/components/terra/terra-ui";
 import { terraPayouts } from "@/lib/fixtures/terra-fixtures";
+import { toast } from "@/hooks/use-toast";
 
 export function PayoutDetailPage() {
   const params = useSearchParams();
@@ -48,7 +49,10 @@ export function PayoutDetailPage() {
   ];
 
   const handleDownloadReceipt = () => {
-    alert(`Receipt ${payout.reference} downloaded successfully!\n\nAmount: ${formatMoney(payout.amount)}\nMethod: ${payout.method}\nStatus: ${payout.status}`);
+    toast({
+      title: "Receipt downloaded",
+      description: `${payout.reference} — ${formatMoney(payout.amount)} via ${payout.method} (${payout.status}).`,
+    });
   };
 
   return (
@@ -154,9 +158,10 @@ export function PayoutDetailPage() {
               <button
                 type="button"
                 onClick={() =>
-                  alert(
-                    `Reset requested for #${payout.accountLogin}\n\nThe account balance will return to its initial value after the next sync. (Demo — no backend call.)`,
-                  )
+                  toast({
+                    title: "Reset requested",
+                    description: `#${payout.accountLogin} balance will return to its initial value after the next sync. (Demo — no backend call.)`,
+                  })
                 }
                 className="rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-on-primary hover:bg-primary/90"
               >
@@ -172,9 +177,10 @@ export function PayoutDetailPage() {
               <button
                 type="button"
                 onClick={() =>
-                  alert(
-                    `Continuing trading on #${payout.accountLogin} — no changes applied. (Demo)`,
-                  )
+                  toast({
+                    title: "No changes applied",
+                    description: `Continuing trading on #${payout.accountLogin}. (Demo)`,
+                  })
                 }
                 className="rounded-xl bg-surface-container-low px-4 py-2.5 text-xs font-bold text-on-surface ring-1 ring-outline-variant/60 hover:bg-surface-container"
               >

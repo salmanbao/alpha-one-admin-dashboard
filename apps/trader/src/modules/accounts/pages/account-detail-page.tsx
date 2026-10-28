@@ -35,6 +35,7 @@ import {
   terraTrades,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
+import { toast } from "@/hooks/use-toast";
 
 const detailTabs = ["Charts & Analytics", "Trade History", "Credentials"] as const;
 
@@ -71,7 +72,10 @@ export function AccountDetailPage() {
     a.download = `account-${acc.login}-trades.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    alert(`Exported ${accountTrades.length} trades for #${acc.login} to CSV!`);
+    toast({
+      title: "Export ready",
+      description: `Exported ${accountTrades.length} trades for #${acc.login} to CSV.`,
+    });
   };
 
   return (
