@@ -15,14 +15,14 @@ import {
 } from "@/components/terra/terra-ui";
 import { AccountCredentials } from "@/components/terra/account-credentials";
 import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
+import { toast } from "@/hooks/use-toast";
 
 export function TradingCredentialsPage() {
   const handleResetPassword = (login: string) => {
-    alert(
-      `Password reset requested for #${login}\n\n` +
-        "A fresh investor password will be emailed to you within a few minutes. " +
-        "The old password stops working immediately.\n\n(Demo — no backend call.)",
-    );
+    toast({
+      title: "Password reset requested",
+      description: `A fresh investor password for #${login} will be emailed within minutes — the old password stops working immediately. (Demo — no backend call.)`,
+    });
   };
 
   return (

@@ -15,6 +15,7 @@ import { StatusBadge } from "@pfaas/ui";
 import { EmptyState } from "@pfaas/ui";
 import { formatCurrency } from "@pfaas/ui";
 import { Activity, Plus } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@pfaas/ui";
 
 export function PositionsPage() {
@@ -68,7 +69,16 @@ export function PositionsPage() {
         title="My Open Positions"
         description="View and manage your currently open trading positions"
         actions={
-          <Button variant="outline" size="sm" onClick={() => alert("Mock: open new position ticket")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              toast({
+                title: "Order ticket",
+                description: "Mock: open new position ticket (no backend call).",
+              })
+            }
+          >
             <Plus className="h-4 w-4 mr-2" />
             New Position
           </Button>

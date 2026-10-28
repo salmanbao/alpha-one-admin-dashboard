@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { TerraBadge, TerraCard, TerraPageHeader, TerraStat, formatSignedMoney } from "@/components/terra/terra-ui";
 import { journalEntries } from "@/lib/fixtures/terra-fixtures";
+import { toast } from "@/hooks/use-toast";
 
 const moodTone = {
   disciplined: "success",
@@ -23,7 +24,10 @@ export function TradingJournalPage() {
 
   const handleCreateEntry = () => {
     if (!newEntry.title.trim()) return;
-    alert(`Journal entry "${newEntry.title}" created successfully!\n\nMood: ${newEntry.mood}\nNotes: ${newEntry.notes || "(no notes)"}`);
+    toast({
+      title: "Journal entry created",
+      description: `"${newEntry.title}" — mood: ${newEntry.mood}. Notes: ${newEntry.notes || "(none)"}`,
+    });
     setShowNewEntry(false);
     setNewEntry({ title: "", notes: "", mood: "disciplined" });
   };

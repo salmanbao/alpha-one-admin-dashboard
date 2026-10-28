@@ -15,6 +15,7 @@ import {
   type TerraTone,
 } from "@/components/terra/terra-ui";
 import { terraCertificates, type TerraCertificate } from "@/lib/fixtures/terra-fixtures";
+import { toast } from "@/hooks/use-toast";
 
 const kindLabel: Record<TerraCertificate["kind"], string> = {
   funded: "Funded",
@@ -30,13 +31,10 @@ const statusTone: Record<TerraCertificate["status"], TerraTone> = {
 
 function handleDownload(cert: TerraCertificate) {
   // Frontend-only demo: no backend/PDF service — surface the mock action.
-  alert(
-    `Downloading "${cert.title}" (PDF)\n\n` +
-      `Program: ${cert.program}\n` +
-      `Credential ID: ${cert.credentialId}\n` +
-      `Issued: ${new Date(cert.issuedAt).toLocaleDateString("en-US")}\n\n` +
-      `Branded with the TerraTrader logo and a verifiable digital signature.`,
-  );
+  toast({
+    title: `Downloading "${cert.title}" (PDF)`,
+    description: `${cert.program} • Credential ${cert.credentialId} • Issued ${new Date(cert.issuedAt).toLocaleDateString("en-US")} — branded with the TerraTrader logo and a verifiable digital signature.`,
+  });
 }
 
 function CertificatePreview({ cert }: { cert: TerraCertificate }) {
@@ -167,7 +165,12 @@ export function CertificatesPage() {
           </div>
           <button
             type="button"
-            onClick={() => alert("Verification link copied to clipboard!")}
+            onClick={() =>
+              toast({
+                title: "Link copied",
+                description: "Verification link copied to clipboard.",
+              })
+            }
             className="rounded-xl bg-surface-container-low px-4 py-3 text-sm font-bold text-on-surface transition-colors hover:bg-surface-container"
           >
             Copy link

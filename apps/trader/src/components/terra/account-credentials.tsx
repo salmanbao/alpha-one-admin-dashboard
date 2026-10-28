@@ -4,12 +4,13 @@
  * Account Credentials — PRD §3.7.5 reusable component.
  * Show/hide password, copy login / password / server / server address,
  * and download the trading platform. Frontend-only demo: clipboard uses
- * the real API, downloads are mocked with alert().
+ * the real API, downloads are mocked with toasts.
  */
 
 import { useState } from "react";
 import { Download } from "lucide-react";
 import { TerraBadge } from "./terra-ui";
+import { toast } from "@/hooks/use-toast";
 
 export interface CredentialAccount {
   login: string;
@@ -73,11 +74,10 @@ function CredentialRow({
 
 export function AccountCredentials({ account }: { account: CredentialAccount }) {
   const handleDownloadPlatform = () => {
-    alert(
-      `Downloading ${account.platform} for ${account.server}\n\n` +
-        `Login #${account.login} will work once the platform is installed.\n\n` +
-        `(Demo — no backend call.)`,
-    );
+    toast({
+      title: `${account.platform} download started`,
+      description: `Installing for ${account.server} — login #${account.login} will work once the platform is installed. (Demo — no backend call.)`,
+    });
   };
 
   return (
