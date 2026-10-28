@@ -58,10 +58,10 @@ export function PayoutRequestPage() {
             View Payout History
           </Link>
           <Link
-            href="/overview"
+            href="/dashboard"
             className="rounded-xl border border-outline-variant px-6 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-low"
           >
-            Back to Overview
+            Back to Dashboard
           </Link>
         </div>
       </div>

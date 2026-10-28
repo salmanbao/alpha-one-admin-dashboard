@@ -16,7 +16,7 @@ import {
   TerraTable,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { equityCurve30d, terraTrades } from "@/lib/fixtures/terra-fixtures";
+import { equityCurveFor, terraAccounts, terraTrades } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { toast } from "@/hooks/use-toast";
 
@@ -32,6 +32,18 @@ export function PerformanceAnalyticsPage() {
   const pool = scopeAll
     ? terraTrades
     : terraTrades.filter((t) => t.accountId === activeAccountId);
+
+  // Equity curve follows the same scope as the KPI cards — the active
+  // account's own curve, or the combined equity of every account.
+  const curve = scopeAll
+    ? terraAccounts.reduce<{ x: string; y: number }[]>((accs, a) => {
+        equityCurveFor(a.id, 30).forEach((p, i) => {
+          accs[i] ??= { x: p.x, y: 0 };
+          accs[i].y += p.y;
+        });
+        return accs;
+      }, [])
+    : equityCurveFor(activeAccountId, 30);
 
   const winTrades = pool.filter((t) => t.pnl > 0);
   const lossTrades = pool.filter((t) => t.pnl < 0);
@@ -159,8 +171,15 @@ export function PerformanceAnalyticsPage() {
       </div>
 
       <TerraCard>
-        <TerraSectionTitle title="Equity curve" description="Growth of your account balance" />
-        <TerraAreaChart data={equityCurve30d} formatValue={(v) => formatMoneyShort(v)} />
+        <TerraSectionTitle
+          title="Equity curve"
+          description={
+            scopeAll
+              ? "Combined equity across all your accounts (30 days)"
+              : `Growth of #${activeAccount.login} balance (30 days)`
+          }
+        />
+        <TerraAreaChart data={curve} formatValue={(v) => formatMoneyShort(v)} />
       </TerraCard>
 
       <div className="flex items-center gap-1.5">

@@ -16,22 +16,21 @@ import {
   TerraTable,
   formatMoney,
 } from "@/components/terra/terra-ui";
-import { traderBreachesFallback, terraPositions } from "@/lib/fixtures/terra-fixtures";
+import {
+  traderBreachesFallback,
+  terraPositions,
+  terraRiskLimits,
+} from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 
 const breaches = traderBreachesFallback;
 
-/** Program risk limits per account (mock) — used to derive live usage %. */
-const RISK_LIMITS: Record<string, { daily: number; maxDd: number }> = {
-  "acc-100030": { daily: 2000, maxDd: 10000 },
-  "acc-092841": { daily: 800, maxDd: 2500 },
-  "acc-098412": { daily: 1200, maxDd: 2500 },
-};
-
 export function RiskDashboardPage() {
   // Risk gauges follow the active trading account (header switcher).
   const { activeAccount: acc } = useActiveAccount();
-  const limits = RISK_LIMITS[acc.id] ?? { daily: 1000, maxDd: 5000 };
+  // Program limits come from the shared fixture so this page, the
+  // objectives page and the rules page can never disagree.
+  const limits = terraRiskLimits[acc.id] ?? { daily: 1000, maxDd: 5000 };
   const dailyUsedPct = Math.max(
     0,
     Math.round(((limits.daily - acc.dailyLossRemaining) / limits.daily) * 100),

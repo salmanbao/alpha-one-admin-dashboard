@@ -28,6 +28,7 @@ const typeTone = {
   kyc: "neutral",
 } as const;
 
+/** Fallback destinations by type — each document carries its own `href`. */
 const typeHref: Record<string, string> = {
   statement: "/account-statement",
   tax: "/tax-documents",
@@ -66,7 +67,7 @@ export function DocumentsPage() {
             <div className="flex items-center gap-2">
               <TerraBadge tone={typeTone[d.type]}>{d.type}</TerraBadge>
               <Link
-                href={typeHref[d.type] ?? "/documents"}
+                href={d.href ?? typeHref[d.type] ?? "/documents"}
                 {...(newTabTypes.has(d.type)
                   ? { target: "_blank", rel: "noopener noreferrer" }
                   : {})}
