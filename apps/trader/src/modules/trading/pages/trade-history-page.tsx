@@ -6,9 +6,7 @@
  * tools: free-text search, column sorting and pagination (20/page).
  */
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
-import { cn } from "@pfaas/ui";
+import { useMemo, useState } from "react";import { cn } from "@pfaas/ui";
 import {
   TerraBadge,
   TerraCard,
@@ -21,6 +19,8 @@ import {
 import { terraTrades } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { toast } from "@/hooks/use-toast";
+import { DetailDialog } from "@/components/terra/detail-dialog";
+import { TradeDetailContent } from "./trade-detail-page";
 
 const filters = ["All", "Wins", "Losses"] as const;
 const PAGE_SIZE = 20;
@@ -40,6 +40,13 @@ export function TradeHistoryPage() {
     dir: "desc",
   });
   const [page, setPage] = useState(0);
+
+  // Quick-view overlay: clicking a ticket opens the trade detail in a
+  // dialog on top of the table — sort, filters, scroll and page are kept.
+  const [quickTradeId, setQuickTradeId] = useState<string | null>(null);
+  const quickTrade = quickTradeId
+    ? (terraTrades.find((t) => t.id === quickTradeId) ?? null)
+    : null;
 
   // Account scope — follows the header switcher; "All accounts" shows the
   // cross-account history. Filters/sort/pagination run on top of the pool.
@@ -344,9 +351,15 @@ export function TradeHistoryPage() {
               headCell("Closed", "closedAt"),
             ]}
             rows={pageRows.map((t) => [
-              <Link key="t" href={`/trade-detail?id=${t.id}`} className="font-mono text-xs font-bold text-primary hover:underline">
+              <button
+                key="t"
+                type="button"
+                aria-haspopup="dialog"
+                onClick={() => setQuickTradeId(t.id)}
+                className="text-left font-mono text-xs font-bold text-primary hover:underline"
+              >
                 {t.ticket}
-              </Link>,
+              </button>,
               <span key="s" className="font-semibold">{t.symbol}</span>,
               <TerraBadge key="sd" tone={t.side === "long" ? "primary" : "error"}>
                 {t.side === "long" ? "Long" : "Short"}
@@ -393,6 +406,23 @@ export function TradeHistoryPage() {
           </div>
         </TerraCard>
       )}
+
+      {/* Quick-view overlay — inspect a trade without leaving the table */}
+      <DetailDialog
+        open={quickTrade !== null}
+        onOpenChange={(o) => {
+          if (!o) setQuickTradeId(null);
+        }}
+        title={quickTrade ? `Trade #${quickTrade.ticket}` : "Trade detail"}
+        description={
+          quickTrade
+            ? `${quickTrade.symbol} • ${quickTrade.side === "long" ? "Long" : "Short"} • closed ${new Date(quickTrade.closedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+            : undefined
+        }
+        fullPageHref={quickTrade ? `/trade-detail?id=${quickTrade.id}` : undefined}
+      >
+        {quickTrade && <TradeDetailContent id={quickTrade.id} embedded />}
+      </DetailDialog>
     </div>
   );
 }

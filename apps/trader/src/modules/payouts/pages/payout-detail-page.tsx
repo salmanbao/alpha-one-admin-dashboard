@@ -3,6 +3,11 @@
 /**
  * Payout Detail — converted from stitch_screens/payout_detail
  * Single payout with status timeline and details.
+ *
+ * Split into `PayoutDetailContent({ id, embedded })` so it renders both
+ * as the route (`/payout-detail?id=`) and inside the quick-view dialog
+ * on Payout History (`embedded` hides page chrome — dialog header and
+ * footer provide navigation instead).
  */
 
 import { useSearchParams } from "next/navigation";
@@ -17,9 +22,15 @@ import {
 import { terraPayouts } from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
 
-export function PayoutDetailPage() {
-  const params = useSearchParams();
-  const payout = terraPayouts.find((p) => p.id === params.get("id")) ?? terraPayouts[0];
+export function PayoutDetailContent({
+  id,
+  embedded = false,
+}: {
+  id: string | null;
+  /** true when rendered inside the quick-view dialog (page chrome hidden). */
+  embedded?: boolean;
+}) {
+  const payout = terraPayouts.find((p) => p.id === id) ?? terraPayouts[0];
 
   const timeline = [
     {
@@ -57,21 +68,32 @@ export function PayoutDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/payout-history"
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
-      >
-        ← Back to Payout History
-      </Link>
-      <TerraPageHeader
-        title={`Payout ${payout.reference}`}
-        description={`Account #${payout.accountLogin} • ${payout.method}`}
-        actions={
+      {!embedded && (
+        <Link
+          href="/payout-history"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+        >
+          ← Back to Payout History
+        </Link>
+      )}
+      {embedded ? (
+        <div className="flex flex-wrap items-center gap-2">
           <TerraBadge tone={payout.status === "paid" ? "success" : "tertiary"} dot pulse={payout.status === "processing"}>
             {payout.status}
           </TerraBadge>
-        }
-      />
+          <TerraBadge tone="neutral">{payout.method}</TerraBadge>
+        </div>
+      ) : (
+        <TerraPageHeader
+          title={`Payout ${payout.reference}`}
+          description={`Account #${payout.accountLogin} • ${payout.method}`}
+          actions={
+            <TerraBadge tone={payout.status === "paid" ? "success" : "tertiary"} dot pulse={payout.status === "processing"}>
+              {payout.status}
+            </TerraBadge>
+          }
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <TerraCard className="lg:col-span-2">
@@ -205,4 +227,9 @@ export function PayoutDetailPage() {
       )}
     </div>
   );
+}
+
+export function PayoutDetailPage() {
+  const params = useSearchParams();
+  return <PayoutDetailContent id={params.get("id")} />;
 }
