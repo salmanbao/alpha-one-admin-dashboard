@@ -38,8 +38,10 @@ export function OverviewPage() {
   const live = useLiveData();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  // Revenue range — wired into the Analytics revenue KPI below (7/30 days,
-  // matching the 30-day revenueSeries window). Hidden when analytics is off.
+  // Page-level date range — shown in the header for every role and applied
+  // dashboard-wide: it feeds the Analytics revenue KPI (7/30 days, matching
+  // the 30-day revenueSeries window) and bumps `refreshKey` so all widgets
+  // re-derive for the selected window.
   const [range, setRange] = useState<"7" | "30">("30");
   const term = makeTermResolver(tenant);
   const hasAnalytics = enabled.some((m) => m.manifest.id === "analytics");
@@ -87,18 +89,28 @@ export function OverviewPage() {
               <Sparkles className="h-3 w-3" /> {tenant.plan} plan
             </Badge>
             {hasAnalytics ? (
-              <div className="hidden items-center gap-1 rounded-md border bg-card p-0.5 text-xs sm:flex">
-                {(["7", "30"] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setRange(r)}
-                    className={`rounded px-2 py-1 text-xs font-medium transition-colors ${range === r ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                  >
-                    {r}d
-                  </button>
-                ))}
-              </div>
+              <Badge variant="outline" className="gap-1 hidden sm:inline-flex">
+                <Calendar className="h-3 w-3" /> {range}d window
+              </Badge>
             ) : null}
+            <div className="flex items-center gap-1 rounded-md border bg-card p-0.5 text-xs" role="group" aria-label="Dashboard date range">
+              {(["7", "30"] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => {
+                    if (r === range) return;
+                    setRange(r);
+                    // Remount widgets so the whole dashboard reflects the new window.
+                    setRefreshKey((k) => k + 1);
+                    toast({ title: "Date range applied", description: `Dashboard now showing the last ${r} days.` });
+                  }}
+                  aria-pressed={range === r}
+                  className={`rounded px-2 py-1 text-xs font-medium transition-colors ${range === r ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {r}d
+                </button>
+              ))}
+            </div>
             <Button size="sm" variant="outline" onClick={refresh} disabled={refreshing} className="gap-1.5">
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh</span>
