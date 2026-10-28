@@ -15,12 +15,13 @@ import {
   TerraSectionTitle,
   formatMoney,
 } from "@/components/terra/terra-ui";
-import { terraPayouts, withdrawalMethods, terraAccounts } from "@/lib/fixtures/terra-fixtures";
+import { terraPayouts, withdrawalMethods } from "@/lib/fixtures/terra-fixtures";
+import { useSyncActiveAccount } from "@/lib/platform/account-context";
 
 export function PayoutRequestPage() {
   const params = useSearchParams();
-  const accountId = params.get("id") || "acc-100030";
-  const acc = terraAccounts.find((a) => a.id === accountId) ?? terraAccounts[0];
+  // ?id= deep link wins, otherwise the active trading account (switcher).
+  const acc = useSyncActiveAccount(params.get("id"));
   const minPayout = 100;
   const [amount, setAmount] = useState("");
   const [methodId, setMethodId] = useState("wm-wise");

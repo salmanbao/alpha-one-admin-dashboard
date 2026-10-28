@@ -17,16 +17,25 @@ import {
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
 import { equityCurve30d, terraTrades } from "@/lib/fixtures/terra-fixtures";
+import { useActiveAccount } from "@/lib/platform/account-context";
 
 const tabs = ["Overview", "Symbols", "Sessions"] as const;
 
 export function PerformanceAnalyticsPage() {
   const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
 
-  const winTrades = terraTrades.filter((t) => t.pnl > 0);
-  const lossTrades = terraTrades.filter((t) => t.pnl < 0);
+  // Account scope — follows the header switcher; "All accounts" shows the
+  // cross-account view (matches the previous behavior).
+  const { activeAccount, activeAccountId } = useActiveAccount();
+  const [scopeAll, setScopeAll] = useState(false);
+  const pool = scopeAll
+    ? terraTrades
+    : terraTrades.filter((t) => t.accountId === activeAccountId);
+
+  const winTrades = pool.filter((t) => t.pnl > 0);
+  const lossTrades = pool.filter((t) => t.pnl < 0);
   const wins = winTrades.length;
-  const winRate = Math.round((wins / terraTrades.length) * 100);
+  const winRate = pool.length ? Math.round((wins / pool.length) * 100) : 0;
   const avgWin = winTrades.length
     ? winTrades.reduce((s, t) => s + t.pnl, 0) / winTrades.length
     : 0;
@@ -35,8 +44,11 @@ export function PerformanceAnalyticsPage() {
     : 0;
   const expectancy =
     (winRate / 100) * avgWin + (1 - winRate / 100) * avgLoss;
+  const grossWin = winTrades.reduce((s, t) => s + t.pnl, 0);
+  const grossLoss = Math.abs(lossTrades.reduce((s, t) => s + t.pnl, 0));
+  const profitFactor = grossLoss > 0 ? (grossWin / grossLoss).toFixed(2) : "—";
 
-  const bySymbol = terraTrades.reduce<Record<string, { pnl: number; count: number }>>(
+  const bySymbol = pool.reduce<Record<string, { pnl: number; count: number }>>(
     (acc, t) => {
       acc[t.symbol] ??= { pnl: 0, count: 0 };
       acc[t.symbol].pnl += t.pnl;
@@ -50,7 +62,7 @@ export function PerformanceAnalyticsPage() {
     alert(
       "Performance Report (PDF) — export started\n\n" +
         `Win rate: ${winRate}%\n` +
-        `Net P&L: ${formatSignedMoney(terraTrades.reduce((s, t) => s + t.pnl, 0))}\n` +
+        `Net P&L: ${formatSignedMoney(pool.reduce((s, t) => s + t.pnl, 0))}\n` +
         `Expectancy: ${formatSignedMoney(Math.round(expectancy * 10) / 10)} per trade\n\n` +
         "Branded TerraTrader cover, equity curve, symbol & session breakdown. " +
         "You'll also receive it by email. (Demo — no backend call.)",
@@ -61,27 +73,52 @@ export function PerformanceAnalyticsPage() {
     <div className="space-y-6">
       <TerraPageHeader
         title="Performance Analytics"
-        description="Last 30 days across all accounts"
+        description={
+          scopeAll
+            ? "Last 30 days across all accounts"
+            : `Last 30 days • #${activeAccount.login} ${activeAccount.name}`
+        }
         actions={
-          <button
-            type="button"
-            onClick={handleExportReport}
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary shadow-sm hover:bg-primary/90"
-          >
-            Export report (PDF)
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Scope toggle — active account (follows switcher) vs all accounts */}
+            <div className="flex items-center rounded-xl bg-surface-container-low p-0.5" role="group" aria-label="Analytics scope">
+              <button
+                type="button"
+                aria-pressed={!scopeAll}
+                onClick={() => setScopeAll(false)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${!scopeAll ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
+              >
+                This account
+              </button>
+              <button
+                type="button"
+                aria-pressed={scopeAll}
+                onClick={() => setScopeAll(true)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${scopeAll ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
+              >
+                All accounts
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportReport}
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary shadow-sm hover:bg-primary/90"
+            >
+              Export report (PDF)
+            </button>
+          </div>
         }
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <TerraCard className="p-5">
-          <TerraStat label="Win Rate" value={`${winRate}%`} sub={`${wins}/${terraTrades.length} trades`} tone="positive" />
+          <TerraStat label="Win Rate" value={`${winRate}%`} sub={`${wins}/${pool.length} trades`} tone="positive" />
         </TerraCard>
         <TerraCard className="p-5">
-          <TerraStat label="Net P&L" value={formatSignedMoney(terraTrades.reduce((s, t) => s + t.pnl, 0))} tone="positive" />
+          <TerraStat label="Net P&L" value={formatSignedMoney(pool.reduce((s, t) => s + t.pnl, 0))} tone="positive" />
         </TerraCard>
         <TerraCard className="p-5">
-          <TerraStat label="Profit Factor" value="2.3" sub="gross win / loss" />
+          <TerraStat label="Profit Factor" value={profitFactor} sub="gross win / loss" />
         </TerraCard>
         <TerraCard className="p-5">
           <TerraStat label="Avg Hold" value="4h 22m" sub="per trade" />
@@ -117,7 +154,7 @@ export function PerformanceAnalyticsPage() {
         <TerraCard className="p-5">
           <TerraStat
             label="Largest Loss"
-            value={formatSignedMoney(Math.min(...terraTrades.map((t) => t.pnl)))}
+            value={formatSignedMoney(Math.min(...pool.map((t) => t.pnl)))}
             sub="single trade"
             tone="negative"
           />
@@ -152,7 +189,7 @@ export function PerformanceAnalyticsPage() {
           <TerraSectionTitle title="Trade breakdown" />
           <TerraTable
             head={["Ticket", "Symbol", "Pips", "P&L"]}
-            rows={terraTrades.map((t) => [
+            rows={pool.map((t) => [
               <span key="t" className="font-mono text-xs font-bold">{t.ticket}</span>,
               <span key="s" className="font-semibold">{t.symbol}</span>,
               <span key="p" className={t.pips >= 0 ? "text-primary" : "text-error"}>

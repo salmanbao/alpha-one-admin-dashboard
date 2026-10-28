@@ -23,12 +23,14 @@ import {
 import {
   announcements,
   equityCurve30d,
-  primaryAccount,
   recentActivity,
   scalingPlan,
+  terraAccounts,
   terraPositions,
   type ActivityEntry,
 } from "@/lib/fixtures/terra-fixtures";
+import { useActiveAccount } from "@/lib/platform/account-context";
+import { AccountSwitcher } from "@/components/shell/account-switcher";
 
 const ranges = ["7d", "30d", "90d"] as const;
 
@@ -71,7 +73,12 @@ function activityTime(iso: string) {
 export function DashboardPage() {
   const [range, setRange] = useState<(typeof ranges)[number]>("30d");
   const [riskAlertVisible, setRiskAlertVisible] = useState(true);
-  const acc = primaryAccount;
+  // Active trading account — switched via the header switcher or the
+  // "Trading Account" selector below. Every acc.* value on this page
+  // (target, risk buffers, balance, credentials) follows this context.
+  const { activeAccount: acc } = useActiveAccount();
+  const accPositions = terraPositions.filter((p) => p.accountId === acc.id);
+  const accUnrealized = accPositions.reduce((s, p) => s + p.pnl, 0);
 
   const curve =
     range === "7d"
@@ -85,37 +92,17 @@ export function DashboardPage() {
       {/* Top controls bar */}
       <div className="flex flex-col items-stretch justify-between gap-4 rounded-xl bg-surface-container-low p-4 shadow-sm sm:p-5 lg:flex-row lg:items-center">
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-          {/* Account selector */}
-          <div className="relative group">
-            <button
-              type="button"
-              className="flex items-center gap-3 rounded-lg bg-surface-container-lowest px-4 py-2.5 text-left shadow-sm transition-all hover:bg-surface-container"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-fixed text-on-primary-fixed-variant">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="2" y="5" width="20" height="14" rx="2" />
-                  <path d="M2 10h20" />
-                </svg>
-              </span>
-              <span className="flex flex-col">
-                <span className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
-                  Trading Account
-                </span>
-                <span className="flex items-center gap-2 text-sm font-bold text-on-surface">
-                  <span className="font-mono">#{acc.login}</span>
-                  <span className="hidden text-xs font-normal text-on-surface-variant sm:inline">
-                    • {acc.name}
-                  </span>
-                </span>
-              </span>
-              <svg className="ml-2 h-4 w-4 text-on-surface-variant transition-transform group-hover:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-            </button>
-          </div>
-          {/* Account state badge */}
-          <TerraBadge tone="primary" dot pulse>
-            Active • In Good Standing
+          {/* Account selector — wired (switches the active account context) */}
+          <AccountSwitcher variant="panel" />
+          {/* Account state badge — follows the active account */}
+          <TerraBadge tone={acc.status === "active" ? "primary" : acc.status === "breached" ? "error" : "secondary"} dot pulse={acc.status === "active"}>
+            {acc.status === "active"
+              ? "Active • In Good Standing"
+              : acc.status === "standby"
+                ? "Standby • Paused"
+                : acc.status === "breached"
+                  ? "Breached • Action Needed"
+                  : acc.status}
           </TerraBadge>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -198,8 +185,8 @@ export function DashboardPage() {
                 ACCOUNT #{acc.login}
               </span>
               <TerraBadge tone="secondary">{acc.phase} Evaluation</TerraBadge>
-              <TerraBadge tone="primary" dot>
-                ACTIVE
+              <TerraBadge tone={acc.status === "active" ? "primary" : acc.status === "breached" ? "error" : "secondary"} dot>
+                {acc.status.toUpperCase()}
               </TerraBadge>
             </div>
             <div className="flex items-center gap-2 text-xs font-medium text-on-surface-variant">
@@ -335,11 +322,11 @@ export function DashboardPage() {
           <TerraCard>
             <TerraSectionTitle title="Quick Stats" />
             <div className="grid grid-cols-2 gap-4">
-              <TerraStat label="Open Positions" value={terraPositions.length} />
+              <TerraStat label="Open Positions" value={accPositions.length} sub={`#${acc.login}`} />
               <TerraStat
                 label="Unrealized P&L"
-                value={formatSignedMoney(terraPositions.reduce((s, p) => s + p.pnl, 0))}
-                tone={terraPositions.reduce((s, p) => s + p.pnl, 0) >= 0 ? "positive" : "negative"}
+                value={formatSignedMoney(accUnrealized)}
+                tone={accUnrealized >= 0 ? "positive" : "negative"}
               />
               <TerraStat label="Win Rate" value="68%" sub="142 trades" />
               <TerraStat label="Avg Hold" value="4h 22m" sub="per trade" />
@@ -367,25 +354,52 @@ export function DashboardPage() {
           <TerraCard>
             <TerraSectionTitle
               title="Scaling Progress"
-              actions={<TerraBadge tone="primary">{scalingPlan.consecutivePayouts}/{scalingPlan.requiredPayouts}</TerraBadge>}
+              actions={
+                scalingPlan.accountId === acc.id ? (
+                  <TerraBadge tone="primary">{scalingPlan.consecutivePayouts}/{scalingPlan.requiredPayouts}</TerraBadge>
+                ) : (
+                  <TerraBadge tone="neutral">Locked</TerraBadge>
+                )
+              }
             />
-            <p className="text-xs text-on-surface-variant">
-              {scalingPlan.consecutivePayouts} consecutive counted payouts toward
-              scaling to{" "}
-              <strong className="text-on-surface">{scalingPlan.nextTier}</strong> at
-              a <strong className="text-primary">{scalingPlan.nextSplit}</strong>{" "}
-              split.
-            </p>
-            <TerraProgress
-              value={Math.round((scalingPlan.consecutivePayouts / scalingPlan.requiredPayouts) * 100)}
-              className="mt-3"
-            />
-            <Link
-              href="/payout-eligibility"
-              className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-on-primary-fixed-variant"
-            >
-              View scaling plan →
-            </Link>
+            {scalingPlan.accountId === acc.id ? (
+              <>
+                <p className="text-xs text-on-surface-variant">
+                  {scalingPlan.consecutivePayouts} consecutive counted payouts toward
+                  scaling to{" "}
+                  <strong className="text-on-surface">{scalingPlan.nextTier}</strong> at
+                  a <strong className="text-primary">{scalingPlan.nextSplit}</strong>{" "}
+                  split.
+                </p>
+                <TerraProgress
+                  value={Math.round((scalingPlan.consecutivePayouts / scalingPlan.requiredPayouts) * 100)}
+                  className="mt-3"
+                />
+                <Link
+                  href={`/payout-eligibility?id=${acc.id}`}
+                  className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-on-primary-fixed-variant"
+                >
+                  View scaling plan →
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-on-surface-variant">
+                  Scaling starts after your first counted payout on a funded
+                  account.{" "}
+                  <strong className="text-on-surface">
+                    #{terraAccounts.find((a) => a.id === scalingPlan.accountId)?.login ?? "funded account"}
+                  </strong>{" "}
+                  is currently on the plan.
+                </p>
+                <Link
+                  href="/my-accounts"
+                  className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-on-primary-fixed-variant"
+                >
+                  Switch to your funded account →
+                </Link>
+              </>
+            )}
           </TerraCard>
         </div>
       </div>
