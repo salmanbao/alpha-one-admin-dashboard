@@ -3,12 +3,17 @@
 /**
  * Encrypted Document Viewer — converted from stitch_screens/document_viewer_encrypted
  * Unlock screen with access code, then document preview.
+ *
+ * `DocumentViewerContent({ embedded })` renders inside the Documents
+ * quick-view dialog (`embedded` hides page chrome — the dialog header
+ * takes over) and as the standalone route `/document-viewer`
+ * (which also opens via "Open in new tab" from the dialog footer).
  */
 
 import { useState } from "react";
 import { TerraBadge, TerraCard, TerraPageHeader, TerraSectionTitle } from "@/components/terra/terra-ui";
 
-export function DocumentViewerPage() {
+export function DocumentViewerContent({ embedded = false }: { embedded?: boolean }) {
   const [unlocked, setUnlocked] = useState(false);
   const [code, setCode] = useState("");
   const [resent, setResent] = useState(false);
@@ -26,11 +31,13 @@ export function DocumentViewerPage() {
 
   return (
     <div className="space-y-6">
-      <TerraPageHeader
-        title="Secure Document Viewer"
-        description="Encrypted documents — access requires a one-time code"
-        actions={<TerraBadge tone="primary">AES-256 encrypted</TerraBadge>}
-      />
+      {!embedded && (
+        <TerraPageHeader
+          title="Secure Document Viewer"
+          description="Encrypted documents — access requires a one-time code"
+          actions={<TerraBadge tone="primary">AES-256 encrypted</TerraBadge>}
+        />
+      )}
 
       {!unlocked ? (
         <TerraCard className="mx-auto max-w-md flex flex-col items-center gap-4 py-10 text-center">
@@ -50,6 +57,7 @@ export function DocumentViewerPage() {
             onChange={(e) => setCode(e.target.value)}
             placeholder="6-digit code"
             inputMode="numeric"
+            aria-label="Document access code"
             className="w-48 rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-2.5 text-center text-sm tracking-[0.3em] tabular-nums outline-none focus:border-primary"
           />
           <button
@@ -109,4 +117,8 @@ export function DocumentViewerPage() {
       )}
     </div>
   );
+}
+
+export function DocumentViewerPage() {
+  return <DocumentViewerContent />;
 }
