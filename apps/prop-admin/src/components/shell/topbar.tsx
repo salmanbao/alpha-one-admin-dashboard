@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useUserSwitcher } from "@/lib/platform/platform-context";
+import { demoSwitchersEnabled } from "@/lib/platform/demo-switchers";
 import { users } from "@/lib/platform/mock-data";
 import { StatusBadge } from "@/components/platform/status";
 import { ActivityTicker } from "@/components/shell/activity-ticker";
@@ -85,7 +86,9 @@ export function Topbar() {
       <ActivityTicker />
 
       <div className="ml-auto flex items-center gap-1">
-        {/* Tenant switcher */}
+        {/* Tenant switcher — demo affordance. In production it degrades to
+            a static tenant label (identity comes from real auth there). */}
+        {demoSwitchersEnabled ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="gap-2">
@@ -131,8 +134,22 @@ export function Topbar() {
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
+        ) : (
+          <span className="hidden items-center gap-2 px-2 text-sm sm:flex">
+            <span
+              className="h-2.5 w-2.5 rounded-sm"
+              style={{ background: tenant.branding.primaryColor }}
+              aria-hidden="true"
+            />
+            <span className="max-w-[140px] truncate text-muted-foreground">
+              {tenant.id === "platform" ? "Platform" : tenant.name}
+            </span>
+          </span>
+        )}
 
-        {/* Role/user switcher */}
+        {/* Role/user switcher — demo-only (hidden in production, see
+            demo-switchers.ts) */}
+        {demoSwitchersEnabled ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="gap-2" aria-label="Switch user">
@@ -164,6 +181,7 @@ export function Topbar() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        ) : null}
 
         {/* What's new */}
         <WhatsNewButton />

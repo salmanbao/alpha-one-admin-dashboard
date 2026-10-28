@@ -8,7 +8,7 @@
  * content area. Independent of business modules.
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
@@ -26,6 +26,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // PRD L5494 impersonation service — while a session is active the shell
   // shows a persistent banner; only Exit (impersonation_ended) closes it.
   const impersonation = useImpersonation();
+  // Ticking clock for the banner countdown (only while a session is live).
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!impersonation) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [impersonation]);
+  // Auto-expire: the session carries an expiresAt chosen at start; when it
+  // passes, end it (audited as auto-expired) so the banner can't linger.
+  useEffect(() => {
+    if (!impersonation) return;
+    const remaining = new Date(impersonation.expiresAt).getTime() - Date.now();
+    if (remaining <= 0) {
+      endImpersonation("auto-expired");
+      return;
+    }
+    const t = setTimeout(() => endImpersonation("auto-expired"), remaining);
+    return () => clearTimeout(t);
+  }, [impersonation]);
+  const countdown = impersonation
+    ? Math.max(0, new Date(impersonation.expiresAt).getTime() - now)
+    : 0;
+  const countdownLabel = `${Math.floor(countdown / 60_000)}:${String(Math.floor((countdown % 60_000) / 1000)).padStart(2, "0")}`;
 
   // "/" opens global search when not typing in an input
   useEffect(() => {
@@ -52,7 +76,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             all figures are simulated fixtures (gap-analysis Phase 0: never let
             demo data read as production fact). Not dismissible. */}
         <DemoDataBanner />
-        {/* Impersonation banner — persistent until the session is exited. */}
+        {/* Impersonation banner — persistent until the session is exited
+            or its duration elapses (auto-expire, audited). */}
         {impersonation ? (
           <div
             role="status"
@@ -63,10 +88,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Impersonating <span className="font-bold">{impersonation.name}</span>
               <span className="font-normal opacity-70">
                 · all actions audited under {impersonation.impersonator} · started{" "}
-                {new Date(impersonation.startedAt).toLocaleTimeString()}
+                {new Date(impersonation.startedAt).toLocaleTimeString()} · reason:{" "}
+                {impersonation.reason}
+              </span>
+              <span
+                className="rounded-full bg-amber-500/20 px-2 py-0.5 font-mono text-[11px] tabular-nums"
+                aria-label="Time remaining in impersonation session"
+              >
+                expires in {countdownLabel}
               </span>
             </span>
-            <Button size="sm" variant="outline" className="h-7 border-amber-500/40 px-3 text-[11px] text-amber-700 hover:bg-amber-500/20 dark:text-amber-400" onClick={endImpersonation}>
+            <Button size="sm" variant="outline" className="h-7 border-amber-500/40 px-3 text-[11px] text-amber-700 hover:bg-amber-500/20 dark:text-amber-400" onClick={() => endImpersonation()}>
               Exit Impersonation
             </Button>
           </div>

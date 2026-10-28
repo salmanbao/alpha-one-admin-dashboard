@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { hasPermission } from "@/lib/platform/permission-engine";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantBreaches, getTraderBreaches, getTraderForUser, type Breach } from "@/lib/platform/mock-data";
 import { resolveBreach, effectiveBreachStatus, useBreachVersion } from "@/modules/risk/breach-store";
@@ -177,6 +178,9 @@ function BreachesTable({
   // see the whole-tenant list. Previously Tom saw other traders' breaches.
   const trader = getTraderForUser(user);
   useBreachVersion(); // rows react to resolutions from any surface
+  // In-page guard — resolving a breach is a risk decision (risk.configure),
+  // not implied by merely viewing the breach list (breach.read).
+  const canResolve = hasPermission(user, "risk.configure");
 
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sevFilter, setSevFilter] = useState<string>("all");
@@ -242,6 +246,8 @@ function BreachesTable({
           <Button
             size="sm"
             variant="ghost"
+            disabled={!canResolve}
+            title={canResolve ? undefined : "Requires risk.configure"}
             onClick={(e) => {
               e.stopPropagation();
               // Mutate the shared breach store — the row flips to resolved

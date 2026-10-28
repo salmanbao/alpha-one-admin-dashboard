@@ -14,6 +14,7 @@ import type {
   RoleDefinition,
   TenantContext,
 } from "./types";
+import { getSessionAudit } from "@/lib/audit";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -263,6 +264,7 @@ export const roles: RoleDefinition[] = [
       "settings.manage",
       "users.manage",
       "audit.read",
+      "impersonation.start",
     ],
     color: "#0f766e",
   },
@@ -1270,16 +1272,24 @@ export function getTenantAiInsights(tenantId: string): AiInsight[] {
   return aiInsights.filter((a) => a.tenantId === tenantId || a.tenantId === "platform");
 }
 export function getPlatformAudit(): AuditEntry[] {
-  // Cross-tenant view for super-admin (every seeded entry).
-  return auditLog;
+  // Cross-tenant view for super-admin (every seeded entry) plus the
+  // session entries recorded in this browser.
+  return [...getSessionAudit(), ...auditLog];
 }
 export function getTenantAudit(tenantId: string): AuditEntry[] {
   // Platform tenant sees the full cross-tenant stream; a regular tenant
   // only sees its own entries plus any unscoped (`tenantId === undefined`)
   // legacy entries. Previously this returned the same 60 entries for every
   // tenant because the `tid` argument was ignored.
-  if (tenantId === "platform") return auditLog;
-  return auditLog.filter((a) => a.tenantId === tenantId || a.tenantId === undefined);
+  //
+  // Session entries (recorded via lib/audit.ts this session) are merged
+  // first — they are always the freshest events — so the Audit log,
+  // Activity ticker and entity timelines show live decisions on top of
+  // the seeded historical baseline.
+  const session = getSessionAudit();
+  if (tenantId === "platform") return [...session, ...auditLog];
+  const inScope = (a: AuditEntry) => a.tenantId === tenantId || a.tenantId === undefined;
+  return [...session.filter(inScope), ...auditLog.filter(inScope)];
 }
 export function getTenantPositions(tenantId: string): Position[] {
   return positions.filter((p) => p.tenantId === tenantId);

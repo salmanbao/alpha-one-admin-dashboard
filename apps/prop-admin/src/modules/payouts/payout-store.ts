@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Payout } from "@/lib/platform/mock-data";
 import { payouts as seedPayouts } from "@/lib/platform/mock-data";
 import { setNavBadge } from "@/lib/platform/nav-badges";
+import { recordAudit } from "@/lib/audit";
 
 /**
  * Session-scoped payout decision store.
@@ -47,8 +48,38 @@ function syncBadge() {
 }
 
 /** Record a decision for a payout (keyed by its unique reference). */
-export function applyPayoutDecision(reference: string, decision: PayoutDecision) {
+export function applyPayoutDecision(
+  reference: string,
+  decision: PayoutDecision,
+  opts?: { reason?: string },
+) {
   decisions.set(reference, { status: decision, at: new Date().toISOString() });
+  // Audit chokepoint (lib/audit.ts): every decision surface — table row,
+  // review card, dashboard widget, batch action — lands here, so the
+  // trail is written exactly once per decision regardless of entry point.
+  const p = seedPayouts.find((x) => x.reference === reference);
+  const who = p ? p.traderName : reference;
+  const amount = p ? `${p.amount} ${p.currency}` : "";
+  recordAudit({
+    action:
+      decision === "approved"
+        ? "Approved payout"
+        : decision === "rejected"
+          ? "Rejected payout"
+          : decision === "escalated"
+            ? "Escalated payout"
+            : decision === "processing"
+              ? "Payout processing started"
+              : decision === "paid"
+                ? "Payout marked paid"
+                : "Requested payout info",
+    entity: "payout",
+    entityId: reference,
+    summary: opts?.reason
+      ? `${who} — ${amount} (${decision}): ${opts.reason}`
+      : `${who} — ${amount} (${decision})`,
+    severity: decision === "rejected" || decision === "escalated" ? "warning" : "info",
+  });
   emit();
 }
 

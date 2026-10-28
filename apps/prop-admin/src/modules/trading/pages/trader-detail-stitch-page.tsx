@@ -18,6 +18,7 @@
 
 import * as React from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { hasPermission } from "@/lib/platform/permission-engine";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import {
   getTenantTraders,
@@ -174,7 +175,17 @@ export function TraderDetailStitchPage() {
         actions={
           <>
             <StitchButton variant="surface" icon="sticky_note_2" onClick={() => setAddNoteOpen(true)}>Add Note</StitchButton>
-            <StitchButton variant="surface" icon="swap_horiz" onClick={() => setImpersonateOpen(true)}>Impersonate</StitchButton>
+            {/* In-page guard — impersonation requires impersonation.start
+                (prop-admin only); other roles don't get the entry point. */}
+            <StitchButton
+              variant="surface"
+              icon="swap_horiz"
+              disabled={!hasPermission(user, "impersonation.start")}
+              title={hasPermission(user, "impersonation.start") ? undefined : "Requires impersonation.start"}
+              onClick={() => setImpersonateOpen(true)}
+            >
+              Impersonate
+            </StitchButton>
             <StitchButton variant="surface" icon="edit" onClick={() => setEditOpen(true)}>Edit</StitchButton>
             {/* PRD §4.8.2 — Suspend and Reactivate are the same toggle; the
                 header shows the action matching the effective status. */}
@@ -728,18 +739,67 @@ function ResyncSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: 
 
 function ImpersonateSheet({ open, onOpenChange, name }: { open: boolean; onOpenChange: (o: boolean) => void; name: string }) {
   const [ack, setAck] = React.useState(false);
+  const [reason, setReason] = React.useState("");
+  const [duration, setDuration] = React.useState(30);
   const { user } = usePlatform();
+  // In-page guard — starting a session requires impersonation.start
+  // (prop-admin). The trigger is already disabled for other roles; this
+  // covers deep entry points too.
+  const allowed = hasPermission(user, "impersonation.start");
+  const canBegin = allowed && ack && reason.trim().length > 0;
   return (
     <StitchSheet
       open={open} onOpenChange={onOpenChange} icon="swap_horiz" title={`Login as ${name}?`}
       footer={<>
         <StitchButton variant="surface" onClick={() => onOpenChange(false)}>Cancel</StitchButton>
-        {/* PRD L5494 — session start pushes impersonation_started + opens the shell exit banner. */}
-        <StitchButton variant="primary" disabled={!ack} onClick={() => { onOpenChange(false); startImpersonation(name, user?.name ?? "Platform Admin"); }}>Begin Session</StitchButton>
+        {/* PRD L5494 — session start pushes impersonation_started + opens
+            the shell banner (reason + duration are required inputs). */}
+        <StitchButton
+          variant="primary"
+          disabled={!canBegin}
+          title={canBegin ? undefined : !allowed ? "Requires impersonation.start" : "Acknowledge audit logging and provide a reason"}
+          onClick={() => {
+            onOpenChange(false);
+            startImpersonation(name, user?.name ?? "Platform Admin", { reason: reason.trim(), durationMinutes: duration });
+            setAck(false);
+            setReason("");
+          }}
+        >
+          Begin Session
+        </StitchButton>
       </>}
     >
       <div className="space-y-3">
-        <p className="text-sm leading-relaxed text-ink-variant">You will be signed in as <strong className="text-ink">{name}</strong> for 30 minutes. Every action is recorded under your admin ID.</p>
+        <p className="text-sm leading-relaxed text-ink-variant">
+          You will be signed in as <strong className="text-ink">{name}</strong> for {duration} minutes.
+          Every action is recorded under your admin ID.
+        </p>
+        {!allowed ? (
+          <p className="rounded-lg bg-terr-container/40 px-3 py-2.5 text-xs font-medium text-terr">
+            Requires the impersonation.start permission (prop-admin).
+          </p>
+        ) : null}
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-semibold text-ink">Business reason (required)</span>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Reproducing a trader-reported order placement issue."
+            className="stitch-input min-h-[64px]"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-semibold text-ink">Session duration</span>
+          <select
+            value={duration}
+            onChange={(e) => setDuration(Number(e.target.value))}
+            className="h-9 w-full rounded-lg bg-sfc-lowest px-3 text-xs text-ink shadow-sm outline-none focus:ring-1 focus:ring-tp"
+          >
+            <option value={15}>15 minutes</option>
+            <option value={30}>30 minutes</option>
+            <option value={60}>60 minutes</option>
+          </select>
+        </label>
         <label className="flex items-center gap-2.5 rounded-lg bg-sfc-low px-3 py-2.5 text-xs font-medium text-ink">
           <Checkbox checked={ack} onCheckedChange={(v) => setAck(v === true)} className="border-ink-variant/40" />
           I understand audit logging is enabled

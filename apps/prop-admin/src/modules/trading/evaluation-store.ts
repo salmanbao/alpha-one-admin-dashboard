@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { setNavBadge } from "@/lib/platform/nav-badges";
+import { recordAudit } from "@/lib/audit";
 
 /**
  * Session-scoped evaluation decision store (PRD §4.3 / §4.17).
@@ -217,6 +218,21 @@ export function decideEvaluation(
     reason: reason?.trim() || undefined,
     decidedAt: new Date().toISOString(),
     overrideOutcome: decision === "overridden" ? overrideOutcome : undefined,
+  });
+  // Audit chokepoint (lib/audit.ts) — approve/reject/override all land here.
+  recordAudit({
+    action:
+      decision === "approved"
+        ? "Approved evaluation"
+        : decision === "rejected"
+          ? "Rejected evaluation"
+          : "Overrode evaluation",
+    entity: "evaluation",
+    entityId: id,
+    summary: reason?.trim()
+      ? `${ev.traderName} — ${ev.challengeName} ${decision}: ${reason.trim()}`
+      : `${ev.traderName} — ${ev.challengeName} ${decision}`,
+    severity: decision === "rejected" ? "warning" : "info",
   });
   emit();
 }

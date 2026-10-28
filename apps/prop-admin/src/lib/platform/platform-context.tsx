@@ -29,6 +29,7 @@ import {
   users,
 } from "./mock-data";
 import { applyTenantBranding, applyThemeMode } from "./theme-engine";
+import { setAuditContext } from "@/lib/audit";
 
 /* ------------------------------------------------------------------ */
 /* Router (client-side view state)                                     */
@@ -296,13 +297,16 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore quota errors */ }
   }, [sidebarCollapsed, tenant.id]);
 
-  // Persist demo user/tenant selection so F5 doesn't reset identity
+  // Persist demo user/tenant selection so F5 doesn't reset identity —
+  // and re-anchor the audit chokepoint (lib/audit.ts) so decisions made
+  // after a switch are attributed to the active user/tenant.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       window.localStorage.setItem(DEMO_USER_KEY, user.id);
       window.localStorage.setItem(DEMO_TENANT_KEY, tenant.id);
     } catch { /* ignore quota errors */ }
+    setAuditContext(user.name, tenant.id);
   }, [user, tenant]);
 
   // Persist theme mode so reloads keep the operator's preference
