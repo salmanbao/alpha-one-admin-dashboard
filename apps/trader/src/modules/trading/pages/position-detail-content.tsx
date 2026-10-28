@@ -3,20 +3,22 @@
 /**
  * Position Detail — live open-position detail content.
  *
- * Distinct from TradeDetailContent (closed trades): this looks up
- * `terraPositions`, so clicking a symbol on /trading-positions opens
- * THAT position — not the first closed trade. Renders inside the
- * quick-view dialog (`embedded` hides page chrome) and is reused by
- * the position-management actions added with the TradingContext.
+ * Distinct from TradeDetailContent (closed trades): this looks up the
+ * live position list from the TradingContext, so clicking a symbol on
+ * /trading-positions opens THAT position — not the first closed trade —
+ * and the management actions (modify SL/TP, break-even, partial or full
+ * close) act on the real session state.
  */
 
+import { useState } from "react";
 import {
   TerraBadge,
   TerraCard,
   TerraSectionTitle,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { terraAccounts, terraPositions } from "@/lib/fixtures/terra-fixtures";
+import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
+import { useTrading } from "@/lib/trading/trading-context";
 
 const fmt = (d: string) =>
   new Date(d).toLocaleString("en-US", {
@@ -26,14 +28,36 @@ const fmt = (d: string) =>
     minute: "2-digit",
   });
 
-export function PositionDetailContent({ id }: { id: string }) {
-  const pos = terraPositions.find((p) => p.id === id);
+const levelInput =
+  "rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm tabular-nums outline-none focus:border-primary";
+
+export function PositionDetailContent({
+  id,
+  embedded = false,
+}: {
+  id: string;
+  embedded?: boolean;
+}) {
+  const { positions, modifyPosition, setBreakEven, closePosition } = useTrading();
+  const pos = positions.find((p) => p.id === id);
+  const [sl, setSl] = useState("");
+  const [tp, setTp] = useState("");
+
   if (!pos) return null;
 
   const account = terraAccounts.find((a) => a.id === pos.accountId);
   const netPnl = pos.pnl + pos.swap + pos.commission;
   const distance = (level: number | null) =>
     level === null ? null : Math.round((level - pos.entry) * 1000) / 1000;
+
+  const applyModify = () => {
+    modifyPosition(pos.id, {
+      sl: sl === "" ? undefined : Number(sl),
+      tp: tp === "" ? undefined : Number(tp),
+    });
+    setSl("");
+    setTp("");
+  };
 
   return (
     <div className="space-y-6">
@@ -70,6 +94,76 @@ export function PositionDetailContent({ id }: { id: string }) {
           </div>
         ))}
       </div>
+
+      {/* Position management — acts on the live session state */}
+      <TerraCard>
+        <TerraSectionTitle
+          title="Manage position"
+          description="Modify levels or close — actions apply immediately to the live session."
+        />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              New SL
+            </span>
+            <input
+              value={sl}
+              onChange={(e) => setSl(e.target.value.replace(/[^0-9.]/g, ""))}
+              placeholder={pos.sl === null ? "Optional" : String(pos.sl)}
+              className={levelInput}
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              New TP
+            </span>
+            <input
+              value={tp}
+              onChange={(e) => setTp(e.target.value.replace(/[^0-9.]/g, ""))}
+              placeholder={pos.tp === null ? "Optional" : String(pos.tp)}
+              className={levelInput}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={applyModify}
+            className="mt-auto rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
+          >
+            Modify
+          </button>
+          <button
+            type="button"
+            onClick={() => setBreakEven(pos.id)}
+            className="mt-auto rounded-xl border border-outline-variant px-4 py-2.5 text-sm font-bold text-on-surface hover:bg-surface-container-low"
+          >
+            Break-even
+          </button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => closePosition(pos.id, 0.5)}
+            className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container-low"
+          >
+            Close 50%
+          </button>
+          <button
+            type="button"
+            onClick={() => closePosition(pos.id, 1)}
+            className="rounded-xl bg-error px-4 py-2 text-sm font-bold text-on-error hover:bg-error/90"
+          >
+            Close position
+          </button>
+          {embedded && (
+            <a
+              href={`/trade-history?symbol=${pos.symbol}`}
+              className="ml-auto rounded-xl px-3 py-2 text-xs font-bold text-primary hover:underline"
+            >
+              View similar trades →
+            </a>
+          )}
+        </div>
+      </TerraCard>
 
       <TerraCard>
         <TerraSectionTitle

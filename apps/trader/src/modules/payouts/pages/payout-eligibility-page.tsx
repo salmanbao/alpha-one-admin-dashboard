@@ -18,21 +18,13 @@ import {
   formatMoney,
 } from "@/components/terra/terra-ui";
 import {
+  payoutEntitlement,
   terraPayouts,
   scalingPlan,
   payoutSchedule,
   payoutScheduleOptions,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
-
-const checklist = (account: { balance: number; pnl: number }) => [
-  { label: "Account active and in good standing", ok: true, note: "Verified" },
-  { label: "Minimum balance > $1,000", ok: true, note: `${account.balance} balance` },
-  { label: "P&L is positive since last payout", ok: true, note: `+${account.pnl}` },
-  { label: "No open risk breaches", ok: true, note: "Clear" },
-  { label: "Payout method configured", ok: true, note: "Bank Transfer (Wise)" },
-  { label: "Bi-weekly window is open", ok: true, note: "Next window opens in 4 days" },
-];
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -43,9 +35,33 @@ export function PayoutEligibilityPage() {
   // ?id= deep link wins (from payout detail / links), otherwise follow the
   // globally active trading account from the header switcher.
   const account = useSyncActiveAccount(params.get("id"));
+  const entitlement = payoutEntitlement(account.id);
   const availableSince = account.payoutNote ? "Available in 4 days" : "Aware 14 days";
   const [schedule, setSchedule] = useState(payoutSchedule.current);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  // Checklist reflects the real payout gates — evaluation accounts fail
+  // the funded gate; flat accounts fail the profit gate.
+  const checklist = [
+    {
+      label: "Account funded (payouts are funded-only)",
+      ok: entitlement.isFunded,
+      note: entitlement.isFunded ? "Verified" : `${account.phase} — payouts unlock after evaluation`,
+    },
+    {
+      label: "Minimum balance > $1,000",
+      ok: account.balance > 1000,
+      note: `${formatMoney(account.balance)} balance`,
+    },
+    {
+      label: "Net profit above starting balance",
+      ok: entitlement.netProfit > 0,
+      note: entitlement.netProfit > 0 ? `+${formatMoney(entitlement.netProfit)} net` : "Flat or underwater",
+    },
+    { label: "No open risk breaches", ok: true, note: "Clear" },
+    { label: "Payout method configured", ok: true, note: "Bank Transfer (Wise)" },
+    { label: "Bi-weekly window is open", ok: true, note: "Next window opens in 4 days" },
+  ];
 
   const scalePct = Math.round(
     (scalingPlan.consecutivePayouts / scalingPlan.requiredPayouts) * 100,
@@ -76,20 +92,28 @@ export function PayoutEligibilityPage() {
         description={`${account.name} • Login #${account.login}`}
         actions={
           <>
-            <TerraBadge tone="primary">Eligible</TerraBadge>
-            <TerraBadge tone="success" dot>
-              Payout window open
+            <TerraBadge tone={entitlement.eligible ? "primary" : "neutral"}>
+              {entitlement.eligible ? "Eligible" : "Not eligible"}
+            </TerraBadge>
+            <TerraBadge tone={entitlement.eligible ? "success" : "neutral"} dot={entitlement.eligible}>
+              {entitlement.eligible ? "Payout window open" : "Payouts locked"}
             </TerraBadge>
           </>
         }
       />
+
+      {!entitlement.eligible && (
+        <p className="rounded-xl bg-secondary-fixed/60 p-4 text-sm text-on-secondary-fixed-variant">
+          {entitlement.reason}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <TerraCard>
             <TerraSectionTitle title="Eligibility checklist" />
             <div className="space-y-3">
-              {checklist(account).map((c) => (
+              {checklist.map((c) => (
                 <div key={c.label} className="flex items-center justify-between rounded-xl bg-surface-container-low px-4 py-3">
                   <div>
                     <p className="text-sm font-semibold text-on-surface">{c.label}</p>
@@ -200,22 +224,35 @@ export function PayoutEligibilityPage() {
             <div className="space-y-3 rounded-xl bg-surface-container-low p-4">
               <div className="flex justify-between text-sm">
                 <span className="text-on-surface-variant">Eligible amount</span>
-                <span className="font-bold text-on-surface">{formatMoney(account.balance)}</span>
+                <span className="font-bold text-on-surface">
+                  {formatMoney(entitlement.withdrawable)}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-on-surface-variant">Recommended</span>
-                <span className="font-bold text-primary">{formatMoney(account.pnl)}</span>
+                <span className="text-on-surface-variant">
+                  Your {entitlement.splitPct}% of net profit
+                </span>
+                <span className="font-bold text-primary">
+                  {formatMoney(entitlement.netProfit)}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-on-surface-variant">Status</span>
-                <TerraBadge tone="primary">{availableSince}</TerraBadge>
+                <TerraBadge tone={entitlement.eligible ? "primary" : "neutral"}>
+                  {entitlement.eligible ? availableSince : "Locked"}
+                </TerraBadge>
               </div>
             </div>
             <Link
               href="/payout-request"
-              className="block w-full rounded-xl bg-primary px-5 py-3 text-center text-sm font-bold text-on-primary hover:bg-primary/90"
+              aria-disabled={!entitlement.eligible}
+              className={`block w-full rounded-xl px-5 py-3 text-center text-sm font-bold ${
+                entitlement.eligible
+                  ? "bg-primary text-on-primary hover:bg-primary/90"
+                  : "pointer-events-none bg-surface-container text-on-surface-variant opacity-60"
+              }`}
             >
-              Open Payout
+              {entitlement.eligible ? "Open Payout" : "Payouts locked"}
             </Link>
           </TerraCard>
 

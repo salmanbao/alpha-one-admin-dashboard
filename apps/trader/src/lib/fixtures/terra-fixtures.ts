@@ -576,7 +576,22 @@ export const terraTrades: TerraTrade[] = [
 /* Pending orders                                                      */
 /* ------------------------------------------------------------------ */
 
-export const terraOrders = [
+export interface TerraOrder {
+  id: string;
+  ticket: string;
+  symbol: string;
+  type: string; // "Buy Limit" | "Sell Stop" | …
+  lots: number;
+  price: number;
+  sl: number | null;
+  tp: number | null;
+  expiry: string;
+  placedAt: string;
+  status: string;
+  accountId: string;
+}
+
+export const terraOrders: TerraOrder[] = [
   {
     id: "ord-55011",
     ticket: "55011",
@@ -589,6 +604,7 @@ export const terraOrders = [
     expiry: "GTC",
     placedAt: hoursAgo(6),
     status: "pending",
+    accountId: "acc-100030",
   },
   {
     id: "ord-55007",
@@ -602,6 +618,7 @@ export const terraOrders = [
     expiry: "Today",
     placedAt: hoursAgo(14),
     status: "pending",
+    accountId: "acc-092841",
   },
 ];
 
@@ -1841,4 +1858,78 @@ export function accountRules(accountId: string): {
     rules,
     parameters: PROGRAM_PARAMETERS[acc.program] ?? PROGRAM_PARAMETERS["Terra Pro $100K"],
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Payout entitlement (M3-2 Payout Request Flow + M10 post-payout)    */
+/* ------------------------------------------------------------------ */
+
+export interface PayoutEntitlement {
+  isFunded: boolean;
+  /** Payouts unlock only on funded accounts. */
+  eligible: boolean;
+  /** Trader's share of net profit available to withdraw right now. */
+  withdrawable: number;
+  /** Trader's profit split percent (80 from "80/20"). */
+  splitPct: number;
+  /** Net profit since the account was funded (balance − starting). */
+  netProfit: number;
+  /** Balance never dropped to/below the starting balance since funding. */
+  healthy: boolean;
+  /** Blocker copy when not eligible — undefined when eligible. */
+  reason?: string;
+}
+
+/**
+ * What an account can withdraw right now.
+ *
+ * Payouts are a funded-only mechanic: evaluation phases accumulate
+ * profit but cannot pay out. On a funded account the withdrawable
+ * amount is the trader's split of net profit (profit split from the
+ * account record, e.g. 80/20 → 80%). A "flat" account (balance at or
+ * below the starting balance) has nothing to withdraw, and the
+ * challenge fee is refunded with the first payout on funded accounts.
+ */
+export function payoutEntitlement(accountId: string): PayoutEntitlement {
+  const acc = terraAccounts.find((a) => a.id === accountId);
+  if (!acc) {
+    return {
+      isFunded: false,
+      eligible: false,
+      withdrawable: 0,
+      splitPct: 0,
+      netProfit: 0,
+      healthy: false,
+      reason: "Account not found.",
+    };
+  }
+  const isFunded = acc.phase === "Funded";
+  const splitPct = acc.profitSplit ? Number(acc.profitSplit.split("/")[0]) || 0 : 0;
+  const netProfit = acc.balance - acc.startingBalance;
+  const healthy = netProfit > 0;
+  const withdrawable = healthy ? Math.round(netProfit * (splitPct / 100) * 100) / 100 : 0;
+
+  if (!isFunded) {
+    return {
+      isFunded: false,
+      eligible: false,
+      withdrawable: 0,
+      splitPct,
+      netProfit,
+      healthy,
+      reason: `Payouts unlock on funded accounts — #${acc.login} is still in ${acc.phase}. Pass the evaluation to start withdrawing.`,
+    };
+  }
+  if (!healthy) {
+    return {
+      isFunded: true,
+      eligible: false,
+      withdrawable: 0,
+      splitPct,
+      netProfit,
+      healthy,
+      reason: `Nothing to withdraw — #${acc.login} is flat (balance ${usd(acc.balance)} vs starting ${usd(acc.startingBalance)}). Rebuild profit above the starting balance first.`,
+    };
+  }
+  return { isFunded: true, eligible: true, withdrawable, splitPct, netProfit, healthy };
 }
