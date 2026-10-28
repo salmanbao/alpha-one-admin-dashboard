@@ -13,10 +13,122 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
+
+/**
+ * Queue rows (mock) — drives selection, preset filtering, CSV export and
+ * per-row actions. Mirrors PRD §4.9 bulk-approve queue (POST /payouts/bulk-approve).
+ */
+interface QueueRow {
+  ref: string;
+  trader: string;
+  flag: string;
+  country: string;
+  account: string;
+  amount: number;
+  net: number;
+  method: "USDT" | "USDC" | "SEPA" | "SWIFT" | "Wise";
+  rail: string;
+  kyc: string;
+  kycVerified: boolean;
+  age: string;
+  risk: string;
+  status: string;
+  tone: "primary" | "tsc" | "tertiary" | "error";
+  large: boolean; // ≥ $15k dual-custody threshold
+  highRisk: boolean;
+  primary: "approve" | "review" | "dual" | "investigate";
+}
+
+const QUEUE: QueueRow[] = [
+  { ref: "#PO-94102", trader: "Elena Althaus", flag: "🇩🇪", country: "DE", account: "MT5-902184 · Elite Pro", amount: 24500, net: 19600, method: "USDT", rail: "TRC-20", kyc: "Verified L3", kycVerified: true, age: "18m", risk: "Large Amount (>$15k)", status: "Pending 1st Review", tone: "primary", large: true, highRisk: false, primary: "approve" },
+  { ref: "#PO-94103", trader: "Markus Weber", flag: "🇦🇹", country: "AT", account: "MT5-781903 · Scalper 200k", amount: 12850, net: 10280, method: "SEPA", rail: "EUR Direct", kyc: "Verified L3", kycVerified: true, age: "25m", risk: "Clean Pass", status: "Pending 1st Review", tone: "tsc", large: false, highRisk: false, primary: "approve" },
+  { ref: "#PO-94104", trader: "Jin-Woo Park", flag: "🇰🇷", country: "KR", account: "MT5-879001 · Master Trader", amount: 31100, net: 24880, method: "USDT", rail: "TRC-20", kyc: "Enhanced DD Req", kycVerified: false, age: "42m", risk: ">$15k · KYC Pending", status: "Pending 1st Review", tone: "tertiary", large: true, highRisk: true, primary: "review" },
+  { ref: "#PO-94105", trader: "Liam O'Connor", flag: "🇮🇪", country: "IE", account: "MT5-812399 · Apex Funded", amount: 18400, net: 14720, method: "Wise", rail: "GBP FPS", kyc: "Verified L2", kycVerified: true, age: "1h 05m", risk: ">$15k · First-Time", status: "Pending 2nd Sign", tone: "primary", large: true, highRisk: false, primary: "dual" },
+  { ref: "#PO-94106", trader: "Sofia Rodriguez", flag: "🇪🇸", country: "ES", account: "MT5-667104 · Core 100k", amount: 7620, net: 6096, method: "USDC", rail: "ERC-20", kyc: "Verified L3", kycVerified: true, age: "1h 22m", risk: "Clean Pass", status: "Pending 1st Review", tone: "tsc", large: false, highRisk: false, primary: "approve" },
+  { ref: "#PO-94107", trader: "Chloe Laurent", flag: "🇫🇷", country: "FR", account: "MT5-549021 · Alpha 150k", amount: 9450, net: 7560, method: "SEPA", rail: "EUR Direct", kyc: "Verified L3", kycVerified: true, age: "1h 50m", risk: "Clean Pass", status: "Pending 1st Review", tone: "primary", large: false, highRisk: false, primary: "approve" },
+  { ref: "#PO-94108", trader: "David Chen", flag: "🇨🇦", country: "CA", account: "MT5-330198 · Pro 100k", amount: 12000, net: 9600, method: "SWIFT", rail: "USD Direct", kyc: "Verified L3", kycVerified: true, age: "2h 30m", risk: "Clean Pass", status: "Pending 1st Review", tone: "tsc", large: false, highRisk: false, primary: "approve" },
+  { ref: "#PO-94109", trader: "Lucas Silva", flag: "🇧🇷", country: "BR", account: "MT5-885090 · Master 100k", amount: 14200, net: 11360, method: "USDT", rail: "TRC-20", kyc: "Pending Refresh", kycVerified: false, age: "3h 45m", risk: "KYC Pending", status: "Hold: Surveillance", tone: "error", large: false, highRisk: true, primary: "investigate" },
+];
+
+const METHOD_ICON: Record<QueueRow["method"], string> = {
+  USDT: "currency_bitcoin",
+  USDC: "toll",
+  SEPA: "account_balance",
+  SWIFT: "payments",
+  Wise: "swap_horiz",
+};
+
+const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 export function PayoutsBulkApprovalStitchPage() {
+  const { navigate } = usePlatform();
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  // Selection — the four pre-checked payouts from the design; all bulk
+  // actions and the attestation modal operate on this set.
+  const [selected, setSelected] = React.useState<Set<string>>(
+    new Set(["#PO-94102", "#PO-94103", "#PO-94104", "#PO-94105"]),
+  );
+  const [preset, setPreset] = React.useState<"all" | "kyc" | "large" | "risk">("all");
+
+  const selectedRows = QUEUE.filter((r) => selected.has(r.ref));
+  const gross = selectedRows.reduce((s, r) => s + r.amount, 0);
+  const largeSel = selectedRows.filter((r) => r.large);
+  const visibleRows = QUEUE.filter((r) =>
+    preset === "kyc" ? r.kycVerified : preset === "large" ? r.large : preset === "risk" ? r.highRisk : true,
+  );
+
+  const toggleOne = (ref: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(ref)) next.delete(ref);
+      else next.add(ref);
+      return next;
+    });
+  const toggleAll = () =>
+    setSelected((prev) => (prev.size === QUEUE.length ? new Set() : new Set(QUEUE.map((r) => r.ref))));
+  const dropFromSelection = (...refs: string[]) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      refs.forEach((x) => next.delete(x));
+      return next;
+    });
+
+  const approveOne = (ref: string) => {
+    dropFromSelection(ref);
+    toast({ title: "Payout approved", description: `${ref} cleared for dispatch — 1st attestation recorded.` });
+  };
+  const rejectOne = (ref: string) => {
+    dropFromSelection(ref);
+    toast({ title: "Payout rejected", description: `${ref} rejected and returned to the trader's queue.`, variant: "destructive" });
+  };
+  const reviewFlags = (ref: string) =>
+    toast({ title: "Pre-flight flags reviewed", description: `${ref} — enhanced DD checklist and surveillance notes opened.` });
+  const dualSign = (ref: string) => {
+    dropFromSelection(ref);
+    toast({ title: "2nd signature recorded", description: `${ref} counter-signed — releasing to settlement.` });
+  };
+  const investigate = (ref: string) =>
+    toast({ title: "Surveillance ticket opened", description: `${ref} escalated to the compliance queue for investigation.` });
+
+  const exportRows = (rows: QueueRow[], filename: string) =>
+    exportToCsv(
+      rows,
+      [
+        { key: "ref", header: "Reference", value: (r) => r.ref },
+        { key: "trader", header: "Trader", value: (r) => r.trader },
+        { key: "account", header: "Account", value: (r) => r.account },
+        { key: "amount", header: "Amount (USD)", value: (r) => r.amount },
+        { key: "net", header: "Net (USD)", value: (r) => r.net },
+        { key: "method", header: "Method", value: (r) => `${r.method} ${r.rail}` },
+        { key: "kyc", header: "KYC", value: (r) => r.kyc },
+        { key: "status", header: "Status", value: (r) => r.status },
+      ],
+      filename,
+    );
   return (
     <>
       <div className="flex flex-col w-full space-y-6">
@@ -60,11 +172,11 @@ export function PayoutsBulkApprovalStitchPage() {
                 <option value="risk_priority">Risk Priority</option>
               </select>
             </div>
-            <button className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors shadow-sm" type="button">
+            <button className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors shadow-sm" onClick={() => exportRows(QUEUE, "payout-queue.csv")} type="button">
 <MsIcon name="download" className="text-[16px]" />
               Export Queue (CSV)
             </button>
-            <button className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors shadow-sm" title="Last synced 14:38:02 UTC" type="button">
+            <button className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors shadow-sm" title="Last synced 14:38:02 UTC" onClick={() => toast({ title: "Queue refreshed", description: "Synced with the payout ledger — 38 requests queued." })} type="button">
 <MsIcon name="sync" className="text-[16px] text-primary" />
               <span>Refresh</span>
               <span className="font-mono text-[10px] text-on-surface-variant font-normal">14:38:02 UTC</span>
@@ -149,7 +261,7 @@ export function PayoutsBulkApprovalStitchPage() {
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors" type="button">
+            <button className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${preset === "large" ? "bg-tertiary text-on-tertiary" : "bg-surface-container-high hover:bg-surface-container-highest text-on-surface"}`} onClick={() => setPreset((p) => (p === "large" ? "all" : "large"))} type="button">
 <MsIcon name="filter_alt" className="text-[15px] text-tertiary" />
               Filter Large (&gt;$15k)
             </button>
@@ -197,20 +309,22 @@ export function PayoutsBulkApprovalStitchPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-tsc font-medium mr-1 font-label uppercase text-[11px] tracking-wider">Presets:</span>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary text-on-primary text-xs font-bold shadow-sm" type="button">              All In Queue (38)</button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-low hover:bg-surface-container-high text-on-surface text-xs font-semibold shadow-sm transition-colors" type="button">
-<MsIcon name="check" className="text-[14px] text-primary" />
-              KYC-Verified Only
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-low hover:bg-surface-container-high text-on-surface text-xs font-semibold shadow-sm transition-colors" type="button">
-              <span className="w-2 h-2 rounded-full bg-tertiary"></span>
-              Large Tickets &gt;$15k (5)
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-low hover:bg-surface-container-high text-on-surface text-xs font-semibold shadow-sm transition-colors" type="button">
-              <span className="w-2 h-2 rounded-full bg-error"></span>
-              High-Risk Flags (4)
-            </button>
-            <button className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-tsc hover:text-on-surface transition-colors ml-auto font-medium" type="button">
+            {([
+              { key: "all", label: "All In Queue (38)" },
+              { key: "kyc", label: "KYC-Verified Only" },
+              { key: "large", label: "Large Tickets >$15k (5)" },
+              { key: "risk", label: "High-Risk Flags (4)" },
+            ] as const).map((p) => (
+              <button
+                key={p.key}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs shadow-sm transition-colors ${preset === p.key ? "bg-primary text-on-primary font-bold" : "bg-surface-container-low hover:bg-surface-container-high text-on-surface font-semibold"}`}
+                onClick={() => setPreset(p.key)}
+                type="button"
+              >
+                {p.label}
+              </button>
+            ))}
+            <button className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-tsc hover:text-on-surface transition-colors ml-auto font-medium" onClick={() => { setPreset("all"); toast({ title: "Filters reset", description: "Showing the full payout queue again." }); }} type="button">
 <MsIcon name="close" className="text-[14px]" />
               Reset Filters
             </button>
@@ -218,30 +332,38 @@ export function PayoutsBulkApprovalStitchPage() {
         </div>
         <div className="bg-primary-fixed/30 p-3 px-5 rounded-xl flex flex-wrap items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-3">
-<input defaultChecked className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" />
+<input aria-label="Select all payouts" checked={selected.size === QUEUE.length} onChange={toggleAll} className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" />
             <div className="flex items-center gap-2">
-              <span className="font-headline font-bold text-sm text-on-surface">4 payouts selected</span>
+              <span className="font-headline font-bold text-sm text-on-surface">{selected.size} payouts selected</span>
               <span className="text-on-surface-variant text-xs">·</span>
-              <span className="font-mono text-xs font-bold text-on-surface">$72,550.00 USD total gross</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary-container text-on-secondary-container">2 exceed $15k threshold</span>
+              <span className="font-mono text-xs font-bold text-on-surface">{usd(gross)} USD total gross</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary-container text-on-secondary-container">{largeSel.length} exceed $15k threshold</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
-            <button className="text-xs font-medium text-on-surface-variant hover:text-on-surface px-2 py-1 transition-colors" type="button">              Clear Selection</button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-lowest text-on-surface text-xs font-semibold hover:bg-surface-container transition-colors shadow-sm" type="button">
+            <button className="text-xs font-medium text-on-surface-variant hover:text-on-surface px-2 py-1 transition-colors" onClick={() => { setSelected(new Set()); toast({ title: "Selection cleared" }); }} type="button">              Clear Selection</button>
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-lowest text-on-surface text-xs font-semibold hover:bg-surface-container transition-colors shadow-sm" onClick={() => exportRows(selectedRows, "payouts-selected.csv")} type="button">
 <MsIcon name="file_download" className="text-[15px]" />
-              Export Selected (4)
+              Export Selected ({selectedRows.length})
             </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-error-container text-on-error-container text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm" type="button">
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-error-container text-on-error-container text-xs font-semibold hover:opacity-90 transition-opacity shadow-sm" disabled={selectedRows.length === 0} onClick={() => {
+              const refs = selectedRows.map((r) => r.ref);
+              dropFromSelection(...refs);
+              toast({ title: "Payouts rejected", description: `${refs.length} payout(s) rejected and returned to traders.`, variant: "destructive" });
+            }} type="button">
 <MsIcon name="block" className="text-[15px]" />
               Reject Selected
             </button>
-            <button className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-tertiary text-on-tertiary text-xs font-bold hover:bg-tertiary/90 transition-colors shadow-sm" type="button">
+            <button className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-tertiary text-on-tertiary text-xs font-bold hover:bg-tertiary/90 transition-colors shadow-sm" disabled={largeSel.length === 0} onClick={() => {
+              const refs = largeSel.map((r) => r.ref);
+              dropFromSelection(...refs);
+              toast({ title: "Signed & forwarded", description: `${refs.length} payout(s) staged to Pending 2nd Approval (CRO/Treasury Lead).` });
+            }} type="button">
 <MsIcon name="vpn_key" className="text-[16px]" />
-              Sign &amp; Forward for 2nd Review (2)
+              Sign &amp; Forward for 2nd Review ({largeSel.length})
             </button>
-            <button className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm" type="button" onClick={() => setSo0(true)}>
-              Approve Selected (4 Payouts)
+            <button className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm" disabled={selectedRows.length === 0} type="button" onClick={() => setSo0(true)}>
+              Approve Selected ({selectedRows.length} Payouts)
 <MsIcon name="arrow_forward" className="text-[16px]" />
             </button>
           </div>
@@ -251,7 +373,7 @@ export function PayoutsBulkApprovalStitchPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface-container-high/60 text-tsc text-[11px] font-bold tracking-wider uppercase font-label">
-                  <th className="p-3.5 pl-4 w-10"><input defaultChecked className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" /></th>
+                  <th className="p-3.5 pl-4 w-10"><input aria-label="Select all payouts" checked={selected.size === QUEUE.length} onChange={toggleAll} className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" /></th>
                   <th className="py-3.5 px-3">Reference</th>
                   <th className="py-3.5 px-3">Trader &amp; Account</th>
                   <th className="py-3.5 px-3 text-right">Amount</th>
@@ -264,444 +386,151 @@ export function PayoutsBulkApprovalStitchPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-container-high text-xs font-medium">
-                <tr className="bg-surface-container-lowest hover:bg-surface-container transition-colors">
-                  <td className="p-3.5 pl-4"><input defaultChecked className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" /></td>
-                  <td className="py-3.5 px-3 font-mono font-bold text-primary cursor-pointer hover:underline">                    #PO-94102</td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-[11px] shrink-0">                        EA</div>
-                      <div>
-                        <div className="font-bold text-on-surface flex items-center gap-1.5">
-                          Elena Althaus
-                          <span className="text-[10px] text-on-surface-variant font-normal">🇩🇪 DE</span>
+                {visibleRows.map((r) => {
+                  const initials = r.trader.split(" ").map((w) => w[0]).join("").slice(0, 2);
+                  const avatarTone =
+                    r.tone === "error" ? "bg-error-container text-on-error-container"
+                    : r.tone === "tsc" ? "bg-tsc/20 text-tsc"
+                    : r.tone === "tertiary" ? "bg-tertiary/20 text-tertiary"
+                    : "bg-primary/20 text-primary";
+                  return (
+                    <tr key={r.ref} className="bg-surface-container-lowest hover:bg-surface-container transition-colors">
+                      <td className="p-3.5 pl-4">
+                        <input
+                          aria-label={`Select ${r.ref}`}
+                          checked={selected.has(r.ref)}
+                          onChange={() => toggleOne(r.ref)}
+                          className="w-4 h-4 rounded text-primary accent-primary cursor-pointer"
+                          type="checkbox"
+                        />
+                      </td>
+                      <td
+                        className="py-3.5 px-3 font-mono font-bold text-primary cursor-pointer hover:underline"
+                        title={`Open payout details for ${r.ref}`}
+                        onClick={() => navigate("payout-detail")}
+                      >
+                        {r.ref}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-7 h-7 rounded-full font-bold flex items-center justify-center text-[11px] shrink-0 ${avatarTone}`}>{initials}</div>
+                          <div>
+                            <div className="font-bold text-on-surface flex items-center gap-1.5">
+                              {r.trader}
+                              <span className="text-[10px] text-on-surface-variant font-normal">{r.flag} {r.country}</span>
+                            </div>
+                            <div className="font-mono text-[10px] text-on-surface-variant">{r.account}</div>
+                          </div>
                         </div>
-                        <div className="font-mono text-[10px] text-on-surface-variant">MT5-902184 · Elite Pro</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3 text-right">
-                    <div className="font-mono font-bold text-sm text-on-surface">$24,500.00</div>
-                    <div className="font-mono text-[10px] text-on-surface-variant">Net: $19,600.00</div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-1.5">
-<MsIcon name="currency_bitcoin" className="text-[16px] text-primary" />
-                      <span className="font-semibold text-on-surface">USDT</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container font-mono text-on-surface-variant">TRC-20</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary-fixed/40 text-on-primary-fixed-variant text-[11px] font-bold">
-<MsIcon name="verified" className="text-[13px]" />
-                      Verified L3
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 font-mono text-on-surface-variant">                    18m</td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary-container text-tertiary text-[10px] font-bold">
-<MsIcon name="security" className="text-[12px]" />
-                      Large Amount (&gt;$15k)
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
-                      Pending 1st Review
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 pr-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button className="p-1 rounded-lg text-primary hover:bg-surface-container-high transition-colors" title="Quick Approve" type="button"><MsIcon name="check_circle" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-error hover:bg-surface-container-high transition-colors" title="Reject / Flag" type="button"><MsIcon name="cancel" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Details" type="button"><MsIcon name="open_in_new" className="text-[18px]" /></button>
-                    </div>
-                  </td>
-                </tr>
-                <tr className="bg-surface-container-lowest hover:bg-surface-container transition-colors">
-                  <td className="p-3.5 pl-4"><input defaultChecked className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" /></td>
-                  <td className="py-3.5 px-3 font-mono font-bold text-primary cursor-pointer hover:underline">                    #PO-94103</td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-tsc/20 text-tsc font-bold flex items-center justify-center text-[11px] shrink-0">                        MW</div>
-                      <div>
-                        <div className="font-bold text-on-surface flex items-center gap-1.5">
-                          Markus Weber
-                          <span className="text-[10px] text-on-surface-variant font-normal">🇦🇹 AT</span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <div className="font-mono font-bold text-sm text-on-surface">{usd(r.amount)}</div>
+                        <div className="font-mono text-[10px] text-on-surface-variant">Net: {usd(r.net)}</div>
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <MsIcon name={METHOD_ICON[r.method]} className={`text-[16px] ${r.method === "USDT" || r.method === "USDC" ? "text-primary" : "text-tsc"}`} />
+                          <span className="font-semibold text-on-surface">{r.method}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container font-mono text-on-surface-variant">{r.rail}</span>
                         </div>
-                        <div className="font-mono text-[10px] text-on-surface-variant">MT5-781903 · Scalper 200k</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3 text-right">
-                    <div className="font-mono font-bold text-sm text-on-surface">$12,850.00</div>
-                    <div className="font-mono text-[10px] text-on-surface-variant">Net: $10,280.00</div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-1.5">
-<MsIcon name="account_balance" className="text-[16px] text-tsc" />
-                      <span className="font-semibold text-on-surface">SEPA</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container font-mono text-on-surface-variant">EUR Direct</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary-fixed/40 text-on-primary-fixed-variant text-[11px] font-bold">
-<MsIcon name="verified" className="text-[13px]" />
-                      Verified L3
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 font-mono text-on-surface-variant">                    25m</td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-on-surface-variant text-[10px] font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                      Clean Pass
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                      Pending 1st Review
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 pr-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button className="p-1 rounded-lg text-primary hover:bg-surface-container-high transition-colors" title="Quick Approve" type="button"><MsIcon name="check_circle" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-error hover:bg-surface-container-high transition-colors" title="Reject / Flag" type="button"><MsIcon name="cancel" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Details" type="button"><MsIcon name="open_in_new" className="text-[18px]" /></button>
-                    </div>
-                  </td>
-                </tr>
-                <tr className="bg-surface-container-lowest hover:bg-surface-container transition-colors">
-                  <td className="p-3.5 pl-4"><input defaultChecked className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" /></td>
-                  <td className="py-3.5 px-3 font-mono font-bold text-primary cursor-pointer hover:underline">                    #PO-94104</td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-tertiary/20 text-tertiary font-bold flex items-center justify-center text-[11px] shrink-0">                        JP</div>
-                      <div>
-                        <div className="font-bold text-on-surface flex items-center gap-1.5">
-                          Jin-Woo Park
-                          <span className="text-[10px] text-on-surface-variant font-normal">🇰🇷 KR</span>
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold ${r.kycVerified ? "bg-primary-fixed/40 text-on-primary-fixed-variant" : "bg-secondary-container text-tertiary"}`}>
+                          <MsIcon name={r.kycVerified ? "verified" : r.kyc === "Pending Refresh" ? "refresh" : "hourglass_empty"} className="text-[13px]" />
+                          {r.kyc}
+                        </span>
+                      </td>
+                      <td className={`py-3.5 px-3 font-mono ${r.highRisk ? "text-error font-semibold" : "text-on-surface-variant"}`}>{r.age}</td>
+                      <td className="py-3.5 px-3">
+                        {r.highRisk ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-error-container text-on-error-container text-[10px] font-bold">
+                            <MsIcon name="warning" className="text-[12px]" />
+                            {r.risk}
+                          </span>
+                        ) : r.risk === "Clean Pass" ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-on-surface-variant text-[10px] font-semibold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                            Clean Pass
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary-container text-tertiary text-[10px] font-bold">
+                            <MsIcon name="security" className="text-[12px]" />
+                            {r.risk}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        {r.status === "Pending 2nd Sign" ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-container text-tertiary text-[11px] font-bold">
+                            <MsIcon name="vpn_key" className="text-[13px]" />
+                            {r.status}
+                          </span>
+                        ) : r.status === "Hold: Surveillance" ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-error-container text-on-error-container text-[11px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
+                            {r.status}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface text-[11px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                            {r.status}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-3 pr-4 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {r.primary === "approve" ? (
+                            <button className="p-1 rounded-lg text-primary hover:bg-surface-container-high transition-colors" title="Quick Approve" type="button" onClick={() => approveOne(r.ref)}>
+                              <MsIcon name="check_circle" className="text-[18px]" />
+                            </button>
+                          ) : r.primary === "review" ? (
+                            <button className="p-1 rounded-lg text-tertiary hover:bg-surface-container-high transition-colors" title="Review Flags" type="button" onClick={() => reviewFlags(r.ref)}>
+                              <MsIcon name="rule" className="text-[18px]" />
+                            </button>
+                          ) : r.primary === "dual" ? (
+                            <button className="p-1 rounded-lg text-tertiary hover:bg-surface-container-high transition-colors" title="Dual-sign as CRO" type="button" onClick={() => dualSign(r.ref)}>
+                              <MsIcon name="verified" className="text-[18px]" />
+                            </button>
+                          ) : (
+                            <button className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Investigate Ticket" type="button" onClick={() => investigate(r.ref)}>
+                              <MsIcon name="search" className="text-[18px]" />
+                            </button>
+                          )}
+                          <button className="p-1 rounded-lg text-error hover:bg-surface-container-high transition-colors" title="Reject / Flag" type="button" onClick={() => rejectOne(r.ref)}>
+                            <MsIcon name="cancel" className="text-[18px]" />
+                          </button>
+                          <button className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Details" type="button" onClick={() => navigate("payout-detail")}>
+                            <MsIcon name="open_in_new" className="text-[18px]" />
+                          </button>
                         </div>
-                        <div className="font-mono text-[10px] text-on-surface-variant">MT5-879001 · Master Trader</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3 text-right">
-                    <div className="font-mono font-bold text-sm text-tertiary">$31,100.00</div>
-                    <div className="font-mono text-[10px] text-on-surface-variant">Net: $24,880.00</div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-1.5">
-<MsIcon name="currency_bitcoin" className="text-[16px] text-primary" />
-                      <span className="font-semibold text-on-surface">USDT</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container font-mono text-on-surface-variant">TRC-20</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary-container text-tertiary text-[11px] font-bold">
-<MsIcon name="hourglass_empty" className="text-[13px]" />
-                      Enhanced DD Req
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 font-mono text-on-surface-variant">                    42m</td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex flex-wrap gap-1">
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-secondary-container text-tertiary text-[10px] font-bold">                        &gt;$15k</span>
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-error-container text-on-error-container text-[10px] font-bold">                        KYC Pending</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
-                      Pending 1st Review
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 pr-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button className="p-1 rounded-lg text-tertiary hover:bg-surface-container-high transition-colors" title="Review Flags" type="button"><MsIcon name="rule" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-error hover:bg-surface-container-high transition-colors" title="Reject / Flag" type="button"><MsIcon name="cancel" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Details" type="button"><MsIcon name="open_in_new" className="text-[18px]" /></button>
-                    </div>
-                  </td>
-                </tr>
-                <tr className="bg-surface-container-lowest hover:bg-surface-container transition-colors">
-                  <td className="p-3.5 pl-4"><input defaultChecked className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" /></td>
-                  <td className="py-3.5 px-3 font-mono font-bold text-primary cursor-pointer hover:underline">                    #PO-94105</td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-[11px] shrink-0">                        LO</div>
-                      <div>
-                        <div className="font-bold text-on-surface flex items-center gap-1.5">
-                          Liam O'Connor
-                          <span className="text-[10px] text-on-surface-variant font-normal">🇮🇪 IE</span>
-                        </div>
-                        <div className="font-mono text-[10px] text-on-surface-variant">MT5-812399 · Apex Funded</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3 text-right">
-                    <div className="font-mono font-bold text-sm text-on-surface">$18,400.00</div>
-                    <div className="font-mono text-[10px] text-on-surface-variant">Net: $14,720.00</div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-1.5">
-<MsIcon name="swap_horiz" className="text-[16px] text-tsc" />
-                      <span className="font-semibold text-on-surface">Wise</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container font-mono text-on-surface-variant">GBP FPS</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface text-[11px] font-bold">
-<MsIcon name="check_circle" className="text-[13px] text-primary" />
-                      Verified L2
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 font-mono text-on-surface-variant">                    1h 05m</td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex flex-wrap gap-1">
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-secondary-container text-tertiary text-[10px] font-bold">                        &gt;$15k</span>
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant text-[10px] font-medium">                        First-Time</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-container text-tertiary text-[11px] font-bold">
-<MsIcon name="vpn_key" className="text-[13px]" />
-                      Pending 2nd Sign
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 pr-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button className="p-1 rounded-lg text-tertiary hover:bg-surface-container-high transition-colors" title="Dual-sign as CRO" type="button"><MsIcon name="verified" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-error hover:bg-surface-container-high transition-colors" title="Reject / Flag" type="button"><MsIcon name="cancel" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Details" type="button"><MsIcon name="open_in_new" className="text-[18px]" /></button>
-                    </div>
-                  </td>
-                </tr>
-                <tr className="hover:bg-surface-container transition-colors">
-                  <td className="p-3.5 pl-4"><input className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" /></td>
-                  <td className="py-3.5 px-3 font-mono font-bold text-primary cursor-pointer hover:underline">                    #PO-94106</td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-tsc/20 text-tsc font-bold flex items-center justify-center text-[11px] shrink-0">                        SR</div>
-                      <div>
-                        <div className="font-bold text-on-surface flex items-center gap-1.5">
-                          Sofia Rodriguez
-                          <span className="text-[10px] text-on-surface-variant font-normal">🇪🇸 ES</span>
-                        </div>
-                        <div className="font-mono text-[10px] text-on-surface-variant">MT5-667104 · Core 100k</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3 text-right">
-                    <div className="font-mono font-bold text-sm text-on-surface">$7,620.00</div>
-                    <div className="font-mono text-[10px] text-on-surface-variant">Net: $6,096.00</div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-1.5">
-<MsIcon name="toll" className="text-[16px] text-primary" />
-                      <span className="font-semibold text-on-surface">USDC</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container font-mono text-on-surface-variant">ERC-20</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary-fixed/40 text-on-primary-fixed-variant text-[11px] font-bold">
-<MsIcon name="verified" className="text-[13px]" />
-                      Verified L3
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 font-mono text-on-surface-variant">                    1h 22m</td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-on-surface-variant text-[10px] font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                      Clean Pass
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                      Pending 1st Review
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 pr-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button className="p-1 rounded-lg text-primary hover:bg-surface-container-high transition-colors" title="Quick Approve" type="button"><MsIcon name="check_circle" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-error hover:bg-surface-container-high transition-colors" title="Reject" type="button"><MsIcon name="cancel" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Details" type="button"><MsIcon name="open_in_new" className="text-[18px]" /></button>
-                    </div>
-                  </td>
-                </tr>
-                <tr className="hover:bg-surface-container transition-colors">
-                  <td className="p-3.5 pl-4"><input className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" /></td>
-                  <td className="py-3.5 px-3 font-mono font-bold text-primary cursor-pointer hover:underline">                    #PO-94107</td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-[11px] shrink-0">                        CL</div>
-                      <div>
-                        <div className="font-bold text-on-surface flex items-center gap-1.5">
-                          Chloe Laurent
-                          <span className="text-[10px] text-on-surface-variant font-normal">🇫🇷 FR</span>
-                        </div>
-                        <div className="font-mono text-[10px] text-on-surface-variant">MT5-549021 · Alpha 150k</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3 text-right">
-                    <div className="font-mono font-bold text-sm text-on-surface">$9,450.00</div>
-                    <div className="font-mono text-[10px] text-on-surface-variant">Net: $7,560.00</div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-1.5">
-<MsIcon name="account_balance" className="text-[16px] text-tsc" />
-                      <span className="font-semibold text-on-surface">SEPA</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container font-mono text-on-surface-variant">EUR Direct</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary-fixed/40 text-on-primary-fixed-variant text-[11px] font-bold">
-<MsIcon name="verified" className="text-[13px]" />
-                      Verified L3
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 font-mono text-on-surface-variant">                    1h 50m</td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-on-surface-variant text-[10px] font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                      Clean Pass
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                      Pending 1st Review
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 pr-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button className="p-1 rounded-lg text-primary hover:bg-surface-container-high transition-colors" title="Quick Approve" type="button"><MsIcon name="check_circle" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-error hover:bg-surface-container-high transition-colors" title="Reject" type="button"><MsIcon name="cancel" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Details" type="button"><MsIcon name="open_in_new" className="text-[18px]" /></button>
-                    </div>
-                  </td>
-                </tr>
-                <tr className="hover:bg-surface-container transition-colors">
-                  <td className="p-3.5 pl-4"><input className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" /></td>
-                  <td className="py-3.5 px-3 font-mono font-bold text-primary cursor-pointer hover:underline">                    #PO-94108</td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-tsc/20 text-tsc font-bold flex items-center justify-center text-[11px] shrink-0">                        DC</div>
-                      <div>
-                        <div className="font-bold text-on-surface flex items-center gap-1.5">
-                          David Chen
-                          <span className="text-[10px] text-on-surface-variant font-normal">🇨🇦 CA</span>
-                        </div>
-                        <div className="font-mono text-[10px] text-on-surface-variant">MT5-330198 · Pro 100k</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3 text-right">
-                    <div className="font-mono font-bold text-sm text-on-surface">$12,000.00</div>
-                    <div className="font-mono text-[10px] text-on-surface-variant">Net: $9,600.00</div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-1.5">
-<MsIcon name="payments" className="text-[16px] text-tsc" />
-                      <span className="font-semibold text-on-surface">SWIFT</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container font-mono text-on-surface-variant">USD Direct</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary-fixed/40 text-on-primary-fixed-variant text-[11px] font-bold">
-<MsIcon name="verified" className="text-[13px]" />
-                      Verified L3
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 font-mono text-on-surface-variant">                    2h 30m</td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-on-surface-variant text-[10px] font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                      Clean Pass
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                      Pending 1st Review
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 pr-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button className="p-1 rounded-lg text-primary hover:bg-surface-container-high transition-colors" title="Quick Approve" type="button"><MsIcon name="check_circle" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-error hover:bg-surface-container-high transition-colors" title="Reject" type="button"><MsIcon name="cancel" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Details" type="button"><MsIcon name="open_in_new" className="text-[18px]" /></button>
-                    </div>
-                  </td>
-                </tr>
-                <tr className="hover:bg-surface-container transition-colors">
-                  <td className="p-3.5 pl-4"><input className="w-4 h-4 rounded text-primary accent-primary cursor-pointer" type="checkbox" /></td>
-                  <td className="py-3.5 px-3 font-mono font-bold text-primary cursor-pointer hover:underline">                    #PO-94109</td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-error-container text-on-error-container font-bold flex items-center justify-center text-[11px] shrink-0">                        LS</div>
-                      <div>
-                        <div className="font-bold text-on-surface flex items-center gap-1.5">
-                          Lucas Silva
-                          <span className="text-[10px] text-on-surface-variant font-normal">🇧🇷 BR</span>
-                        </div>
-                        <div className="font-mono text-[10px] text-on-surface-variant">MT5-885090 · Master 100k</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3 text-right">
-                    <div className="font-mono font-bold text-sm text-on-surface">$14,200.00</div>
-                    <div className="font-mono text-[10px] text-on-surface-variant">Net: $11,360.00</div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <div className="flex items-center gap-1.5">
-<MsIcon name="currency_bitcoin" className="text-[16px] text-primary" />
-                      <span className="font-semibold text-on-surface">USDT</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container font-mono text-on-surface-variant">TRC-20</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary-container text-tertiary text-[11px] font-bold">
-<MsIcon name="refresh" className="text-[13px]" />
-                      Pending Refresh
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 font-mono text-error font-semibold">                    3h 45m</td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-error-container text-on-error-container text-[10px] font-bold">
-<MsIcon name="warning" className="text-[12px]" />
-                      KYC Pending
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-error-container text-on-error-container text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
-                      Hold: Surveillance
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-3 pr-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <button className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Investigate Ticket" type="button"><MsIcon name="search" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-error hover:bg-surface-container-high transition-colors" title="Reject" type="button"><MsIcon name="cancel" className="text-[18px]" /></button>
-                      <button className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" title="Details" type="button"><MsIcon name="open_in_new" className="text-[18px]" /></button>
-                    </div>
-                  </td>
-                </tr>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {visibleRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="p-8 text-center text-on-surface-variant">
+                      No payouts match the current preset.{" "}
+                      <button className="font-bold text-primary hover:underline" title="Reset filters" type="button" onClick={() => setPreset("all")}>
+                        Reset filters
+                      </button>
+                    </td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
           </div>
           <div className="p-4 px-6 bg-surface-container-high/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-on-surface-variant">
             <div className="flex items-center gap-3">
-              <span>Showing <strong className="text-on-surface">8</strong> of <strong className="text-on-surface">38</strong> queued payouts</span>
+              <span>Showing <strong className="text-on-surface">{visibleRows.length}</strong> of <strong className="text-on-surface">38</strong> queued payouts</span>
               <span className="text-outline-variant">|</span>
-              <span className="font-medium text-primary">4 items selected · $72,550.00 USD gross</span>
+              <span className="font-medium text-primary">{selected.size} items selected · {usd(gross)} USD gross</span>
             </div>
             <div className="flex items-center gap-2">
-              <button className="p-1.5 rounded-lg bg-surface-container text-on-surface disabled:opacity-40 hover:bg-surface-container-high transition-colors" disabled type="button"><MsIcon name="chevron_left" className="text-[16px]" /></button>
+              <button className="p-1.5 rounded-lg bg-surface-container text-on-surface disabled:opacity-40 hover:bg-surface-container-high transition-colors" aria-label="Previous page" disabled onClick={() => toast({ title: "First page", description: "You are already on the first page of the queue." })} type="button"><MsIcon name="chevron_left" className="text-[16px]" /></button>
               <span className="px-3 py-1 rounded-lg bg-surface-container-lowest font-bold text-on-surface shadow-sm">1</span>
               <span className="px-2 font-medium">of 5</span>
-              <button className="p-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors" type="button"><MsIcon name="chevron_right" className="text-[16px]" /></button>
+              <button className="p-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors" aria-label="Next page" onClick={() => toast({ title: "End of mock queue", description: "Only the first page of the queue exists in this mock build." })} type="button"><MsIcon name="chevron_right" className="text-[16px]" /></button>
             </div>
           </div>
         </div>
@@ -723,14 +552,14 @@ export function PayoutsBulkApprovalStitchPage() {
                   <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm shrink-0"><MsIcon name="verified_user" className="text-[26px]" /></div>
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">                      <span className="font-label text-[10px] tracking-widest font-extrabold uppercase text-primary">{"TREASURY CLEARANCE // DUAL-CUSTODY ATTESTATION"}</span></div>
-                    <h2 className="font-headline text-xl font-bold text-on-surface leading-snug" id="dialog-title">Approve &amp; Stage 4 Selected Payouts?</h2>
+                    <h2 className="font-headline text-xl font-bold text-on-surface leading-snug" id="dialog-title">Approve &amp; Stage {selectedRows.length} Selected Payouts?</h2>
                   </div>
                 </div>
-                <div className="px-2.5 py-1 bg-surface-container-high rounded text-[11px] font-mono font-bold text-on-surface-variant tracking-tight shrink-0">                  4 PAYOUTS · $72,550.00 USD</div>
+                <div className="px-2.5 py-1 bg-surface-container-high rounded text-[11px] font-mono font-bold text-on-surface-variant tracking-tight shrink-0">                  {selectedRows.length} PAYOUTS · {usd(gross)} USD</div>
               </div>
               <p className="text-xs text-on-surface-variant leading-relaxed">
                 You are authorizing
-                <strong className="text-on-surface font-bold">4 queued disbursements ($72,550.00 USD total gross)</strong>
+                <strong className="text-on-surface font-bold">{selectedRows.length} queued disbursements ({usd(gross)} USD total gross)</strong>
                 . Your cryptographic signature will immediately clear eligible standard payouts and advance high-ticket items to the designated 2nd approver.
               </p>
             </div>
@@ -740,101 +569,61 @@ export function PayoutsBulkApprovalStitchPage() {
                   <span className="font-label text-[11px] uppercase font-bold tracking-wider text-tsc">Impacted Transactions &amp; Pre-Flight KYC Audits</span>
                   <span className="text-[11px] text-on-surface-variant">Batch Reference: <span className="font-mono font-semibold text-on-surface">TXN-089-ALPHA</span></span>
                 </div>
-                <div className="p-3.5 bg-surface-container-low rounded-lg transition-all hover:bg-surface-container">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-on-surface">#PO-94102</span>
-                        <span className="w-1 h-1 rounded-full bg-outline-variant"></span>
-                        <span className="text-xs font-semibold text-on-surface">Elena Althaus</span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-surface-container-high text-on-surface-variant">KYC Verified L3</span>
+                                {selectedRows.map((r) => (
+                  <div key={r.ref} className={`rounded-lg p-3.5 transition-all ${r.highRisk ? "bg-error-container/40" : "bg-surface-container-low hover:bg-surface-container"}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-mono text-xs font-bold ${r.highRisk ? "text-error" : "text-on-surface"}`}>{r.ref}</span>
+                          <span className={`w-1 h-1 rounded-full ${r.highRisk ? "bg-error/30" : "bg-outline-variant"}`}></span>
+                          <span className="text-xs font-semibold text-on-surface">{r.trader}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${r.kycVerified ? "bg-surface-container-high text-on-surface-variant" : "bg-error text-on-error"}`}>{r.kycVerified ? `KYC ${r.kyc}` : r.kyc}</span>
+                        </div>
+                        <div className="text-[11px] text-on-surface-variant">Payment Method: <span className="font-medium text-on-surface">{r.method} {r.rail}</span></div>
                       </div>
-                      <div className="text-[11px] text-on-surface-variant">Payment Method: <span className="font-medium text-on-surface">USDT TRC-20</span> (Direct Vault Relay)</div>
+                      <div className="text-right">                      <div className="font-mono text-sm font-bold text-on-surface">{usd(r.amount)} <span className="text-[10px] text-tsc">USD</span></div></div>
                     </div>
-                    <div className="text-right">                      <div className="font-mono text-sm font-bold text-on-surface">$24,500.00 <span className="text-[10px] text-tsc">USD</span></div></div>
-                  </div>
-                  <div className="mt-2.5 flex items-center gap-2 px-2.5 py-1.5 rounded bg-surface-container text-tertiary text-[11px] leading-tight font-medium">
-<MsIcon name="rule" className="text-[15px] shrink-0" />
-                    <span>Dual-Custody Trigger (&gt; $15k) → Stages to Pending 2nd Approval (CRO/Treasury Lead)</span>
-                  </div>
-                </div>
-                <div className="p-3.5 bg-surface-container-low rounded-lg transition-all hover:bg-surface-container">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-on-surface">#PO-94103</span>
-                        <span className="w-1 h-1 rounded-full bg-outline-variant"></span>
-                        <span className="text-xs font-semibold text-on-surface">Markus Weber</span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary-fixed text-on-primary-fixed-variant">KYC Verified L3</span>
-                      </div>
-                      <div className="text-[11px] text-on-surface-variant">Payment Method: <span className="font-medium text-on-surface">SEPA Direct</span> (Instant Settlement)</div>
-                    </div>
-                    <div className="text-right">                      <div className="font-mono text-sm font-bold text-on-surface">$12,850.00 <span className="text-[10px] text-tsc">USD</span></div></div>
-                  </div>
-                  <div className="mt-2.5 flex items-center gap-2 px-2.5 py-1.5 rounded bg-surface-container-highest text-on-surface-variant text-[11px] leading-tight font-medium">
-<MsIcon name="flash_on" className="text-primary text-[15px] shrink-0" />
-                    <span className="text-on-surface font-semibold">Ready for Immediate Dispatch</span>
-                    <span className="text-tsc ml-auto text-[10px]">Under $15k Threshold</span>
-                  </div>
-                </div>
-                <div className="p-3.5 bg-error-container/40 rounded-lg">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-error">#PO-94104</span>
-                        <span className="w-1 h-1 rounded-full bg-error/30"></span>
-                        <span className="text-xs font-bold text-on-surface">Jin-Woo Park</span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-error text-on-error">Enhanced DD Req</span>
-                      </div>
-                      <div className="text-[11px] text-on-surface-variant">Payment Method: <span className="font-medium text-on-surface">USDT TRC-20</span></div>
-                    </div>
-                    <div className="text-right">                      <div className="font-mono text-sm font-bold text-on-surface">$31,100.00 <span className="text-[10px] text-tsc">USD</span></div></div>
-                  </div>
-                  <div className="mt-2.5 flex items-start gap-2 px-2.5 py-2 rounded bg-surface-container-lowest text-error text-[11px] leading-snug">
+                    {r.highRisk ? (
+                      <div className="mt-2.5 flex items-start gap-2 px-2.5 py-2 rounded bg-surface-container-lowest text-error text-[11px] leading-snug">
 <MsIcon name="warning" className="text-[16px] shrink-0 text-error" />
-                    <div>
-                      <span className="font-bold tracking-tight uppercase text-[10px] block">Critical KYC Pre-Check Flag:</span>
-                      Enhanced Due Diligence / KYC Pending. Approval will override pre-flight block and require compliance co-signature.
-                    </div>
-                  </div>
-                </div>
-                <div className="p-3.5 bg-surface-container-low rounded-lg transition-all hover:bg-surface-container">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-on-surface">#PO-94105</span>
-                        <span className="w-1 h-1 rounded-full bg-outline-variant"></span>
-                        <span className="text-xs font-semibold text-on-surface">Liam O'Connor</span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-surface-container-high text-on-surface-variant">KYC Verified L2</span>
+                        <div>
+                          <span className="font-bold tracking-tight uppercase text-[10px] block">Critical KYC Pre-Check Flag:</span>
+                          Enhanced Due Diligence / KYC Pending. Approval will override pre-flight block and require compliance co-signature.
+                        </div>
                       </div>
-                      <div className="text-[11px] text-on-surface-variant">Payment Method: <span className="font-medium text-on-surface">Wise GBP</span> (Swift FX Route)</div>
-                    </div>
-                    <div className="text-right">                      <div className="font-mono text-sm font-bold text-on-surface">$18,400.00 <span className="text-[10px] text-tsc">USD</span></div></div>
+                    ) : r.large ? (
+                      <div className="mt-2.5 flex items-center gap-2 px-2.5 py-1.5 rounded bg-surface-container text-tertiary text-[11px] leading-tight font-medium">
+<MsIcon name="rule" className="text-[15px] shrink-0" />
+                        <span>Dual-Custody Trigger (&gt; $15k) → Stages to Pending 2nd Approval (CRO/Treasury Lead)</span>
+                      </div>
+                    ) : (
+                      <div className="mt-2.5 flex items-center gap-2 px-2.5 py-1.5 rounded bg-surface-container-highest text-on-surface-variant text-[11px] leading-tight font-medium">
+<MsIcon name="flash_on" className="text-primary text-[15px] shrink-0" />
+                        <span className="text-on-surface font-semibold">Ready for Immediate Dispatch</span>
+                        <span className="text-tsc ml-auto text-[10px]">Under $15k Threshold</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-2.5 flex items-center gap-2 px-2.5 py-1.5 rounded bg-surface-container text-tertiary text-[11px] leading-tight font-medium">
-<MsIcon name="hourglass_top" className="text-[15px] shrink-0" />
-                    <span>First-Time Payout (&gt; $15k) → Stages to 2nd Sign Queue</span>
-                  </div>
-                </div>
+                ))}
               </div>
               <div className="p-4 rounded-xl bg-surface-container grid grid-cols-3 gap-3 text-center">
                 <div className="space-y-0.5">
                   <span className="font-label text-[10px] uppercase font-bold tracking-wider text-tsc block">Total Gross</span>
-                  <span className="font-mono text-sm font-bold text-on-surface block">$72,550.00 USD</span>
+                  <span className="font-mono text-sm font-bold text-on-surface block">{usd(gross)} USD</span>
                 </div>
                 <div className="space-y-0.5">
                   <span className="font-label text-[10px] uppercase font-bold tracking-wider text-primary block">Immediate Clearing</span>
-                  <span className="font-mono text-sm font-bold text-on-surface block">1 Payout <span className="text-xs text-tsc font-normal">($12,850.00)</span></span>
+                  <span className="font-mono text-sm font-bold text-on-surface block">{selectedRows.length - largeSel.length} Payout <span className="text-xs text-tsc font-normal">({usd(gross - largeSel.reduce((s, r) => s + r.amount, 0))})</span></span>
                 </div>
                 <div className="space-y-0.5">
                   <span className="font-label text-[10px] uppercase font-bold tracking-wider text-tertiary block">Dual-Auth Staged</span>
-                  <span className="font-mono text-sm font-bold text-on-surface block">3 Payouts <span className="text-xs text-tsc font-normal">($59,700.00)</span></span>
+                  <span className="font-mono text-sm font-bold text-on-surface block">{largeSel.length} Payouts <span className="text-xs text-tsc font-normal">({usd(largeSel.reduce((s, r) => s + r.amount, 0))})</span></span>
                 </div>
               </div>
               <div className="space-y-3 pt-1">
                 <label className="flex items-start gap-3 cursor-pointer group">
 <input defaultChecked className="mt-0.5 w-4 h-4 rounded text-primary bg-surface-container-high focus:ring-0 focus:outline-none accent-primary transition cursor-pointer shrink-0" id="attestation-toggle" type="checkbox" />
-                  <span className="text-xs text-on-surface font-medium leading-relaxed group-hover:text-primary transition-colors">                    I attest that pre-flight trade logs, IP velocity checks, and anti-hedging surveillance have been reviewed for these 4 accounts.</span>
+                  <span className="text-xs text-on-surface font-medium leading-relaxed group-hover:text-primary transition-colors">                    I attest that pre-flight trade logs, IP velocity checks, and anti-hedging surveillance have been reviewed for these {selectedRows.length} accounts.</span>
                 </label>
                 <div className="p-3 bg-secondary-container/50 rounded-lg flex items-start gap-2.5">
 <MsIcon name="lock_clock" className="text-[18px] text-tertiary shrink-0 mt-0.5" />
@@ -854,8 +643,16 @@ export function PayoutsBulkApprovalStitchPage() {
 <MsIcon name="close" className="text-[16px]" />
                 Cancel &amp; Return to Queue
               </button>
-              <button className="px-6 py-2.5 rounded-xl bg-primary text-xs font-bold text-on-primary hover:opacity-95 shadow-sm transition-all flex items-center gap-2" id="btn-submit" type="button">
-                <span>Authorize &amp; Stage 4 Payouts</span>
+              <button className="px-6 py-2.5 rounded-xl bg-primary text-xs font-bold text-on-primary hover:opacity-95 shadow-sm transition-all flex items-center gap-2" id="btn-submit" type="button" onClick={() => {
+                const refs = selectedRows.map((r) => r.ref);
+                setSo0(false);
+                setSelected(new Set());
+                toast({
+                  title: "Batch authorized",
+                  description: `${refs.length} payout(s) signed (${usd(gross)}) — standard cleared, ${largeSel.length} staged to 2nd approver.`,
+                });
+              }}>
+                <span>Authorize &amp; Stage {selectedRows.length} Payouts</span>
 <MsIcon name="arrow_forward" className="text-[16px]" />
               </button>
             </div>
@@ -975,7 +772,7 @@ export function PayoutsBulkApprovalStitchPage() {
                     </div>
                     <div className="text-right shrink-0">
                       <span className="text-[10px] font-mono text-on-surface-variant">Active 4m ago</span>
-                      <button className="block mt-1 text-[11px] font-bold text-primary hover:underline">Ping Token</button>
+                      <button className="block mt-1 text-[11px] font-bold text-primary hover:underline" onClick={() => toast({ title: "2FA push sent", description: "Alistair Finch's hardware token received a signing request." })} type="button">Ping Token</button>
                     </div>
                   </div>
                   <div className="bg-surface-container-low rounded-xl p-3.5 flex items-center justify-between shadow-sm">
@@ -994,7 +791,7 @@ export function PayoutsBulkApprovalStitchPage() {
                     </div>
                     <div className="text-right shrink-0">
                       <span className="text-[10px] font-mono text-on-surface-variant">Active 12m ago</span>
-                      <button className="block mt-1 text-[11px] font-bold text-primary hover:underline">Ping Token</button>
+                      <button className="block mt-1 text-[11px] font-bold text-primary hover:underline" onClick={() => toast({ title: "2FA push sent", description: "Sarah Jenkins' hardware token received a signing request." })} type="button">Ping Token</button>
                     </div>
                   </div>
                   <div className="bg-surface-container-low rounded-xl p-3.5 flex items-center justify-between shadow-sm">

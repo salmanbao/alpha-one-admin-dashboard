@@ -13,9 +13,45 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/platform/export-utils";
+
+/** Cases table (mock) — drives CSV export + per-row actions (PRD §4.11). */
+interface RefundCase {
+  ref: string;
+  kind: "Dispute" | "Refund" | "Test";
+  trader: string;
+  email: string;
+  amount: string;
+  reason: string;
+  gateway: string;
+  status: string;
+}
+
+const CASES: RefundCase[] = [
+  { ref: "rf_894102", kind: "Dispute", trader: "Elena Althaus", email: "elena.althaus@trade.de", amount: "$540.00 USD", reason: "Fraud: Card Not Present", gateway: "Stripe Direct", status: "Open (72h)" },
+  { ref: "rf_894089", kind: "Refund", trader: "Matteo Rossi", email: "m.rossi@milano-fx.it", amount: "$1,080.00 USD", reason: "Dissatisfied with Terms", gateway: "Adyen Unified", status: "Processing" },
+  { ref: "rf_894042", kind: "Dispute", trader: "Kenji Sato", email: "kenji.sato@kyoto-sec.jp", amount: "$320.00 USD", reason: "Card Not Recognized", gateway: "Checkout.com", status: "Evidence Review" },
+  { ref: "rf_893991", kind: "Refund", trader: "Sophie Laurent", email: "sophie.l@geneva-alpha.ch", amount: "$2,450.00 USD", reason: "Duplicate Order on Reset", gateway: "Stripe Direct", status: "Approved" },
+  { ref: "rf_893910", kind: "Dispute", trader: "Hiroshi Tanaka", email: "hiroshi@tanakafx.com", amount: "$540.00 USD", reason: "Subscription Prior Cancel", gateway: "Stripe Direct", status: "Contested" },
+  { ref: "rf_893880", kind: "Refund", trader: "Amara Diop", email: "amara.d@dakar-capital.sn", amount: "$210.00 USD", reason: "Retrial Insurance Add-on", gateway: "BitPay Crypto", status: "Approved" },
+  { ref: "rf_893801", kind: "Test", trader: "Marcus Vance (Ops)", email: "m.vance@terradesk.internal", amount: "$150.00 USD", reason: "Internal System Drill", gateway: "Stripe Direct", status: "Closed" },
+];
 
 export function CheckoutRefundDisputeStitchPage() {
   const [so0, setSo0] = React.useState(false);
+  const [newRefundOpen, setNewRefundOpen] = React.useState(false);
+  // Right-panel tabs (Timeline & Audit / Evidence Locker / Trader Messages).
+  const [panelTab, setPanelTab] = React.useState<"timeline" | "evidence" | "messages">("timeline");
+  // "Close Panel" collapses the dispute detail panel.
+  const [panelOpen, setPanelOpen] = React.useState(true);
+
+  const caseAction = (ref: string, action: string, opts?: { destructive?: boolean }) =>
+    toast({
+      title: action,
+      description: `${ref} — ${action.toLowerCase()} recorded in the dispute log.`,
+      variant: opts?.destructive ? "destructive" : undefined,
+    });
   return (
     <>
       <div className="flex flex-col w-full">
@@ -53,11 +89,11 @@ export function CheckoutRefundDisputeStitchPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold transition-all shadow-sm">
+              <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold transition-all shadow-sm" onClick={() => toast({ title: "Evidence Library", description: "142 sealed evidence artifacts (WORM #RF-9402) available for retrieval." })} type="button">
 <MsIcon name="folder_zip" className="text-[18px] text-tertiary" />
                 <span>Evidence Library</span>
               </button>
-              <button className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-surface-tint text-on-primary text-xs font-bold transition-all shadow-[0_4px_16px_rgba(74,124,89,0.25)]">
+              <button className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-surface-tint text-on-primary text-xs font-bold transition-all shadow-[0_4px_16px_rgba(74,124,89,0.25)]" onClick={() => setNewRefundOpen(true)} type="button">
 <MsIcon name="add_circle" className="text-[18px]" />
                 <span>New Refund Order</span>
               </button>
@@ -188,7 +224,7 @@ export function CheckoutRefundDisputeStitchPage() {
                 <option>Current Fiscal Quarter</option>
                 <option>Custom Window...</option>
               </select>
-              <button className="p-2 text-outline hover:text-on-surface hover:bg-surface-container rounded-xl transition-colors" title="Reset Filters"><MsIcon name="restart_alt" className="text-[18px]" /></button>
+              <button className="p-2 text-outline hover:text-on-surface hover:bg-surface-container rounded-xl transition-colors" title="Reset Filters" onClick={() => toast({ title: "Filters reset", description: "Showing all refunds and disputes from the last 30 days." })} type="button"><MsIcon name="restart_alt" className="text-[18px]" /></button>
             </div>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -200,7 +236,16 @@ export function CheckoutRefundDisputeStitchPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-outline font-medium">Showing 7 active cases</span>
-                  <button className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors"><MsIcon name="file_download" className="text-[16px]" /></button>
+                  <button className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors" title="Export cases (CSV)" onClick={() => exportToCsv(CASES, [
+                    { key: "ref", header: "Reference", value: (c) => c.ref },
+                    { key: "kind", header: "Type", value: (c) => c.kind },
+                    { key: "trader", header: "Trader", value: (c) => c.trader },
+                    { key: "email", header: "Email", value: (c) => c.email },
+                    { key: "amount", header: "Amount", value: (c) => c.amount },
+                    { key: "reason", header: "Reason", value: (c) => c.reason },
+                    { key: "gateway", header: "PSP Gateway", value: (c) => c.gateway },
+                    { key: "status", header: "Status", value: (c) => c.status },
+                  ], "refund-dispute-cases.csv")} type="button"><MsIcon name="file_download" className="text-[16px]" /></button>
                 </div>
               </div>
               <div className="overflow-x-auto -mx-6">
@@ -245,8 +290,8 @@ export function CheckoutRefundDisputeStitchPage() {
                       </td>
                       <td className="py-3.5 px-3">                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-bold text-[10px]">                          Open (72h)</span></td>
                       <td className="py-3.5 px-6 text-right space-x-1 whitespace-nowrap">
-                        <button className="px-2.5 py-1 rounded-lg bg-primary text-on-primary text-[11px] font-bold shadow-sm hover:bg-surface-tint">                          Open</button>
-                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high">                          Evidence</button>
+                        <button className="px-2.5 py-1 rounded-lg bg-primary text-on-primary text-[11px] font-bold shadow-sm hover:bg-surface-tint" onClick={() => caseAction("rf_894102", "Case opened")} type="button">                          Open</button>
+                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high" onClick={() => { setPanelOpen(true); setPanelTab("evidence"); toast({ title: "Evidence Locker", description: "rf_894102 — 3 sealed evidence files listed." }); }} type="button">                          Evidence</button>
                       </td>
                     </tr>
                     <tr className="hover:bg-surface-container-low/50 transition-colors">
@@ -273,8 +318,8 @@ export function CheckoutRefundDisputeStitchPage() {
                       </td>
                       <td className="py-3.5 px-3">                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-semibold text-[10px]">                          Processing</span></td>
                       <td className="py-3.5 px-6 text-right space-x-1 whitespace-nowrap">
-                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high">                          Review</button>
-                        <button className="p-1 rounded-lg text-outline hover:text-on-surface"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
+                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high" onClick={() => caseAction("rf_894089", "Refund review opened")} type="button">                          Review</button>
+                        <button className="p-1 rounded-lg text-outline hover:text-on-surface" title="More actions" onClick={() => caseAction("rf_894089", "More actions")} type="button"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
                       </td>
                     </tr>
                     <tr className="hover:bg-surface-container-low/50 transition-colors">
@@ -301,8 +346,8 @@ export function CheckoutRefundDisputeStitchPage() {
                       </td>
                       <td className="py-3.5 px-3">                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-semibold text-[10px]">                          Evidence Review</span></td>
                       <td className="py-3.5 px-6 text-right space-x-1 whitespace-nowrap">
-                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high">                          Inspect</button>
-                        <button className="p-1 rounded-lg text-outline hover:text-on-surface"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
+                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high" onClick={() => caseAction("rf_894042", "Evidence inspected")} type="button">                          Inspect</button>
+                        <button className="p-1 rounded-lg text-outline hover:text-on-surface" title="More actions" onClick={() => caseAction("rf_894042", "More actions")} type="button"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
                       </td>
                     </tr>
                     <tr className="hover:bg-surface-container-low/50 transition-colors">
@@ -329,8 +374,8 @@ export function CheckoutRefundDisputeStitchPage() {
                       </td>
                       <td className="py-3.5 px-3">                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-bold text-[10px]">                          Approved</span></td>
                       <td className="py-3.5 px-6 text-right space-x-1 whitespace-nowrap">
-                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high">                          Receipt</button>
-                        <button className="p-1 rounded-lg text-outline hover:text-on-surface"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
+                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high" onClick={() => caseAction("rf_893991", "Refund receipt opened")} type="button">                          Receipt</button>
+                        <button className="p-1 rounded-lg text-outline hover:text-on-surface" title="More actions" onClick={() => caseAction("rf_893991", "More actions")} type="button"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
                       </td>
                     </tr>
                     <tr className="hover:bg-surface-container-low/50 transition-colors">
@@ -357,8 +402,8 @@ export function CheckoutRefundDisputeStitchPage() {
                       </td>
                       <td className="py-3.5 px-3">                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-semibold text-[10px]">                          Contested</span></td>
                       <td className="py-3.5 px-6 text-right space-x-1 whitespace-nowrap">
-                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high">                          Dossier</button>
-                        <button className="p-1 rounded-lg text-outline hover:text-on-surface"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
+                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high" onClick={() => caseAction("rf_893910", "Defense dossier opened")} type="button">                          Dossier</button>
+                        <button className="p-1 rounded-lg text-outline hover:text-on-surface" title="More actions" onClick={() => caseAction("rf_893910", "More actions")} type="button"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
                       </td>
                     </tr>
                     <tr className="hover:bg-surface-container-low/50 transition-colors">
@@ -385,8 +430,8 @@ export function CheckoutRefundDisputeStitchPage() {
                       </td>
                       <td className="py-3.5 px-3">                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-bold text-[10px]">                          Approved</span></td>
                       <td className="py-3.5 px-6 text-right space-x-1 whitespace-nowrap">
-                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high">                          TX Hash</button>
-                        <button className="p-1 rounded-lg text-outline hover:text-on-surface"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
+                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high" onClick={() => caseAction("rf_893880", "TX hash copied")} type="button">                          TX Hash</button>
+                        <button className="p-1 rounded-lg text-outline hover:text-on-surface" title="More actions" onClick={() => caseAction("rf_893880", "More actions")} type="button"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
                       </td>
                     </tr>
                     <tr className="hover:bg-surface-container-low/50 transition-colors">
@@ -413,8 +458,8 @@ export function CheckoutRefundDisputeStitchPage() {
                       </td>
                       <td className="py-3.5 px-3">                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-medium text-[10px]">                          Closed</span></td>
                       <td className="py-3.5 px-6 text-right space-x-1 whitespace-nowrap">
-                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high">                          Log</button>
-                        <button className="p-1 rounded-lg text-outline hover:text-on-surface"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
+                        <button className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface text-[11px] font-bold hover:bg-surface-container-high" onClick={() => caseAction("rf_893801", "Test drill log opened")} type="button">                          Log</button>
+                        <button className="p-1 rounded-lg text-outline hover:text-on-surface" title="More actions" onClick={() => caseAction("rf_893801", "More actions")} type="button"><MsIcon name="more_vert" className="text-[16px] align-middle" /></button>
                       </td>
                     </tr>
                   </tbody>
@@ -423,14 +468,15 @@ export function CheckoutRefundDisputeStitchPage() {
               <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-outline">
                 <div>Page 1 of 6 · Showing 7 of 38 records</div>
                 <div className="flex items-center gap-2">
-                  <button className="px-3 py-1.5 rounded-lg bg-surface-container text-on-surface font-semibold disabled:opacity-40" disabled>Previous</button>
-                  <button className="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-bold">1</button>
-                  <button className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold">2</button>
-                  <button className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold">3</button>
-                  <button className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold">Next</button>
+                  <button className="px-3 py-1.5 rounded-lg bg-surface-container text-on-surface font-semibold disabled:opacity-40" disabled onClick={() => toast({ title: "First page", description: "You are already on the first page." })} type="button">Previous</button>
+                  <button className="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-bold" onClick={() => toast({ title: "Page 1", description: "Showing the first page of cases." })} type="button">1</button>
+                  <button className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold" onClick={() => toast({ title: "End of mock data", description: "Only page 1 of cases exists in this mock build." })} type="button">2</button>
+                  <button className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold" onClick={() => toast({ title: "End of mock data", description: "Only page 1 of cases exists in this mock build." })} type="button">3</button>
+                  <button className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold" onClick={() => toast({ title: "End of mock data", description: "Only page 1 of cases exists in this mock build." })} type="button">Next</button>
                 </div>
               </div>
             </div>
+            {panelOpen ? (
             <div className="lg:col-span-5 xl:col-span-4 bg-surface-container-lowest rounded-2xl shadow-md p-6 space-y-6 relative border border-outline-variant/30">
               <div className="flex items-start justify-between pb-4 border-b border-surface-container">
                 <div>
@@ -441,7 +487,7 @@ export function CheckoutRefundDisputeStitchPage() {
                   <h3 className="font-headline font-bold text-lg text-on-surface">Elena Althaus</h3>
                   <p className="text-xs text-outline font-medium">Alpha Capital Media · Opened 2h ago</p>
                 </div>
-                <button className="p-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Close Panel"><MsIcon name="close" className="text-[18px]" /></button>
+                <button className="p-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Close Panel" onClick={() => { setPanelOpen(false); toast({ title: "Panel closed", description: "Reopen it with the Show Panel button." }); }} type="button"><MsIcon name="close" className="text-[18px]" /></button>
               </div>
               <div className="grid grid-cols-2 gap-3 bg-surface-container-low p-3.5 rounded-xl text-xs">
                 <div>
@@ -464,10 +510,11 @@ export function CheckoutRefundDisputeStitchPage() {
               </div>
               <div>
                 <div className="flex items-center gap-2 border-b border-surface-container pb-2 text-xs font-bold">
-                  <button className="pb-2 border-b-2 border-primary text-primary px-2 -mb-2.5">                    Timeline &amp; Audit (4)</button>
-                  <button className="text-outline hover:text-on-surface px-2 transition-colors">                    Evidence Locker (3)</button>
-                  <button className="text-outline hover:text-on-surface px-2 transition-colors">                    Trader Messages (2)</button>
+                  <button className={`pb-2 border-b-2 px-2 -mb-2.5 transition-colors ${panelTab === "timeline" ? "border-primary text-primary" : "border-transparent text-outline hover:text-on-surface"}`} onClick={() => setPanelTab("timeline")} type="button">                    Timeline &amp; Audit (4)</button>
+                  <button className={`pb-2 border-b-2 px-2 -mb-2.5 transition-colors ${panelTab === "evidence" ? "border-primary text-primary" : "border-transparent text-outline hover:text-on-surface"}`} onClick={() => setPanelTab("evidence")} type="button">                    Evidence Locker (3)</button>
+                  <button className={`pb-2 border-b-2 px-2 -mb-2.5 transition-colors ${panelTab === "messages" ? "border-primary text-primary" : "border-transparent text-outline hover:text-on-surface"}`} onClick={() => setPanelTab("messages")} type="button">                    Trader Messages (2)</button>
                 </div>
+                {panelTab === "timeline" ? (
                 <div className="mt-4 space-y-4">
                   <div className="relative pl-6 space-y-4 before:content-[''] before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-surface-container">
                     <div className="relative group">
@@ -492,11 +539,48 @@ export function CheckoutRefundDisputeStitchPage() {
                     </div>
                   </div>
                 </div>
+                ) : panelTab === "evidence" ? (
+                <div className="mt-4 space-y-2">
+                  {[
+                    { name: "IP_and_Device_Fingerprint_Dossier.pdf", meta: "1.4 MB · Verified IP 185.190.22.8 (Frankfurt)", icon: "fingerprint" },
+                    { name: "Terms_and_Conditions_Signed_Proof.pdf", meta: "420 KB · SumSub KYC match with Biometrics", icon: "verified_user" },
+                    { name: "Server_Trading_Log_MT5-882049.csv", meta: "88 KB · 14 completed manual trade fills", icon: "receipt_long" },
+                  ].map((f) => (
+                    <div key={f.name} className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors text-xs">
+                      <div className="flex items-center gap-2.5 truncate">
+                        <MsIcon name={f.icon} className="text-primary text-[18px]" />
+                        <div className="truncate">
+                          <div className="font-bold text-on-surface truncate">{f.name}</div>
+                          <div className="text-[10px] text-outline font-mono">{f.meta}</div>
+                        </div>
+                      </div>
+                      <button className="text-outline hover:text-on-surface" title={`Preview ${f.name}`} onClick={() => toast({ title: "Evidence preview", description: `${f.name} — HSM-signed, WORM sealed.` })} type="button"><MsIcon name="visibility" className="text-[16px]" /></button>
+                    </div>
+                  ))}
+                </div>
+                ) : (
+                <div className="mt-4 space-y-3">
+                  <div className="p-3 rounded-xl bg-surface-container-low text-xs">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-on-surface">Elena Althaus</span>
+                      <span className="text-[10px] text-outline font-mono">17:02 UTC</span>
+                    </div>
+                    <p className="text-on-surface-variant leading-relaxed">I never authorized this charge — I want this fixed. My account was trading perfectly until the weekend.</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-primary-fixed/30 text-xs">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-on-surface">Support · Maya Okafor</span>
+                      <span className="text-[10px] text-outline font-mono">17:26 UTC</span>
+                    </div>
+                    <p className="text-on-surface-variant leading-relaxed">Thanks for flagging — we compiled device and trading evidence and are contesting the claim with the issuing bank.</p>
+                  </div>
+                </div>
+                )}
               </div>
               <div className="space-y-2 pt-2 border-t border-surface-container">
                 <div className="flex items-center justify-between text-xs font-bold text-on-surface">
                   <span>Cryptographic Dossier Files</span>
-                  <span className="text-primary text-[11px] hover:underline cursor-pointer">Compile All (ZIP)</span>
+                    <button className="text-primary text-[11px] hover:underline cursor-pointer" title="Compile all dossier files (ZIP)" onClick={() => toast({ title: "Evidence pack compiling", description: "rf_894102 — 3 dossier files compiling into a signed ZIP (WORM #RF-9402)." })} type="button">Compile All (ZIP)</button>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors text-xs">
@@ -533,21 +617,34 @@ export function CheckoutRefundDisputeStitchPage() {
               </div>
               <div className="pt-4 border-t border-surface-container space-y-2">
                 <div className="grid grid-cols-2 gap-2">
-                  <button className="w-full py-2.5 px-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold transition-all flex items-center justify-center gap-1.5">
+                  <button className="w-full py-2.5 px-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-bold transition-all flex items-center justify-center gap-1.5" onClick={() => toast({ title: "Evidence upload", description: "rf_894102 — select files to seal into the evidence locker (WORM #RF-9402)." })} type="button">
 <MsIcon name="upload_file" className="text-[16px]" />
                     <span>Upload Evidence</span>
                   </button>
-                  <button className="w-full py-2.5 px-3 rounded-xl bg-primary hover:bg-surface-tint text-on-primary text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5">
+                  <button className="w-full py-2.5 px-3 rounded-xl bg-primary hover:bg-surface-tint text-on-primary text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5" onClick={() => caseAction("rf_894102", "Dispute contested")} type="button">
 <MsIcon name="shield" className="text-[16px]" />
                     <span>Contest Dispute</span>
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button className="w-full py-2 px-3 rounded-xl text-error hover:bg-error-container/40 text-xs font-bold transition-all text-center" onClick={() => setSo0(true)}>                    Accept Chargeback</button>
-                  <button className="w-full py-2 px-3 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container text-xs font-medium transition-all text-center">                    Flag for Fraud Ring</button>
+                  <button className="w-full py-2 px-3 rounded-xl text-error hover:bg-error-container/40 text-xs font-bold transition-all text-center" type="button" onClick={() => setSo0(true)}>                    Accept Chargeback</button>
+                  <button className="w-full py-2 px-3 rounded-xl text-outline hover:text-on-surface hover:bg-surface-container text-xs font-medium transition-all text-center" type="button" onClick={() => caseAction("rf_894102", "Flagged for fraud ring", { destructive: true })}>                    Flag for Fraud Ring</button>
                 </div>
               </div>
             </div>
+            ) : (
+            <div className="lg:col-span-5 xl:col-span-4 bg-surface-container-lowest rounded-2xl shadow-md p-6 flex flex-col items-center justify-center gap-3 text-center border border-outline-variant/30">
+              <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-outline"><MsIcon name="dock_to_right" className="text-[24px]" /></div>
+              <div>
+                <div className="font-bold text-on-surface text-sm">Dispute detail panel closed</div>
+                <p className="text-xs text-on-surface-variant mt-1 max-w-xs leading-relaxed">Timeline, evidence locker and trader messages are hidden. Reopen it to keep working the case.</p>
+              </div>
+              <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-sm hover:bg-surface-tint transition-all" onClick={() => setPanelOpen(true)} type="button">
+<MsIcon name="open_in_full" className="text-[16px]" />
+                Show Panel
+              </button>
+            </div>
+            )}
           </div>
           <div className="bg-surface-container-low rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-on-surface-variant">
             <div className="flex items-start gap-4">
@@ -702,7 +799,7 @@ export function CheckoutRefundDisputeStitchPage() {
               </div>
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                 <button className="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button" onClick={() => setSo0(false)}>                  Cancel &amp; Continue Defense</button>
-                <button className="px-5 py-2.5 rounded-xl text-xs font-semibold text-on-error bg-error hover:bg-[#a62b29] shadow-sm flex items-center gap-2 transition-all" id="submitConcessionBtn" type="button" onClick={() => setSo0(false)}>
+                <button className="px-5 py-2.5 rounded-xl text-xs font-semibold text-on-error bg-error hover:bg-[#a62b29] shadow-sm flex items-center gap-2 transition-all" id="submitConcessionBtn" type="button" onClick={() => { setSo0(false); toast({ title: "Chargeback accepted", description: "rf_894102 conceded ($555.00 USD debit) — WORM concession certificate signed and sent to Visa claims resolution.", variant: "destructive" }); }}>
 <MsIcon name="check_circle" className="text-[16px]" />
                   <span>Confirm &amp; Accept Chargeback ($555.00 USD)</span>
                 </button>
@@ -710,6 +807,70 @@ export function CheckoutRefundDisputeStitchPage() {
             </div>
           </div>
         </div>
+        </>
+      )}
+      {newRefundOpen && (
+        <>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4" id="newRefundBackdrop">
+            <div role="dialog" aria-modal="true" aria-labelledby="newRefundTitle" className="relative w-full max-w-[560px] bg-surface-container-lowest rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+              <div className="h-1.5 w-full bg-gradient-to-r from-primary via-tertiary to-primary"></div>
+              <div className="px-7 pt-6 pb-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0"><MsIcon name="receipt_long" className="text-[22px]" /></div>
+                    <div>
+                      <div className="font-label text-[10px] tracking-widest font-extrabold uppercase text-primary">Refund Instruction</div>
+                      <h2 className="font-headline text-xl font-bold text-on-surface leading-snug" id="newRefundTitle">New Refund Order</h2>
+                    </div>
+                  </div>
+                  <button className="p-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface transition-colors" title="Close" onClick={() => setNewRefundOpen(false)} type="button"><MsIcon name="close" className="text-[18px]" /></button>
+                </div>
+                <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                  Raise a refund against a settled checkout order. Funds return to the original card or crypto rail within 1–5 business days after approval.
+                </p>
+                <div className="mt-4 space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-on-surface uppercase tracking-wider block" htmlFor="refundOrderRef">Order Reference</label>
+                    <input id="refundOrderRef" defaultValue="ord_7712045" className="w-full px-3 py-2 rounded-xl bg-surface-container border border-outline-variant/40 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-on-surface uppercase tracking-wider block" htmlFor="refundTraderEmail">Trader Email</label>
+                      <input id="refundTraderEmail" type="email" defaultValue="elena.althaus@trade.de" className="w-full px-3 py-2 rounded-xl bg-surface-container border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-on-surface uppercase tracking-wider block" htmlFor="refundAmount">Amount (USD)</label>
+                      <input id="refundAmount" defaultValue="540.00" className="w-full px-3 py-2 rounded-xl bg-surface-container border border-outline-variant/40 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-on-surface uppercase tracking-wider block" htmlFor="refundReason">Refund Reason</label>
+                    <select id="refundReason" className="w-full px-3 py-2 rounded-xl bg-surface-container border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40">
+                      <option>Dissatisfied with Terms</option>
+                      <option>Duplicate Order on Reset</option>
+                      <option>Retrial Insurance Add-on</option>
+                      <option>Service Outage SLA Credit</option>
+                      <option>Other (note required)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-on-surface uppercase tracking-wider block" htmlFor="refundNote">Internal Note</label>
+                    <textarea id="refundNote" rows={3} placeholder="Optional context for the audit trail…" className="w-full px-3 py-2 rounded-xl bg-surface-container border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"></textarea>
+                  </div>
+                </div>
+              </div>
+              <div className="px-7 py-4 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3">
+                <span className="flex items-center gap-1.5 text-[11px] text-outline"><MsIcon name="verified_user" className="text-[15px] text-primary" />Logged to the immutable refund audit log</span>
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                  <button className="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" onClick={() => setNewRefundOpen(false)} type="button">Cancel</button>
+                  <button className="px-5 py-2.5 rounded-xl bg-primary text-xs font-bold text-on-primary hover:bg-surface-tint shadow-sm transition-all flex items-center gap-2" onClick={() => { setNewRefundOpen(false); toast({ title: "Refund order created", description: "ord_7712045 — $540.00 USD queued for approval (POST /refunds)." }); }} type="button">
+                    <MsIcon name="add_circle" className="text-[16px]" />
+                    <span>Create Refund Order</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </>
       )}
     </>

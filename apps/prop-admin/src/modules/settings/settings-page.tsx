@@ -67,6 +67,7 @@ import {
   ChevronRight,
   Search,
   Pencil,
+  Server,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TenantBranding } from "@/lib/platform/types";
@@ -344,6 +345,9 @@ export function SettingsPage() {
                   <TabsTrigger value="integrations" className="gap-1">
                     <Plug className="h-3 w-3" /> Integrations
                   </TabsTrigger>
+                  <TabsTrigger value="servers" className="gap-1">
+                    <Server className="h-3 w-3" /> Trading Servers
+                  </TabsTrigger>
                   <TabsTrigger value="notifications" className="gap-1">
                     <Bell className="h-3 w-3" /> Notifications
                   </TabsTrigger>
@@ -365,6 +369,9 @@ export function SettingsPage() {
                 </TabsContent>
                 <TabsContent value="integrations">
                   <IntegrationsTab />
+                </TabsContent>
+                <TabsContent value="servers">
+                  <TradingServersTab />
                 </TabsContent>
                 <TabsContent value="notifications">
                   <NotificationsTab />
@@ -449,6 +456,154 @@ function GeneralTab() {
   );
 }
 
+/**
+ * Trading Servers — PRD §4.17 SETTINGS endpoints:
+ *   GET  /settings/trading-servers        list servers
+ *   POST /settings/trading-servers        add server
+ *   POST /settings/trading-servers/:id/test  test connection
+ * Mock-only: results are simulated locally.
+ */
+interface TradingServer {
+  id: string;
+  name: string;
+  host: string;
+  platform: "MT5" | "MT4" | "cTrader";
+  region: string;
+  status: "Online" | "Degraded" | "Offline";
+  latencyMs: number;
+  accounts: number;
+}
+
+const INITIAL_SERVERS: TradingServer[] = [
+  { id: "srv_ld4", name: "LD4 London Edge", host: "mt5-ld4.terradesk.io:443", platform: "MT5", region: "eu-west-2 · London", status: "Online", latencyMs: 14, accounts: 1842 },
+  { id: "srv_ny4", name: "NY4 New York", host: "mt5-ny4.terradesk.io:443", platform: "MT5", region: "us-east-1 · Secaucus", status: "Online", latencyMs: 22, accounts: 1276 },
+  { id: "srv_ty3", name: "TY3 Tokyo", host: "mt5-ty3.terradesk.io:443", platform: "MT4", region: "ap-northeast-1 · Tokyo", status: "Degraded", latencyMs: 148, accounts: 613 },
+  { id: "srv_dxb", name: "DXB Dubai", host: "ct-dxb.terradesk.io:443", platform: "cTrader", region: "me-central-1 · Dubai", status: "Offline", latencyMs: 0, accounts: 204 },
+];
+
+function TradingServersTab() {
+  const [servers, setServers] = useState<TradingServer[]>(INITIAL_SERVERS);
+  const [name, setName] = useState("");
+  const [host, setHost] = useState("");
+  const [platform, setPlatform] = useState<TradingServer["platform"]>("MT5");
+  const [region, setRegion] = useState("");
+  const [testing, setTesting] = useState<string | null>(null);
+
+  const addServer = () => {
+    if (!name.trim() || !host.trim()) {
+      toast({
+        title: "Server not added",
+        description: "Name and host:port are required (POST /settings/trading-servers).",
+        variant: "destructive",
+      });
+      return;
+    }
+    const srv: TradingServer = {
+      id: `srv_${Date.now().toString(36)}`,
+      name: name.trim(),
+      host: host.trim(),
+      platform,
+      region: region.trim() || "Unassigned region",
+      status: "Online",
+      latencyMs: 18,
+      accounts: 0,
+    };
+    setServers((prev) => [...prev, srv]);
+    setName("");
+    setHost("");
+    setRegion("");
+    toast({ title: "Trading server added", description: `${srv.name} (${srv.host}) registered — POST /settings/trading-servers.` });
+  };
+
+  const testConnection = (srv: TradingServer) => {
+    setTesting(srv.id);
+    window.setTimeout(() => {
+      setTesting(null);
+      if (srv.status === "Offline") {
+        toast({ title: "Connection failed", description: `${srv.name} — handshake timeout on ${srv.host}.`, variant: "destructive" });
+      } else {
+        toast({ title: "Connection healthy", description: `${srv.name} responded in ${srv.latencyMs} ms (POST /settings/trading-servers/${srv.id}/test).` });
+      }
+    }, 600);
+  };
+
+  const statusBadge = (status: TradingServer["status"]) =>
+    status === "Online"
+      ? "bg-emerald-100 text-emerald-800"
+      : status === "Degraded"
+        ? "bg-amber-100 text-amber-800"
+        : "bg-red-100 text-red-800";
+
+  return (
+    <Card>
+      <CardHeader><span className="text-sm font-medium">Trading Servers</span></CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-md border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th className="px-3 py-2 font-medium">Server</th>
+                <th className="px-3 py-2 font-medium">Host</th>
+                <th className="px-3 py-2 font-medium">Platform</th>
+                <th className="px-3 py-2 font-medium">Region</th>
+                <th className="px-3 py-2 font-medium">Latency</th>
+                <th className="px-3 py-2 font-medium">Accounts</th>
+                <th className="px-3 py-2 font-medium">Status</th>
+                <th className="px-3 py-2 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {servers.map((srv) => (
+                <tr key={srv.id} className="border-b last:border-0">
+                  <td className="px-3 py-2 font-medium">{srv.name}</td>
+                  <td className="px-3 py-2 font-mono text-xs">{srv.host}</td>
+                  <td className="px-3 py-2">{srv.platform}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{srv.region}</td>
+                  <td className="px-3 py-2 font-mono text-xs">{srv.status === "Offline" ? "—" : `${srv.latencyMs} ms`}</td>
+                  <td className="px-3 py-2">{srv.accounts.toLocaleString()}</td>
+                  <td className="px-3 py-2">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusBadge(srv.status)}`}>{srv.status}</span>
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Button size="sm" variant="outline" disabled={testing === srv.id} onClick={() => testConnection(srv)}>
+                      <RefreshCw className={`mr-1 h-3 w-3 ${testing === srv.id ? "animate-spin" : ""}`} />
+                      {testing === srv.id ? "Testing…" : "Test connection"}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Separator />
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="srv-name">Server name</Label>
+            <Input id="srv-name" placeholder="LD5 London Edge" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="srv-host">Host &amp; port</Label>
+            <Input id="srv-host" placeholder="mt5-ld5.terradesk.io:443" value={host} onChange={(e) => setHost(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="srv-platform">Platform</Label>
+            <select id="srv-platform" value={platform} onChange={(e) => setPlatform(e.target.value as TradingServer["platform"])} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+              <option value="MT5">MT5</option>
+              <option value="MT4">MT4</option>
+              <option value="cTrader">cTrader</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="srv-region">Region</Label>
+            <Input id="srv-region" placeholder="eu-west-2 · London" value={region} onChange={(e) => setRegion(e.target.value)} />
+          </div>
+        </div>
+        <Button size="sm" onClick={addServer}><Check className="mr-1 h-4 w-4" /> Add trading server</Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function BrandingTab() {
   const { tenant, setTenant } = usePlatform();
   const [branding, setBranding] = useState<TenantBranding>(tenant.branding);
@@ -517,6 +672,36 @@ function BrandingTab() {
             <Label htmlFor="initials">Initials</Label>
             <Input id="initials" value={branding.initials} maxLength={3} onChange={(e) => setBranding({ ...branding, initials: e.target.value.toUpperCase() })} />
           </div>
+        </div>
+        <Separator />
+        <div>
+          <Label className="mb-2 block text-xs">Logo (POST /settings/branding/logo)</Label>
+          <label
+            htmlFor="logo-upload"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const file = e.dataTransfer.files?.[0];
+              if (file) toast({ title: "Logo uploaded", description: `${file.name} pushed to POST /settings/branding/logo — applied to the tenant theme.` });
+            }}
+            className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-input p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+          >
+            <Image className="h-6 w-6 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              Drag &amp; drop a logo here, or <span className="font-medium text-primary">browse</span> — PNG/SVG up to 2 MB.
+            </span>
+            <input
+              id="logo-upload"
+              type="file"
+              accept="image/png,image/svg+xml"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) toast({ title: "Logo uploaded", description: `${file.name} pushed to POST /settings/branding/logo — applied to the tenant theme.` });
+                e.target.value = "";
+              }}
+            />
+          </label>
         </div>
         <div className="rounded-lg border p-4" style={{ background: branding.surfaceColor }}>
           <p className="mb-2 text-xs font-medium text-muted-foreground">Live preview</p>
