@@ -21,15 +21,19 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Search, Sun } from "lucide-react";
+import { usePlatform } from "@pfaas/platform-core";
 import { Sidebar } from "./sidebar";
 import { AccountSwitcher } from "./account-switcher";
+import { CommandPalette } from "./command-palette";
 import { notifications, terraTenant } from "@/lib/fixtures/terra-fixtures";
 
 const THEME_KEY = "terra-theme";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  // ⌘K command palette — open state lives in the platform context.
+  const { setCommandOpen } = usePlatform();
   const [menuOpen, setMenuOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -68,6 +72,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen w-full bg-background">
+      {/* ⌘K command palette — nav, quick actions, account switching */}
+      <CommandPalette onToggleTheme={toggleDark} dark={dark} />
       <Sidebar mobileOpen={menuOpen} onClose={() => setMenuOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -106,6 +112,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {/* Right: active account switcher, status, notifications, profile */}
           <div className="ml-auto flex items-center gap-1">
+            {/* ⌘K palette trigger */}
+            <button
+              type="button"
+              onClick={() => setCommandOpen(true)}
+              aria-label="Open command palette (Ctrl or Cmd + K)"
+              className="hidden items-center gap-2 rounded-full border border-sidebar-border bg-sidebar-accent/40 px-3 py-1.5 text-xs font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground md:flex"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span>Search</span>
+              <kbd className="rounded border border-sidebar-border bg-background/60 px-1 text-[10px] font-bold">
+                ⌘K
+              </kbd>
+            </button>
             {/* Active trading account — global switcher (all screens) */}
             <AccountSwitcher />
             <div className="hidden items-center gap-2 rounded-full bg-sidebar-accent/60 px-3 py-1 text-xs font-semibold tracking-wide text-sidebar-primary-foreground md:flex">

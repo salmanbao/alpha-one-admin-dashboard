@@ -865,7 +865,7 @@ export const journalEntries = [
     notes:
       "Waited for the double-top at 189.40 with RSI divergence. Entered on the break of the second top's neckline. Exited at structure support.",
     pnl: 280,
-    trades: 2,
+    tradeIds: ["trd-84012"],
   },
   {
     id: "jr-30",
@@ -876,7 +876,7 @@ export const journalEntries = [
     notes:
       "Followed the plan: only longs above 1.0820. Added on the pullback to the 15m EMA. Closed half at TP1, rest at structural target.",
     pnl: 230,
-    trades: 1,
+    tradeIds: ["trd-84009"],
   },
   {
     id: "jr-29",
@@ -887,7 +887,7 @@ export const journalEntries = [
     notes:
       "USDCAD went against me immediately. Stop was hit for -0.4%. No revenge trades — closed the platform and reviewed tomorrow's levels.",
     pnl: -64,
-    trades: 1,
+    tradeIds: ["trd-84005"],
   },
 ];
 

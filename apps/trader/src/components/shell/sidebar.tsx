@@ -103,14 +103,15 @@ interface DirectItem {
   activePrefixes?: string[];
 }
 
-const directItems: DirectItem[] = [
+/* Exported so the ⌘K command palette can offer the exact same nav. */
+export const directItems: DirectItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
   { href: "/my-accounts", label: "My Accounts", icon: Wallet, activePrefixes: ["/account-detail"] },
   { href: "/marketplace", label: "Marketplace", icon: Store, activePrefixes: ["/challenge-detail", "/checkout", "/purchase-completed"] },
   { href: "/objectives", label: "Objectives", icon: Target, activePrefixes: ["/rules"] },
 ];
 
-const sections: NavSection[] = [
+export const sections: NavSection[] = [
   { id: "trading", label: "Trading", icon: CandlestickChart, defaultOpen: true, children: [
     { href: "/trading-positions", label: "Open Positions", icon: Package, activePrefixes: ["/order-detail"] },
     { href: "/trade-history", label: "Trade History", icon: History, activePrefixes: ["/trade-detail"] },

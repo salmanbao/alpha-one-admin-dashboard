@@ -12,9 +12,15 @@ import {
   TerraEmpty,
   TerraPageHeader,
   TerraSectionTitle,
+  formatMoney,
   type TerraTone,
 } from "@/components/terra/terra-ui";
-import { terraCertificates, type TerraCertificate } from "@/lib/fixtures/terra-fixtures";
+import {
+  terraAccounts,
+  terraCertificates,
+  terraPayouts,
+  type TerraCertificate,
+} from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
 
 const kindLabel: Record<TerraCertificate["kind"], string> = {
@@ -102,6 +108,17 @@ function CertificatePreview({ cert }: { cert: TerraCertificate }) {
 
 export function CertificatesPage() {
   const issued = terraCertificates.filter((c) => c.status === "issued");
+  // Payout receipts — one per paid payout, derived (never hand-written)
+  // so the certificate list always matches the payout history.
+  const paidPayouts = terraPayouts.filter((p) => p.status === "paid");
+
+  const handleReceiptDownload = (p: (typeof terraPayouts)[number]) => {
+    const account = terraAccounts.find((a) => a.id === p.account);
+    toast({
+      title: `Downloading payout receipt ${p.reference} (PDF)`,
+      description: `${formatMoney(p.amount)} via ${p.method} • paid ${new Date(p.expectedAt).toLocaleDateString("en-US")} • account #${account?.login ?? "—"}. Includes the transaction reference for your records.`,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -152,6 +169,56 @@ export function CertificatesPage() {
             </div>
           ))}
         </div>
+      </TerraCard>
+
+      {/* Payout receipts — derived from paid payouts */}
+      <TerraCard>
+        <TerraSectionTitle
+          title="Payout receipts"
+          description="Downloadable receipts for every paid withdrawal — useful for tax and accounting."
+        />
+        {paidPayouts.length === 0 ? (
+          <TerraEmpty
+            title="No paid payouts yet"
+            description="Receipts appear here once a payout request is marked paid."
+          />
+        ) : (
+          <div className="space-y-2">
+            {paidPayouts.map((p) => {
+              const account = terraAccounts.find((a) => a.id === p.account);
+              return (
+                <div
+                  key={p.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-container-low px-4 py-3"
+                >
+                  <div>
+                    <p className="text-sm font-bold text-on-surface">
+                      {p.reference} · {formatMoney(p.amount)}
+                    </p>
+                    <p className="text-xs text-on-surface-variant">
+                      {p.method} • account #{account?.login ?? "—"} • paid{" "}
+                      {new Date(p.expectedAt).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <TerraBadge tone="success">paid</TerraBadge>
+                    <button
+                      type="button"
+                      onClick={() => handleReceiptDownload(p)}
+                      className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary shadow-sm transition-colors hover:bg-primary/90"
+                    >
+                      Download receipt
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </TerraCard>
 
       <TerraCard>
