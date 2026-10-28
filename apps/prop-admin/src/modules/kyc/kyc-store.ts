@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { KycRecord } from "@/lib/platform/mock-data";
 import { kycRecords as seedKyc } from "@/lib/platform/mock-data";
 import { setNavBadge } from "@/lib/platform/nav-badges";
+import { recordAudit } from "@/lib/audit";
 
 /**
  * Session-scoped KYC decision store.
@@ -38,8 +39,27 @@ function syncBadge() {
   setNavBadge("kyc", n);
 }
 
-export function applyKycDecision(recordId: string, decision: KycDecision) {
+export function applyKycDecision(
+  recordId: string,
+  decision: KycDecision,
+  opts?: { reason?: string },
+) {
   decisions.set(recordId, { status: decision, at: new Date().toISOString() });
+  // Audit chokepoint (lib/audit.ts) — see payout-store.applyPayoutDecision.
+  const r = seedKyc.find((x) => x.id === recordId);
+  const who = r ? r.traderName : recordId;
+  recordAudit({
+    action:
+      decision === "approved"
+        ? "Approved KYC"
+        : decision === "rejected"
+          ? "Rejected KYC"
+          : "Requested KYC info",
+    entity: "kyc",
+    entityId: recordId,
+    summary: opts?.reason ? `${who} — ${opts.reason}` : `${who} — ${decision}`,
+    severity: decision === "rejected" ? "warning" : "info",
+  });
   emit();
 }
 

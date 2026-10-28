@@ -1,6 +1,7 @@
 "use client";
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import { hasPermission } from "@/lib/platform/permission-engine";
 import { getTenantPayouts, payoutSeries, type Payout } from "@/lib/platform/mock-data";
 import { MetricCard } from "@/components/platform/page";
 import { StatusBadge, payoutStatusTone, formatCurrency, formatCompact } from "@/components/platform/status";
@@ -46,7 +47,10 @@ export function PayoutOverviewWidget() {
 }
 
 export function PayoutQueueWidget() {
-  const { runtime } = usePlatform();
+  const { runtime, user } = usePlatform();
+  // In-page guard — same payout.approve rule as the payouts table.
+  const canDecide = hasPermission(user, "payout.approve");
+  const decideTitle = canDecide ? undefined : "Requires payout.approve";
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   usePayoutVersion(); // approved items leave the queue instantly
@@ -77,6 +81,8 @@ export function PayoutQueueWidget() {
           <Button
             size="sm"
             variant="default"
+            disabled={!canDecide}
+            title={decideTitle}
             aria-label={`Approve ${p.traderName}'s payout`}
             onClick={() => {
               applyPayoutDecision(p.reference, "approved");
@@ -90,6 +96,8 @@ export function PayoutQueueWidget() {
               <Button
                 size="sm"
                 variant="outline"
+                disabled={!canDecide}
+                title={decideTitle}
                 aria-label={`Reject ${p.traderName}'s payout`}
                 className="text-rose-700 hover:text-rose-700 dark:text-rose-400"
               >
@@ -124,6 +132,8 @@ export function PayoutQueueWidget() {
           <Button
             size="sm"
             variant="ghost"
+            disabled={!canDecide}
+            title={decideTitle}
             aria-label={`Request more info from ${p.traderName}`}
             onClick={() => {
               applyPayoutDecision(p.reference, "info-requested");

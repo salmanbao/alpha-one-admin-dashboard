@@ -18,6 +18,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { usePlatform, useUserSwitcher } from "@/lib/platform/platform-context";
+import { demoSwitchersEnabled } from "@/lib/platform/demo-switchers";
 import { resolveNavigation } from "@/lib/platform/navigation-engine";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import { users as allUsers } from "@/lib/platform/mock-data";
@@ -165,33 +166,35 @@ export function CommandMenu() {
         run: () => setThemeMode(themeMode === "dark" ? "light" : "dark"),
       },
     );
-    // tenant switching
-    for (const t of availableTenants) {
-      out.push({
-        id: `tenant-${t.id}`,
-        label: `Switch tenant → ${t.id === "platform" ? "Platform (Super Admin)" : t.name}`,
-        group: "Tenants",
-        icon: Building2,
-        run: () => {
-          setTenant(t);
-          const match = t.id === "platform"
-            ? users.find((u) => false)
-            : users.find((u) => u.tenantId === t.id && u.application === user.application);
-          if (match) switchUser(match);
-          // Reset to overview — the current view may not exist in the target tenant
-          navigate("overview");
-        },
-      });
-    }
-    // user switching (switchUser also syncs the tenant to match the user)
-    for (const u of users) {
-      out.push({
-        id: `user-${u.id}`,
-        label: `Switch user → ${u.name} (${u.roles[0]})`,
-        group: "Users",
-        icon: Users,
-        run: () => switchUser(u),
-      });
+    // tenant switching — demo affordance (hidden in production)
+    if (demoSwitchersEnabled) {
+      for (const t of availableTenants) {
+        out.push({
+          id: `tenant-${t.id}`,
+          label: `Switch tenant → ${t.id === "platform" ? "Platform (Super Admin)" : t.name}`,
+          group: "Tenants",
+          icon: Building2,
+          run: () => {
+            setTenant(t);
+            const match = t.id === "platform"
+              ? users.find((u) => false)
+              : users.find((u) => u.tenantId === t.id && u.application === user.application);
+            if (match) switchUser(match);
+            // Reset to overview — the current view may not exist in the target tenant
+            navigate("overview");
+          },
+        });
+      }
+      // user switching (switchUser also syncs the tenant to match the user)
+      for (const u of users) {
+        out.push({
+          id: `user-${u.id}`,
+          label: `Switch user → ${u.name} (${u.roles[0]})`,
+          group: "Users",
+          icon: Users,
+          run: () => switchUser(u),
+        });
+      }
     }
     // module management
     if (true) {

@@ -22,6 +22,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { hasPermission } from "@/lib/platform/permission-engine";
 import {
   getTenantKyc,
   getTenantPayouts,
@@ -157,6 +158,11 @@ export function EnhancedWithdrawalsPage() {
   const { runtime, user } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
+  // In-page guard — batch approve/reject are payout decisions; a trader
+  // viewing their own withdrawals (or any user without payout.approve)
+  // sees the buttons disabled rather than acting on their own request.
+  const canDecide = hasPermission(user, "payout.approve");
+  const decideTitle = canDecide ? undefined : "Requires payout.approve";
   // Round 7: trader application users see only THEIR OWN withdrawals.
   const trader = getTraderForUser(user);
 
@@ -490,10 +496,10 @@ export function EnhancedWithdrawalsPage() {
               {selected.size} selected · {formatCurrency(selectedPayouts.reduce((s, p) => s + p.amount, 0), currency)}
             </span>
             <div className="ml-auto flex flex-wrap gap-2">
-              <Button size="sm" variant="default" onClick={batchApprove} className="bg-emerald-600 hover:bg-emerald-700">
+              <Button size="sm" variant="default" onClick={batchApprove} disabled={!canDecide} title={decideTitle} className="bg-emerald-600 hover:bg-emerald-700">
                 <CheckCircle2 className="mr-1 h-4 w-4" /> Approve Selected
               </Button>
-              <Button size="sm" variant="outline" onClick={batchReject} className="border-rose-500/40 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20">
+              <Button size="sm" variant="outline" onClick={batchReject} disabled={!canDecide} title={decideTitle} className="border-rose-500/40 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20">
                 <XCircle className="mr-1 h-4 w-4" /> Reject Selected
               </Button>
               <Button size="sm" variant="outline" onClick={batchExport}>

@@ -13,6 +13,7 @@
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import { hasPermission } from "@/lib/platform/permission-engine";
 import { resolveTermsInString } from "@/lib/platform/terminology";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, X, FileQuestion, ChevronRight, ShieldAlert, MessageCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/components/platform/status";
+import { EntityAuditTimeline } from "@/components/platform/audit";
 import { applyPayoutDecision, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { resolveBreach } from "@/modules/risk/breach-store";
 import type { ComponentType } from "react";
@@ -48,6 +50,12 @@ interface ContextualAction {
     description: string;
     consequence: string;
   };
+  /**
+   * Permission required to run this action. When the active user lacks
+   * it the button renders disabled with a "Requires …" tooltip — viewing
+   * a queue is not the same permission as deciding on it (gap analysis §4).
+   */
+  requires?: string;
   /** Action handler */
   onAction: () => void;
 }
@@ -100,16 +108,27 @@ export function ContextualActionPanel({
 }
 
 function ContextualActionButton({ action, isPrimary = false }: { action: ContextualAction; isPrimary?: boolean }) {
+  const { user } = usePlatform();
   const Icon = action.icon;
   const variant = isPrimary ? "default" : action.variant === "destructive" ? "outline" : "ghost";
   const size = "sm";
   const className = cn("gap-1.5", isPrimary && "shadow-sm");
+  // In-page action guard: the queue may be visible (payout.read) while the
+  // decision itself requires payout.approve / risk.configure / …
+  const allowed = !action.requires || hasPermission(user, action.requires);
+  const deniedTitle = action.requires ? `Requires ${action.requires}` : undefined;
 
   if (action.destructive) {
     return (
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button variant={variant} size={size} className={cn(className, "text-rose-600 hover:text-rose-700")}>
+          <Button
+            variant={variant}
+            size={size}
+            disabled={!allowed}
+            title={deniedTitle}
+            className={cn(className, "text-rose-600 hover:text-rose-700")}
+          >
             <Icon className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">{action.label}</span>
           </Button>
@@ -142,7 +161,14 @@ function ContextualActionButton({ action, isPrimary = false }: { action: Context
   }
 
   return (
-    <Button variant={variant} size={size} className={className} onClick={action.onAction}>
+    <Button
+      variant={variant}
+      size={size}
+      className={className}
+      disabled={!allowed}
+      title={deniedTitle}
+      onClick={action.onAction}
+    >
       <Icon className="h-3.5 w-3.5" />
       <span className="hidden sm:inline">{action.label}</span>
     </Button>
@@ -177,6 +203,7 @@ export function PayoutReviewActions({
       icon: Check,
       variant: "primary",
       isPrimary: true,
+      requires: "payout.approve",
       onAction: () => {
         // Mutate the shared decision store — the pending queue (table,
         // dashboard widget) drops this payout everywhere, instantly.
@@ -197,6 +224,7 @@ export function PayoutReviewActions({
       label: "Reject",
       icon: X,
       variant: "destructive",
+      requires: "payout.approve",
       destructive: {
         title: "Reject this payout?",
         description: `You are about to reject the payout of ${currencyFmt} for ${traderName}.`,
@@ -212,6 +240,7 @@ export function PayoutReviewActions({
       label: "Request Info",
       icon: FileQuestion,
       variant: "secondary",
+      requires: "payout.approve",
       onAction: () => {
         applyPayoutDecision(payoutId, "info-requested");
         toast({ title: "Information requested", description: resolveTermsInString(`Additional information has been requested from ${traderName}.`, tenant) });
@@ -227,6 +256,7 @@ export function PayoutReviewActions({
       label: "Escalate",
       icon: AlertTriangle,
       variant: "secondary",
+      requires: "payout.approve",
       onAction: () => {
         applyPayoutDecision(payoutId, "escalated");
         toast({
@@ -238,19 +268,24 @@ export function PayoutReviewActions({
   }
 
   return (
-    <ContextualActionPanel
-      contextLabel={payoutId}
-      contextDetail={`${traderName} · ${currencyFmt}`}
-      statusBadge={
-        escalated ? (
-          <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
-            Escalated · senior sign-off
-          </Badge>
-        ) : undefined
-      }
-      actions={actions}
-      compact
-    />
+    <div className="space-y-2">
+      <ContextualActionPanel
+        contextLabel={payoutId}
+        contextDetail={`${traderName} · ${currencyFmt}`}
+        statusBadge={
+          escalated ? (
+            <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
+              Escalated · senior sign-off
+            </Badge>
+          ) : undefined
+        }
+        actions={actions}
+        compact
+      />
+      {/* Entity audit trail — decisions recorded via lib/audit.ts appear
+          here (and on every other surface) as soon as they are made. */}
+      <EntityAuditTimeline entity="payout" entityId={payoutId} />
+    </div>
   );
 }
 
@@ -285,6 +320,7 @@ export function BreachResolutionActions({
       label: "Mark Resolved",
       icon: Check,
       variant: "secondary",
+      requires: "risk.configure",
       onAction: () => {
         resolveBreach(breachId);
         toast({ title: "Breach resolved", description: `${traderName}'s breach has been marked as resolved.` });
@@ -303,11 +339,14 @@ export function BreachResolutionActions({
   ];
 
   return (
-    <ContextualActionPanel
-      contextLabel={`Breach: ${traderName}`}
-      contextDetail={rule}
-      actions={actions}
-      compact
-    />
+    <div className="space-y-2">
+      <ContextualActionPanel
+        contextLabel={`Breach: ${traderName}`}
+        contextDetail={rule}
+        actions={actions}
+        compact
+      />
+      <EntityAuditTimeline entity="breach" entityId={breachId} />
+    </div>
   );
 }

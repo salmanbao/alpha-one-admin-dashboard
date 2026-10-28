@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { hasPermission } from "@/lib/platform/permission-engine";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import { getTenantPayouts, getTraderPayouts, getTraderForUser, type Payout } from "@/lib/platform/mock-data";
 import { exportToCsv } from "@/lib/platform/export-utils";
@@ -38,11 +39,14 @@ import { Label } from "@/components/ui/label";
  * confirm is enabled; the reason is surfaced in the toast (audit trail).
  */
 function PayoutRejectButton({ p }: { p: Payout }) {
+  const { user } = usePlatform();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
+  // In-page guard — rejecting is a payout decision, not just a view.
+  const canDecide = hasPermission(user, "payout.approve");
 
   const confirmReject = () => {
-    applyPayoutDecision(p.reference, "rejected");
+    applyPayoutDecision(p.reference, "rejected", { reason: reason.trim() });
     toast({
       title: "Payout rejected",
       description: `${p.traderName}'s payout was rejected — ${reason.trim()}`,
@@ -55,7 +59,13 @@ function PayoutRejectButton({ p }: { p: Payout }) {
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700">
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={!canDecide}
+          title={canDecide ? undefined : "Requires payout.approve"}
+          className="text-rose-600 hover:text-rose-700"
+        >
           Reject
         </Button>
       </AlertDialogTrigger>
@@ -114,6 +124,10 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
   const { runtime, tenant, user, navigate } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
+  // In-page guard — the queue is visible with payout.read, but every
+  // decision button (approve/reject/escalate/process) needs payout.approve.
+  const canDecide = hasPermission(user, "payout.approve");
+  const decideTitle = canDecide ? undefined : "Requires payout.approve";
   // Round 7: trader application users see only THEIR OWN payouts; admins
   // see the whole-tenant list.
   const trader = getTraderForUser(user);
@@ -166,6 +180,8 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
             <Button
               size="sm"
               variant="default"
+              disabled={!canDecide}
+              title={decideTitle}
               onClick={() => {
                 // Mutate the shared decision store — the row leaves the
                 // pending queue everywhere (table, cards, widget).
@@ -186,6 +202,8 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
               <Button
                 size="sm"
                 variant="ghost"
+                disabled={!canDecide}
+                title={decideTitle}
                 className="text-amber-700 hover:text-amber-800"
                 onClick={() => {
                   applyPayoutDecision(p.reference, "escalated");
@@ -204,6 +222,8 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
              the payment processor (approved → processing everywhere). */
           <Button
             size="sm"
+            disabled={!canDecide}
+            title={decideTitle}
             onClick={() => {
               applyPayoutDecision(p.reference, "processing");
               toast({
