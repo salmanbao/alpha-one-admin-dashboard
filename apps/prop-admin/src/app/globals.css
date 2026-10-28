@@ -3,6 +3,12 @@
 @import "gridstack/dist/gridstack.min.css";
 @import "gridstack/dist/gridstack-extra.min.css";
 
+/* Tailwind v4 auto-source-detection only scans files under this app. The
+   shared component library (packages/ui) also ships static utilities that
+   would otherwise be dropped from the build. Scan it explicitly so those
+   utilities are always generated. */
+@source "../../../../packages/ui/src";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

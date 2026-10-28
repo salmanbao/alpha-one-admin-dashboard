@@ -10,6 +10,7 @@ import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency } from "@/components/platform/status";
 import { ExplainableStateBadge } from "@/components/platform/state-explanations";
+import { DemoDataStamp } from "@/components/platform/demo-data";
 import { PayoutReviewActions } from "@/components/platform/contextual-actions";
 import { AttentionCenter } from "@/components/platform/attention-center";
 import { EmptyState } from "@/components/platform/guards";
@@ -275,7 +276,12 @@ export function PayoutsOverviewPage() {
         title={plural(term("payout"))}
         description={`${term("account")} withdrawal requests and approvals.`}
         icon={Wallet}
-        actions={<Button size="sm" variant="outline" onClick={handleExport}>Export</Button>}
+        actions={
+          <>
+            <DemoDataStamp label="Simulated queue" />
+            <Button size="sm" variant="outline" onClick={handleExport}>Export</Button>
+          </>
+        }
       />
       <PageContent>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">

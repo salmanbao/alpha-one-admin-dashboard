@@ -26,6 +26,7 @@ import {
   revenueSeries,
 } from "@/lib/platform/mock-data";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
+import { DemoDataStamp } from "@/components/platform/demo-data";
 import { AnimatedNumber } from "@/components/platform/animated-number";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import { roles } from "@/lib/platform/mock-data";
@@ -88,6 +89,7 @@ export function OverviewPage() {
             <Badge variant="secondary" className="gap-1">
               <Sparkles className="h-3 w-3" /> {tenant.plan} plan
             </Badge>
+            <DemoDataStamp label="Simulated metrics" />
             {hasAnalytics ? (
               <Badge variant="outline" className="gap-1 hidden sm:inline-flex">
                 <Calendar className="h-3 w-3" /> {range}d window
