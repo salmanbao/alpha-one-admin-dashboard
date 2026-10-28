@@ -13,16 +13,23 @@ import {
   TerraPageHeader,
   TerraSectionTitle,
 } from "@/components/terra/terra-ui";
-import { terraOrders } from "@/lib/fixtures/terra-fixtures";
+import { useTrading } from "@/lib/trading/trading-context";
 
 export function OrderDetailPage() {
   const params = useSearchParams();
-  const order = terraOrders.find((o) => o.id === params.get("id")) ?? terraOrders[0];
+  // Live session orders (seeded from fixtures, minus anything cancelled
+  // or placed this session). A deep-linked id that no longer exists shows
+  // the not-found state below.
+  const { orders, cancelOrder } = useTrading();
+  const orderId = params.get("id");
+  const order = orderId ? (orders.find((o) => o.id === orderId) ?? null) : (orders[0] ?? null);
   const [modifying, setModifying] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [newPrice, setNewPrice] = useState(String(order.price));
+  const [newPrice, setNewPrice] = useState(String(order?.price ?? ""));
   const [modified, setModified] = useState(false);
-  const [cancelled, setCancelled] = useState(false);
+  const [cancelledOrder, setCancelledOrder] = useState<
+    { ticket: string; symbol: string } | null
+  >(null);
 
   const handleModify = () => {
     setModified(true);
@@ -31,11 +38,13 @@ export function OrderDetailPage() {
   };
 
   const handleCancel = () => {
-    setCancelled(true);
+    if (!order) return;
+    cancelOrder(order.id);
+    setCancelledOrder({ ticket: order.ticket, symbol: order.symbol });
     setConfirmCancel(false);
   };
 
-  if (cancelled) {
+  if (cancelledOrder) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-6 text-center">
         <div className="rounded-full bg-error-container p-6">
@@ -44,7 +53,7 @@ export function OrderDetailPage() {
         <div>
           <h2 className="text-2xl font-bold text-on-surface">Order Cancelled</h2>
           <p className="mt-2 text-on-surface-variant">
-            Order #{order.ticket} ({order.symbol}) has been cancelled.
+            Order #{cancelledOrder.ticket} ({cancelledOrder.symbol}) has been cancelled.
           </p>
         </div>
         <a
@@ -53,6 +62,37 @@ export function OrderDetailPage() {
         >
           Place New Order
         </a>
+      </div>
+    );
+  }
+
+  // Order not found — cancelled this session or a stale deep link.
+  if (!order) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-6 text-center">
+        <div className="rounded-full bg-surface-container-low p-6">
+          <span className="text-6xl">🗒️</span>
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-on-surface">Order Not Found</h2>
+          <p className="mt-2 text-on-surface-variant">
+            This order is no longer pending — it may have been cancelled or filled.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <a
+            href="/trading-positions"
+            className="rounded-xl bg-primary px-6 py-3 text-sm font-bold text-on-primary hover:bg-primary/90"
+          >
+            Open Positions
+          </a>
+          <a
+            href="/order-ticket"
+            className="rounded-xl border border-outline-variant px-6 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-low"
+          >
+            Place New Order
+          </a>
+        </div>
       </div>
     );
   }
@@ -75,8 +115,8 @@ export function OrderDetailPage() {
                 ["Type", order.type],
                 ["Volume", `${order.lots.toFixed(2)} lots`],
                 ["Trigger Price", String(order.price)],
-                ["Stop Loss", String(order.sl)],
-                ["Take Profit", String(order.tp)],
+                ["Stop Loss", order.sl === null ? "—" : String(order.sl)],
+                ["Take Profit", order.tp === null ? "—" : String(order.tp)],
                 ["Expiry", order.expiry],
                 ["Placed", new Date(order.placedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })],
                 ["Status", "Pending"],

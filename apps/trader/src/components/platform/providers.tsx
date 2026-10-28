@@ -11,6 +11,7 @@
 import { PlatformProvider } from "@pfaas/platform-core";
 import { Toaster } from "@/components/ui/toaster";
 import { AccountProvider } from "@/lib/platform/account-context";
+import { TradingProvider } from "@/lib/trading/trading-context";
 import { terraTenant, terraUser } from "@/lib/fixtures/terra-fixtures";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -21,8 +22,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       users={[terraUser]}
     >
       {/* Active trading account — one source of truth for every
-          account-scoped trader screen (see lib/platform/account-context). */}
-      <AccountProvider>{children}</AccountProvider>
+          account-scoped trader screen (see lib/platform/account-context).
+          TradingProvider holds the mock live session (positions/orders)
+          on top of the fixture data. */}
+      <AccountProvider>
+        <TradingProvider>{children}</TradingProvider>
+      </AccountProvider>
       <Toaster />
     </PlatformProvider>
   );
