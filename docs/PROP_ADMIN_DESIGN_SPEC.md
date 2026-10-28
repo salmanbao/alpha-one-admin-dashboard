@@ -2,15 +2,25 @@
 
 > **Purpose**: This document contains the complete design specification for every screen in the prop-admin dashboard — both existing screens (to be redesigned in the warm stitch design language) and new screens (to be designed from scratch). It is the source-of-truth for the Google Stitch design team to generate all designs.
 >
-> **Structure**: 265 screens organized into 55 sequential batches of 5 screens each (with the final batch containing the remaining screens). Each screen entry includes: Purpose, Layout (top-to-bottom sections), Tables (columns + per-row actions), Forms (fields + types), Actions (buttons + behavior), and Dialogs/Modals/Sheets (trigger + content + actions).
+> **Structure**: 265 screens with global IDs 1–265, organized into 55 sequential batches — 52 batches of 5 screens, plus batches 24 (1 screen), 39 (3 screens), and 55 (1 screen). Every screen heading carries its global ID (### 1. … ## 265.) and includes: Purpose, Layout (top-to-bottom sections), Tables (columns + per-row actions), Forms (fields + types), Actions (buttons + behavior), and Dialogs/Modals/Sheets (trigger + content + actions).
 >
 > **Design notes**: No color references are included — the design system is already established in stitch. Status tones are expressed semantically (positive/warning/negative/info/muted/default). All interactive patterns follow the established shadcn/ui conventions (DataTable, Sheet, AlertDialog, Collapsible, Tabs, Select, Switch, Checkbox).
 >
-> **How to use**: Each batch of 5 screens can be processed independently by the design team. Read the screen's spec, generate the stitch design, then move to the next screen.
+> **How to use**: Each batch can be processed independently by the design team. Read the screen's spec, generate the stitch design, then move to the next screen.
+
+**Canonical screen inventory** — 265 screens, IDs 1–265, 55 batches:
+
+| Part | Scope | Batches | Screens | Screen IDs |
+|------|-------|---------|---------|------------|
+| 1 (of 4) | Trading, Challenges, Risk | 1–12 | 60 | 1–60 |
+| 2 (of 4) | Payouts, Analytics, Affiliates, Accounting | 13–24 | 56 | 61–116 |
+| 3 (of 4) | Marketing, CRM, KYC, Support, AI/LLM, Checkout, Audit | 25–39 | 73 | 117–189 |
+| 4 (of 4) | Settings, Super-Admin, Pendings, Profile, Notifications, Help, Overview | 40–55 | 76 | 190–265 |
+| **Total** | 21 modules | **1–55** | **265** | **1–265** |
 
 ---
 
-# Prop-Admin Dashboard — Stitch Design Spec (Part 1)
+# Prop-Admin Dashboard — Stitch Design Spec (Part 1 of 4)
 
 > **Scope**: Every screen in the Trading, Challenges, and Risk modules of the prop-admin dashboard, restyled in the warm **Stitch** design language that already powers the trader dashboard. This document is the source-of-truth that the Google Stitch design team will use to generate pixel-perfect designs.
 >
@@ -22,7 +32,7 @@
 
 ## Batch 1 — Trading Overview, Traders, Accounts, Open Positions, Trader Detail
 
-### Trading Overview (view-id: `trading`) [EXISTING]
+### 1. Trading Overview (view-id: `trading`) [EXISTING]
 
 **Purpose**: Aggregate snapshot of all trading activity under the tenant — equity, open P&L, recent activity — giving ops a landing view before drilling into a specific trader or account.
 
@@ -45,7 +55,7 @@
 
 ---
 
-### Traders (view-id: `trading-traders`) [EXISTING]
+### 2. Traders (view-id: `trading-traders`) [EXISTING]
 
 **Purpose**: Filterable directory of every trader on the tenant; entry point to the per-trader workspace.
 
@@ -75,7 +85,7 @@
 
 ---
 
-### Accounts (view-id: `trading-accounts`) [EXISTING]
+### 3. Accounts (view-id: `trading-accounts`) [EXISTING]
 
 **Purpose**: Flat directory of every MT5 / MT4 / DXTrade / MatchTrader account under the tenant; the main launchpad into the Account Workspace.
 
@@ -104,7 +114,7 @@
 
 ---
 
-### Open Positions (view-id: `trading-positions`) [EXISTING]
+### 4. Open Positions (view-id: `trading-positions`) [EXISTING]
 
 **Purpose**: Live cross-account list of every open position so risk and ops can watch exposure in one place.
 
@@ -132,7 +142,7 @@
 
 ---
 
-### Trader Detail (view-id: `trader-detail`) [EXISTING]
+### 5. Trader Detail (view-id: `trader-detail`) [EXISTING]
 
 **Purpose**: 7-tab per-trader workspace — at-a-glance identity, KPIs, account health, then deep-dive into accounts, positions, performance, KYC, risk, and change history.
 
@@ -182,7 +192,7 @@
 
 ## Batch 2 — Add Account, Closed Positions, Closed Position Detail, Account Workspace, Account Broker Details
 
-### Add Account (view-id: `trading-add-account`) [EXISTING]
+### 6. Add Account (view-id: `trading-add-account`) [EXISTING]
 
 **Purpose**: 5-step guided wizard that provisions a new trader account end-to-end (user → challenge → config → KYC → review).
 
@@ -223,7 +233,7 @@
 
 ---
 
-### Closed Positions (view-id: `closed-positions`) [EXISTING]
+### 7. Closed Positions (view-id: `closed-positions`) [EXISTING]
 
 **Purpose**: Historical cross-account list of every closed position with rich filters, KPI roll-ups, and CSV export.
 
@@ -252,7 +262,7 @@
 
 ---
 
-### Closed Position Detail (view-id: `closed-position-detail`) [EXISTING]
+### 8. Closed Position Detail (view-id: `closed-position-detail`) [EXISTING]
 
 **Purpose**: Single closed trade audit view with inline edit form and destructive delete.
 
@@ -294,7 +304,7 @@
 
 ---
 
-### Account Workspace (view-id: `account-workspace`) [EXISTING]
+### 9. Account Workspace (view-id: `account-workspace`) [EXISTING]
 
 **Purpose**: Unified tabbed workspace for a single trading account — wraps the 6 existing account-* sub-pages under one header so the operator can move between Configuration, Events, Version History, Broker Details, KYC, and Related Accounts without returning to the sidebar.
 
@@ -327,7 +337,7 @@
 
 ---
 
-### Account Broker Details (view-id: `account-broker-details`) [EXISTING]
+### 10. Account Broker Details (view-id: `account-broker-details`) [EXISTING]
 
 **Purpose**: Read-only broker / bridge configuration with explicit Edit toggle, plus a live account-metrics KPI row.
 
@@ -369,7 +379,7 @@
 
 ## Batch 3 — Account KYC Statuses, Account Related Accounts, Account Configuration, Account Events, Account Version History
 
-### Account KYC Statuses (view-id: `account-kyc-statuses`) [EXISTING]
+### 11. Account KYC Statuses (view-id: `account-kyc-statuses`) [EXISTING]
 
 **Purpose**: Per-provider KYC verification matrix for the trader associated with the active account.
 
@@ -401,7 +411,7 @@
 
 ---
 
-### Account Related Accounts (view-id: `account-related-accounts`) [EXISTING]
+### 12. Account Related Accounts (view-id: `account-related-accounts`) [EXISTING]
 
 **Purpose**: Every trading account owned by the same trader as the active account — for spotting duplicate traders, parallel phases, or broker migrations.
 
@@ -432,7 +442,7 @@
 
 ---
 
-### Account Configuration (view-id: `account-configuration`) [EXISTING]
+### 13. Account Configuration (view-id: `account-configuration`) [EXISTING]
 
 **Purpose**: Comprehensive account admin form with 5 collapsible sections + Account Health widget + destructive Block/Reset actions guarded by AlertDialog.
 
@@ -480,7 +490,7 @@
 
 ---
 
-### Account Events (view-id: `account-events`) [EXISTING]
+### 14. Account Events (view-id: `account-events`) [EXISTING]
 
 **Purpose**: Immutable audit trail of every lifecycle event for a single account — feeds the compliance archive.
 
@@ -510,7 +520,7 @@
 
 ---
 
-### Account Version History (view-id: `account-version-history`) [EXISTING]
+### 15. Account Version History (view-id: `account-version-history`) [EXISTING]
 
 **Purpose**: Object versioning for the account record — every save creates a snapshot; supports diff view and revert.
 
@@ -542,7 +552,7 @@
 
 ## Batch 4 — Trading Credentials, Trader Comparison, Position Detail (Live), Bridge Sync Log, Trader Audit Log
 
-### Trading Credentials (view-id: `trading-credentials`) [EXISTING]
+### 16. Trading Credentials (view-id: `trading-credentials`) [EXISTING]
 
 **Purpose**: Stitch-styled credentials view for the trader — connection details, master/investor passwords, platform downloads. The admin-side variant mirrors this but adds audit logging on every reveal.
 
@@ -577,7 +587,7 @@
 
 ---
 
-### Trader Comparison (view-id: `trader-comparison`) [NEW]
+### 17. Trader Comparison (view-id: `trader-comparison`) [NEW]
 
 **Purpose**: Side-by-side comparison of up to 4 traders — equity, win rate, P&L, breach count, account count — so ops can pick a winner or spot a copy-trading ring.
 
@@ -606,7 +616,7 @@
 
 ---
 
-### Position Detail (Live) (view-id: `position-detail-live`) [NEW]
+### 18. Position Detail (Live) (view-id: `position-detail-live`) [NEW]
 
 **Purpose**: A dedicated page for inspecting a single open position in depth — equivalent of closed-position-detail but for live trades. Currently only exists as an inline expansion on Open Positions.
 
@@ -646,7 +656,7 @@
 
 ---
 
-### Bridge Sync Log (view-id: `bridge-sync-log`) [NEW]
+### 19. Bridge Sync Log (view-id: `bridge-sync-log`) [NEW]
 
 **Purpose**: Dedicated log of every bridge sync attempt across every account — referenced by Account Broker Details but currently has no view of its own.
 
@@ -675,7 +685,7 @@
 
 ---
 
-### Trader Audit Log (view-id: `trader-audit-log`) [NEW]
+### 20. Trader Audit Log (view-id: `trader-audit-log`) [NEW]
 
 **Purpose**: Dedicated per-trader audit timeline page — every action that touched the trader record, accounts, positions, payouts, KYC, and risk flags. Currently surfaced only as a tab inside trader-detail; this page provides the full unbounded view with filters.
 
@@ -705,7 +715,7 @@
 
 ## Batch 5 — MT4/DXTrade Server Config Catalog, Bulk Account Operations, Challenges Overview, Active Challenges, Passed Challenges
 
-### MT4/DXTrade Server Config Catalog (view-id: `mt4-dxtrade-server-catalog`) [NEW]
+### 21. MT4/DXTrade Server Config Catalog (view-id: `mt4-dxtrade-server-catalog`) [NEW]
 
 **Purpose**: Admin-side catalog of every broker server (MT5-Alpha, MT5-Beta, DXTrade, etc.) — connection params, credential rotation schedule, live health.
 
@@ -743,7 +753,7 @@
 
 ---
 
-### Bulk Account Operations (view-id: `bulk-account-operations`) [NEW]
+### 22. Bulk Account Operations (view-id: `bulk-account-operations`) [NEW]
 
 **Purpose**: Focused workflow for applying one operation to many accounts at once — block, reset, sync, archive, change label, change profit split.
 
@@ -779,7 +789,7 @@
 
 ---
 
-### Challenges Overview (view-id: `challenges`) [EXISTING]
+### 23. Challenges Overview (view-id: `challenges`) [EXISTING]
 
 **Purpose**: Landing view for the Challenges module — KPI strip, attention center, evaluation funnel, full challenges table.
 
@@ -811,7 +821,7 @@
 
 ---
 
-### Active Challenges (view-id: `challenges-active`) [EXISTING]
+### 24. Active Challenges (view-id: `challenges-active`) [EXISTING]
 
 **Purpose**: Filtered DataTable view of currently in-progress evaluations.
 
@@ -838,7 +848,7 @@
 
 ---
 
-### Passed Challenges (view-id: `challenges-passed`) [EXISTING]
+### 25. Passed Challenges (view-id: `challenges-passed`) [EXISTING]
 
 **Purpose**: Filtered DataTable view of passed evaluations (including funded accounts).
 
@@ -871,7 +881,7 @@
 
 ## Batch 6 — Failed Challenges, Create Wizard, Challenge Types, Configuration, Phase Management
 
-### Failed Challenges (view-id: `challenges-failed`) [EXISTING]
+### 26. Failed Challenges (view-id: `challenges-failed`) [EXISTING]
 
 **Purpose**: Filtered DataTable view of failed evaluations — for re-engagement campaigns.
 
@@ -900,7 +910,7 @@
 
 ---
 
-### Create Wizard (view-id: `challenge-wizard`) [EXISTING]
+### 27. Create Wizard (view-id: `challenge-wizard`) [EXISTING]
 
 **Purpose**: 7-step guided wizard to create a new challenge template end-to-end.
 
@@ -940,7 +950,7 @@
 
 ---
 
-### Challenge Types (view-id: `challenge-types`) [EXISTING]
+### 28. Challenge Types (view-id: `challenge-types`) [EXISTING]
 
 **Purpose**: Card-grid catalog of every challenge type with active toggle + edit.
 
@@ -974,7 +984,7 @@
 
 ---
 
-### Configuration (view-id: `challenge-config`) [EXISTING]
+### 29. Configuration (view-id: `challenge-config`) [EXISTING]
 
 **Purpose**: Split-view — left list of challenge types, right phase-config editor with collapsible advanced rules.
 
@@ -1017,7 +1027,7 @@
 
 ---
 
-### Phase Management (view-id: `phase-management`) [EXISTING]
+### 30. Phase Management (view-id: `phase-management`) [EXISTING]
 
 **Purpose**: Tabular overview of every phase config across every challenge type, with inline expansion for quick edits.
 
@@ -1047,7 +1057,7 @@
 
 ## Batch 7 — Edit Challenge, Phase Detail, Challenge Marketplace Preview, Challenge Comparison, Challenge Analytics
 
-### Edit Challenge (view-id: `challenge-edit`) [EXISTING]
+### 31. Edit Challenge (view-id: `challenge-edit`) [EXISTING]
 
 **Purpose**: 5-tab editor for a single challenge type — General, Phases, Payout Rules, Checkout, Review.
 
@@ -1091,7 +1101,7 @@
 
 ---
 
-### Phase Detail (view-id: `phase-detail`) [EXISTING]
+### 32. Phase Detail (view-id: `phase-detail`) [EXISTING]
 
 **Purpose**: 3-tab editor for a single phase — General, Trading Platform IDs, Change History.
 
@@ -1130,7 +1140,7 @@
 
 ---
 
-### Challenge Marketplace Preview (view-id: `challenge-marketplace-preview`) [NEW]
+### 33. Challenge Marketplace Preview (view-id: `challenge-marketplace-preview`) [NEW]
 
 **Purpose**: What the trader sees when browsing the purchase catalog — used by admins to QA the trader-facing purchase experience before publishing a challenge type.
 
@@ -1157,7 +1167,7 @@
 
 ---
 
-### Challenge Comparison (view-id: `challenge-comparison`) [NEW]
+### 34. Challenge Comparison (view-id: `challenge-comparison`) [NEW]
 
 **Purpose**: Side-by-side comparison of up to 3 challenge types — for ops to pick a winner before publishing or for traders (via support) to choose between plans.
 
@@ -1186,7 +1196,7 @@
 
 ---
 
-### Challenge Analytics (view-id: `challenge-analytics`) [NEW]
+### 35. Challenge Analytics (view-id: `challenge-analytics`) [NEW]
 
 **Purpose**: Per-challenge-type analytics — pass rate, revenue, time-to-pass, drop-off per phase.
 
@@ -1219,7 +1229,7 @@
 
 ## Batch 8 — Phase Migration Tool, Bulk Phase Editor, Risk Overview, Breaches, Risk Statistics
 
-### Phase Migration Tool (view-id: `phase-migration-tool`) [NEW]
+### 36. Phase Migration Tool (view-id: `phase-migration-tool`) [NEW]
 
 **Purpose**: Migrate existing in-progress accounts when phase rules change — preview impact, execute in batches.
 
@@ -1256,7 +1266,7 @@
 
 ---
 
-### Bulk Phase Editor (view-id: `bulk-phase-editor`) [NEW]
+### 37. Bulk Phase Editor (view-id: `bulk-phase-editor`) [NEW]
 
 **Purpose**: Apply one rule change across multiple phases at once — e.g. "set daily drawdown to 4% on every Phase 1 across every challenge type".
 
@@ -1293,7 +1303,7 @@
 
 ---
 
-### Risk Overview (view-id: `risk`) [EXISTING]
+### 38. Risk Overview (view-id: `risk`) [EXISTING]
 
 **Purpose**: Landing view for the Risk module — KPI strip, attention center, recent breaches table.
 
@@ -1326,7 +1336,7 @@
 
 ---
 
-### Breaches (view-id: `breaches`) [EXISTING]
+### 39. Breaches (view-id: `breaches`) [EXISTING]
 
 **Purpose**: Full breaches list with filters + bulk actions.
 
@@ -1356,7 +1366,7 @@
 
 ---
 
-### Risk Statistics (view-id: `risk-statistics`) [EXISTING]
+### 40. Risk Statistics (view-id: `risk-statistics`) [EXISTING]
 
 **Purpose**: 3-tab stats view — per-challenge-type, per-country, per-account-size-band — with date range + CSV export.
 
@@ -1391,7 +1401,7 @@
 
 ## Batch 9 — Trading Events, Copy Trading Events, Copy Trading Analysis, Inverse Trading Events, Account IP Addresses
 
-### Trading Events (view-id: `trading-events`) [EXISTING]
+### 41. Trading Events (view-id: `trading-events`) [EXISTING]
 
 **Purpose**: 4-tab rule config — News, Copy, Inverse, Weekend — with master-detail layout.
 
@@ -1422,7 +1432,7 @@
 
 ---
 
-### Copy Trading Events (view-id: `copy-trading-events`) [EXISTING]
+### 42. Copy Trading Events (view-id: `copy-trading-events`) [EXISTING]
 
 **Purpose**: List of detected copy-trading event pairs with inline create form.
 
@@ -1456,7 +1466,7 @@
 
 ---
 
-### Copy Trading Analysis (view-id: `copy-trading-analysis`) [EXISTING]
+### 43. Copy Trading Analysis (view-id: `copy-trading-analysis`) [EXISTING]
 
 **Purpose**: Interactive detection tool — enter 2 account logins + date range → see match verdict with side-by-side account panels.
 
@@ -1493,7 +1503,7 @@
 
 ---
 
-### Inverse Trading Events (view-id: `inverse-trading-events`) [EXISTING]
+### 44. Inverse Trading Events (view-id: `inverse-trading-events`) [EXISTING]
 
 **Purpose**: Detected inverse (hedging) pairs with inline create form.
 
@@ -1524,7 +1534,7 @@
 
 ---
 
-### Account IP Addresses (view-id: `account-ip-addresses`) [EXISTING]
+### 45. Account IP Addresses (view-id: `account-ip-addresses`) [EXISTING]
 
 **Purpose**: IP log per account with inline add form + proxy/hosting/mobile badges.
 
@@ -1560,7 +1570,7 @@
 
 ## Batch 10 — Weekend Trades, Unprofitable Countries, Revenue Loss, Label vs Payouts, Highest Earners
 
-### Weekend Trades (view-id: `weekend-trades`) [EXISTING]
+### 46. Weekend Trades (view-id: `weekend-trades`) [EXISTING]
 
 **Purpose**: List of weekend-held trades with inline detail panel + delete + save.
 
@@ -1597,7 +1607,7 @@
 
 ---
 
-### Unprofitable Countries (view-id: `risk-unprofitable-countries`) [EXISTING]
+### 47. Unprofitable Countries (view-id: `risk-unprofitable-countries`) [EXISTING]
 
 **Purpose**: Regions where total payouts exceed total revenue — for geo-restriction decisions.
 
@@ -1627,7 +1637,7 @@
 
 ---
 
-### Revenue Loss (view-id: `risk-revenue-loss`) [EXISTING]
+### 48. Revenue Loss (view-id: `risk-revenue-loss`) [EXISTING]
 
 **Purpose**: Period-over-period revenue loss analysis with breakdown by cadence.
 
@@ -1656,7 +1666,7 @@
 
 ---
 
-### Label vs Payouts (view-id: `risk-label-vs-payouts`) [EXISTING]
+### 49. Label vs Payouts (view-id: `risk-label-vs-payouts`) [EXISTING]
 
 **Purpose**: Payout breakdown by account label (Paid / Giveaway / Third Party / Standard).
 
@@ -1685,7 +1695,7 @@
 
 ---
 
-### Highest Earners (view-id: `risk-highest-earners`) [EXISTING]
+### 50. Highest Earners (view-id: `risk-highest-earners`) [EXISTING]
 
 **Purpose**: Leaderboard of traders by total revenue contribution.
 
@@ -1717,7 +1727,7 @@
 
 ## Batch 11 — Group vs Payouts, Coupon vs Payouts, Account Label Analysis, Addon Revenue, Risk Rules Editor
 
-### Group vs Payouts (view-id: `risk-group-vs-payouts`) [EXISTING]
+### 51. Group vs Payouts (view-id: `risk-group-vs-payouts`) [EXISTING]
 
 **Purpose**: Payout breakdown by challenge group (challenge name + type + account size + broker).
 
@@ -1746,7 +1756,7 @@
 
 ---
 
-### Coupon vs Payouts (view-id: `risk-coupon-vs-payouts`) [EXISTING]
+### 52. Coupon vs Payouts (view-id: `risk-coupon-vs-payouts`) [EXISTING]
 
 **Purpose**: Payout breakdown by coupon code — to evaluate discount strategy.
 
@@ -1775,7 +1785,7 @@
 
 ---
 
-### Account Label Analysis (view-id: `risk-account-label-analysis`) [EXISTING]
+### 53. Account Label Analysis (view-id: `risk-account-label-analysis`) [EXISTING]
 
 **Purpose**: Per-account deep-dive by label — like Label vs Payouts but with extra label description and trader-level detail.
 
@@ -1806,7 +1816,7 @@
 
 ---
 
-### Addon Revenue (view-id: `risk-addon-revenue`) [EXISTING]
+### 54. Addon Revenue (view-id: `risk-addon-revenue`) [EXISTING]
 
 **Purpose**: Revenue breakdown by add-on product — to evaluate addon strategy.
 
@@ -1836,7 +1846,7 @@
 
 ---
 
-### Risk Rules Editor (view-id: `risk-rules-editor`) [NEW]
+### 55. Risk Rules Editor (view-id: `risk-rules-editor`) [NEW]
 
 **Purpose**: The dedicated rules editor that the Risk Overview "Configure rules" button has been missing. A focused rule-config workspace covering daily loss, max drawdown, profit target, news trading, weekend trading, copy trading detection, inverse detection, and IP/proxy rules — all in one place.
 
@@ -1883,7 +1893,7 @@
 
 ## Batch 12 — Breach Detail, Trader Risk Score Detail, Risk Alert Subscription, VPN/Proxy Detection Dashboard, Account Linkage Graph
 
-### Breach Detail (view-id: `breach-detail`) [NEW]
+### 56. Breach Detail (view-id: `breach-detail`) [NEW]
 
 **Purpose**: Dedicated breach-audit page — every detail about a single breach, the rule that fired, the trader's state at the moment, and resolution workflow.
 
@@ -1923,7 +1933,7 @@
 
 ---
 
-### Trader Risk Score Detail (view-id: `trader-risk-score-detail`) [NEW]
+### 57. Trader Risk Score Detail (view-id: `trader-risk-score-detail`) [NEW]
 
 **Purpose**: Breakdown of the "Platform Risk Score" KPI that appears on Risk Overview — per-trader composite of breach volume, exposure, account health, and behavior flags.
 
@@ -1959,7 +1969,7 @@
 
 ---
 
-### Risk Alert Subscription (view-id: `risk-alert-subscription`) [NEW]
+### 58. Risk Alert Subscription (view-id: `risk-alert-subscription`) [NEW]
 
 **Purpose**: Manage subscriptions to breach / drawdown / risk-score alerts across the team — channels, event types, cadence, recipients.
 
@@ -1990,7 +2000,7 @@
 
 ---
 
-### VPN/Proxy Detection Dashboard (view-id: `vpn-proxy-detection-dashboard`) [NEW]
+### 59. VPN/Proxy Detection Dashboard (view-id: `vpn-proxy-detection-dashboard`) [NEW]
 
 **Purpose**: Aggregate view of proxy / hosting / VPN-suspected IPs across the tenant — feeds decisions to geo-restrict, block IPs, or escalate traders.
 
@@ -2023,7 +2033,7 @@
 
 ---
 
-### Account Linkage Graph (view-id: `account-linkage-graph`) [NEW]
+### 60. Account Linkage Graph (view-id: `account-linkage-graph`) [NEW]
 
 **Purpose**: Visual graph of cross-account relationships — shared IPs, shared devices, copy-trading pairs, inverse-trading pairs, same-name/email matches — to spot multi-account abusers.
 
@@ -2059,7 +2069,7 @@
 
 ---
 
-# Summary
+# Part 1 Summary
 
 - **Batches**: 12 sequential batches of exactly 5 screens each.
 - **Total screens**: 60 (Trading 22, Challenges 15, Risk 23).
@@ -2071,7 +2081,7 @@
 
 ---
 
-# Prop-Admin Dashboard — Stitch Design Spec (Part 2)
+# Prop-Admin Dashboard — Stitch Design Spec (Part 2 of 4)
 
 > **Scope**: Modules 4–7 — Payouts, Analytics, Affiliates, Accounting.
 > **Coverage**: 56 screens (31 existing + 25 new), grouped into **12 batches** numbered Batch 13 → Batch 24.
@@ -2083,7 +2093,7 @@
 
 ## Batch 13 — Payouts Module (1 of 2)
 
-### Payouts Overview (view-id: payouts) [EXISTING]
+### 61. Payouts Overview (view-id: payouts) [EXISTING]
 
 **Purpose**: At-a-glance health of the firm's payout pipeline — pending count, paid totals, processing time, and a searchable table of every payout with inline Approve / Reject.
 
@@ -2112,7 +2122,7 @@
 
 ---
 
-### Pending Payouts (view-id: payouts-pending) [EXISTING]
+### 62. Pending Payouts (view-id: payouts-pending) [EXISTING]
 
 **Purpose**: A focused queue of payouts awaiting approval — each rendered as a contextual action panel for fast approve/reject, with a fallback table below.
 
@@ -2139,7 +2149,7 @@
 
 ---
 
-### Payout History (view-id: payouts-history) [EXISTING]
+### 63. Payout History (view-id: payouts-history) [EXISTING]
 
 **Purpose**: A complete archive of all paid and rejected payouts — the historical ledger for finance reconciliation, with drill-down to receipt and filter by date/method/trader.
 
@@ -2165,7 +2175,7 @@
 
 ---
 
-### Enhanced Withdrawals (view-id: payouts-enhanced-withdrawals) [EXISTING]
+### 64. Enhanced Withdrawals (view-id: payouts-enhanced-withdrawals) [EXISTING]
 
 **Purpose**: The operational war-room for batch withdrawal management — KPI summary, multi-axis filter bar, sortable table with per-row checkbox selection, and a batch-action toolbar for bulk approve/reject/export.
 
@@ -2199,7 +2209,7 @@
 
 ---
 
-### Payout Detail (Admin-side) (view-id: payout-detail) [NEW]
+### 65. Payout Detail (Admin-side) (view-id: payout-detail) [NEW]
 
 **Purpose**: A single-payout deep-dive view for admins — full lifecycle (requested → approved → paid → settled), audit timeline, receipt/invoice link, reversal/refund path, and trader-context cross-links.
 
@@ -2239,7 +2249,7 @@
 
 ## Batch 14 — Payouts Module (2 of 2)
 
-### Bulk Payout Approval Queue (view-id: payouts-bulk-approval) [NEW]
+### 66. Bulk Payout Approval Queue (view-id: payouts-bulk-approval) [NEW]
 
 **Purpose**: A focused workbench for finance operators who batch-approve payouts each day — sorted queue by amount/age, KYC pre-check warnings inline, two-person approval flow for large payouts.
 
@@ -2277,7 +2287,7 @@
 
 ---
 
-### Payout Methods Configuration (view-id: payout-methods-config) [NEW]
+### 67. Payout Methods Configuration (view-id: payout-methods-config) [NEW]
 
 **Purpose**: Admin-side management of the firm's enabled payout methods (bank transfer, crypto, PayPal, Skrill, etc.) — toggle on/off, configure thresholds, set supported currencies, manage credentials.
 
@@ -2314,7 +2324,7 @@
 
 ---
 
-### Payout Schedule (view-id: payout-schedule) [NEW]
+### 68. Payout Schedule (view-id: payout-schedule) [NEW]
 
 **Purpose**: Configure when payouts run — daily/weekly/monthly batches, blackout windows (holidays, weekends), and trader-facing expected settlement windows.
 
@@ -2354,7 +2364,7 @@
 
 ---
 
-### Payout Reversal / Refund (view-id: payout-reversal) [NEW]
+### 69. Payout Reversal / Refund (view-id: payout-reversal) [NEW]
 
 **Purpose**: A workbench for handling payout reversals and refunds — initiated either by finance (clerical error, compliance hold) or by trader dispute.
 
@@ -2386,7 +2396,7 @@
 
 ---
 
-### Payout Compliance / Audit Report (view-id: payout-compliance) [NEW]
+### 70. Payout Compliance / Audit Report (view-id: payout-compliance) [NEW]
 
 **Purpose**: A monthly/period compliance and audit report surface — for finance teams to reconcile payouts against policy, detect anomalies, and produce exportable reports for regulators/auditors.
 
@@ -2419,7 +2429,7 @@
 
 ## Batch 15 — Analytics Module (1 of 4)
 
-### Analytics Overview (view-id: analytics) [EXISTING]
+### 71. Analytics Overview (view-id: analytics) [EXISTING]
 
 **Purpose**: The single-pane business-intelligence view for the tenant — multi-currency revenue KPIs plus four trend charts (revenue, trader growth, risk distribution, breach trend).
 
@@ -2450,7 +2460,7 @@
 
 ---
 
-### Trader Analytics (view-id: analytics-traders) [EXISTING]
+### 72. Trader Analytics (view-id: analytics-traders) [EXISTING]
 
 **Purpose**: Trader-level intelligence — leaderboard with avatars/flags/win-rates/PnL/profit-factor, win/loss distribution donut, top-5 equity curves multi-line chart, and an activity-tier bar chart.
 
@@ -2478,7 +2488,7 @@
 
 ---
 
-### Performance Analytics (view-id: analytics-performance) [EXISTING]
+### 73. Performance Analytics (view-id: analytics-performance) [EXISTING]
 
 **Purpose**: Performance breakdowns by challenge type, phase, symbol, country, and hour-of-day — surfaces best-performing cohorts and patterns.
 
@@ -2508,7 +2518,7 @@
 
 ---
 
-### Risk Analytics (view-id: analytics-risk) [EXISTING]
+### 74. Risk Analytics (view-id: analytics-risk) [EXISTING]
 
 **Purpose**: Risk metrics — VaR, Expected Shortfall, Max Drawdown, Sharpe — plus drawdown distribution, VaR confidence curve, risk-adjusted returns by challenge type, breach type breakdown, and a top-10 highest-risk accounts table.
 
@@ -2540,7 +2550,7 @@
 
 ---
 
-### Advanced Analytics (view-id: analytics-advanced) [EXISTING]
+### 75. Advanced Analytics (view-id: analytics-advanced) [EXISTING]
 
 **Purpose**: Currently a FeatureGuard placeholder with a single cohort-retention preview chart. **Redesign target**: replace the placeholder with real advanced/predictive analytics content (anomaly detection, churn prediction, LTV forecasting).
 
@@ -2574,7 +2584,7 @@
 
 ## Batch 16 — Analytics Module (2 of 4)
 
-### Firm Statistics (view-id: analytics-firm-statistics) [EXISTING]
+### 76. Firm Statistics (view-id: analytics-firm-statistics) [EXISTING]
 
 **Purpose**: The "how is the firm doing?" view — 10 KPIs across revenue/payouts/profit/challenges/risk-events/accounts, plus four 12-month trend charts and a summary table of derived ratios with their formulas.
 
@@ -2606,7 +2616,7 @@
 
 ---
 
-### Daily Highlights (view-id: analytics-daily-highlights) [EXISTING]
+### 77. Daily Highlights (view-id: analytics-daily-highlights) [EXISTING]
 
 **Purpose**: Hour-by-hour operational snapshot for a selected UTC day — KPIs, four hourly area charts, and six breakdown tables (countries, PSPs, platforms, coupons, account sizes, recent orders).
 
@@ -2650,7 +2660,7 @@
 
 ---
 
-### Retention Analytics (view-id: analytics-retention) [EXISTING]
+### 78. Retention Analytics (view-id: analytics-retention) [EXISTING]
 
 **Purpose**: Customer retention view — cohort retention matrix (3 hard-coded months), challenges-per-user distribution bar, new vs repeating donut, top countries by retention, and a summary-insights card with three findings.
 
@@ -2682,7 +2692,7 @@
 
 ---
 
-### Dashboard: Accounts Tab (view-id: dashboard-accounts) [EXISTING]
+### 79. Dashboard: Accounts Tab (view-id: dashboard-accounts) [EXISTING]
 
 **Purpose**: Operational dashboard tab focused on the account lifecycle — KPI strip of 13 account-related metrics, daily pass/fail chart, account retention cohort heatmap, and a challenge performance grid.
 
@@ -2712,7 +2722,7 @@
 
 ---
 
-### Dashboard: Payouts Tab (view-id: dashboard-payouts) [EXISTING]
+### 80. Dashboard: Payouts Tab (view-id: dashboard-payouts) [EXISTING]
 
 **Purpose**: Operational dashboard tab for payouts — 6 KPI cards, daily payout area chart, payout cohort matrix, payouts-by-challenge & payouts-by-platform horizontal bar charts, and a recent withdrawals table.
 
@@ -2744,7 +2754,7 @@
 
 ## Batch 17 — Analytics Module (3 of 4)
 
-### Dashboard: Orders Tab (view-id: dashboard-orders) [EXISTING]
+### 81. Dashboard: Orders Tab (view-id: dashboard-orders) [EXISTING]
 
 **Purpose**: Operational dashboard tab for orders — 5 KPIs, monthly revenue trend area chart, revenue-by-challenge & revenue-by-broker horizontal bars, hourly revenue & hourly orders area charts, and a revenue-by-country table.
 
@@ -2774,7 +2784,7 @@
 
 ---
 
-### Dashboard: Positions Tab (view-id: dashboard-positions) [EXISTING]
+### 82. Dashboard: Positions Tab (view-id: dashboard-positions) [EXISTING]
 
 **Purpose**: Operational dashboard tab for trading positions — 6 KPIs (total open positions, total volume, total PnL, winning/losing counts, win rate), symbol stats table, and two hourly distribution charts (trade count + PnL by hour).
 
@@ -2801,7 +2811,7 @@
 
 ---
 
-### Saved Reports / Report Builder (view-id: saved-reports) [NEW]
+### 83. Saved Reports / Report Builder (view-id: saved-reports) [NEW]
 
 **Purpose**: A library of saved analytics views — each one captures a complete snapshot of filters, chart config, KPI selection, and date range. The Report Builder lets operators compose new views without leaving the analytics module.
 
@@ -2846,7 +2856,7 @@
 
 ---
 
-### Scheduled Exports (view-id: scheduled-exports) [NEW]
+### 84. Scheduled Exports (view-id: scheduled-exports) [NEW]
 
 **Purpose**: A scheduler for periodic data exports — email-me-this-report-every-Monday style. Manage existing schedules, see next-run timestamps, pause/resume, and audit past deliveries.
 
@@ -2897,7 +2907,7 @@
 
 ---
 
-### Custom Segmentation Builder (view-id: custom-segmentation) [NEW]
+### 85. Custom Segmentation Builder (view-id: custom-segmentation) [NEW]
 
 **Purpose**: A visual segment builder — "show me traders from US+GB who passed phase 2 in the last 30 days". Compose rules with AND/OR logic, preview the matching cohort live, save and reuse across analytics views.
 
@@ -2948,7 +2958,7 @@
 
 ## Batch 18 — Analytics Module (4 of 4) + Affiliates Module (1 of 4)
 
-### Cohort Builder (view-id: cohort-builder) [NEW]
+### 86. Cohort Builder (view-id: cohort-builder) [NEW]
 
 **Purpose**: Define custom cohorts for retention/churn analysis — pick the cohort anchor event (signup / first purchase / first funded account / first payout), the bucketing interval (daily / weekly / monthly), and the retention windows (e.g. +7d / +14d / +30d / +60d / +90d / +180d / +365d).
 
@@ -2998,7 +3008,7 @@
 
 ---
 
-### Affiliates Overview (view-id: affiliates) [EXISTING]
+### 87. Affiliates Overview (view-id: affiliates) [EXISTING]
 
 **Purpose**: At-a-glance health of the affiliate program — total/active affiliates, conversions, commission earned, plus a 12-month commission trend chart and a recent-campaigns table.
 
@@ -3025,7 +3035,7 @@
 
 ---
 
-### Affiliates List (view-id: affiliates-list) [EXISTING]
+### 88. Affiliates List (view-id: affiliates-list) [EXISTING]
 
 **Purpose**: A DataTable of every affiliate partner — name, code, tier, referrals, conversions, commission, status. Currently read-only; **redesign target**: add row-click to Affiliate Detail + per-row action menu + "Add Affiliate" button + bulk commission payout flow.
 
@@ -3055,7 +3065,7 @@
 
 ---
 
-### Campaigns (view-id: affiliates-campaigns) [EXISTING]
+### 89. Campaigns (view-id: affiliates-campaigns) [EXISTING]
 
 **Purpose**: A DataTable of affiliate marketing campaigns with ROI calculation. Currently read-only; **redesign target**: add "Add Campaign" button + per-row Pause/Resume/Delete + bulk actions.
 
@@ -3082,7 +3092,7 @@
 
 ---
 
-### Commissions (view-id: affiliates-commissions) [EXISTING]
+### 90. Commissions (view-id: affiliates-commissions) [EXISTING]
 
 **Purpose**: Affiliate commission summary — KPIs for total earned / pending / avg ticket / active partners, plus a per-affiliate ledger table. **Redesign target**: add "Pay Outstanding Commission" bulk action + row click → affiliate's commission ledger + date-range filter + export.
 
@@ -3112,7 +3122,7 @@
 
 ## Batch 19 — Affiliates Module (2 of 4)
 
-### Offer Management (view-id: offer-management) [EXISTING]
+### 91. Offer Management (view-id: offer-management) [EXISTING]
 
 **Purpose**: Operational table of coupon offers with status filter, inline detail panel beneath the table for the selected offer, and per-row View / Edit actions. **Redesign target**: "Add Offer" should navigate to offer-edit; add "Duplicate Offer" + "Archive / Delete" per-row + bulk actions.
 
@@ -3149,7 +3159,7 @@
 
 ---
 
-### Offer Edit (view-id: offer-edit) [EXISTING]
+### 92. Offer Edit (view-id: offer-edit) [EXISTING]
 
 **Purpose**: Comprehensive create/edit form for an Offer — basic info (title, description, image, coupon, discount, schedule, popup, url), country targeting (dual-list), challenge targeting (dual-list), user-segment rules (collapsible progressive disclosure), and 3 save variants + delete.
 
@@ -3189,7 +3199,7 @@
 
 ---
 
-### Offer Matching Users (view-id: offer-matching-users) [EXISTING]
+### 93. Offer Matching Users (view-id: offer-matching-users) [EXISTING]
 
 **Purpose**: A paginated list of users matching an offer's targeting rules — reached from Offer Edit's "View Matching Users" link. KPIs + paginated DataTable + per-row "View User" action.
 
@@ -3217,7 +3227,7 @@
 
 ---
 
-### Offer Change History (view-id: offer-change-history) [EXISTING]
+### 94. Offer Change History (view-id: offer-change-history) [EXISTING]
 
 **Purpose**: Per-object audit trail for an offer — every change with timestamp, actor (email + role badge), action (Added / Changed Image / Modified Targeting / Updated Discount / Activated / Deactivated), description with old→new values. Filtered DataTable + Export CSV.
 
@@ -3244,7 +3254,7 @@
 
 ---
 
-### Affiliate Coupons (view-id: affiliate-coupons) [EXISTING]
+### 95. Affiliate Coupons (view-id: affiliate-coupons) [EXISTING]
 
 **Purpose**: CRUD surface for coupon codes — KPI row, status/type filter, full Coupons DataTable with per-row Edit/Disable/Duplicate, Top Performing Coupons DataTable, Coupon Sheet (view + create), and Disable AlertDialog.
 
@@ -3295,7 +3305,7 @@
 
 ## Batch 20 — Affiliates Module (3 of 4)
 
-### Affiliate Link Tracking (view-id: affiliate-link-tracking) [EXISTING]
+### 96. Affiliate Link Tracking (view-id: affiliate-link-tracking) [EXISTING]
 
 **Purpose**: Operational view of every affiliate tracking link — KPI row, affiliate/source/date filters, link-performance DataTable with per-row View/Suspend actions, click-trend area chart, source-distribution donut, top-affiliates table, geo-distribution table, and a Link Analytics Sheet (view + create) with mini click chart + recent-clicks table.
 
@@ -3342,7 +3352,7 @@
 
 ---
 
-### Affiliate Detail (view-id: affiliate-detail) [NEW]
+### 97. Affiliate Detail (view-id: affiliate-detail) [NEW]
 
 **Purpose**: A single-affiliate deep-dive — profile block, commission history, campaigns, payouts, contact info, and a full audit timeline.
 
@@ -3387,7 +3397,7 @@
 
 ---
 
-### Campaign Detail / Edit (view-id: affiliate-campaign-detail) [NEW]
+### 98. Campaign Detail / Edit (view-id: affiliate-campaign-detail) [NEW]
 
 **Purpose**: Create or edit an affiliate campaign — basic info, budget, UTM config, creative assets, targeting, schedule, and a live preview of the tracking link.
 
@@ -3429,7 +3439,7 @@
 
 ---
 
-### Commission Payout Flow (view-id: affiliate-commission-payout) [NEW]
+### 99. Commission Payout Flow (view-id: affiliate-commission-payout) [NEW]
 
 **Purpose**: A workbench for processing commission payouts — initiate, review, approve, and pay outstanding commissions to one or many affiliates. Includes a payout ledger and a per-payout detail view.
 
@@ -3466,7 +3476,7 @@
 
 ---
 
-### Affiliate Onboarding / Invite (view-id: affiliate-onboarding) [NEW]
+### 100. Affiliate Onboarding / Invite (view-id: affiliate-onboarding) [NEW]
 
 **Purpose**: A multi-step onboarding flow for new affiliates — collect profile info, set tier & commission, configure default campaign, send invite email with referral link, and track signup completion.
 
@@ -3502,7 +3512,7 @@
 
 ## Batch 21 — Affiliates Module (4 of 4) + Accounting Module (1 of 3)
 
-### Affiliate Performance Comparison (view-id: affiliate-comparison) [NEW]
+### 101. Affiliate Performance Comparison (view-id: affiliate-comparison) [NEW]
 
 **Purpose**: Side-by-side A/B comparison of up to 4 affiliates — pick the affiliates, choose the metrics, see overlaid trend charts and a comparison table.
 
@@ -3537,7 +3547,7 @@
 
 ---
 
-### Cookie Attribution Report (view-id: cookie-attribution) [NEW]
+### 102. Cookie Attribution Report (view-id: cookie-attribution) [NEW]
 
 **Purpose**: First-touch vs last-touch attribution report — show how attribution changes between cookie models, which affiliates gain/lose under each, and recommend a model.
 
@@ -3565,7 +3575,7 @@
 
 ---
 
-### Accounting Overview (view-id: accounting) [EXISTING]
+### 103. Accounting Overview (view-id: accounting) [EXISTING]
 
 **Purpose**: At-a-glance financial health — total revenue, payouts, fees, and net, with revenue-by-type bar chart, transaction-flow area chart, and an inline Net formula explanation. **Redesign target**: add date-range selector + drill-down from KPI to transactions + Create Journal Entry button + export.
 
@@ -3592,7 +3602,7 @@
 
 ---
 
-### Transactions (view-id: accounting-transactions) [EXISTING]
+### 104. Transactions (view-id: accounting-transactions) [EXISTING]
 
 **Purpose**: All financial transactions ledger — sortable/filterable DataTable with Export CSV. **Redesign target**: row click → transaction detail + filters (type/category/status/date range) + per-row action menu (View/Reconcile/Add Note) + bulk actions.
 
@@ -3619,7 +3629,7 @@
 
 ---
 
-### Reconciliation (view-id: accounting-reconciliation) [EXISTING]
+### 105. Reconciliation (view-id: accounting-reconciliation) [EXISTING]
 
 **Purpose**: Match ledger entries against bank statements — KPIs for total/reconciled/pending/rate, plus a per-row Reconcile button (AlertDialog). **Redesign target**: bulk reconcile + Import Bank Statement flow + Discrepancy workflow + filter by date/type/amount + Reopen Reconciled + reconciled transactions excluded from view.
 
@@ -3654,7 +3664,7 @@
 
 ## Batch 22 — Accounting Module (2 of 3)
 
-### Invoices (view-id: accounting-invoices) [EXISTING]
+### 106. Invoices (view-id: accounting-invoices) [EXISTING]
 
 **Purpose**: Generate, send, track invoices — KPI strip, status/date filters, full DataTable with per-row View/Send/Mark Paid/Cancel/PDF actions, View Invoice Sheet (full invoice with line items + totals + Bill From/To + notes), Create Invoice Sheet (draft creation with line-item template), and Cancel AlertDialog.
 
@@ -3701,7 +3711,7 @@
 
 ---
 
-### P&L Statement (view-id: accounting-pl) [EXISTING]
+### 107. P&L Statement (view-id: accounting-pl) [EXISTING]
 
 **Purpose**: Vertical income statement — Revenue → COGS → Gross Profit → OpEx → Operating Profit → Other (Interest + Tax) → Net Profit — with KPI strip, vertical P&L section card, two charts (Revenue vs Expenses grouped bars, Profit Margin Trend area), and Export CSV + PDF download. Each line item shows amount + % of revenue, with help popovers for technical terms.
 
@@ -3732,7 +3742,7 @@
 
 ---
 
-### Transaction Detail (view-id: transaction-detail) [NEW]
+### 108. Transaction Detail (view-id: transaction-detail) [NEW]
 
 **Purpose**: Single-transaction deep-dive — full record, linked invoice/payout/trader, audit timeline, reconciliation status, and reversal path.
 
@@ -3769,7 +3779,7 @@
 
 ---
 
-### Bank Statement Import (view-id: bank-statement-import) [NEW]
+### 109. Bank Statement Import (view-id: bank-statement-import) [NEW]
 
 **Purpose**: A workbench for importing bank statements (CSV / XLSX / OFX / QIF) — drag-drop upload, column-mapping, auto-match against ledger, discrepancy review, and reconciliation.
 
@@ -3808,7 +3818,7 @@
 
 ---
 
-### Journal Entries / Manual Adjustments (view-id: journal-entries) [NEW]
+### 110. Journal Entries / Manual Adjustments (view-id: journal-entries) [NEW]
 
 **Purpose**: Create and review manual journal entries — post debits/credits to the general ledger, with approval workflow for entries above a threshold.
 
@@ -3847,7 +3857,7 @@
 
 ## Batch 23 — Accounting Module (3 of 3)
 
-### Refunds / Credit Notes (view-id: refunds-credit-notes) [NEW]
+### 111. Refunds / Credit Notes (view-id: refunds-credit-notes) [NEW]
 
 **Purpose**: A workbench for processing refunds and issuing credit notes — initiated from an invoice or as a standalone, with approval workflow above a threshold.
 
@@ -3880,7 +3890,7 @@
 
 ---
 
-### Recurring Invoices (view-id: recurring-invoices) [NEW]
+### 112. Recurring Invoices (view-id: recurring-invoices) [NEW]
 
 **Purpose**: Manage recurring invoice schedules — weekly/monthly/quarterly/yearly cadences, auto-send and auto-mark-paid toggles, next-issue preview, and a history of generated invoices.
 
@@ -3916,7 +3926,7 @@
 
 ---
 
-### Tax / VAT Configuration (view-id: tax-vat-config) [NEW]
+### 113. Tax / VAT Configuration (view-id: tax-vat-config) [NEW]
 
 **Purpose**: Configure tax/VAT rates per region, manage tax IDs, set tax-inclusive vs tax-exclusive pricing, and review tax collected for filing.
 
@@ -3953,7 +3963,7 @@
 
 ---
 
-### Chart of Accounts (view-id: chart-of-accounts) [NEW]
+### 114. Chart of Accounts (view-id: chart-of-accounts) [NEW]
 
 **Purpose**: Manage the firm's general ledger chart of accounts — assets / liabilities / equity / revenue / expenses / etc. with account numbers, types, and balances.
 
@@ -3986,7 +3996,7 @@
 
 ---
 
-### Reconciled Transactions Review (view-id: reconciled-transactions) [NEW]
+### 115. Reconciled Transactions Review (view-id: reconciled-transactions) [NEW]
 
 **Purpose**: A review surface for already-reconciled transactions — audit past reconciliations, reopen if needed, and produce audit-trail exports for auditors.
 
@@ -4018,7 +4028,7 @@
 
 ## Batch 24 — Accounting Module (Final Screen)
 
-### Financial Reports Library (view-id: financial-reports-library) [NEW]
+### 116. Financial Reports Library (view-id: financial-reports-library) [NEW]
 
 **Purpose**: A library of standard and custom financial reports — Balance Sheet, Cash Flow, Trial Balance, AR Aging, AP Aging, Tax Summary, and any saved custom reports. Each report has a schedule, last-run, and export option.
 
@@ -4088,7 +4098,7 @@
 
 ---
 
-# Prop-Admin Dashboard — Stitch Design Spec (Part 3 of 3)
+# Prop-Admin Dashboard — Stitch Design Spec (Part 3 of 4)
 
 **Scope**: All screens in Module 8 (Marketing), Module 9 (CRM), Module 10 (KYC), Module 11 (Support), Module 12 (AI/LLM), Module 13 (Checkout), and Module 14 (Audit & Compliance).
 
@@ -4104,7 +4114,7 @@
 
 ## Batch 25 — Marketing (5 existing)
 
-### Marketing Overview (view-id: marketing) [EXISTING]
+### 117. Marketing Overview (view-id: marketing) [EXISTING]
 
 **Purpose**: Headline KPIs plus the two campaign-level charts that frame the rest of the Marketing module.
 
@@ -4124,7 +4134,7 @@
 
 ---
 
-### Campaigns (view-id: marketing-campaigns) [EXISTING]
+### 118. Campaigns (view-id: marketing-campaigns) [EXISTING]
 
 **Purpose**: Searchable DataTable of every campaign running on the tenant.
 
@@ -4144,7 +4154,7 @@
 
 ---
 
-### Performance (view-id: marketing-performance) [EXISTING]
+### 119. Performance (view-id: marketing-performance) [EXISTING]
 
 **Purpose**: Channel-aggregated bar charts that compare revenue, conversions and spend side-by-side.
 
@@ -4163,7 +4173,7 @@
 
 ---
 
-### Ad Spend (view-id: marketing-ad-spend) [EXISTING]
+### 120. Ad Spend (view-id: marketing-ad-spend) [EXISTING]
 
 **Purpose**: Cross-platform paid-acquisition performance (Google/Meta/TikTok/LinkedIn/X) with CPA/ROAS attribution and a 4-stage funnel down to funded traders.
 
@@ -4196,7 +4206,7 @@
 
 ---
 
-### Email Campaigns (view-id: marketing-email-campaigns) [EXISTING]
+### 121. Email Campaigns (view-id: marketing-email-campaigns) [EXISTING]
 
 **Purpose**: Plan, send and measure email campaigns — open rate, click rate, conversion, template leaderboard.
 
@@ -4228,7 +4238,7 @@
 
 ## Batch 26 — Marketing (1 existing + 4 new)
 
-### Marketing Dashboard (view-id: marketing-dashboard) [EXISTING]
+### 122. Marketing Dashboard (view-id: marketing-dashboard) [EXISTING]
 
 **Purpose**: Weekly snapshot of top traders, top trading pairs and top payout countries — the marketing team's at-a-glance board.
 
@@ -4256,7 +4266,7 @@
 
 ---
 
-### Campaign Detail (view-id: marketing-campaign-detail) [NEW]
+### 123. Campaign Detail (view-id: marketing-campaign-detail) [NEW]
 
 **Purpose**: Single-campaign workspace so marketing ops never need to leave the page to inspect or mutate one campaign's lifecycle, spend, creative and attribution.
 
@@ -4288,7 +4298,7 @@
 
 ---
 
-### Audience / Segment Builder (view-id: marketing-audience-builder) [NEW]
+### 124. Audience / Segment Builder (view-id: marketing-audience-builder) [NEW]
 
 **Purpose**: Build reusable audiences (segments) that drive email-campaign targeting and ad-account lookalikes, with a live size estimate.
 
@@ -4320,7 +4330,7 @@
 
 ---
 
-### Template Editor (Marketing-local) (view-id: marketing-template-editor) [NEW]
+### 125. Template Editor (Marketing-local) (view-id: marketing-template-editor) [NEW]
 
 **Purpose**: A Marketing-local editor for reusable email-template skeletons (separate from the global Settings templates module), with merge-field insertion and a side-by-side live preview.
 
@@ -4348,7 +4358,7 @@
 
 ---
 
-### Attribution / UTM Builder (view-id: marketing-utm-builder) [NEW]
+### 126. Attribution / UTM Builder (view-id: marketing-utm-builder) [NEW]
 
 **Purpose**: Build, validate and share UTM-tagged links for every campaign surface — email, ad, social, affiliate — with a live preview and a clipboard-ready output.
 
@@ -4382,7 +4392,7 @@
 
 ## Batch 27 — Marketing (1 new) + CRM (3 existing + 1 new)
 
-### Ad Account Connections (view-id: marketing-ad-accounts) [NEW]
+### 127. Ad Account Connections (view-id: marketing-ad-accounts) [NEW]
 
 **Purpose**: Replace today's toast-only "Connect Ad Account" button with a real CRUD surface that lists every connected ad account, its auth status, last sync, and provides OAuth connect/disconnect.
 
@@ -4412,7 +4422,7 @@
 
 ---
 
-### CRM Overview (view-id: crm) [EXISTING]
+### 128. CRM Overview (view-id: crm) [EXISTING]
 
 **Purpose**: KPI strip plus pipeline-by-stage bar chart and pipeline-value progress bars that frame the rest of the CRM module.
 
@@ -4432,7 +4442,7 @@
 
 ---
 
-### Contacts (view-id: crm-contacts) [EXISTING]
+### 129. Contacts (view-id: crm-contacts) [EXISTING]
 
 **Purpose**: DataTable of every CRM contact with a row-click that opens the rich Contact Sheet drawer.
 
@@ -4453,7 +4463,7 @@
 
 ---
 
-### Pipeline (view-id: crm-pipeline) [EXISTING]
+### 130. Pipeline (view-id: crm-pipeline) [EXISTING]
 
 **Purpose**: 5-column Kanban (lead / qualified / opportunity / customer / churned) with drag-and-drop card movement, plus the inline Lead Scoring Methodology card.
 
@@ -4477,7 +4487,7 @@
 
 ---
 
-### Add Contact Flow (view-id: crm-contact-create) [NEW]
+### 131. Add Contact Flow (view-id: crm-contact-create) [NEW]
 
 **Purpose**: A first-class Create Contact dialog + flow that is missing today — every CRM screen that lacks a "+ New Contact" button will route here.
 
@@ -4503,7 +4513,7 @@
 
 ## Batch 28 — CRM (2 new) + KYC (2 existing + 1 new)
 
-### Deal Detail (view-id: crm-deal-detail) [NEW]
+### 132. Deal Detail (view-id: crm-deal-detail) [NEW]
 
 **Purpose**: Per-deal workspace so deals have a real detail/edit surface — today deals only appear as inline rows inside the Contact Sheet.
 
@@ -4543,7 +4553,7 @@
 
 ---
 
-### Activity Log Timeline (view-id: crm-activity-log) [NEW]
+### 133. Activity Log Timeline (view-id: crm-activity-log) [NEW]
 
 **Purpose**: Cross-contact activity timeline that aggregates every CRM event (joins, emails, calls, deal moves, notes) into a single filterable feed.
 
@@ -4571,7 +4581,7 @@
 
 ---
 
-### Lead Scoring Configuration (view-id: crm-lead-scoring) [NEW]
+### 134. Lead Scoring Configuration (view-id: crm-lead-scoring) [NEW]
 
 **Purpose**: Tune the deterministic lead-scoring weights inline (today the methodology card is read-only on the Pipeline page).
 
@@ -4602,7 +4612,7 @@
 
 ---
 
-### KYC Overview (view-id: kyc) [EXISTING]
+### 135. KYC Overview (view-id: kyc) [EXISTING]
 
 **Purpose**: KPI grid + recent submissions table — the queue summary a reviewer sees first thing.
 
@@ -4623,7 +4633,7 @@
 
 ---
 
-### KYC Reviews (view-id: kyc-reviews) [EXISTING]
+### 136. KYC Reviews (view-id: kyc-reviews) [EXISTING]
 
 **Purpose**: The full KYC queue + history table with Approve / Reject / Request Info actions per row.
 
@@ -4650,7 +4660,7 @@
 
 ## Batch 29 — KYC (1 existing + 4 new)
 
-### KYC Risk (view-id: kyc-risk) [EXISTING]
+### 137. KYC Risk (view-id: kyc-risk) [EXISTING]
 
 **Purpose**: Risk distribution donut + high-risk records table so the compliance lead sees the shape of AML exposure.
 
@@ -4672,7 +4682,7 @@
 
 ---
 
-### KYC Record Detail (view-id: kyc-record-detail) [NEW]
+### 138. KYC Record Detail (view-id: kyc-record-detail) [NEW]
 
 **Purpose**: Full document viewer for a single KYC record — ID images, selfie, address proof — so reviewers can adjudicate without leaving the prop-admin.
 
@@ -4705,7 +4715,7 @@
 
 ---
 
-### AML Case Management (view-id: kyc-aml-cases) [NEW]
+### 139. AML Case Management (view-id: kyc-aml-cases) [NEW]
 
 **Purpose**: A dedicated workspace for AML analysts to triage escalated cases, attach SARs, mark cleared, and route to compliance.
 
@@ -4737,7 +4747,7 @@
 
 ---
 
-### KYC Provider Settings (view-id: kyc-providers) [NEW]
+### 140. KYC Provider Settings (view-id: kyc-provider-settings) [NEW]
 
 **Purpose**: Switch the KYC verification provider per tenant — Onfido / Sumsub / Veriff / Persona / manual — and tune thresholds.
 
@@ -4771,7 +4781,7 @@
 
 ---
 
-### Reviewer Audit Trail (view-id: kyc-reviewer-trail) [NEW]
+### 141. Reviewer Audit Trail (view-id: kyc-reviewer-trail) [NEW]
 
 **Purpose**: Reviewer-by-reviewer audit trail so compliance leads can adjudicate performance, bias and throughput.
 
@@ -4800,7 +4810,7 @@
 
 ## Batch 30 — Support (4 existing + 1 new)
 
-### Support Overview (view-id: support) [EXISTING]
+### 142. Support Overview (view-id: support) [EXISTING]
 
 **Purpose**: 4-card KPI row + recent tickets + priority distribution donut — the support lead's at-a-glance dashboard.
 
@@ -4823,7 +4833,7 @@
 
 ---
 
-### Tickets (view-id: support-tickets) [EXISTING]
+### 143. Tickets (view-id: support-tickets) [EXISTING]
 
 **Purpose**: Full ticket queue with multi-select filter chips + a rich Ticket Sheet drawer for reply / escalation / resolution.
 
@@ -4847,7 +4857,7 @@
 
 ---
 
-### SLA Management (view-id: support-sla) [EXISTING]
+### 144. SLA Management (view-id: support-sla) [EXISTING]
 
 **Purpose**: SLA policy configuration table + breach-monitoring charts + agent-workload table with a per-policy Edit Sheet.
 
@@ -4879,7 +4889,7 @@
 
 ---
 
-### Knowledge (view-id: support-knowledge) [EXISTING]
+### 145. Knowledge (view-id: support-knowledge) [EXISTING]
 
 **Purpose**: Static FAQ cards (6 cards today) — the redesign adds search + category filter + CRUD scaffolding.
 
@@ -4905,7 +4915,7 @@
 
 ---
 
-### Create Ticket Dialog (view-id: support-create-ticket) [NEW]
+### 146. Create Ticket Dialog (view-id: support-create-ticket) [NEW]
 
 **Purpose**: First-class Create Ticket dialog that every support screen can trigger — replaces today's toast stubs on Support Overview and elsewhere.
 
@@ -4931,7 +4941,7 @@
 
 ## Batch 31 — Support (4 new) + AI (1 existing)
 
-### Canned Responses Library (view-id: support-canned-responses) [NEW]
+### 147. Canned Responses Library (view-id: support-canned-responses) [NEW]
 
 **Purpose**: Admin surface for the canned-response picker that today is a toast stub inside the Ticket Sheet — operators can author, organize and approve reusable macros.
 
@@ -4961,7 +4971,7 @@
 
 ---
 
-### Agent Detail (view-id: support-agent-detail) [NEW]
+### 148. Agent Detail (view-id: support-agent-detail) [NEW]
 
 **Purpose**: Per-agent workspace reached from SLA Management agent-workload table — workload, performance, assigned tickets, recent activity.
 
@@ -4994,7 +5004,7 @@
 
 ---
 
-### Knowledge Article Editor (view-id: support-knowledge-editor) [NEW]
+### 149. Knowledge Article Editor (view-id: support-knowledge-editor) [NEW]
 
 **Purpose**: Author surface for knowledge-base articles — content authors draft, preview, and publish, with version history.
 
@@ -5023,7 +5033,7 @@
 
 ---
 
-### CSAT / Feedback Review (view-id: support-csat) [NEW]
+### 150. CSAT / Feedback Review (view-id: support-csat) [NEW]
 
 **Purpose**: Central review screen for CSAT ratings — surface low ratings for follow-up, track trends.
 
@@ -5054,7 +5064,7 @@
 
 ---
 
-### AI Overview (view-id: ai) [EXISTING]
+### 151. AI Overview (view-id: ai) [EXISTING]
 
 **Purpose**: 4-card KPI row + insights feed + confidence chart — the AI module landing page.
 
@@ -5077,7 +5087,7 @@
 
 ## Batch 32 — AI (5 existing)
 
-### AI Insights (view-id: ai-insights) [EXISTING]
+### 152. AI Insights (view-id: ai-insights) [EXISTING]
 
 **Purpose**: Filterable grid of AI insight cards with Apply / Investigate / Create ticket / Dismiss actions.
 
@@ -5103,7 +5113,7 @@
 
 ---
 
-### AI Assistant (view-id: ai-assistant) [EXISTING]
+### 153. AI Assistant (view-id: ai-assistant) [EXISTING]
 
 **Purpose**: Mock chat UI; redesign wires real LLM calls + history sidebar.
 
@@ -5129,7 +5139,7 @@
 
 ---
 
-### AI Configure (view-id: ai-configure) [EXISTING]
+### 154. AI Configure (view-id: ai-configure) [EXISTING]
 
 **Purpose**: Feature toggles + model selector + advanced hyperparameters + system prompt; gated by `ai.configure` permission.
 
@@ -5154,7 +5164,7 @@
 
 ---
 
-### Predictive Analytics (view-id: ai-predictive) [EXISTING]
+### 155. Predictive Analytics (view-id: ai-predictive) [EXISTING]
 
 **Purpose**: Churn risk, payout fraud risk, success probability, 30-day signup forecast — with deterministic mock models.
 
@@ -5185,7 +5195,7 @@
 
 ---
 
-### Anomaly Detection (view-id: ai-anomaly) [EXISTING]
+### 156. Anomaly Detection (view-id: ai-anomaly) [EXISTING]
 
 **Purpose**: Real-time anomaly feed with severity escalation paths and per-row Investigate / Mark FP / Create ticket actions.
 
@@ -5215,7 +5225,7 @@
 
 ## Batch 33 — AI (1 existing + 4 new)
 
-### Cost Tracking (view-id: ai-cost) [EXISTING]
+### 157. Cost Tracking (view-id: ai-cost) [EXISTING]
 
 **Purpose**: AI spend, daily trend, per-tenant breakdown (super-admin), per-model + per-use-case breakdown, budget alerts, 30d forecast.
 
@@ -5246,7 +5256,7 @@
 
 ---
 
-### Per-Insight Detail (view-id: ai-insight-detail) [NEW]
+### 158. Per-Insight Detail (view-id: ai-insight-detail) [NEW]
 
 **Purpose**: Per-insight Sheet that exposes model reasoning, input features, output probabilities and recommended actions — today the Insight grid card click navigates away without showing reasoning.
 
@@ -5272,7 +5282,7 @@
 
 ---
 
-### Model Audit Log (view-id: ai-model-audit) [NEW]
+### 159. Model Audit Log (view-id: ai-model-audit) [NEW]
 
 **Purpose**: Who changed what AI configuration, when — every model swap, hyperparameter change, prompt edit.
 
@@ -5298,7 +5308,7 @@
 
 ---
 
-### AI Usage Quota / Rate-Limit (view-id: ai-quota) [NEW]
+### 160. AI Usage Quota / Rate-Limit (view-id: ai-quota) [NEW]
 
 **Purpose**: Per-tenant AI usage quota + rate-limit configuration so a runaway tenant cannot bankrupt the platform.
 
@@ -5325,7 +5335,7 @@
 
 ---
 
-### Prompt Library (view-id: ai-prompt-library) [NEW]
+### 161. Prompt Library (view-id: ai-prompt-library) [NEW]
 
 **Purpose**: Saved prompts / templates that operators can reuse in the AI Assistant and Insight workflows.
 
@@ -5358,7 +5368,7 @@
 
 ## Batch 34 — AI (2 new) + Checkout (3 existing)
 
-### Fine-tuning (view-id: ai-finetuning) [NEW]
+### 162. Fine-tuning (view-id: ai-finetuning) [NEW]
 
 **Purpose**: Train custom models on tenant data — list existing fine-tunes, kick off new runs, monitor status.
 
@@ -5389,7 +5399,7 @@
 
 ---
 
-### Training Data Export (view-id: ai-training-export) [NEW]
+### 163. Training Data Export (view-id: ai-training-export) [NEW]
 
 **Purpose**: Curate + export training datasets for fine-tuning and compliance — each export is audit-stamped.
 
@@ -5419,7 +5429,7 @@
 
 ---
 
-### Checkout Overview (view-id: checkout) [EXISTING]
+### 164. Checkout Overview (view-id: checkout) [EXISTING]
 
 **Purpose**: Mode selector (Built-in vs External) + mode-aware KPIs + surface cards + recent transactions. Single source of truth for the firm's checkout posture.
 
@@ -5445,7 +5455,7 @@
 
 ---
 
-### Payment Providers (view-id: checkout-providers) [EXISTING]
+### 165. Payment Providers (view-id: checkout-providers) [EXISTING]
 
 **Purpose**: Connect, configure, test, deactivate PSPs. Full Sheet with credential editing; Deactivate wrapped in AlertDialog.
 
@@ -5476,7 +5486,7 @@
 
 ---
 
-### Payment Methods (view-id: checkout-methods) [EXISTING]
+### 166. Payment Methods (view-id: checkout-methods) [EXISTING]
 
 **Purpose**: Curate the payment methods traders see at the checkout step — switch + reorder + Edit Sheet.
 
@@ -5506,7 +5516,7 @@
 
 ## Batch 35 — Checkout (5 existing)
 
-### External Integration (view-id: checkout-external) [EXISTING]
+### 167. External Integration (view-id: checkout-external) [EXISTING]
 
 **Purpose**: Configure external checkout URL, API key, signing secret, return URLs, event subscriptions, IP allowlist. Save / Regenerate Secret / Send Test Event are real mutations.
 
@@ -5538,7 +5548,7 @@
 
 ---
 
-### Transactions (view-id: checkout-transactions) [EXISTING]
+### 168. Transactions (view-id: checkout-transactions) [EXISTING]
 
 **Purpose**: Unified tenant ledger of challenge purchases, top-ups, add-ons — with status filter + CSV export.
 
@@ -5564,7 +5574,7 @@
 
 ---
 
-### Platform Overview (view-id: checkout-platform-overview) [EXISTING]
+### 169. Platform Overview (view-id: checkout-platform-overview) [EXISTING]
 
 **Purpose**: Super-admin cross-tenant view: adoption, GMV, platform fees, mode mix, top tenants, alerts.
 
@@ -5592,7 +5602,7 @@
 
 ---
 
-### Tenant Checkout Matrix (view-id: checkout-platform-tenants) [EXISTING]
+### 170. Tenant Checkout Matrix (view-id: checkout-platform-tenants) [EXISTING]
 
 **Purpose**: Per-firm checkout state with Manage Sheet + Disable AlertDialog. Deep-linkable by tenant.
 
@@ -5619,7 +5629,7 @@
 
 ---
 
-### PSP Catalog (view-id: checkout-platform-psp-catalog) [EXISTING]
+### 171. PSP Catalog (view-id: checkout-platform-psp-catalog) [EXISTING]
 
 **Purpose**: Curate platform-wide PSP templates; firms bring their own credentials.
 
@@ -5648,7 +5658,7 @@
 
 ## Batch 36 — Checkout (2 existing + 3 new)
 
-### Platform External Defaults (view-id: checkout-platform-external) [EXISTING]
+### 172. Platform External Defaults (view-id: checkout-platform-external) [EXISTING]
 
 **Purpose**: Platform-wide external checkout contract — webhook URL, signing, retry, egress IPs, event catalog. Read-only today; redesign adds an editor.
 
@@ -5676,7 +5686,7 @@
 
 ---
 
-### Platform Transactions (view-id: checkout-platform-transactions) [EXISTING]
+### 173. Platform Transactions (view-id: checkout-platform-transactions) [EXISTING]
 
 **Purpose**: Cross-tenant transaction ledger for reconciliation.
 
@@ -5701,7 +5711,7 @@
 
 ---
 
-### Transaction Detail Sheet (view-id: checkout-transaction-detail) [NEW]
+### 174. Transaction Detail Sheet (view-id: checkout-transaction-detail) [NEW]
 
 **Purpose**: Single-transaction workspace that surfaces the full lifecycle, PSP-side payload, refunds/disputes and reconciliation status — replaces today's missing row-click drill.
 
@@ -5730,7 +5740,7 @@
 
 ---
 
-### Webhook Log Viewer (view-id: checkout-webhook-log) [NEW]
+### 175. Webhook Log Viewer (view-id: checkout-webhook-log) [NEW]
 
 **Purpose**: Recent inbound webhook log with payload + signature status — debug webhook delivery issues.
 
@@ -5759,7 +5769,7 @@
 
 ---
 
-### Refund / Dispute Workflow (view-id: checkout-refund-dispute) [NEW]
+### 176. Refund / Dispute Workflow (view-id: checkout-refund-dispute) [NEW]
 
 **Purpose**: Central screen for managing refund requests and chargeback disputes across the tenant.
 
@@ -5793,7 +5803,7 @@
 
 ## Batch 37 — Checkout (3 new) + Audit (2 existing)
 
-### Settlement / Reconciliation Report (view-id: checkout-settlement) [NEW]
+### 177. Settlement / Reconciliation Report (view-id: checkout-settlement) [NEW]
 
 **Purpose**: Per-PSP, per-period settlement report that reconciles platform-side transactions with PSP-side settlement files.
 
@@ -5824,7 +5834,7 @@
 
 ---
 
-### PSP Onboarding Wizard (view-id: checkout-psp-onboarding) [NEW]
+### 178. PSP Onboarding Wizard (view-id: checkout-psp-onboarding) [NEW]
 
 **Purpose**: Step-by-step in-app onboarding wizard for adding a new PSP — replaces today's ad-hoc Provider Sheet add flow with a guided 4-step experience.
 
@@ -5854,7 +5864,7 @@
 
 ---
 
-### Platform External Contract Editor (view-id: checkout-platform-external-editor) [NEW]
+### 179. Platform External Contract Editor (view-id: checkout-platform-external-editor) [NEW]
 
 **Purpose**: The platform-wide external checkout contract is read-only today; this screen gives super-admins a first-class editor for the contract + incident history + event catalog CRUD.
 
@@ -5881,7 +5891,7 @@
 
 ---
 
-### Audit Log (view-id: audit) [EXISTING]
+### 180. Audit Log (view-id: audit) [EXISTING]
 
 **Purpose**: Cross-module audit trail of admin and user actions. KPI strip + AuditLogTable component with built-in filters + CSV export.
 
@@ -5904,7 +5914,7 @@
 
 ---
 
-### User Events (view-id: audit-user-events) [EXISTING]
+### 181. User Events (view-id: audit-user-events) [EXISTING]
 
 **Purpose**: Real-time stream of user/account activity, with type-toned badges and CSV export.
 
@@ -5932,7 +5942,7 @@
 
 ## Batch 38 — Audit (3 existing + 2 new)
 
-### Enhanced Events (view-id: audit-user-events-enhanced) [EXISTING]
+### 182. Enhanced Events (view-id: audit-user-events-enhanced) [EXISTING]
 
 **Purpose**: Enhanced event stream with metric snapshots for forensic review of breach events; collapsible advanced-filter panel.
 
@@ -5962,7 +5972,7 @@
 
 ---
 
-### Change History (view-id: audit-change-history) [EXISTING]
+### 183. Change History (view-id: audit-change-history) [EXISTING]
 
 **Purpose**: Audit trail of config changes with before/after diff + rollback. Row click opens the Change Detail Sheet.
 
@@ -5988,7 +5998,7 @@
 
 ---
 
-### User Event Detail (view-id: audit-user-event-detail) [EXISTING]
+### 184. User Event Detail (view-id: audit-user-event-detail) [EXISTING]
 
 **Purpose**: Single-event detail page reached from User Events list (today this page exists but is never linked from the list — redesign wires the link).
 
@@ -6017,7 +6027,7 @@
 
 ---
 
-### Audit Entry Detail Sheet (view-id: audit-entry-detail) [NEW]
+### 185. Audit Entry Detail Sheet (view-id: audit-entry-detail) [NEW]
 
 **Purpose**: Per-entry Sheet for the main Audit Log page — surfaces actor context, entity context, raw payload, related entries, and audit-export actions.
 
@@ -6049,7 +6059,7 @@
 
 ---
 
-### Retention / Export Scheduling (view-id: audit-retention) [NEW]
+### 186. Retention / Export Scheduling (view-id: audit-retention) [NEW]
 
 **Purpose**: Configure how long audit data is retained, and schedule recurring exports to compliance owners.
 
@@ -6083,7 +6093,7 @@
 
 ## Batch 39 — Audit (3 new)
 
-### Severity & Policy Configuration (view-id: audit-severity-policy) [NEW]
+### 187. Severity & Policy Configuration (view-id: audit-severity-policy) [NEW]
 
 **Purpose**: Tune which actions are critical vs warning vs info, and configure escalation rules.
 
@@ -6118,7 +6128,7 @@
 
 ---
 
-### Compliance Report Generator (view-id: audit-compliance-report) [NEW]
+### 188. Compliance Report Generator (view-id: audit-compliance-report) [NEW]
 
 **Purpose**: Date-ranged compliance PDF/CSV bundle — pulls from Audit Log + Change History + KYC + Support — for regulators and external auditors.
 
@@ -6149,7 +6159,7 @@
 
 ---
 
-### SIEM / External Sink Integration (view-id: audit-siem) [NEW]
+### 189. SIEM / External Sink Integration (view-id: audit-siem) [NEW]
 
 **Purpose**: Configure external SIEM / log-aggregator sinks (Splunk / Datadog / Elastic / Sumo Logic / S3 / HTTP webhook) so audit events stream out in real time.
 
@@ -6221,9 +6231,9 @@
 
 ---
 
-# Batch 40 — Settings Landing Cluster (Screens 196-200)
+# Batch 40 — Settings Landing Cluster (Screens 190-194)
 
-## 196. Settings Landing (view-id: `settings`) [EXISTING]
+## 190. Settings Landing (view-id: `settings`) [EXISTING]
 
 **Purpose**: The front-door to the Settings module — a searchable, categorized grid of all settings sections plus a collapsible "Quick edit" panel containing a 7-tab inline editor.
 
@@ -6264,7 +6274,7 @@
 
 ---
 
-## 197. User Management (view-id: `user-management`) [EXISTING]
+## 191. User Management (view-id: `user-management`) [EXISTING]
 
 **Purpose**: Tenant-wide user directory combining admin staff and traders into a single searchable, filterable, paginated list with KYC + 2FA status, revenue, account counts, and per-row Edit / View actions.
 
@@ -6297,7 +6307,7 @@
 
 ---
 
-## 198. Team Members (view-id: `team-members`) [EXISTING]
+## 192. Team Members (view-id: `team-members`) [EXISTING]
 
 **Purpose**: Tenant-isolated staff directory showing every role assignment for the active tenant — active, expired, revoked — with Edit Role Assignment Sheet, Invite User Sheet, and AlertDialog-gated Remove.
 
@@ -6327,7 +6337,7 @@
 
 ---
 
-## 199. Group Management (view-id: `group-management`) [EXISTING]
+## 193. Group Management (view-id: `group-management`) [EXISTING]
 
 **Purpose**: Master/detail layout to organize platform users (admins + traders) into groups for bulk actions, reporting, and risk monitoring.
 
@@ -6362,7 +6372,7 @@
 
 ---
 
-## 200. Banner Management (view-id: `banner-management`) [EXISTING]
+## 194. Banner Management (view-id: `banner-management`) [EXISTING]
 
 **Purpose**: Tabs by type (Announcement vs Marketing) with a master DataTable and an inline detail editor showing banner fields with live preview affordances.
 
@@ -6393,9 +6403,9 @@
 
 ---
 
-# Batch 41 — Marketing + Token Cluster (Screens 201-205)
+# Batch 41 — Marketing + Token Cluster (Screens 195-199)
 
-## 201. Marketing Integrations (view-id: `marketing-integrations`) [EXISTING]
+## 195. Marketing Integrations (view-id: `marketing-integrations`) [EXISTING]
 
 **Purpose**: Third-party marketing platform connections (Klaviyo, GA4, Meta Pixel, Discord, Slack, Mailchimp, HubSpot) with inline Active / Event Logging toggles, masked API key, and AlertDialog-gated Disconnect.
 
@@ -6428,7 +6438,7 @@
 
 ---
 
-## 202. Social Media Links (view-id: `social-media-links`) [EXISTING]
+## 196. Social Media Links (view-id: `social-media-links`) [EXISTING]
 
 **Purpose**: Manage trader social media profiles — Twitter/X, Instagram, Telegram, Discord, YouTube, TikTok, LinkedIn, Facebook — with add/delete (real), filter by platform, KPI roll-ups, CSV export, and per-link analytics.
 
@@ -6461,7 +6471,7 @@
 
 ---
 
-## 203. Marketing Banner Edit (view-id: `marketing-banner-edit`) [EXISTING]
+## 197. Marketing Banner Edit (view-id: `marketing-banner-edit`) [EXISTING]
 
 **Purpose**: Enhanced banner create/edit form with image upload, scheduling, targeting, and live preview. Reached from Banner Management "Add Banner" or by clicking an existing banner row.
 
@@ -6494,7 +6504,7 @@
 
 ---
 
-## 204. Token Management (view-id: `token-management`) [EXISTING]
+## 198. Token Management (view-id: `token-management`) [EXISTING]
 
 **Purpose**: API token / key registry — shows every issued token with its truncated key hash, owning user, creation date, last-used, status (active / revoked), and per-row Copy / Revoke actions.
 
@@ -6523,7 +6533,7 @@
 
 ---
 
-## 205. Token Detail (view-id: `token-detail`) [EXISTING]
+## 199. Token Detail (view-id: `token-detail`) [EXISTING]
 
 **Purpose**: Single API token view + edit form. Reached from Token Management list (click-through on a token row) or directly via `router.params.id`. The id parameter IS the token hash itself.
 
@@ -6560,9 +6570,9 @@
 
 ---
 
-# Batch 42 — Devices + KYC + Email Cluster (Screens 206-210)
+# Batch 42 — Devices + KYC + Email Cluster (Screens 200-204)
 
-## 206. Device Activities (view-id: `device-activities`) [EXISTING]
+## 200. Device Activities (view-id: `device-activities`) [EXISTING]
 
 **Purpose**: Login device fingerprint history — surfaces every unique device fingerprint that has logged into a trader account. Used by ops / risk teams to detect shared access, multi-account logins, and fraud.
 
@@ -6590,7 +6600,7 @@
 
 ---
 
-## 207. KYC Providers (view-id: `kyc-providers`) [EXISTING]
+## 201. KYC Providers (view-id: `kyc-providers`) [EXISTING]
 
 **Purpose**: Manage identity-verification providers (Sumsub, Onfido, Veriff, etc.) — configure credentials, set the active primary provider + fallback order, see per-provider health / sync / approval metrics.
 
@@ -6623,7 +6633,7 @@
 
 ---
 
-## 208. Email Templates (view-id: `email-templates`) [EXISTING]
+## 202. Email Templates (view-id: `email-templates`) [EXISTING]
 
 **Purpose**: Master/detail layout for transactional email templates — DataTable on the left, editable detail panel on the right (progressive disclosure: advanced editing only when needed).
 
@@ -6653,7 +6663,7 @@
 
 ---
 
-## 209. Email Template Edit (view-id: `email-template-edit`) [EXISTING]
+## 203. Email Template Edit (view-id: `email-template-edit`) [EXISTING]
 
 **Purpose**: Enhanced email template editor with WYSIWYG content editor, variables insertable at the caret, recipients tab (CC/BCC/Reply-To), and Save variants.
 
@@ -6688,7 +6698,7 @@
 
 ---
 
-## 210. Notifications Management (view-id: `notifications-management`) [EXISTING]
+## 204. Notifications Management (view-id: `notifications-management`) [EXISTING]
 
 **Purpose**: List scheduled / targeted notifications shown in the trader dashboard. Inline Active Switch, Edit navigation, AlertDialog-gated Delete, with bulk activate/deactivate and per-notification delivery stats.
 
@@ -6719,9 +6729,9 @@
 
 ---
 
-# Batch 43 — Notifications + Certificates Cluster (Screens 211-215)
+# Batch 43 — Notifications + Certificates Cluster (Screens 205-209)
 
-## 211. Notification Edit (view-id: `notification-edit`) [EXISTING]
+## 205. Notification Edit (view-id: `notification-edit`) [EXISTING]
 
 **Purpose**: Create/edit form for a scheduled notification. Basic info + time settings + collapsible User Segment (targeting rules) + preview area + Save variants.
 
@@ -6753,7 +6763,7 @@
 
 ---
 
-## 212. Certificate Management (view-id: `certificate-management`) [EXISTING]
+## 206. Certificate Management (view-id: `certificate-management`) [EXISTING]
 
 **Purpose**: Two tabs — Templates (DataTable + master/detail editor) and Fonts (list of certificate fonts with add / select / delete).
 
@@ -6791,7 +6801,7 @@
 
 ---
 
-## 213. Certificate Template Designer (view-id: `certificate-template-designer`) [EXISTING]
+## 207. Certificate Template Designer (view-id: `certificate-template-designer`) [EXISTING]
 
 **Purpose**: Visual designer for a single certificate template — image upload + live preview pane showing the uploaded image as background with sample field text overlaid at the configured X/Y positions + editable fields table.
 
@@ -6825,7 +6835,7 @@
 
 ---
 
-## 214. Certificate Detail (view-id: `certificate-detail`) [EXISTING]
+## 208. Certificate Detail (view-id: `certificate-detail`) [EXISTING]
 
 **Purpose**: Single issued certificate view + edit form. Read-only by default with an "Edit" toggle that unlocks editable fields (Certificate Type, Template, Linked Withdrawal, Status). Account / Trader Name / Challenge Name / Created Date / Certificate URL remain read-only.
 
@@ -6859,7 +6869,7 @@
 
 ---
 
-## 215. Certificates Issued (view-id: `certificates-issued`) [EXISTING]
+## 209. Certificates Issued (view-id: `certificates-issued`) [EXISTING]
 
 **Purpose**: Searchable list of certificates awarded to traders for passing challenges and reaching milestones. KPI row + search + filters + DataTable with 3-dot menu actions.
 
@@ -6890,9 +6900,9 @@
 
 ---
 
-# Batch 44 — Settings Detail + Settings NEW #1 Cluster (Screens 216-220)
+# Batch 44 — Settings Detail + Settings NEW #1 Cluster (Screens 210-214)
 
-## 216. Certificate Font Upload (view-id: `certificate-font-upload`) [EXISTING]
+## 210. Certificate Font Upload (view-id: `certificate-font-upload`) [EXISTING]
 
 **Purpose**: Font management for certificate rendering. KPI row + DataTable + Upload New Font form with live `@font-face` preview rendered via injected style.
 
@@ -6922,7 +6932,7 @@
 
 ---
 
-## 217. Utilities (view-id: `utilities`) [EXISTING]
+## 211. Utilities (view-id: `utilities`) [EXISTING]
 
 **Purpose**: Management of utility links / cards surfaced in the trader dashboard (helpful resources, external links, FAQ shortcuts). KPI row + DataTable + Dialog-gated create/edit + bulk activate/deactivate.
 
@@ -6955,7 +6965,7 @@
 
 ---
 
-## 218. Roles Management (view-id: `roles-management`) [EXISTING]
+## 212. Roles Management (view-id: `roles-management`) [EXISTING]
 
 **Purpose**: First-class RBAC workspace with 4 tabs — Roles (cards with CRUD), Permission Matrix (roles × permissions grid), Team Assignments (who holds what), My Access (current user's effective access).
 
@@ -7010,7 +7020,7 @@
 
 ---
 
-## 219. CSV Import Dialog (view-id: `csv-import-dialog`) [NEW]
+## 213. CSV Import Dialog (view-id: `csv-import-dialog`) [NEW]
 
 **Purpose**: Multi-step CSV import dialog for bulk-adding users to `user-management`. Upload → preview parsed rows → map columns → confirm → import.
 
@@ -7038,7 +7048,7 @@
 
 ---
 
-## 220. Add Group Sheet (view-id: `add-group-sheet`) [NEW]
+## 214. Add Group Sheet (view-id: `add-group-sheet`) [NEW]
 
 **Purpose**: Right-side Sheet for creating a new user group in `group-management`. Captures name, description, color, default members, and inherited permissions.
 
@@ -7068,9 +7078,9 @@
 
 ---
 
-# Batch 45 — Settings NEW #2 + Super-Admin Start (Screens 221-225)
+# Batch 45 — Settings NEW #2 + Super-Admin Start (Screens 215-219)
 
-## 221. Add KYC Provider Marketplace (view-id: `kyc-provider-marketplace`) [NEW]
+## 215. Add KYC Provider Marketplace (view-id: `kyc-provider-marketplace`) [NEW]
 
 **Purpose**: Modal marketplace for browsing and connecting new KYC providers — Sumsub, Onfido, Veriff, Identity Pass, Jumio, etc. — with comparison and one-click connect.
 
@@ -7097,7 +7107,7 @@
 
 ---
 
-## 222. Per-User Audit Timeline — Settings Context (view-id: `user-audit-timeline`) [NEW]
+## 216. Per-User Audit Timeline — Settings Context (view-id: `user-audit-timeline`) [NEW]
 
 **Purpose**: Unified per-user audit timeline showing every action a specific user (admin or trader) has performed or has been performed on them — login events, role assignments, permission changes, profile updates, etc. Accessed from Team Members "View Activity", User Management "View", Roles Management "Team Assignments" per-row.
 
@@ -7127,7 +7137,7 @@
 
 ---
 
-## 223. Device Detail View (view-id: `device-detail`) [NEW]
+## 217. Device Detail View (view-id: `device-detail`) [NEW]
 
 **Purpose**: Per-device fingerprint detail view accessed from `device-activities` row click. Shows login timeline, IP geo, device fingerprint attributes, linked traders, and "Block device" / "Force logout all sessions" actions.
 
@@ -7158,7 +7168,7 @@
 
 ---
 
-## 224. Settings Module Detail (view-id: `settings-module-detail`) [NEW]
+## 218. Settings Module Detail (view-id: `settings-module-detail`) [NEW]
 
 **Purpose**: Per-module detail view accessed from the Settings Landing "Modules" tab (when the operator clicks a module card). Shows the module's manifest info, configuration schema, enabled features, dependencies, version, and per-tenant adoption.
 
@@ -7187,7 +7197,7 @@
 
 ---
 
-## 225. Platform Overview (view-id: `super-overview`) [EXISTING]
+## 219. Platform Overview (view-id: `super-overview`) [EXISTING]
 
 **Purpose**: PFaaS platform health and tenant summary — top-level super-admin landing with KPI row, tenant distribution, and module adoption bars.
 
@@ -7217,9 +7227,9 @@
 
 ---
 
-# Batch 46 — Super-Admin Tenant Cluster (Screens 226-230)
+# Batch 46 — Super-Admin Tenant Cluster (Screens 220-224)
 
-## 226. Tenants (view-id: `tenants`) [EXISTING]
+## 220. Tenants (view-id: `tenants`) [EXISTING]
 
 **Purpose**: Tenant directory — searchable, filterable DataTable of all tenants on the platform. Row click → tenant-detail. View / Lifecycle / Create actions.
 
@@ -7248,7 +7258,7 @@
 
 ---
 
-## 227. Module Catalog (view-id: `module-catalog`) [EXISTING]
+## 221. Module Catalog (view-id: `module-catalog`) [EXISTING]
 
 **Purpose**: Read-only catalog of all modules available on the platform — module cards with version, category, adopter count, supported applications, and declared permissions.
 
@@ -7279,7 +7289,7 @@
 
 ---
 
-## 228. Platform Health (view-id: `platform-health`) [EXISTING]
+## 222. Platform Health (view-id: `platform-health`) [EXISTING]
 
 **Purpose**: Platform service status — KPI row (uptime / latency / error rate / active sessions) + service list with per-service latency and status.
 
@@ -7311,7 +7321,7 @@
 
 ---
 
-## 229. Create Tenant (view-id: `create-tenant`) [EXISTING]
+## 223. Create Tenant (view-id: `create-tenant`) [EXISTING]
 
 **Purpose**: 5-step onboarding wizard for new tenants. Step indicator + Back/Next nav + required fields marked with asterisks + smart defaults (core modules pre-selected) + review summary.
 
@@ -7344,7 +7354,7 @@
 
 ---
 
-## 230. Tenant Detail (view-id: `tenant-detail`) [EXISTING]
+## 224. Tenant Detail (view-id: `tenant-detail`) [EXISTING]
 
 **Purpose**: Comprehensive tenant workspace with 7 tabs covering the full tenant lifecycle surface. Header + KPI row + tabs: Overview / Modules / Users / Billing / Activity / Configuration / Risk.
 
@@ -7405,9 +7415,9 @@
 
 ---
 
-# Batch 47 — Super-Admin Lifecycle + Audit Cluster (Screens 231-235)
+# Batch 47 — Super-Admin Lifecycle + Audit Cluster (Screens 225-229)
 
-## 231. Tenant Lifecycle (view-id: `tenant-lifecycle`) [EXISTING]
+## 225. Tenant Lifecycle (view-id: `tenant-lifecycle`) [EXISTING]
 
 **Purpose**: Pipeline visualization of tenant states — Invited → Trial → Active → Suspended → Terminated. Stage cards + filtered DataTable + per-row lifecycle action buttons.
 
@@ -7441,7 +7451,7 @@
 
 ---
 
-## 232. Dashboard Manager (view-id: `dashboard-manager`) [EXISTING]
+## 226. Dashboard Manager (view-id: `dashboard-manager`) [EXISTING]
 
 **Purpose**: Lets the platform admin configure widget layouts on a per-tenant + per-role basis for all white-label prop firm admin/trader dashboards. GridStack drag-and-drop editor with widget library sidebar.
 
@@ -7490,7 +7500,7 @@
 
 ---
 
-## 233. Platform Audit (view-id: `platform-audit`) [EXISTING]
+## 227. Platform Audit (view-id: `platform-audit`) [EXISTING]
 
 **Purpose**: Cross-tenant audit trail — surfaces the entire `auditLog` (all tenants + the platform-scoped stream) with a tenant filter, severity KPIs, free-text search, and CSV export.
 
@@ -7521,7 +7531,7 @@
 
 ---
 
-## 234. Platform Staff (view-id: `platform-staff`) [EXISTING]
+## 228. Platform Staff (view-id: `platform-staff`) [EXISTING]
 
 **Purpose**: Cross-tenant admin staff directory — every admin user across every tenant + the platform pseudo-tenant, with primary role assignment, tenant, application, last active, and assigned date.
 
@@ -7554,7 +7564,7 @@
 
 ---
 
-## 235. Platform Roles (view-id: `platform-roles`) [EXISTING]
+## 229. Platform Roles (view-id: `platform-roles`) [EXISTING]
 
 **Purpose**: Cross-tenant role catalog + permission matrix. Three tabs: Catalog (DataTable of all roles across all applications), Matrix (heatmap of role × permission-group coverage), Audit (hint linking to the dedicated role-audit page).
 
@@ -7589,9 +7599,9 @@
 
 ---
 
-# Batch 48 — Super-Admin Audit + NEW Cluster (Screens 236-240)
+# Batch 48 — Super-Admin Audit + NEW Cluster (Screens 230-234)
 
-## 236. Role Audit Log (view-id: `role-audit`) [EXISTING]
+## 230. Role Audit Log (view-id: `role-audit`) [EXISTING]
 
 **Purpose**: Cross-tenant audit trail of every role & permission change. KPI row + filter bar + DataTable + expandable detail panel showing actor reason + structured changes[] diff.
 
@@ -7620,7 +7630,7 @@
 
 ---
 
-## 237. Permissions Catalog (view-id: `permissions-catalog`) [EXISTING]
+## 231. Permissions Catalog (view-id: `permissions-catalog`) [EXISTING]
 
 **Purpose**: Aggregated permission catalog from all modules' manifests. KPI row + filter bar + Accordion-grouped list of permissions, each showing which roles grant it (with "unused" warning-tone badge when no role grants).
 
@@ -7655,7 +7665,7 @@
 
 ---
 
-## 238. Module Detail — Super-Admin (view-id: `super-module-detail`) [NEW]
+## 232. Module Detail — Super-Admin (view-id: `super-module-detail`) [NEW]
 
 **Purpose**: Per-module detail view in the Super-Admin context — permissions list, adopters, config schema, version history, platform-wide enable/disable.
 
@@ -7686,7 +7696,7 @@
 
 ---
 
-## 239. Service Detail (view-id: `service-detail`) [NEW]
+## 233. Service Detail (view-id: `service-detail`) [NEW]
 
 **Purpose**: Per-service detail view — uptime history, incident log, metrics drill-down. Accessed from Platform Health by clicking a service row.
 
@@ -7717,7 +7727,7 @@
 
 ---
 
-## 240. Per-User Audit Timeline — Super-Admin Context (view-id: `super-admin-user-audit-timeline`) [NEW]
+## 234. Per-User Audit Timeline — Super-Admin Context (view-id: `super-admin-user-audit-timeline`) [NEW]
 
 **Purpose**: Same unified per-user audit timeline as Settings (Batch 45), but accessed from Super-Admin → Platform Staff "User activity" or from Platform Audit "View actor profile". In the Super-Admin context, the timeline spans ALL tenants — i.e., the user's actions across every tenant they have access to (including platform-scoped actions).
 
@@ -7749,9 +7759,9 @@
 
 ---
 
-# Batch 49 — Super-Admin NEW Cluster + Pendings Start (Screens 241-245)
+# Batch 49 — Super-Admin NEW Cluster + Pendings Start (Screens 235-239)
 
-## 241. Tenant Billing Detail (view-id: `tenant-billing-detail`) [NEW]
+## 235. Tenant Billing Detail (view-id: `tenant-billing-detail`) [NEW]
 
 **Purpose**: Real billing detail view for a single tenant — invoice history DataTable with PDF download + plan change confirmation + payment method management. Accessed from Tenant Detail → Billing tab "View full billing history" link.
 
@@ -7789,7 +7799,7 @@
 
 ---
 
-## 242. Incident Management (view-id: `incident-management`) [NEW]
+## 236. Incident Management (view-id: `incident-management`) [NEW]
 
 **Purpose**: Acknowledge / resolve flow for platform incidents. Timeline of incidents with severity, affected services, status transitions, and postmortem notes.
 
@@ -7824,7 +7834,7 @@
 
 ---
 
-## 243. Tenant Impersonation Audit Trail (view-id: `tenant-impersonation-audit`) [NEW]
+## 237. Tenant Impersonation Audit Trail (view-id: `tenant-impersonation-audit`) [NEW]
 
 **Purpose**: Cross-tenant audit trail of every impersonation event — who impersonated whom, when, for how long, what actions they took, and the reason captured at start.
 
@@ -7851,7 +7861,7 @@
 
 ---
 
-## 244. Platform-wide Module Enable/Disable (view-id: `platform-module-toggle`) [NEW]
+## 238. Platform-wide Module Enable/Disable (view-id: `platform-module-toggle`) [NEW]
 
 **Purpose**: Bulk enable/disable flow for a module across all tenants — surfaced from Module Catalog "Enable for all tenants" per-card action and Module Detail "Enable for all" / "Disable for all" buttons.
 
@@ -7880,7 +7890,7 @@
 
 ---
 
-## 245. Pending Tasks (view-id: `pending-tasks`) [EXISTING]
+## 239. Pending Tasks (view-id: `pending-tasks`) [EXISTING]
 
 **Purpose**: Operational hub surfacing what needs admin attention right now. 6 clickable summary cards + forecast chart + recent activity feed.
 
@@ -7923,9 +7933,9 @@
 
 ---
 
-# Batch 50 — Pendings NEW + Profile Start (Screens 246-250)
+# Batch 50 — Pendings NEW + Profile Start (Screens 240-244)
 
-## 246. Pending Task Detail (view-id: `pending-task-detail`) [NEW]
+## 240. Pending Task Detail (view-id: `pending-task-detail`) [NEW]
 
 **Purpose**: Single pending task detail — assignment, status, comments, history. Accessed from Pending Tasks by clicking a card's "View details" or from a 3-dot menu on a specific item.
 
@@ -7964,7 +7974,7 @@
 
 ---
 
-## 247. My Tasks (view-id: `my-tasks`) [NEW]
+## 241. My Tasks (view-id: `my-tasks`) [NEW]
 
 **Purpose**: "Tasks assigned to me" view — a personal filter on top of Pending Tasks. Surfaces what the current admin personally owes action on.
 
@@ -7993,7 +8003,7 @@
 
 ---
 
-## 248. Snoozed / Resolved History (view-id: `pending-snoozed-resolved`) [NEW]
+## 242. Snoozed / Resolved History (view-id: `pending-snoozed-resolved`) [NEW]
 
 **Purpose**: Previously-handled items — snoozed (will resurface) and resolved (closed). Provides accountability for past decisions and a path to reopen if needed.
 
@@ -8025,7 +8035,7 @@
 
 ---
 
-## 249. Pending Task Bulk-Assign / Bulk-Resolve (view-id: `pending-bulk-assign`) [NEW]
+## 243. Pending Task Bulk-Assign / Bulk-Resolve (view-id: `pending-bulk-assign`) [NEW]
 
 **Purpose**: Bulk action surface for assigning or resolving multiple pending tasks at once — reached by selecting multiple rows on Pending Tasks or My Tasks.
 
@@ -8058,7 +8068,7 @@
 
 ---
 
-## 250. Profile (view-id: `profile`) [EXISTING]
+## 244. Profile (view-id: `profile`) [EXISTING]
 
 **Purpose**: User account, avatar, preferences, sessions. Avatar upload (client-side preview), display name editing, notification preferences quick-access, active sessions, and security info.
 
@@ -8104,9 +8114,9 @@
 
 ---
 
-# Batch 51 — Profile NEW Cluster (Screens 251-255)
+# Batch 51 — Profile NEW Cluster (Screens 245-249)
 
-## 251. Change Password Dialog (view-id: `change-password-dialog`) [NEW]
+## 245. Change Password Dialog (view-id: `change-password-dialog`) [NEW]
 
 **Purpose**: Modal dialog for changing the current user's password. Enforces current-password confirmation, new-password strength validation, and confirmation match.
 
@@ -8134,7 +8144,7 @@
 
 ---
 
-## 252. 2FA Setup Dialog (view-id: `2fa-setup-dialog`) [NEW]
+## 246. 2FA Setup Dialog (view-id: `2fa-setup-dialog`) [NEW]
 
 **Purpose**: Modal dialog for setting up or disabling two-factor authentication. QR-code-based TOTP enrollment with backup codes.
 
@@ -8172,7 +8182,7 @@
 
 ---
 
-## 253. Connected Sessions Detail (view-id: `connected-sessions-detail`) [NEW]
+## 247. Connected Sessions Detail (view-id: `connected-sessions-detail`) [NEW]
 
 **Purpose**: Per-session detail view — IP geo, device fingerprint, activity timeline. Reached from Profile → Active Sessions by clicking a session row.
 
@@ -8199,7 +8209,7 @@
 
 ---
 
-## 254. Notification Preferences Matrix (view-id: `notification-preferences-matrix`) [NEW]
+## 248. Notification Preferences Matrix (view-id: `notification-preferences-matrix`) [NEW]
 
 **Purpose**: Unified per-module / per-channel notification preferences page (replaces the 5 generic toggles on Profile). Full matrix with quiet hours, frequency caps, and per-event overrides.
 
@@ -8234,7 +8244,7 @@
 
 ---
 
-## 255. API Tokens Cross-link (view-id: `profile-api-tokens`) [NEW]
+## 249. API Tokens Cross-link (view-id: `profile-api-tokens`) [NEW]
 
 **Purpose**: Cross-link from Profile to Token Management filtered to the current user. Shows the user's own API tokens with quick generate / revoke actions, without navigating away from the Profile context.
 
@@ -8262,9 +8272,9 @@
 
 ---
 
-# Batch 52 — Notifications Module (Screens 256-260)
+# Batch 52 — Notifications Module (Screens 250-254)
 
-## 256. Notification Center (view-id: `notifications`) [EXISTING]
+## 250. Notification Center (view-id: `notifications`) [EXISTING]
 
 **Purpose**: Consolidated view of all notifications — platform notifications, triggered price alerts, and recent live activity. Select mode for bulk mark-read.
 
@@ -8312,7 +8322,7 @@
 
 ---
 
-## 257. Notification Detail Dialog (view-id: `notification-detail-dialog`) [NEW]
+## 251. Notification Detail Dialog (view-id: `notification-detail-dialog`) [NEW]
 
 **Purpose**: Per-notification detail dialog showing the full message, related entity link, and per-notification actions. Reached by clicking a notification item in the Notification Center.
 
@@ -8347,7 +8357,7 @@
 
 ---
 
-## 258. Archived / Snoozed Notifications (view-id: `notifications-archived`) [NEW]
+## 252. Archived / Snoozed Notifications (view-id: `notifications-archived`) [NEW]
 
 **Purpose**: View of previously-snoozed and manually-archived notifications. Provides a path to restore or permanently delete.
 
@@ -8390,7 +8400,7 @@
 
 ---
 
-## 259. Per-Module Notification Feed (view-id: `notifications-module-feed`) [NEW]
+## 253. Per-Module Notification Feed (view-id: `notifications-module-feed`) [NEW]
 
 **Purpose**: Single-module notification feed — "only payouts" or "only risk alerts". Accessed from the Notification Center filter bar "By module" Select, or from a module's own notification bell.
 
@@ -8420,9 +8430,9 @@
 
 ---
 
-## 260. Notification Preferences Matrix — Notifications Context (view-id: `notification-preferences-matrix-notifications`) [NEW]
+## 254. Notification Preferences Matrix — Notifications Context (view-id: `notification-preferences-matrix-notifications`) [NEW]
 
-**Purpose**: Same unified matrix as Profile (Batch 51, screen 254), but accessed from the Notification Center "Notification preferences" link. Slight context difference: emphasized as the unified notification-preferences surface (rather than a per-user preference).
+**Purpose**: Same unified matrix as Profile (Batch 51, screen 248), but accessed from the Notification Center "Notification preferences" link. Slight context difference: emphasized as the unified notification-preferences surface (rather than a per-user preference).
 
 **Layout** (top-to-bottom — same structure as the Profile variant):
 1. PageHeader — title "Notification Preferences", description, actions: "Reset to defaults" outline + "Save changes" primary + sticky save bar at the bottom.
@@ -8443,9 +8453,9 @@
 
 ---
 
-# Batch 53 — Help Module (Screens 261-265)
+# Batch 53 — Help Module (Screens 255-259)
 
-## 261. Help (view-id: `help`) [EXISTING]
+## 255. Help (view-id: `help`) [EXISTING]
 
 **Purpose**: Static architecture overview page explaining how the PFaaS platform composes the frontend — 6 principle cards + module registry badge list.
 
@@ -8476,7 +8486,7 @@
 
 ---
 
-## 262. Help Center / FAQ (view-id: `help-center-faq`) [NEW]
+## 256. Help Center / FAQ (view-id: `help-center-faq`) [NEW]
 
 **Purpose**: Searchable FAQ + knowledge base for prop-admin operators (mirrors the trader-dashboard's help-center page, but scoped to admin-operator concerns).
 
@@ -8509,7 +8519,7 @@
 
 ---
 
-## 263. Changelog / What's New (view-id: `help-changelog`) [NEW]
+## 257. Changelog / What's New (view-id: `help-changelog`) [NEW]
 
 **Purpose**: Chronological list of platform changes — version-by-version changelog with feature highlights, bug fixes, and breaking changes.
 
@@ -8543,7 +8553,7 @@
 
 ---
 
-## 264. Support Contact (view-id: `support-contact`) [NEW]
+## 258. Support Contact (view-id: `support-contact`) [NEW]
 
 **Purpose**: Support contact surface for prop-admin operators — submit a ticket, view existing tickets, contact options (Slack, email, phone for enterprise).
 
@@ -8575,7 +8585,7 @@
 
 ---
 
-## 265. Onboarding / Getting Started (view-id: `help-onboarding`) [NEW]
+## 259. Onboarding / Getting Started (view-id: `help-onboarding`) [NEW]
 
 **Purpose**: Onboarding checklist for new prop-admin operators — a guided tour of the platform's key surfaces, with progress tracking and "next best action" suggestions.
 
@@ -8613,9 +8623,9 @@
 
 ---
 
-# Batch 54 — Help NEW + Overview Module (Screens 266-270)
+# Batch 54 — Help NEW + Overview Module (Screens 260-264)
 
-## 266. Module Detail — Help Context (view-id: `help-module-detail`) [NEW]
+## 260. Module Detail — Help Context (view-id: `help-module-detail`) [NEW]
 
 **Purpose**: Per-module detail view accessed from Help page's module badges — explains what the module does, its design principles, related modules, and provides deep-links into the module's primary surfaces.
 
@@ -8644,7 +8654,7 @@
 
 ---
 
-## 267. Overview (view-id: `overview`) [EXISTING]
+## 261. Overview (view-id: `overview`) [EXISTING]
 
 **Purpose**: Prop-admin landing dashboard — KPI row per enabled module (clickable), GridStack widget dashboard, Live Activity sidebar, Customize dialog, Refresh.
 
@@ -8688,7 +8698,7 @@
 
 ---
 
-## 268. Per-Widget Configuration Dialogs (view-id: `overview-widget-config`) [NEW]
+## 262. Per-Widget Configuration Dialogs (view-id: `overview-widget-config`) [NEW]
 
 **Purpose**: Per-widget configuration dialogs opened from the gear icon on each widget in the Overview dashboard. Each widget type exposes its own configuration form.
 
@@ -8715,7 +8725,7 @@
 
 ---
 
-## 269. Dashboard Template Library (view-id: `dashboard-template-library`) [NEW]
+## 263. Dashboard Template Library (view-id: `dashboard-template-library`) [NEW]
 
 **Purpose**: Library of pre-built dashboard templates — "Save this layout as a template" + browse community templates + apply templates to the current dashboard.
 
@@ -8755,7 +8765,7 @@
 
 ---
 
-## 270. Saved Views / Multi-dashboard Switcher (view-id: `overview-saved-views`) [NEW]
+## 264. Saved Views / Multi-dashboard Switcher (view-id: `overview-saved-views`) [NEW]
 
 **Purpose**: Multi-dashboard switcher — save the current dashboard state as a named view, switch between saved views, share views with the team.
 
@@ -8797,9 +8807,9 @@
 
 ---
 
-# Batch 55 — Overview NEW (Screen 271)
+# Batch 55 — Overview NEW (Screen 265)
 
-## 271. Onboarding Tour (view-id: `overview-onboarding-tour`) [NEW]
+## 265. Onboarding Tour (view-id: `overview-onboarding-tour`) [NEW]
 
 **Purpose**: Guided tour for first-time prop-admin users — walks through the platform's key surfaces with highlight overlays, tooltips, and step-by-step instructions.
 
@@ -8837,30 +8847,30 @@
 
 ---
 
-# Summary
+# Part 4 Summary
 
-## Batch Coverage
+## Batch Coverage (Part 4)
 
 | Batch | Module | Screens | View IDs |
 |-------|--------|---------|----------|
-| 40 | Settings (5) | 196-200 | settings, user-management, team-members, group-management, banner-management |
-| 41 | Settings (5) | 201-205 | marketing-integrations, social-media-links, marketing-banner-edit, token-management, token-detail |
-| 42 | Settings (5) | 206-210 | device-activities, kyc-providers, email-templates, email-template-edit, notifications-management |
-| 43 | Settings (5) | 211-215 | notification-edit, certificate-management, certificate-template-designer, certificate-detail, certificates-issued |
-| 44 | Settings (5) | 216-220 | certificate-font-upload, utilities, roles-management, csv-import-dialog (NEW), add-group-sheet (NEW) |
-| 45 | Settings + Super-Admin (5) | 221-225 | kyc-provider-marketplace (NEW), user-audit-timeline (NEW), device-detail (NEW), settings-module-detail (NEW), super-overview |
-| 46 | Super-Admin (5) | 226-230 | tenants, module-catalog, platform-health, create-tenant, tenant-detail |
-| 47 | Super-Admin (5) | 231-235 | tenant-lifecycle, dashboard-manager, platform-audit, platform-staff, platform-roles |
-| 48 | Super-Admin (5) | 236-240 | role-audit, permissions-catalog, super-module-detail (NEW), service-detail (NEW), super-admin-user-audit-timeline (NEW) |
-| 49 | Super-Admin + Pendings (5) | 241-245 | tenant-billing-detail (NEW), incident-management (NEW), tenant-impersonation-audit (NEW), platform-module-toggle (NEW), pending-tasks |
-| 50 | Pendings + Profile (5) | 246-250 | pending-task-detail (NEW), my-tasks (NEW), pending-snoozed-resolved (NEW), pending-bulk-assign (NEW), profile |
-| 51 | Profile (5) | 251-255 | change-password-dialog (NEW), 2fa-setup-dialog (NEW), connected-sessions-detail (NEW), notification-preferences-matrix (NEW), profile-api-tokens (NEW) |
-| 52 | Notifications (5) | 256-260 | notifications, notification-detail-dialog (NEW), notifications-archived (NEW), notifications-module-feed (NEW), notification-preferences-matrix-notifications (NEW) |
-| 53 | Help (5) | 261-265 | help, help-center-faq (NEW), help-changelog (NEW), support-contact (NEW), help-onboarding (NEW) |
-| 54 | Help + Overview (5) | 266-270 | help-module-detail (NEW), overview, overview-widget-config (NEW), dashboard-template-library (NEW), overview-saved-views (NEW) |
-| 55 | Overview (1) | 271 | overview-onboarding-tour (NEW) |
+| 40 | Settings (5) | 190-194 | settings, user-management, team-members, group-management, banner-management |
+| 41 | Settings (5) | 195-199 | marketing-integrations, social-media-links, marketing-banner-edit, token-management, token-detail |
+| 42 | Settings (5) | 200-204 | device-activities, kyc-providers, email-templates, email-template-edit, notifications-management |
+| 43 | Settings (5) | 205-209 | notification-edit, certificate-management, certificate-template-designer, certificate-detail, certificates-issued |
+| 44 | Settings (5) | 210-214 | certificate-font-upload, utilities, roles-management, csv-import-dialog (NEW), add-group-sheet (NEW) |
+| 45 | Settings + Super-Admin (5) | 215-219 | kyc-provider-marketplace (NEW), user-audit-timeline (NEW), device-detail (NEW), settings-module-detail (NEW), super-overview |
+| 46 | Super-Admin (5) | 220-224 | tenants, module-catalog, platform-health, create-tenant, tenant-detail |
+| 47 | Super-Admin (5) | 225-229 | tenant-lifecycle, dashboard-manager, platform-audit, platform-staff, platform-roles |
+| 48 | Super-Admin (5) | 230-234 | role-audit, permissions-catalog, super-module-detail (NEW), service-detail (NEW), super-admin-user-audit-timeline (NEW) |
+| 49 | Super-Admin + Pendings (5) | 235-239 | tenant-billing-detail (NEW), incident-management (NEW), tenant-impersonation-audit (NEW), platform-module-toggle (NEW), pending-tasks |
+| 50 | Pendings + Profile (5) | 240-244 | pending-task-detail (NEW), my-tasks (NEW), pending-snoozed-resolved (NEW), pending-bulk-assign (NEW), profile |
+| 51 | Profile (5) | 245-249 | change-password-dialog (NEW), 2fa-setup-dialog (NEW), connected-sessions-detail (NEW), notification-preferences-matrix (NEW), profile-api-tokens (NEW) |
+| 52 | Notifications (5) | 250-254 | notifications, notification-detail-dialog (NEW), notifications-archived (NEW), notifications-module-feed (NEW), notification-preferences-matrix-notifications (NEW) |
+| 53 | Help (5) | 255-259 | help, help-center-faq (NEW), help-changelog (NEW), support-contact (NEW), help-onboarding (NEW) |
+| 54 | Help + Overview (5) | 260-264 | help-module-detail (NEW), overview, overview-widget-config (NEW), dashboard-template-library (NEW), overview-saved-views (NEW) |
+| 55 | Overview (1) | 265 | overview-onboarding-tour (NEW) |
 
-## Screen Count by Module
+## Screen Count by Module (Part 4)
 
 | Module | Existing | NEW | Total |
 |--------|----------|-----|-------|
@@ -8875,8 +8885,8 @@
 
 ## Notable Shared Screens (written twice with context-specific content)
 
-- **Per-User Audit Timeline** — appears in Settings (Batch 45, screen 222) and Super-Admin (Batch 48, screen 240). The Settings variant is tenant-scoped; the Super-Admin variant is cross-tenant with an impersonation trail sub-view.
-- **Notification Preferences Matrix** — appears in Profile (Batch 51, screen 254) and Notifications (Batch 52, screen 260). Same structure; different breadcrumb and contextual framing.
+- **Per-User Audit Timeline** — appears in Settings (Batch 45, screen 216) and Super-Admin (Batch 48, screen 234). The Settings variant is tenant-scoped; the Super-Admin variant is cross-tenant with an impersonation trail sub-view.
+- **Notification Preferences Matrix** — appears in Profile (Batch 51, screen 248) and Notifications (Batch 52, screen 254). Same structure; different breadcrumb and contextual framing.
 
 ## Critical Design Patterns Applied Throughout
 
