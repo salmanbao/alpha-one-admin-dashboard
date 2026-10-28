@@ -3,10 +3,15 @@
 /**
  * Open Positions — converted from stitch_screens/open_positions
  * Live positions table grouped with a summary strip.
+ *
+ * Wired to the TradingContext: closes (full/partial), SL/TP modify,
+ * breakeven and flatten-all act on the live session state, and the
+ * Pending Orders tab shows/cancels resting orders.
  */
 
 import Link from "next/link";
 import { useState } from "react";
+import { cn } from "@pfaas/ui";
 import {
   TerraBadge,
   TerraCard,
@@ -16,25 +21,34 @@ import {
   TerraTable,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { terraAccounts, terraPositions } from "@/lib/fixtures/terra-fixtures";
+import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
+import { useTrading } from "@/lib/trading/trading-context";
 import { DetailDialog } from "@/components/terra/detail-dialog";
 import { PositionDetailContent } from "./position-detail-content";
 
+const tabs = ["Positions", "Pending Orders"] as const;
+
+const loginOf = (accountId: string) =>
+  terraAccounts.find((a) => a.id === accountId)?.login ?? accountId.replace("acc-", "");
+
 export function OpenPositionsPage() {
   const { activeAccount, activeAccountId } = useActiveAccount();
+  const { positions, orders, closePosition, closeAll, cancelOrder } = useTrading();
+  const [tab, setTab] = useState<(typeof tabs)[number]>("Positions");
   // Quick-view overlay: clicking a symbol opens the trade detail in a
   // dialog on top of the live table — the positions view is never lost.
   const [quickPosId, setQuickPosId] = useState<string | null>(null);
-  const quickPos = quickPosId
-    ? (terraPositions.find((p) => p.id === quickPosId) ?? null)
-    : null;
+  const quickPos = quickPosId ? (positions.find((p) => p.id === quickPosId) ?? null) : null;
   // Scope: the active trading account by default (follows the header
   // switcher); "All accounts" shows the cross-account view.
   const [scopeAll, setScopeAll] = useState(false);
   const rows = scopeAll
-    ? terraPositions
-    : terraPositions.filter((p) => p.accountId === activeAccountId);
+    ? positions
+    : positions.filter((p) => p.accountId === activeAccountId);
+  const orderRows = scopeAll
+    ? orders
+    : orders.filter((o) => o.accountId === activeAccountId);
 
   const totalPnl = rows.reduce((s, p) => s + p.pnl, 0);
   const lots = rows.reduce((s, p) => s + p.lots, 0);
@@ -69,6 +83,15 @@ export function OpenPositionsPage() {
                 All accounts
               </button>
             </div>
+            {rows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => closeAll(scopeAll ? undefined : activeAccountId)}
+                className="rounded-xl border border-error/60 px-4 py-2 text-sm font-bold text-error hover:bg-error/10"
+              >
+                Flatten all
+              </button>
+            )}
             <Link
               href="/order-ticket"
               className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
@@ -79,63 +102,137 @@ export function OpenPositionsPage() {
         }
       />
 
-      {/* Summary strip */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <TerraCard className="p-5">
-          <TerraStat label="Open Positions" value={rows.length} />
-        </TerraCard>
-        <TerraCard className="p-5">
-          <TerraStat
-            label="Unrealized P&L"
-            value={formatSignedMoney(totalPnl)}
-            tone={totalPnl >= 0 ? "positive" : "negative"}
-          />
-        </TerraCard>
-        <TerraCard className="p-5">
-          <TerraStat label="Total Volume" value={`${lots.toFixed(2)} lots`} />
-        </TerraCard>
-        <TerraCard className="p-5">
-          <TerraStat label="Winning" value={rows.filter((p) => p.pnl > 0).length} sub={`of ${rows.length}`} />
-        </TerraCard>
+      {/* Positions / Pending Orders tabs */}
+      <div className="flex items-center gap-1.5" role="tablist" aria-label="Trade views">
+        {tabs.map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+            className={cn(
+              "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all",
+              tab === t
+                ? "bg-primary-fixed/60 text-on-primary-fixed-variant shadow-sm"
+                : "text-on-surface-variant hover:bg-surface-container-low",
+            )}
+          >
+            {t}
+            {t === "Pending Orders" && orderRows.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-on-primary">
+                {orderRows.length}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
-      <TerraCard>
-        {rows.length === 0 ? (
-          <TerraEmpty
-            title="No open positions"
-            description={`#${activeAccount.login} has no open positions right now. Switch accounts or place a new order.`}
-          />
-        ) : (
-        <TerraTable
-          head={["Symbol", "Side", "Lots", "Entry", "Current", "SL", "TP", "P&L", "Account"]}
-          rows={rows.map((p) => [
-            <button
-              key="s"
-              type="button"
-              aria-haspopup="dialog"
-              onClick={() => setQuickPosId(p.id)}
-              className="text-left font-semibold text-primary hover:underline"
-            >
-              {p.symbol}
-            </button>,
-            <TerraBadge key="sd" tone={p.side === "long" ? "primary" : "error"}>
-              {p.side === "long" ? "Long" : "Short"}
-            </TerraBadge>,
-            p.lots.toFixed(2),
-            p.entry,
-            p.current,
-            p.sl ?? "—",
-            p.tp ?? "—",
-            <span key="p" className={`font-bold tabular-nums ${p.pnl >= 0 ? "text-primary" : "text-error"}`}>
-              {formatSignedMoney(p.pnl)}
-            </span>,
-            <span key="a" className="font-mono text-xs text-on-surface-variant">
-              #{terraAccounts.find((a) => a.id === p.accountId)?.login ?? p.accountId.replace("acc-", "")}
-            </span>,
-          ])}
-        />
-        )}
-      </TerraCard>
+      {tab === "Positions" ? (
+        <>
+          {/* Summary strip */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <TerraCard className="p-5">
+              <TerraStat label="Open Positions" value={rows.length} />
+            </TerraCard>
+            <TerraCard className="p-5">
+              <TerraStat
+                label="Unrealized P&L"
+                value={formatSignedMoney(totalPnl)}
+                tone={totalPnl >= 0 ? "positive" : "negative"}
+              />
+            </TerraCard>
+            <TerraCard className="p-5">
+              <TerraStat label="Total Volume" value={`${lots.toFixed(2)} lots`} />
+            </TerraCard>
+            <TerraCard className="p-5">
+              <TerraStat label="Winning" value={rows.filter((p) => p.pnl > 0).length} sub={`of ${rows.length}`} />
+            </TerraCard>
+          </div>
+
+          <TerraCard>
+            {rows.length === 0 ? (
+              <TerraEmpty
+                title="No open positions"
+                description={`#${activeAccount.login} has no open positions right now. Switch accounts or place a new order.`}
+              />
+            ) : (
+            <TerraTable
+              head={["Symbol", "Side", "Lots", "Entry", "Current", "SL", "TP", "P&L", "Account", ""]}
+              rows={rows.map((p) => [
+                <button
+                  key="s"
+                  type="button"
+                  aria-haspopup="dialog"
+                  onClick={() => setQuickPosId(p.id)}
+                  className="text-left font-semibold text-primary hover:underline"
+                >
+                  {p.symbol}
+                </button>,
+                <TerraBadge key="sd" tone={p.side === "long" ? "primary" : "error"}>
+                  {p.side === "long" ? "Long" : "Short"}
+                </TerraBadge>,
+                p.lots.toFixed(2),
+                p.entry,
+                p.current,
+                p.sl ?? "—",
+                p.tp ?? "—",
+                <span key="p" className={`font-bold tabular-nums ${p.pnl >= 0 ? "text-primary" : "text-error"}`}>
+                  {formatSignedMoney(p.pnl)}
+                </span>,
+                <span key="a" className="font-mono text-xs text-on-surface-variant">
+                  #{loginOf(p.accountId)}
+                </span>,
+                <button
+                  key="x"
+                  type="button"
+                  onClick={() => closePosition(p.id)}
+                  className="rounded-lg border border-outline-variant px-2.5 py-1 text-xs font-semibold text-on-surface hover:bg-surface-container-low"
+                >
+                  Close
+                </button>,
+              ])}
+            />
+            )}
+          </TerraCard>
+        </>
+      ) : (
+        <TerraCard>
+          {orderRows.length === 0 ? (
+            <TerraEmpty
+              title="No pending orders"
+              description={`#${activeAccount.login} has no resting orders. Limit and stop orders appear here until filled or cancelled.`}
+            />
+          ) : (
+            <TerraTable
+              head={["Symbol", "Type", "Lots", "Price", "SL", "TP", "Expiry", "Placed", "Account", ""]}
+              rows={orderRows.map((o) => [
+                <span key="s" className="font-semibold">{o.symbol}</span>,
+                <TerraBadge key="t" tone={o.type.startsWith("Buy") ? "primary" : "error"}>
+                  {o.type}
+                </TerraBadge>,
+                o.lots.toFixed(2),
+                o.price,
+                o.sl ?? "—",
+                o.tp ?? "—",
+                o.expiry,
+                new Date(o.placedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+                <span key="a" className="font-mono text-xs text-on-surface-variant">
+                  #{loginOf(o.accountId)}
+                </span>,
+                <button
+                  key="x"
+                  type="button"
+                  onClick={() => cancelOrder(o.id)}
+                  className="rounded-lg border border-error/50 px-2.5 py-1 text-xs font-semibold text-error hover:bg-error/10"
+                >
+                  Cancel
+                </button>,
+              ])}
+            />
+          )}
+        </TerraCard>
+      )}
 
       {/* Quick-view overlay — inspect a position without leaving live positions */}
       <DetailDialog
@@ -150,7 +247,7 @@ export function OpenPositionsPage() {
             : undefined
         }
       >
-        {quickPos && <PositionDetailContent id={quickPos.id} />}
+        {quickPos && <PositionDetailContent id={quickPos.id} embedded />}
       </DetailDialog>
     </div>
   );

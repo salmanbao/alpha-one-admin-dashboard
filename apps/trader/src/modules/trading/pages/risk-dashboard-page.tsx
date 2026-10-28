@@ -3,9 +3,14 @@
 /**
  * Risk Dashboard — converted from stitch_screens/risk_dashboard
  * Account health meters, breach history and live risk gauges.
+ *
+ * P1 upgrades: gauges follow the live session (TradingContext positions
+ * feed margin), and the daily-loss panel shows the time until the
+ * 00:00 UTC reset plus the equity level at which the limit breaches.
  */
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   TerraBadge,
   TerraCard,
@@ -18,16 +23,32 @@ import {
 } from "@/components/terra/terra-ui";
 import {
   traderBreachesFallback,
-  terraPositions,
   terraRiskLimits,
 } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
+import { useTrading } from "@/lib/trading/trading-context";
 
 const breaches = traderBreachesFallback;
+
+/** Milliseconds until the next 00:00 UTC daily-loss reset. */
+function msUntilUtcMidnight() {
+  const now = new Date();
+  const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+  return next - now.getTime();
+}
+
+const fmtCountdown = (ms: number) => {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+};
 
 export function RiskDashboardPage() {
   // Risk gauges follow the active trading account (header switcher).
   const { activeAccount: acc } = useActiveAccount();
+  const { positions } = useTrading();
   // Program limits come from the shared fixture so this page, the
   // objectives page and the rules page can never disagree.
   const limits = terraRiskLimits[acc.id] ?? { daily: 1000, maxDd: 5000 };
@@ -39,10 +60,25 @@ export function RiskDashboardPage() {
     0,
     Math.round(((limits.maxDd - acc.maxDdRemaining) / limits.maxDd) * 1000) / 10,
   );
-  const accPositions = terraPositions.filter((p) => p.accountId === acc.id);
+  // Live exposure — open positions from the session, not the fixtures.
+  const accPositions = positions.filter((p) => p.accountId === acc.id);
   // Mock margin model: $1,000 margin per standard lot.
   const marginUsed = accPositions.reduce((s, p) => s + p.lots * 1000, 0);
   const openLots = accPositions.reduce((s, p) => s + p.lots, 0);
+  // Daily-loss breach level: equity at which the remaining allowance runs out.
+  const breachLevel = acc.equity - acc.dailyLossRemaining;
+  const cushionPct =
+    acc.equity > 0
+      ? Math.round((acc.dailyLossRemaining / acc.equity) * 1000) / 10
+      : 0;
+
+  // Live countdown to the 00:00 UTC reset (tick every second).
+  const [untilReset, setUntilReset] = useState(() => msUntilUtcMidnight());
+  useEffect(() => {
+    const t = setInterval(() => setUntilReset(msUntilUtcMidnight()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
   const riskScore =
     dailyUsedPct >= 70 || ddUsedPct >= 70
       ? { grade: "C", sub: "Elevated risk", tone: "negative" as const }
@@ -67,7 +103,10 @@ export function RiskDashboardPage() {
         {/* Gauges */}
         <div className="space-y-6 lg:col-span-2">
           <TerraCard>
-            <TerraSectionTitle title="Drawdown protection" />
+            <TerraSectionTitle
+              title="Drawdown protection"
+              description={`Daily allowance resets at 00:00 UTC — ${fmtCountdown(untilReset)} remaining.`}
+            />
             <div className="space-y-5">
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
@@ -81,6 +120,11 @@ export function RiskDashboardPage() {
                   <span>{dailyUsedPct}% used</span>
                   <span>Limit {formatMoney(limits.daily)}</span>
                 </div>
+                <p className="rounded-xl bg-secondary-fixed/60 p-3 text-xs text-on-secondary-fixed-variant">
+                  Breach level: equity {formatMoney(breachLevel)} — if account equity falls to
+                  that level the daily loss limit is hit. Current cushion{" "}
+                  {formatMoney(acc.dailyLossRemaining)} ({cushionPct}% of equity).
+                </p>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
@@ -135,7 +179,7 @@ export function RiskDashboardPage() {
         {/* Side summary */}
         <div className="space-y-6">
           <TerraCard>
-            <TerraSectionTitle title="Exposure" />
+            <TerraSectionTitle title="Exposure" description={`${accPositions.length} open positions (live)`} />
             <div className="grid grid-cols-2 gap-4">
               <TerraStat label="Margin Used" value={formatMoney(marginUsed)} />
               <TerraStat label="Margin Free" value={formatMoney(Math.max(0, acc.equity - marginUsed))} tone="positive" />

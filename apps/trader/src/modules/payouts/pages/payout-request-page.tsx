@@ -3,6 +3,10 @@
 /**
  * Payout Request — converted from stitch_screens/payout_request
  * Payout request form with amount, method and submit.
+ *
+ * Gated to funded accounts: evaluation phases see why payouts are
+ * locked, and the withdrawable cap is the trader's split of net
+ * profit (not a % of balance). Flat accounts are blocked too.
  */
 
 import { useState } from "react";
@@ -11,18 +15,25 @@ import { useSearchParams } from "next/navigation";
 import {
   TerraBadge,
   TerraCard,
+  TerraEmpty,
   TerraPageHeader,
   TerraSectionTitle,
   formatMoney,
 } from "@/components/terra/terra-ui";
-import { terraPayouts, withdrawalMethods } from "@/lib/fixtures/terra-fixtures";
+import {
+  payoutEntitlement,
+  terraPayouts,
+  withdrawalMethods,
+} from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
+
+const minPayout = 100;
 
 export function PayoutRequestPage() {
   const params = useSearchParams();
   // ?id= deep link wins, otherwise the active trading account (switcher).
   const acc = useSyncActiveAccount(params.get("id"));
-  const minPayout = 100;
+  const entitlement = payoutEntitlement(acc.id);
   const [amount, setAmount] = useState("");
   const [methodId, setMethodId] = useState("wm-wise");
   const [submitted, setSubmitted] = useState(false);
@@ -30,10 +41,10 @@ export function PayoutRequestPage() {
 
   const asked = Number(amount);
   const valid =
+    entitlement.eligible &&
     Number.isFinite(asked) &&
     asked >= minPayout &&
-    asked <= acc.balance * 0.5 &&
-    asked <= acc.equity - 2000;
+    asked <= entitlement.withdrawable;
 
   if (submitted) {
     return (
@@ -68,14 +79,47 @@ export function PayoutRequestPage() {
     );
   }
 
+  // Evaluation / flat accounts — payouts are locked with the reason shown.
+  if (!entitlement.eligible) {
+    return (
+      <div className="space-y-6">
+        <TerraPageHeader
+          title="Request Payout"
+          description={`${acc.name} • Login #${acc.login}`}
+          actions={<TerraBadge tone="neutral">Payouts locked</TerraBadge>}
+        />
+        <TerraEmpty
+          title={entitlement.isFunded ? "Nothing to withdraw yet" : "Payouts are funded-only"}
+          description={entitlement.reason}
+        />
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href={entitlement.isFunded ? "/dashboard" : "/objectives"}
+            className="rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary hover:bg-primary/90"
+          >
+            {entitlement.isFunded ? "Back to Dashboard" : "View Objectives"}
+          </Link>
+          <Link
+            href="/payout-eligibility"
+            className="rounded-xl border border-outline-variant px-5 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-low"
+          >
+            Payout Eligibility
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <TerraPageHeader
         title="Request Payout"
-        description={`${acc.name} • Login #${acc.login}`}
+        description={`${acc.name} • Login #${acc.login} • split ${entitlement.splitPct}/${
+          100 - entitlement.splitPct
+        }`}
         actions={
           <TerraBadge tone="primary">
-            Balance {formatMoney(acc.balance)}
+            Withdrawable {formatMoney(entitlement.withdrawable)}
           </TerraBadge>
         }
       />
@@ -106,7 +150,8 @@ export function PayoutRequestPage() {
                   />
                 </div>
                 <p className="text-xs text-on-surface-variant">
-                  Min {formatMoney(minPayout)} • Max {formatMoney(acc.balance * 0.5)} (50% of balance)
+                  Min {formatMoney(minPayout)} • Max {formatMoney(entitlement.withdrawable)} (
+                  {entitlement.splitPct}% of {formatMoney(entitlement.netProfit)} net profit)
                 </p>
               </label>
 
@@ -176,6 +221,10 @@ export function PayoutRequestPage() {
               <span className="font-bold text-on-surface">{valid ? formatMoney(asked) : "—"}</span>
             </div>
           </div>
+          <p className="rounded-xl bg-secondary-fixed/60 p-3 text-[11px] text-on-secondary-fixed-variant">
+            Your challenge fee is refunded with this payout — the first withdrawal on a funded
+            account includes the original evaluation price.
+          </p>
           <button
             type="button"
             disabled={!valid}
