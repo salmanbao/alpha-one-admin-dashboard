@@ -18,6 +18,7 @@ import {
 } from "@/components/terra/terra-ui";
 import { equityCurve30d, terraTrades } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
+import { toast } from "@/hooks/use-toast";
 
 const tabs = ["Overview", "Symbols", "Sessions"] as const;
 
@@ -59,14 +60,10 @@ export function PerformanceAnalyticsPage() {
   );
 
   const handleExportReport = () => {
-    alert(
-      "Performance Report (PDF) — export started\n\n" +
-        `Win rate: ${winRate}%\n` +
-        `Net P&L: ${formatSignedMoney(pool.reduce((s, t) => s + t.pnl, 0))}\n` +
-        `Expectancy: ${formatSignedMoney(Math.round(expectancy * 10) / 10)} per trade\n\n` +
-        "Branded TerraTrader cover, equity curve, symbol & session breakdown. " +
-        "You'll also receive it by email. (Demo — no backend call.)",
-    );
+    toast({
+      title: "Performance report (PDF) — export started",
+      description: `Win rate ${winRate}% • Net P&L ${formatSignedMoney(pool.reduce((s, t) => s + t.pnl, 0))} • Expectancy ${formatSignedMoney(Math.round(expectancy * 10) / 10)}/trade. Branded cover with equity curve and breakdowns — you'll also receive it by email. (Demo — no backend call.)`,
+    });
   };
 
   return (
