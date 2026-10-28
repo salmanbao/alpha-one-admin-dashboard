@@ -12,30 +12,36 @@ import {
   TerraProgress,
   formatMoney,
 } from "@/components/terra/terra-ui";
-import { terraObjectives } from "@/lib/fixtures/terra-fixtures";
+import { objectivesFor } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 
 export function ObjectivesPage() {
-  const completed = terraObjectives.filter((o) => o.status === "complete").length;
   // Objectives are scoped to the account currently selected in the header
   // switcher — the header copy follows it so the trader always knows which
-  // account's targets they are reviewing.
+  // account's targets they are reviewing. Funded accounts get payout /
+  // scaling objectives instead of a Phase 1 profit target.
   const { activeAccount } = useActiveAccount();
+  const objectives = objectivesFor(activeAccount.id);
+  const completed = objectives.filter((o) => o.status === "complete").length;
 
   return (
     <div className="space-y-6">
       <TerraPageHeader
         title="Objectives Progress"
-        description={`${activeAccount.name} • Login #${activeAccount.login} • ${activeAccount.phase} evaluation objectives`}
+        description={`${activeAccount.name} • Login #${activeAccount.login} • ${
+          activeAccount.phase === "Funded"
+            ? "funded account objectives"
+            : `${activeAccount.phase} evaluation objectives`
+        }`}
         actions={
           <TerraBadge tone="primary">
-            {completed}/{terraObjectives.length} complete
+            {completed}/{objectives.length} complete
           </TerraBadge>
         }
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {terraObjectives.map((obj) => {
+        {objectives.map((obj) => {
           const pct =
             obj.status === "complete"
               ? 100
