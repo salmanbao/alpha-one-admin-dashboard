@@ -19,6 +19,7 @@ import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { OnboardingWizard } from "./onboarding-wizard";
 import { useImpersonation, endImpersonation } from "@/lib/platform/impersonation";
 import { Button } from "@/components/ui/button";
+import { DemoDataBanner } from "@/components/platform/demo-data";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { setSearchOpen } = usePlatform();
@@ -47,6 +48,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
+        {/* Demo-environment provenance banner — states once, globally, that
+            all figures are simulated fixtures (gap-analysis Phase 0: never let
+            demo data read as production fact). Not dismissible. */}
+        <DemoDataBanner />
         {/* Impersonation banner — persistent until the session is exited. */}
         {impersonation ? (
           <div
