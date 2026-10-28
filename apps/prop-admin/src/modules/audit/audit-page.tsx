@@ -5,6 +5,7 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { AuditLogTable } from "@/components/platform/audit";
 import { getTenantAudit } from "@/lib/platform/mock-data";
+import { useAuditVersion } from "@/lib/audit";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { ScrollText, Activity, ShieldAlert, ShieldQuestion, Clock, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,10 @@ import type { AuditEntry } from "@/lib/platform/types";
 export function AuditPage() {
   const { runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
-  const entries = useMemo(() => getTenantAudit(tid), [tid]);
+  // Re-render when a session audit entry is recorded (lib/audit.ts) so
+  // decisions appear in the log without a refresh.
+  const auditVersion = useAuditVersion();
+  const entries = useMemo(() => getTenantAudit(tid), [tid, auditVersion]);
 
   // KPI row — derived from the unfiltered tenant-scoped audit stream so the
   // headline numbers stay stable regardless of the operator's current

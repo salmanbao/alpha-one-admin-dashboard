@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useSavedViews } from "@/lib/platform/saved-views";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { getTenantAudit } from "@/lib/platform/mock-data";
+import { useAuditVersion } from "@/lib/audit";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,6 +63,40 @@ export function ActivityTimeline({ entries, max = 8 }: { entries: AuditEntry[]; 
         </li>
       ))}
     </ol>
+  );
+}
+
+/**
+ * Entity-scoped audit timeline — the audit trail for ONE record
+ * (a payout, breach, KYC submission, …), merged from the seeded history
+ * plus session decisions recorded via lib/audit.ts. Subscribes to the
+ * audit version so a decision made anywhere updates the timeline live.
+ * Returns null when the entity has no trail yet (keeps panels compact).
+ */
+export function EntityAuditTimeline({
+  entity,
+  entityId,
+  max = 6,
+  title = "Activity",
+}: {
+  entity: string;
+  entityId: string;
+  max?: number;
+  title?: string;
+}) {
+  const { runtime } = usePlatform();
+  const auditVersion = useAuditVersion();
+  const tid = runtime.tenant?.id ?? "platform";
+  const entries = useMemo(() => {
+    void auditVersion; // re-run when a session entry is recorded
+    return getTenantAudit(tid).filter((e) => e.entity === entity && e.entityId === entityId);
+  }, [auditVersion, tid, entity, entityId]);
+  if (entries.length === 0) return null;
+  return (
+    <div className="rounded-lg border bg-card p-3">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
+      <ActivityTimeline entries={entries} max={max} />
+    </div>
   );
 }
 

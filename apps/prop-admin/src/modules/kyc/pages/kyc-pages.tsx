@@ -316,7 +316,8 @@ function KycRecordActions({ record }: { record: KycRecord }) {
 
         {/* Reject — AlertDialog friction (§24 Destructive Actions). PRD
             requires a captured reason (onReject(reason)); validated before
-            the destructive confirm is enabled. */}
+            the destructive confirm is enabled. Inside the kyc.approve
+            PermissionGuard together with Approve/Request Info. */}
         <AlertDialog open={rejectOpen} onOpenChange={setRejectOpen}>
           <AlertDialogTrigger asChild>
             <Button
@@ -360,7 +361,7 @@ function KycRecordActions({ record }: { record: KycRecord }) {
               <AlertDialogAction
                 disabled={!rejectReason.trim()}
                 onClick={() => {
-                  applyKycDecision(record.id, "rejected");
+                  applyKycDecision(record.id, "rejected", { reason: rejectReason.trim() });
                   toast({
                     title: "KYC rejected",
                     description: `${record.traderName}'s submission was rejected — ${rejectReason.trim()}`,
@@ -376,7 +377,8 @@ function KycRecordActions({ record }: { record: KycRecord }) {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Request Info — opens a dialog with doc-type checkboxes */}
+        {/* Request Info — opens a dialog with doc-type checkboxes.
+            Inside the kyc.approve PermissionGuard (kyc.read ≠ kyc.approve). */}
         <AlertDialog
           open={requestInfoOpen}
           onOpenChange={(open) => {
@@ -443,7 +445,9 @@ function KycRecordActions({ record }: { record: KycRecord }) {
                 disabled={selectedDocs.size === 0 && !instructions.trim()}
                 onClick={() => {
                   const docList = Array.from(selectedDocs).join(", ");
-                  applyKycDecision(record.id, "info-requested");
+                  applyKycDecision(record.id, "info-requested", {
+                    reason: docList ? `Needs: ${docList}` : instructions.trim(),
+                  });
                   toast({
                     title: "Request sent to applicant",
                     description: `${record.traderName} has been asked to provide: ${
