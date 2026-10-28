@@ -24,6 +24,9 @@ const hoursAgo = (n: number) => {
   d.setHours(d.getHours() - n);
   return d.toISOString();
 };
+/** Timestamp `hours` before an ISO time — used for trade open times. */
+const holdBefore = (iso: string, hours: number) =>
+  new Date(+new Date(iso) - hours * 3_600_000).toISOString();
 
 /* ------------------------------------------------------------------ */
 /* Tenant & user                                                       */
@@ -86,6 +89,8 @@ export interface TerraAccount {
   status: "active" | "standby" | "breached" | "provisioning" | "passed";
   balance: number;
   equity: number;
+  /** Balance the program started from — payouts and P&L are measured against it. */
+  startingBalance: number;
   pnl: number;
   pnlPercent: number;
   profitTarget: number;
@@ -106,14 +111,15 @@ export const terraAccounts: TerraAccount[] = [
     platform: "MT5",
     server: "TerraMarkets-Live02",
     status: "active",
-    balance: 101860.0,
-    equity: 102140.5,
-    pnl: 1860.0,
-    pnlPercent: 1.86,
-    profitTarget: 3000,
-    targetProgress: 62,
+    balance: 101688.0,
+    equity: 101788.0,
+    startingBalance: 100000,
+    pnl: 1688.0,
+    pnlPercent: 1.69,
+    profitTarget: 6000,
+    targetProgress: 28,
     dailyLossRemaining: 1200,
-    maxDdRemaining: 7850,
+    maxDdRemaining: 5850,
   },
   {
     id: "acc-092841",
@@ -125,13 +131,16 @@ export const terraAccounts: TerraAccount[] = [
     server: "TerraMarkets-Live01",
     status: "active",
     balance: 27420.0,
-    equity: 27420.0,
+    equity: 27890.0,
+    startingBalance: 25000,
     pnl: 2420.0,
     pnlPercent: 9.68,
+    // No challenge target on a funded account — tracks the 10% net gain
+    // ($2,500) required for the next scaling tier (9.68% of 10% = 96.8%).
     profitTarget: 2500,
-    targetProgress: 100,
+    targetProgress: 96.8,
     dailyLossRemaining: 600,
-    maxDdRemaining: 1950,
+    maxDdRemaining: 950,
     profitSplit: "80/20",
     payoutNote: "Bi-weekly • Available in 4 days",
   },
@@ -145,7 +154,8 @@ export const terraAccounts: TerraAccount[] = [
     server: "TerraMarkets-Demo03",
     status: "standby",
     balance: 26450.0,
-    equity: 26450.0,
+    equity: 26405.7,
+    startingBalance: 25000,
     pnl: 1450.0,
     pnlPercent: 5.8,
     profitTarget: 2000,
@@ -156,42 +166,6 @@ export const terraAccounts: TerraAccount[] = [
 ];
 
 export const primaryAccount = terraAccounts[0];
-
-/* ------------------------------------------------------------------ */
-/* Equity curve (30d daily snapshots)                                  */
-/* ------------------------------------------------------------------ */
-
-export const equityCurve30d: { x: string; y: number }[] = [
-  { x: "Sep 10", y: 100000 },
-  { x: "Sep 11", y: 100120 },
-  { x: "Sep 12", y: 99980 },
-  { x: "Sep 13", y: 100340 },
-  { x: "Sep 14", y: 100510 },
-  { x: "Sep 15", y: 100430 },
-  { x: "Sep 16", y: 100690 },
-  { x: "Sep 17", y: 100820 },
-  { x: "Sep 18", y: 101010 },
-  { x: "Sep 19", y: 100940 },
-  { x: "Sep 20", y: 101120 },
-  { x: "Sep 21", y: 101240 },
-  { x: "Sep 22", y: 101180 },
-  { x: "Sep 23", y: 101360 },
-  { x: "Sep 24", y: 101480 },
-  { x: "Sep 25", y: 101420 },
-  { x: "Sep 26", y: 101590 },
-  { x: "Sep 27", y: 101510 },
-  { x: "Sep 28", y: 101650 },
-  { x: "Sep 29", y: 101740 },
-  { x: "Sep 30", y: 101680 },
-  { x: "Oct 01", y: 101820 },
-  { x: "Oct 02", y: 101760 },
-  { x: "Oct 03", y: 101910 },
-  { x: "Oct 04", y: 101980 },
-  { x: "Oct 05", y: 101920 },
-  { x: "Oct 06", y: 102050 },
-  { x: "Oct 07", y: 102110 },
-  { x: "Oct 08", y: 102140 },
-];
 
 /* ------------------------------------------------------------------ */
 /* Announcements / news (M12 Overview)                                 */
@@ -233,27 +207,6 @@ export const announcements = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Daily P&L (last 14 trading days — feeds the bar chart)              */
-/* ------------------------------------------------------------------ */
-
-export const dailyPnl14d: { x: string; y: number }[] = [
-  { x: "Sep 22", y: 120 },
-  { x: "Sep 23", y: 180 },
-  { x: "Sep 24", y: 120 },
-  { x: "Sep 25", y: -60 },
-  { x: "Sep 26", y: 170 },
-  { x: "Sep 27", y: -80 },
-  { x: "Sep 28", y: 140 },
-  { x: "Sep 29", y: 90 },
-  { x: "Sep 30", y: -60 },
-  { x: "Oct 01", y: 140 },
-  { x: "Oct 02", y: -60 },
-  { x: "Oct 03", y: 150 },
-  { x: "Oct 04", y: 70 },
-  { x: "Oct 06", y: 60 },
-];
-
-/* ------------------------------------------------------------------ */
 /* Challenge timeline (M12 Challenge Detail View)                      */
 /* ------------------------------------------------------------------ */
 
@@ -264,7 +217,7 @@ export const challengeTimeline = {
   elapsedDays: 12,
   tradingDays: 12,
   minTradingDays: 4,
-  bestDayPct: 38, // consistency rule: best day as % of total profit
+  bestDayPct: 35, // consistency rule: best day as % of total profit
   consistencyCap: 45,
 };
 
@@ -450,7 +403,7 @@ export const terraPositions: TerraPosition[] = [
     lots: 0.6,
     entry: 148.32,
     current: 148.21,
-    sl: 148.9,
+    sl: 147.8,
     tp: 149.4,
     pnl: -44.3,
     swap: 2.1,
@@ -524,6 +477,8 @@ const extendedTrades: TerraTrade[] = Array.from({ length: 41 }, (_, i) => {
     ),
   );
   const ticket = String(83_960 - i * 7);
+  const closedAt = daysAgo(6 + ((i * 3) % 24));
+  const holdHours = 2 + ((i * 7) % 36);
   return {
     id: `trd-${ticket}`,
     ticket,
@@ -534,8 +489,8 @@ const extendedTrades: TerraTrade[] = Array.from({ length: 41 }, (_, i) => {
     exit,
     pips,
     pnl: Math.round(pips * lots * 10),
-    openedAt: daysAgo(6 + ((i * 3) % 24)),
-    closedAt: daysAgo(6 + ((i * 3) % 24)),
+    openedAt: holdBefore(closedAt, holdHours),
+    closedAt,
     accountId:
       i % 5 === 0 ? "acc-092841" : i % 7 === 0 ? "acc-098412" : "acc-100030",
     comment: win ? histComments[i % histComments.length] : undefined,
@@ -553,7 +508,7 @@ export const terraTrades: TerraTrade[] = [
     exit: 188.86,
     pnl: 280.0,
     pips: 56,
-    openedAt: daysAgo(1),
+    openedAt: holdBefore(daysAgo(1), 7),
     closedAt: daysAgo(1),
     accountId: "acc-100030",
     comment: "London reversal setup",
@@ -568,7 +523,7 @@ export const terraTrades: TerraTrade[] = [
     exit: 1.0854,
     pnl: 230.0,
     pips: 23,
-    openedAt: daysAgo(2),
+    openedAt: holdBefore(daysAgo(2), 4),
     closedAt: daysAgo(2),
     accountId: "acc-100030",
   },
@@ -582,7 +537,7 @@ export const terraTrades: TerraTrade[] = [
     exit: 1.3728,
     pnl: -64.0,
     pips: -16,
-    openedAt: daysAgo(3),
+    openedAt: holdBefore(daysAgo(3), 11),
     closedAt: daysAgo(3),
     accountId: "acc-100030",
   },
@@ -596,7 +551,7 @@ export const terraTrades: TerraTrade[] = [
     exit: 2651.5,
     pnl: 405.0,
     pips: 135,
-    openedAt: daysAgo(4),
+    openedAt: holdBefore(daysAgo(4), 26),
     closedAt: daysAgo(4),
     accountId: "acc-092841",
   },
@@ -610,7 +565,7 @@ export const terraTrades: TerraTrade[] = [
     exit: 0.6104,
     pnl: -102.0,
     pips: -17,
-    openedAt: daysAgo(5),
+    openedAt: holdBefore(daysAgo(5), 18),
     closedAt: daysAgo(5),
     accountId: "acc-100030",
   },
@@ -666,65 +621,8 @@ export const marketWatch = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Objectives (evaluation rules)                                       */
+/* Objectives are derived per account — see objectivesFor() below.     */
 /* ------------------------------------------------------------------ */
-
-export const terraObjectives = [
-  {
-    id: "obj-profit",
-    name: "Profit Target",
-    current: 1860,
-    target: 3000,
-    unit: "USD",
-    status: "on-track" as const,
-    description: "Reach 3% profit without breaching risk limits.",
-  },
-  {
-    id: "obj-daily-dd",
-    name: "Daily Loss Limit",
-    current: 1800,
-    target: 3000,
-    unit: "USD",
-    status: "on-track" as const,
-    description: "Max loss in a single day. $1,200 remaining today.",
-  },
-  {
-    id: "obj-max-dd",
-    name: "Maximum Drawdown",
-    current: 2150,
-    target: 10000,
-    unit: "USD",
-    status: "on-track" as const,
-    description: "Static trailing drawdown from the starting balance.",
-  },
-  {
-    id: "obj-min-days",
-    name: "Minimum Trading Days",
-    current: 6,
-    target: 4,
-    unit: "days",
-    status: "complete" as const,
-    description: "At least 4 active trading days completed.",
-  },
-  {
-    id: "obj-news",
-    name: "News Trading Restriction",
-    current: 0,
-    target: 0,
-    unit: "",
-    status: "complete" as const,
-    description: "No violations of the high-impact news blackout.",
-  },
-  {
-    id: "obj-consistency",
-    name: "Consistency Rule",
-    current: 38,
-    target: 45,
-    unit: "%",
-    status: "on-track" as const,
-    description: "Best day must stay below 45% of total profit.",
-  },
-];
 
 /* ------------------------------------------------------------------ */
 /* Challenge marketplace                                               */
@@ -984,8 +882,8 @@ export const notifications = [
   {
     id: "nt-1",
     type: "milestone",
-    title: "62% of profit target reached",
-    body: "Account #100030 is $1,140 away from the Phase 1 profit target.",
+    title: "28% of profit target reached",
+    body: "Account #100030 is $4,312 away from the Phase 1 profit target ($6,000).",
     at: hoursAgo(1),
     unread: true,
   },
@@ -1040,8 +938,8 @@ export const communicationLog: CommunicationEntry[] = [
   {
     id: "cm-2",
     channel: "email",
-    subject: "62% of your Phase 1 profit target reached",
-    body: "Account #100030 is $1,140 away from the target. Keep your daily loss buffer intact.",
+    subject: "28% of your Phase 1 profit target reached",
+    body: "Account #100030 is $4,312 away from the $6,000 target. Keep your daily loss buffer intact.",
     at: daysAgo(1),
     status: "opened",
   },
@@ -1102,18 +1000,10 @@ export interface ActivityEntry {
 
 export const recentActivity: ActivityEntry[] = [
   {
-    id: "ac-1",
-    kind: "trade",
-    title: "Closed XAUUSD long · +$412.80",
-    detail: "Ticket #88214 · 0.40 lots · +28.4 pips",
-    at: hoursAgo(2),
-    href: "/trade-detail?id=tr-1",
-  },
-  {
     id: "ac-2",
     kind: "milestone",
-    title: "62% of profit target reached",
-    detail: "Account #100030 · $1,140 remaining",
+    title: "28% of profit target reached",
+    detail: "Account #100030 · $4,312 remaining",
     at: hoursAgo(6),
     href: "/objectives",
   },
@@ -1124,6 +1014,14 @@ export const recentActivity: ActivityEntry[] = [
     detail: "$1,936.00 via Bank Transfer (Wise)",
     at: hoursAgo(9),
     href: "/payout-detail?id=po-2201",
+  },
+  {
+    id: "ac-1",
+    kind: "trade",
+    title: "Closed GBPJPY short · +$280.00",
+    detail: "Ticket #84012 · 0.50 lots · +56 pips",
+    at: hoursAgo(24),
+    href: "/trade-detail?id=trd-84012",
   },
   {
     id: "ac-4",
@@ -1293,7 +1191,7 @@ export const helpArticles: HelpArticle[] = [
     title: "What is the consistency rule?",
     popular: false,
     answer:
-      "Your best trading day must not exceed 30% of total profit at the time of a payout request or phase completion. This keeps performance steady rather than depending on one lucky day. The objectives page shows your current consistency ratio live.",
+      "Your best trading day must not exceed 45% of total profit at the time of a payout request or phase completion. This keeps performance steady rather than depending on one lucky day. The objectives page shows your current consistency ratio live.",
   },
   {
     id: "ha-8",
@@ -1365,6 +1263,8 @@ export const terraDocuments = [
     format: "PDF",
     size: "412 KB",
     date: daysAgo(1),
+    // Deep-links the statement page to the document's month.
+    href: "/account-statement?month=2026-10",
   },
   {
     id: "doc-2",
@@ -1373,14 +1273,16 @@ export const terraDocuments = [
     format: "PDF",
     size: "268 KB",
     date: daysAgo(8),
+    href: "/tax-statement-detail?id=tx-2025-q3",
   },
   {
     id: "doc-3",
-    name: "Invoice INV-2025-0831 — Terra Pro $100K",
+    name: "Invoice INV-2026-0831 — Terra Pro $100K",
     type: "invoice" as const,
     format: "PDF",
     size: "96 KB",
     date: daysAgo(12),
+    href: "/invoice-detail?id=0831",
   },
   {
     id: "doc-4",
@@ -1389,6 +1291,7 @@ export const terraDocuments = [
     format: "PDF",
     size: "184 KB",
     date: daysAgo(95),
+    href: "/kyc-verification-status",
   },
 ];
 
@@ -1546,3 +1449,396 @@ export const apiTokens = [
     lastUsedAt: daysAgo(2),
   },
 ];
+
+/* ------------------------------------------------------------------ */
+/* Per-account derived data                                            */
+/*                                                                     */
+/* Everything a trader cross-checks between screens — equity curves,   */
+/* daily P&L, evaluation objectives and program rules — is derived     */
+/* from one source (accounts + trades + payouts) so switching the      */
+/* active account can never show two different versions of the truth.  */
+/* ------------------------------------------------------------------ */
+
+/** Program risk limits per account — single source of truth for the
+ *  risk dashboard gauges and the objectives page. */
+export const terraRiskLimits: Record<string, { daily: number; maxDd: number }> = {
+  "acc-100030": { daily: 3000, maxDd: 8000 },
+  "acc-092841": { daily: 750, maxDd: 1500 },
+  "acc-098412": { daily: 1000, maxDd: 2500 },
+};
+
+export type TerraSeriesPoint = { x: string; y: number };
+
+const DAY_MS = 86_400_000;
+const startOfUtcDay = (t: number) => {
+  const d = new Date(t);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+};
+const dayLabel = (t: number) =>
+  new Date(t).toLocaleDateString("en-US", { month: "short", day: "2-digit", timeZone: "UTC" });
+/** Deterministic pseudo-random in [-1, 1] — keeps mock series stable across renders. */
+const wobble = (seed: number) => {
+  const s = Math.sin(seed) * 43758.5453;
+  return (s - Math.floor(s)) * 2 - 1;
+};
+/** Compact whole-dollar money for fixture copy: $1,200 / $4,312. */
+const usd = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
+
+/**
+ * Daily equity curve for one account over the last `days` days.
+ *
+ * Derived, not hand-written: each day reads
+ *   balance(today) − closed P&L after that day + payouts after that day
+ * (payouts reduce balance), with today ending at equity (balance +
+ * floating). Small deterministic wobble mimics intraday equity drift
+ * when no trades close. This is what makes the 7d/30d/90d toggles and
+ * the account switcher agree with the balances shown next to them.
+ */
+export function equityCurveFor(accountId: string, days: number): TerraSeriesPoint[] {
+  const acc = terraAccounts.find((a) => a.id === accountId);
+  if (!acc) return [];
+  const floating = terraPositions
+    .filter((p) => p.accountId === accountId)
+    .reduce((s, p) => s + p.pnl, 0);
+  const today = startOfUtcDay(Date.now());
+  const span = Math.max(1, Math.floor(days));
+  const out: TerraSeriesPoint[] = [];
+  for (let i = span - 1; i >= 0; i--) {
+    const dayStart = today - i * DAY_MS;
+    let y: number;
+    if (i === 0) {
+      y = acc.balance + floating; // today: balance + unrealized P&L
+    } else {
+      const dayEnd = dayStart + DAY_MS;
+      const closedAfter = terraTrades
+        .filter((t) => t.accountId === accountId && +new Date(t.closedAt) >= dayEnd)
+        .reduce((s, t) => s + t.pnl, 0);
+      const paidAfter = terraPayouts
+        .filter(
+          (p) =>
+            p.account === accountId && p.status === "paid" && +new Date(p.requestedAt) >= dayEnd,
+        )
+        .reduce((s, p) => s + p.amount, 0);
+      y =
+        acc.balance -
+        closedAfter +
+        paidAfter +
+        wobble(dayStart / DAY_MS) * acc.balance * 0.0007;
+    }
+    out.push({ x: dayLabel(dayStart), y: Math.round(y * 100) / 100 });
+  }
+  return out;
+}
+
+/** Net P&L closed on each of the last `days` days (0 on non-trading days). */
+export function dailyPnlFor(accountId: string, days = 14): TerraSeriesPoint[] {
+  const today = startOfUtcDay(Date.now());
+  const span = Math.max(1, Math.floor(days));
+  const out: TerraSeriesPoint[] = [];
+  for (let i = span - 1; i >= 0; i--) {
+    const dayStart = today - i * DAY_MS;
+    const dayEnd = dayStart + DAY_MS;
+    const y = terraTrades
+      .filter(
+        (t) =>
+          t.accountId === accountId &&
+          +new Date(t.closedAt) >= dayStart &&
+          +new Date(t.closedAt) < dayEnd,
+      )
+      .reduce((s, t) => s + t.pnl, 0);
+    out.push({ x: dayLabel(dayStart), y: Math.round(y * 100) / 100 });
+  }
+  return out;
+}
+
+/** Marketplace challenge backing an account (matched by program name + size). */
+export function challengeForAccount(accountId: string) {
+  const acc = terraAccounts.find((a) => a.id === accountId);
+  if (!acc) return undefined;
+  return terraChallenges.find((ch) => `${ch.name} $${ch.accountSize / 1000}K` === acc.program);
+}
+
+export interface TerraObjective {
+  id: string;
+  name: string;
+  current: number;
+  target: number;
+  unit: string;
+  status: "complete" | "on-track";
+  description: string;
+}
+
+/**
+ * Objectives for the given account.
+ *
+ * Evaluations (Phase 1 / Phase 2) track the profit target, daily loss,
+ * max drawdown, minimum trading days and consistency. Funded accounts
+ * have no profit target — they track scaling progression and payout
+ * health instead. Every number derives from the account record, its
+ * program limits and its actual trade history.
+ */
+export function objectivesFor(accountId: string): TerraObjective[] {
+  const acc = terraAccounts.find((a) => a.id === accountId);
+  if (!acc) return [];
+  const limits = terraRiskLimits[accountId] ?? { daily: 1000, maxDd: 5000 };
+  const trades = terraTrades.filter((t) => t.accountId === accountId);
+  const paidPayouts = terraPayouts.filter(
+    (p) => p.account === accountId && p.status === "paid",
+  );
+  // Total profit generated over the account's life (payouts don't erase
+  // it — they move it off the balance).
+  const grossProfit = acc.pnl + paidPayouts.reduce((s, p) => s + p.amount, 0);
+  const dayTotals = new Map<string, number>();
+  for (const t of trades) {
+    const k = t.closedAt.slice(0, 10);
+    dayTotals.set(k, (dayTotals.get(k) ?? 0) + t.pnl);
+  }
+  const bestDayPct =
+    grossProfit > 0 && dayTotals.size > 0
+      ? Math.round((Math.max(...dayTotals.values()) / grossProfit) * 100)
+      : 0;
+
+  const dailyUsed = Math.max(0, limits.daily - acc.dailyLossRemaining);
+  const ddUsed = Math.max(0, limits.maxDd - acc.maxDdRemaining);
+
+  const dailyObjective: TerraObjective = {
+    id: "obj-daily-dd",
+    name: "Daily Loss Limit",
+    current: dailyUsed,
+    target: limits.daily,
+    unit: "USD",
+    status: "on-track",
+    description: `Max loss in a single day. ${usd(acc.dailyLossRemaining)} remaining today.`,
+  };
+  const consistencyObjective: TerraObjective = {
+    id: "obj-consistency",
+    name: "Consistency Rule",
+    current: bestDayPct,
+    target: 45,
+    unit: "%",
+    status: "on-track",
+    description: `Best day must stay below 45% of total profit (currently ${bestDayPct}%).`,
+  };
+
+  if (acc.phase === "Funded") {
+    const netGain = acc.balance - acc.startingBalance;
+    const gainPct = Math.round((netGain / acc.startingBalance) * 10000) / 100;
+    return [
+      {
+        id: "obj-scaling-gain",
+        name: "Scaling Net Gain",
+        current: gainPct,
+        target: scalingPlan.requiredGainPct,
+        unit: "%",
+        status: gainPct >= scalingPlan.requiredGainPct ? "complete" : "on-track",
+        description: `${usd(netGain)} net profit — 10% over the starting balance unlocks the ${scalingPlan.nextTier} tier.`,
+      },
+      {
+        id: "obj-scaling-payouts",
+        name: "Counted Payouts",
+        current: scalingPlan.consecutivePayouts,
+        target: scalingPlan.requiredPayouts,
+        unit: "",
+        status:
+          scalingPlan.consecutivePayouts >= scalingPlan.requiredPayouts
+            ? "complete"
+            : "on-track",
+        description: `${scalingPlan.requiredPayouts} consecutive counted payouts required to scale to ${scalingPlan.nextTier}.`,
+      },
+      dailyObjective,
+      {
+        id: "obj-max-dd",
+        name: "Maximum Drawdown",
+        current: ddUsed,
+        target: limits.maxDd,
+        unit: "USD",
+        status: "on-track",
+        description: "Trailing drawdown measured from the equity high-water mark.",
+      },
+      consistencyObjective,
+    ];
+  }
+
+  const targetPct = Math.round((acc.profitTarget / acc.startingBalance) * 100);
+  const minDays = challengeForAccount(accountId)?.minDays ?? 4;
+  const tradingDays = dayTotals.size;
+  return [
+    {
+      id: "obj-profit",
+      name: "Profit Target",
+      current: acc.pnl,
+      target: acc.profitTarget,
+      unit: "USD",
+      status: acc.pnl >= acc.profitTarget ? "complete" : "on-track",
+      description: `Reach ${targetPct}% profit without breaching risk limits.`,
+    },
+    dailyObjective,
+    {
+      id: "obj-max-dd",
+      name: "Maximum Drawdown",
+      current: ddUsed,
+      target: limits.maxDd,
+      unit: "USD",
+      status: "on-track",
+      description: "Static drawdown from the starting balance.",
+    },
+    {
+      id: "obj-min-days",
+      name: "Minimum Trading Days",
+      current: tradingDays,
+      target: minDays,
+      unit: "days",
+      status: tradingDays >= minDays ? "complete" : "on-track",
+      description: `At least ${minDays} active trading days completed.`,
+    },
+    {
+      id: "obj-news",
+      name: "News Trading Restriction",
+      current: 0,
+      target: 0,
+      unit: "",
+      status: "complete" as const,
+      description: "No violations of the high-impact news blackout.",
+    },
+    consistencyObjective,
+  ];
+}
+
+export interface TerraRule {
+  id: string;
+  title: string;
+  value: string;
+  allowed: boolean;
+  description: string;
+}
+
+/** Full parameter table per program (Phase 1 / Phase 2 / Funded columns). */
+const PROGRAM_PARAMETERS: Record<string, string[][]> = {
+  "Terra Pro $100K": [
+    ["Profit Target", "6%", "4%", "—"],
+    ["Daily Loss Limit", "3%", "3%", "3%"],
+    ["Maximum Drawdown", "8%", "8%", "6% trailing"],
+    ["Minimum Trading Days", "4", "4", "—"],
+    ["Profit Split", "—", "—", "85/15"],
+    ["Payout Frequency", "—", "—", "Bi-weekly"],
+    ["Leverage", "1:50", "1:50", "1:30"],
+    ["Max Lot Size", "10", "10", "Per margin"],
+  ],
+  "Terra Starter $25K": [
+    ["Profit Target", "8%", "8%", "—"],
+    ["Daily Loss Limit", "4%", "4%", "4%"],
+    ["Maximum Drawdown", "10%", "10%", "10% trailing"],
+    ["Minimum Trading Days", "3", "3", "—"],
+    ["Profit Split", "—", "—", "80/20"],
+    ["Payout Frequency", "—", "—", "Bi-weekly"],
+    ["Leverage", "1:50", "1:50", "1:30"],
+    ["Max Lot Size", "10", "10", "Per margin"],
+  ],
+  "Terra Flash Instant $25K": [
+    ["Profit Target", "—", "—", "None"],
+    ["Daily Loss Limit", "—", "—", "3%"],
+    ["Maximum Drawdown", "—", "—", "6% trailing"],
+    ["Minimum Trading Days", "—", "—", "—"],
+    ["Profit Split", "—", "—", "80/20"],
+    ["Payout Frequency", "—", "—", "Bi-weekly"],
+    ["Leverage", "—", "—", "1:30"],
+    ["Max Lot Size", "—", "—", "Per margin"],
+  ],
+};
+
+/**
+ * The rulebook for one account's program — used by /rules so the page
+ * always matches whichever account is active in the header switcher.
+ */
+export function accountRules(accountId: string): {
+  heading: string;
+  rules: TerraRule[];
+  parameters: string[][];
+} {
+  const acc = terraAccounts.find((a) => a.id === accountId) ?? terraAccounts[0];
+  const limits = terraRiskLimits[acc.id] ?? { daily: 1000, maxDd: 5000 };
+  const dailyPct = Math.round((limits.daily / acc.startingBalance) * 100);
+  const ddPct = Math.round((limits.maxDd / acc.startingBalance) * 100);
+  const targetPct = Math.round((acc.profitTarget / acc.startingBalance) * 100);
+  const isFunded = acc.phase === "Funded";
+  const minDays = challengeForAccount(acc.id)?.minDays ?? 4;
+
+  const rules: TerraRule[] = [
+    {
+      id: "r1",
+      title: "Profit Target",
+      value: isFunded
+        ? "None — instant funded balance"
+        : `${targetPct}% (${usd(acc.profitTarget)}) for ${acc.phase}`,
+      allowed: true,
+      description: isFunded
+        ? "No evaluation target — you trade a live funded balance from day one."
+        : `Reach the ${acc.phase} profit target without violating any risk rules.`,
+    },
+    {
+      id: "r2",
+      title: "Daily Loss Limit",
+      value: `${dailyPct}% (${usd(limits.daily)})`,
+      allowed: false,
+      description:
+        "Equity or balance, whichever is lower, measured from the day's starting equity.",
+    },
+    {
+      id: "r3",
+      title: "Maximum Drawdown",
+      value: `${ddPct}% ${isFunded ? "trailing" : "static"} (${usd(limits.maxDd)})`,
+      allowed: false,
+      description: isFunded
+        ? "Trailing from the equity high-water mark; locks at the starting balance once profit reaches 10%."
+        : "Static drawdown from the initial account balance.",
+    },
+    {
+      id: "r4",
+      title: "Minimum Trading Days",
+      value: isFunded ? "—" : `${minDays} days`,
+      allowed: true,
+      description:
+        "A trading day counts when at least 0.5% of the account is traded.",
+    },
+    {
+      id: "r5",
+      title: "News Trading",
+      value: "Restricted ±2 min on high-impact",
+      allowed: false,
+      description:
+        "No opening or closing positions within 2 minutes of high-impact news on the affected currency.",
+    },
+    {
+      id: "r6",
+      title: "Weekend Holding",
+      value: "Allowed",
+      allowed: true,
+      description:
+        "Positions may be held over the weekend on all Terra programs.",
+    },
+    {
+      id: "r7",
+      title: "Expert Advisors",
+      value: "Allowed (own EAs only)",
+      allowed: true,
+      description:
+        "Personal EAs are permitted. Copy-trading between Terra accounts or third parties is not.",
+    },
+    {
+      id: "r8",
+      title: "Prohibited Practices",
+      value: "HFT, latency arb, tick scalping abuse",
+      allowed: false,
+      description:
+        "Group trading, arbitrage between accounts and toxic-order strategies lead to account termination.",
+    },
+  ];
+
+  return {
+    heading: `${acc.program} — the rulebook for ${
+      isFunded ? "your funded account" : `your ${acc.phase}`
+    }`,
+    rules,
+    parameters: PROGRAM_PARAMETERS[acc.program] ?? PROGRAM_PARAMETERS["Terra Pro $100K"],
+  };
+}

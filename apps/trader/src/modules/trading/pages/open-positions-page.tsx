@@ -19,7 +19,7 @@ import {
 import { terraAccounts, terraPositions } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { DetailDialog } from "@/components/terra/detail-dialog";
-import { TradeDetailContent } from "./trade-detail-page";
+import { PositionDetailContent } from "./position-detail-content";
 
 export function OpenPositionsPage() {
   const { activeAccount, activeAccountId } = useActiveAccount();
@@ -134,23 +134,23 @@ export function OpenPositionsPage() {
             </span>,
           ])}
         />
-        )}      </TerraCard>
+        )}
+      </TerraCard>
 
-      {/* Quick-view overlay — inspect a trade without leaving live positions */}
+      {/* Quick-view overlay — inspect a position without leaving live positions */}
       <DetailDialog
         open={quickPos !== null}
         onOpenChange={(o) => {
           if (!o) setQuickPosId(null);
         }}
-        title={quickPos ? `${quickPos.symbol} position` : "Trade detail"}
+        title={quickPos ? `${quickPos.symbol} position` : "Position detail"}
         description={
           quickPos
             ? `${quickPos.side === "long" ? "Long" : "Short"} • ${quickPos.lots.toFixed(2)} lots • opened ${new Date(quickPos.openedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
             : undefined
         }
-        fullPageHref={quickPos ? `/trade-detail?id=${quickPos.id}` : undefined}
       >
-        {quickPos && <TradeDetailContent id={quickPos.id} embedded />}
+        {quickPos && <PositionDetailContent id={quickPos.id} />}
       </DetailDialog>
     </div>
   );

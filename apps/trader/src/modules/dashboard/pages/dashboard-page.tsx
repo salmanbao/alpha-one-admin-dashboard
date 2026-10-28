@@ -22,11 +22,12 @@ import {
 } from "@/components/terra/terra-ui";
 import {
   announcements,
-  equityCurve30d,
+  equityCurveFor,
   recentActivity,
   scalingPlan,
   terraAccounts,
   terraPositions,
+  terraTrades,
   type ActivityEntry,
 } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
@@ -80,12 +81,22 @@ export function DashboardPage() {
   const accPositions = terraPositions.filter((p) => p.accountId === acc.id);
   const accUnrealized = accPositions.reduce((s, p) => s + p.pnl, 0);
 
-  const curve =
-    range === "7d"
-      ? equityCurve30d.slice(-7)
-      : range === "90d"
-        ? equityCurve30d // demo: same series
-        : equityCurve30d;
+  // Equity curve follows the active account AND the selected range —
+  // derived from this account's real trade/payout history.
+  const rangeDays = range === "7d" ? 7 : range === "90d" ? 90 : 30;
+  const curve = equityCurveFor(acc.id, rangeDays);
+
+  // Quick stats derived from this account's closed trades (not hardcoded).
+  const accTrades = terraTrades.filter((t) => t.accountId === acc.id);
+  const wins = accTrades.filter((t) => t.pnl > 0).length;
+  const winRate = accTrades.length ? Math.round((wins / accTrades.length) * 100) : 0;
+  const avgHoldMs = accTrades.length
+    ? accTrades.reduce(
+        (s, t) => s + (+new Date(t.closedAt) - +new Date(t.openedAt)),
+        0,
+      ) / accTrades.length
+    : 0;
+  const avgHold = `${Math.floor(avgHoldMs / 3_600_000)}h ${Math.round((avgHoldMs % 3_600_000) / 60_000)}m`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -132,7 +143,10 @@ export function DashboardPage() {
                 Milestone Alert
               </p>
               <p className="text-sm font-bold text-on-surface">
-                You are {acc.targetProgress}% toward your profit target{" "}
+                You are {acc.targetProgress}% toward{" "}
+                {acc.phase === "Funded"
+                  ? "your next scaling tier"
+                  : "your profit target"}{" "}
                 <span className="font-normal text-on-surface-variant">
                   ({formatMoney(acc.pnl)} of {formatMoney(acc.profitTarget)} reached)
                 </span>
@@ -234,7 +248,11 @@ export function DashboardPage() {
         <div className="mt-2 rounded-xl bg-surface-container-low/50 p-5 pt-6">
           <div className="mb-2.5 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-on-surface">Profit Target Progress</span>
+              <span className="text-sm font-bold text-on-surface">
+                {acc.phase === "Funded"
+                  ? "Scaling Profit Target"
+                  : "Profit Target Progress"}
+              </span>
               <span className="rounded bg-primary-fixed px-2 py-0.5 text-[11px] font-bold text-on-primary-fixed-variant">
                 {acc.targetProgress.toFixed(1)}%
               </span>
@@ -278,8 +296,8 @@ export function DashboardPage() {
         <div className="space-y-8 lg:col-span-2">
           <TerraCard>
             <TerraSectionTitle
-              title="Equity Curve · 30 days"
-              description="Daily equity snapshot across all your accounts."
+              title={`Equity Curve · ${range}`}
+              description={`Daily equity snapshot for #${acc.login}.`}
               actions={
                 <div className="flex items-center gap-1 self-start rounded-lg bg-surface-container-low p-1 sm:self-auto">
                   {ranges.map((r) => (
@@ -328,8 +346,12 @@ export function DashboardPage() {
                 value={formatSignedMoney(accUnrealized)}
                 tone={accUnrealized >= 0 ? "positive" : "negative"}
               />
-              <TerraStat label="Win Rate" value="68%" sub="142 trades" />
-              <TerraStat label="Avg Hold" value="4h 22m" sub="per trade" />
+              <TerraStat
+                label="Win Rate"
+                value={`${winRate}%`}
+                sub={`${accTrades.length} trades`}
+              />
+              <TerraStat label="Avg Hold" value={avgHold} sub="per trade" />
             </div>
           </TerraCard>
           <TerraCard>

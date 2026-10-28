@@ -28,9 +28,9 @@ import {
 import { AccountCredentials } from "@/components/terra/account-credentials";
 import {
   challengeTimeline,
-  dailyPnl14d,
-  equityCurve30d,
-  terraObjectives,
+  dailyPnlFor,
+  equityCurveFor,
+  objectivesFor,
   terraPositions,
   terraTrades,
 } from "@/lib/fixtures/terra-fixtures";
@@ -47,6 +47,10 @@ export function AccountDetailPage() {
   const acc = useSyncActiveAccount(params.get("id"));
   const accountPositions = terraPositions.filter((p) => p.accountId === acc.id);
   const accountTrades = terraTrades.filter((t) => t.accountId === acc.id);
+  // Charts and objectives follow the account in view (never the $100K fixture).
+  const objectives = objectivesFor(acc.id).slice(0, 4);
+  const equityCurve = equityCurveFor(acc.id, 30);
+  const dailyPnl = dailyPnlFor(acc.id);
   const tl = challengeTimeline;
   const daysRemaining = Math.max(0, tl.maxCalendarDays - tl.elapsedDays);
   const timeUsedPct = Math.round((tl.elapsedDays / tl.maxCalendarDays) * 100);
@@ -239,7 +243,7 @@ export function AccountDetailPage() {
                   }
                 />
                 <div className="space-y-4">
-                  {terraObjectives.slice(0, 4).map((obj) => {
+                  {objectives.map((obj) => {
                     const pct =
                       obj.status === "complete"
                         ? 100
@@ -272,10 +276,10 @@ export function AccountDetailPage() {
               <TerraCard>
                 <TerraSectionTitle
                   title="Equity Curve · 30 days"
-                  description="Daily equity snapshots for this challenge."
+                  description={`Daily equity snapshots for #${acc.login}.`}
                 />
                 <TerraAreaChart
-                  data={equityCurve30d}
+                  data={equityCurve}
                   formatValue={(v) => formatMoney(Math.round(v))}
                 />
               </TerraCard>
@@ -287,13 +291,13 @@ export function AccountDetailPage() {
                   description="Realized profit and loss per trading day."
                   actions={
                     <TerraBadge tone="primary">
-                      {dailyPnl14d.filter((d) => d.y > 0).length} green /{" "}
-                      {dailyPnl14d.filter((d) => d.y < 0).length} red
+                      {dailyPnl.filter((d) => d.y > 0).length} green /{" "}
+                      {dailyPnl.filter((d) => d.y < 0).length} red
                     </TerraBadge>
                   }
                 />
                 <TerraBarChart
-                  data={dailyPnl14d}
+                  data={dailyPnl}
                   formatValue={(v) => formatSignedMoney(Math.round(v))}
                 />
               </TerraCard>
