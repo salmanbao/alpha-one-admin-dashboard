@@ -15,6 +15,7 @@
 
 import * as React from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { DemoDataStamp } from "@/components/platform/demo-data";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import {
   getTenantTraders,
@@ -1215,6 +1216,7 @@ export function PositionsStitchPage() {
         subtitle={`${positions.length} positions currently open across all traders.`}
         actions={
           <>
+            <DemoDataStamp label="Simulated positions" />
             <StitchButton variant="surface" icon="download" onClick={() => toast({ title: "Export ready", description: `${filtered.length} positions exported to CSV.` })}>Export CSV</StitchButton>
             <StitchButton variant="destructive" icon="dangerous" disabled={selected.size === 0} onClick={() => setBulkCloseOpen(true)}>Bulk Close All</StitchButton>
           </>
