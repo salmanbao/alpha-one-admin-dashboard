@@ -16,6 +16,11 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { getTenantChallenges } from "@/lib/platform/mock-data";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import {
+  announcementInputSchema,
+  announcementFieldError,
+  type AnnouncementInput,
+} from "@/lib/platform/validation";
+import {
   announcementStatus,
   deleteAnnouncement,
   getAnnouncements,
@@ -163,20 +168,35 @@ function AnnouncementComposer({
   challenges: string[];
 }) {
   const editing = Boolean(form.id);
-  const valid =
-    form.title.trim().length > 0 &&
-    form.content.trim().length > 0 &&
-    (form.audience !== "challenge" || form.targetChallenge.length > 0);
+  // zod-validated (lib/platform/validation.ts) — the schema is the single
+  // source of truth for "can this announcement be saved", including the
+  // conditional rule that challenge-targeted announcements name the
+  // challenge. Field-level messages surface under the inputs.
+  const annInput: AnnouncementInput = {
+    title: form.title,
+    content: form.content,
+    type: form.type,
+    audience: form.audience,
+    targetChallenge: form.targetChallenge,
+    publishedAt: form.publishedAt,
+    expiresAt: form.expiresAt,
+    pinned: form.pinned,
+  };
+  const parsed = announcementInputSchema.safeParse(annInput);
+  const valid = parsed.success;
+  const titleError = announcementFieldError(annInput, "title");
+  const contentError = announcementFieldError(annInput, "content");
+  const challengeError = announcementFieldError(annInput, "targetChallenge");
 
   const handleSave = () => {
-    if (!valid) return;
+    if (!parsed.success) return;
     saveAnnouncement({
       id: form.id ?? "",
-      title: form.title.trim(),
-      content: form.content.trim(),
-      type: form.type,
-      audience: form.audience,
-      targetChallenge: form.audience === "challenge" ? form.targetChallenge : undefined,
+      title: parsed.data.title,
+      content: parsed.data.content,
+      type: parsed.data.type,
+      audience: parsed.data.audience,
+      targetChallenge: parsed.data.audience === "challenge" ? parsed.data.targetChallenge : undefined,
       publishedAt: fromLocalInput(form.publishedAt),
       expiresAt: fromLocalInput(form.expiresAt),
       pinned: form.pinned,
@@ -214,7 +234,11 @@ function AnnouncementComposer({
               onChange={(e) => onFormChange({ ...form, title: e.target.value })}
               placeholder="e.g. Scheduled maintenance — FIX bridge failover"
               maxLength={120}
+              aria-invalid={titleError ? true : undefined}
             />
+            {titleError ? (
+              <p className="text-[11px] text-rose-600 dark:text-rose-400">{titleError}</p>
+            ) : null}
           </div>
 
           <div className="space-y-1.5">
@@ -227,7 +251,11 @@ function AnnouncementComposer({
               onChange={(e) => onFormChange({ ...form, content: e.target.value })}
               placeholder="What should traders know?"
               className="min-h-[96px]"
+              aria-invalid={contentError ? true : undefined}
             />
+            {contentError ? (
+              <p className="text-[11px] text-rose-600 dark:text-rose-400">{contentError}</p>
+            ) : null}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -279,7 +307,7 @@ function AnnouncementComposer({
                 value={form.targetChallenge}
                 onValueChange={(v) => onFormChange({ ...form, targetChallenge: v })}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full" aria-invalid={challengeError ? true : undefined}>
                   <SelectValue placeholder="Select a challenge…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -290,6 +318,9 @@ function AnnouncementComposer({
                   ))}
                 </SelectContent>
               </Select>
+              {challengeError ? (
+                <p className="text-[11px] text-rose-600 dark:text-rose-400">{challengeError}</p>
+              ) : null}
             </div>
           ) : null}
 

@@ -29,6 +29,7 @@ import { DataTable, type Column } from "@/components/platform/data-table";
 import { LabelWithHelp } from "@/components/platform/contextual-help";
 import { AreaSeries, BarSeries } from "@/components/platform/charts";
 import { StatusBadge, formatCompact } from "@/components/platform/status";
+import { ratePct } from "@/lib/metrics";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -298,9 +299,10 @@ export function MarketingEmailCampaignsPage() {
   const totalOpened = EMAIL_CAMPAIGNS.reduce((s, c) => s + c.opened, 0);
   const totalClicked = EMAIL_CAMPAIGNS.reduce((s, c) => s + c.clicked, 0);
   const totalConverted = EMAIL_CAMPAIGNS.reduce((s, c) => s + c.converted, 0);
-  const avgOpenRate = totalSent > 0 ? (totalOpened / totalSent) * 100 : 0;
-  const avgClickRate = totalOpened > 0 ? (totalClicked / totalOpened) * 100 : 0;
-  const conversionRate = totalClicked > 0 ? (totalConverted / totalClicked) * 100 : 0;
+  // Campaign funnel rates — catalogue helper guards zero denominators.
+  const avgOpenRate = ratePct(totalOpened, totalSent);
+  const avgClickRate = ratePct(totalClicked, totalOpened);
+  const conversionRate = ratePct(totalConverted, totalClicked);
 
   const handleExport = () => {
     exportToCsv(

@@ -25,6 +25,7 @@
 
 import { useEffect, useState } from "react";
 import type { AuditEntry } from "@/lib/platform/types";
+import { parseAuditSession } from "@/lib/platform/validation";
 
 const SESSION_KEY = "pfaas:auditSession";
 /** Cap persisted entries so localStorage can't grow unbounded. */
@@ -51,14 +52,16 @@ export function hydrateSessionAudit(): void {
   try {
     const raw = window.localStorage.getItem(SESSION_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as AuditEntry[];
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        sessionEntries = parsed;
+      // zod-validated (lib/platform/validation.ts) — malformed or
+      // hand-edited entries are dropped instead of crashing the log.
+      const restored = parseAuditSession(raw);
+      if (restored.length > 0) {
+        sessionEntries = restored;
         emit();
       }
     }
   } catch {
-    /* corrupt storage — start from an empty session trail */
+    /* storage access denied — start from an empty session trail */
   }
 }
 

@@ -16,6 +16,21 @@ export interface ExchangeRate {
   rate: number;
 }
 
+/**
+ * Snapshot date of the static demo rate table below. Rates are a fixed
+ * fixture, so the table MUST carry an as-of date: converted amounts are
+ * only meaningful relative to that date, and a production deployment
+ * would fetch live rates with the provider's own timestamp.
+ *
+ * Deliberately backdated (>FX_RATES_MAX_AGE_DAYS before "today") so the
+ * demo renders the stale-rates warning — the affordance exists to be
+ * seen, not to sit dead behind a threshold no fixture crosses.
+ */
+export const FX_RATES_AS_OF = "2026-09-01";
+
+/** How stale the rate table is allowed to be before the UI should flag it. */
+export const FX_RATES_MAX_AGE_DAYS = 30;
+
 export const CURRENCIES: ExchangeRate[] = [
   { code: "USD", symbol: "$", name: "US Dollar", rate: 1 },
   { code: "EUR", symbol: "€", name: "Euro", rate: 0.92 },
@@ -63,10 +78,28 @@ export function formatConverted(
 
 /**
  * Get the exchange rate display string (e.g. "1 USD = 0.79 GBP").
+ * Includes the as-of date — a converted amount without a rate date is
+ * not auditable (gap analysis §: FX provenance).
  */
 export function getRateLabel(from: string, to: string): string {
   const rate = convertCurrency(1, from, to);
   const toCurrency = RATE_MAP.get(to);
   const symbol = toCurrency?.symbol ?? "";
-  return `1 ${from} = ${symbol}${rate.toLocaleString("en-US", { maximumFractionDigits: 4 })} ${to}`;
+  return `1 ${from} = ${symbol}${rate.toLocaleString("en-US", { maximumFractionDigits: 4 })} ${to} · as of ${FX_RATES_AS_OF}`;
+}
+
+/** Age of the static rate table in whole days (0 for same-day). */
+export function fxRatesAgeDays(now: Date = new Date()): number {
+  const asOf = new Date(`${FX_RATES_AS_OF}T00:00:00Z`).getTime();
+  if (!Number.isFinite(asOf)) return 0;
+  return Math.max(0, Math.floor((now.getTime() - asOf) / 86_400_000));
+}
+
+/**
+ * True when the rate table is older than FX_RATES_MAX_AGE_DAYS — the
+ * analytics conversion banner surfaces this so operators don't treat
+ * stale conversions as live market values.
+ */
+export function fxRatesStale(now: Date = new Date()): boolean {
+  return fxRatesAgeDays(now) > FX_RATES_MAX_AGE_DAYS;
 }
