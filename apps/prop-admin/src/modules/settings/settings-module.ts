@@ -121,6 +121,8 @@ const routes: RouteDefinition[] = [
   { path: "token-detail", viewId: "token-detail", label: "Token Detail", permission: "settings.manage", module: "settings" },
   { path: "team-members", viewId: "team-members", label: "Team Members", permission: "settings.manage", module: "settings" },
   { path: "roles-management", viewId: "roles-management", label: "Roles Management", permission: "settings.manage", module: "settings" },
+  // "Module Detail" button on the Settings overview's Module Catalog card.
+  { path: "settings-module-detail", viewId: "settings-module-detail", label: "Module Detail", permission: "settings.manage", module: "settings" },
   { path: "terms-policies", viewId: "terms-policies", label: "Terms & Policies", permission: "settings.manage", module: "settings" },
   { path: "content-management", viewId: "content-management", label: "Content Management", permission: "settings.manage", module: "settings" },
   { path: "system-health", viewId: "system-health", label: "System Health", permission: "settings.manage", module: "settings" },
