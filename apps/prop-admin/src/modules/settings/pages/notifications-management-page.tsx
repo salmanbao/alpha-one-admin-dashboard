@@ -22,6 +22,8 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { EmptyState } from "@/components/platform/guards";
@@ -59,6 +61,7 @@ import {
   AlarmClock,
   XCircle,
   Users,
+  ExternalLink,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -228,6 +231,7 @@ function formatDateTime(iso: string): string {
 
 export function NotificationsManagementPage() {
   const { navigate } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   const [items, setItems] = useState<ScheduledNotification[]>(NOTIFICATIONS);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -360,11 +364,24 @@ export function NotificationsManagementPage() {
             className="h-7 px-2"
             onClick={(e) => {
               e.stopPropagation();
-              navigate("notification-edit", { id: n.id });
+              openPanel("notification-edit", { id: n.id });
             }}
             aria-label={`Edit ${n.title}`}
           >
             <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={`Open notification ${n.id} in a new tab`}
+            title="Open in new tab"
+            className="h-7 w-7 p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              openViewInNewTab("notification-edit", { id: n.id });
+            }}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -480,7 +497,7 @@ export function NotificationsManagementPage() {
               searchableText={(n) => `${n.title} ${n.content} ${n.targetAudience}`}
               searchPlaceholder="Search by title or content…"
               pageSize={10}
-              onRowClick={(n) => navigate("notification-edit", { id: n.id })}
+              onRowClick={(n) => openPanel("notification-edit", { id: n.id })}
               toolbar={
                 <div className="flex items-center gap-2">
                   <Filter className="h-3.5 w-3.5 text-muted-foreground" />

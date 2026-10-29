@@ -11,6 +11,8 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { getOffers, type Offer } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -29,6 +31,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -174,6 +177,7 @@ function DetailRow({
 
 export function OfferManagementPage() {
   const { navigate } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   const offers = getOffers();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -275,6 +279,19 @@ export function OfferManagementPage() {
           >
             <Pencil className="h-3.5 w-3.5" />
           </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={`Open offer ${o.id} in a new tab`}
+            title="Open in new tab"
+            className="h-7 w-7 p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              openViewInNewTab("offer-edit", { id: o.id });
+            }}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
         </div>
       ),
     },
@@ -309,7 +326,7 @@ export function OfferManagementPage() {
             searchableText={(o) => `${o.name} ${o.couponCode} ${o.description} ${o.targetCountries.join(" ")}`}
             searchPlaceholder="Search by name or coupon…"
             pageSize={10}
-            onRowClick={(o) => setExpandedId((id) => (id === o.id ? null : o.id))}
+            onRowClick={(o) => openPanel("offer-edit", { id: o.id })}
             toolbar={
               <div className="flex items-center gap-2">
                 <Filter className="h-3.5 w-3.5 text-muted-foreground" />
