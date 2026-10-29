@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'bun'
+      - name: Install
+        run: bun install --frozen-lockfile
+      - name: Type-check (tsc)
+        run: bun run --filter=@pfaas/prop-admin tsc --noEmit
+        working-directory: ./ui
+      - name: ESLint root config
+        run: bunx eslint apps/prop-admin --config eslint.config.mjs --max-warnings 0
+        working-directory: ./ui
+      - name: ESLint app config
+        run: bunx eslint . --max-warnings 0
+        working-directory: ./ui/apps/prop-admin
+      - name: Build
+        run: bun run build:prop-admin
+        working-directory: ./ui
+      - name: Playwright smoke test
+        run: |
+          cd /tmp/opencode/pw
+          node verify-persistence.js http://localhost:3210
+        env:
+          NEXT_PUBLIC_SHOW_STITCH: "0"
