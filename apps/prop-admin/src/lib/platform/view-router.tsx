@@ -12,6 +12,8 @@
 import type { ComponentType } from "react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@pfaas/ui";
+import { SHOW_STITCH } from "@/lib/platform/feature-flags";
+import { stitchModule } from "@/modules/stitch/manifest";
 
 const ViewSkeleton = () => (
   <div className="flex min-h-[60vh] w-full items-center justify-center p-8">
@@ -57,13 +59,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "account-workspace": dynamic(() => import("@/modules/trading/pages/account-workspace-stitch-page").then((m) => ({ default: m.AccountWorkspaceStitchPage })), { loading: ViewSkeleton }),
   "order-detail": dynamic(() => import("@/modules/trading/pages/order-detail-page").then((m) => ({ default: m.OrderDetailPage })), { loading: ViewSkeleton }),
   orders: dynamic(() => import("@/modules/trading/pages/orders-page").then((m) => ({ default: m.OrdersPage })), { loading: ViewSkeleton }),
-  objectives: dynamic(() => import("@/modules/trading/pages/objectives-progress-page").then((m) => ({ default: m.ObjectivesProgressPage })), { loading: ViewSkeleton }),
-  rules: dynamic(() => import("@/modules/trading/pages/rules-page").then((m) => ({ default: m.RulesPage })), { loading: ViewSkeleton }),
-  "account-breach": dynamic(() => import("@/modules/trading/pages/account-breach-page").then((m) => ({ default: m.AccountBreachPage })), { loading: ViewSkeleton }),
   "account-provisioning": dynamic(() => import("@/modules/trading/pages/account-provisioning-page").then((m) => ({ default: m.AccountProvisioningPage })), { loading: ViewSkeleton }),
-  "evaluation-passed": dynamic(() => import("@/modules/trading/pages/evaluation-passed-page").then((m) => ({ default: m.EvaluationPassedPage })), { loading: ViewSkeleton }),
   "evaluation-queue": dynamic(() => import("@/modules/trading/pages/evaluation-queue-page").then((m) => ({ default: m.EvaluationQueuePage })), { loading: ViewSkeleton }),
-  "purchase-history": dynamic(() => import("@/modules/trading/pages/purchase-history-page").then((m) => ({ default: m.PurchaseHistoryPage })), { loading: ViewSkeleton }),
 
   /* challenges */
   challenges: dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then((m) => ({ default: m.ChallengesOverviewStitchPage })), { loading: ViewSkeleton }),
@@ -318,6 +315,21 @@ export function registerModuleView(viewId: string, component: ViewComponent) {
   dynamicViews.set(viewId, component);
 }
 
+/**
+ * Stitch-owned view ids, derived from the module's own declarations.
+ * With the module disabled (default), deep links into its views must
+ * resolve to nothing — otherwise `?view=<stitch view>` would render an
+ * unguarded reference screen from the static registry.
+ */
+const stitchViews = new Set<string>([
+  ...(stitchModule.routes ?? []).map((r) => r.viewId),
+  ...(stitchModule.navigation ?? []).flatMap((n) => [
+    ...(n.href ? [n.href] : []),
+    ...(n.children ?? []).flatMap((c) => (c.href ? [c.href] : [])),
+  ]),
+]);
+
 export function resolveView(viewId: string): ViewComponent | undefined {
+  if (!SHOW_STITCH && stitchViews.has(viewId)) return undefined;
   return viewRegistry[viewId] ?? dynamicViews.get(viewId);
 }
