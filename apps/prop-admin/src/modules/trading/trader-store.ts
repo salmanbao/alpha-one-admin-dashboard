@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { traders as seedTraders, type Trader } from "@/lib/platform/mock-data";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoTradersSchema } from "@/lib/platform/validation";
 
 /**
  * Session-scoped trader status store (PRD §4.8.1 / §4.17).
@@ -15,12 +17,16 @@ import { traders as seedTraders, type Trader } from "@/lib/platform/mock-data";
  * anywhere updates the status badge, the status filter options and the
  * KPI counts instantly — instead of the previous toast-only behavior.
  */
-const overrides = new Map<string, Trader["status"]>();
+// Rehydrate status changes from a previous visit (demo persistence).
+const overrides = new Map<string, Trader["status"]>(
+  Object.entries(loadDemoState("traders", demoTradersSchema, {})),
+);
 const listeners = new Set<() => void>();
 let version = 0;
 
 function emit() {
   version += 1;
+  saveDemoState("traders", Object.fromEntries(overrides));
   listeners.forEach((l) => l());
 }
 

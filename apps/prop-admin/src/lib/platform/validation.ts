@@ -126,3 +126,132 @@ export function announcementFieldError(
   const issue = result.error.issues.find((i) => i.path[0] === field);
   return issue ? issue.message : "";
 }
+
+/* ------------------------------------------------------------------ */
+/* Demo-session store persistence (lib/platform/demo-persistence.ts)  */
+/* ------------------------------------------------------------------ */
+
+/*
+ * The nine session-scoped stores (trader, crm, kyc, payout, breach,
+ * risk-case, announcement, support, evaluation) mirror their mutation
+ * state into localStorage under `pfaas:demo:*` so a demo survives a
+ * refresh (gap analysis quick-win #12). Payloads are validated on read:
+ * corrupt or hand-edited storage falls back to the seeded data instead
+ * of crashing a store. Keep the enums here in sync with the union
+ * types declared in each store.
+ */
+
+/** trader-store: status overrides keyed by trader id. */
+export const demoTradersSchema = z.record(
+  z.string(),
+  z.enum(["active", "invited", "suspended", "breached"]),
+);
+
+/** crm-store: contact patches (stage moves, notes) + deleted ids. */
+export const demoCrmSchema = z.object({
+  overrides: z.record(
+    z.string(),
+    z.object({
+      stage: z.enum(["lead", "qualified", "opportunity", "customer", "churned"]).optional(),
+      notes: z.string().optional(),
+      owner: z.string().optional(),
+      value: z.number().optional(),
+      lastInteraction: z.string().optional(),
+    }),
+  ),
+  deleted: z.array(z.string()),
+});
+
+/** kyc-store: decisions keyed by record id. */
+export const demoKycSchema = z.record(
+  z.string(),
+  z.object({ status: z.enum(["approved", "rejected", "info-requested"]), at: z.string() }),
+);
+
+/** payout-store: decisions keyed by payout reference. */
+export const demoPayoutsSchema = z.record(
+  z.string(),
+  z.object({
+    status: z.enum(["approved", "rejected", "info-requested", "processing", "paid", "escalated"]),
+    at: z.string(),
+  }),
+);
+
+/** breach-store: resolved breach ids. */
+export const demoBreachesSchema = z.array(z.string());
+
+/** support-store: status overrides + in-session reply counts. */
+export const demoTicketsSchema = z.object({
+  statuses: z.record(z.string(), z.enum(["resolved", "in-progress"])),
+  replies: z.record(z.string(), z.number().int().nonnegative()),
+});
+
+/** evaluation-store: the full effective evaluation list. */
+export const demoEvaluationsSchema = z.array(
+  z.object({
+    id: z.string().min(1),
+    traderName: z.string(),
+    traderEmail: z.string(),
+    accountLogin: z.string(),
+    challengeName: z.string(),
+    phase: z.string(),
+    profitPct: z.number(),
+    targetPct: z.number(),
+    daysTraded: z.number().int().nonnegative(),
+    minDays: z.number().int().nonnegative(),
+    drawdownUsedPct: z.number(),
+    requestedAt: z.string(),
+    status: z.enum(["pending", "approved", "rejected", "overridden"]),
+    reason: z.string().optional(),
+    decidedAt: z.string().optional(),
+    overrideOutcome: z.enum(["pass", "fail"]).optional(),
+  }),
+);
+
+/** announcement-store: the full effective announcement list (CRUD). */
+export const demoAnnouncementsSchema = z.array(
+  z.object({
+    id: z.string().min(1),
+    title: z.string(),
+    content: z.string(),
+    type: z.enum(["info", "warning", "success", "maintenance"]),
+    audience: z.enum(["all", "active", "funded", "challenge"]),
+    targetChallenge: z.string().optional(),
+    publishedAt: z.string().optional(),
+    expiresAt: z.string().optional(),
+    pinned: z.boolean(),
+    impressions: z.number().nonnegative(),
+    createdAt: z.string(),
+  }),
+);
+
+/** risk-case-store: per-tenant case lists + the id sequence counter. */
+export const demoRiskCasesSchema = z.object({
+  byTenant: z.record(
+    z.string(),
+    z.array(
+      z.object({
+        id: z.string().min(1),
+        severity: z.enum(["critical", "high", "medium", "low"]),
+        status: z.enum(["open", "investigating", "escalated", "action-required", "resolved", "dismissed"]),
+        traderId: z.string(),
+        traderName: z.string(),
+        accountIds: z.array(z.string()),
+        signal: z.string(),
+        signalDetail: z.string(),
+        currentExposure: z.number(),
+        payoutHold: z.boolean(),
+        payoutHoldAmount: z.number(),
+        opened: z.string(),
+        age: z.string(),
+        assignedTo: z.string(),
+        evidence: z.array(z.string()),
+        notes: z.array(z.string()),
+        resolution: z.string().optional(),
+        actionTaken: z.enum(["warned", "account_closed", "payout_blocked", "none"]).optional(),
+        resolvedAt: z.string().optional(),
+      }),
+    ),
+  ),
+  seq: z.number().int().positive(),
+});

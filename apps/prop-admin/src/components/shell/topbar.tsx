@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Command as CommandIcon,
   Moon,
+  RotateCcw,
   Search,
   Sun,
   Users as UsersIcon,
@@ -35,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useUserSwitcher } from "@/lib/platform/platform-context";
 import { demoSwitchersEnabled } from "@/lib/platform/demo-switchers";
+import { resetDemoState } from "@/lib/platform/demo-persistence";
 import { users } from "@/lib/platform/mock-data";
 import { StatusBadge } from "@/components/platform/status";
 import { ActivityTicker } from "@/components/shell/activity-ticker";
@@ -179,6 +181,14 @@ export function Topbar() {
                 </span>
               </DropdownMenuItem>
             ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => resetDemoState()}
+              className="gap-2 text-muted-foreground"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset demo session
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         ) : null}

@@ -5,6 +5,8 @@ import type { KycRecord } from "@/lib/platform/mock-data";
 import { kycRecords as seedKyc } from "@/lib/platform/mock-data";
 import { setNavBadge } from "@/lib/platform/nav-badges";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoKycSchema } from "@/lib/platform/validation";
 
 /**
  * Session-scoped KYC decision store.
@@ -16,12 +18,16 @@ import { recordAudit } from "@/lib/audit";
  */
 export type KycDecision = "approved" | "rejected" | "info-requested";
 
-const decisions = new Map<string, { status: KycDecision; at: string }>();
+// Rehydrate decisions from a previous visit (demo persistence).
+const decisions = new Map<string, { status: KycDecision; at: string }>(
+  Object.entries(loadDemoState("kyc", demoKycSchema, {})),
+);
 const listeners = new Set<() => void>();
 let version = 0;
 
 function emit() {
   version += 1;
+  saveDemoState("kyc", Object.fromEntries(decisions));
   syncBadge();
   listeners.forEach((l) => l());
 }
