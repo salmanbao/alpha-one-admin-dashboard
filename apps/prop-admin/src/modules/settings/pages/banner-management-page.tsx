@@ -12,6 +12,8 @@
 
 import { useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { getBanners, type Banner } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -43,6 +45,7 @@ import {
   Calendar,
   Layout,
 } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 
 const POSITION_OPTIONS = ["top", "sidebar", "modal"] as const;
 
@@ -68,6 +71,7 @@ function positionTone(
 
 export function BannerManagementPage() {
   const { runtime } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   void runtime;
   const [tab, setTab] = useState<"announcement" | "marketing">(
     "announcement",
