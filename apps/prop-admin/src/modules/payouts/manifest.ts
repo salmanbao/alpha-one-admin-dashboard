@@ -2,7 +2,7 @@
  * Payouts Module — manifest, navigation, routes, widgets, settings.
  */
 
-import { Wallet, Banknote, Clock, CheckCircle2, DollarSign, ListChecks, CalendarClock, WalletCards, ShieldCheck, RotateCcw, Users } from "lucide-react";
+import { Wallet, Banknote, Clock, DollarSign, ListChecks, CalendarClock, WalletCards, ShieldCheck, RotateCcw, Users } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { PayoutOverviewWidget, PayoutQueueWidget, PayoutTrendWidget, PayoutMethodWidget } from "./widgets/payout-widgets";
 
@@ -17,7 +17,7 @@ const navigation: NavigationItem[] = [
       // ───────── Requests & Approvals ─────────
       { id: "payouts.overview", label: "Overview", href: "payouts", icon: Banknote, permission: ["payout.read", "payout.self"], group: "Requests & Approvals" },
       { id: "payouts.pending", label: "Pending Approval", href: "payouts-pending", icon: Clock, permission: "payout.approve", group: "Requests & Approvals" },
-      { id: "payouts.history", label: "My Withdrawals", href: "payouts-history", icon: CheckCircle2, permission: ["payout.read", "payout.self"], group: "Requests & Approvals" },
+      // "My Withdrawals" moved to the self-service module (§6.6).
       { id: "payouts.withdrawals", label: "Withdrawals", href: "payouts-enhanced-withdrawals", icon: ListChecks, permission: ["payout.read", "payout.self"], group: "Requests & Approvals" },
 
       // ───────── Payout Operations (M10/M13) ─────────

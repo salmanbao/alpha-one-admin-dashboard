@@ -80,7 +80,7 @@ export const tenants: TenantContext[] = [
     locale: "en-US",
     timezone: "America/New_York",
     currency: "USD",
-    enabledModules: ["trading", "challenges", "risk", "payouts", "settings", "audit"],
+    enabledModules: ["trading", "challenges", "risk", "payouts", "settings", "audit", "self-service"],
     enabledFeatures: ["challenges.two-phase", "risk.daily-drawdown"],
     terminology: {
       challenge: "Evaluation",
@@ -119,6 +119,7 @@ export const tenants: TenantContext[] = [
       "ai",
       "audit",
       "settings",
+      "self-service",
     ],
     enabledFeatures: [
       "challenges.two-phase",
@@ -165,6 +166,7 @@ export const tenants: TenantContext[] = [
       "support",
       "audit",
       "settings",
+      "self-service",
     ],
     enabledFeatures: [
       "challenges.two-phase",
@@ -213,6 +215,7 @@ export const platformTenant: TenantContext = {
     "kyc",
     "support",
     "ai",
+    "self-service",
   ],
   enabledFeatures: ["platform.all"],
   terminology: {},
