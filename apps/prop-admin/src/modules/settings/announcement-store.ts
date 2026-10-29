@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoAnnouncementsSchema } from "@/lib/platform/validation";
 
 /**
  * Session-scoped announcement store (PRD §4.5 announcements table,
@@ -112,11 +114,20 @@ const seed: Announcement[] = [
 ];
 
 const announcements = new Map<string, Announcement>(seed.map((a) => [a.id, a]));
+// Rehydrate the effective list from a previous visit (demo persistence).
+// Full replace (not merge): a deleted announcement must stay deleted.
+// `seed` is the fallback, so a missing/corrupt key reseeds the map.
+{
+  const persisted = loadDemoState("announcements", demoAnnouncementsSchema, seed);
+  announcements.clear();
+  for (const a of persisted) announcements.set(a.id, a);
+}
 const listeners = new Set<() => void>();
 let version = 0;
 
 function emit() {
   version += 1;
+  saveDemoState("announcements", Array.from(announcements.values()));
   listeners.forEach((l) => l());
 }
 

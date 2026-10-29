@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import type { Breach } from "@/lib/platform/mock-data";
 import { breaches as seedBreaches } from "@/lib/platform/mock-data";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoBreachesSchema } from "@/lib/platform/validation";
 
 /**
  * Session-scoped breach resolution store.
@@ -14,12 +16,16 @@ import { recordAudit } from "@/lib/audit";
  * reflects them instantly instead of leaving rows "open" after a
  * success toast.
  */
-const resolvedIds = new Set<string>();
+// Rehydrate resolutions from a previous visit (demo persistence).
+const resolvedIds = new Set<string>(
+  loadDemoState("breaches", demoBreachesSchema, []),
+);
 const listeners = new Set<() => void>();
 let version = 0;
 
 function emit() {
   version += 1;
+  saveDemoState("breaches", [...resolvedIds]);
   listeners.forEach((l) => l());
 }
 

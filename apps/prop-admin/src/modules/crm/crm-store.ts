@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getTenantContacts, type CrmContact } from "@/lib/platform/mock-data";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoCrmSchema } from "@/lib/platform/validation";
 
 /**
  * Session-scoped CRM contact store.
@@ -11,13 +13,21 @@ import { getTenantContacts, type CrmContact } from "@/lib/platform/mock-data";
  * Contacts table and the Pipeline kanban all read the same effective
  * list, so the previously desynced views stay consistent.
  */
-const overrides = new Map<string, Partial<CrmContact>>(); // key: `${tenantId}:${contactId}`
-const deletedIds = new Set<string>();
+// Rehydrate session edits/deletions from a previous visit (demo persistence).
+const persistedCrm = loadDemoState("crm", demoCrmSchema, { overrides: {}, deleted: [] });
+const overrides = new Map<string, Partial<CrmContact>>(
+  Object.entries(persistedCrm.overrides),
+); // key: `${tenantId}:${contactId}`
+const deletedIds = new Set<string>(persistedCrm.deleted);
 const listeners = new Set<() => void>();
 let version = 0;
 
 function emit() {
   version += 1;
+  saveDemoState("crm", {
+    overrides: Object.fromEntries(overrides),
+    deleted: [...deletedIds],
+  });
   listeners.forEach((l) => l());
 }
 
