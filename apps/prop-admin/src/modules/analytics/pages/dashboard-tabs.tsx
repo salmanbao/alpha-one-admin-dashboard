@@ -32,6 +32,7 @@ import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { AreaSeries, BarSeries } from "@/components/platform/charts";
 import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
+import { fundedConversionPct, winRatePct } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
 import {
   Bar,
@@ -899,10 +900,12 @@ export function DashboardOrdersTab({ params }: { params: Record<string, string> 
     .filter((t) => t.type !== "payout")
     .reduce((s, t) => s + t.amount, 0);
   const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenueReal / totalOrders) : 0;
-  // Conversion rate — paid-out / total traders (rough proxy); capped 0.1–10%.
-  const conversionRate = traders.length > 0
-    ? Math.min(10, Math.max(0.1, Math.round((traders.filter((t) => t.challengePhase === "funded").length / traders.length) * 1000) / 10))
-    : 0;
+  // Conversion rate — paid-out / total traders (rough proxy). Metric
+  // catalogue helper clamps 0.1–10% and guards empty populations.
+  const conversionRate = fundedConversionPct(
+    traders.filter((t) => t.challengePhase === "funded").length,
+    traders.length,
+  );
 
   const fmt = (v: number) => formatCurrency(v, currency);
 
@@ -1142,7 +1145,7 @@ export function DashboardPositionsTab({ params }: { params: Record<string, strin
   const totalPnl = symbolRows.reduce((s, r) => s + r.totalPnl, 0);
   const winningPositions = 4820;
   const losingPositions = 3386;
-  const winRate = Math.round((winningPositions / (winningPositions + losingPositions)) * 100);
+  const winRate = winRatePct(winningPositions, losingPositions);
 
   // React Compiler auto-memoizes pure calls — no manual useMemo needed.
   const tradeDistribution = buildTradeDistributionByHour();

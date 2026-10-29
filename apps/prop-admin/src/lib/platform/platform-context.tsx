@@ -30,6 +30,7 @@ import {
 } from "./mock-data";
 import { applyTenantBranding, applyThemeMode } from "./theme-engine";
 import { setAuditContext } from "@/lib/audit";
+import { parseUserOverrides } from "@/lib/platform/validation";
 
 /* ------------------------------------------------------------------ */
 /* Router (client-side view state)                                     */
@@ -160,7 +161,9 @@ function readUserOverrides(): Record<string, Partial<AuthUser>> {
   if (typeof window !== "undefined") {
     try {
       const raw = window.localStorage.getItem(USER_OVERRIDES_KEY);
-      return raw ? (JSON.parse(raw) as Record<string, Partial<AuthUser>>) : {};
+      // zod-validated (lib/platform/validation.ts) — malformed patches
+      // are dropped so corrupted storage can't inject bad user fields.
+      return raw ? parseUserOverrides(raw) : {};
     } catch { /* ignore */ }
   }
   return {};
