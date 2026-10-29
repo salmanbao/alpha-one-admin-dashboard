@@ -66,6 +66,7 @@ const routes: RouteDefinition[] = [
   { path: "account-kyc-statuses", viewId: "account-kyc-statuses", label: "Account KYC Statuses", permission: "account.read", module: "trading" },
   { path: "account-related-accounts", viewId: "account-related-accounts", label: "Related Accounts", permission: "account.read", module: "trading" },
   { path: "account-configuration", viewId: "account-configuration", label: "Account Configuration", permission: "account.read", module: "trading" },
+  { path: "account-workspace", viewId: "account-workspace", label: "Account Workspace", permission: "account.read", module: "trading" },
   { path: "account-events", viewId: "account-events", label: "Account Events", permission: "account.read", module: "trading" },
   { path: "account-version-history", viewId: "account-version-history", label: "Account Version History", permission: "account.read", module: "trading" },
   { path: "closed-position-detail", viewId: "closed-position-detail", label: "Closed Position Detail", permission: "account.read", module: "trading" },

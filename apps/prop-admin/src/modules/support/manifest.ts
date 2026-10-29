@@ -5,7 +5,7 @@
  * a knowledge base, and SLA metrics. Depends on Trading (trader context).
  */
 
-import { LifeBuoy, MessageSquare, BookOpen, Inbox, Clock, Smile, FileText, Mail } from "lucide-react";
+import { LifeBuoy, MessageSquare, BookOpen, Clock, Smile, FileText, Mail } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { SupportOverviewWidget, RecentTicketsWidget, TicketPriorityWidget } from "./widgets/support-widgets";
 
@@ -17,7 +17,7 @@ const navigation: NavigationItem[] = [
     order: 80,
     children: [
       { id: "support.overview", label: "Overview", href: "support", icon: LifeBuoy, permission: ["support.read", "support.self"] },
-      { id: "support.tickets", label: "My Tickets", href: "support-tickets", icon: Inbox, permission: ["support.read", "support.self"] },
+      // "My Tickets" moved to the self-service module (§6.6).
       { id: "support.sla", label: "SLA Management", href: "support-sla", icon: Clock, permission: "support.read", order: 84 },
       { id: "support.knowledge", label: "Knowledge", href: "support-knowledge", icon: BookOpen, permission: ["support.read", "support.self"] },
 

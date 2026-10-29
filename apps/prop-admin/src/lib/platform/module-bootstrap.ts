@@ -20,6 +20,7 @@ import { crmModule } from "@/modules/crm/manifest";
 import { kycModule } from "@/modules/kyc/manifest";
 import { supportModule } from "@/modules/support/manifest";
 import { aiModule } from "@/modules/ai/manifest";
+import { selfServiceModule } from "@/modules/self-service/manifest";
 import { auditModule } from "@/modules/audit/audit-module";
 import { settingsModule } from "@/modules/settings/settings-module";
 import { stitchModule } from "@/modules/stitch/manifest";
@@ -43,6 +44,9 @@ export function bootstrapModules() {
   moduleRegistry.register(kycModule);
   moduleRegistry.register(supportModule);
   moduleRegistry.register(aiModule);
+  // trader-facing self-service views grouped into one nav section
+  // (navigation only — routes stay with their origin modules).
+  moduleRegistry.register(selfServiceModule);
   // compliance modules — audit depends on settings, register after it.
   moduleRegistry.register(auditModule);
   // optional stitch screens module — reference renders, gated off by

@@ -114,10 +114,15 @@ class ModuleRegistryImpl {
         // recurse into children with same filters
         const children = (nav.children ?? []).filter((c) => {
           if (c.application && c.application.length > 0 && !c.application.includes(ctx.application)) return false;
+          if (c.module && !isPlatform && !ctx.enabledModules.includes(c.module)) return false;
           if (c.feature && !tenantFeatures.includes(c.feature) && !isPlatform) return false;
           if (!hasPermission(ctx.user, c.permission)) return false;
           return true;
         });
+        // A section whose children were all filtered out would render as
+        // a dead leaf (parent has no href to go anywhere) — drop it.
+        // Parents with their own href (e.g. Settings) stay clickable.
+        if (nav.children?.length && children.length === 0 && !nav.href) continue;
         items.push({ ...nav, module: moduleId, children: children.length ? children : undefined });
       }
     }

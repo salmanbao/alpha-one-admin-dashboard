@@ -54,7 +54,7 @@ const navigation: NavigationItem[] = [
       { id: "analytics.cookie-attribution", label: "Cookie Attribution", href: "cookie-attribution", icon: Cookie, permission: "analytics.read", group: "Audiences & Segmentation" },
     ],
   },
-  { id: "analytics.trader-performance", label: "My Performance", href: "trader-performance", permission: "analytics.read" },
+  // "My Performance" (top-level leaf) moved to the self-service module (§6.6).
 ];
 
 const routes: RouteDefinition[] = [
