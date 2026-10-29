@@ -221,7 +221,10 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   });
   const [tenant, setTenant] = useState<TenantContext>(() => {
     const storedId = readStoredTenantId();
-    const all = [...tenants, ...customTenants];
+    // platformTenant is its own pseudo-tenant (not part of `tenants`) —
+    // include it so a stored "pfaas:demoTenant=platform" resolves instead
+    // of silently falling back to the user's firm tenant.
+    const all = [platformTenant, ...tenants, ...customTenants];
     return all.find((t) => t.id === storedId)
       ?? all.find((t) => t.id === user.tenantId)
       ?? platformTenant;

@@ -7,6 +7,7 @@
  */
 
 import { moduleRegistry } from "./module-registry";
+import { SHOW_STITCH } from "./feature-flags";
 import { tradingModule } from "@/modules/trading/manifest";
 import { challengesModule } from "@/modules/challenges/manifest";
 import { riskModule } from "@/modules/risk/manifest";
@@ -44,6 +45,7 @@ export function bootstrapModules() {
   moduleRegistry.register(aiModule);
   // compliance modules — audit depends on settings, register after it.
   moduleRegistry.register(auditModule);
-  // optional stitch screens module
-  moduleRegistry.register(stitchModule);
+  // optional stitch screens module — reference renders, gated off by
+  // default; enable with NEXT_PUBLIC_SHOW_STITCH=1 (demo builds).
+  if (SHOW_STITCH) moduleRegistry.register(stitchModule);
 }
