@@ -55,6 +55,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 
 function MsIconSafe({ name = "more_vert" }: { name?: string }) {
   return <span aria-hidden className="ms-icon text-[18px] leading-none">{name}</span>;
@@ -110,6 +112,7 @@ function RowMenu({ items }: { items: { label: string; icon: string; action: () =
 
 export function ChallengesOverviewStitchPage() {
   const { navigate } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   const tid = "tenant-alpha";
   const challenges = getTenantChallenges(tid);
   const [extendTarget, setExtendTarget] = React.useState<Challenge | null>(null);
@@ -170,7 +173,7 @@ export function ChallengesOverviewStitchPage() {
       <StitchCard className="p-0">
         <StitchTable
           keyOf={(c) => c.id}
-          onRowClick={(c) => navigate("challenge-edit")}
+          onRowClick={(c) => openPanel("challenge-edit", { id: c.id })}
           rows={challenges.slice(0, 12)}
           columns={[
             { header: "Trader", cell: (c) => <span className="font-semibold text-ink">{c.traderName}</span> },
@@ -183,6 +186,8 @@ export function ChallengesOverviewStitchPage() {
               header: "",
               cell: (c) => (
                 <RowMenu items={[
+                  { label: "Edit Challenge", icon: "edit", action: () => openPanel("challenge-edit", { id: c.id }) },
+                  { label: "Open in New Tab", icon: "open_in_new", action: () => openViewInNewTab("challenge-edit", { id: c.id }) },
                   { label: "Extend time", icon: "schedule", action: () => setExtendTarget(c) },
                   { label: "Issue payout", icon: "payments", action: () => setPayoutTarget(c) },
                   { label: "Force fail", icon: "gpp_bad", action: () => setFailTarget(c), danger: true },
@@ -269,7 +274,7 @@ export function ActiveChallengesStitchPage() {
   const [noteTarget, setNoteTarget] = React.useState<Challenge | null>(null);
   const [bulkOpen, setBulkOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const { navigate } = usePlatform();
+  const { openPanel } = useDetailOverlay();
 
   return (
     <div className="flex flex-col gap-6">
@@ -282,7 +287,7 @@ export function ActiveChallengesStitchPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {challenges.slice(0, 6).map((c) => (
-          <StitchCard key={c.id} interactive onClick={() => navigate("challenge-edit")}>
+          <StitchCard key={c.id} interactive onClick={() => openPanel("challenge-edit", { id: c.id })}>
             <div className="flex items-start justify-between pb-3">
               <div className="min-w-0">
                 <p className="truncate font-serif text-sm font-bold text-ink">{c.traderName}</p>
@@ -335,7 +340,7 @@ export function PassedChallengesStitchPage() {
   const passed = getTenantChallenges("tenant-alpha").filter((c) => c.status === "passed" || c.status === "funded");
   const [fundTarget, setFundTarget] = React.useState<Challenge | null>(null);
   const [bulkPayoutOpen, setBulkPayoutOpen] = React.useState(false);
-  const { navigate } = usePlatform();
+  const { openPanel } = useDetailOverlay();
 
   return (
     <div className="flex flex-col gap-6">
@@ -349,7 +354,7 @@ export function PassedChallengesStitchPage() {
       <StitchCard className="p-0">
         <StitchTable
           keyOf={(c) => c.id}
-          onRowClick={() => navigate("challenge-edit")}
+          onRowClick={(c) => openPanel("challenge-edit", { id: c.id })}
           rows={passed}
           columns={[
             { header: "Trader", cell: (c) => <span className="font-semibold text-ink">{c.traderName}</span> },
@@ -359,7 +364,20 @@ export function PassedChallengesStitchPage() {
             { header: "Status", cell: (c) => <StitchStateBadge state={c.status} tone="positive" /> },
             {
               header: "",
-              cell: (c) => <StitchButton variant="primary" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); setFundTarget(c); }}>Mark as Funded</StitchButton>,
+              cell: (c) => (
+                <div className="flex items-center gap-1.5">
+                  <StitchButton variant="primary" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); setFundTarget(c); }}>Mark as Funded</StitchButton>
+                  <button
+                    type="button"
+                    aria-label={`Open ${c.name} in a new tab`}
+                    title="Open in new tab"
+                    className="rounded-lg p-1.5 text-ink-variant transition-colors hover:bg-sfc hover:text-ink"
+                    onClick={(e) => { e.stopPropagation(); openViewInNewTab("challenge-edit", { id: c.id }); }}
+                  >
+                    <MsIconSafe name="open_in_new" />
+                  </button>
+                </div>
+              ),
             },
           ]}
           emptyState={<StitchEmpty icon="workspace_premium" title="No passed challenges" body="When traders meet every objective, they appear here for funding." />}
@@ -394,7 +412,7 @@ export function FailedChallengesStitchPage() {
   const failed = getTenantChallenges("tenant-alpha").filter((c) => c.status === "failed");
   const [reengageTarget, setReengageTarget] = React.useState<Challenge | null>(null);
   const [bulkRetryOpen, setBulkRetryOpen] = React.useState(false);
-  const { navigate } = usePlatform();
+  const { openPanel } = useDetailOverlay();
 
   return (
     <div className="flex flex-col gap-6">
@@ -408,7 +426,7 @@ export function FailedChallengesStitchPage() {
       <StitchCard className="p-0">
         <StitchTable
           keyOf={(c) => c.id}
-          onRowClick={() => navigate("challenge-edit")}
+          onRowClick={(c) => openPanel("challenge-edit", { id: c.id })}
           rows={failed}
           columns={[
             { header: "Trader", cell: (c) => <span className="font-semibold text-ink">{c.traderName}</span> },
@@ -418,7 +436,20 @@ export function FailedChallengesStitchPage() {
             { header: "Status", cell: (c) => <StitchStateBadge state="failed" tone="negative" meaning="Challenge breached a rule" /> },
             {
               header: "",
-              cell: () => <StitchButton variant="surface" className="h-7 px-2" icon="campaign" onClick={(e) => { e.stopPropagation(); setReengageTarget(failed[0]); }}>Re-engage</StitchButton>,
+              cell: (c) => (
+                <div className="flex items-center gap-1.5">
+                  <StitchButton variant="surface" className="h-7 px-2" icon="campaign" onClick={(e) => { e.stopPropagation(); setReengageTarget(c); }}>Re-engage</StitchButton>
+                  <button
+                    type="button"
+                    aria-label={`Open ${c.name} in a new tab`}
+                    title="Open in new tab"
+                    className="rounded-lg p-1.5 text-ink-variant transition-colors hover:bg-sfc hover:text-ink"
+                    onClick={(e) => { e.stopPropagation(); openViewInNewTab("challenge-edit", { id: c.id }); }}
+                  >
+                    <MsIconSafe name="open_in_new" />
+                  </button>
+                </div>
+              ),
             },
           ]}
           emptyState={<StitchEmpty icon="sentiment_satisfied" title="No failed challenges" body="Nobody has breached a rule yet — a good problem to have." />}
@@ -705,7 +736,7 @@ export function ChallengeTypesStitchPage() {
   const [addOpen, setAddOpen] = React.useState(false);
   const [disableTarget, setDisableTarget] = React.useState<string | null>(null);
   const [archiveTarget, setArchiveTarget] = React.useState<string | null>(null);
-  const { navigate } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   // PRD §4.18 duplicate/archive mutate the template list — keep it in state
   // so both actions visibly change the table instead of only toasting.
   const [types, setTypes] = React.useState([
@@ -733,7 +764,7 @@ export function ChallengeTypesStitchPage() {
       <StitchCard className="p-0">
         <StitchTable
           keyOf={(t) => t.name}
-          onRowClick={() => navigate("challenge-edit")}
+          onRowClick={(t) => openPanel("challenge-edit", { id: t.name })}
           rows={types}
           columns={[
             { header: "Name", cell: (t) => <span className="font-semibold text-ink">{t.name}</span> },

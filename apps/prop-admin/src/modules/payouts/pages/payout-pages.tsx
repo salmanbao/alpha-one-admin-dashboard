@@ -15,9 +15,11 @@ import { DemoDataStamp } from "@/components/platform/demo-data";
 import { PayoutReviewActions } from "@/components/platform/contextual-actions";
 import { AttentionCenter } from "@/components/platform/attention-center";
 import { EmptyState } from "@/components/platform/guards";
-import { Wallet, Banknote, Clock, CheckCircle2, Timer } from "lucide-react";
+import { Wallet, Banknote, Clock, CheckCircle2, Timer, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -121,7 +123,8 @@ const payoutExportColumns = (
 ];
 
 function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
-  const { runtime, tenant, user, navigate } = usePlatform();
+  const { runtime, tenant, user } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   // In-page guard — the queue is visible with payout.read, but every
@@ -162,13 +165,26 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
     { key: "created", header: "Requested", cell: (p) => <span className="text-xs text-muted-foreground">{new Date(p.createdAt).toLocaleDateString("en-US")}</span>, sortValue: (p) => p.createdAt },
     {
       // PRD §4.9 — row drill-down into the payout detail view (audit trail,
-      // timeline, reverse-payout action). Was unreachable until now.
+      // timeline, reverse-payout action). Primary click → overlay sheet on
+      // top of the queue; the icon → same screen in a new browser tab.
       key: "detail",
       header: "",
       cell: (p) => (
-        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => navigate("payout-detail")}>
-          Details
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={(e) => { e.stopPropagation(); openPanel("payout-detail", { id: p.reference }); }}>
+            Details
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={`Open payout ${p.reference} in a new tab`}
+            title="Open in new tab"
+            className="h-7 w-7 p-0"
+            onClick={(e) => { e.stopPropagation(); openViewInNewTab("payout-detail", { id: p.reference }); }}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       ),
     },
     {
@@ -243,6 +259,7 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
       columns={columns}
       data={pays}
       rowKey={(p) => p.id}
+      onRowClick={(p) => openPanel("payout-detail", { id: p.reference })}
       searchableText={(p) => `${p.reference} ${p.traderName} ${p.method} ${p.status}`}
       searchPlaceholder={resolveTermsInString("Search payouts…", tenant)}
     />

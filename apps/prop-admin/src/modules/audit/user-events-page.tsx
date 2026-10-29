@@ -15,6 +15,8 @@ import { getUserEvents, getTenantUserEvents, type UserEvent } from "@/lib/platfo
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge } from "@/components/platform/status";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import {
   Activity,
@@ -26,6 +28,7 @@ import {
   Filter,
   X,
   ScrollText,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +85,8 @@ const DATE_RANGES: Record<string, number> = {
 
 export function UserEventsPage() {
   const { runtime } = usePlatform();
+  // Row click → event detail opens as an overlay sheet over the stream.
+  const { openPanel } = useDetailOverlay();
   const tid = runtime.tenant?.id ?? "platform";
 
   const allEvents = useMemo(
@@ -153,6 +158,24 @@ export function UserEventsPage() {
       key: "description",
       header: "Description",
       cell: (e) => <span className="text-sm text-muted-foreground">{e.description}</span>,
+    },
+    {
+      // Pattern pair: primary click (row) → overlay detail; the icon →
+      // the same detail in a new browser tab.
+      key: "actions",
+      header: "",
+      cell: (e) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={`Open event ${e.id} in a new tab`}
+          title="Open in new tab"
+          className="h-7 w-7 p-0"
+          onClick={(ev) => { ev.stopPropagation(); openViewInNewTab("audit-user-event-detail", { id: e.id }); }}
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
+      ),
     },
   ];
 
@@ -249,6 +272,7 @@ export function UserEventsPage() {
             columns={columns}
             data={filtered}
             rowKey={(e) => e.id}
+            onRowClick={(e) => openPanel("audit-user-event-detail", { id: e.id })}
             pageSize={10}
             emptyTitle="No events match your filters"
             emptyDescription="Try widening the date range or clearing the event type filter."
