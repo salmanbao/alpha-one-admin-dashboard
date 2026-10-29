@@ -48,6 +48,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
@@ -438,7 +440,10 @@ function statusTone(s: string): StitchTone {
 /* ═══════════════════════════════════════════════════════════════ */
 
 export function TradersStitchPage() {
-  const { runtime, navigate, tenant } = usePlatform();
+  const { runtime, tenant } = usePlatform();
+  // Row click → trader profile opens as an overlay sheet over the
+  // directory (inspect-and-act without losing scroll/filters).
+  const { openPanel } = useDetailOverlay();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const traders = getTenantTraders(tid);
@@ -603,7 +608,7 @@ export function TradersStitchPage() {
         ) : (
           <StitchTable
             keyOf={(t) => t.id}
-            onRowClick={(t) => navigate("trader-detail")}
+            onRowClick={(t) => openPanel("trader-detail", { id: t.id })}
             rows={filtered}
             pageSize={10}
             columns={[
@@ -735,6 +740,7 @@ function TraderRowMenu({ trader, onSuspend, onReactivate, onReset, onMessage, on
   onImpersonate: () => void;
 }) {
   const [open, setOpen] = React.useState(false);
+  const { openPanel } = useDetailOverlay();
   const ref = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
@@ -746,7 +752,10 @@ function TraderRowMenu({ trader, onSuspend, onReactivate, onReset, onMessage, on
   const status = effectiveTraderStatus(trader);
   const suspended = status === "suspended" || status === "breached";
   const items: { label: string; icon: string; action: () => void; danger?: boolean }[] = [
-    { label: "View Profile", icon: "person", action: () => (window as unknown as { __pfNav?: (v: string) => void }).__pfNav?.("trader-detail") },
+    // Overlay pattern: profile opens on top of the directory.
+    { label: "View Profile", icon: "person", action: () => openPanel("trader-detail", { id: trader.id }) },
+    // New-tab pattern: same profile in a fresh browser tab.
+    { label: "Open in New Tab", icon: "open_in_new", action: () => openViewInNewTab("trader-detail", { id: trader.id }) },
     { label: "Edit Trader", icon: "edit", action: () => toast({ title: "Edit trader", description: `${trader.name} — edit sheet coming from profile workspace.` }) },
     { label: "Reset Password", icon: "lock_reset", action: onReset },
     { label: "Message Trader", icon: "mail", action: onMessage },
@@ -920,6 +929,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export function AccountsStitchPage() {
   const { runtime, navigate, tenant } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   const tid = runtime.tenant?.id ?? "platform";
   const accounts = getTenantAccounts(tid);
   const currency = runtime.tenant?.currency ?? "USD";
@@ -1013,7 +1023,7 @@ export function AccountsStitchPage() {
                 cell: (a) => (
                   <button
                     className="inline-flex items-center gap-1 font-semibold text-tp hover:underline"
-                    onClick={(e) => { e.stopPropagation(); navigate("trader-detail"); }}
+                    onClick={(e) => { e.stopPropagation(); openPanel("trader-detail", { id: a.traderId }); }}
                   >
                     {a.traderName}
                     <MsIconSafe name="arrow_outward" />

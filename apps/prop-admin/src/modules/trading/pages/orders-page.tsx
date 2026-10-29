@@ -17,7 +17,9 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/platform/status";
 import { formatCurrency } from "@/components/platform/status";
 import { getTenantTraders, getTenantAccounts, hashStr } from "@/lib/platform/mock-data";
-import { ShoppingCart, CheckCircle2, Clock, XCircle, DollarSign } from "lucide-react";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
+import { ShoppingCart, CheckCircle2, Clock, XCircle, DollarSign, ExternalLink } from "lucide-react";
 
 interface Order {
   id: string;
@@ -60,7 +62,8 @@ const statusTone = (s: Order["status"]) =>
   s === "paid" ? "success" : s === "pending" ? "info" : s === "failed" ? "danger" : s === "refunded" ? "warning" : "muted";
 
 export function OrdersPage() {
-  const { runtime, navigate } = usePlatform();
+  const { runtime } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   const orders = useMemo(() => buildOrders(tid), [tid]);
@@ -72,7 +75,7 @@ export function OrdersPage() {
 
   const columns: Column<Order>[] = [
     { key: "id", header: "Order", cell: (o) => <span className="font-mono text-xs font-medium">{o.id}</span>, sortValue: (o) => o.id },
-    { key: "traderName", header: "Trader", cell: (o) => <button onClick={() => navigate("trader-detail", { id: o.traderId })} className="text-xs font-medium text-primary hover:underline">{o.traderName}</button>, sortValue: (o) => o.traderName },
+    { key: "traderName", header: "Trader", cell: (o) => <button onClick={(e) => { e.stopPropagation(); openPanel("trader-detail", { id: o.traderId }); }} className="text-xs font-medium text-primary hover:underline">{o.traderName}</button>, sortValue: (o) => o.traderName },
     { key: "challenge", header: "Challenge", cell: (o) => <span className="text-xs">{o.challenge}</span>, sortValue: (o) => o.challenge },
     { key: "amount", header: "Amount", cell: (o) => <span className="text-xs tabular-nums">{formatCurrency(o.amount, o.currency)}</span>, sortValue: (o) => o.amount, numeric: true },
     { key: "paymentMethod", header: "Method", cell: (o) => <Badge variant="outline" className="text-[10px]">{o.paymentMethod}</Badge>, sortValue: (o) => o.paymentMethod },
@@ -81,7 +84,23 @@ export function OrdersPage() {
     { key: "createdAt", header: "Created", cell: (o) => <span className="text-xs text-muted-foreground">{new Date(o.createdAt).toLocaleDateString()}</span>, sortValue: (o) => o.createdAt },
     {
       key: "actions", header: "Actions",
-      cell: (o) => <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); navigate("order-detail", { id: o.id }); }} className="text-xs">View →</Button>,
+      // Pattern pair: primary click → overlay sheet over the list;
+      // the icon affordance → same sub-screen in a new tab.
+      cell: (o) => (
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openPanel("order-detail", { id: o.id }); }} className="text-xs">View →</Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={`Open order ${o.id} in a new tab`}
+            title="Open in new tab"
+            className="h-7 w-7 p-0"
+            onClick={(e) => { e.stopPropagation(); openViewInNewTab("order-detail", { id: o.id }); }}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ),
     },
   ];
 
@@ -102,7 +121,7 @@ export function OrdersPage() {
             </p>
           </div>
         )}
-        <DataTable columns={columns} data={orders} rowKey={(o) => o.id} onRowClick={(o) => navigate("order-detail", { id: o.id })} searchableText={(o) => `${o.id} ${o.traderName} ${o.challenge} ${o.status}`} searchPlaceholder="Search orders…" pageSize={15} emptyTitle="No orders" emptyDescription="Orders will appear here when traders purchase challenges." />
+        <DataTable columns={columns} data={orders} rowKey={(o) => o.id} onRowClick={(o) => openPanel("order-detail", { id: o.id })} searchableText={(o) => `${o.id} ${o.traderName} ${o.challenge} ${o.status}`} searchPlaceholder="Search orders…" pageSize={15} emptyTitle="No orders" emptyDescription="Orders will appear here when traders purchase challenges." />
       </PageContent>
     </Page>
   );

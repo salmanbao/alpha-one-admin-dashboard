@@ -42,6 +42,9 @@
       "@/components/platform/contextual-actions": [
         "./src/components/platform/contextual-actions"
       ],
+      "@/components/platform/detail-overlay": [
+        "./src/components/platform/detail-overlay"
+      ],
       "@/components/platform/*": [
         "../../packages/ui/src/components/platform/*"
       ],
