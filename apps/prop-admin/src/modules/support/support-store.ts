@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import type { SupportTicket } from "@/lib/platform/mock-data";
 import { supportTickets as seedTickets } from "@/lib/platform/mock-data";
 import { setNavBadge } from "@/lib/platform/nav-badges";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoTicketsSchema } from "@/lib/platform/validation";
 
 /**
  * Session-scoped support ticket store.
@@ -13,13 +15,26 @@ import { setNavBadge } from "@/lib/platform/nav-badges";
  * effective values so actions have observable effects instead of
  * toast-only feedback.
  */
-const statusOverrides = new Map<string, "resolved" | "in-progress">();
-const replyCounts = new Map<string, number>();
+// Rehydrate ticket actions from a previous visit (demo persistence).
+const persistedTickets = loadDemoState("tickets", demoTicketsSchema, {
+  statuses: {},
+  replies: {},
+});
+const statusOverrides = new Map<string, "resolved" | "in-progress">(
+  Object.entries(persistedTickets.statuses),
+);
+const replyCounts = new Map<string, number>(
+  Object.entries(persistedTickets.replies),
+);
 const listeners = new Set<() => void>();
 let version = 0;
 
 function emit() {
   version += 1;
+  saveDemoState("tickets", {
+    statuses: Object.fromEntries(statusOverrides),
+    replies: Object.fromEntries(replyCounts),
+  });
   syncBadge();
   listeners.forEach((l) => l());
 }

@@ -5,6 +5,8 @@ import type { Payout } from "@/lib/platform/mock-data";
 import { payouts as seedPayouts } from "@/lib/platform/mock-data";
 import { setNavBadge } from "@/lib/platform/nav-badges";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoPayoutsSchema } from "@/lib/platform/validation";
 
 /**
  * Session-scoped payout decision store.
@@ -25,12 +27,16 @@ export type PayoutDecision =
   | "paid"
   | "escalated";
 
-const decisions = new Map<string, { status: PayoutDecision; at: string }>();
+// Rehydrate decisions from a previous visit (demo persistence).
+const decisions = new Map<string, { status: PayoutDecision; at: string }>(
+  Object.entries(loadDemoState("payouts", demoPayoutsSchema, {})),
+);
 const listeners = new Set<() => void>();
 let version = 0;
 
 function emit() {
   version += 1;
+  saveDemoState("payouts", Object.fromEntries(decisions));
   syncBadge();
   listeners.forEach((l) => l());
 }

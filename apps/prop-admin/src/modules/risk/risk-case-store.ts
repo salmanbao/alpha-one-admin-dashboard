@@ -20,6 +20,8 @@ import {
   hashStr,
 } from "@/lib/platform/mock-data";
 import { setNavBadge } from "@/lib/platform/nav-badges";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoRiskCasesSchema } from "@/lib/platform/validation";
 
 export type RiskSeverity = "critical" | "high" | "medium" | "low";
 
@@ -203,11 +205,25 @@ function buildRiskCases(tid: string): RiskCase[] {
 
 const casesByTenant = new Map<string, RiskCase[]>();
 const listeners = new Set<() => void>();
+// Rehydrate cases + id sequence from a previous visit (demo persistence).
+// Fallback = empty (the seed loop below materializes fresh cases), and
+// `ensure` prefers an already-hydrated tenant over rebuilding it.
+const persistedRiskCases = loadDemoState("risk-cases", demoRiskCasesSchema, {
+  byTenant: {},
+  seq: 9700,
+});
+for (const [tid, arr] of Object.entries(persistedRiskCases.byTenant)) {
+  casesByTenant.set(tid, arr);
+}
 let version = 0;
-let seq = 9700;
+let seq = persistedRiskCases.seq;
 
 function emit() {
   version += 1;
+  saveDemoState("risk-cases", {
+    byTenant: Object.fromEntries(casesByTenant),
+    seq,
+  });
   syncBadge();
   listeners.forEach((l) => l());
 }

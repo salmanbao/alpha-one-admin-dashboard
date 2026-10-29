@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { setNavBadge } from "@/lib/platform/nav-badges";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoEvaluationsSchema } from "@/lib/platform/validation";
 
 /**
  * Session-scoped evaluation decision store (PRD §4.3 / §4.17).
@@ -157,6 +159,11 @@ const seed: Evaluation[] = [
 ];
 
 const evaluations = new Map<string, Evaluation>(seed.map((e) => [e.id, e]));
+// Rehydrate the effective list from a previous visit (demo persistence),
+// merged over the seed by id so decisions survive a refresh.
+for (const e of loadDemoState("evaluations", demoEvaluationsSchema, [])) {
+  evaluations.set(e.id, e);
+}
 const listeners = new Set<() => void>();
 let version = 0;
 
@@ -171,6 +178,7 @@ function syncBadge() {
 
 function emit() {
   version += 1;
+  saveDemoState("evaluations", Array.from(evaluations.values()));
   syncBadge();
   listeners.forEach((l) => l());
 }
