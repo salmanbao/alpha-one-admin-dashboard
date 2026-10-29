@@ -13,7 +13,6 @@ import type { ComponentType } from "react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@pfaas/ui";
 import { SHOW_STITCH } from "@/lib/platform/feature-flags";
-import { stitchModule } from "@/modules/stitch/manifest";
 
 const ViewSkeleton = () => (
   <div className="flex min-h-[60vh] w-full items-center justify-center p-8">
@@ -313,20 +312,65 @@ export function registerModuleView(viewId: string, component: ViewComponent) {
 }
 
 /**
- * Stitch-owned view ids, derived from the module's own declarations.
- * With the module disabled (default), deep links into its views must
- * resolve to nothing — otherwise `?view=<stitch view>` would render an
- * unguarded reference screen from the static registry.
+ * Stitch-only view ids, with SHOW_STITCH off (default): deep links into
+ * these resolve to nothing instead of rendering an unguarded static
+ * reference screen out of the registry.
+ *
+ * IMPORTANT — this list must NOT be derived from the stitch module's
+ * manifest: that manifest mirrors the entire product nav (~228 ids; the
+ * gap analysis found 181 route strings declared by more than one module),
+ * so a manifest-derived set also gates real product views that merely
+ * share an id with a stitch declaration (`overview` — the default landing
+ * page — `risk`, `settings`, `payouts-pending`, …). Deriving it that way
+ * shipped once and broke every such view with the flag off.
+ *
+ * Classification of the 91 registry entries importing `@/modules/stitch/pages`:
+ *   - 54 are declared as a route/nav href by a product module → always resolve;
+ *   - 2 (`payout-detail`, `settings-module-detail`) are navigate() targets
+ *     from product pages and own a product RouteDefinition (guards) → resolve;
+ *   - the 35 below are stitched-only reference screens → gated.
+ * When adding a registry entry that imports stitch pages, list it here
+ * unless a product manifest claims its id.
  */
-const stitchViews = new Set<string>([
-  ...(stitchModule.routes ?? []).map((r) => r.viewId),
-  ...(stitchModule.navigation ?? []).flatMap((n) => [
-    ...(n.href ? [n.href] : []),
-    ...(n.children ?? []).flatMap((c) => (c.href ? [c.href] : [])),
-  ]),
+const STITCH_ONLY_VIEWS = new Set<string>([
+  "2fa-setup-dialog",
+  "account-linkage-graph",
+  "add-group-sheet",
+  "affiliate-commission-payout",
+  "affiliate-comparison",
+  "affiliate-detail",
+  "affiliate-onboarding",
+  "audit-log",
+  "breach-detail",
+  "certificatesissued",
+  "change-password-dialog",
+  "connected-sessions-detail",
+  "csv-import-dialog",
+  "device-detail",
+  "enhanced-user-events",
+  "help-changelog",
+  "help-module-detail",
+  "kyc-record-detail",
+  "marketing-campaign-detail",
+  "my-tasks",
+  "notification-center",
+  "notification-detail-dialog",
+  "notification-preferences-matrix",
+  "notifications-archived",
+  "overview-onboarding-tour",
+  "overview-saved-views",
+  "pending-snoozed-resolved",
+  "pending-task-detail",
+  "position-detail-live",
+  "profile-api-tokens",
+  "reviewer-audit-trail",
+  "support-agent-detail",
+  "trader-risk-score-detail",
+  "transaction-detail",
+  "transactions",
 ]);
 
 export function resolveView(viewId: string): ViewComponent | undefined {
-  if (!SHOW_STITCH && stitchViews.has(viewId)) return undefined;
+  if (!SHOW_STITCH && STITCH_ONLY_VIEWS.has(viewId)) return undefined;
   return viewRegistry[viewId] ?? dynamicViews.get(viewId);
 }

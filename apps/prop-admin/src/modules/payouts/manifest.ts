@@ -38,6 +38,11 @@ const routes: RouteDefinition[] = [
   { path: "payout-eligibility", viewId: "payout-eligibility", label: "Payout Eligibility", permission: ["payout.read", "payout.self"], module: "payouts" },
   { path: "payout-request", viewId: "payout-request", label: "Payout Request", permission: ["payout.read", "payout.self"], module: "payouts" },
   { path: "payout-provider-status", viewId: "payout-provider-status", label: "Provider Status", permission: "payout.read", module: "payouts" },
+  // Row drill-down target from Pending Payouts and the overview page's
+  // payout widget (PRD §4.9 detail view). The screen itself is still a
+  // stitch reference render, but the id is a live product navigation
+  // target, so it needs a guard entry rather than a not-found.
+  { path: "payout-detail", viewId: "payout-detail", label: "Payout Detail", permission: ["payout.read", "payout.self"], module: "payouts" },
   // Payout Operations (M10/M13) — guarded variants of the stitch routes.
   { path: "payouts-bulk-approval", viewId: "payouts-bulk-approval", label: "Bulk Approval", permission: "payout.approve", module: "payouts" },
   { path: "payout-schedule", viewId: "payout-schedule", label: "Payout Schedule", permission: "payout.read", module: "payouts" },
