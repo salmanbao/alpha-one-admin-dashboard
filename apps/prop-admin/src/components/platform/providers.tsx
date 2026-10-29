@@ -31,8 +31,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
     try {
       if (window.sessionStorage.getItem("pfaas:booted") === "1") {
-        // Already booted in this session — skip the animation.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+        // Already booted in this session — skip the animation. One-shot
+        // restore from sessionStorage (not a cascading render).
         setBooted(true);
       }
     } catch { /* ignore */ }

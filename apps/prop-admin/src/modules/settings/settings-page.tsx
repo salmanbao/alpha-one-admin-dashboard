@@ -57,7 +57,7 @@ import {
   FileCheck,
   Archive,
   Globe,
-  Image,
+  Image as ImageIcon,
   UsersRound,
   KeyRound,
   Wrench,
@@ -85,7 +85,7 @@ const SETTINGS_CARDS: SettingsCardSpec[] = [
   // Branding
   { id: "branding", title: "Branding Presets", description: "Color presets, primary/accent colors, border radius, live preview.", icon: Palette, viewId: "settings", category: "Branding" },
   { id: "terminology", title: "Terminology", description: "White-label business terms (challenge, trader, payout, account).", icon: Type, viewId: "settings", category: "Branding" },
-  { id: "banners", title: "Banner Management", description: "Site-wide promotional banners with scheduling and targeting.", icon: Image, viewId: "banner-management", category: "Branding" },
+  { id: "banners", title: "Banner Management", description: "Site-wide promotional banners with scheduling and targeting.", icon: ImageIcon, viewId: "banner-management", category: "Branding" },
   { id: "mkt-integrations", title: "Marketing Integrations", description: "External marketing platforms, analytics providers, ad networks.", icon: Plug, viewId: "marketing-integrations", category: "Branding" },
   { id: "social-media", title: "Social Media Links", description: "Configure footer social links and sharing channels.", icon: Share2, viewId: "social-media-links", category: "Branding" },
 
@@ -686,7 +686,7 @@ function BrandingTab() {
             }}
             className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-input p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors"
           >
-            <Image className="h-6 w-6 text-muted-foreground" />
+            <ImageIcon className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
             <span className="text-xs text-muted-foreground">
               Drag &amp; drop a logo here, or <span className="font-medium text-primary">browse</span> — PNG/SVG up to 2 MB.
             </span>

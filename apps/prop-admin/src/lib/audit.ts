@@ -146,7 +146,8 @@ export function useAuditVersion(): number {
     return () => {
       listeners.delete(l);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- v is the mount-time snapshot; changes after mount arrive via the listener
+    // (v is the mount-time snapshot — post-mount changes arrive via the listener,
+    //  so an empty dep array is correct here.)
   }, []);
   return v;
 }
