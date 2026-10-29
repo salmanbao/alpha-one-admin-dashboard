@@ -11,6 +11,9 @@
  */
 
 import { useState } from "react";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
+import { ExternalLink } from "lucide-react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import {
   getEmailTemplates,
@@ -56,6 +59,7 @@ function truncate(text: string, max = 48): string {
 
 export function EmailTemplatesPage() {
   const { navigate } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   const templates = getEmailTemplates();
   const [selected, setSelected] = useState<EmailTemplate | null>(null);
 
@@ -66,7 +70,7 @@ export function EmailTemplatesPage() {
   const activeTemplate = selected ? working[selected.id] ?? selected : null;
 
   const onRowClick = (t: EmailTemplate) => {
-    setSelected(t);
+    openPanel("email-template-edit", { id: t.id });
     setWorking((w) => ({
       ...w,
       [t.id]: w[t.id] ?? { ...t },

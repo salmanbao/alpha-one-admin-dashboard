@@ -12,6 +12,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
 import {
   getTenantTraders,
   users as authUsers,
@@ -25,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { cn } from "@/lib/utils";
 import {
   KeyRound,
@@ -37,6 +39,7 @@ import {
   Users,
   Filter,
   X,
+  ExternalLink,
 } from "lucide-react";
 
 interface ApiToken {
@@ -105,7 +108,8 @@ function timeAgo(iso: string | null): string {
 }
 
 export function TokenManagementPage() {
-  const { runtime, navigate } = usePlatform();
+  const { runtime } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   const tid = runtime.tenant?.id ?? "platform";
 
   const tenantTraders = useMemo(() => getTenantTraders(tid), [tid]);
@@ -259,6 +263,19 @@ export function TokenManagementPage() {
               <Ban className="h-3.5 w-3.5" />
             </Button>
           ) : null}
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={`Open token ${t.id} in a new tab`}
+            title="Open in new tab"
+            className="h-7 w-7 p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              openViewInNewTab("token-detail", { id: t.keyFull });
+            }}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
         </div>
       ),
       width: "100px",
@@ -331,7 +348,7 @@ export function TokenManagementPage() {
             columns={columns}
             data={filtered}
             rowKey={(t) => t.id}
-            onRowClick={(t) => navigate("token-detail", { id: t.keyFull })}
+            onRowClick={(t) => openPanel("token-detail", { id: t.keyFull })}
             pageSize={10}
             emptyTitle="No tokens found"
             emptyDescription="Generate a new token to get started, or clear your search."

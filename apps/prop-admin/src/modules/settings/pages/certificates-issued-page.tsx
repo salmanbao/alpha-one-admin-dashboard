@@ -24,6 +24,8 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import {
   getTenantTraders,
   traders as allTraders,
@@ -254,6 +256,7 @@ function csvCell(value: string): string {
 
 export function CertificatesIssuedPage() {
   const { runtime, navigate } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   const tid = runtime.tenant?.id ?? "platform";
 
   const certificates = useMemo(() => getIssuedCertificates(tid), [tid]);
@@ -319,7 +322,7 @@ export function CertificatesIssuedPage() {
     });
 
   const onView = (c: IssuedCertificate) => {
-    navigate("certificate-detail", { id: c.id });
+    openPanel("certificate-detail", { id: c.id });
   };
 
   const columns: Column<IssuedCertificate>[] = [
@@ -406,7 +409,7 @@ export function CertificatesIssuedPage() {
       key: "actions",
       header: "",
       cell: (c) => (
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -440,6 +443,19 @@ export function CertificatesIssuedPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={`Open certificate ${c.id} in a new tab`}
+            title="Open in new tab"
+            className="h-7 w-7 p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              openViewInNewTab("certificate-detail", { id: c.id });
+            }}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
         </div>
       ),
       width: "60px",
