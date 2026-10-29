@@ -52,7 +52,6 @@ const routes: RouteDefinition[] = [
   { path: "accounting-reconciliation", viewId: "accounting-reconciliation", label: "Reconciliation", permission: "accounting.read", module: "accounting" },
   { path: "accounting-invoices", viewId: "accounting-invoices", label: "Invoices", permission: "accounting.read", module: "accounting" },
   { path: "accounting-pl", viewId: "accounting-pl", label: "P&L Statement", permission: "accounting.read", module: "accounting" },
-  { path: "documents", viewId: "documents", label: "Documents", permission: ["payout.read", "payout.self"], module: "accounting" },
   // Payments & Billing (M7/M13) — guarded variants of the stitch routes;
   // registered here so module/permission guards apply (this module is
   // registered before stitch, so these definitions win).
