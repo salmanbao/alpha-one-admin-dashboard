@@ -15,6 +15,7 @@ import type {
   TenantContext,
 } from "./types";
 import { getSessionAudit } from "@/lib/audit";
+import { profitMarginPct, payoutRatioPct, avgOrderValue } from "@/lib/metrics";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -1673,16 +1674,18 @@ export function getFirmStatistics(tenantId: string) {
   const totalPayouts = payouts.reduce((s, p) => s + p.amount, 0) + 6808;
   const challengesSold = 1140;
   const netProfit = totalRevenue - totalPayouts;
-  const profitMargin = ((netProfit / totalRevenue) * 100).toFixed(1);
-  const avgChallengeValue = totalRevenue / challengesSold;
-  const payoutRatio = ((totalPayouts / totalRevenue) * 100).toFixed(1);
+  // Metric catalogue (lib/metrics.ts) — shared ratio helpers with
+  // explicit divide-by-zero handling; no more inline toFixed round-trips.
+  const profitMargin = profitMarginPct(netProfit, totalRevenue);
+  const avgChallengeValue = avgOrderValue(totalRevenue, challengesSold);
+  const payoutRatio = payoutRatioPct(totalPayouts, totalRevenue);
   return {
     totalRevenue,
     totalPayouts,
     netProfit,
-    profitMargin: parseFloat(profitMargin),
+    profitMargin,
     avgChallengeValue,
-    payoutRatio: parseFloat(payoutRatio),
+    payoutRatio,
     challengesSold,
     copyTradingEvents: 156352,
     inverseTradingEvents: 131673,

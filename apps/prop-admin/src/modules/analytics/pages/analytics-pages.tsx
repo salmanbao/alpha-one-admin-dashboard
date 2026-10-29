@@ -72,7 +72,7 @@ import { Button } from "@/components/ui/button";
 import { PermissionGuard, FeatureGuard } from "@/components/platform/guards";
 import { toast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/platform/export-utils";
-import { convertCurrency, formatConverted, getRateLabel, CURRENCIES } from "@/lib/platform/currency";
+import { convertCurrency, formatConverted, getRateLabel, fxRatesStale, fxRatesAgeDays, CURRENCIES } from "@/lib/platform/currency";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { Coins } from "lucide-react";
@@ -474,15 +474,24 @@ export function AnalyticsOverviewPage() {
         }
       />
       <PageContent>
-        {/* Exchange rate banner */}
+        {/* Exchange rate banner — carries the rate's as-of date and flags
+            a stale table so converted amounts aren't read as live values. */}
         {displayCurrency !== tenantCurrency ? (
-          <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
             <Coins className="h-3.5 w-3.5 text-primary" />
             <span className="text-muted-foreground">Converting from</span>
             <Badge variant="outline" className="text-[10px]">{tenantCurrency}</Badge>
             <span className="text-muted-foreground">→</span>
             <Badge variant="outline" className="text-[10px]">{displayCurrency}</Badge>
             <span className="ml-auto font-medium text-foreground">{getRateLabel(tenantCurrency, displayCurrency)}</span>
+            {fxRatesStale() ? (
+              <span
+                role="status"
+                className="w-full rounded-md bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-400 sm:w-auto"
+              >
+                Static demo rates — {fxRatesAgeDays()} days old, not live market values.
+              </span>
+            ) : null}
           </div>
         ) : null}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
