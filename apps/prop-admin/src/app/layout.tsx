@@ -3,12 +3,14 @@ import { Geist, Geist_Mono, Literata, Nunito_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
-/* Material Symbols — the Stitch design language icon set (ligature font). */
+/* Material Symbols — the Stitch design language icon set (ligature font).
+   Self-hosted from /public: the icon font must not depend on a third-party
+   CDN (offline builds, CSP, and availability are all fleet-owned here). */
 const materialSymbols = `
   @font-face {
     font-family: 'Material Symbols Outlined';
     font-style: normal;
-    src: url(https://fonts.gstatic.com/s/materialsymbolsoutlined/v201/kjeNqXKwxOnMGvHPOFjLd2gLtD5hA.woff2) format('woff2');
+    src: url(/fonts/material-symbols-outlined.woff2) format('woff2');
     font-display: block;
   }
   .ms-icon {
@@ -50,12 +52,12 @@ export const metadata: Metadata = {
   keywords: ["PFaaS", "prop firm", "multi-tenant", "white-label", "dashboard", "modules"],
   authors: [{ name: "PFaaS Platform" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    // Self-hosted — the previous icon pointed at an unrelated third-party CDN.
+    icon: "/logo.svg",
   },
   openGraph: {
     title: "PFaaS Platform",
     description: "Multi-tenant white-label prop firm dashboard platform.",
-    url: "https://chat.z.ai",
     siteName: "PFaaS",
     type: "website",
   },

@@ -1001,28 +1001,28 @@ export function OfferEditStitchPage() {
                       <span className="text-xs font-bold text-on-surface">Automated Activation at Specified UTC Timestamp</span>
                       <p className="text-[11px] text-tsc leading-snug mt-0.5">Engine will instantly switch offer to Active and enable coupon code SUMMER20 across edge checkout clusters.</p>
                     </div>
-                    <button aria-checked="true" className="w-11 h-6 bg-primary rounded-full p-0.5 transition-colors relative flex-shrink-0 cursor-pointer" type="button">                      <div className="w-5 h-5 bg-surface-container-lowest rounded-full shadow-sm translate-x-5 transition-transform"></div></button>
+                    <button role="switch" aria-checked="true" className="w-11 h-6 bg-primary rounded-full p-0.5 transition-colors relative flex-shrink-0 cursor-pointer" type="button">                      <div className="w-5 h-5 bg-surface-container-lowest rounded-full shadow-sm translate-x-5 transition-transform"></div></button>
                   </div>
                   <div className="p-3.5 bg-surface-container-low rounded-xl flex items-start justify-between gap-4">
                     <div className="flex flex-col pr-2">
                       <span className="text-xs font-bold text-on-surface">Pre-Warm Edge CDN Cache 15 minutes prior</span>
                       <p className="text-[11px] text-tsc leading-snug mt-0.5">Ensures 0ms cold-start latency for modal popups and promotional banners across all regional clusters.</p>
                     </div>
-                    <button aria-checked="true" className="w-11 h-6 bg-primary rounded-full p-0.5 transition-colors relative flex-shrink-0 cursor-pointer" type="button">                      <div className="w-5 h-5 bg-surface-container-lowest rounded-full shadow-sm translate-x-5 transition-transform"></div></button>
+                    <button role="switch" aria-checked="true" className="w-11 h-6 bg-primary rounded-full p-0.5 transition-colors relative flex-shrink-0 cursor-pointer" type="button">                      <div className="w-5 h-5 bg-surface-container-lowest rounded-full shadow-sm translate-x-5 transition-transform"></div></button>
                   </div>
                   <div className="p-3.5 bg-surface-container-low rounded-xl flex items-start justify-between gap-4">
                     <div className="flex flex-col pr-2">
                       <span className="text-xs font-bold text-on-surface">Auto-Deactivate on Campaign Expiry</span>
                       <p className="text-[11px] text-tsc leading-snug mt-0.5">Automatically archive offer at 23:59:59 UTC on June 30, 2025. In-flight checkouts granted a 15-minute grace period.</p>
                     </div>
-                    <button aria-checked="true" className="w-11 h-6 bg-primary rounded-full p-0.5 transition-colors relative flex-shrink-0 cursor-pointer" type="button">                      <div className="w-5 h-5 bg-surface-container-lowest rounded-full shadow-sm translate-x-5 transition-transform"></div></button>
+                    <button role="switch" aria-checked="true" className="w-11 h-6 bg-primary rounded-full p-0.5 transition-colors relative flex-shrink-0 cursor-pointer" type="button">                      <div className="w-5 h-5 bg-surface-container-lowest rounded-full shadow-sm translate-x-5 transition-transform"></div></button>
                   </div>
                   <div className="p-3.5 bg-surface-container-low rounded-xl flex items-start justify-between gap-4">
                     <div className="flex flex-col pr-2">
                       <span className="text-xs font-bold text-on-surface">Email Notification to Matched Segment Traders</span>
                       <p className="text-[11px] text-tsc leading-snug mt-0.5">Dispatches promotional announcement email to 18,400 qualified accounts upon activation.</p>
                     </div>
-                    <button aria-checked="false" className="w-11 h-6 bg-surface-container-highest rounded-full p-0.5 transition-colors relative flex-shrink-0 cursor-pointer" type="button">                      <div className="w-5 h-5 bg-surface-container-lowest rounded-full shadow-sm translate-x-0 transition-transform"></div></button>
+                    <button role="switch" aria-checked="false" className="w-11 h-6 bg-surface-container-highest rounded-full p-0.5 transition-colors relative flex-shrink-0 cursor-pointer" type="button">                      <div className="w-5 h-5 bg-surface-container-lowest rounded-full shadow-sm translate-x-0 transition-transform"></div></button>
                   </div>
                 </div>
               </div>

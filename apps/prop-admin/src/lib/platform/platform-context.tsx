@@ -275,7 +275,6 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
     try {
       const stored = window.localStorage.getItem(`pfaas:hiddenWidgets:${tenant.id}`);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHiddenWidgets(stored ? new Set(JSON.parse(stored) as string[]) : new Set());
       setSidebarCollapsed(window.localStorage.getItem(`pfaas:sidebarCollapsed:${tenant.id}`) === "1");
     } catch { /* ignore parse errors */ }
