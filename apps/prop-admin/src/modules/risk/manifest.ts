@@ -16,7 +16,7 @@ const navigation: NavigationItem[] = [
     children: [
       // ───────── Overview & Breaches ─────────
       { id: "risk.overview", label: "Overview", href: "risk", icon: ShieldCheck, permission: ["risk.read", "risk.self", "breach.self"], group: "Overview & Breaches" },
-      { id: "risk.breaches", label: "My Breaches", href: "breaches", icon: ShieldAlert, permission: ["breach.read", "breach.self"], group: "Overview & Breaches" },
+      // "My Breaches" moved to the self-service module (§6.6).
       { id: "risk.cases", label: "Risk Cases", href: "risk-cases", icon: ShieldAlert, permission: ["risk.read", "breach.self"], group: "Overview & Breaches" },
       { id: "risk.statistics", label: "Statistics", href: "risk-statistics", icon: BarChart3, permission: "risk.read", group: "Overview & Breaches" },
       { id: "risk.revenue-loss", label: "Revenue Loss", href: "risk-revenue-loss", icon: TrendingDown, permission: "risk.read", group: "Overview & Breaches" },

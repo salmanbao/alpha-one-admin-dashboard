@@ -2,7 +2,7 @@
  * Challenges Module — manifest, navigation, routes, widgets, settings.
  */
 
-import { Target, Trophy, Clock, AlertCircle, Flame, Plus, Settings2, Layers, GitBranch, Edit3 } from "lucide-react";
+import { Target, Clock, Plus, Settings2, Layers, GitBranch, Edit3 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { ChallengeOverviewWidget, ChallengeProgressWidget, ChallengePhasesWidget } from "./widgets/challenge-widgets";
 
@@ -15,10 +15,9 @@ const navigation: NavigationItem[] = [
     order: 20,
     children: [
       // ───────── Status ─────────
+      // My Active / My Passed / My Failed moved to the self-service
+      // module (§6.6 trader-facing views grouped in one section).
       { id: "challenges.overview", label: "Overview", href: "challenges", icon: Target, permission: ["challenge.read", "challenge.self"], group: "Status" },
-      { id: "challenges.active", label: "My Active", href: "challenges-active", icon: Flame, permission: ["challenge.read", "challenge.self"], group: "Status" },
-      { id: "challenges.passed", label: "My Passed", href: "challenges-passed", icon: Trophy, permission: ["challenge.read", "challenge.self"], group: "Status" },
-      { id: "challenges.failed", label: "My Failed", href: "challenges-failed", icon: AlertCircle, permission: ["challenge.read", "challenge.self"], group: "Status" },
 
       // ───────── Management ─────────
       { id: "challenges.wizard", label: "Create Challenge", href: "challenge-wizard", icon: Plus, permission: "challenge.create", group: "Management" },
