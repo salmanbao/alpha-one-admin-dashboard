@@ -789,6 +789,8 @@ export function DashboardPayoutsTab({ params }: { params: Record<string, string>
             rowKey={(r) => r.id}
             searchableText={(r) => `${r.id} ${r.trader} ${r.method} ${r.status}`}
             searchPlaceholder="Search withdrawals…"
+            emptyTitle="No withdrawals match"
+            emptyDescription="Adjust your search or clear the status filter."
             pageSize={8}
           />
         </div>
@@ -1061,6 +1063,8 @@ export function DashboardOrdersTab({ params }: { params: Record<string, string> 
             rowKey={(r) => r.country}
             searchableText={(r) => r.country}
             searchPlaceholder="Search countries…"
+            emptyTitle="No country data yet"
+            emptyDescription="Country breakdowns appear once withdrawals are recorded."
             pageSize={10}
           />
         </div>
@@ -1254,6 +1258,8 @@ export function DashboardPositionsTab({ params }: { params: Record<string, strin
             rowKey={(r) => r.symbol}
             searchableText={(r) => r.symbol}
             searchPlaceholder="Search symbols…"
+            emptyTitle="No symbol data yet"
+            emptyDescription="Top traded symbols appear once trading activity is recorded."
             pageSize={10}
           />
         </div>

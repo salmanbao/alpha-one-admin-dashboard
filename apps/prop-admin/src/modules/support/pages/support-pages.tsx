@@ -302,6 +302,8 @@ export function SupportOverviewPage() {
               ]}
               data={recent}
               rowKey={(t) => t.id}
+              emptyTitle="No recent tickets"
+              emptyDescription="New support tickets will surface here as traders reach out."
               pageSize={6}
             />
           </div>
@@ -369,6 +371,8 @@ export function SupportTicketsPage() {
           data={tickets}
           rowKey={(t) => t.id}
           searchableText={(t) => `${t.subject} ${t.traderName} ${t.category} ${t.assignee ?? ""}`}
+          emptyTitle="No tickets match"
+          emptyDescription="Adjust your search or clear the status filter to see more tickets."
           onRowClick={(t) => {
             setSelectedTicket(t);
             setReply("");

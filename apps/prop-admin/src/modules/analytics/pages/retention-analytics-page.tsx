@@ -260,6 +260,8 @@ export function RetentionAnalyticsPage() {
             columns={countryColumns}
             data={topCountries}
             rowKey={(r) => r.country}
+            emptyTitle="No retention data yet"
+            emptyDescription="Country retention appears once traders have activity across periods."
             pageSize={10}
           />
         </div>

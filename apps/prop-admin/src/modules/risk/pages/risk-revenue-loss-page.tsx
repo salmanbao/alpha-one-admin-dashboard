@@ -344,6 +344,8 @@ export function RiskRevenueLossPage() {
             columns={columns}
             data={weeklyRows}
             rowKey={(r) => `w-${r.period}`}
+            emptyTitle="No weekly payout activity"
+            emptyDescription="Weekly revenue trends appear once payouts are processed."
             pageSize={5}
           />
         </div>
@@ -358,6 +360,8 @@ export function RiskRevenueLossPage() {
             columns={columns}
             data={monthlyRows}
             rowKey={(r) => `m-${r.period}`}
+            emptyTitle="No monthly payout activity"
+            emptyDescription="Monthly revenue trends appear once payouts are processed."
             pageSize={5}
           />
         </div>

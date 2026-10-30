@@ -262,6 +262,8 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
       onRowClick={(p) => openPanel("payout-detail", { id: p.reference })}
       searchableText={(p) => `${p.reference} ${p.traderName} ${p.method} ${p.status}`}
       searchPlaceholder={resolveTermsInString("Search payouts…", tenant)}
+      emptyTitle="No payouts yet"
+      emptyDescription="Withdrawal requests will appear here once traders submit them."
     />
   );
 }
