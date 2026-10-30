@@ -15,9 +15,20 @@ export function LoginPage() {
   const [email, setEmail] = useState("tom.allen@terra.trader");
   const [password, setPassword] = useState("••••••••");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!email.trim()) e.email = "Email is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = "Enter a valid email address.";
+    if (!password || password.length < 6) e.password = "Password must be at least 6 characters.";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!validate()) return;
     setLoading(true);
     setTimeout(() => router.push("/dashboard"), 600);
   }
@@ -45,9 +56,12 @@ export function LoginPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm outline-none focus:border-primary"
+                onChange={(e) => { setEmail(e.target.value); setErrors((prev) => { const n = { ...prev }; delete n.email; return n; }); }}
+                aria-invalid={!!errors.email}
+                aria-describedby="email-error"
+                className={`rounded-lg border bg-surface-container-lowest px-3 py-2.5 text-sm outline-none focus:border-primary ${errors.email ? "border-error" : "border-outline-variant"}`}
               />
+              {errors.email && <p id="email-error" className="text-xs text-error">{errors.email}</p>}
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -59,9 +73,12 @@ export function LoginPage() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm outline-none focus:border-primary"
+                onChange={(e) => { setPassword(e.target.value); setErrors((prev) => { const n = { ...prev }; delete n.password; return n; }); }}
+                aria-invalid={!!errors.password}
+                aria-describedby="password-error"
+                className={`rounded-lg border bg-surface-container-lowest px-3 py-2.5 text-sm outline-none focus:border-primary ${errors.password ? "border-error" : "border-outline-variant"}`}
               />
+              {errors.password && <p id="password-error" className="text-xs text-error">{errors.password}</p>}
             </label>
             <label className="flex items-center gap-2 text-xs text-on-surface-variant">
               <input type="checkbox" defaultChecked className="accent-primary" />
