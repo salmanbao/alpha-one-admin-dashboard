@@ -327,6 +327,8 @@ export function UserEventDetailPage() {
               data={related}
               rowKey={(e) => e.id}
               onRowClick={(e) => navigate("audit-user-event-detail", { id: e.id })}
+              emptyTitle="No related events"
+              emptyDescription="No other events reference this entity."
               pageSize={5}
             />
           )}

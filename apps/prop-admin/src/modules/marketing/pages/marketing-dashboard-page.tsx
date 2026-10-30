@@ -463,6 +463,8 @@ export function MarketingDashboardPage() {
               rowKey={(r) => r.symbol}
               searchableText={(r) => r.symbol}
               searchPlaceholder="Search symbols…"
+              emptyTitle="No trading pairs yet"
+              emptyDescription="Top trading pairs appear once traders execute trades."
               pageSize={10}
             />
           </div>
@@ -477,6 +479,8 @@ export function MarketingDashboardPage() {
               rowKey={(r) => r.country}
               searchableText={(r) => r.country}
               searchPlaceholder="Search countries…"
+              emptyTitle="No country data yet"
+              emptyDescription="Payout destinations appear once payouts are processed."
               pageSize={10}
             />
           </div>

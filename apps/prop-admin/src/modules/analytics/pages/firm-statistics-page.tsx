@@ -229,6 +229,8 @@ export function FirmStatisticsPage() {
             rowKey={(r) => r.metric}
             searchableText={(r) => `${r.metric} ${r.formula}`}
             searchPlaceholder="Search metrics…"
+            emptyTitle="No metrics match"
+            emptyDescription="Adjust your search to find a firm statistic."
             pageSize={10}
           />
         </div>

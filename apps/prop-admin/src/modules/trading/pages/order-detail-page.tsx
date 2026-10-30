@@ -971,6 +971,8 @@ function AccountsTable({
       columns={columns}
       data={accounts}
       rowKey={(a) => a.id}
+      emptyTitle="No linked accounts"
+      emptyDescription="This trader has no accounts matching the current filter."
       pageSize={5}
     />
   );
@@ -1044,6 +1046,8 @@ function SubscriptionTable({
       columns={columns}
       data={rows}
       rowKey={(r) => r.id}
+      emptyTitle="No subscriptions"
+      emptyDescription="No subscription records match this order."
       pageSize={5}
     />
   );

@@ -286,6 +286,8 @@ export function AuditLogTable({ entries }: { entries: AuditEntry[] }) {
         rowKey={(r) => r.id}
         searchableText={(r) => `${r.actor} ${r.action} ${r.entity} ${r.summary}`}
         searchPlaceholder="Search audit log…"
+        emptyTitle="No audit events match"
+        emptyDescription="Adjust your search, or widen the date range to include older activity."
         pageSize={10}
       />
     </div>
