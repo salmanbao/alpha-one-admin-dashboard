@@ -5,42 +5,26 @@
  * before/after values (spec section 40 — Change History stream).
  *
  * Each row visually renders the diff: old value in rose strikethrough,
- * an arrow, new value in emerald. Row click opens a detail drawer so
- * the operator can see the full change context (actor, reason, entity
- * reference) before deciding whether to roll back.
+ * an arrow, new value in emerald. List-only view — row click opens the
+ * change detail as an overlay sheet (?panel=audit-change-detail&id=…)
+ * so the operator can see the full change context (actor, reason, entity
+ * reference) before deciding whether to roll back; the 3-dot/new-tab icon
+ * opens the same detail full-page in a new browser tab.
  */
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { resolveTermsInString } from "@/lib/platform/terminology";
 import { getChangeHistory, getTenantChangeHistory, type ChangeHistoryEntry } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
-import { ArrowRight, History, Filter, X, Download } from "lucide-react";
+import { ArrowRight, History, Filter, X, Download, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 import { exportToCsv } from "@/lib/platform/export-utils";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
 
 const ENTITY_TYPES = [
   "Challenge",
@@ -52,8 +36,24 @@ const ENTITY_TYPES = [
   "Email Template",
 ] as const;
 
+/**
+ * Look up a single change-history entry by id within a tenant's stream.
+ * Shared with change-history-detail-page (same pattern as
+ * getIssuedCertificate exported from certificates-issued-page).
+ * Returns undefined when the id isn't in the tenant's stream (e.g. a
+ * cross-tenant deep link) so the detail page can render its not-found state.
+ */
+export function getChangeHistoryEntry(
+  id: string,
+  tid: string,
+): ChangeHistoryEntry | undefined {
+  const all = tid === "platform" ? getChangeHistory() : getTenantChangeHistory(tid);
+  return all.find((c) => c.id === id);
+}
+
 export function ChangeHistoryPage() {
   const { runtime, tenant } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   const tid = runtime.tenant?.id ?? "platform";
   const allChanges = useMemo(
     () => (tid === "platform" ? getChangeHistory() : getTenantChangeHistory(tid)),
@@ -64,7 +64,6 @@ export function ChangeHistoryPage() {
   const [entityFilter, setEntityFilter] = useState<string>("all");
   const [actorFilter, setActorFilter] = useState<string>("");
   const [dateRange, setDateRange] = useState<string>("all");
-  const [selected, setSelected] = useState<ChangeHistoryEntry | null>(null);
 
   const actors = useMemo(
     () => Array.from(new Set(allChanges.map((c) => c.actor))),
@@ -154,6 +153,24 @@ export function ChangeHistoryPage() {
       key: "reason",
       header: "Reason",
       cell: (c) => <span className="text-xs text-muted-foreground">{c.reason}</span>,
+    },
+    {
+      // Pattern pair: primary click (row) → overlay detail; the icon →
+      // the same detail in a new browser tab.
+      key: "actions",
+      header: "",
+      cell: (c) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={`Open change ${c.id} in a new tab`}
+          title="Open in new tab"
+          className="h-7 w-7 p-0"
+          onClick={(ev) => { ev.stopPropagation(); openViewInNewTab("audit-change-detail", { id: c.id }); }}
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
+      ),
     },
   ];
 
@@ -252,107 +269,12 @@ export function ChangeHistoryPage() {
             columns={columns}
             data={filtered}
             rowKey={(c) => c.id}
-            onRowClick={(c) => setSelected(c)}
+            onRowClick={(c) => openPanel("audit-change-detail", { id: c.id })}
             pageSize={10}
             emptyTitle="No changes match your filters"
             emptyDescription="Adjust the filters or widen the date range to see more change history."
           />
         </div>
-
-        {/* Detail panel */}
-        <Sheet open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
-          <SheetContent className="w-full sm:max-w-md">
-            {selected ? (
-              <>
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2">
-                    <History className="h-4 w-4 text-muted-foreground" />
-                    Change Detail
-                  </SheetTitle>
-                  <SheetDescription>
-                    Full context for this configuration change.
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="mt-4 space-y-4 text-sm">
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Timestamp</p>
-                      <p className="font-mono text-xs">{new Date(selected.timestamp).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Actor</p>
-                      <p className="font-medium">{selected.actor}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Reason</p>
-                      <p className="text-xs">{selected.reason}</p>
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Entity</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px]">{selected.entityType}</Badge>
-                      <span className="font-mono text-xs">{selected.entityId}</span>
-                    </div>
-                    <p className="mt-2 text-[10px] uppercase tracking-wide text-muted-foreground">Field</p>
-                    <p className="font-medium">{selected.field}</p>
-                  </div>
-                  <div className="rounded-lg border p-3">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Diff</p>
-                    <div className="mt-2 flex items-center gap-3">
-                      <div className="flex-1 rounded-md bg-rose-50 dark:bg-rose-950/30 p-2">
-                        <p className="text-[9px] uppercase tracking-wide text-rose-700 dark:text-rose-400">Old</p>
-                        <p className="text-sm text-rose-600 line-through dark:text-rose-400">{selected.oldValue}</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                      <div className="flex-1 rounded-md bg-emerald-50 dark:bg-emerald-950/30 p-2">
-                        <p className="text-[9px] uppercase tracking-wide text-emerald-700 dark:text-emerald-400">New</p>
-                        <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{selected.newValue}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1"
-                        >
-                          Roll back to old value
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Roll back this change?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This change will be rolled back to the previous
-                            state. Any dependent configurations may be
-                            affected. This action is logged in the audit trail.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => {
-                              toast({
-                                title: "Rollback queued",
-                                description: `Reverting ${selected.field} to ${selected.oldValue}.`,
-                              });
-                              setSelected(null);
-                            }}
-                          >
-                            Roll back
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              </>
-            ) : null}
-          </SheetContent>
-        </Sheet>
       </PageContent>
     </Page>
   );

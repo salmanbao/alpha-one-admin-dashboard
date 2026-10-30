@@ -57,6 +57,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   orders: dynamic(() => import("@/modules/trading/pages/orders-page").then((m) => ({ default: m.OrdersPage })), { loading: ViewSkeleton }),
   "account-provisioning": dynamic(() => import("@/modules/trading/pages/account-provisioning-page").then((m) => ({ default: m.AccountProvisioningPage })), { loading: ViewSkeleton }),
   "evaluation-queue": dynamic(() => import("@/modules/trading/pages/evaluation-queue-page").then((m) => ({ default: m.EvaluationQueuePage })), { loading: ViewSkeleton }),
+  "evaluation-detail": dynamic(() => import("@/modules/trading/pages/evaluation-detail-page").then((m) => ({ default: m.EvaluationDetailPage })), { loading: ViewSkeleton }),
 
   /* challenges */
   challenges: dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then((m) => ({ default: m.ChallengesOverviewStitchPage })), { loading: ViewSkeleton }),
@@ -83,6 +84,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   risk: dynamic(() => import("@/modules/risk/pages/risk-pages").then((m) => ({ default: m.RiskOverviewPage })), { loading: ViewSkeleton }),
   breaches: dynamic(() => import("@/modules/risk/pages/risk-pages").then((m) => ({ default: m.BreachesPage })), { loading: ViewSkeleton }),
   "risk-cases": dynamic(() => import("@/modules/risk/pages/risk-cases-page").then((m) => ({ default: m.RiskCasesPage })), { loading: ViewSkeleton }),
+  "risk-case-detail": dynamic(() => import("@/modules/risk/pages/risk-case-detail-page").then((m) => ({ default: m.RiskCaseDetailPage })), { loading: ViewSkeleton }),
   "risk-statistics": dynamic(() => import("@/modules/risk/pages/risk-statistics-page").then((m) => ({ default: m.RiskStatisticsPage })), { loading: ViewSkeleton }),
   "trading-events": dynamic(() => import("@/modules/risk/pages/trading-events-page").then((m) => ({ default: m.TradingEventsPage })), { loading: ViewSkeleton }),
   "copy-trading-events": dynamic(() => import("@/modules/risk/pages/copy-trading-events-page").then((m) => ({ default: m.CopyTradingEventsPage })), { loading: ViewSkeleton }),
@@ -182,6 +184,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   /* audit — new flows */
   "audit-user-events": dynamic(() => import("@/modules/audit/user-events-page").then((m) => ({ default: m.UserEventsPage })), { loading: ViewSkeleton }),
   "audit-change-history": dynamic(() => import("@/modules/audit/change-history-page").then((m) => ({ default: m.ChangeHistoryPage })), { loading: ViewSkeleton }),
+  "audit-change-detail": dynamic(() => import("@/modules/audit/change-history-detail-page").then((m) => ({ default: m.ChangeHistoryDetailPage })), { loading: ViewSkeleton }),
   "audit-user-event-detail": dynamic(() => import("@/modules/audit/user-event-detail-page").then((m) => ({ default: m.UserEventDetailPage })), { loading: ViewSkeleton }),
 
   /* settings — new flows */
