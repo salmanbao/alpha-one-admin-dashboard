@@ -137,13 +137,16 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "offer-matching-users": dynamic(() => import("@/modules/affiliates/pages/offer-matching-users-page").then((m) => ({ default: m.OfferMatchingUsersPage })), { loading: ViewSkeleton }),
   "offer-change-history": dynamic(() => import("@/modules/affiliates/pages/offer-change-history-page").then((m) => ({ default: m.OfferChangeHistoryPage })), { loading: ViewSkeleton }),
   "affiliate-coupons": dynamic(() => import("@/modules/affiliates/pages/affiliate-coupons-page").then((m) => ({ default: m.AffiliateCouponsPage })), { loading: ViewSkeleton }),
+  "affiliate-coupon-detail": dynamic(() => import("@/modules/affiliates/pages/affiliate-coupon-detail-page").then((m) => ({ default: m.AffiliateCouponDetailPage })), { loading: ViewSkeleton }),
   "affiliate-link-tracking": dynamic(() => import("@/modules/affiliates/pages/affiliate-link-tracking-page").then((m) => ({ default: m.AffiliateLinkTrackingPage })), { loading: ViewSkeleton }),
+  "affiliate-link-detail": dynamic(() => import("@/modules/affiliates/pages/affiliate-link-detail-page").then((m) => ({ default: m.AffiliateLinkDetailPage })), { loading: ViewSkeleton }),
 
   /* accounting */
   accounting: dynamic(() => import("@/modules/accounting/pages/accounting-pages").then((m) => ({ default: m.AccountingOverviewPage })), { loading: ViewSkeleton }),
   "accounting-transactions": dynamic(() => import("@/modules/accounting/pages/accounting-pages").then((m) => ({ default: m.TransactionsPage })), { loading: ViewSkeleton }),
   "accounting-reconciliation": dynamic(() => import("@/modules/accounting/pages/accounting-pages").then((m) => ({ default: m.ReconciliationPage })), { loading: ViewSkeleton }),
   "accounting-invoices": dynamic(() => import("@/modules/accounting/pages/accounting-invoices-page").then((m) => ({ default: m.AccountingInvoicesPage })), { loading: ViewSkeleton }),
+  "accounting-invoice-detail": dynamic(() => import("@/modules/accounting/pages/accounting-invoice-detail-page").then((m) => ({ default: m.AccountingInvoiceDetailPage })), { loading: ViewSkeleton }),
   "accounting-pl": dynamic(() => import("@/modules/accounting/pages/accounting-pl-page").then((m) => ({ default: m.AccountingPlPage })), { loading: ViewSkeleton }),
 
   /* marketing */

@@ -14,6 +14,8 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -64,13 +66,14 @@ import {
   Wallet,
   CalendarClock,
   Receipt,
+  ExternalLink,
 } from "lucide-react";
 
 /* ---------------------------------------------------------------- */
 /* Types                                                            */
 /* ---------------------------------------------------------------- */
 
-type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled";
+export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled";
 
 interface LineItem {
   desc: string;
@@ -79,7 +82,7 @@ interface LineItem {
   tax: number;
 }
 
-interface Invoice {
+export interface Invoice {
   id: string;
   trader: string;
   email: string;
@@ -272,11 +275,24 @@ const STATUS_TONE: Record<InvoiceStatus, "muted" | "info" | "success" | "danger"
   cancelled: "muted",
 };
 
-function invoiceStatusTone(s: InvoiceStatus) {
+export function invoiceStatusTone(s: InvoiceStatus) {
   return STATUS_TONE[s];
 }
 
-function fmtDate(iso: string): string {
+/**
+ * Look up a single invoice by id (shared with
+ * accounting-invoice-detail-page — same pattern as getChangeHistoryEntry).
+ *
+ * `buildInvoices()` anchors its dates to Date.now(), so this rebuilds the
+ * list on each call: ids are year-scoped (INV-YYYY-NNN) and stable, while
+ * the issued/due dates always reflect "today" — the same data the list
+ * would show when the operator clicked the row.
+ */
+export function getInvoice(id: string): Invoice | undefined {
+  return buildInvoices().find((i) => i.id === id);
+}
+
+export function fmtDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -313,11 +329,10 @@ export function AccountingInvoicesPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const currency = runtime.tenant?.currency ?? "USD";
-  const brandName = tenant?.branding?.name ?? "Platform";
 
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "all">("all");
   const [dateRange, setDateRange] = useState<string>("all");
-  const [selected, setSelected] = useState<Invoice | null>(null);
+  const { openPanel } = useDetailOverlay();
   const [creating, setCreating] = useState(false);
   const [draftTrader, setDraftTrader] = useState("");
   const [draftEmail, setDraftEmail] = useState("");
@@ -515,7 +530,7 @@ export function AccountingInvoicesPage() {
             variant="ghost"
             className="h-7 px-2 text-xs"
             aria-label={`View invoice ${i.id}`}
-            onClick={() => setSelected(i)}
+            onClick={() => openPanel("accounting-invoice-detail", { id: i.id })}
           >
             <Eye className="mr-1 h-3.5 w-3.5" /> View
           </Button>
@@ -561,6 +576,16 @@ export function AccountingInvoicesPage() {
               <XCircle className="mr-1 h-3.5 w-3.5" /> Cancel
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            aria-label={`Open invoice ${i.id} in a new tab`}
+            title="Open in new tab"
+            onClick={() => openViewInNewTab("accounting-invoice-detail", { id: i.id })}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
         </div>
       ),
       width: "min-w-[260px]",
@@ -652,136 +677,11 @@ export function AccountingInvoicesPage() {
           searchableText={(i) => `${i.id} ${i.trader} ${i.email} ${i.status}`}
           searchPlaceholder="Search invoices…"
           pageSize={8}
+          onRowClick={(i) => openPanel("accounting-invoice-detail", { id: i.id })}
           emptyTitle="No invoices match"
           emptyDescription="Adjust the status or date filters to see more invoices."
         />
       </PageContent>
-
-      {/* Invoice Sheet drawer (View) */}
-      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <span className="font-mono">{selected?.id}</span>
-              {selected ? (
-                <StatusBadge tone={invoiceStatusTone(selected.status)} className="capitalize">
-                  {selected.status}
-                </StatusBadge>
-              ) : null}
-            </SheetTitle>
-            <SheetDescription>
-              Issued {selected ? fmtDate(selected.issueDate) : ""} · Due{" "}
-              {selected ? fmtDate(selected.dueDate) : ""}
-            </SheetDescription>
-          </SheetHeader>
-
-          {selected ? (
-            <div className="flex flex-col gap-4 px-4 pb-4">
-              {/* Bill From / Bill To */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border bg-muted/30 p-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Bill From</p>
-                  <p className="mt-1 font-medium text-foreground">{brandName}</p>
-                  <p className="text-xs text-muted-foreground">accounts@{brandName.toLowerCase().replace(/\s+/g, "")}.com</p>
-                  <p className="text-xs text-muted-foreground">Financial Operations</p>
-                </div>
-                <div className="rounded-lg border bg-muted/30 p-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Bill To</p>
-                  <p className="mt-1 font-medium text-foreground">{selected.trader}</p>
-                  <p className="text-xs text-muted-foreground">{selected.email}</p>
-                  <p className="text-xs text-muted-foreground">{term("account")}</p>
-                </div>
-              </div>
-
-              {/* Line items */}
-              <div className="rounded-lg border">
-                <div className="grid grid-cols-[1fr_60px_90px_80px_90px] gap-2 border-b bg-muted/40 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  <span>Description</span>
-                  <span className="text-right">Qty</span>
-                  <span className="text-right">Unit</span>
-                  <span className="text-right">Tax</span>
-                  <span className="text-right">Total</span>
-                </div>
-                {selected.lineItems.map((li, idx) => {
-                  const lineTotal = li.qty * li.unit + li.tax;
-                  return (
-                    <div
-                      key={idx}
-                      className="grid grid-cols-[1fr_60px_90px_80px_90px] gap-2 px-3 py-2 text-sm tabular-nums"
-                    >
-                      <span className="truncate text-foreground">{li.desc}</span>
-                      <span className="text-right">{li.qty}</span>
-                      <span className="text-right text-muted-foreground">{formatCurrency(li.unit, currency)}</span>
-                      <span className="text-right text-muted-foreground">{formatCurrency(li.tax, currency)}</span>
-                      <span className="text-right font-medium">{formatCurrency(lineTotal, currency)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Totals */}
-              <div className="ml-auto w-full max-w-xs space-y-1.5 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="tabular-nums">{formatCurrency(selected.amount, currency)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Tax</span>
-                  <span className="tabular-nums">{formatCurrency(selected.tax, currency)}</span>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between text-base font-semibold">
-                  <span>Grand Total</span>
-                  <span className="tabular-nums">{formatCurrency(selected.total, currency)}</span>
-                </div>
-              </div>
-
-              {/* Notes */}
-              {selected.notes ? (
-                <div className="rounded-lg border bg-muted/20 p-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Notes</p>
-                  <p className="mt-1 text-sm text-foreground">{selected.notes}</p>
-                </div>
-              ) : null}
-
-              {/* Footer actions — §22 contextual actions where the decision happens */}
-              <SheetFooter className="flex-row flex-wrap gap-2 border-t pt-4">
-                <Button size="sm" variant="outline" onClick={() => handleDownloadPdf(selected)}>
-                  <Download className="mr-1 h-4 w-4" /> Download PDF
-                </Button>
-                {(selected.status === "draft" || selected.status === "sent") && (
-                  <Button size="sm" variant="outline" onClick={() => handleSend(selected)}>
-                    <Send className="mr-1 h-4 w-4" /> Send Email
-                  </Button>
-                )}
-                {selected.status !== "paid" && selected.status !== "cancelled" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-emerald-600"
-                    onClick={() => handleMarkPaid(selected)}
-                  >
-                    <CheckCircle2 className="mr-1 h-4 w-4" /> Mark Paid
-                  </Button>
-                )}
-                {selected.status !== "cancelled" && selected.status !== "paid" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-rose-600"
-                    onClick={() => {
-                      setCancelTarget(selected);
-                      setSelected(null);
-                    }}
-                  >
-                    <XCircle className="mr-1 h-4 w-4" /> Cancel Invoice
-                  </Button>
-                )}
-              </SheetFooter>
-            </div>
-          ) : null}
-        </SheetContent>
-      </Sheet>
 
       {/* Create Invoice Sheet drawer */}
       <Sheet open={creating} onOpenChange={(o) => !o && setCreating(false)}>
