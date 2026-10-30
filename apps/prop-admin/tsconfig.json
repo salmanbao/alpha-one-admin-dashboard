@@ -48,6 +48,9 @@
       "@/components/platform/detail-overlay": [
         "./src/components/platform/detail-overlay"
       ],
+      "@/components/platform/platform-empty-state": [
+        "./src/components/platform/platform-empty-state"
+      ],
       "@/components/platform/*": [
         "../../packages/ui/src/components/platform/*"
       ],

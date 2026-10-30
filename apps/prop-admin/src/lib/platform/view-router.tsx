@@ -168,6 +168,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "kyc-reviews": dynamic(() => import("@/modules/kyc/pages/kyc-pages").then((m) => ({ default: m.KycReviewsPage })), { loading: ViewSkeleton }),
   "kyc-risk": dynamic(() => import("@/modules/kyc/pages/kyc-pages").then((m) => ({ default: m.KycRiskPage })), { loading: ViewSkeleton }),
   "kyc-document-requests": dynamic(() => import("@/modules/kyc/pages/kyc-document-requests-page").then((m) => ({ default: m.KycDocumentRequestsPage })), { loading: ViewSkeleton }),
+  "kyc-rejected-queue": dynamic(() => import("@/modules/kyc/pages/kyc-rejected-queue-page").then((m) => ({ default: m.KycRejectedQueuePage })), { loading: ViewSkeleton }),
   "kyc-onboarding": dynamic(() => import("@/modules/kyc/pages/kyc-onboarding-page").then((m) => ({ default: m.KycOnboardingPage })), { loading: ViewSkeleton }),
   "kyc-status": dynamic(() => import("@/modules/kyc/pages/kyc-status-page").then((m) => ({ default: m.KycStatusPage })), { loading: ViewSkeleton }),
 

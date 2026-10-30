@@ -47,7 +47,7 @@ export function PayoutHistoryPage() {
             <span key="amt" className="font-bold tabular-nums">{formatMoney(p.amount)}</span>,
             <span key="meth">{p.method}</span>,
             <span key="status">
-              <TerraBadge tone={p.status === "paid" ? "success" : "tertiary"}>{p.status}</TerraBadge>
+              <TerraBadge tone={p.status === "paid" ? "success" : p.status === "rejected" ? "error" : "tertiary"}>{p.status}</TerraBadge>
             </span>,
             <span key="req">{p.requestedAt.slice(0, 10)}</span>,
             <span key="exp">{p.expectedAt.slice(0, 10)}</span>,

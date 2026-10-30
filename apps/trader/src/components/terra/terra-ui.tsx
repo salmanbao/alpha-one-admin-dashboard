@@ -6,6 +6,7 @@
  */
 
 import { cn } from "@pfaas/ui";
+import { formatCurrencyValue, formatSignedCurrencyValue } from "@pfaas/platform-core";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -13,18 +14,17 @@ import type { ReactNode } from "react";
 /* Formatting helpers                                                  */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Canonical money formatting comes from `@pfaas/platform-core`
+ * (audit fix #9 — one formatting utility for every dashboard). These
+ * thin wrappers keep the Terra call sites unchanged.
+ */
 export function formatMoney(value: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+  return formatCurrencyValue(value, currency);
 }
 
 export function formatSignedMoney(value: number, currency = "USD"): string {
-  const sign = value >= 0 ? "+" : "−";
-  return `${sign}${formatMoney(Math.abs(value), currency)}`;
+  return formatSignedCurrencyValue(value, currency);
 }
 
 export function formatNumber(value: number): string {
