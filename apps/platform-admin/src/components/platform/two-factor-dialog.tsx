@@ -67,6 +67,19 @@ export function TwoFactorDialog({
     }
   }, [open]);
 
+  // Keyboard accessibility: Escape closes dialog (unless verifying)
+  useEffect(() => {
+    if (!open || verifying) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onOpenChange(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, verifying, onOpenChange]);
+
   useEffect(() => {
     if (!open || resendIn <= 0) return;
     const t = setTimeout(() => setResendIn((s) => s - 1), 1000);

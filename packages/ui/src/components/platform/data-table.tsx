@@ -8,7 +8,7 @@
  * URL state is handled by the consumer (kept simple here for the demo).
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -46,49 +46,11 @@ interface DataTableProps<T> {
   toolbar?: React.ReactNode;
   emptyTitle?: string;
   emptyDescription?: string;
+  /** Virtualized rendering for large datasets — renders only visible rows. */
+  virtualized?: boolean;
+  /** Number of extra rows rendered above/below the visible viewport for smooth scrolling. */
+  overscan?: number;
 }
-
-export function DataTable<T>({
-  columns,
-  data,
-  loading,
-  searchPlaceholder = "Search…",
-  searchableText,
-  pageSize = 8,
-  rowKey,
-  onRowClick,
-  toolbar,
-  emptyTitle = "No records found",
-  emptyDescription = "Adjust your filters or try a different search.",
-}: DataTableProps<T>) {
-  const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [page, setPage] = useState(1);
-
-  const filtered = useMemo(() => {
-    if (!search.trim() || !searchableText) return data;
-    const q = search.toLowerCase();
-    return data.filter((r) => searchableText(r).toLowerCase().includes(q));
-  }, [data, search, searchableText]);
-
-  const sorted = useMemo(() => {
-    if (!sortKey) return filtered;
-    const col = columns.find((c) => c.key === sortKey);
-    if (!col?.sortValue) return filtered;
-    const out = [...filtered].sort((a, b) => {
-      const av = col.sortValue!(a);
-      const bv = col.sortValue!(b);
-      if (av < bv) return sortDir === "asc" ? -1 : 1;
-      if (av > bv) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
-    return out;
-  }, [filtered, sortKey, sortDir, columns]);
-
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const pageSafe = Math.min(page, totalPages);
-  const paged = sorted.slice((pageSafe - 1) * pageSize, pageSafe * pageSize);
 
   const toggleSort = (key: string) => {
     if (sortKey !== key) {
@@ -103,6 +65,16 @@ export function DataTable<T>({
     // the user isn't left on a near-empty page position.
     setPage(1);
   };
+
+  // Virtualization state for large datasets
+  const [scrollTop, setScrollTop] = useState(0);
+  const ROW_HEIGHT = 61; // TableRow height (h-9 36px + px-3 py-2.5 ≈ 61px)
+  const HEADER_HEIGHT = 34; // TableHeader height
+  const viewHeight = 400; // fixed table body viewport height
+  const visibleCount = Math.max(1, Math.ceil(viewHeight / ROW_HEIGHT));
+  const virtualStart = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT));
+  const virtualEnd = Math.min(sorted.length, virtualStart + visibleCount + overscan);
+  const virtualRows = virtualized ? sorted.slice(virtualStart, virtualEnd) : paged;
 
   return (
     <div className="flex flex-col gap-3">
@@ -126,7 +98,7 @@ export function DataTable<T>({
         {toolbar ? <div className="flex flex-wrap items-center gap-2">{toolbar}</div> : null}
       </div>
 
-      <div className="rounded-lg border bg-card">
+      <div className={`rounded-lg border bg-card ${virtualized ? "overflow-auto" : ""}`} style={virtualized ? { maxHeight: 400 } : undefined} onScroll={virtualized ? (e: React.UIEvent<HTMLDivElement>) => setScrollTop(e.currentTarget.scrollTop) : undefined}>
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -173,7 +145,7 @@ export function DataTable<T>({
                 </TableCell>
               </TableRow>
             ) : (
-              paged.map((row) => (
+              {(virtualized ? virtualRows : paged).map((row) => (
                 <TableRow
                   key={rowKey(row)}
                   className={onRowClick ? "cursor-pointer" : ""}
@@ -191,7 +163,12 @@ export function DataTable<T>({
         </Table>
       </div>
 
-      {totalPages > 1 ? (
+      {virtualized ? (
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Virtualized · showing {virtualRows.length} of {sorted.length} records</span>
+          <span className="font-medium text-foreground">Large dataset mode enabled</span>
+        </div>
+      ) : totalPages > 1 ? (
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>
             Showing {(pageSafe - 1) * pageSize + 1}–{Math.min(pageSafe * pageSize, sorted.length)} of {sorted.length}
