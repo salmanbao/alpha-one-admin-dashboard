@@ -211,6 +211,8 @@ export function TenantDetailPage() {
   // fallback. The Configuration tab IS on this page; switching the
   // active tab is the correct action.)
   const [activeTab, setActiveTab] = useState<string>("overview");
+  type LifecycleAction = "suspend" | "reactivate" | "terminate";
+  const [pendingAction, setPendingAction] = useState<LifecycleAction | null>(null);
 
   /* ---- Two-operator closure (CON-06): when operator B approves a
    * `tenant.*` request in the Approval Center, apply the status change
@@ -282,10 +284,6 @@ export function TenantDetailPage() {
     typeof PLAN_COST[localTenant.plan] === "number"
       ? (PLAN_COST[localTenant.plan] as number)
       : 4900;
-
-  /* ---- Pending sensitive action (Phase C: one dialog, three actions) ---- */
-  type LifecycleAction = "suspend" | "reactivate" | "terminate";
-  const [pendingAction, setPendingAction] = useState<LifecycleAction | null>(null);
 
   /* ---- Apply status change with toast + notification + audit ---- */
   const applyStatus = (status: TenantContext["status"], verb: string, reason: string) => {
