@@ -23,11 +23,95 @@ import {
 import {
   payoutEntitlement,
   terraPayouts,
+  terraAccounts,
   withdrawalMethods,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
 
 const minPayout = 100;
+
+/**
+ * Pre-request eligibility checklist (audit #4, HIGH): the payout gates
+ * are shown *before* the trader fills the form, so nobody discovers a
+ * blocker only after starting a request.
+ */
+function EligibilityPreCheck({
+  accountId,
+  eligible,
+  withdrawable,
+}: {
+  accountId: string;
+  eligible: boolean;
+  withdrawable: number;
+}) {
+  const acc = terraAccounts.find((a) => a.id === accountId);
+  const criteria = [
+    {
+      label: "Account is funded",
+      ok: acc?.phase === "Funded",
+      note: acc ? `${acc.phase} — payouts unlock on funded accounts` : "Account not found",
+    },
+    {
+      label: `Net profit above starting balance`,
+      ok: acc ? acc.balance > acc.startingBalance : false,
+      note: acc
+        ? `${formatMoney(acc.balance - acc.startingBalance)} net profit`
+        : "—",
+    },
+    {
+      label: `Minimum payout ${formatMoney(minPayout)}`,
+      ok: withdrawable >= minPayout,
+      note: `${formatMoney(withdrawable)} withdrawable now`,
+    },
+    { label: "Payout method configured", ok: true, note: withdrawalMethods[0]?.name ?? "—" },
+    { label: "KYC approved", ok: true, note: "Verified" },
+  ];
+  const met = criteria.filter((c) => c.ok).length;
+
+  return (
+    <TerraCard
+      className={eligible ? "border border-primary/30" : "border border-tertiary/40"}
+    >
+      <div className="flex items-center justify-between pb-3">
+        <h2 className="font-headline text-lg font-bold text-on-surface">
+          Payout eligibility
+        </h2>
+        <TerraBadge tone={eligible ? "success" : "tertiary"}>
+          {met}/{criteria.length} criteria met
+        </TerraBadge>
+      </div>
+      <div className="space-y-2">
+        {criteria.map((c) => (
+          <div
+            key={c.label}
+            className="flex items-center justify-between rounded-xl bg-surface-container-low px-3 py-2.5 text-sm"
+          >
+            <div>
+              <span className="text-on-surface">{c.label}</span>
+              <p className="text-xs text-on-surface-variant">{c.note}</p>
+            </div>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                c.ok
+                  ? "bg-primary-fixed text-on-primary-fixed-variant"
+                  : "bg-error-container text-on-error-container"
+              }`}
+              aria-label={c.ok ? "Met" : "Not met"}
+            >
+              {c.ok ? "✓" : "✗"}
+            </span>
+          </div>
+        ))}
+      </div>
+      <Link
+        href={`/payout-eligibility?id=${accountId}`}
+        className="mt-3 block text-center text-xs font-bold text-primary hover:text-on-primary-fixed-variant"
+      >
+        Full eligibility details, schedule & scaling →
+      </Link>
+    </TerraCard>
+  );
+}
 
 export function PayoutRequestPage() {
   const params = useSearchParams();
@@ -199,8 +283,15 @@ export function PayoutRequestPage() {
           </TerraCard>
         </div>
 
-        <TerraCard className="sticky top-24 flex flex-col gap-4">
-          <TerraSectionTitle title="Request" />
+        <div className="flex flex-col gap-6">
+          {/* Pre-request eligibility checklist (audit #4) */}
+          <EligibilityPreCheck
+            accountId={acc.id}
+            eligible={entitlement.eligible}
+            withdrawable={entitlement.withdrawable}
+          />
+          <TerraCard className="flex flex-col gap-4">
+            <TerraSectionTitle title="Request" />
           <div className="space-y-3 rounded-xl bg-surface-container-low p-4 text-sm">
             <div className="flex justify-between">
               <span className="text-on-surface-variant">Method</span>
@@ -236,7 +327,8 @@ export function PayoutRequestPage() {
           <p className="text-center text-[11px] text-on-surface-variant">
             Payouts are reviewed within 1 business day.
           </p>
-        </TerraCard>
+          </TerraCard>
+        </div>
       </div>
     </div>
   );

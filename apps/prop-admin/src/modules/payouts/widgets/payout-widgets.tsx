@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { hasPermission } from "@/lib/platform/permission-engine";
 import { getTenantPayouts, payoutSeries, type Payout } from "@/lib/platform/mock-data";
@@ -10,16 +11,10 @@ import { Wallet, Banknote, Clock, CheckCircle2, DollarSign, XCircle, HelpCircle 
 import { AreaSeries, DonutSeries } from "@/components/platform/charts";
 import { Button } from "@/components/ui/button";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  PayoutRejectDialog,
+  type PayoutRejectTarget,
+  type PayoutRejectResult,
+} from "@/components/platform/payout-reject-dialog";
 import { toast } from "@/hooks/use-toast";
 
 export function PayoutOverviewWidget() {
@@ -47,21 +42,42 @@ export function PayoutOverviewWidget() {
 }
 
 export function PayoutQueueWidget() {
-  const { runtime, user } = usePlatform();
+  const { runtime, user, pushNotification } = usePlatform();
   // In-page guard — same payout.approve rule as the payouts table.
   const canDecide = hasPermission(user, "payout.approve");
   const decideTitle = canDecide ? undefined : "Requires payout.approve";
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   usePayoutVersion(); // approved items leave the queue instantly
+  // Audit fix #3: reject collects a structured reason via the shared
+  // PayoutRejectDialog (same flow as the payouts table + batch toolbar).
+  const [rejectTarget, setRejectTarget] = useState<PayoutRejectTarget | null>(null);
   const pending = getTenantPayouts(tid)
     .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
     .filter((p) => p.status === "pending")
     .slice(0, 5);
+  const confirmReject = (p: Payout, result: PayoutRejectResult) => {
+    applyPayoutDecision(p.reference, "rejected", { reason: result.reason });
+    if (result.notifyTrader) {
+      pushNotification({
+        title: "Payout rejected",
+        message: `Your payout ${p.reference} (${formatCurrency(p.amount, currency)}) was rejected: ${result.reason}`,
+        severity: "critical",
+        module: "payouts",
+      });
+    }
+    toast({
+      title: "Payout rejected",
+      description: `${p.traderName} — ${formatCurrency(p.amount, currency)} (${result.reason})`,
+      variant: "destructive",
+    });
+    setRejectTarget(null);
+  };
   if (pending.length === 0) {
     return <div className="p-4 text-sm text-emerald-600">No pending payouts. Queue is clear.</div>;
   }
   return (
+    <>
     <ul className="space-y-2">
       {pending.map((p) => (
         <li key={p.id} className="flex flex-wrap items-center gap-2 rounded-md border bg-card p-2">
@@ -77,7 +93,8 @@ export function PayoutQueueWidget() {
               the PayoutReviewActions panel (Approve + Reject + Request-Info)
               so the operator can clear a stuck queue from the dashboard
               without navigating to the Pending Payouts page. Reject is
-              gated behind an AlertDialog (destructive confirmation). */}
+              routed through the shared PayoutRejectDialog (audit fix #3 —
+              structured reason + notify-trader on every surface). */}
           <Button
             size="sm"
             variant="default"
@@ -91,44 +108,25 @@ export function PayoutQueueWidget() {
           >
             <CheckCircle2 className="h-3.5 w-3.5" /> Approve
           </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!canDecide}
-                title={decideTitle}
-                aria-label={`Reject ${p.traderName}'s payout`}
-                className="text-rose-700 hover:text-rose-700 dark:text-rose-400"
-              >
-                <XCircle className="h-3.5 w-3.5" /> Reject
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Reject this payout?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {p.traderName} will need to re-request the withdrawal. {formatCurrency(p.amount, currency)} will be marked as rejected.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-rose-600 text-white hover:bg-rose-700"
-                  onClick={() => {
-                    applyPayoutDecision(p.reference, "rejected");
-                    toast({
-                      title: "Payout rejected",
-                      description: `${p.traderName} — ${formatCurrency(p.amount, currency)}`,
-                      variant: "destructive",
-                    });
-                  }}
-                >
-                  Reject payout
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!canDecide}
+            title={decideTitle}
+            aria-label={`Reject ${p.traderName}'s payout`}
+            className="text-rose-700 hover:text-rose-700 dark:text-rose-400"
+            onClick={() =>
+              setRejectTarget({
+                reference: p.reference,
+                traderName: p.traderName,
+                amount: p.amount,
+                currency,
+                count: 1,
+              })
+            }
+          >
+            <XCircle className="h-3.5 w-3.5" /> Reject
+          </Button>
           <Button
             size="sm"
             variant="ghost"
@@ -145,6 +143,16 @@ export function PayoutQueueWidget() {
         </li>
       ))}
     </ul>
+    {/* Shared reject dialog — one instance for all rows in the queue */}
+    <PayoutRejectDialog
+      target={rejectTarget}
+      onOpenChange={(o) => !o && setRejectTarget(null)}
+      onConfirm={(result) => {
+        const p = pending.find((x) => x.reference === rejectTarget?.reference);
+        if (p) confirmReject(p, result);
+      }}
+    />
+    </>
   );
 }
 

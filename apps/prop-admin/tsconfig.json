@@ -42,6 +42,9 @@
       "@/components/platform/contextual-actions": [
         "./src/components/platform/contextual-actions"
       ],
+      "@/components/platform/payout-reject-dialog": [
+        "./src/components/platform/payout-reject-dialog"
+      ],
       "@/components/platform/detail-overlay": [
         "./src/components/platform/detail-overlay"
       ],

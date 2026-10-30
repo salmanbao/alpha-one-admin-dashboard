@@ -1,10 +1,14 @@
 "use client";
 import { usePlatform } from "@/lib/platform/platform-context";
+import {
+  formatPercentValue,
+  formatSignedCurrencyValue,
+} from "@pfaas/platform-core";
 import { getTraderForUser, getTraderAccounts } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { AreaSeries } from "@/components/platform/charts";
-import { formatCurrency, formatCompact } from "@/components/platform/status";
+import { formatCurrency } from "@/components/platform/status";
 import { TrendingUp, Target, Activity, Award, Percent, Clock } from "lucide-react";
 import { hashStr } from "@/lib/platform/mock-data";
 
@@ -40,7 +44,7 @@ export function TraderPerformancePage() {
       <PageContent>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total P&L" value={formatCurrency(totalPnl, currency)} icon={TrendingUp} tone={totalPnl >= 0 ? "positive" : "negative"} />
-          <MetricCard label="Win Rate" value={`${winRate}%`} icon={Target} tone="positive" />
+          <MetricCard label="Win Rate" value={formatPercentValue(winRate, 0)} icon={Target} tone="positive" />
           <MetricCard label="Profit Factor" value={profitFactor.toString()} icon={Percent} tone="positive" />
           <MetricCard label="Total Trades" value={totalTrades} icon={Activity} />
         </div>
@@ -58,10 +62,10 @@ export function TraderPerformancePage() {
           <CardHeader className="pb-2"><span className="text-sm font-medium">Trade statistics</span></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-3 lg:grid-cols-4">
-              <div><p className="text-muted-foreground">Avg win</p><p className="font-medium text-emerald-600">+{formatCurrency(avgWin, currency)}</p></div>
-              <div><p className="text-muted-foreground">Avg loss</p><p className="font-medium text-rose-600">{formatCurrency(avgLoss, currency)}</p></div>
-              <div><p className="text-muted-foreground">Largest win</p><p className="font-medium text-emerald-600">+{formatCurrency(820, currency)}</p></div>
-              <div><p className="text-muted-foreground">Largest loss</p><p className="font-medium text-rose-600">{formatCurrency(-340, currency)}</p></div>
+              <div><p className="text-muted-foreground">Avg win</p><p className="font-medium text-emerald-600">{formatSignedCurrencyValue(avgWin, currency)}</p></div>
+              <div><p className="text-muted-foreground">Avg loss</p><p className="font-medium text-rose-600">{formatSignedCurrencyValue(avgLoss, currency)}</p></div>
+              <div><p className="text-muted-foreground">Largest win</p><p className="font-medium text-emerald-600">{formatSignedCurrencyValue(820, currency)}</p></div>
+              <div><p className="text-muted-foreground">Largest loss</p><p className="font-medium text-rose-600">{formatSignedCurrencyValue(-340, currency)}</p></div>
               <div><p className="text-muted-foreground">Trading days</p><p className="font-medium">{tradingDays}</p></div>
               <div><p className="text-muted-foreground">Avg duration</p><p className="font-medium">2h 14m</p></div>
               <div><p className="text-muted-foreground">Win streak</p><p className="font-medium text-emerald-600">5</p></div>

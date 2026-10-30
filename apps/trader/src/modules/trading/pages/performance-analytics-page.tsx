@@ -8,6 +8,10 @@
 import { useState } from "react";
 import { cn } from "@pfaas/ui";
 import {
+  formatCompactCurrencyValue,
+  formatProfitFactor,
+} from "@pfaas/platform-core";
+import {
   TerraAreaChart,
   TerraCard,
   TerraPageHeader,
@@ -59,7 +63,8 @@ export function PerformanceAnalyticsPage() {
     (winRate / 100) * avgWin + (1 - winRate / 100) * avgLoss;
   const grossWin = winTrades.reduce((s, t) => s + t.pnl, 0);
   const grossLoss = Math.abs(lossTrades.reduce((s, t) => s + t.pnl, 0));
-  const profitFactor = grossLoss > 0 ? (grossWin / grossLoss).toFixed(2) : "—";
+  // Canonical formatting (audit #9) — shared zero-guard lives in platform-core.
+  const profitFactor = formatProfitFactor(grossWin, grossLoss);
 
   const bySymbol = pool.reduce<Record<string, { pnl: number; count: number }>>(
     (acc, t) => {
@@ -179,7 +184,7 @@ export function PerformanceAnalyticsPage() {
               : `Growth of #${activeAccount.login} balance (30 days)`
           }
         />
-        <TerraAreaChart data={curve} formatValue={(v) => formatMoneyShort(v)} />
+        <TerraAreaChart data={curve} formatValue={(v) => formatCompactCurrencyValue(v)} />
       </TerraCard>
 
       <div className="flex items-center gap-1.5">
@@ -258,8 +263,4 @@ export function PerformanceAnalyticsPage() {
       )}
     </div>
   );
-}
-
-function formatMoneyShort(v: number): string {
-  return `$${(v / 1000).toFixed(0)}k`;
 }

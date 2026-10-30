@@ -99,7 +99,11 @@ export function SensitiveActionDialog({
   onExecute,
   onApprovalInitiated,
 }: SensitiveActionDialogProps) {
-  const { user, navigate } = usePlatform();
+  const { user, navigate, availableTenants } = usePlatform();
+  // Tenant context (audit fix #12): the destructive action names its
+  // target explicitly — brand-colored chip resolved from tenantId so an
+  // operator can never confuse which tenant a suspend/terminate hits.
+  const actionTenant = tenantId ? availableTenants.find((t) => t.id === tenantId) : undefined;
   const [step, setStep] = useState<Step>("review");
   const [acknowledged, setAcknowledged] = useState(false);
   const [typed, setTyped] = useState("");
@@ -181,6 +185,21 @@ export function SensitiveActionDialog({
                   <AlertTriangle className="h-4 w-4 text-destructive" />
                   {title}
                 </DialogTitle>
+                {/* Tenant context chip (audit fix #12) — brand color +
+                    name so the destructive target is unambiguous. */}
+                {actionTenant && (
+                  <span className="inline-flex w-fit items-center gap-2 rounded-full border bg-muted/40 py-0.5 pl-1 pr-3 text-xs font-medium">
+                    <span
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                      style={{ backgroundColor: actionTenant.branding.primaryColor }}
+                      aria-hidden="true"
+                    >
+                      {actionTenant.branding.initials}
+                    </span>
+                    {actionTenant.name}
+                    <span className="text-muted-foreground">· {actionTenant.slug}</span>
+                  </span>
+                )}
                 <DialogDescription asChild>
                   <p className="text-sm text-muted-foreground">{consequence}</p>
                 </DialogDescription>

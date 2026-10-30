@@ -6,6 +6,7 @@
  */
 
 import { cn } from "@pfaas/ui";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 /* ------------------------------------------------------------------ */
@@ -170,6 +171,73 @@ export function TerraProgress({
         )}
         style={{ width: `${clamped}%` }}
       />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Drawdown meter — persistent daily / total risk visibility           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Color-coded usage meter for a drawdown limit (daily loss or max DD).
+ * Shows usage vs the program limit with green/amber/red proximity
+ * coloring so a trader can see risk at a glance before breaching.
+ */
+export function TerraDrawdownMeter({
+  label,
+  used,
+  limit,
+  remaining,
+  description,
+}: {
+  label: string;
+  used: number;
+  limit: number;
+  remaining: number;
+  description?: string;
+}) {
+  const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+  const tone = pct >= 85 ? "error" : pct >= 60 ? "warning" : "safe";
+  const toneBar =
+    tone === "error" ? "bg-error" : tone === "warning" ? "bg-tertiary" : "bg-primary";
+  const toneText =
+    tone === "error" ? "text-error" : tone === "warning" ? "text-on-tertiary-container" : "text-primary";
+  const toneLabel = tone === "error" ? "Critical" : tone === "warning" ? "Watch" : "Safe";
+
+  return (
+    <div
+      className="rounded-xl bg-surface-container-low px-4 py-3"
+      role="meter"
+      aria-valuenow={Math.round(pct)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={`${label}: ${Math.round(pct)}% of limit used, ${toneLabel.toLowerCase()}`}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+          {label}
+        </span>
+        <span className={`text-[11px] font-bold ${toneText}`}>{toneLabel}</span>
+      </div>
+      <div className="mt-1.5 flex items-baseline justify-between gap-2">
+        <span className="font-headline text-lg font-bold tabular-nums text-on-surface">
+          {formatMoney(remaining)}
+        </span>
+        <span className="text-[11px] text-on-surface-variant">
+          remaining of {formatMoney(limit)}
+        </span>
+      </div>
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-container">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ease-out ${toneBar}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="mt-1 flex justify-between text-[10px] text-on-surface-variant">
+        <span>{formatMoney(used)} used ({Math.round(pct)}%)</span>
+        {description && <span className="truncate pl-2">{description}</span>}
+      </div>
     </div>
   );
 }
@@ -479,10 +547,18 @@ export function TerraEmpty({
   icon,
   title,
   description,
+  actionLabel,
+  actionHref,
+  steps,
 }: {
   icon?: ReactNode;
   title: string;
   description?: string;
+  /** Primary CTA — points the user at the next step for this empty state. */
+  actionLabel?: string;
+  actionHref?: string;
+  /** Optional numbered first-use guidance steps shown under the copy. */
+  steps?: string[];
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-outline-variant bg-surface-container-low/50 px-6 py-14 text-center">
@@ -490,6 +566,26 @@ export function TerraEmpty({
       <p className="font-headline font-semibold text-on-surface">{title}</p>
       {description && (
         <p className="mt-1 max-w-sm text-sm text-on-surface-variant">{description}</p>
+      )}
+      {steps && steps.length > 0 && (
+        <ol className="mt-4 max-w-sm space-y-1.5 text-left">
+          {steps.map((s, i) => (
+            <li key={s} className="flex items-start gap-2 text-xs text-on-surface-variant">
+              <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-surface-container text-[10px] font-bold text-on-surface-variant">
+                {i + 1}
+              </span>
+              {s}
+            </li>
+          ))}
+        </ol>
+      )}
+      {actionLabel && actionHref && (
+        <Link
+          href={actionHref}
+          className="mt-5 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
+        >
+          {actionLabel}
+        </Link>
       )}
     </div>
   );

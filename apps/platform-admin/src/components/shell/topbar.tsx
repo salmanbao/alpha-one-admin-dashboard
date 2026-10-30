@@ -89,15 +89,25 @@ export function Topbar() {
       <ActivityTicker />
 
       <div className="ml-auto flex items-center gap-1">
-        {/* Tenant switcher */}
+        {/* Tenant switcher — prominent persistent chip (audit fix #12):
+            brand-colored avatar + name, always visible (even on mobile)
+            so the console's acting tenant is unmistakable at a glance. */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 border-border/70 bg-muted/40 shadow-sm hover:bg-muted"
+              aria-label={`Acting in tenant ${tenant.id === "platform" ? "Platform (Super Admin)" : tenant.name} — switch tenant`}
+            >
               <span
-                className="h-2.5 w-2.5 rounded-sm"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
                 style={{ background: tenant.branding.primaryColor }}
-              />
-              <span className="hidden max-w-[140px] truncate sm:inline">
+                aria-hidden="true"
+              >
+                {tenant.id === "platform" ? "◆" : tenant.branding.initials}
+              </span>
+              <span className="max-w-[140px] truncate text-sm font-medium">
                 {tenant.id === "platform" ? "Platform" : tenant.name}
               </span>
               <ChevronDown className="h-3 w-3 opacity-60" />

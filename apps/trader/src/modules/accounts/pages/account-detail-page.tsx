@@ -93,6 +93,16 @@ export function AccountDetailPage() {
             <TerraBadge tone={acc.status === "active" ? "primary" : acc.status === "breached" ? "error" : "secondary"} dot pulse={acc.status === "active"}>
               {acc.status.toUpperCase()}
             </TerraBadge>
+            {/* Credentials shortcut (audit #11) — terminal setup without
+                scrolling to the tab strip. */}
+            <button
+              type="button"
+              onClick={() => setTab("Credentials")}
+              aria-label="Jump to trading credentials"
+              className="rounded-xl bg-surface-container-high px-3.5 py-2 text-xs font-bold text-on-surface hover:bg-surface-container"
+            >
+              Credentials ↓
+            </button>
           </>
         }
       />
