@@ -75,6 +75,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen w-full bg-background">
+      {/* Skip link (audit #10) — first tab stop; jumps past sidebar/header */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-on-primary"
+      >
+        Skip to content
+      </a>
       {/* ⌘K command palette — nav, quick actions, account switching */}
       <CommandPalette onToggleTheme={toggleDark} dark={dark} />
       <Sidebar mobileOpen={menuOpen} onClose={() => setMenuOpen(false)} />
@@ -245,7 +252,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-4 md:px-6 md:py-6">
+        <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-4 md:px-6 md:py-6">
           {children}
         </main>
 

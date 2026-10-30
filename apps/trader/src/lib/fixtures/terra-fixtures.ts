@@ -1933,3 +1933,113 @@ export function payoutEntitlement(accountId: string): PayoutEntitlement {
   }
   return { isFunded: true, eligible: true, withdrawable, splitPct, netProfit, healthy };
 }
+
+/* ------------------------------------------------------------------ */
+/* KYC submission (audit #1: rejection state + retry path)             */
+/* ------------------------------------------------------------------ */
+
+export type KycCheckItem = {
+  item: string;
+  ok: boolean;
+  optional?: boolean;
+  /** Rejection detail — present when ok is false. */
+  issue?: string;
+};
+
+export type KycSubmission = {
+  /** reviewing | rejected | approved — drives the status screen. */
+  status: "reviewing" | "rejected" | "approved";
+  submittedAt: string;
+  /** Set when status === "rejected" — plain-language reasons. */
+  rejectionReasons?: string[];
+  /** Resubmission attempts used / allowed (retry path). */
+  attempts: number;
+  maxAttempts: number;
+  checks: KycCheckItem[];
+};
+
+/**
+ * The trader's current KYC submission. The status screen renders from
+ * this record: a rejection shows every failed check with its issue,
+ * a resubmit CTA (pre-filled from the prior submission), and support
+ * as the secondary path.
+ */
+export const kycSubmission: KycSubmission = {
+  status: "reviewing",
+  submittedAt: daysAgo(2),
+  attempts: 0,
+  maxAttempts: 3,
+  checks: [
+    { item: "Government ID", ok: true },
+    { item: "Proof of address", ok: true },
+    { item: "Selfie / liveness", ok: true },
+    { item: "Source of funds (payouts > $10k)", ok: false, optional: true },
+  ],
+};
+
+/**
+ * A rejected submission the trader can preview from the status screen
+ * (demo data) — mirrors what a real rejection looks like end-to-end.
+ */
+export const rejectedKycSubmission: KycSubmission = {
+  status: "rejected",
+  submittedAt: daysAgo(4),
+  rejectionReasons: [
+    "Proof of address is older than 90 days — upload a recent utility bill or bank statement.",
+    "Selfie photo was blurry around the ID edges — retake in brighter, indirect light.",
+  ],
+  attempts: 1,
+  maxAttempts: 3,
+  checks: [
+    { item: "Government ID", ok: true },
+    {
+      item: "Proof of address",
+      ok: false,
+      issue: "Document older than 90 days",
+    },
+    {
+      item: "Selfie / liveness",
+      ok: false,
+      issue: "Image quality below verification threshold",
+    },
+    { item: "Source of funds (payouts > $10k)", ok: false, optional: true },
+  ],
+};
+
+/* ------------------------------------------------------------------ */
+/* Challenge breach outcome (audit #2: failure screen data)            */
+/* ------------------------------------------------------------------ */
+
+export type ChallengeBreach = {
+  accountId: string;
+  challenge: string;
+  login: string;
+  rule: "Daily Loss Limit" | "Maximum Drawdown";
+  limit: number;
+  breachedBy: number;
+  breachedAt: string;
+  phase: string;
+  tradingDays: number;
+  minTradingDays: number;
+  bestDayPct: number;
+};
+
+/**
+ * Breach record backing the Evaluation Failed screen — the specific
+ * rule, how far past the limit the account went, and what the trader
+ * had achieved before the breach (so the failure reads as informative,
+ * not just punitive).
+ */
+export const challengeBreach: ChallengeBreach = {
+  accountId: "acc-098412",
+  challenge: "Terra Starter $25K",
+  login: "098412",
+  rule: "Daily Loss Limit",
+  limit: 1000,
+  breachedBy: 214,
+  breachedAt: daysAgo(3),
+  phase: "Phase 2",
+  tradingDays: 9,
+  minTradingDays: 5,
+  bestDayPct: 38,
+};

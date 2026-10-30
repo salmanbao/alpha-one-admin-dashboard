@@ -3,26 +3,36 @@
 /**
  * Account Breach / Failed Evaluation — converted from stitch_screens/account_breach_failed_evaluation
  * Breach explanation, rule that triggered, and recovery options.
+ *
+ * Audit fix #2 (CRITICAL): this is the evaluation-failure outcome screen.
+ * It renders from the challengeBreach fixture — the specific rule that
+ * broke, a visual limit-vs-breach meter, plain-language explanation,
+ * what the trader had achieved before the breach, and the retry path
+ * (re-purchase with discount → marketplace, rules review, support).
+ * Linked from My Challenges when a challenge ended in "Breached".
  */
 
 import Link from "next/link";
-import { TerraBadge, TerraCard, TerraPageHeader, TerraSectionTitle, TerraStat, formatMoney } from "@/components/terra/terra-ui";
-
-const breach = {
-  rule: "Daily Loss Limit",
-  limit: 3000,
-  exceededBy: 214,
-  at: "2026-10-06 15:42 UTC",
-  account: "Terra Starter $25K (Phase 1)",
-  login: "097724",
-};
+import {
+  TerraBadge,
+  TerraCard,
+  TerraDrawdownMeter,
+  TerraPageHeader,
+  TerraSectionTitle,
+  TerraStat,
+  formatMoney,
+} from "@/components/terra/terra-ui";
+import { challengeBreach } from "@/lib/fixtures/terra-fixtures";
 
 export function AccountBreachPage() {
+  const breach = challengeBreach;
+  const breachedPct = Math.round((breach.breachedBy / breach.limit) * 100);
+
   return (
     <div className="space-y-6">
       <TerraPageHeader
         title="Evaluation Failed"
-        description={`Account #${breach.login} • ${breach.account}`}
+        description={`${breach.challenge} • Account #${breach.login} • ${breach.phase}`}
         actions={
           <TerraBadge tone="error" dot>
             Breached
@@ -30,46 +40,95 @@ export function AccountBreachPage() {
         }
       />
 
+      {/* What happened — the specific rule, in plain language */}
       <TerraCard className="border border-error/30 bg-error-container/40">
         <div className="flex items-start gap-3">
           <span className="text-2xl">⚠️</span>
           <div>
             <p className="font-headline text-lg font-bold text-on-error-container">
-              Daily loss limit exceeded
+              {breach.rule} exceeded
             </p>
             <p className="text-sm text-on-error-container/80">
-              Your equity fell {formatMoney(breach.exceededBy)} below the daily loss threshold of{" "}
-              {formatMoney(breach.limit)} on {breach.at}. The account is now closed per the trading
-              rules.
+              Your equity fell {formatMoney(breach.breachedBy)} below the {breach.rule.toLowerCase()} of{" "}
+              {formatMoney(breach.limit)} on{" "}
+              {new Date(breach.breachedAt).toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+              . Per the trading rules, the {breach.phase} evaluation ends when this limit is
+              crossed — this protects you from oversized losses on a funded account.
             </p>
           </div>
         </div>
       </TerraCard>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <TerraCard className="p-5">
-          <TerraStat label="Rule" value={breach.rule} />
-        </TerraCard>
-        <TerraCard className="p-5">
-          <TerraStat label="Limit" value={formatMoney(breach.limit)} />
-        </TerraCard>
-        <TerraCard className="p-5">
-          <TerraStat label="Exceeded by" value={formatMoney(breach.exceededBy)} tone="negative" />
-        </TerraCard>
-        <TerraCard className="p-5">
-          <TerraStat label="Account" value={`#${breach.login}`} />
-        </TerraCard>
-      </div>
+      {/* Visual: how far past the limit */}
+      <TerraCard>
+        <TerraSectionTitle
+          title="What triggered the breach"
+          description={`${breach.breachedBy > 0 ? `${breachedPct}% past` : "At"} the ${breach.rule.toLowerCase()} — the meter turns red before the limit is crossed to warn you.`}
+        />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <TerraDrawdownMeter
+            label={breach.rule}
+            used={breach.limit + breach.breachedBy}
+            limit={breach.limit}
+            remaining={0}
+            description="limit crossed"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <TerraCard className="p-4">
+              <TerraStat label="Limit" value={formatMoney(breach.limit)} />
+            </TerraCard>
+            <TerraCard className="p-4">
+              <TerraStat label="Exceeded by" value={formatMoney(breach.breachedBy)} tone="negative" />
+            </TerraCard>
+            <TerraCard className="p-4">
+              <TerraStat
+                label="Trading Days"
+                value={`${breach.tradingDays}`}
+                sub={`minimum ${breach.minTradingDays} — met ✓`}
+                tone="positive"
+              />
+            </TerraCard>
+            <TerraCard className="p-4">
+              <TerraStat
+                label="Best Day"
+                value={`${breach.bestDayPct}%`}
+                sub="of total profit — under 45% cap"
+                tone="positive"
+              />
+            </TerraCard>
+          </div>
+        </div>
+      </TerraCard>
+
+      {/* You were otherwise on track — soften + inform */}
+      <TerraCard>
+        <p className="text-sm text-on-surface-variant">
+          <strong className="text-on-surface">Good news:</strong> you met the minimum trading
+          days and stayed inside the consistency rule. The only obstacle was the{" "}
+          {breach.rule.toLowerCase()} — traders who retry with a daily stop-loss order in place
+          pass at a much higher rate.
+        </p>
+      </TerraCard>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <TerraCard>
           <TerraSectionTitle title="What you can do next" />
           <div className="space-y-3">
             <Link
-              href="/marketplace"
+              href={`/checkout?retry=${breach.accountId}`}
               className="block rounded-xl bg-primary px-5 py-3 text-center text-sm font-bold text-on-primary hover:bg-primary/90"
             >
-              Retry with 50% discount
+              Retry {breach.challenge} with 50% discount
+            </Link>
+            <Link
+              href="/challenge-comparison"
+              className="block rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
+            >
+              Compare other programs
             </Link>
             <Link
               href="/rules"
@@ -91,6 +150,7 @@ export function AccountBreachPage() {
           <ul className="space-y-2 text-sm text-on-surface-variant">
             <li>• Risk ≤ 1% of balance per trade.</li>
             <li>• Set a hard daily stop at 2 losing trades.</li>
+            <li>• Place a broker-side stop-out alert at 60% of the daily limit.</li>
             <li>• Avoid trading 30 min around high-impact news.</li>
             <li>• Track the daily loss meter on the risk dashboard.</li>
           </ul>

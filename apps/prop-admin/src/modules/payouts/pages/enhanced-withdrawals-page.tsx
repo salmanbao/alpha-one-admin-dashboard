@@ -67,6 +67,11 @@ import {
   usePayoutVersion,
 } from "@/modules/payouts/payout-store";
 import {
+  PayoutRejectDialog,
+  type PayoutRejectTarget,
+  type PayoutRejectResult,
+} from "@/components/platform/payout-reject-dialog";
+import {
   Wallet,
   Clock,
   CheckCircle2,
@@ -155,7 +160,7 @@ function countryForPayout(p: Payout, traderCountry?: string): string {
 }
 
 export function EnhancedWithdrawalsPage() {
-  const { runtime, user } = usePlatform();
+  const { runtime, user, pushNotification } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   // In-page guard — batch approve/reject are payout decisions; a trader
@@ -186,6 +191,8 @@ export function EnhancedWithdrawalsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<string>("created");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Audit fix #3: batch reject target for the shared PayoutRejectDialog.
+  const [rejectTarget, setRejectTarget] = useState<PayoutRejectTarget | null>(null);
 
   // Build trader lookup for name + country
   const traderById = useMemo(() => {
@@ -327,14 +334,27 @@ export function EnhancedWithdrawalsPage() {
     });
     setSelected(new Set());
   };
-  const batchReject = () => {
-    for (const p of selectedPayouts) applyPayoutDecision(p.reference, "rejected");
+  // Audit fix #3: batch reject collects a structured reason + detail
+  // (same dialog as single-row rejects) instead of rejecting silently.
+  const confirmBatchReject = (result: PayoutRejectResult) => {
+    for (const p of selectedPayouts) {
+      applyPayoutDecision(p.reference, "rejected", { reason: result.reason });
+      if (result.notifyTrader) {
+        pushNotification({
+          title: "Payout rejected",
+          message: `Your payout ${p.reference} (${formatCurrency(p.amount, p.currency)}) was rejected: ${result.reason}`,
+          severity: "critical",
+          module: "payouts",
+        });
+      }
+    }
     toast({
       title: "Batch rejected",
-      description: `${selected.size} withdrawal${selected.size === 1 ? "" : "s"} rejected.`,
+      description: `${selected.size} withdrawal${selected.size === 1 ? "" : "s"} rejected — ${result.reason}`,
       variant: "destructive",
     });
     setSelected(new Set());
+    setRejectTarget(null);
   };
   const batchExport = () => {
     if (selectedPayouts.length === 0) {
@@ -499,7 +519,23 @@ export function EnhancedWithdrawalsPage() {
               <Button size="sm" variant="default" onClick={batchApprove} disabled={!canDecide} title={decideTitle} className="bg-emerald-600 hover:bg-emerald-700">
                 <CheckCircle2 className="mr-1 h-4 w-4" /> Approve Selected
               </Button>
-              <Button size="sm" variant="outline" onClick={batchReject} disabled={!canDecide} title={decideTitle} className="border-rose-500/40 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  selectedPayouts.length > 0 &&
+                  setRejectTarget({
+                    reference: selectedPayouts[0].reference,
+                    traderName: selectedPayouts[0].traderName,
+                    amount: selectedPayouts.reduce((s, p) => s + p.amount, 0),
+                    currency: selectedPayouts[0].currency,
+                    count: selectedPayouts.length,
+                  })
+                }
+                disabled={!canDecide || selected.size === 0}
+                title={decideTitle}
+                className="border-rose-500/40 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+              >
                 <XCircle className="mr-1 h-4 w-4" /> Reject Selected
               </Button>
               <Button size="sm" variant="outline" onClick={batchExport}>
@@ -629,6 +665,12 @@ export function EnhancedWithdrawalsPage() {
           country. Use batch selection to approve or reject multiple withdrawals simultaneously.
         </p>
       </PageContent>
+      {/* Shared reject dialog (audit fix #3) — structured reason for batch rejects */}
+      <PayoutRejectDialog
+        target={rejectTarget}
+        onOpenChange={(o) => !o && setRejectTarget(null)}
+        onConfirm={confirmBatchReject}
+      />
     </Page>
   );
 }

@@ -53,7 +53,9 @@ import {
   Play,
   ArrowRight,
   Users,
+  Database,
 } from "lucide-react";
+import { hashStr } from "@/lib/platform/mock-data";
 
 /* ------------------------------------------------------------------ */
 /* Lifecycle stages                                                   */
@@ -81,6 +83,95 @@ const STAGES: {
   { id: "suspended", label: "Suspended", tone: "danger", color: "#e11d48", icon: Pause, description: "Access paused — reversible." },
   { id: "terminated", label: "Terminated", tone: "muted", color: "#6b7280", icon: Ban, description: "Permanently archived — irreversible." },
 ];
+
+/* ------------------------------------------------------------------ */
+/* Suspension data handling (audit fix #7)                            */
+/* ------------------------------------------------------------------ */
+
+/** Retention window after suspension before data becomes purge-eligible. */
+const RETENTION_DAYS = 90;
+
+/**
+ * What happens to a suspended tenant's data — the retention policy in
+ * plain language plus a per-tenant status table (deterministic demo
+ * figures from the tenant id). Answers the operational question the
+ * lifecycle pipeline alone couldn't: "if we suspend, what happens to
+ * their data and for how long is it recoverable?"
+ */
+function SuspensionDataHandlingPanel({ tenants }: { tenants: TenantContext[] }) {
+  const suspended = tenants.filter((t) => t.status === "suspended");
+
+  const policy: { label: string; value: string }[] = [
+    { label: "Access", value: "Frozen — logins, purchases and payouts stop; console read-only" },
+    { label: "Data retention", value: `${RETENTION_DAYS} days from suspension, then purge-eligible` },
+    { label: "Backups", value: "Daily snapshots continue through the retention window" },
+    { label: "Reactivation", value: "Full state restored instantly — nothing deleted while suspended" },
+    { label: "Termination", value: "Ends retention early — data archived, restore requires platform ops" },
+  ];
+
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="mb-3 flex items-center gap-2">
+          <Database className="h-4 w-4 text-muted-foreground" />
+          <p className="text-sm font-medium text-foreground">Data handling on suspension</p>
+          <Badge variant="outline" className="text-[10px]">{RETENTION_DAYS}-day retention</Badge>
+        </div>
+        <dl className="mb-4 grid grid-cols-1 gap-x-6 gap-y-1.5 text-xs sm:grid-cols-2">
+          {policy.map((p) => (
+            <div key={p.label} className="flex gap-2">
+              <dt className="w-28 shrink-0 font-medium text-foreground">{p.label}</dt>
+              <dd className="text-muted-foreground">{p.value}</dd>
+            </div>
+          ))}
+        </dl>
+        {suspended.length === 0 ? (
+          <p className="rounded-md border border-dashed p-3 text-center text-xs text-muted-foreground">
+            No suspended tenants — nothing currently in the retention window.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b text-muted-foreground">
+                  <th className="py-1.5 pr-4 font-medium">Tenant</th>
+                  <th className="py-1.5 pr-4 font-medium">Traders</th>
+                  <th className="py-1.5 pr-4 font-medium">Trade history</th>
+                  <th className="py-1.5 pr-4 font-medium">Payout records</th>
+                  <th className="py-1.5 pr-4 font-medium">Last backup</th>
+                  <th className="py-1.5 font-medium">Purge-eligible</th>
+                </tr>
+              </thead>
+              <tbody>
+                {suspended.map((t) => {
+                  const h = hashStr(t.id);
+                  // Deterministic demo figures — stable per tenant.
+                  const traders = 40 + (h % 320);
+                  const trades = traders * (18 + (h % 40));
+                  const payouts = 6 + (h % 40);
+                  const hoursSinceBackup = 1 + (h % 9);
+                  const purgeDate = new Date(Date.now() + RETENTION_DAYS * 86_400_000 - hoursSinceBackup * 3_600_000);
+                  return (
+                    <tr key={t.id} className="border-b last:border-0">
+                      <td className="py-1.5 pr-4 font-medium text-foreground">{t.name}</td>
+                      <td className="py-1.5 pr-4 tabular-nums">{traders}</td>
+                      <td className="py-1.5 pr-4 tabular-nums">{trades.toLocaleString("en-US")}</td>
+                      <td className="py-1.5 pr-4 tabular-nums">{payouts}</td>
+                      <td className="py-1.5 pr-4 text-muted-foreground">{hoursSinceBackup}h ago</td>
+                      <td className="py-1.5 text-muted-foreground">
+                        {purgeDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* Page                                                               */
@@ -421,6 +512,10 @@ export function TenantLifecyclePage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Suspension data handling (audit fix #7) — retention policy +
+            per-tenant status of everything frozen under suspension. */}
+        <SuspensionDataHandlingPanel tenants={tenants} />
         </PageAsyncBoundary>
       </PageContent>
 
