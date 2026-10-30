@@ -29,6 +29,8 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { makeTermResolver } from "@/lib/platform/terminology";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -39,7 +41,6 @@ import { AreaSeries, DonutSeries } from "@/components/platform/charts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -56,17 +57,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import {
   Link as LinkIcon,
@@ -80,8 +70,6 @@ import {
   TrendingUp,
   Globe,
   Ban,
-  Trash2,
-  Save,
   ExternalLink,
   Mail,
   Share2,
@@ -97,7 +85,9 @@ import {
 type LinkSource = "Direct" | "Email" | "Social" | "Paid Ad" | "Referral" | "Banner";
 type LinkStatus = "active" | "inactive" | "suspended";
 
-interface AffiliateLink {
+export type { LinkSource, LinkStatus };
+
+export interface AffiliateLink {
   id: string;
   url: string;
   refCode: string;
@@ -138,6 +128,16 @@ interface RecentClick {
   country: string;
   device: "Desktop" | "Mobile" | "Tablet";
   converted: boolean;
+}
+
+export type { RecentClick };
+
+/**
+ * Look up a single tracking link by id (shared with
+ * affiliate-link-detail-page — same pattern as getChangeHistoryEntry).
+ */
+export function getAffiliateLink(id: string): AffiliateLink | undefined {
+  return LINKS.find((l) => l.id === id);
 }
 
 const LINKS: AffiliateLink[] = [
@@ -366,12 +366,12 @@ function linkStatusTone(status: LinkStatus): "success" | "muted" | "danger" {
   }
 }
 
-function convRate(clicks: number, conversions: number): number {
+export function convRate(clicks: number, conversions: number): number {
   if (clicks === 0) return 0;
   return (conversions / clicks) * 100;
 }
 
-function formatDate(iso: string): string {
+export function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -388,9 +388,9 @@ function copyToClipboard(text: string, label = "Link") {
   }
 }
 
-/* Deterministic per-link click series (30d) for the Sheet drawer's
+/* Deterministic per-link click series (30d) for the detail page's
  * mini AreaSeries. Same link id → same series every render. */
-function clickSeriesForLink(link: AffiliateLink) {
+export function clickSeriesForLink(link: AffiliateLink) {
   // Seed from the link id (deterministic).
   let seed = 0;
   for (let i = 0; i < link.id.length; i++) seed = (seed * 31 + link.id.charCodeAt(i)) & 0x7fffffff;
@@ -405,11 +405,11 @@ function clickSeriesForLink(link: AffiliateLink) {
   });
 }
 
-/* Deterministic per-link recent clicks (10 entries) for the Sheet
- * drawer's Recent Clicks DataTable. */
+/* Deterministic per-link recent clicks (10 entries) for the detail
+ * page's Recent Clicks table. */
 const COUNTRIES = ["US", "GB", "AE", "SG", "DE", "AU", "CA", "FR", "JP", "IN"];
 const DEVICES: Array<"Desktop" | "Mobile" | "Tablet"> = ["Desktop", "Mobile", "Tablet"];
-function recentClicksForLink(link: AffiliateLink): RecentClick[] {
+export function recentClicksForLink(link: AffiliateLink): RecentClick[] {
   let seed = 7;
   for (let i = 0; i < link.id.length; i++) seed = (seed * 17 + link.id.charCodeAt(i)) & 0x7fffffff;
   const baseConv = convRate(link.clicks, link.conversions) / 100;
@@ -440,12 +440,11 @@ export function AffiliateLinkTrackingPage() {
   const term = makeTermResolver(tenant);
   const currency = runtime.tenant?.currency ?? "USD";
 
+  const { openPanel } = useDetailOverlay();
   const [affiliateFilter, setAffiliateFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("30");
-  const [selected, setSelected] = useState<AffiliateLink | null>(null);
   const [creating, setCreating] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<AffiliateLink | null>(null);
 
   const filtered = useMemo(() => {
     return LINKS.filter((l) => {
@@ -597,10 +596,7 @@ export function AffiliateLinkTrackingPage() {
             size="sm"
             variant="ghost"
             className="h-7 px-2 text-xs"
-            onClick={() => {
-              setSelected(l);
-              setCreating(false);
-            }}
+            onClick={() => openPanel("affiliate-link-detail", { id: l.id })}
             aria-label={`View analytics for ${l.refCode}`}
           >
             View
@@ -622,6 +618,16 @@ export function AffiliateLinkTrackingPage() {
               <Ban className="h-3 w-3" />
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            aria-label={`Open link ${l.refCode} in a new tab`}
+            title="Open in new tab"
+            onClick={() => openViewInNewTab("affiliate-link-detail", { id: l.id })}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
         </div>
       ),
       numeric: true,
@@ -765,10 +771,7 @@ export function AffiliateLinkTrackingPage() {
             </Button>
             <Button
               size="sm"
-              onClick={() => {
-                setSelected(null);
-                setCreating(true);
-              }}
+              onClick={() => setCreating(true)}
             >
               <Plus className="mr-1 h-4 w-4" /> Create Link
             </Button>
@@ -862,10 +865,7 @@ export function AffiliateLinkTrackingPage() {
             searchableText={(l) => `${l.url} ${l.refCode} ${l.affiliate} ${l.source} ${l.utmCampaign}`}
             searchPlaceholder="Search by ref code or affiliate…"
             pageSize={8}
-            onRowClick={(l) => {
-              setSelected(l);
-              setCreating(false);
-            }}
+            onRowClick={(l) => openPanel("affiliate-link-detail", { id: l.id })}
             emptyTitle="No links match"
             emptyDescription="Adjust the affiliate or source filter and try again."
           />
@@ -950,99 +950,38 @@ export function AffiliateLinkTrackingPage() {
       </PageContent>
 
       <LinkAnalyticsSheet
-        key={selected?.id ?? (creating ? "__create__" : "__closed__")}
-        link={selected}
+        key={creating ? "__create__" : "__closed__"}
         creating={creating}
-        currency={currency}
-        onClose={() => {
-          setSelected(null);
-          setCreating(false);
-        }}
-        onDelete={(l) => {
-          setSelected(null);
-          setCreating(false);
-          setDeleteTarget(l);
-        }}
+        onClose={() => setCreating(false)}
       />
-
-      {/* Delete Link AlertDialog — destructive friction §24 */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Delete link {deleteTarget?.refCode ?? ""}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              The tracking link will stop redirecting immediately. Past
-              {deleteTarget ? ` ${deleteTarget.clicks.toLocaleString()} clicks and ${deleteTarget.conversions} conversions` : " all click and conversion"} data is{" "}
-              <strong>retained</strong> for attribution reporting — only the
-              link itself is removed. Existing marketing creative that points
-              at this URL will return a 404. This action is logged in the
-              audit trail and cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep link</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-rose-600 text-white hover:bg-rose-700"
-              onClick={() => {
-                if (deleteTarget) {
-                  toast({
-                    title: "Link deleted",
-                    description: `${deleteTarget.refCode} no longer redirects. Past analytics retained.`,
-                    variant: "destructive",
-                  });
-                }
-                setDeleteTarget(null);
-              }}
-            >
-              Delete link
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Page>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Link Analytics Sheet Drawer (View or Create)                       */
+/* Create Tracking Link Sheet Drawer                                   */
+/*                                                                     */
+/* View/edit of an existing link lives in the detail page              */
+/* (affiliate-link-detail-page — overlay + full-page).                 */
 /* ------------------------------------------------------------------ */
 
 function LinkAnalyticsSheet({
-  link,
   creating,
-  currency,
   onClose,
-  onDelete,
 }: {
-  link: AffiliateLink | null;
   creating: boolean;
-  currency: string;
   onClose: () => void;
-  onDelete: (l: AffiliateLink) => void;
 }) {
-  const open = creating || link !== null;
-  // The parent component passes a `key` prop so the entire sheet
-  // remounts whenever the target link changes (or when entering
-  // create mode). Lazy useState initializers read from `link`
-  // and `creating` on mount — no useEffect, no setState-in-effect
-  // warning (react-hooks/set-state-in-effect).
-  const [affiliate, setAffiliate] = useState(() => link?.affiliateId ?? "AFF-001");
-  const [source, setSource] = useState<LinkSource>(() => link?.source ?? "Direct");
-  const [campaign, setCampaign] = useState(() => link?.utmCampaign ?? "");
-  const [created, setCreated] = useState(() => link?.createdAt ?? new Date().toISOString().slice(0, 10));
-  const [url, setUrl] = useState(() => link?.url ?? "https://propfirm.com/?ref=NEWLINK");
-  const [refCode, setRefCode] = useState(() => link?.refCode ?? "NEWLINK");
-
-  // Derived analytics for the viewed link (deterministic per link)
-  const series = link ? clickSeriesForLink(link) : [];
-  const recentClicks = link ? recentClicksForLink(link) : [];
+  // The parent component passes a `key` prop so the sheet remounts when
+  // entering create mode. Lazy useState initializers seed defaults on
+  // mount — no useEffect, no setState-in-effect warning
+  // (react-hooks/set-state-in-effect).
+  const [affiliate, setAffiliate] = useState("AFF-001");
+  const [source, setSource] = useState<LinkSource>("Direct");
+  const [campaign, setCampaign] = useState("");
+  const [created, setCreated] = useState(() => new Date().toISOString().slice(0, 10));
+  const [url, setUrl] = useState("https://propfirm.com/?ref=NEWLINK");
+  const [refCode, setRefCode] = useState("NEWLINK");
 
   const handleSave = () => {
     if (!refCode.trim()) {
@@ -1050,23 +989,14 @@ function LinkAnalyticsSheet({
       return;
     }
     toast({
-      title: creating ? "Link created" : "Link saved",
+      title: "Link created",
       description: `${refCode} — ${source} · ${affiliate}.`,
     });
     onClose();
   };
 
-  const handleSuspend = () => {
-    toast({
-      title: "Link suspended (demo)",
-      description: `${refCode} no longer redirects.`,
-      variant: "destructive",
-    });
-    onClose();
-  };
-
   return (
-    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Sheet open={creating} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent
         side="right"
         className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-2xl"
@@ -1074,12 +1004,10 @@ function LinkAnalyticsSheet({
         <SheetHeader className="border-b pb-4">
           <SheetTitle className="flex items-center gap-2">
             <LinkIcon className="h-4 w-4 text-muted-foreground" />
-            {creating ? "Create Tracking Link" : `Link Analytics — ${link?.refCode ?? ""}`}
+            Create Tracking Link
           </SheetTitle>
           <SheetDescription>
-            {creating
-              ? "Configure the affiliate, source, and UTM campaign for a new tracking link."
-              : `${link?.clicks.toLocaleString() ?? 0} clicks · ${link?.conversions ?? 0} conversions · ${formatCurrency(link?.revenue ?? 0, currency)} revenue`}
+            Configure the affiliate, source, and UTM campaign for a new tracking link.
           </SheetDescription>
         </SheetHeader>
 
@@ -1188,99 +1116,15 @@ function LinkAnalyticsSheet({
               />
             </div>
           </div>
-
-          <Separator />
-
-          {/* Click analytics mini-chart (30d) — view mode only */}
-          {!creating && series.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  <MousePointerClick className="h-3.5 w-3.5 text-emerald-600" />
-                  Click Analytics (30d)
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  Peak: {Math.max(...series.map((s) => Number(s.value)))} clicks
-                </span>
-              </div>
-              <AreaSeries
-                data={series}
-                xKey="date"
-                yKey="value"
-                color="#059669"
-                height={160}
-                formatValue={(v) => formatCompact(v)}
-              />
-            </div>
-          )}
-
-          {/* Recent Clicks DataTable — view mode only */}
-          {!creating && recentClicks.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  <MousePointerClick className="h-3.5 w-3.5 text-muted-foreground" />
-                  Recent Clicks (last 10)
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {recentClicks.filter((c) => c.converted).length} converted
-                </span>
-              </div>
-              <RecentClicksTable rows={recentClicks} />
-            </div>
-          )}
         </div>
 
         <SheetFooter className="mt-auto flex-row gap-2 border-t pt-4">
           <Button size="sm" onClick={handleSave}>
-            <Save className="mr-1 h-3.5 w-3.5" /> {creating ? "Create" : "Save"}
+            <Plus className="mr-1 h-3.5 w-3.5" /> Create
           </Button>
-          {!creating && link && link.status === "active" && (
-            <Button size="sm" variant="outline" onClick={handleSuspend}>
-              <Ban className="mr-1 h-3.5 w-3.5" /> Suspend
-            </Button>
-          )}
-          {!creating && link && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="ml-auto"
-                  aria-label="Delete this link"
-                >
-                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete link {link.refCode}?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    The tracking link will stop redirecting immediately. Past
-                    {` ${link.clicks.toLocaleString()} clicks and ${link.conversions} conversions`} data is{" "}
-                    <strong>retained</strong> for attribution reporting — only the
-                    link itself is removed. Existing marketing creative that points
-                    at this URL will return a 404. This action is logged in the
-                    audit trail and cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Keep link</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-rose-600 text-white hover:bg-rose-700"
-                    onClick={() => onDelete(link)}
-                  >
-                    Delete link
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-          {creating && (
-            <Button size="sm" variant="ghost" className="ml-auto" onClick={onClose}>
-              Cancel
-            </Button>
-          )}
+          <Button size="sm" variant="ghost" className="ml-auto" onClick={onClose}>
+            Cancel
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>
@@ -1291,7 +1135,7 @@ function LinkAnalyticsSheet({
 /* Recent Clicks mini-table (inline — not the platform DataTable)     */
 /* ------------------------------------------------------------------ */
 
-function RecentClicksTable({ rows }: { rows: RecentClick[] }) {
+export function RecentClicksTable({ rows }: { rows: RecentClick[] }) {
   const data: RecentClick[] = Array.isArray(rows) ? rows : [];
   return (
     <div className="rounded-lg border bg-background">
