@@ -54,19 +54,14 @@ function isValidId(id: string | null | undefined): id is string {
 }
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {
-  const [activeAccountId, setActiveId] = useState<string>(primaryAccount.id);
-
-  // Apply the persisted preference after mount (client-only).
-  useEffect(() => {
+  const [activeAccountId, setActiveId] = useState<string>(() => {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (isValidId(stored) && stored !== primaryAccount.id) {
-        setActiveId(stored);
-      }
+      return isValidId(stored) ? stored : primaryAccount.id;
     } catch {
-      /* storage unavailable (private mode) — keep the default */
+      return primaryAccount.id;
     }
-  }, []);
+  });
 
   const setActiveAccountId = useCallback((id: string) => {
     if (!isValidId(id)) return;

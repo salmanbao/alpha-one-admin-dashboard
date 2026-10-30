@@ -106,6 +106,9 @@ export function SensitiveActionDialog({
   const [reason, setReason] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pendingRequest, setPendingRequest] = useState<ApprovalRequest | null>(null);
+  // Captured when the flow leaves "review" so the async executor below
+  // never reads stale state.
+  const reasonSnapshot = reason.trim();
   // True once the OTP challenge verified successfully — the dialog's
   // auto-close then must NOT bounce the flow back to "review".
   const verifiedRef = useRef(false);
@@ -163,9 +166,6 @@ export function SensitiveActionDialog({
   const phraseOk = !confirmPhrase || typed.trim() === confirmPhrase;
   const reasonOk = !requireReason || reason.trim().length >= 8;
   const reviewOk = acknowledged && phraseOk && reasonOk;
-  // Captured when the flow leaves "review" so the async executor below
-  // never reads stale state.
-  const reasonSnapshot = reason.trim();
 
   const close = () => onOpenChange(false);
 

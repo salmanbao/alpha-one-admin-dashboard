@@ -98,6 +98,8 @@ export function ProvisioningSagaPage() {
     const key = `${job.id}:${job.state}`;
     if (applied.current.has(key)) return;
     const tenant = availableTenants.find((t) => t.id === job.tenantId);
+    const done = job.steps.filter((s) => s.state === "completed").length;
+    const runnable = job.steps.filter((s) => s.state !== "skipped").length;
     if (!tenant) return;
     applied.current.add(key);
 

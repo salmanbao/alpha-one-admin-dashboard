@@ -110,8 +110,12 @@ export function useAsyncMock<T>(
   const [error, setError] = useState<Error | undefined>(undefined);
   const [attempt, setAttempt] = useState(0);
   const loaderRef = useRef(loader);
-  loaderRef.current = loader;
   const mounted = useRef(true);
+
+  // Update ref when loader changes to avoid stale closure in effect
+  useEffect(() => {
+    loaderRef.current = loader;
+  }, [loader]);
 
   useEffect(() => {
     mounted.current = true;

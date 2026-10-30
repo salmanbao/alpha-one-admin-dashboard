@@ -368,30 +368,6 @@ export const users: AuthUser[] = [
     application: "super-admin",
     lastActiveAt: hoursAgo(1),
   },
-  // Additional platform operators (super-admin realm). Ids match the
-  // console-store's approval seeds (`op-priya`, `op-marcus`) so the
-  // two-operator CON-32 flow is demoable: initiate as one, switch user,
-  // approve as another.
-  {
-    id: "op-priya",
-    name: "Priya Shah",
-    email: "priya@pfaas.io",
-    initials: "PS",
-    roles: ["super-admin"],
-    permissions: ["*"],
-    application: "super-admin",
-    lastActiveAt: hoursAgo(2),
-  },
-  {
-    id: "op-marcus",
-    name: "Marcus Webb",
-    email: "marcus@pfaas.io",
-    initials: "MW",
-    roles: ["super-admin"],
-    permissions: ["*"],
-    application: "super-admin",
-    lastActiveAt: hoursAgo(4),
-  },
   {
     id: "user-alpha-admin",
     tenantId: "tenant-alpha",
@@ -508,7 +484,7 @@ export interface TradingAccount {
   equity: number;
   leverage: string;
   currency: string;
-  status: "active" | "breached" | "passed" | "pending" | "in-progress";
+  status: "active" | "breached" | "passed" | "pending";
   createdAt: string;
 }
 
@@ -772,7 +748,7 @@ function seedAccounts(): TradingAccount[] {
         equity: Math.round(t.equity),
         leverage: "1:100",
         currency: t.tenantId === "tenant-beta" ? "GBP" : "USD",
-        status: t.status === "breached" ? "breached" : isFunded ? "active" : "in-progress",
+        status: t.status === "breached" ? "breached" : isFunded ? "active" : "pending",
         createdAt: t.joinedAt,
       });
     }
@@ -870,9 +846,9 @@ function seedChallenges(): Challenge[] {
   const out: Challenge[] = [];
   let n = 0;
   for (const t of traders) {
-    if (!t.challengePhase || t.challengePhase === "none" || t.challengePhase === "funded") continue;
+    if (t.challengePhase === "none" || t.challengePhase === "funded") continue;
     n++;
-    const phase = t.challengePhase;
+    const phase = t.challengePhase ?? "phase-1";
     const accountSize = phase === "phase-2" ? 25000 : 10000;
     const profitTarget = accountSize * (phase === "phase-2" ? 0.05 : 0.08);
     out.push({
