@@ -16,6 +16,8 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { resolveTermsInString } from "@/lib/platform/terminology";
 import { getTenantAccounts } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -24,7 +26,6 @@ import { StatusBadge, formatCurrency } from "@/components/platform/status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { cn } from "@/lib/utils";
 import {
@@ -45,6 +46,7 @@ import {
   CheckCircle2,
   History,
   CircleUserRound,
+  ExternalLink,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -62,7 +64,7 @@ type EventType =
   | "RULE_WARNING"
   | "DRAWDOWN_ALERT";
 
-interface AccountEvent {
+export interface AccountEvent {
   id: string;
   type: EventType;
   description: string;
@@ -70,7 +72,7 @@ interface AccountEvent {
   actor: string;
 }
 
-const EVENT_META: Record<EventType, { label: string; tone: "success" | "info" | "warning" | "danger" | "muted" | "default"; icon: React.ComponentType<{ className?: string }> }> = {
+export const EVENT_META: Record<EventType, { label: string; tone: "success" | "info" | "warning" | "danger" | "muted" | "default"; icon: React.ComponentType<{ className?: string }> }> = {
   ACCOUNT_CREATED: { label: "Account Created", tone: "info", icon: CircleUserRound },
   PHASE_UPGRADED: { label: "Phase Upgraded", tone: "success", icon: Trophy },
   PAYOUT_REQUESTED: { label: "Payout Requested", tone: "info", icon: Wallet },
@@ -152,7 +154,7 @@ const DESCRIPTIONS: Record<EventType, string[]> = {
   ],
 };
 
-function generateEvents(accountId: string, accountLogin: string, currency: string = "USD"): AccountEvent[] {
+export function generateEvents(accountId: string, accountLogin: string, currency: string = "USD"): AccountEvent[] {
   const seed = hashStr(accountId) || 7;
   const events: AccountEvent[] = [];
   // Always start with ACCOUNT_CREATED on day 0
@@ -205,9 +207,13 @@ function generateEvents(accountId: string, accountLogin: string, currency: strin
 
 export function AccountEventsPage() {
   const { runtime, router, navigate, tenant } = usePlatform();
+  const { openPanel } = useDetailOverlay();
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
-  const accountId = router.params.id;
+  // While a detail overlay is open the URL's `id` carries the EVENT id
+  // (overlay convention); the owning account is carried in `accountId`.
+  // Bare visits (?view=account-events&id=<acct>) keep working via fallback.
+  const accountId = router.params.accountId ?? router.params.id;
 
   const account = useMemo(
     () => getTenantAccounts(tid).find((a) => a.id === accountId),
@@ -267,11 +273,13 @@ export function AccountEventsPage() {
   };
 
   const handleRowClick = (e: AccountEvent) => {
-    const meta = EVENT_META[e.type];
-    toast({
-      title: meta.label,
-      description: `${resolveTermsInString(e.description, tenant)} · ${new Date(e.createdAt).toLocaleString()}`,
-    });
+    if (!account) return;
+    openPanel("account-event-detail", { id: e.id, accountId: account.id });
+  };
+
+  const openEventInNewTab = (e: AccountEvent) => {
+    if (!account) return;
+    openViewInNewTab("account-event-detail", { id: e.id, accountId: account.id });
   };
 
   const columns: Column<AccountEvent>[] = [
@@ -282,6 +290,7 @@ export function AccountEventsPage() {
         const meta = EVENT_META[e.type];
         const Icon = meta.icon;
         return (
+          <>
           <button
             type="button"
             onClick={(ev) => {
@@ -293,6 +302,21 @@ export function AccountEventsPage() {
             <Icon className={cn("h-3.5 w-3.5", toneText(meta.tone))} />
             <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>
           </button>
+          {/* Pattern-1 affordance: explicit new-tab open, never the
+              default row click. */}
+          <button
+            type="button"
+            title="Open event in new tab"
+            aria-label={`Open event ${e.id} in a new tab`}
+            onClick={(ev) => {
+              ev.stopPropagation();
+              openEventInNewTab(e);
+            }}
+            className="ml-1 inline-flex rounded-md p-0.5 text-muted-foreground hover:text-foreground"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </button>
+          </>
         );
       },
       sortValue: (e) => e.type,
