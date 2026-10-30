@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/platform/status";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -88,8 +89,101 @@ const actionTakenLabel: Record<RiskActionTaken, string> = {
 
 const REVIEWERS = ["Unassigned", "Sarah Chen", "Marcus Webb"];
 
+/**
+ * Resolution templates by breach/signal type (audit fix #5). Picking a
+ * template prefills the resolution text and the action taken, so an
+ * investigator writes a specific, consistent outcome instead of a
+ * generic one-liner. Free editing stays available after prefill.
+ */
+type ResolutionTemplate = { label: string; text: string; action: RiskActionTaken };
+
+const RESOLUTION_TEMPLATES: Record<string, ResolutionTemplate[]> = {
+  "Drawdown anomaly": [
+    {
+      label: "Drawdown confirmed — within rules",
+      text: "Reviewed the equity curve and trade log for the flagged window: the drawdown stayed within the program's max drawdown limit. No rule breach — case closed after verification.",
+      action: "none",
+    },
+    {
+      label: "Drawdown breach — trader warned",
+      text: "Confirmed the daily loss limit was exceeded on the flagged date. Trader notified of the breach and reminded of the daily stop-loss rule. Account remains active with a payout hold until the next review.",
+      action: "warned",
+    },
+    {
+      label: "Drawdown breach — payout blocked",
+      text: "Confirmed a max-drawdown breach during the payout window. Payout blocked for this cycle; trader informed and may re-request after the next clean trading period.",
+      action: "payout_blocked",
+    },
+  ],
+  "Trading pattern anomaly": [
+    {
+      label: "Pattern explained — legit strategy",
+      text: "Trade timing and lot-size pattern matches the trader's declared strategy. No copy-trading or martingale indicators found. Case closed as explained behavior.",
+      action: "none",
+    },
+    {
+      label: "Pattern risky — warned",
+      text: "Pattern indicates over-concentration in one symbol/session. Trader warned about concentration risk; monitoring for recurrence over the next 5 trading days.",
+      action: "warned",
+    },
+  ],
+  "Multiple account behavior": [
+    {
+      label: "Related accounts — no violation",
+      text: "Multiple accounts share a device/IP but operate with different strategies. No hedging or mirror trading detected. Closest accounts flagged for monitoring only.",
+      action: "none",
+    },
+    {
+      label: "Mirror trading — account closed",
+      text: "Confirmed mirror trading across accounts in breach of the one-account rule. Secondary account closed; trader notified with the evidence summary.",
+      action: "account_closed",
+    },
+  ],
+  "Suspicious payout pattern": [
+    {
+      label: "Payout pattern verified",
+      text: "Payout requests match the trader's profit curve and payout schedule. Withdrawal method ownership verified. Release hold and continue processing.",
+      action: "none",
+    },
+    {
+      label: "Payout held — additional checks",
+      text: "Payout pattern inconsistent with trading history. Hold extended pending source-of-funds documentation; trader requested via support ticket.",
+      action: "payout_blocked",
+    },
+  ],
+  "False positive — device cluster": [
+    {
+      label: "False positive confirmed",
+      text: "Device cluster explained by shared office NAT / family household. Trader history clean across all checks. Case closed without action.",
+      action: "none",
+    },
+  ],
+};
+
+const DEFAULT_TEMPLATES: ResolutionTemplate[] = [
+  {
+    label: "No violation found",
+    text: "Investigation completed — evidence reviewed, no rule violation confirmed. Case closed.",
+    action: "none",
+  },
+  {
+    label: "Violation confirmed — warned",
+    text: "Investigation confirmed a rule violation. Trader warned with the specific rule and dates. Monitoring continues.",
+    action: "warned",
+  },
+];
+
+/** Workflow progress strip — case lifecycle stages (audit fix #5). */
+const WORKFLOW_STAGES = ["Open", "Investigating", "Resolved"] as const;
+
+function workflowStageIndex(status: RiskCase["status"]): number {
+  if (status === "resolved") return 2;
+  if (status === "investigating" || status === "escalated" || status === "action-required") return 1;
+  return 0;
+}
+
 export function RiskCaseDetailPage() {
-  const { runtime, navigate, router, user } = usePlatform();
+  const { runtime, navigate, router, user, pushNotification } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
   useRiskCaseVersion(); // re-render after every workflow action
 
@@ -101,6 +195,11 @@ export function RiskCaseDetailPage() {
   const [resolveOpen, setResolveOpen] = useState(false);
   const [resolution, setResolution] = useState("");
   const [actionTaken, setActionTaken] = useState<RiskActionTaken>("none");
+  // Audit fix #5: evidence-review checklist gates Resolve; templates
+  // prefill the resolution; notify-trader controls the outcome message.
+  const [reviewedKeys, setReviewedKeys] = useState<Set<string>>(new Set());
+  const [templateKey, setTemplateKey] = useState("");
+  const [notifyTrader, setNotifyTrader] = useState(true);
 
   const reviewers =
     user?.name && !REVIEWERS.includes(user.name) ? [...REVIEWERS, user.name] : REVIEWERS;
@@ -125,6 +224,23 @@ export function RiskCaseDetailPage() {
       </Page>
     );
   }
+
+  // Evidence-review checklist (audit fix #5) — every evidence line must
+  // be marked reviewed before Resolve unlocks; keyed by case+index so
+  // switching cases never leaks another case's checklist state.
+  const evKey = (i: number) => `${riskCase.id}:${i}`;
+  const toggleEvidence = (i: number) =>
+    setReviewedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(evKey(i))) next.delete(evKey(i));
+      else next.add(evKey(i));
+      return next;
+    });
+  const reviewedCount = riskCase.evidence.filter((_, i) => reviewedKeys.has(evKey(i))).length;
+  const allEvidenceReviewed =
+    riskCase.evidence.length > 0 && reviewedCount === riskCase.evidence.length;
+  const stageIdx = workflowStageIndex(riskCase.status);
+  const templates = RESOLUTION_TEMPLATES[riskCase.signal] ?? DEFAULT_TEMPLATES;
 
   return (
     <Page>
@@ -169,6 +285,61 @@ export function RiskCaseDetailPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* Workflow progress strip (audit fix #5) — always shows where
+                the case sits in its lifecycle; escalated/action-required
+                read as Investigating variants. */}
+            <ol
+              className="flex items-center gap-1"
+              aria-label="Case workflow progress"
+            >
+              {WORKFLOW_STAGES.map((s, i) => {
+                const done = i < stageIdx;
+                const current = i === stageIdx;
+                return (
+                  <li key={s} className="flex flex-1 items-center gap-1">
+                    <span
+                      className={cn(
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+                        done && "bg-emerald-600 text-white",
+                        current && "bg-primary text-primary-foreground ring-2 ring-primary/30",
+                        !done && !current && "bg-muted text-muted-foreground",
+                      )}
+                      aria-current={current ? "step" : undefined}
+                    >
+                      {done ? "✓" : i + 1}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-[10px] font-medium uppercase tracking-wide",
+                        current ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {s}
+                    </span>
+                    {i < WORKFLOW_STAGES.length - 1 && (
+                      <span className={cn("h-px flex-1", done ? "bg-emerald-600/40" : "bg-border")} />
+                    )}
+                  </li>
+                );
+              })}
+              {/* Escalated / action-required variants show on the strip */}
+              {riskCase.status === "escalated" && (
+                <Badge variant="outline" className="ml-1 border-amber-500/40 text-[10px] text-amber-700 dark:text-amber-400">
+                  Escalated
+                </Badge>
+              )}
+              {riskCase.status === "action-required" && (
+                <Badge variant="outline" className="ml-1 border-rose-500/40 text-[10px] text-rose-700 dark:text-rose-400">
+                  Action required
+                </Badge>
+              )}
+              {riskCase.status === "dismissed" && (
+                <Badge variant="outline" className="ml-1 text-[10px] text-muted-foreground">
+                  Dismissed
+                </Badge>
+              )}
+            </ol>
+
             {/* Reviewer assignment (PRD assigned_to) */}
             <div className="flex items-center gap-2">
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Assigned to</p>
@@ -214,15 +385,40 @@ export function RiskCaseDetailPage() {
               <p className="text-xs">{riskCase.signalDetail}</p>
             </div>
 
-            {/* Evidence */}
+            {/* Evidence — review checklist gates Resolve (audit fix #5) */}
             <div>
-              <p className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground"><FileText className="h-3 w-3" />Evidence</p>
+              <p className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <FileText className="h-3 w-3" />Evidence
+                {riskCase.status !== "resolved" && riskCase.status !== "dismissed" && (
+                  <span className="ml-auto font-mono normal-case">
+                    {reviewedCount}/{riskCase.evidence.length} reviewed
+                  </span>
+                )}
+              </p>
               <ul className="space-y-0.5">
-                {riskCase.evidence.map((e, i) => (
-                  <li key={i} className="flex items-start gap-1 text-[11px] text-muted-foreground">
-                    <ArrowRight className="mt-0.5 h-2.5 w-2.5 shrink-0" />{e}
-                  </li>
-                ))}
+                {riskCase.evidence.map((e, i) => {
+                  const done = reviewedKeys.has(evKey(i));
+                  const closed = riskCase.status === "resolved" || riskCase.status === "dismissed";
+                  return (
+                    <li key={i}>
+                      <label
+                        className={cn(
+                          "flex items-start gap-1.5 rounded px-1 py-0.5 text-[11px] text-muted-foreground",
+                          !closed && "cursor-pointer hover:bg-muted/40",
+                        )}
+                      >
+                        <Checkbox
+                          checked={done || closed}
+                          disabled={closed}
+                          onCheckedChange={() => toggleEvidence(i)}
+                          className="mt-0.5"
+                          aria-label={`Mark reviewed: ${e}`}
+                        />
+                        <span className={cn(done && !closed && "line-through opacity-60")}>{e}</span>
+                      </label>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
 
@@ -297,9 +493,21 @@ export function RiskCaseDetailPage() {
                       <AlertTriangle className="mr-1 h-3 w-3" /> Mark action required
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" className="text-emerald-700" onClick={() => setResolveOpen(true)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-emerald-700"
+                    disabled={!allEvidenceReviewed}
+                    title={allEvidenceReviewed ? undefined : `Review all ${riskCase.evidence.length} evidence items first`}
+                    onClick={() => setResolveOpen(true)}
+                  >
                     <CheckCircle2 className="mr-1 h-3 w-3" /> Resolve
                   </Button>
+                  {!allEvidenceReviewed && (
+                    <span className="self-center text-[10px] text-muted-foreground">
+                      Review evidence ({reviewedCount}/{riskCase.evidence.length}) to resolve
+                    </span>
+                  )}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button size="sm" variant="ghost" className="text-muted-foreground">
@@ -331,7 +539,8 @@ export function RiskCaseDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Resolve dialog — resolution text + action-taken selector (PRD §4.5) */}
+        {/* Resolve dialog — template prefill + resolution + action taken
+            + notify-trader (audit fix #5, PRD §4.5) */}
         <AlertDialog
           open={resolveOpen}
           onOpenChange={(o) => {
@@ -339,6 +548,7 @@ export function RiskCaseDetailPage() {
             if (!o) {
               setResolution("");
               setActionTaken("none");
+              setTemplateKey("");
             }
           }}
         >
@@ -351,6 +561,34 @@ export function RiskCaseDetailPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-3 text-left">
+              {/* Breach-type template — prefills text + action taken */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Template for “{riskCase.signal}”
+                </Label>
+                <Select
+                  value={templateKey}
+                  onValueChange={(v) => {
+                    setTemplateKey(v);
+                    const t = templates.find((x) => x.label === v);
+                    if (t) {
+                      setResolution(t.text);
+                      setActionTaken(t.action);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full" aria-label="Resolution template">
+                    <SelectValue placeholder="Start from a template (optional)…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map((t) => (
+                      <SelectItem key={t.label} value={t.label}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="case-resolution" className="text-xs text-muted-foreground">
                   Resolution (required)
@@ -377,6 +615,25 @@ export function RiskCaseDetailPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {/* Notify-trader — the outcome reaches the trader's inbox */}
+              <label
+                htmlFor="case-notify-trader"
+                className="flex items-start gap-2 rounded-md border bg-muted/40 p-2 text-xs"
+              >
+                <Checkbox
+                  id="case-notify-trader"
+                  checked={notifyTrader}
+                  onCheckedChange={(v) => setNotifyTrader(v === true)}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="font-medium">Notify {riskCase.traderName}</span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    Sends the outcome ({actionTakenLabel[actionTaken].toLowerCase()}) and
+                    resolution summary to the trader.
+                  </span>
+                </span>
+              </label>
             </div>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -384,9 +641,17 @@ export function RiskCaseDetailPage() {
                 disabled={!resolution.trim()}
                 onClick={() => {
                   resolveRiskCase(tid, riskCase.id, resolution.trim(), actionTaken);
+                  if (notifyTrader) {
+                    pushNotification({
+                      title: `Risk case ${riskCase.id} resolved`,
+                      message: `${actionTakenLabel[actionTaken]} — ${resolution.trim()}`,
+                      severity: "info",
+                      module: "risk",
+                    });
+                  }
                   toast({
                     title: "Case resolved",
-                    description: `${riskCase.id} resolved — ${actionTakenLabel[actionTaken]}.`,
+                    description: `${riskCase.id} resolved — ${actionTakenLabel[actionTaken]}${notifyTrader ? "" : " (trader not notified)"}.`,
                   });
                 }}
               >

@@ -29,13 +29,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import {
+  PayoutRejectDialog,
+  type PayoutRejectTarget,
+  type PayoutRejectResult,
+} from "@/components/platform/payout-reject-dialog";
 import { Check, X, FileQuestion, ChevronRight, ShieldAlert, MessageCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/components/platform/status";
 import { EntityAuditTimeline } from "@/components/platform/audit";
 import { applyPayoutDecision, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { resolveBreach } from "@/modules/risk/breach-store";
-import type { ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 
 interface ContextualAction {
   id: string;
@@ -195,6 +200,9 @@ export function PayoutReviewActions({
   // re-render the panel when it changes.
   usePayoutVersion();
   const escalated = payoutEscalated(payoutId);
+  // Audit fix #3: reject collects a structured reason via the shared
+  // PayoutRejectDialog instead of a reason-less confirmation.
+  const [rejectTarget, setRejectTarget] = useState<PayoutRejectTarget | null>(null);
 
   const actions: ContextualAction[] = [
     {
@@ -225,15 +233,16 @@ export function PayoutReviewActions({
       icon: X,
       variant: "destructive",
       requires: "payout.approve",
-      destructive: {
-        title: "Reject this payout?",
-        description: `You are about to reject the payout of ${currencyFmt} for ${traderName}.`,
-        consequence: resolveTermsInString("The trader will need to re-request the payout. The rejection will be logged in the audit trail.", tenant),
-      },
-      onAction: () => {
-        applyPayoutDecision(payoutId, "rejected");
-        toast({ title: "Payout rejected", description: `${traderName}'s payout was rejected.`, variant: "destructive" });
-      },
+      // No `destructive` metadata — the shared PayoutRejectDialog opens
+      // instead, collecting the structured reason first (audit fix #3).
+      onAction: () =>
+        setRejectTarget({
+          reference: payoutId,
+          traderName,
+          amount,
+          currency: currency || "USD",
+          count: 1,
+        }),
     },
     {
       id: "request-info",
@@ -285,6 +294,28 @@ export function PayoutReviewActions({
       {/* Entity audit trail — decisions recorded via lib/audit.ts appear
           here (and on every other surface) as soon as they are made. */}
       <EntityAuditTimeline entity="payout" entityId={payoutId} />
+      {/* Shared reject dialog (audit fix #3) — structured reason + notify */}
+      <PayoutRejectDialog
+        target={rejectTarget}
+        onOpenChange={(o) => !o && setRejectTarget(null)}
+        onConfirm={(result: PayoutRejectResult) => {
+          applyPayoutDecision(payoutId, "rejected", { reason: result.reason });
+          if (result.notifyTrader) {
+            pushNotification({
+              title: "Payout rejected",
+              message: `Your payout ${payoutId} (${currencyFmt}) was rejected: ${result.reason}`,
+              severity: "critical",
+              module: "payouts",
+            });
+          }
+          toast({
+            title: "Payout rejected",
+            description: `${traderName}'s payout was rejected — ${result.reason}`,
+            variant: "destructive",
+          });
+          setRejectTarget(null);
+        }}
+      />
     </div>
   );
 }

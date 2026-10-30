@@ -8,11 +8,12 @@
 import {
   TerraBadge,
   TerraCard,
+  TerraDrawdownMeter,
   TerraPageHeader,
   TerraProgress,
   formatMoney,
 } from "@/components/terra/terra-ui";
-import { objectivesFor } from "@/lib/fixtures/terra-fixtures";
+import { objectivesFor, terraRiskLimits } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 
 export function ObjectivesPage() {
@@ -23,6 +24,11 @@ export function ObjectivesPage() {
   const { activeAccount } = useActiveAccount();
   const objectives = objectivesFor(activeAccount.id);
   const completed = objectives.filter((o) => o.status === "complete").length;
+  // Persistent drawdown meters (audit #6) — daily + total risk usage for
+  // the selected account, always visible above the objectives list.
+  const limits = terraRiskLimits[activeAccount.id] ?? { daily: 1000, maxDd: 5000 };
+  const dailyUsed = Math.max(0, limits.daily - activeAccount.dailyLossRemaining);
+  const ddUsed = Math.max(0, limits.maxDd - activeAccount.maxDdRemaining);
 
   return (
     <div className="space-y-6">
@@ -39,6 +45,26 @@ export function ObjectivesPage() {
           </TerraBadge>
         }
       />
+
+      {/* Drawdown meters — the two limits that end evaluations */}
+      <TerraCard>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <TerraDrawdownMeter
+            label="Daily loss limit"
+            used={dailyUsed}
+            limit={limits.daily}
+            remaining={activeAccount.dailyLossRemaining}
+            description="resets at 5pm ET"
+          />
+          <TerraDrawdownMeter
+            label="Maximum drawdown"
+            used={ddUsed}
+            limit={limits.maxDd}
+            remaining={activeAccount.maxDdRemaining}
+            description="trailing — never resets"
+          />
+        </div>
+      </TerraCard>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {objectives.map((obj) => {

@@ -408,6 +408,11 @@
   border-radius: var(--radius-sm);
 }
 
+/* Skip-link target — programmatic focus, no visible ring needed */
+main[tabindex="-1"]:focus {
+  outline: none;
+}
+
 /* Card hover lift — very soft, warm shadow */
 .card-hover-lift {
   transition: transform 250ms ease, box-shadow 250ms ease;

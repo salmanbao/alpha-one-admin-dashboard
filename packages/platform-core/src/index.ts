@@ -43,3 +43,14 @@ export type {
   AuditEntry,
   AppNotification,
 } from "./lib/platform/types";
+
+/* ── Financial display formatting (canonical money/percent/day) ───────── */
+export {
+  formatCurrencyValue,
+  formatSignedCurrencyValue,
+  formatCompactCurrencyValue,
+  formatPercentValue,
+  formatProfitFactor,
+  tradingDayKey,
+  formatTradingDay,
+} from "./lib/financial-format";
