@@ -16,6 +16,8 @@
  */
 
 import { useState } from "react";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import {
   decideEvaluation,
@@ -32,6 +34,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,20 +59,23 @@ import {
   ClipboardCheck,
   Clock,
   Download,
+  Eye,
+  ExternalLink,
+  MoreVertical,
   Scale,
   XCircle,
 } from "lucide-react";
 
 type StatusTone = "warning" | "success" | "danger" | "info";
 
-const statusTone: Record<Evaluation["status"], StatusTone> = {
+export const statusTone: Record<Evaluation["status"], StatusTone> = {
   pending: "warning",
   approved: "success",
   rejected: "danger",
   overridden: "info",
 };
 
-const statusLabel: Record<Evaluation["status"], string> = {
+export const statusLabel: Record<Evaluation["status"], string> = {
   pending: "Pending",
   approved: "Approved",
   rejected: "Rejected",
@@ -74,7 +86,8 @@ const statusLabel: Record<Evaluation["status"], string> = {
 /* Per-row actions — Approve / Reject (reason) / Override (reason)     */
 /* ------------------------------------------------------------------ */
 
-function EvaluationRowActions({ ev }: { ev: Evaluation }) {
+/** Shared by the queue's actions column and evaluation-detail-page. */
+export function EvaluationRowActions({ ev }: { ev: Evaluation }) {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [overrideOpen, setOverrideOpen] = useState(false);
@@ -248,6 +261,7 @@ function EvaluationRowActions({ ev }: { ev: Evaluation }) {
 
 export function EvaluationQueuePage() {
   useEvaluationVersion(); // table + KPIs react to decisions
+  const { openPanel } = useDetailOverlay();
   const [tab, setTab] = useState<Evaluation["status"] | "all">("pending");
 
   const evaluations = getEvaluations();
@@ -353,31 +367,61 @@ export function EvaluationQueuePage() {
     {
       key: "actions",
       header: "Actions",
-      cell: (ev) =>
-        ev.status === "pending" ? (
-          <EvaluationRowActions ev={ev} />
-        ) : (
-          <div className="max-w-[220px]">
-            {ev.reason ? (
-              <p className="truncate text-xs text-muted-foreground" title={ev.reason}>
-                {ev.overrideOutcome ? `Force ${ev.overrideOutcome}: ` : ""}
-                {ev.reason}
-              </p>
+      cell: (ev) => (
+        // stopPropagation on the whole cell so decision buttons and the
+        // row menu never bubble into the row's overlay open.
+        <div className="flex items-start gap-1" onClick={(e) => e.stopPropagation()}>
+          <div className="min-w-0 flex-1">
+            {ev.status === "pending" ? (
+              <EvaluationRowActions ev={ev} />
             ) : (
-              <span className="text-xs text-muted-foreground">—</span>
+              <div className="max-w-[220px]">
+                {ev.reason ? (
+                  <p className="truncate text-xs text-muted-foreground" title={ev.reason}>
+                    {ev.overrideOutcome ? `Force ${ev.overrideOutcome}: ` : ""}
+                    {ev.reason}
+                  </p>
+                ) : (
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
+                {ev.decidedAt ? (
+                  <p className="text-[11px] text-muted-foreground/70">
+                    {new Date(ev.decidedAt).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                ) : null}
+              </div>
             )}
-            {ev.decidedAt ? (
-              <p className="text-[11px] text-muted-foreground/70">
-                {new Date(ev.decidedAt).toLocaleString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </p>
-            ) : null}
           </div>
-        ),
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 shrink-0 p-0"
+                aria-label={`Actions for ${ev.traderName}'s evaluation`}
+              >
+                <MoreVertical className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Evaluation actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => openPanel("evaluation-detail", { id: ev.id })}>
+                <Eye className="h-3.5 w-3.5" /> View details
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => openViewInNewTab("evaluation-detail", { id: ev.id })}
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Open in new tab
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
     },
   ];
 
@@ -427,6 +471,7 @@ export function EvaluationQueuePage() {
             columns={columns}
             data={rows}
             rowKey={(ev) => ev.id}
+            onRowClick={(ev) => openPanel("evaluation-detail", { id: ev.id })}
             searchableText={(ev) =>
               `${ev.traderName} ${ev.traderEmail} ${ev.accountLogin} ${ev.challengeName} ${ev.phase} ${ev.status}`
             }
