@@ -49,17 +49,15 @@ const recentTrades = [...terraTrades]
 
 export function TradingJournalPage() {
   // User entries live in localStorage; fixture entries seed the list.
-  const [userEntries, setUserEntries] = useState<JournalEntry[]>([]);
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
+  const [userEntries, setUserEntries] = useState<JournalEntry[]>(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) setUserEntries(JSON.parse(raw) as JournalEntry[]);
+      return raw ? JSON.parse(raw) as JournalEntry[] : [];
     } catch {
-      /* storage unavailable — start from fixtures */
+      return [];
     }
-    setHydrated(true);
-  }, []);
+  });
+  const [hydrated, setHydrated] = useState(true);
 
   const persist = (next: JournalEntry[]) => {
     setUserEntries(next);

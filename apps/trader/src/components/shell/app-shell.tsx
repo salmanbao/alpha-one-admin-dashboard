@@ -51,9 +51,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   // Restore stored theme preference after mount (html has suppressHydrationWarning)
   useEffect(() => {
-    const isDark = localStorage.getItem(THEME_KEY) === "dark";
+    const stored = localStorage.getItem(THEME_KEY);
+    const isDark = stored === "dark";
     setDark(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    }
   }, []);
 
   const toggleDark = () => {
