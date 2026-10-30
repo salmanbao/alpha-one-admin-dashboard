@@ -51,6 +51,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "account-related-accounts": dynamic(() => import("@/modules/trading/pages/account-related-accounts-page").then((m) => ({ default: m.AccountRelatedAccountsPage })), { loading: ViewSkeleton }),
   "account-configuration": dynamic(() => import("@/modules/trading/pages/account-configuration-page").then((m) => ({ default: m.AccountConfigurationPage })), { loading: ViewSkeleton }),
   "account-events": dynamic(() => import("@/modules/trading/pages/account-events-page").then((m) => ({ default: m.AccountEventsPage })), { loading: ViewSkeleton }),
+  "account-event-detail": dynamic(() => import("@/modules/trading/pages/account-event-detail-page").then((m) => ({ default: m.AccountEventDetailPage })), { loading: ViewSkeleton }),
   "account-version-history": dynamic(() => import("@/modules/trading/pages/account-version-history-page").then((m) => ({ default: m.AccountVersionHistoryPage })), { loading: ViewSkeleton }),
   "account-workspace": dynamic(() => import("@/modules/trading/pages/account-workspace-stitch-page").then((m) => ({ default: m.AccountWorkspaceStitchPage })), { loading: ViewSkeleton }),
   "order-detail": dynamic(() => import("@/modules/trading/pages/order-detail-page").then((m) => ({ default: m.OrderDetailPage })), { loading: ViewSkeleton }),
