@@ -323,6 +323,8 @@ export function RiskStatisticsPage() {
                 columns={challengeColumns}
                 data={challengeRows}
                 rowKey={(r) => r.challengeType}
+                emptyTitle="No challenge data yet"
+                emptyDescription="Aggregated challenge stats will appear after traders start purchasing challenges."
                 pageSize={10}
               />
             </div>
@@ -338,6 +340,8 @@ export function RiskStatisticsPage() {
                 columns={countryColumns}
                 data={countryRows}
                 rowKey={(r) => r.country}
+                emptyTitle="No country data yet"
+                emptyDescription="Trader locations will appear once accounts are provisioned."
                 pageSize={10}
               />
             </div>
@@ -353,6 +357,8 @@ export function RiskStatisticsPage() {
                 columns={sizeColumns}
                 data={sizeRows}
                 rowKey={(r) => r.range}
+                emptyTitle="No account size data yet"
+                emptyDescription="Balance bands will populate as trading accounts are funded."
                 pageSize={10}
               />
             </div>

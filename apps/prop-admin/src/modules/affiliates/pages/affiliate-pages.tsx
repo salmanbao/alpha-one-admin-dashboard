@@ -127,6 +127,8 @@ export function AffiliatesOverviewPage() {
             rowKey={(c) => c.id}
             searchableText={(c) => `${c.name} ${c.affiliateName} ${c.status}`}
             searchPlaceholder="Search campaigns…"
+            emptyTitle="No campaigns match"
+            emptyDescription="Adjust your search, or create a campaign to start driving traffic."
             pageSize={5}
           />
         </div>

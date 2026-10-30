@@ -321,6 +321,8 @@ export function AccountKycStatusesPage() {
             pageSize={10}
             searchableText={(row) => `${row.provider} ${row.status}`}
             searchPlaceholder="Search providers…"
+            emptyTitle="No KYC providers configured"
+            emptyDescription="Connect a verification provider in Settings to start reviewing identities."
           />
         </div>
 
