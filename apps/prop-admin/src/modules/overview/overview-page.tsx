@@ -8,7 +8,7 @@ import { LiveActivityFeedWidget } from "@/components/platform/live-activity-feed
 import { LiveEquityCurveWidget } from "@/components/platform/live-equity-curve";
 import { LivePriceFeedWidget } from "@/components/platform/live-price-feed";
 import { useLiveData, syncLiveStats } from "@/lib/platform/live-data";
-import { LayoutDashboard, Sparkles, RefreshCw, Calendar, ShieldCheck, Users, Wallet, TrendingUp, Activity, AlertTriangle, Brain, Settings2, Radio } from "lucide-react";
+import { Compass, LayoutDashboard, Sparkles, RefreshCw, Calendar, ShieldCheck, Users, Wallet, TrendingUp, Activity, AlertTriangle, Brain, Settings2, Radio } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { moduleRegistry } from "@/lib/platform/module-registry";
@@ -32,6 +32,7 @@ import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/t
 import { roles } from "@/lib/platform/mock-data";
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
+import { PlatformEmptyState } from "@/components/platform/platform-empty-state";
 
 export function OverviewPage() {
   const { runtime, tenant, user, navigate, setCustomizeOpen, hiddenWidgets } = usePlatform();
@@ -125,6 +126,24 @@ export function OverviewPage() {
         }
       />
       <PageContent>
+        {/* First-use empty state (audit fix #11) — shows when a new firm has no
+          enabled modules / KPI data yet, with guided setup actions. */}
+        {!summary.length && !enabled.length && (
+          <PlatformEmptyState
+            title="Welcome to your dashboard"
+            description="Configure modules and add your first data to see metrics here."
+            steps={[
+              "Enable KYC / Risk / Payouts modules from Settings",
+              "Add your first trader account",
+              "Run your first KYC review to see pending cases",
+            ]}
+            actions={[
+              { label: "Configure modules", href: "settings-module-detail" },
+              { label: "Invite traders", href: "trading-traders" },
+            ]}
+          />
+        )}
+
         {/* Attention Center — the dashboard is an Operating Center (§4, §11) */}
         {/* "What needs my attention?" is the first question the dashboard answers */}
         <AttentionCenter />

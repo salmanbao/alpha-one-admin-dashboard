@@ -14,6 +14,7 @@ import {
   TerraCard,
   TerraProgress,
   TerraAreaChart,
+  TerraDrawdownMeter,
   TerraSectionTitle,
   TerraStat,
   formatMoney,
@@ -27,6 +28,7 @@ import {
   scalingPlan,
   terraAccounts,
   terraPositions,
+  terraRiskLimits,
   terraTrades,
   type ActivityEntry,
 } from "@/lib/fixtures/terra-fixtures";
@@ -81,6 +83,11 @@ export function DashboardPage() {
   const accPositions = terraPositions.filter((p) => p.accountId === acc.id);
   const accUnrealized = accPositions.reduce((s, p) => s + p.pnl, 0);
 
+  // Drawdown usage for the active account — persistent meters (audit #4).
+  const riskLimits = terraRiskLimits[acc.id] ?? { daily: 1000, maxDd: 5000 };
+  const dailyUsed = Math.max(0, riskLimits.daily - acc.dailyLossRemaining);
+  const ddUsed = Math.max(0, riskLimits.maxDd - acc.maxDdRemaining);
+
   // Equity curve follows the active account AND the selected range —
   // derived from this account's real trade/payout history.
   const rangeDays = range === "7d" ? 7 : range === "90d" ? 90 : 30;
@@ -131,6 +138,33 @@ export function DashboardPage() {
 
       {/* Alerts banner */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+        {/* Failed state detected → the Evaluation Failed outcome screen (audit #1) */}
+        {acc.status === "breached" && (
+          <div className="flex flex-col items-start justify-between gap-3 rounded-xl bg-error-container/60 p-4 shadow-sm sm:flex-row sm:items-center md:col-span-12">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-error text-on-error">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-on-error-container">
+                  Evaluation failed • Account breached
+                </p>
+                <p className="text-sm font-bold text-on-surface">
+                  #{acc.login} crossed a rule limit — see exactly what happened, your final
+                  metrics, and your options to retry.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/account-breach"
+              className="shrink-0 rounded-xl bg-error px-4 py-2.5 text-xs font-bold text-on-error transition-opacity hover:opacity-90"
+            >
+              Open Evaluation Failed →
+            </Link>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-3 rounded-xl bg-primary-fixed/50 p-4 shadow-sm md:col-span-7">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary">
@@ -355,23 +389,31 @@ export function DashboardPage() {
             </div>
           </TerraCard>
           <TerraCard>
-            <TerraSectionTitle title="Risk Status" />
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between rounded-xl bg-surface-container px-3 py-2.5">
-                <span className="text-on-surface-variant">Daily loss remaining</span>
-                <strong className="text-on-surface">{formatMoney(acc.dailyLossRemaining)}</strong>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-surface-container px-3 py-2.5">
-                <span className="text-on-surface-variant">Max DD remaining</span>
-                <strong className="text-on-surface">{formatMoney(acc.maxDdRemaining)}</strong>
-              </div>
-              <Link
-                href="/risk-dashboard"
-                className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-on-primary-fixed-variant"
-              >
-                Open Risk Dashboard →
-              </Link>
+            <TerraSectionTitle
+              title="Risk Status"
+              actions={<TerraBadge tone="neutral">Live</TerraBadge>}
+            />
+            {/* Persistent drawdown meters (audit #4) — green/amber/red before a breach */}
+            <div className="space-y-2">
+              <TerraDrawdownMeter
+                label="Daily loss"
+                used={dailyUsed}
+                limit={riskLimits.daily}
+                remaining={acc.dailyLossRemaining}
+              />
+              <TerraDrawdownMeter
+                label="Max drawdown"
+                used={ddUsed}
+                limit={riskLimits.maxDd}
+                remaining={acc.maxDdRemaining}
+              />
             </div>
+            <Link
+              href="/risk-dashboard"
+              className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-on-primary-fixed-variant"
+            >
+              Open Risk Dashboard →
+            </Link>
           </TerraCard>
           <TerraCard>
             <TerraSectionTitle

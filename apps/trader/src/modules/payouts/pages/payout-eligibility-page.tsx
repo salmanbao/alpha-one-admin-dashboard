@@ -20,6 +20,7 @@ import {
 import {
   payoutEntitlement,
   terraPayouts,
+  terraTrades,
   scalingPlan,
   payoutSchedule,
   payoutScheduleOptions,
@@ -42,6 +43,10 @@ export function PayoutEligibilityPage() {
 
   // Checklist reflects the real payout gates — evaluation accounts fail
   // the funded gate; flat accounts fail the profit gate.
+  const MIN_PAYOUT_DAYS = 5;
+  const tradedDays = new Set(
+    terraTrades.filter((t) => t.accountId === account.id).map((t) => t.openedAt.slice(0, 10)),
+  ).size;
   const checklist = [
     {
       label: "Account funded (payouts are funded-only)",
@@ -57,6 +62,19 @@ export function PayoutEligibilityPage() {
       label: "Net profit above starting balance",
       ok: entitlement.netProfit > 0,
       note: entitlement.netProfit > 0 ? `+${formatMoney(entitlement.netProfit)} net` : "Flat or underwater",
+    },
+    {
+      label: `Minimum trading days (${MIN_PAYOUT_DAYS} per payout cycle)`,
+      ok: tradedDays >= MIN_PAYOUT_DAYS,
+      note:
+        tradedDays >= MIN_PAYOUT_DAYS
+          ? `${tradedDays} of ${MIN_PAYOUT_DAYS} required — met`
+          : `${tradedDays} of ${MIN_PAYOUT_DAYS} required • ${MIN_PAYOUT_DAYS - tradedDays} trading day${MIN_PAYOUT_DAYS - tradedDays === 1 ? "" : "s"} remaining`,
+    },
+    {
+      label: "Profit target progress",
+      ok: account.targetProgress >= 100,
+      note: `${account.targetProgress.toFixed(1)}% of ${formatMoney(account.profitTarget)} target reached`,
     },
     { label: "No open risk breaches", ok: true, note: "Clear" },
     { label: "Payout method configured", ok: true, note: "Bank Transfer (Wise)" },
@@ -138,7 +156,7 @@ export function PayoutEligibilityPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-bold tabular-nums text-on-surface">{formatMoney(p.amount)}</p>
-                    <TerraBadge tone={p.status === "paid" ? "success" : "tertiary"}>{p.status}</TerraBadge>
+                    <TerraBadge tone={p.status === "paid" ? "success" : p.status === "rejected" ? "error" : "tertiary"}>{p.status}</TerraBadge>
                   </div>
                 </div>
               ))}

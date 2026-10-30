@@ -24,6 +24,7 @@ const navigation: NavigationItem[] = [
       { id: "kyc.aml-cases", label: "AML Cases", href: "kyc-aml-cases", icon: AlertTriangle, permission: "kyc.read", group: "AML Operations" },
       { id: "kyc.reviewer-trail", label: "Reviewer Trail", href: "kyc-reviewer-trail", icon: History, permission: "kyc.read", group: "AML Operations" },
       { id: "kyc.provider-marketplace", label: "Provider Marketplace", href: "kyc-provider-marketplace", icon: Store, permission: "kyc.read", group: "AML Operations" },
+      { id: "kyc.rejected-queue", label: "Rejected Queue", href: "kyc-rejected-queue", icon: AlertTriangle, permission: "kyc.read", group: "AML Operations" },
     ],
   },
 ];
@@ -35,6 +36,7 @@ const routes: RouteDefinition[] = [
   { path: "kyc-document-requests", viewId: "kyc-document-requests", label: "Document Requests", permission: "kyc.read", module: "kyc" },
   { path: "kyc-onboarding", viewId: "kyc-onboarding", label: "KYC Onboarding", permission: "kyc.read", module: "kyc" },
   { path: "kyc-status", viewId: "kyc-status", label: "KYC Status", permission: "kyc.read", module: "kyc" },
+  { path: "kyc-rejected-queue", viewId: "kyc-rejected-queue", label: "Rejected Queue", permission: "kyc.read", module: "kyc" },
   // AML Operations (M9/M13)
   { path: "kyc-aml-cases", viewId: "kyc-aml-cases", label: "AML Cases", permission: "kyc.read", module: "kyc" },
   { path: "kyc-reviewer-trail", viewId: "kyc-reviewer-trail", label: "Reviewer Trail", permission: "kyc.read", module: "kyc" },
