@@ -52,6 +52,50 @@ interface DataTableProps<T> {
   overscan?: number;
 }
 
+export function DataTable<T>({
+  columns,
+  data,
+  loading,
+  searchPlaceholder = "Search…",
+  searchableText,
+  pageSize = 8,
+  rowKey,
+  onRowClick,
+  toolbar,
+  emptyTitle = "No records found",
+  emptyDescription = "Adjust your filters or try a different search.",
+  virtualized = false,
+  overscan = 5,
+}: DataTableProps<T>) {
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
+
+  const filtered = useMemo(() => {
+    if (!search.trim() || !searchableText) return data;
+    const q = search.toLowerCase();
+    return data.filter((r) => searchableText(r).toLowerCase().includes(q));
+  }, [data, search, searchableText]);
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    const col = columns.find((c) => c.key === sortKey);
+    if (!col?.sortValue) return filtered;
+    const out = [...filtered].sort((a, b) => {
+      const av = col.sortValue!(a);
+      const bv = col.sortValue!(b);
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return out;
+  }, [filtered, sortKey, sortDir, columns]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const pageSafe = Math.min(page, totalPages);
+  const paged = sorted.slice((pageSafe - 1) * pageSize, pageSafe * pageSize);
+
   const toggleSort = (key: string) => {
     if (sortKey !== key) {
       setSortKey(key);
@@ -75,6 +119,7 @@ interface DataTableProps<T> {
   const virtualStart = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT));
   const virtualEnd = Math.min(sorted.length, virtualStart + visibleCount + overscan);
   const virtualRows = virtualized ? sorted.slice(virtualStart, virtualEnd) : paged;
+  const rowsToRender = virtualized ? virtualRows : paged;
 
   return (
     <div className="flex flex-col gap-3">
@@ -145,7 +190,7 @@ interface DataTableProps<T> {
                 </TableCell>
               </TableRow>
             ) : (
-              {(virtualized ? virtualRows : paged).map((row) => (
+              rowsToRender.map((row) => (
                 <TableRow
                   key={rowKey(row)}
                   className={onRowClick ? "cursor-pointer" : ""}

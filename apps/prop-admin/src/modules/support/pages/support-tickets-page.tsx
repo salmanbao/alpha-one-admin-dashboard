@@ -6,15 +6,12 @@
  */
 
 import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { PageHeader, PageContent, PageSkeleton } from "@/components/shell/page-skeleton";
+import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { EmptyState } from "@/components/platform/guards";
 import { DataTable, Column } from "@/components/platform/data-table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
-import { useToast } from "@/components/ui/toast";
-import { type ReactNode } from "react";
 
 export function SupportTicketsPage() {
   const [search, setSearch] = useState("");
@@ -60,7 +57,7 @@ export function SupportTicketsPage() {
         const statusText =
           status === "open" ? "Open" : status === "pending" ? "Pending" : "Closed";
         return (
-          <div className={statusClass} px-2 py-0.5 rounded text-xs font-medium>
+          <div className={`${statusClass} inline-flex rounded border px-2 py-0.5 text-xs font-medium`}>
             {statusText}
           </div>
         );
@@ -80,7 +77,7 @@ export function SupportTicketsPage() {
                 ? "bg-yellow-100 text-yellow-800 border-yellow-300"
                 : "bg-green-100 text-green-800 border-green-300";
         return (
-          <div className={priorityClass} px-2 py-0.5 rounded text-xs font-medium>{priority}</div>
+          <div className={`${priorityClass} inline-flex rounded border px-2 py-0.5 text-xs font-medium`}>{priority}</div>
         );
       },
     },
@@ -146,6 +143,7 @@ export function SupportTicketsPage() {
         <DataTable
           columns={columns}
           data={tickets}
+          rowKey={(row: any) => row.id}
           emptyTitle="No tickets found"
           emptyDescription="Create your first ticket from the trader dashboard, or use the filters to find existing tickets."
         />
