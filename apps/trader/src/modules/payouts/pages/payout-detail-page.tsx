@@ -32,37 +32,70 @@ export function PayoutDetailContent({
 }) {
   const payout = terraPayouts.find((p) => p.id === id) ?? terraPayouts[0];
 
-  const timeline = [
-    {
-      label: "Requested",
-      at: payout.requestedAt,
-      done: true,
-      note: `Via ${payout.method}`,
-    },
-    {
-      label: "Under review",
-      at: payout.requestedAt,
-      done: true,
-      note: "Compliance and risk checks",
-    },
-    {
-      label: "Processing",
-      at: payout.status === "processing" ? payout.requestedAt : null,
-      done: payout.status !== "paid",
-      note: "Funds being transferred",
-    },
-    {
-      label: "Paid",
-      at: payout.status === "paid" ? payout.expectedAt : null,
-      done: payout.status === "paid",
-      note: "Received in your account",
-    },
-  ];
+  const rejected = payout.status === "rejected" && payout.rejection != null;
+
+  const timeline = rejected
+    ? [
+        {
+          label: "Requested",
+          at: payout.requestedAt,
+          done: true,
+          note: `Via ${payout.method}`,
+        },
+        {
+          label: "Under review",
+          at: payout.requestedAt,
+          done: true,
+          note: "Compliance and risk checks",
+        },
+        {
+          label: "Rejected",
+          at: payout.rejection!.at,
+          done: true,
+          note: payout.rejection!.summary,
+        },
+      ]
+    : [
+        {
+          label: "Requested",
+          at: payout.requestedAt,
+          done: true,
+          note: `Via ${payout.method}`,
+        },
+        {
+          label: "Under review",
+          at: payout.requestedAt,
+          done: true,
+          note: "Compliance and risk checks",
+        },
+        {
+          label: "Processing",
+          at: payout.status === "processing" ? payout.requestedAt : null,
+          done: payout.status !== "paid",
+          note: "Funds being transferred",
+        },
+        {
+          label: "Paid",
+          at: payout.status === "paid" ? payout.expectedAt : null,
+          done: payout.status === "paid",
+          note: "Received in your account",
+        },
+      ];
+
+  const statusTone =
+    payout.status === "paid" ? "success" : payout.status === "rejected" ? "error" : "tertiary";
 
   const handleDownloadReceipt = () => {
     toast({
       title: "Receipt downloaded",
       description: `${payout.reference} — ${formatMoney(payout.amount)} via ${payout.method} (${payout.status}).`,
+    });
+  };
+
+  const handleAppeal = () => {
+    toast({
+      title: "Appeal submitted",
+      description: `Compliance will re-review ${payout.reference} within 2 business days — attach your broker statement in the support ticket we opened. (Demo — no backend call.)`,
     });
   };
 
@@ -78,7 +111,7 @@ export function PayoutDetailContent({
       )}
       {embedded ? (
         <div className="flex flex-wrap items-center gap-2">
-          <TerraBadge tone={payout.status === "paid" ? "success" : "tertiary"} dot pulse={payout.status === "processing"}>
+          <TerraBadge tone={statusTone} dot pulse={payout.status === "processing"}>
             {payout.status}
           </TerraBadge>
           <TerraBadge tone="neutral">{payout.method}</TerraBadge>
@@ -88,7 +121,7 @@ export function PayoutDetailContent({
           title={`Payout ${payout.reference}`}
           description={`Account #${payout.accountLogin} • ${payout.method}`}
           actions={
-            <TerraBadge tone={payout.status === "paid" ? "success" : "tertiary"} dot pulse={payout.status === "processing"}>
+            <TerraBadge tone={statusTone} dot pulse={payout.status === "processing"}>
               {payout.status}
             </TerraBadge>
           }
@@ -99,17 +132,23 @@ export function PayoutDetailContent({
         <TerraCard className="lg:col-span-2">
           <TerraSectionTitle title="Status timeline" />
           <ol className="space-y-5">
-            {timeline.map((s) => (
+            {timeline.map((s) => {
+              const err = s.label === "Rejected";
+              return (
               <li key={s.label} className="flex items-start gap-3">
                 <span
                   className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    s.done ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant"
+                    err
+                      ? "bg-error-container text-on-error-container"
+                      : s.done
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container text-on-surface-variant"
                   }`}
                 >
-                  {s.done ? "✓" : "•"}
+                  {err ? "✕" : s.done ? "✓" : "•"}
                 </span>
                 <div>
-                  <p className={`text-sm font-bold ${s.done ? "text-on-surface" : "text-on-surface-variant"}`}>
+                  <p className={`text-sm font-bold ${err ? "text-on-error-container" : s.done ? "text-on-surface" : "text-on-surface-variant"}`}>
                     {s.label}
                   </p>
                   <p className="text-xs text-on-surface-variant">{s.note}</p>
@@ -120,7 +159,8 @@ export function PayoutDetailContent({
                   )}
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ol>
         </TerraCard>
 
@@ -148,8 +188,10 @@ export function PayoutDetailContent({
               <span className="text-on-surface">{payout.requestedAt.slice(0, 10)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-on-surface-variant">Expected</span>
-              <span className="text-on-surface">{payout.expectedAt.slice(0, 10)}</span>
+              <span className="text-on-surface-variant">{rejected ? "Rejected" : "Expected"}</span>
+              <span className={rejected ? "font-semibold text-on-error-container" : "text-on-surface"}>
+                {(rejected ? payout.rejection?.at : payout.expectedAt)?.slice(0, 10)}
+              </span>
             </div>
           </div>
           <button
@@ -161,6 +203,83 @@ export function PayoutDetailContent({
           </button>
         </TerraCard>
       </div>
+
+      {/* Rejected outcome — reasons, unmet criteria, action plan, appeal (audit #2) */}
+      {rejected && payout.rejection && (
+        <TerraCard className="border border-error-container">
+          <TerraSectionTitle
+            title="Why this payout was rejected"
+            description={`Reviewed ${new Date(payout.rejection.at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} • Reason code ${payout.rejection.code}`}
+            actions={<TerraBadge tone="error" dot>Rejected</TerraBadge>}
+          />
+          <p className="rounded-xl bg-error-container/50 p-4 text-sm text-on-error-container">
+            {payout.rejection.summary}
+          </p>
+
+          {/* Criteria that weren't met — exact vs required */}
+          <div className="space-y-2">
+            {payout.rejection.checks.map((c) => (
+              <div
+                key={c.label}
+                className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 ${
+                  c.met ? "bg-surface-container-low" : "bg-error-container/40"
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-on-surface">{c.label}</p>
+                  <p className="text-xs text-on-surface-variant">
+                    Required {c.required} • you had {c.actual}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                    c.met ? "bg-primary-fixed text-on-primary-fixed-variant" : "bg-error-container text-on-error-container"
+                  }`}
+                >
+                  {c.met ? "✓ met" : "✗ not met"}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Action plan */}
+          <div>
+            <p className="pb-2 text-sm font-bold text-on-surface">How to fix it</p>
+            <ol className="space-y-3">
+              {payout.rejection.nextSteps.map((step, i) => (
+                <li key={step} className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-container text-xs font-bold text-on-surface-variant">
+                    {i + 1}
+                  </span>
+                  <p className="text-sm text-on-surface-variant">{step}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="flex flex-wrap gap-3 border-t border-outline-variant/40 pt-4">
+            <button
+              type="button"
+              onClick={handleAppeal}
+              className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
+            >
+              Appeal this decision
+            </button>
+            <Link
+              href={`/payout-eligibility?id=${payout.account}`}
+              className="rounded-xl bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container"
+            >
+              Review eligibility checklist
+            </Link>
+            <Link
+              href="/support"
+              className="rounded-xl bg-surface-container-low px-5 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container"
+            >
+              Open a support ticket
+            </Link>
+          </div>
+        </TerraCard>
+      )}
 
       {/* Post-payout account actions (M10) */}
       {payout.status === "paid" && (

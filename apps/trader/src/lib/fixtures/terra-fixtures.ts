@@ -746,6 +746,23 @@ export const terraChallenges: TerraChallenge[] = [
 /* Payouts                                                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Rejection detail — attached only to rejected payouts. Drives the
+ * "Payout Rejected" outcome panel (audit fix #2): the exact criteria
+ * that weren't met, the plain-language reason, and the appeal path.
+ */
+export interface PayoutRejection {
+  at: string;
+  /** Short machine-ish reason code shown as the headline. */
+  code: string;
+  /** One-sentence explanation for the trader. */
+  summary: string;
+  /** Per-criterion met/unmet detail — `actual` vs `required`. */
+  checks: { label: string; met: boolean; required: string; actual: string }[];
+  /** Ordered action plan to become eligible again. */
+  nextSteps: string[];
+}
+
 export const terraPayouts = [
   {
     id: "po-2201",
@@ -757,6 +774,7 @@ export const terraPayouts = [
     status: "processing" as const,
     requestedAt: daysAgo(2),
     expectedAt: daysFromNow(2),
+    rejection: null as PayoutRejection | null,
   },
   {
     id: "po-2187",
@@ -768,6 +786,7 @@ export const terraPayouts = [
     status: "paid" as const,
     requestedAt: daysAgo(16),
     expectedAt: daysAgo(14),
+    rejection: null as PayoutRejection | null,
   },
   {
     id: "po-2154",
@@ -779,6 +798,7 @@ export const terraPayouts = [
     status: "paid" as const,
     requestedAt: daysAgo(30),
     expectedAt: daysAgo(28),
+    rejection: null as PayoutRejection | null,
   },
   {
     id: "po-2119",
@@ -790,6 +810,37 @@ export const terraPayouts = [
     status: "paid" as const,
     requestedAt: daysAgo(44),
     expectedAt: daysAgo(42),
+    rejection: null as PayoutRejection | null,
+  },
+  {
+    id: "po-2098",
+    reference: "PO-2098",
+    account: "acc-092841",
+    accountLogin: "92841",
+    amount: 1450.0,
+    method: "Bank Transfer (Wise)",
+    status: "rejected" as const,
+    requestedAt: daysAgo(58),
+    expectedAt: daysAgo(56),
+    rejection: {
+      at: daysAgo(56),
+      code: "MIN_TRADING_DAYS_NOT_MET",
+      summary:
+        "This request was reviewed against your program's payout rules and 1 of 6 required criteria was not met at review time.",
+      checks: [
+        { label: "Account funded", met: true, required: "Funded account", actual: "Funded — Phase 2 complete" },
+        { label: "Minimum balance", met: true, required: "> $1,000", actual: "$102,410.00" },
+        { label: "Net profit above start", met: true, required: "> $0 net", actual: "+$2,410.00" },
+        { label: "Minimum trading days", met: false, required: "5 trading days", actual: "3 trading days" },
+        { label: "No open risk breaches", met: true, required: "Clear", actual: "Clear" },
+        { label: "Payout method configured", met: true, required: "One method", actual: "Bank Transfer (Wise)" },
+      ],
+      nextSteps: [
+        "Trade 2 more qualifying trading days on account #92841 (days roll over at 5pm New York).",
+        "Re-open the payout request from the next window — it opens in 4 days; nothing was charged.",
+        "If your day count looks wrong, appeal below with your broker statement and compliance will re-review within 2 business days.",
+      ],
+    } as PayoutRejection,
   },
 ];
 
