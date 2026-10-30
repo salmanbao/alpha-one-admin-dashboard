@@ -93,6 +93,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "inverse-trading-events": dynamic(() => import("@/modules/risk/pages/inverse-trading-events-page").then((m) => ({ default: m.InverseTradingEventsPage })), { loading: ViewSkeleton }),
   "account-ip-addresses": dynamic(() => import("@/modules/risk/pages/account-ip-addresses-page").then((m) => ({ default: m.AccountIpAddressesPage })), { loading: ViewSkeleton }),
   "weekend-trades": dynamic(() => import("@/modules/risk/pages/weekend-trades-page").then((m) => ({ default: m.WeekendTradesPage })), { loading: ViewSkeleton }),
+  "account-lifecycle": dynamic(() => import("@/modules/risk/pages/account-lifecycle-page").then((m) => ({ default: m.AccountLifecyclePage })), { loading: ViewSkeleton }),
   "risk-unprofitable-countries": dynamic(() => import("@/modules/risk/pages/risk-unprofitable-countries-page").then((m) => ({ default: m.RiskUnprofitableCountriesPage })), { loading: ViewSkeleton }),
   "risk-revenue-loss": dynamic(() => import("@/modules/risk/pages/risk-revenue-loss-page").then((m) => ({ default: m.RiskRevenueLossPage })), { loading: ViewSkeleton }),
   "risk-label-vs-payouts": dynamic(() => import("@/modules/risk/pages/risk-label-vs-payouts-page").then((m) => ({ default: m.RiskLabelVsPayoutsPage })), { loading: ViewSkeleton }),
