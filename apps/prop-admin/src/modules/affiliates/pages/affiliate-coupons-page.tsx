@@ -25,6 +25,8 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { openViewInNewTab } from "@/lib/platform/view-links";
 import { makeTermResolver } from "@/lib/platform/terminology";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -83,6 +85,7 @@ import {
   Gift,
   Coins,
   Tag,
+  ExternalLink,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -93,7 +96,9 @@ type CouponStatus = "active" | "expired" | "disabled" | "scheduled";
 type DiscountType = "Percentage" | "Flat" | "Free Trial" | "Bonus Credit";
 type PlanName = "Starter" | "Growth" | "Scale" | "Enterprise";
 
-interface Coupon {
+export type { CouponStatus, DiscountType, PlanName };
+
+export interface Coupon {
   id: string;
   code: string;
   description: string;
@@ -116,6 +121,8 @@ interface Coupon {
 }
 
 const ALL_PLANS: PlanName[] = ["Starter", "Growth", "Scale", "Enterprise"];
+
+export { ALL_PLANS };
 
 const COUPONS: Coupon[] = [
   {
@@ -302,7 +309,15 @@ const AFFILIATE_NAMES = Array.from(
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-function couponStatusTone(status: CouponStatus): "success" | "muted" | "danger" | "info" {
+/**
+ * Look up a single coupon by id (shared with
+ * affiliate-coupon-detail-page — same pattern as getChangeHistoryEntry).
+ */
+export function getCoupon(id: string): Coupon | undefined {
+  return COUPONS.find((c) => c.id === id);
+}
+
+export function couponStatusTone(status: CouponStatus): "success" | "muted" | "danger" | "info" {
   switch (status) {
     case "active":
       return "success";
@@ -316,7 +331,7 @@ function couponStatusTone(status: CouponStatus): "success" | "muted" | "danger" 
   }
 }
 
-function discountTypeIcon(type: DiscountType) {
+export function discountTypeIcon(type: DiscountType) {
   switch (type) {
     case "Percentage":
       return Percent;
@@ -329,7 +344,7 @@ function discountTypeIcon(type: DiscountType) {
   }
 }
 
-function formatDiscountValue(type: DiscountType, value: number, currency = "USD"): string {
+export function formatDiscountValue(type: DiscountType, value: number, currency = "USD"): string {
   switch (type) {
     case "Percentage":
       return `${value}%`;
@@ -342,7 +357,7 @@ function formatDiscountValue(type: DiscountType, value: number, currency = "USD"
   }
 }
 
-function formatDate(iso: string): string {
+export function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -351,7 +366,7 @@ function formatDate(iso: string): string {
 /* Deterministic 8-char code generator — LCG seeded by an integer
  * counter. No Math.random — same seed always produces same code. */
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no I O 0 1
-function generateCode(seed: number): string {
+export function generateCode(seed: number): string {
   let v = seed * 31 + 7;
   let out = "";
   for (let i = 0; i < 8; i++) {
@@ -361,7 +376,7 @@ function generateCode(seed: number): string {
   return out;
 }
 
-function copyToClipboard(text: string, label = "Code") {
+export function copyToClipboard(text: string, label = "Code") {
   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(text).then(
       () => toast({ title: `${label} copied`, description: text }),
@@ -381,9 +396,9 @@ export function AffiliateCouponsPage() {
   const term = makeTermResolver(tenant);
   const currency = runtime.tenant?.currency ?? "USD";
 
+  const { openPanel } = useDetailOverlay();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [selected, setSelected] = useState<Coupon | null>(null);
   const [creating, setCreating] = useState(false);
   const [disableTarget, setDisableTarget] = useState<Coupon | null>(null);
 
@@ -536,10 +551,7 @@ export function AffiliateCouponsPage() {
             size="sm"
             variant="ghost"
             className="h-7 px-2 text-xs"
-            onClick={() => {
-              setSelected(c);
-              setCreating(false);
-            }}
+            onClick={() => openPanel("affiliate-coupon-detail", { id: c.id })}
             aria-label={`Edit coupon ${c.code}`}
           >
             <Pencil className="mr-1 h-3 w-3" /> Edit
@@ -568,6 +580,16 @@ export function AffiliateCouponsPage() {
             aria-label={`Duplicate coupon ${c.code}`}
           >
             <Files className="h-3 w-3" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            aria-label={`Open coupon ${c.code} in a new tab`}
+            title="Open in new tab"
+            onClick={() => openViewInNewTab("affiliate-coupon-detail", { id: c.id })}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
           </Button>
         </div>
       ),
@@ -656,10 +678,7 @@ export function AffiliateCouponsPage() {
             </Button>
             <Button
               size="sm"
-              onClick={() => {
-                setSelected(null);
-                setCreating(true);
-              }}
+              onClick={() => setCreating(true)}
             >
               <Plus className="mr-1 h-4 w-4" /> Create Coupon
             </Button>
@@ -742,10 +761,7 @@ export function AffiliateCouponsPage() {
             searchableText={(c) => `${c.code} ${c.description} ${c.affiliateName} ${c.discountType}`}
             searchPlaceholder="Search by code or affiliate…"
             pageSize={8}
-            onRowClick={(c) => {
-              setSelected(c);
-              setCreating(false);
-            }}
+            onRowClick={(c) => openPanel("affiliate-coupon-detail", { id: c.id })}
             emptyTitle="No coupons match"
             emptyDescription="Adjust the status or discount-type filter and try again."
           />
@@ -774,19 +790,10 @@ export function AffiliateCouponsPage() {
       </PageContent>
 
       <CouponSheet
-        key={selected?.id ?? (creating ? "__create__" : "__closed__")}
-        coupon={selected}
+        key={creating ? "__create__" : "__closed__"}
         creating={creating}
-        onClose={() => {
-          setSelected(null);
-          setCreating(false);
-        }}
+        onClose={() => setCreating(false)}
         currency={currency}
-        onDisable={(c) => {
-          setSelected(null);
-          setCreating(false);
-          setDisableTarget(c);
-        }}
       />
 
       {/* Disable Coupon AlertDialog — destructive friction §24 */}
@@ -834,40 +841,37 @@ export function AffiliateCouponsPage() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Coupon Sheet Drawer (View or Create)                                */
+/* Create Coupon Sheet Drawer                                          */
+/*                                                                     */
+/* View/edit of an existing coupon lives in the detail page            */
+/* (affiliate-coupon-detail-page — overlay + full-page).               */
 /* ------------------------------------------------------------------ */
 
 function CouponSheet({
-  coupon,
   creating,
   onClose,
   currency,
-  onDisable,
 }: {
-  coupon: Coupon | null;
   creating: boolean;
   onClose: () => void;
   currency: string;
-  onDisable: (c: Coupon) => void;
 }) {
-  const open = creating || coupon !== null;
-  // The parent component passes a `key` prop so the entire sheet
-  // remounts whenever the target coupon changes (or when entering
-  // create mode). Lazy useState initializers read from `coupon`
-  // and `creating` on mount — no useEffect, no setState-in-effect
-  // warning (react-hooks/set-state-in-effect).
-  const [codeValue, setCodeValue] = useState(() => coupon?.code ?? generateCode(1));
-  const [description, setDescription] = useState(() => coupon?.description ?? "");
-  const [discountType, setDiscountType] = useState<DiscountType>(() => coupon?.discountType ?? "Percentage");
-  const [discountValue, setDiscountValue] = useState(() => String(coupon?.discountValue ?? 10));
-  const [minPurchase, setMinPurchase] = useState(() => String(coupon?.minPurchase ?? 0));
-  const [limit, setLimit] = useState(() => String(coupon?.limit ?? 100));
-  const [unlimited, setUnlimited] = useState(() => coupon?.limit === 0);
-  const [validFrom, setValidFrom] = useState(() => coupon?.validFrom ?? new Date().toISOString().slice(0, 10));
-  const [validUntil, setValidUntil] = useState(() => coupon?.expires ?? "");
-  const [plans, setPlans] = useState<PlanName[]>(() => coupon?.applicablePlans ?? ["Starter"]);
-  const [affiliate, setAffiliate] = useState<string>(() => coupon?.affiliateId ?? "AFF-001");
-  const [active, setActive] = useState(() => coupon?.status === "active" || !coupon);
+  // The parent component passes a `key` prop so the sheet remounts when
+  // entering create mode. Lazy useState initializers seed defaults on
+  // mount — no useEffect, no setState-in-effect warning
+  // (react-hooks/set-state-in-effect).
+  const [codeValue, setCodeValue] = useState(() => generateCode(1));
+  const [description, setDescription] = useState("");
+  const [discountType, setDiscountType] = useState<DiscountType>("Percentage");
+  const [discountValue, setDiscountValue] = useState("10");
+  const [minPurchase, setMinPurchase] = useState("0");
+  const [limit, setLimit] = useState("100");
+  const [unlimited, setUnlimited] = useState(false);
+  const [validFrom, setValidFrom] = useState(() => new Date().toISOString().slice(0, 10));
+  const [validUntil, setValidUntil] = useState("");
+  const [plans, setPlans] = useState<PlanName[]>(["Starter"]);
+  const [affiliate, setAffiliate] = useState<string>("AFF-001");
+  const [active, setActive] = useState(true);
   const [seed, setSeed] = useState(1);
 
   const handleGenerate = () => {
@@ -886,7 +890,7 @@ function CouponSheet({
       return;
     }
     toast({
-      title: creating ? "Coupon created" : "Coupon saved",
+      title: "Coupon created",
       description: `${codeValue} — ${discountType} ${formatDiscountValue(discountType, Number(discountValue) || 0, currency)}${plans.length ? ` · ${plans.length} plan${plans.length === 1 ? "" : "s"}` : ""}.`,
     });
     onClose();
@@ -900,7 +904,7 @@ function CouponSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Sheet open={creating} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent
         side="right"
         className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-xl"
@@ -908,12 +912,10 @@ function CouponSheet({
         <SheetHeader className="border-b pb-4">
           <SheetTitle className="flex items-center gap-2">
             <Ticket className="h-4 w-4 text-muted-foreground" />
-            {creating ? "Create Coupon" : `Edit ${coupon?.code ?? ""}`}
+            Create Coupon
           </SheetTitle>
           <SheetDescription>
-            {creating
-              ? "Configure the discount, redemption caps, and which plans this code applies to."
-              : `Last redeemed ${coupon?.used ?? 0} times · limit ${coupon?.limit ?? "—"}.`}
+            Configure the discount, redemption caps, and which plans this code applies to.
           </SheetDescription>
         </SheetHeader>
 
@@ -1118,25 +1120,14 @@ function CouponSheet({
 
         <SheetFooter className="mt-auto flex-row gap-2 border-t pt-4">
           <Button size="sm" onClick={handleSave}>
-            <Plus className="mr-1 h-3.5 w-3.5" /> {creating ? "Create" : "Save"}
+            <Plus className="mr-1 h-3.5 w-3.5" /> Create
           </Button>
           <Button size="sm" variant="outline" onClick={handleDuplicate}>
             <Files className="mr-1 h-3.5 w-3.5" /> Duplicate
           </Button>
-          {!creating && coupon && coupon.status === "active" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="ml-auto text-rose-600 hover:text-rose-700"
-              onClick={() => onDisable(coupon)}
-            >
-              <Ban className="mr-1 h-3.5 w-3.5" /> Disable
-            </Button>
-          ) : (
-            <Button size="sm" variant="ghost" className="ml-auto" onClick={onClose}>
-              Cancel
-            </Button>
-          )}
+          <Button size="sm" variant="ghost" className="ml-auto" onClick={onClose}>
+            Cancel
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>
