@@ -102,6 +102,7 @@ export function MetricCard({
   deltaLabel,
   icon: Icon,
   tone = "default",
+  action,
 }: {
   label: string;
   value: string | number;
@@ -109,6 +110,8 @@ export function MetricCard({
   deltaLabel?: string;
   icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   tone?: "default" | "positive" | "negative" | "warning" | "info";
+  /** Optional contextual action rendered under the metric (audit: risk KPIs). */
+  action?: React.ReactNode;
 }) {
   const toneColor =
     tone === "positive" ? "#059669" : tone === "negative" ? "#e11d48" : tone === "warning" ? "#d97706" : "var(--brand-primary)";
@@ -137,6 +140,7 @@ export function MetricCard({
               ) : null}
             </div>
           ) : null}
+          {action ? <div className="mt-2">{action}</div> : null}
         </div>
         {Icon ? (
           <div className="ml-2 shrink-0 rounded-md bg-muted/50 p-1.5 transition-colors group-hover:bg-muted">
