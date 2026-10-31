@@ -6,6 +6,11 @@ import { hasPermission } from "@/lib/platform/permission-engine";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantBreaches, getTraderBreaches, getTraderForUser, type Breach } from "@/lib/platform/mock-data";
 import { resolveBreach, effectiveBreachStatus, useBreachVersion } from "@/modules/risk/breach-store";
+import {
+  createRiskCase,
+  getRiskCases,
+  setRiskCaseStatus,
+} from "@/modules/risk/risk-case-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, breachSeverityTone, formatCurrency } from "@/components/platform/status";
@@ -37,6 +42,38 @@ function hashStr(s: string): number {
     h = (h * 31 + s.charCodeAt(i)) >>> 0;
   }
   return h;
+}
+
+/**
+ * Escalate a breach into the risk case queue (finding #3: 'Escalate'
+ * options for critical risks). Not a toast — it opens a real RiskCase
+ * (see risk-case-store) and marks it 'escalated' so a risk officer owns
+ * it. Idempotent per breach: the breach id is embedded in the case's
+ * signalDetail, and re-escalating reuses the existing case instead of
+ * creating a duplicate.
+ *
+ * Returns the case id and whether a NEW case was opened.
+ */
+function escalateBreach(
+  tid: string,
+  b: Pick<Breach, "id" | "type" | "rule" | "severity" | "traderId" | "traderName" | "triggeredAt">,
+): { id: string; created: boolean } {
+  const marker = `[${b.id}]`;
+  const existing = getRiskCases(tid).find(
+    (c) => c.status === "escalated" && c.signalDetail.includes(marker),
+  );
+  if (existing) return { id: existing.id, created: false };
+  const created = createRiskCase(tid, {
+    severity: b.severity === "critical" ? "critical" : "high",
+    traderId: b.traderId,
+    traderName: b.traderName,
+    signal: b.type,
+    signalDetail:
+      `${b.rule} — escalated from breach ${marker} triggered ` +
+      `${new Date(b.triggeredAt).toLocaleString("en-US")}.`,
+  });
+  setRiskCaseStatus(tid, created.id, "escalated");
+  return { id: created.id, created: true };
 }
 
 /* ------------------------------------------------------------------ */
@@ -72,6 +109,31 @@ export function RiskOverviewPage() {
   const exposureBase = 1_800_000 + hashStr(tid) % 1_200_000;
   const exposure = open > 0 ? exposureBase + open * 47_500 : exposureBase;
 
+  // Finding #3 — 'Escalate' for critical risk: pushes every OPEN critical
+  // breach into the risk-case queue as a real escalated case.
+  const criticalOpen = breaches.filter(
+    (b) => b.status === "open" && b.severity === "critical",
+  );
+  const escalateAllCritical = () => {
+    const results = criticalOpen.map((b) => escalateBreach(tid, b));
+    const created = results.filter((r) => r.created);
+    toast(
+      created.length > 0
+        ? {
+            title: `${created.length} critical breach${created.length === 1 ? "" : "es"} escalated`,
+            description: `Cases ${created.map((r) => r.id).join(", ")} opened and marked escalated — see Risk Cases.`,
+          }
+        : {
+            title: "Already escalated",
+            description: "Every open critical breach already has an escalated risk case.",
+          },
+    );
+  };
+
+  // Finding #3 — a shared button style for the contextual KPI actions.
+  const kpiAction =
+    "h-7 w-full justify-center text-[11px] font-semibold";
+
   return (
     <Page>
       <PageHeader
@@ -92,8 +154,45 @@ export function RiskOverviewPage() {
       />
       <PageContent>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-          <MetricCard label="Open Breaches" value={open} icon={ShieldAlert} tone={open > 0 ? "warning" : "positive"} />
-          <MetricCard label="Critical" value={critical} icon={AlertTriangle} tone={critical > 0 ? "negative" : "positive"} />
+          <MetricCard
+            label="Open Breaches"
+            value={open}
+            icon={ShieldAlert}
+            tone={open > 0 ? "warning" : "positive"}
+            action={
+              <Button
+                size="sm"
+                variant="outline"
+                className={kpiAction}
+                title="Open the breach queue to review, resolve, or escalate each violation"
+                onClick={() => navigate("breaches")}
+              >
+                Triage breaches
+              </Button>
+            }
+          />
+          <MetricCard
+            label="Critical"
+            value={critical}
+            icon={AlertTriangle}
+            tone={critical > 0 ? "negative" : "positive"}
+            action={
+              <Button
+                size="sm"
+                variant="outline"
+                className={kpiAction}
+                disabled={criticalOpen.length === 0}
+                title={
+                  criticalOpen.length === 0
+                    ? "No open critical breaches to escalate"
+                    : "Open escalated risk cases for every open critical breach so a risk officer takes ownership"
+                }
+                onClick={escalateAllCritical}
+              >
+                Escalate to risk cases
+              </Button>
+            }
+          />
           <MetricCard label="Resolved (30d)" value={resolved} icon={ShieldCheck} tone="positive" />
           <MetricCard
             label="Firm Risk Score"
@@ -101,6 +200,17 @@ export function RiskOverviewPage() {
             icon={Activity}
             tone={riskScore >= 80 ? "negative" : riskScore >= 70 ? "warning" : "positive"}
             deltaLabel="Composite of breach volume, exposure & account health"
+            action={
+              <Button
+                size="sm"
+                variant="outline"
+                className={kpiAction}
+                title="Re-calibrate drawdown, profit-target, and time-limit thresholds behind the score"
+                onClick={() => navigate("trading-events")}
+              >
+                Adjust rules
+              </Button>
+            }
           />
           <MetricCard
             label="At-Risk Accounts"
@@ -108,6 +218,17 @@ export function RiskOverviewPage() {
             icon={Users}
             tone={criticalAtRisk > 0 ? "warning" : "default"}
             deltaLabel={`${within5} within 5% · ${criticalAtRisk} critical`}
+            action={
+              <Button
+                size="sm"
+                variant="outline"
+                className={kpiAction}
+                title="Review the traders behind accounts within 5–10% of their drawdown limits"
+                onClick={() => navigate("trading-traders")}
+              >
+                Review traders
+              </Button>
+            }
           />
           <MetricCard
             label="Total Exposure"
@@ -115,6 +236,17 @@ export function RiskOverviewPage() {
             icon={DollarSign}
             tone="warning"
             deltaLabel="across all open breaches"
+            action={
+              <Button
+                size="sm"
+                variant="outline"
+                className={kpiAction}
+                title="See which open breaches drive this exposure number"
+                onClick={() => navigate("breaches")}
+              >
+                View breaches
+              </Button>
+            }
           />
         </div>
 
@@ -122,7 +254,7 @@ export function RiskOverviewPage() {
         <AttentionCenter />
 
         {/* Actionable Insights — derived risk factors + mitigation (finding #5) */}
-        <RiskInsightsPanel breaches={breaches} />
+        <RiskInsightsPanel tenantId={tid} breaches={breaches} />
 
         <div className="rounded-lg border bg-card p-4">
           <p className="mb-3 text-sm font-medium">Recent Breaches</p>
@@ -137,19 +269,28 @@ export function RiskOverviewPage() {
 /* Actionable Insights — derived risk factors + mitigations (finding #5) */
 /* ------------------------------------------------------------------ */
 
+interface RiskInsightAction {
+  label: string;
+  onClick: () => void;
+  /** Brief explanation of what the action does (finding #3). */
+  title?: string;
+}
+
 interface RiskInsight {
   id: string;
   title: string;
   detail: string;
   mitigation: string;
   severity: "critical" | "warning" | "info";
-  actions: { label: string; onClick: () => void }[];
+  actions: RiskInsightAction[];
 }
 
 function RiskInsightsPanel({
+  tenantId,
   breaches,
 }: {
-  breaches: { type: string; severity: string; status: string; traderId: string; traderName: string; triggeredAt: string }[];
+  tenantId: string;
+  breaches: Breach[];
 }) {
   const { navigate } = usePlatform();
   const open = breaches.filter((b) => b.status === "open");
@@ -171,8 +312,16 @@ function RiskInsightsPanel({
         mitigation: "Review the daily-loss parameters for this program; consider whether thresholds are mis-calibrated for current market volatility.",
         severity: topCount >= 3 ? "critical" : "warning",
         actions: [
-          { label: "Configure rules", onClick: () => navigate("trading-events") },
-          { label: "View breaches", onClick: () => navigate("breaches") },
+          {
+            label: "Adjust rules",
+            onClick: () => navigate("trading-events"),
+            title: "Open rule configuration to re-calibrate the thresholds driving these violations",
+          },
+          {
+            label: "View breaches",
+            onClick: () => navigate("breaches"),
+            title: "Open the full breach queue filtered visually by type",
+          },
         ],
       });
     }
@@ -198,8 +347,21 @@ function RiskInsightsPanel({
         mitigation: "Reach out with educational resources on drawdown management, or consider a temporary leverage reduction until compliance improves.",
         severity: "warning",
         actions: [
-          { label: "Review trader", onClick: () => navigate("trader-detail", { id: traderId }) },
-          { label: "Contact trader", onClick: () => navigate("trader-detail", { id: traderId }) },
+          {
+            label: "Review trader",
+            onClick: () => navigate("trader-detail", { id: traderId }),
+            title: "Open this trader's profile: accounts, trades, and breach history",
+          },
+          {
+            label: "Adjust rules",
+            onClick: () => navigate("trading-events"),
+            title: "Repeated violations often mean mis-calibrated limits — review thresholds for this program",
+          },
+          {
+            label: "Contact trader",
+            onClick: () => navigate("trader-detail", { id: traderId }),
+            title: "Open the trader's profile to reach out about drawdown discipline",
+          },
         ],
       });
     }
@@ -216,8 +378,35 @@ function RiskInsightsPanel({
       mitigation: "Prioritize review of each critical breach: confirm whether the breach was a genuine limit breach or a false-positive from data latency; resolve or escalate accordingly.",
       severity: "critical",
       actions: [
-        { label: "Triage now", onClick: () => navigate("breaches") },
-        { label: "Review account", onClick: () => navigate("trader-detail", { id: first.traderId }) },
+        {
+          label: "Escalate",
+          onClick: () => {
+            const results = criticalOpen.map((b) => escalateBreach(tenantId, b));
+            const created = results.filter((r) => r.created);
+            toast(
+              created.length > 0
+                ? {
+                    title: `${created.length} breach${created.length === 1 ? "" : "es"} escalated`,
+                    description: `Cases ${created.map((r) => r.id).join(", ")} opened and marked escalated — see Risk Cases.`,
+                  }
+                : {
+                    title: "Already escalated",
+                    description: "These critical breaches already have escalated risk cases.",
+                  },
+            );
+          },
+          title: "Open escalated risk cases for every critical breach so a risk officer owns triage",
+        },
+        {
+          label: "Triage now",
+          onClick: () => navigate("breaches"),
+          title: "Open the breach queue to review, resolve, or escalate each critical violation",
+        },
+        {
+          label: "Review account",
+          onClick: () => navigate("trader-detail", { id: first.traderId }),
+          title: "Open the affected trader's profile",
+        },
       ],
     });
   }
@@ -233,7 +422,11 @@ function RiskInsightsPanel({
       mitigation: "Assign a risk officer to clear the backlog; use bulk-resolve if the underlying issue has been addressed at the policy level.",
       severity: "warning",
       actions: [
-        { label: "Clear backlog", onClick: () => navigate("breaches") },
+        {
+          label: "Clear backlog",
+          onClick: () => navigate("breaches"),
+          title: "Open the breach queue to resolve stale items in bulk",
+        },
       ],
     });
   }
@@ -274,6 +467,7 @@ function RiskInsightsPanel({
                       size="sm"
                       variant="outline"
                       onClick={action.onClick}
+                      title={action.title}
                       className="h-7 text-[11px]"
                     >
                       {action.label}
@@ -400,24 +594,67 @@ function BreachesTable({
     {
       key: "actions",
       header: "Actions",
-      cell: (b) =>
-        b.status === "open" ? (
+      cell: (b) => (
+        <div className="flex items-center gap-1">
           <Button
             size="sm"
             variant="ghost"
-            disabled={!canResolve}
-            title={canResolve ? undefined : "Requires risk.configure"}
+            title="Open this trader's profile to review accounts, trades, and history"
             onClick={(e) => {
               e.stopPropagation();
-              // Mutate the shared breach store — the row flips to resolved
-              // and every breach KPI recomputes.
-              resolveBreach(b.id);
-              toast({ title: "Breach resolved", description: `${b.traderName}'s breach marked resolved.` });
+              navigate("trader-detail", { id: b.traderId });
             }}
           >
-            Resolve
+            Review trader
           </Button>
-        ) : null,
+          {b.status === "open" && b.severity === "critical" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={!canResolve}
+              title={
+                canResolve
+                  ? "Open an escalated risk case for this breach so a risk officer owns it (requires risk.configure)"
+                  : "Requires risk.configure"
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                const r = escalateBreach(tid, b);
+                toast(
+                  r.created
+                    ? {
+                        title: `Escalated — ${r.id}`,
+                        description: `${b.traderName}'s breach opened as a risk case and marked escalated.`,
+                      }
+                    : {
+                        title: "Already escalated",
+                        description: `${r.id} already covers this breach — see Risk Cases.`,
+                      },
+                );
+              }}
+            >
+              Escalate
+            </Button>
+          )}
+          {b.status === "open" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={!canResolve}
+              title={canResolve ? undefined : "Requires risk.configure"}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Mutate the shared breach store — the row flips to resolved
+                // and every breach KPI recomputes.
+                resolveBreach(b.id);
+                toast({ title: "Breach resolved", description: `${b.traderName}'s breach marked resolved.` });
+              }}
+            >
+              Resolve
+            </Button>
+          )}
+        </div>
+      ),
     },
   ];
 
