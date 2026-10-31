@@ -454,6 +454,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "challenge-programs": dynamic(
+    () =>
+      import("@/modules/super-admin/challenge-programs-page").then((m) => ({
+        default: m.ChallengeProgramsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "churn-prevention": dynamic(
     () =>
       import("@/modules/super-admin/churn-prevention-page").then((m) => ({
