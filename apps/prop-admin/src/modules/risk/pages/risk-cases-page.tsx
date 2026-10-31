@@ -20,6 +20,7 @@
 
 import { useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { useDetailOverlay } from "@/components/platform/detail-overlay";
 import { openViewInNewTab } from "@/lib/platform/view-links";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -275,7 +276,7 @@ export function RiskCasesPage() {
           <MetricCard label="Escalated" value={escalated} icon={ShieldAlert} tone={escalated > 0 ? "negative" : "positive"} />
           <MetricCard label="Action Required" value={actionRequired} icon={AlertTriangle} tone={actionRequired > 0 ? "warning" : "positive"} />
           <MetricCard label="Payouts Held" value={allCases.filter((c) => c.payoutHold).length} icon={DollarSign} tone="warning" />
-          <MetricCard label="Hold Amount" value={`$${totalHoldAmount.toLocaleString()}`} icon={DollarSign} tone="warning" />
+          <MetricCard label="Hold Amount" value={formatCurrencyValue(totalHoldAmount, "USD")} icon={DollarSign} tone="warning" />
         </div>
 
         {/* Queue */}

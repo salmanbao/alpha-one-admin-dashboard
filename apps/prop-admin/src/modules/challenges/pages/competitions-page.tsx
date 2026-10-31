@@ -16,6 +16,7 @@ import { StatusBadge } from "@/components/platform/status";
 import { Trophy, Users, DollarSign, Calendar, Plus, Medal, Award, Crown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 
 interface Competition {
   id: string;
@@ -117,7 +118,7 @@ export function CompetitionsPage() {
           <MetricCard label="Total" value={competitions.length} icon={Trophy} />
           <MetricCard label="Active" value={competitions.filter((c) => c.status === "active").length} icon={Calendar} tone="positive" />
           <MetricCard label="Upcoming" value={competitions.filter((c) => c.status === "upcoming").length} icon={Calendar} />
-          <MetricCard label="Total Prize Pool" value={`$${competitions.reduce((s, c) => s + c.prizePool, 0).toLocaleString()}`} icon={DollarSign} tone="positive" />
+          <MetricCard label="Total Prize Pool" value={formatCurrencyValue(competitions.reduce((s, c) => s + c.prizePool, 0), "USD")} icon={DollarSign} tone="positive" />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1fr_1.5fr]">

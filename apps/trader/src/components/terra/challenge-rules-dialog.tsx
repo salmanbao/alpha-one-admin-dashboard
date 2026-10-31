@@ -21,10 +21,8 @@ import {
   terraRiskLimits,
   type TerraAccount,
 } from "@/lib/fixtures/terra-fixtures";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { DetailDialog } from "@/components/terra/detail-dialog";
-
-const usd = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 function RuleRow({
   label,
@@ -77,15 +75,15 @@ export function ChallengeRulesDialog({
         <RuleRow
           label={isFunded ? "Scaling target" : "Profit target"}
           rule={challenge?.profitTarget ?? `${targetPct}%`}
-          detail={`${usd(account.pnl >= 0 ? account.pnl : 0)} of ${usd(account.profitTarget)} reached (${account.targetProgress}%)`}
+          detail={`${formatCurrencyValue(account.pnl >= 0 ? account.pnl : 0)} of ${formatCurrencyValue(account.profitTarget)} reached (${account.targetProgress}%)`}
         />
         <RuleRow
           label="Daily loss limit"
           rule={challenge?.dailyLoss ?? "—"}
           detail={
             limits
-              ? `${usd(limits.daily)} per day • ${usd(account.dailyLossRemaining)} remaining today`
-              : `${usd(account.dailyLossRemaining)} remaining today`
+              ? `${formatCurrencyValue(limits.daily)} per day • ${formatCurrencyValue(account.dailyLossRemaining)} remaining today`
+              : `${formatCurrencyValue(account.dailyLossRemaining)} remaining today`
           }
         />
         <RuleRow
@@ -93,8 +91,8 @@ export function ChallengeRulesDialog({
           rule={challenge?.maxDrawdown ?? "—"}
           detail={
             limits
-              ? `${usd(limits.maxDd)} total • ${usd(account.maxDdRemaining)} remaining`
-              : `${usd(account.maxDdRemaining)} remaining`
+              ? `${formatCurrencyValue(limits.maxDd)} total • ${formatCurrencyValue(account.maxDdRemaining)} remaining`
+              : `${formatCurrencyValue(account.maxDdRemaining)} remaining`
           }
         />
         <RuleRow

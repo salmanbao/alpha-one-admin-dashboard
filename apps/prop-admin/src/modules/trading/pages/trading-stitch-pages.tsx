@@ -14,7 +14,7 @@
  */
 
 import * as React from "react";
-import { formatCurrencyValue, formatCompactCurrencyValue } from "@pfaas/platform-core";
+import { formatCurrencyValue, formatCompactCurrencyValue, formatSignedCurrencyValue } from "@pfaas/platform-core";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { DemoDataStamp } from "@/components/platform/demo-data";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
@@ -154,7 +154,7 @@ export function TradingOverviewStitchPage() {
         />
         <StitchKpi
           label="Total Equity"
-          value={new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(totalEquity)}
+          value={formatMoney(totalEquity, currency)}
           delta="+3.2% (30d)"
           icon="north_east"
           hint="Aggregate client collateral"
@@ -164,8 +164,7 @@ export function TradingOverviewStitchPage() {
           label="Open P&L"
           value={
             <span className={openPnl >= 0 ? "text-tp" : "text-terr"}>
-              {openPnl >= 0 ? "+" : ""}
-              {new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(openPnl)}
+              {formatSignedMoney(openPnl, currency)}
             </span>
           }
           delta={openPnl >= 0 ? "+5.4%" : "-2.1%"}
@@ -425,6 +424,11 @@ function EquityCurve({ data, currency }: { data: { date: string; value: number }
  */
 function formatMoney(v: number, currency = "USD", compact = false) {
   return compact ? formatCompactCurrencyValue(v, currency) : formatCurrencyValue(v, currency);
+}
+
+/** Signed P&L — canonical "+" / "−" prefix (finding #7). */
+function formatSignedMoney(v: number, currency = "USD") {
+  return formatSignedCurrencyValue(v, currency);
 }
 
 function statusTone(s: string): StitchTone {

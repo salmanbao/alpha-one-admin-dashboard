@@ -20,6 +20,7 @@
  */
 
 import * as React from "react";
+import { formatCurrencyValue, formatCompactCurrencyValue } from "@pfaas/platform-core";
 import { usePlatform } from "@/lib/platform/platform-context";
 import {
   getTenantAccounts,
@@ -67,8 +68,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
+/**
+ * finding #7: money formatting delegates to the central utility in
+ * `@pfaas/platform-core`. Non-compact = exact amounts (2 decimals);
+ * compact = dense KPI/chart labels only (canonical compact rules).
+ */
 function money(v: number, currency = "USD", compact = false) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, notation: compact ? "compact" : "standard", maximumFractionDigits: compact ? 1 : 0 }).format(v);
+  return compact ? formatCompactCurrencyValue(v, currency) : formatCurrencyValue(v, currency);
 }
 function toneFor(s: string): "positive" | "negative" | "warning" | "info" | "muted" {
   switch (s) {

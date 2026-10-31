@@ -8,6 +8,7 @@
  */
 
 import { useState, useMemo } from "react";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -155,7 +156,7 @@ export function MarketingPage() {
                   {coupons.map((c) => (
                     <tr key={c.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3"><code className="text-xs font-bold bg-muted px-2 py-0.5 rounded">{c.code}</code></td>
-                      <td className="px-4 py-3 text-sm font-semibold">{c.type === "percent" ? `${c.value}%` : `$${c.value}`}</td>
+                      <td className="px-4 py-3 text-sm font-semibold">{c.type === "percent" ? `${c.value}%` : formatCurrencyValue(c.value, "USD")}</td>
                       <td className="px-4 py-3 text-sm">
                         {c.redemptions.toLocaleString()}
                         {c.maxRedemptions && <span className="text-muted-foreground"> / {c.maxRedemptions.toLocaleString()}</span>}

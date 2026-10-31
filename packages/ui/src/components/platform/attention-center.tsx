@@ -50,6 +50,7 @@ import {
   getTraderAccounts,
 } from "@/lib/platform/mock-data";
 import type { ApplicationId } from "@/lib/platform/types";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 
 interface AttentionItem {
   id: string;
@@ -187,7 +188,7 @@ function buildAttentionGroups(tid: string, enabledModules: string[]): AttentionG
       actionItems.push({
         id: "pending-payouts",
         title: "Payout approvals waiting",
-        detail: `${pending.length} requests totaling ${totalAmount.toLocaleString("en-US", { style: "currency", currency: "USD" })}`,
+        detail: `${pending.length} requests totaling ${formatCurrencyValue(totalAmount, "USD")}`,
         count: pending.length,
         icon: Wallet,
         navigateTo: "payouts-pending",
@@ -453,7 +454,7 @@ function buildTraderAttentionGroups(
       actionItems.push({
         id: "my-pending-withdrawals",
         title: "Withdrawals awaiting approval",
-        detail: `${pending.length} ${pending.length === 1 ? "request" : "requests"} totaling ${totalAmount.toLocaleString("en-US", { style: "currency", currency })}`,
+        detail: `${pending.length} ${pending.length === 1 ? "request" : "requests"} totaling ${formatCurrencyValue(totalAmount, currency)}`,
         count: pending.length,
         icon: Wallet,
         navigateTo: "trader-detail",

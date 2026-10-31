@@ -16,6 +16,7 @@
  */
 
 import * as React from "react";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { usePlatform } from "@/lib/platform/platform-context";
 import {
   getTenantAccounts,
@@ -61,8 +62,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
+/**
+ * finding #7: exact amounts follow the canonical money rules —
+ * delegates to the central utility in `@pfaas/platform-core`.
+ */
 function money(v: number, currency = "USD") {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
+  return formatCurrencyValue(v, currency);
 }
 export function toneFor(s: string): "positive" | "negative" | "warning" | "info" | "muted" {
   switch (s) {

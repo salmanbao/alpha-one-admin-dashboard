@@ -221,7 +221,7 @@ export function ChurnPreventionPage() {
                           <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: rule.status === "active" ? "Rule paused" : "Rule resumed", description: `${rule.name} ${rule.status === "active" ? "paused" : "resumed"}. Audited.` })}>
                             {rule.status === "active" ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule history", description: `${rule.name}: ${rule.triggered30d} triggers, $${rule.saved30d.toLocaleString()} saved.` })}>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule history", description: `${rule.name}: ${rule.triggered30d} triggers, ${formatCurrency(rule.saved30d, "USD")} saved.` })}>
                             <MessageSquare className="h-3 w-3" />
                           </Button>
                         </div>
