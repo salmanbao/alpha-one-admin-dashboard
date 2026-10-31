@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://platform.pfaas.io/</loc></url>
+  <url><loc>https://platform.pfaas.io/dashboard</loc></url>
+  <url><loc>https://platform.pfaas.io/tenants</loc></url>
+  <url><loc>https://platform.pfaas.io/tenant-detail</loc></url>
+  <url><loc>https://platform.pfaas.io/role-management</loc></url>
+  <url><loc>https://platform.pfaas.io/tenants/create</loc></url>
+  <url><loc>https://platform.pfaas.io/platform-staff</loc></url>
+  <url><loc>https://platform.pfaas.io/announcements</loc></url>
+  <url><loc>https://platform.pfaas.io/feature-flags</loc></url>
+  <url><loc>https://platform.pfaas.io/billing</loc></url>
+</urlset>
