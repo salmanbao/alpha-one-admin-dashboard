@@ -3,22 +3,44 @@
 /**
  * KYC Onboarding — converted from stitch_screens/kyc_onboarding
  * Multi-step KYC form: personal → documents → review.
+ *
+ * Keyboard support (audit finding #3):
+ *   • Each step change moves focus to the new step's heading (no focus
+ *     loss when the step card swaps out) and announces the step through
+ *     an sr-only aria-live region.
+ *   • The stepper marks the active step with aria-current="step".
+ *   • The disabled Continue button on Documents is never unexplained —
+ *     a role="status" hint says what is still required.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { cn } from "@pfaas/ui";
 import { TerraCard, TerraPageHeader, TerraBadge } from "@/components/terra/terra-ui";
 
-const steps = ["Personal info", "Documents", "Review"];
+const steps = ["Personal info", "Documents", "Review"] as const;
 
 export function KycOnboardingPage() {
   const [step, setStep] = useState(0);
   const [uploaded, setUploaded] = useState<Record<string, boolean>>({});
+  // Focus management: the active step's heading receives focus after
+  // every step change (skipping the initial render).
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const firstRender = useRef(true);
+
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    headingRef.current?.focus();
+  }, [step]);
 
   const handleUpload = (doc: string) => {
     setUploaded((u) => ({ ...u, [doc]: true }));
   };
+
+  const missingDocs = 2 - Object.keys(uploaded).length;
 
   return (
     <div className="space-y-6">
@@ -28,11 +50,12 @@ export function KycOnboardingPage() {
         actions={<TerraBadge tone="tertiary">Step {step + 1} of {steps.length}</TerraBadge>}
       />
 
-      {/* Stepper */}
+      {/* Stepper — active step exposed to assistive tech */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {steps.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
             <div
+              aria-current={i === step ? "step" : undefined}
               className={cn(
                 "flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold whitespace-nowrap",
                 i < step
@@ -50,10 +73,22 @@ export function KycOnboardingPage() {
         ))}
       </div>
 
+      {/* Screen-reader step announcements (finding #3) */}
+      <p role="status" aria-live="polite" className="sr-only">
+        Step {step + 1} of {steps.length}: {steps[step]}
+        {step === 1 && missingDocs > 0
+          ? ` — ${missingDocs} document${missingDocs === 1 ? "" : "s"} still need uploading before you can continue.`
+          : ""}
+      </p>
+
       <div className="mx-auto max-w-2xl">
         {step === 0 && (
           <TerraCard>
-            <h2 className="pb-4 font-headline text-lg font-bold text-on-surface">
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="pb-4 font-headline text-lg font-bold text-on-surface outline-none"
+            >
               Personal information
             </h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -90,7 +125,11 @@ export function KycOnboardingPage() {
 
         {step === 1 && (
           <TerraCard>
-            <h2 className="pb-4 font-headline text-lg font-bold text-on-surface">
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="pb-4 font-headline text-lg font-bold text-on-surface outline-none"
+            >
               Identity documents
             </h2>
             <div className="space-y-3">
@@ -126,21 +165,33 @@ export function KycOnboardingPage() {
               >
                 Back
               </button>
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                disabled={Object.keys(uploaded).length < 2}
-                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90 disabled:opacity-50"
-              >
-                Continue
-              </button>
+              <div className="flex flex-col items-end gap-1.5">
+                {/* Never leave a disabled button unexplained (finding #3) */}
+                {missingDocs > 0 && (
+                  <span role="status" className="text-xs text-on-surface-variant">
+                    Upload {missingDocs} more document{missingDocs === 1 ? "" : "s"} to continue
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  disabled={missingDocs > 0}
+                  className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90 disabled:opacity-50"
+                >
+                  Continue
+                </button>
+              </div>
             </div>
           </TerraCard>
         )}
 
         {step === 2 && (
           <TerraCard>
-            <h2 className="pb-4 font-headline text-lg font-bold text-on-surface">
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="pb-4 font-headline text-lg font-bold text-on-surface outline-none"
+            >
               Review &amp; submit
             </h2>
             <div className="space-y-2 text-sm">

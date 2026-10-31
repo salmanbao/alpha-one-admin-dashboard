@@ -24,6 +24,7 @@ import {
 import { terraAccounts, challengeTimeline } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { useTrading } from "@/lib/trading/trading-context";
+import { useRovingTabs } from "@/lib/a11y/roving-tabs";
 import { DetailDialog } from "@/components/terra/detail-dialog";
 import { PositionDetailContent } from "./position-detail-content";
 
@@ -36,6 +37,9 @@ export function OpenPositionsPage() {
   const { activeAccount, activeAccountId } = useActiveAccount();
   const { positions, orders, closePosition, closeAll, cancelOrder } = useTrading();
   const [tab, setTab] = useState<(typeof tabs)[number]>("Positions");
+  // Keyboard support for the tab strip (audit finding #3): arrow keys,
+  // Home/End, roving tabindex, tab↔panel ARIA wiring.
+  const roving = useRovingTabs(tabs, tab, setTab, "open-positions");
   // Quick-view overlay: clicking a symbol opens the trade detail in a
   // dialog on top of the live table — the positions view is never lost.
   const [quickPosId, setQuickPosId] = useState<string | null>(null);
@@ -102,15 +106,17 @@ export function OpenPositionsPage() {
         }
       />
 
-      {/* Positions / Pending Orders tabs */}
-      <div className="flex items-center gap-1.5" role="tablist" aria-label="Trade views">
+      {/* Positions / Pending Orders tabs — ARIA tabs pattern (finding #3) */}
+      <div
+        className="flex items-center gap-1.5"
+        role="tablist"
+        aria-label="Trade views"
+        onKeyDown={roving.onKeyDown}
+      >
         {tabs.map((t) => (
           <button
+            {...roving.tabProps(t)}
             key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
             className={cn(
               "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all",
               tab === t
@@ -129,7 +135,7 @@ export function OpenPositionsPage() {
       </div>
 
       {tab === "Positions" ? (
-        <>
+        <div {...roving.panelProps("Positions")} className="space-y-6">
           {/* Rule Context panel — challenge limits at a glance */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-4">
             {/* Profit target progress */}
@@ -242,8 +248,9 @@ export function OpenPositionsPage() {
             />
             )}
           </TerraCard>
-        </>
+        </div>
       ) : (
+        <div {...roving.panelProps("Pending Orders")}>
         <TerraCard>
           {orderRows.length === 0 ? (
             <TerraEmpty
@@ -279,6 +286,7 @@ export function OpenPositionsPage() {
             />
           )}
         </TerraCard>
+        </div>
       )}
 
       {/* Quick-view overlay — inspect a position without leaving live positions */}
