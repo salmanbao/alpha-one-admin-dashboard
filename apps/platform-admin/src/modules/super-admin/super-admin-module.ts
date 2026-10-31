@@ -85,7 +85,7 @@ const navigation: NavigationItem[] = [
       { id: "super.providers", label: "Provider Registry", href: "provider-registry", icon: Globe, application: ["super-admin"], group: "Observability" },
       { id: "super.queues", label: "Cross-Tenant Queues", href: "cross-tenant-queues", icon: Layers, application: ["super-admin"], group: "Observability" },
       { id: "super.platform-audit", label: "Platform Audit", href: "platform-audit", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 65, group: "Observability" },
-      { id: "super.usage-metering", label: "Usage Metering", href: "usage-metering", icon: Gauge, application: ["super-admin"], group: "Observability" },
+      { id: "super.usage-metering", label: "Tenant Usage & Overage", href: "usage-metering", icon: Gauge, application: ["super-admin"], group: "Observability" },
       // `audit-log` nav entry folded into the Platform Audit page's chain
       // (platform-audit → audit-log → model-audit-log); route stays registered.
 
@@ -160,7 +160,7 @@ const routes: RouteDefinition[] = [
   { path: "tenant-detail", viewId: "tenant-detail", label: "Tenant Detail", application: ["super-admin"] },
   { path: "tenant-lifecycle", viewId: "tenant-lifecycle", label: "Tenant Lifecycle", application: ["super-admin"] },
   { path: "provisioning-saga", viewId: "provisioning-saga", label: "Provisioning Saga", application: ["super-admin"] },
-  { path: "usage-metering", viewId: "usage-metering", label: "Usage Metering", application: ["super-admin"] },
+  { path: "usage-metering", viewId: "usage-metering", label: "Tenant Usage & Overage", application: ["super-admin"] },
   { path: "support-assist", viewId: "support-assist", label: "Support Assist", application: ["super-admin"] },
   { path: "platform-operations", viewId: "platform-operations", label: "Operations Home", application: ["super-admin"] },
   { path: "emergency-controls", viewId: "emergency-controls", label: "Emergency Controls", application: ["super-admin"] },

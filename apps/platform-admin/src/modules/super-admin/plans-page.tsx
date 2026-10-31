@@ -32,6 +32,11 @@ import { formatCurrency } from "@/components/platform/status";
 import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
 import { toast } from "@/hooks/use-toast";
 import type { TenantContext } from "@/lib/platform/types";
+import { usageGrowth30d, daysToLimit } from "@/lib/platform/usage-forecast";
+import {
+  UsageNoticeDialog,
+  type UsageNoticePrefill,
+} from "@/modules/super-admin/usage-notice-dialog";
 import {
   CreditCard,
   DollarSign,
@@ -51,6 +56,7 @@ import {
   Bell,
   BellRing,
   Lock,
+  Send,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -453,6 +459,7 @@ function PlanChangeButtons({ tenant, plans }: { tenant: TenantContext; plans: Pl
 /* caught before they impact service.                                  */
 /* ------------------------------------------------------------------ */
 
+/** Plan tier order for upgrade suggestions. */
 const PLAN_ORDER: PlanId[] = ["starter", "growth", "scale", "enterprise"];
 
 const METRIC_LABELS: Array<{ key: keyof PlanLimits; label: string }> = [
@@ -462,19 +469,9 @@ const METRIC_LABELS: Array<{ key: keyof PlanLimits; label: string }> = [
   { key: "eventsPerDay", label: "Events/day" },
 ];
 
-/** Deterministic 30-day growth rate (%) for one tenant's usage of one metric. */
-function usageGrowth30d(tenantId: string, metric: keyof PlanLimits) {
-  const seed = (tenantId + metric).split("").reduce((s, c) => s + c.charCodeAt(0), 0);
-  return 5 + (seed % 34); // 5–38% growth per 30 days
-}
-
-/** Days until `used` reaches `limit` at the current 30-day trend (linear projection). */
-function daysToLimit(used: number, limit: number, growthPct: number) {
-  if (used >= limit) return 0;
-  const monthlyDelta = (used * growthPct) / 100;
-  if (monthlyDelta <= 0) return Number.POSITIVE_INFINITY;
-  return Math.round(((limit - used) / monthlyDelta) * 30);
-}
+/** Forecast math now lives in lib/platform/usage-forecast.ts (finding #4)
+ *  so this panel and the Tenant Usage & Overage dashboard project the
+ *  same trend from the same formulas. */
 
 interface OverageMetric {
   key: keyof PlanLimits;
@@ -502,6 +499,8 @@ function OverageMonitoringPanel({
   plans: Plan[];
 }) {
   const [alertsArmed, setAlertsArmed] = useState<Record<string, boolean>>({});
+  // finding #4 — tenant-facing notice (mounted fresh per open)
+  const [notice, setNotice] = useState<UsageNoticePrefill | null>(null);
 
   const { flagged, healthy, upsellMrr } = useMemo(() => {
     const flagged: TenantOverage[] = [];
@@ -590,6 +589,43 @@ function OverageMonitoringPanel({
       title: "Limit enforcement scheduled",
       description: `${tenantName}: ${metric} hard-capped at ${limit} from the next billing cycle — usage above the ceiling is throttled until the plan is upgraded.`,
       variant: "destructive",
+    });
+  };
+
+  /**
+   * finding #4 (HIGH) — tenant-facing notification tool: pre-filled
+   * overage notice carrying utilization, forecast, and the upgrade
+   * recommendation, editable before sending.
+   */
+  const notifyTenant = (f: TenantOverage) => {
+    const b = f.binding;
+    const unit = b.key === "storageGb" ? " GB" : "";
+    const forecast =
+      b.days === 0
+        ? "is already over the ceiling"
+      : Number.isFinite(b.days)
+        ? `is forecast to reach its limit in ~${b.days} days at the current ~${b.growth}% monthly trend`
+        : "is not projected to reach its limit at the current trend";
+    const upgradeText = f.upgrade
+      ? f.upgrade.plan.priceMonthly > f.plan.priceMonthly
+        ? `Recommended: upgrade to the ${f.upgrade.plan.name} plan for ${f.upgrade.headroomPct}%+ ${b.label.toLowerCase()} headroom (+${formatCurrency(f.upgrade.plan.priceMonthly - f.plan.priceMonthly)}/mo).`
+        : `Recommended: upgrade to the ${f.upgrade.plan.name} plan for ${f.upgrade.headroomPct}%+ ${b.label.toLowerCase()} headroom.`
+      : `You are on our top tier — our team will reach out to negotiate bespoke ${b.label.toLowerCase()} limits before enforcement.`;
+    setNotice({
+      tenantName: f.tenant.name,
+      recipient: `admin@${f.tenant.slug}.example`,
+      subject: `${f.tenant.name}: ${b.label} at ${b.pctUsed}% of the ${f.plan.name} plan limit`,
+      message: [
+        `Hi ${f.tenant.name} team,`,
+        ``,
+        `${b.label} usage ${forecast}. Current usage: ${compact(b.used)}${unit} of ${compact(b.limit)}${unit} (${b.pctUsed}% of your ${f.plan.name} plan).`,
+        ``,
+        upgradeText,
+        ``,
+        `If the trend continues, usage above ${compact(b.limit)}${unit} will be capped from the next billing cycle to protect service stability.`,
+        ``,
+        `— Platform Operations`,
+      ].join("\n"),
     });
   };
 
@@ -713,6 +749,15 @@ function OverageMonitoringPanel({
                       {armed ? <BellRing className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
                       {armed ? "Alerts armed" : "Arm alerts"}
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1 text-xs"
+                      title="Send this tenant a pre-filled notice with utilization, forecast, and the upgrade recommendation"
+                      onClick={() => notifyTenant(f)}
+                    >
+                      <Send className="h-3 w-3" /> Notify tenant
+                    </Button>
                   </div>
                 </div>
                 <div className="mt-2 space-y-1">
@@ -769,6 +814,9 @@ function OverageMonitoringPanel({
           <p className="text-[11px] text-muted-foreground">
             Within limits: {healthy.map((h) => h.name).join(", ")}.
           </p>
+        ) : null}
+        {notice ? (
+          <UsageNoticeDialog prefill={notice} onClose={() => setNotice(null)} />
         ) : null}
       </CardContent>
     </Card>
