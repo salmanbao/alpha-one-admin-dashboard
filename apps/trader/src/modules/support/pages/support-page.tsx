@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   TerraBadge,
   TerraCard,
@@ -146,11 +147,31 @@ function LiveChat() {
   );
 }
 
-function NewTicketComposer({ onCreated }: { onCreated: (t: SupportTicket) => void }) {
-  const [subject, setSubject] = useState("");
-  const [category, setCategory] = useState("Accounts");
-  const [priority, setPriority] = useState<"high" | "normal" | "low">("normal");
-  const [message, setMessage] = useState("");
+/**
+ * Optional prefill — when the trader arrives from a failure surface
+ * (e.g. checkout payment failure, finding #2) the composer opens with
+ * the context already attached instead of a blank form.
+ */
+interface ComposerPrefill {
+  subject: string;
+  category: string;
+  priority: "high" | "normal" | "low";
+  message: string;
+}
+
+function NewTicketComposer({
+  onCreated,
+  prefill,
+}: {
+  onCreated: (t: SupportTicket) => void;
+  prefill?: ComposerPrefill;
+}) {
+  const [subject, setSubject] = useState(prefill?.subject ?? "");
+  const [category, setCategory] = useState(prefill?.category ?? "Accounts");
+  const [priority, setPriority] = useState<"high" | "normal" | "low">(
+    prefill?.priority ?? "normal",
+  );
+  const [message, setMessage] = useState(prefill?.message ?? "");
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -184,6 +205,12 @@ function NewTicketComposer({ onCreated }: { onCreated: (t: SupportTicket) => voi
         description="Tell us what's going on — we usually reply within 4 hours."
       />
       <form onSubmit={handleSubmit} className="space-y-3">
+        {prefill && (
+          <p className="rounded-lg bg-primary-fixed/40 px-3 py-2 text-xs font-semibold text-on-primary-fixed-variant">
+            ✓ Context from your failed payment is pre-filled below — review and
+            edit it before sending.
+          </p>
+        )}
         <label className="block">
           <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
             Subject
@@ -205,7 +232,7 @@ function NewTicketComposer({ onCreated }: { onCreated: (t: SupportTicket) => voi
               onChange={(e) => setCategory(e.target.value)}
               className={inputClass}
             >
-              {["Accounts", "Payouts", "Rules", "Platform", "KYC"].map((c) => (
+              {["Accounts", "Payouts", "Rules", "Platform", "KYC", "Billing"].map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </select>
@@ -259,9 +286,36 @@ function NewTicketComposer({ onCreated }: { onCreated: (t: SupportTicket) => voi
 }
 
 export function SupportPage() {
+  // Failure context carried from other surfaces (finding #2): when the
+  // checkout's "Contact support" link arrives with ?topic=payment-failed
+  // the composer opens pre-filled with the reason/method/amount/order.
+  const search = useSearchParams();
+  const paymentContext = (() => {
+    if (search.get("topic") !== "payment-failed") return null;
+    const challenge = search.get("challenge") ?? "Checkout";
+    const amount = search.get("amount") ?? "—";
+    const method = search.get("method") ?? "—";
+    const reasonTitle = search.get("reasonTitle") ?? "Payment failure";
+    const reasonCode = search.get("reason") ?? "unknown";
+    return {
+      subject: `Payment failed — ${challenge}`,
+      category: "Billing",
+      priority: "high" as const,
+      message: [
+        `Payment failed during checkout and I'd like help completing the purchase.`,
+        ``,
+        `Order: ${challenge}`,
+        `Amount: ${amount}`,
+        `Payment method: ${method}`,
+        `Failure reason: ${reasonTitle} (code: ${reasonCode})`,
+      ].join("\n"),
+      summary: `${reasonTitle} · ${method} · ${amount} · ${challenge}`,
+    };
+  })();
+
   const [localTickets, setLocalTickets] = useState<SupportTicket[]>([]);
   const [closedIds, setClosedIds] = useState<string[]>([]);
-  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(paymentContext !== null);
   const [created, setCreated] = useState<SupportTicket | null>(null);
 
   // Hydrate after mount — localStorage is unavailable during SSG.
@@ -315,7 +369,24 @@ export function SupportPage() {
         </div>
       )}
 
-      {composerOpen && <NewTicketComposer onCreated={handleCreated} />}
+      {paymentContext && (
+        <div
+          role="status"
+          className="rounded-xl border border-error/30 bg-error-container/40 px-4 py-3 text-sm"
+        >
+          <p className="font-bold text-on-error-container">
+            Payment failure context attached
+          </p>
+          <p className="mt-0.5 text-xs text-on-error-container/80">
+            {paymentContext.summary} — the ticket form below is pre-filled with
+            these details.
+          </p>
+        </div>
+      )}
+
+      {composerOpen && (
+        <NewTicketComposer onCreated={handleCreated} prefill={paymentContext ?? undefined} />
+      )}
 
       <div className="space-y-3">
         {allTickets.map((t) => (

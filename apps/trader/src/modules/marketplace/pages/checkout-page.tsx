@@ -9,7 +9,7 @@
  * details. The order summary recalculates live from every choice.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
@@ -85,24 +85,57 @@ const paymentFailureReasons = [
 type PaymentFailureCode = (typeof paymentFailureReasons)[number]["code"];
 
 /**
- * Payment Failed View — audit finding: challenge purchase flow lacks
- * payment failure handling. This view shows why the payment failed and
- * gives clear recovery steps so traders aren't stranded.
+ * Payment Failed View — dedicated recovery screen (audit finding #2).
+ *
+ * Shows the SPECIFIC failure reason (picked from paymentFailureReasons)
+ * with its fix, names the exact method/amount/order that failed, and
+ * offers genuinely different recovery paths:
+ *
+ *   • "Try again with the same method" — re-runs the payment with the
+ *     failed method still pre-selected (state never left the form).
+ *   • "Change payment method" — returns to the form and moves focus to
+ *     the Payment method card so another method can be picked.
+ *   • "Contact support" — carries the failure context (reason code,
+ *     method, amount, order) as query params so the support ticket
+ *     composer opens pre-filled.
  */
-function PaymentFailedView({ reason, onRetry }: { reason: PaymentFailureCode; onRetry: () => void }) {
+function PaymentFailedView({
+  reason,
+  method,
+  amountLabel,
+  challenge,
+  onRetrySameMethod,
+  onChangeMethod,
+}: {
+  reason: PaymentFailureCode;
+  method: { label: string; note: string };
+  amountLabel: string;
+  challenge: string;
+  onRetrySameMethod: () => void;
+  onChangeMethod: () => void;
+}) {
   const reasonInfo = paymentFailureReasons.find((r) => r.code === reason)!;
+  // Support link pre-populated with the failure context (finding #2).
+  const supportHref = `/support?${new URLSearchParams({
+    topic: "payment-failed",
+    reason,
+    reasonTitle: reasonInfo.title,
+    method: method.label,
+    amount: amountLabel,
+    challenge,
+  }).toString()}`;
 
   return (
     <div className="space-y-6">
       <TerraPageHeader
         title="Payment Failed"
-        description="Your challenge was not purchased"
-        actions={<TerraBadge tone="error" dot>Payment declined</TerraBadge>}
+        description={`Your challenge was not purchased — ${challenge}`}
+        actions={<TerraBadge tone="error" dot>{reasonInfo.title}</TerraBadge>}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {/* Failure explanation */}
+          {/* Failure explanation — what failed, with the exact order */}
           <TerraCard className="border border-error/30 bg-error-container/40">
             <div className="flex items-start gap-3">
               <span className="text-2xl">⚠️</span>
@@ -113,6 +146,24 @@ function PaymentFailedView({ reason, onRetry }: { reason: PaymentFailureCode; on
                 <p className="text-sm text-on-error-container/80">
                   {reasonInfo.detail} — your account was not charged.
                 </p>
+                <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-on-error-container/70">Order</dt>
+                    <dd className="font-semibold text-on-error-container">{challenge}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-on-error-container/70">Amount</dt>
+                    <dd className="font-semibold tabular-nums text-on-error-container">{amountLabel}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-on-error-container/70">Payment method</dt>
+                    <dd className="font-semibold text-on-error-container">{method.label}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-on-error-container/70">Failure code</dt>
+                    <dd className="font-mono text-on-error-container">{reason}</dd>
+                  </div>
+                </dl>
               </div>
             </div>
           </TerraCard>
@@ -152,20 +203,29 @@ function PaymentFailedView({ reason, onRetry }: { reason: PaymentFailureCode; on
         {/* Action sidebar */}
         <div className="space-y-6">
           <TerraCard className="flex flex-col gap-2">
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
+              Recovery options
+            </p>
             <button
               type="button"
-              onClick={onRetry}
+              onClick={onRetrySameMethod}
               className="rounded-xl bg-primary px-5 py-3 text-center text-sm font-bold text-on-primary hover:bg-primary/90"
             >
-              Try again with the same method
+              Try again with {method.label}
             </button>
+            <p className="text-center text-[11px] text-on-surface-variant">
+              This method stays pre-selected — no re-entry needed.
+            </p>
             <button
               type="button"
-              onClick={onRetry}
-              className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container-low"
+              onClick={onChangeMethod}
+              className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
             >
-              Retry with different payment method
+              Change payment method
             </button>
+            <p className="text-center text-[11px] text-on-surface-variant">
+              Returns to the form and jumps to the payment method choices.
+            </p>
             <Link
               href="/marketplace"
               className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
@@ -173,11 +233,14 @@ function PaymentFailedView({ reason, onRetry }: { reason: PaymentFailureCode; on
               Back to Marketplace
             </Link>
             <Link
-              href="/support"
+              href={supportHref}
               className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
             >
               Contact support
             </Link>
+            <p className="text-center text-[11px] text-on-surface-variant">
+              Opens a ticket pre-filled with the reason, method, and amount.
+            </p>
           </TerraCard>
 
           <TerraCard>
@@ -218,6 +281,17 @@ export function CheckoutPage() {
   const [processing, setProcessing] = useState(false);
   const [paymentFailed, setPaymentFailed] = useState<{ reason: PaymentFailureCode } | null>(null);
 
+  // "Change payment method" from the failure screen: scroll the payment
+  // card into view and move focus there (nonce — effect only reruns on
+  // explicit retry, no state updates inside the effect).
+  const methodCardRef = useRef<HTMLDivElement>(null);
+  const [methodFocusNonce, setMethodFocusNonce] = useState(0);
+  useEffect(() => {
+    if (methodFocusNonce === 0) return;
+    methodCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    methodCardRef.current?.focus({ preventScroll: true });
+  }, [methodFocusNonce]);
+
   const addonsTotal = addons
     .filter((a) => selectedAddons.includes(a.id))
     .reduce((s, a) => s + a.price, 0);
@@ -254,10 +328,13 @@ export function CheckoutPage() {
     // Simulate a payment failure for demo purposes (e.g., 1 in 3 attempts fails)
     setTimeout(() => {
       setProcessing(false);
-      // Simulate payment failure - randomize reason for demo
-      const randomFailure = Math.random() > 0.3;
-      if (randomFailure) {
-        setPaymentFailed({ reason: "card_declined" });
+      if (Math.random() > 0.3) {
+        // Pick a real failure reason from the table (finding #2) so the
+        // failure screen shows specific, actionable explanations instead
+        // of always claiming "card declined".
+        const picked =
+          paymentFailureReasons[Math.floor(Math.random() * paymentFailureReasons.length)];
+        setPaymentFailed({ reason: picked.code });
       } else {
         router.push("/purchase-completed");
       }
@@ -265,7 +342,31 @@ export function CheckoutPage() {
   }
 
   if (paymentFailed) {
-    return <PaymentFailedView reason={paymentFailed.reason} onRetry={() => setPaymentFailed(null)} />;
+    const failedMethod =
+      paymentMethods.find((m) => m.id === method) ?? paymentMethods[0];
+    return (
+      <PaymentFailedView
+        reason={paymentFailed.reason}
+        method={{ label: failedMethod.label, note: failedMethod.note }}
+        amountLabel={formatMoney(total)}
+        challenge={`${ch.name} ${sizeLabel(ch.accountSize)}`}
+        // Same method, immediate re-pay — its state never left the form,
+        // so it is still pre-selected on the checkout underneath.
+        onRetrySameMethod={() => {
+          setPaymentFailed(null);
+          pay();
+        }}
+        // Different method — back to the form, focused on the choices.
+        onChangeMethod={() => {
+          setPaymentFailed(null);
+          setMethodFocusNonce((n) => n + 1);
+          toast({
+            title: "Choose a different payment method",
+            description: `${failedMethod.label} is still selected — pick another, then pay again.`,
+          });
+        }}
+      />
+    );
   }
 
   return (
@@ -394,7 +495,15 @@ export function CheckoutPage() {
             </div>
           </TerraCard>
 
-          <TerraCard>
+          {/* Payment method — focus target when returning from the
+              failure screen via "Change payment method" (finding #2) */}
+          <div
+            ref={methodCardRef}
+            tabIndex={-1}
+            aria-label="Payment method — choose how to pay, then press Pay again"
+            className="rounded-xl outline-none"
+          >
+            <TerraCard>
             <TerraSectionTitle title="Payment method" />
             <div className="space-y-2">
               {paymentMethods.map((m) => (
@@ -447,7 +556,8 @@ export function CheckoutPage() {
                 </p>
               </div>
             )}
-          </TerraCard>
+            </TerraCard>
+          </div>
         </div>
 
         {/* Order summary */}
