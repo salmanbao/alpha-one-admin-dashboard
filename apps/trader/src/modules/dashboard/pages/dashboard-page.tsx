@@ -32,9 +32,12 @@ import {
   terraTrades,
   type ActivityEntry,
 } from "@/lib/fixtures/terra-fixtures";
+import { payoutEntitlement } from "@/lib/fixtures/terra-fixtures";
+import { buildPayoutCriteria } from "@/components/terra/payout-summary-strip";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { AccountSwitcher } from "@/components/shell/account-switcher";
 import { GettingStartedTour } from "@/components/onboarding/getting-started-tour";
+import { PayoutSummaryStrip } from "@/components/terra/payout-summary-strip";
 
 const ranges = ["7d", "30d", "90d"] as const;
 
@@ -105,6 +108,11 @@ export function DashboardPage() {
       ) / accTrades.length
     : 0;
   const avgHold = `${Math.floor(avgHoldMs / 3_600_000)}h ${Math.round((avgHoldMs % 3_600_000) / 60_000)}m`;
+
+  // Payout eligibility for the active account — displayed prominently before request (audit #1 HIGH)
+  const entitlement = payoutEntitlement(acc.id);
+  const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable);
+  const outstanding = criteria.filter((c) => !c.ok).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -327,6 +335,24 @@ export function DashboardPage() {
               </Link>
             </div>
           </div>
+        </div>
+      </TerraCard>
+
+      {/* Payout Eligibility — prominently visible before request (audit #1 HIGH) */}
+      <TerraCard className="p-6 lg:p-7">
+        <div className="flex items-center justify-between gap-3">
+          <TerraSectionTitle title="Payout Eligibility" description="Check your eligibility before submitting a payout request." />
+          <Link href="/payout-request" className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90">
+            Request Payout →
+          </Link>
+        </div>
+        <div className="mt-4">
+          <PayoutSummaryStrip
+            accountId={acc.id}
+            withdrawable={entitlement.withdrawable}
+            balance={acc.balance}
+            outstanding={outstanding}
+          />
         </div>
       </TerraCard>
 
