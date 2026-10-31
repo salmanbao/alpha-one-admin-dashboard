@@ -1,0 +1,18 @@
+{
+  "name": "PFaaS Platform Admin",
+  "short_name": "Platform Admin",
+  "description": "Platform administration console for PFaaS operators",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf6f0",
+  "theme_color": "#4a7c59",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
