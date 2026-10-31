@@ -23,57 +23,15 @@ import {
 import {
   payoutEntitlement,
   terraPayouts,
-  terraAccounts,
   withdrawalMethods,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
 import {
-  MIN_PAYOUT_DAYS,
   PayoutSummaryStrip,
-  tradedDaysFor,
+  buildPayoutCriteria,
+  minPayout,
+  type PayoutCriterion,
 } from "@/components/terra/payout-summary-strip";
-
-const minPayout = 100;
-
-type PayoutCriterion = { label: string; ok: boolean; note: string };
-
-/**
- * All payout requirements for an account — the single source both the
- * pre-request checklist and the summary strip draw from, so the two
- * surfaces can never disagree about what is (not) met.
- */
-function buildPayoutCriteria(accountId: string, withdrawable: number): PayoutCriterion[] {
-  const acc = terraAccounts.find((a) => a.id === accountId);
-  const traded = tradedDaysFor(accountId);
-  const daysLeft = Math.max(0, MIN_PAYOUT_DAYS - traded);
-  return [
-    {
-      label: "Account is funded",
-      ok: acc?.phase === "Funded",
-      note: acc ? `${acc.phase} — payouts unlock on funded accounts` : "Account not found",
-    },
-    {
-      label: "Net profit above starting balance",
-      ok: acc ? acc.balance > acc.startingBalance : false,
-      note: acc ? `${formatMoney(acc.balance - acc.startingBalance)} net profit` : "—",
-    },
-    {
-      label: `Minimum payout ${formatMoney(minPayout)}`,
-      ok: withdrawable >= minPayout,
-      note: `${formatMoney(withdrawable)} withdrawable now`,
-    },
-    {
-      label: `Minimum trading days (${MIN_PAYOUT_DAYS} per payout cycle)`,
-      ok: traded >= MIN_PAYOUT_DAYS,
-      note:
-        traded >= MIN_PAYOUT_DAYS
-          ? `${traded} of ${MIN_PAYOUT_DAYS} required — met`
-          : `${traded} of ${MIN_PAYOUT_DAYS} required • ${daysLeft} trading day${daysLeft === 1 ? "" : "s"} remaining`,
-    },
-    { label: "Payout method configured", ok: true, note: withdrawalMethods[0]?.name ?? "—" },
-    { label: "KYC approved", ok: true, note: "Verified" },
-  ];
-}
 
 /**
  * Pre-request eligibility checklist (audit #4, HIGH): the payout gates
