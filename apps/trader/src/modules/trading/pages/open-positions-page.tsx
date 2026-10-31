@@ -21,7 +21,7 @@ import {
   TerraTable,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
+import { terraAccounts, challengeTimeline } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { useTrading } from "@/lib/trading/trading-context";
 import { DetailDialog } from "@/components/terra/detail-dialog";
@@ -130,6 +130,53 @@ export function OpenPositionsPage() {
 
       {tab === "Positions" ? (
         <>
+          {/* Rule Context panel — challenge limits at a glance */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-4">
+            {/* Profit target progress */}
+            <div className="rounded-lg bg-primary-fixed/30 p-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-on-surface-variant">Profit Target</p>
+              <TerraStat
+                label={`Progress: ${activeAccount.targetProgress}%`}
+                value={`${formatSignedMoney(activeAccount.profitTarget)} target`}
+                tone={activeAccount.targetProgress >= 80 ? "positive" : "neutral"}
+              />
+            </div>
+
+            {/* Daily drawdown remaining */}
+            <div className="rounded-lg bg-error-fixed/30 p-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-on-surface-variant">Daily Drawdown</p>
+              <TerraStat
+                label={`${formatSignedMoney(activeAccount.dailyLossRemaining)} remaining`}
+                value={`Profit used: ${formatSignedMoney(activeAccount.pnl)}`}
+                tone={activeAccount.dailyLossRemaining < 500 ? "negative" : "neutral"}
+              />
+            </div>
+
+            {/* Max drawdown remaining */}
+            <div className="rounded-lg bg-surface-container-low p-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-on-surface-variant">Max Drawdown</p>
+              <TerraStat
+                label={`${formatSignedMoney(activeAccount.maxDdRemaining)} remaining`}
+                value={`10% limit of ${formatSignedMoney(activeAccount.startingBalance)}`}
+                tone={activeAccount.maxDdRemaining < 1000 ? "negative" : "neutral"}
+              />
+            </div>
+
+            {/* Trading days / consistency */}
+            <div className="rounded-lg bg-primary-fixed/30 p-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-on-surface-variant">Trading Days</p>
+              <TerraStat
+                label={
+                  activeAccount.phase === "Funded"
+                    ? "Funded account"
+                    : `${Math.max(0, challengeTimeline.minTradingDays - challengeTimeline.elapsedDays)} days remaining`
+                }
+                value={`${challengeTimeline.elapsedDays} of ${challengeTimeline.minTradingDays} minimum`}
+                tone={challengeTimeline.elapsedDays >= challengeTimeline.minTradingDays ? "positive" : challengeTimeline.elapsedDays / (challengeTimeline.minTradingDays || 1) >= 0.5 ? "neutral" : "negative"}
+              />
+            </div>
+          </div>
+
           {/* Summary strip */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <TerraCard className="p-5">
