@@ -8,13 +8,24 @@
  * intentionally minimal.
  */
 
+import { useEffect } from "react";
 import { PlatformProvider } from "@pfaas/platform-core";
 import { Toaster } from "@/components/ui/toaster";
+import { applyThemeMode } from "@/lib/platform/theme-engine";
 import { AccountProvider } from "@/lib/platform/account-context";
 import { TradingProvider } from "@/lib/trading/trading-context";
 import { terraTenant, terraUser } from "@/lib/fixtures/terra-fixtures";
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  // Initialize theme mode consistently (light by default; dark toggled via
+  // the same applyThemeMode mechanism used by prop-admin and platform-admin).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem("pfaas:theme");
+      applyThemeMode(stored === "dark" ? "dark" : "light");
+    } catch { /* ignore */ }
+  }, []);
   return (
     <PlatformProvider
       platformTenant={terraTenant}
