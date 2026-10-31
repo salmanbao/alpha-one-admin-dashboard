@@ -41,9 +41,15 @@ import {
   Plus,
   ArrowUp,
   ArrowDown,
+  ArrowUpRight,
   Check,
   X,
   FlaskConical,
+  AlertTriangle,
+  ShieldCheck,
+  TrendingUp,
+  Bell,
+  BellRing,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -199,6 +205,9 @@ export function PlansPage() {
           <MetricCard label="Trials enabled" value={trialCount} icon={FlaskConical} />
           <MetricCard label="Tenants on Scale+" value={tenantsOnScalePlus} icon={Users} />
         </div>
+
+        {/* Overage monitoring — audit #4 fix #4 (MEDIUM): proactive limit watch */}
+        <OverageMonitoringPanel tenantRows={tenantRows} plans={plans} />
 
         {/* Plan cards — pricing, trial, limits, feature list */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -427,6 +436,317 @@ function PlanChangeButtons({ tenant, plans }: { tenant: TenantContext; plans: Pl
         </Button>
       ) : null}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Overage monitoring — audit #4 fix #4 (MEDIUM)                       */
+/*                                                                     */
+/* The usage meters below are reactive (current state only). This      */
+/* panel is proactive: it projects each tenant's usage trend against   */
+/* their plan ceilings, flags tenants that are over-limit, ≥80%, or    */
+/* projected to hit a limit within 90 days, recommends the smallest    */
+/* upgrade that clears the binding metric, and offers per-tenant       */
+/* usage-alert toggles so overages are caught before they impact       */
+/* service.                                                            */
+/* ------------------------------------------------------------------ */
+
+const PLAN_ORDER: PlanId[] = ["starter", "growth", "scale", "enterprise"];
+
+const METRIC_LABELS: Array<{ key: keyof PlanLimits; label: string }> = [
+  { key: "traders", label: "Traders" },
+  { key: "apiCallsPerDay", label: "API calls/day" },
+  { key: "storageGb", label: "Storage" },
+  { key: "eventsPerDay", label: "Events/day" },
+];
+
+/** Deterministic 30-day growth rate (%) for one tenant's usage of one metric. */
+function usageGrowth30d(tenantId: string, metric: keyof PlanLimits) {
+  const seed = (tenantId + metric).split("").reduce((s, c) => s + c.charCodeAt(0), 0);
+  return 5 + (seed % 34); // 5–38% growth per 30 days
+}
+
+/** Days until `used` reaches `limit` at the current 30-day trend (linear projection). */
+function daysToLimit(used: number, limit: number, growthPct: number) {
+  if (used >= limit) return 0;
+  const monthlyDelta = (used * growthPct) / 100;
+  if (monthlyDelta <= 0) return Number.POSITIVE_INFINITY;
+  return Math.round(((limit - used) / monthlyDelta) * 30);
+}
+
+interface OverageMetric {
+  key: keyof PlanLimits;
+  label: string;
+  used: number;
+  limit: number;
+  pctUsed: number; // uncapped — can exceed 100 when over the ceiling
+  growth: number;
+  days: number;
+}
+
+interface TenantOverage {
+  tenant: TenantContext;
+  plan: Plan;
+  status: "critical" | "approaching";
+  binding: OverageMetric; // the metric closest to its ceiling
+  upgrade: { plan: Plan; headroomPct: number } | null; // smallest tier that clears it
+}
+
+function OverageMonitoringPanel({
+  tenantRows,
+  plans,
+}: {
+  tenantRows: TenantContext[];
+  plans: Plan[];
+}) {
+  const [alertsArmed, setAlertsArmed] = useState<Record<string, boolean>>({});
+
+  const { flagged, healthy, upsellMrr } = useMemo(() => {
+    const flagged: TenantOverage[] = [];
+    const healthy: TenantContext[] = [];
+    let upsellMrr = 0;
+
+    for (const t of tenantRows) {
+      const plan = plans.find((p) => p.id === t.plan);
+      if (!plan) continue;
+      const usage = tenantUsage(t.id);
+      const metrics: OverageMetric[] = METRIC_LABELS.map(({ key, label }) => {
+        const used = usage[key];
+        const limit = plan.limits[key];
+        const growth = usageGrowth30d(t.id, key);
+        return {
+          key,
+          label,
+          used,
+          limit,
+          pctUsed: Math.round((used / limit) * 100),
+          growth,
+          days: daysToLimit(used, limit, growth),
+        };
+      });
+
+      const overNow = metrics.filter((m) => m.pctUsed >= 100);
+      const approaching = metrics.filter((m) => m.pctUsed >= 80 || m.days <= 90);
+
+      if (overNow.length === 0 && approaching.length === 0) {
+        healthy.push(t);
+        continue;
+      }
+
+      // Binding metric: worst current overage, else the soonest projected limit.
+      const binding =
+        overNow.sort((a, b) => b.pctUsed - a.pctUsed)[0] ??
+        approaching.sort((a, b) => a.days - b.days)[0];
+
+      // Smallest upgrade tier that gives the binding metric ≥2× headroom.
+      const curIdx = PLAN_ORDER.indexOf(t.plan);
+      let upgrade: TenantOverage["upgrade"] = null;
+      for (let i = curIdx + 1; i < PLAN_ORDER.length && !upgrade; i++) {
+        const candidate = plans.find((p) => p.id === PLAN_ORDER[i]);
+        if (!candidate) continue;
+        const headroomPct = Math.round((candidate.limits[binding.key] / binding.used) * 100) - 100;
+        if (headroomPct >= 100) upgrade = { plan: candidate, headroomPct };
+      }
+
+      flagged.push({
+        tenant: t,
+        plan,
+        status: overNow.length > 0 ? "critical" : "approaching",
+        binding,
+        upgrade,
+      });
+      upsellMrr += plan.priceMonthly;
+    }
+
+    flagged.sort((a, b) => (a.status === b.status ? 0 : a.status === "critical" ? -1 : 1));
+    return { flagged, healthy, upsellMrr };
+  }, [tenantRows, plans]);
+
+  const toggleAlerts = (tenantName: string) => {
+    setAlertsArmed((prev) => {
+      const next = !prev[tenantName];
+      toast({
+        title: next ? "Usage alerts armed" : "Usage alerts muted",
+        description: next
+          ? `${tenantName} will be notified at 80% and 95% of each plan limit.`
+          : `No more limit notifications for ${tenantName}.`,
+      });
+      return { ...prev, [tenantName]: next };
+    });
+  };
+
+  const scheduleUpgrade = (tenantName: string, from: string, to: string) => {
+    toast({
+      title: "Plan change scheduled",
+      description: `${tenantName}: ${from} → ${to} at the next billing cycle.`,
+    });
+  };
+
+  const criticalCount = flagged.filter((f) => f.status === "critical").length;
+  const approachingCount = flagged.length - criticalCount;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm font-medium">Plan overage monitoring</span>
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${
+                criticalCount > 0 ? "bg-destructive/10 text-destructive" : "text-muted-foreground"
+              }`}
+            >
+              <AlertTriangle className="h-3 w-3" /> {criticalCount} over limit
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${
+                approachingCount > 0 ? "bg-amber-500/10 text-amber-600" : "text-muted-foreground"
+              }`}
+            >
+              <TrendingUp className="h-3 w-3" /> {approachingCount} approaching
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-muted-foreground">
+              <ShieldCheck className="h-3 w-3" /> {healthy.length} healthy
+            </span>
+            {upsellMrr > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
+                {formatCurrency(upsellMrr)}/mo upsell pipeline
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Usage trends projected against plan ceilings — tenants are flagged at ≥80% utilization or
+          when a limit is forecast within 90 days, so overages are addressed before they impact service.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {flagged.length === 0 ? (
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs text-muted-foreground">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+            All tenants are comfortably within their plan limits — no upgrades or alerts needed right now.
+          </div>
+        ) : (
+          flagged.map((f) => {
+            const b = f.binding;
+            const isCritical = f.status === "critical";
+            const armed = !!alertsArmed[f.tenant.name];
+            const barPct = Math.min(100, b.pctUsed);
+            return (
+              <div
+                key={f.tenant.id}
+                className={`rounded-lg border p-3 ${
+                  isCritical ? "border-destructive/40 bg-destructive/5" : "border-amber-500/40 bg-amber-500/5"
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    {isCritical ? (
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" aria-label="Over limit" />
+                    ) : (
+                      <TrendingUp className="h-4 w-4 shrink-0 text-amber-600" aria-label="Approaching limit" />
+                    )}
+                    <span className="text-sm font-medium">{f.tenant.name}</span>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] capitalize"
+                      style={{ borderColor: PLAN_TONE[f.tenant.plan], color: PLAN_TONE[f.tenant.plan] }}
+                    >
+                      {f.plan.name}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${
+                        isCritical ? "border-destructive/50 text-destructive" : "border-amber-500/50 text-amber-600"
+                      }`}
+                    >
+                      {isCritical ? "Over limit" : "Approaching"}
+                    </Badge>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    {f.upgrade ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1 text-xs"
+                        onClick={() => scheduleUpgrade(f.tenant.name, f.plan.name, f.upgrade!.plan.name)}
+                      >
+                        <ArrowUpRight className="h-3 w-3" /> Upgrade to {f.upgrade.plan.name}
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" disabled>
+                        Contact sales — top tier
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant={armed ? "default" : "outline"}
+                      className="h-7 gap-1 text-xs"
+                      aria-pressed={armed}
+                      onClick={() => toggleAlerts(f.tenant.name)}
+                    >
+                      {armed ? <BellRing className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
+                      {armed ? "Alerts armed" : "Arm alerts"}
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-baseline justify-between text-[11px]">
+                    <span className="text-muted-foreground">
+                      {b.label}: {compact(b.used)} / {compact(b.limit)}
+                      {b.key === "storageGb" ? " GB" : ""}
+                    </span>
+                    <span className={`tabular-nums font-medium ${isCritical ? "text-destructive" : "text-amber-600"}`}>
+                      {b.pctUsed}%
+                    </span>
+                  </div>
+                  <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
+                    <span
+                      className={`absolute inset-y-0 left-0 rounded-full ${usageTone(b.pctUsed)}`}
+                      style={{ width: `${barPct}%` }}
+                      role="progressbar"
+                      aria-valuenow={b.pctUsed}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${b.label}: ${b.pctUsed}% of ${f.plan.name} plan limit`}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    ↑ {b.growth}% per 30d ·{" "}
+                    {b.days === 0
+                      ? "over the ceiling now"
+                      : Number.isFinite(b.days)
+                        ? `limit forecast in ~${b.days} days`
+                        : "no limit in sight at current trend"}
+                  </p>
+                  <p className="text-[11px] text-foreground/80">
+                    Recommended:{" "}
+                    {f.upgrade ? (
+                      <>
+                        upgrade to <span className="font-medium">{f.upgrade.plan.name}</span> for{" "}
+                        {f.upgrade.headroomPct}%+ {b.label.toLowerCase()} headroom
+                        {f.upgrade.plan.priceMonthly > f.plan.priceMonthly
+                          ? ` (+${formatCurrency(f.upgrade.plan.priceMonthly - f.plan.priceMonthly)}/mo)`
+                          : ""}
+                        .{" "}
+                      </>
+                    ) : (
+                      <>already on the top tier — negotiate bespoke {b.label.toLowerCase()} limits with sales.{" "}</>
+                    )}
+                    Alert suggestion: notify at 80% and 95% of each limit.
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+        {healthy.length > 0 && flagged.length > 0 ? (
+          <p className="text-[11px] text-muted-foreground">
+            Within limits: {healthy.map((h) => h.name).join(", ")}.
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
