@@ -46,6 +46,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  ListChecks,
+  CheckCircle2,
+  AlertTriangle,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 
@@ -158,6 +162,142 @@ function initialsFromName(name: string): string {
 }
 
 const REQUIRED_ASTERISK = <span className="text-rose-500" aria-hidden>*</span>;
+
+/** Why is the current step's Next button disabled? (audit #3 fix #5) */
+function stepValidationMessage(step: number): string {
+  switch (step) {
+    case 0:
+      return "Tenant name and slug are required.";
+    case 1:
+      return "Initials and primary color are required.";
+    case 2:
+      return "Select at least one module.";
+    case 3:
+      return "Admin name and a valid email are required.";
+    default:
+      return "Complete the required fields to continue.";
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Guided onboarding (audit #3 fix #4) — contextual help per step      */
+/* ------------------------------------------------------------------ */
+
+/** Best-practice guidance shown above each wizard step. */
+const STEP_GUIDANCE: Array<{ title: string; tips: string[] }> = [
+  {
+    title: "Naming & plan — before you start",
+    tips: [
+      "The slug becomes the tenant's URL and API namespace — it cannot be changed once traders are onboarded.",
+      "Match the plan to projected volume: Starter caps at 1,000 traders; talk to finance before assigning Enterprise.",
+      "Set the reporting currency to where the firm invoices from — historical amounts are pinned to it.",
+    ],
+  },
+  {
+    title: "Branding — first impressions for traders",
+    tips: [
+      "Pick a primary color from the firm's existing website for consistency; presets pass contrast checks out of the box.",
+      "The initials appear on certificates and the trader login page — use the firm's real logo initials.",
+      "Everything here is white-labeled: traders never see platform branding.",
+    ],
+  },
+  {
+    title: "Modules — what the firm can access",
+    tips: [
+      "Core modules (trading, challenges, risk, payouts, settings) are pre-selected and required.",
+      "Enable marketing/affiliates only if the firm runs acquisition programs — unused modules add dashboard noise.",
+      "You can grant more modules later from the tenant detail page without reprovisioning.",
+    ],
+  },
+  {
+    title: "Administrator — the firm's first operator",
+    tips: [
+      "Use the firm owner's real email — they receive the invitation and set up the rest of the team.",
+      "This account starts with full prop-admin permissions; the firm can create restricted staff roles afterwards.",
+      "SSO (SAML/OIDC) must be contracted on the plan before provisioning; leave unchecked for local credentials.",
+    ],
+  },
+  {
+    title: "Review — the pre-flight checklist",
+    tips: [
+      "Provisioning is not instant: the saga typically completes in 2–4 minutes and can block on DNS.",
+      "After creation you land on the live saga view — any blocker shows a Retry that resumes safely.",
+      "Everything is editable later except the slug and plan-driven entitlement ceilings.",
+    ],
+  },
+];
+
+function StepGuidance({ step }: { step: number }) {
+  const g = STEP_GUIDANCE[step];
+  if (!g) return null;
+  return (
+    <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+        <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />
+        {g.title}
+      </p>
+      <ul className="mt-1.5 space-y-1">
+        {g.tips.map((tip) => (
+          <li key={tip} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+            <span className="mt-px text-primary" aria-hidden>•</span>
+            {tip}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Pre-flight checklist — flags common configuration mistakes (fix #4). */
+function preflightChecks(state: WizardState): Array<{ ok: boolean; label: string; fix?: string }> {
+  const checks: Array<{ ok: boolean; label: string; fix?: string }> = [];
+  checks.push({
+    ok: !/^(test|demo|tmp|foo|bar)/i.test(state.slug),
+    label: "Slug looks production-ready",
+    fix: /^(test|demo|tmp|foo|bar)/i.test(state.slug)
+      ? "Slug starts with a placeholder word — traders will see it in URLs."
+      : undefined,
+  });
+  checks.push({
+    ok: state.enabledModules.length >= 5,
+    label: "All core modules enabled",
+    fix:
+      state.enabledModules.length < 5
+        ? "Firms need trading, challenges, risk, payouts, and settings to operate."
+        : undefined,
+  });
+  checks.push({
+    ok: !(state.contractSso && state.plan !== "enterprise" && state.plan !== "scale"),
+    label: "SSO matches the plan tier",
+    fix:
+      state.contractSso && state.plan !== "enterprise" && state.plan !== "scale"
+        ? "Contracted SSO requires a Scale or Enterprise plan."
+        : undefined,
+  });
+  checks.push({
+    ok: state.tagline.trim().length > 0,
+    label: "Tagline filled in",
+    fix: "Empty taglines show placeholder text on the trader login page.",
+  });
+  const domain = state.adminEmail.split("@")[1]?.toLowerCase() ?? "";
+  checks.push({
+    ok: domain.length > 0 && !/(gmail|yahoo|hotmail|outlook)\./i.test(domain),
+    label: "Admin uses a company email",
+    fix:
+      domain.length > 0 && /(gmail|yahoo|hotmail|outlook)\./i.test(domain)
+        ? "Consumer email domains look unprofessional on operator audit trails."
+        : undefined,
+  });
+  checks.push({
+    ok: state.currency !== "USD" || state.timezone !== "UTC",
+    label: "Currency & timezone reviewed",
+    fix:
+      state.currency === "USD" && state.timezone === "UTC"
+        ? "Defaults kept — confirm UTC is right for the firm's daily-loss reset."
+        : undefined,
+  });
+  return checks;
+}
 
 function RequiredLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -337,24 +477,41 @@ export function CreateTenantPage() {
               const Icon = s.icon;
               const done = i < step;
               const active = i === step;
+              // Keyboard navigation (audit #3 fix #5) — completed steps are
+              // real buttons so keyboard users can jump back; the active
+              // step carries aria-current for assistive tech.
+              const circle = (
+                <div
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all",
+                    done
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : active
+                        ? "border-primary text-primary"
+                        : "border-muted text-muted-foreground",
+                  )}
+                >
+                  {done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                </div>
+              );
               return (
                 <div key={s.id} className="flex flex-1 flex-col items-center gap-1">
                   <div className="flex w-full items-center">
                     {i > 0 ? (
                       <div className={cn("h-0.5 flex-1", i <= step ? "bg-primary" : "bg-muted")} />
                     ) : null}
-                    <div
-                      className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all",
-                        done
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : active
-                            ? "border-primary text-primary"
-                            : "border-muted text-muted-foreground",
-                      )}
-                    >
-                      {done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-                    </div>
+                    {done ? (
+                      <button
+                        type="button"
+                        onClick={() => setStep(i)}
+                        aria-label={`Go back to step ${i + 1}: ${s.label}`}
+                        className="rounded-full"
+                      >
+                        {circle}
+                      </button>
+                    ) : (
+                      <span aria-current={active ? "step" : undefined}>{circle}</span>
+                    )}
                     {i < STEPS.length - 1 ? (
                       <div className={cn("h-0.5 flex-1", i < step ? "bg-primary" : "bg-muted")} />
                     ) : null}
@@ -373,8 +530,16 @@ export function CreateTenantPage() {
           </div>
         </div>
 
+        {/* Screen-reader step announcements (audit #3 fix #5) */}
+        <p role="status" aria-live="polite" className="sr-only">
+          Step {step + 1} of {STEPS.length}: {STEPS[step].label}
+          {!stepValid(step) ? " — some required fields are still incomplete." : ""}
+        </p>
+
         {/* Step content */}
         <div className="rounded-lg border bg-card p-4 md:p-6">
+          {/* Contextual guidance for the active step (audit #3 fix #4) */}
+          <StepGuidance step={step} />
           <div className="min-h-[320px]">{renderStep()}</div>
 
           <Separator className="my-4" />
@@ -383,9 +548,18 @@ export function CreateTenantPage() {
             <Button variant="ghost" size="sm" disabled={!canBack} onClick={back} className="gap-1">
               <ChevronLeft className="h-4 w-4" />Back
             </Button>
-            <span className="text-xs text-muted-foreground">
-              Step {step + 1} of {STEPS.length}
-            </span>
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-xs text-muted-foreground">
+                Step {step + 1} of {STEPS.length}
+              </span>
+              {/* Validation feedback (audit #3 fix #5) — never leave a
+                  disabled Next button unexplained. */}
+              {!canNext && step < STEPS.length - 1 ? (
+                <span role="alert" className="text-[11px] text-amber-700 dark:text-amber-400">
+                  {stepValidationMessage(step)}
+                </span>
+              ) : null}
+            </div>
             {step < STEPS.length - 1 ? (
               <Button size="sm" disabled={!canNext} onClick={next} className="gap-1">
                 Next <ChevronRight className="h-4 w-4" />
@@ -540,6 +714,9 @@ function BrandingStep({
 }) {
   const update = (patch: Partial<WizardState>) =>
     setState((s) => ({ ...s, ...patch }));
+  // Progressive disclosure (audit #3 fix #4) — most firms pick a preset
+  // and initials; fine-grained tuning stays available but out of the way.
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -593,37 +770,6 @@ function BrandingStep({
               />
             </div>
           </FieldRow>
-          <FieldRow label="Accent color" required>
-            <div className="flex gap-2">
-              <input
-                type="color"
-                value={state.accentColor}
-                onChange={(e) => update({ accentColor: e.target.value })}
-                className="h-9 w-12 rounded-md border"
-              />
-              <Input
-                value={state.accentColor}
-                onChange={(e) => update({ accentColor: e.target.value })}
-              />
-            </div>
-          </FieldRow>
-          <FieldRow label="Border radius" required>
-            <Select
-              value={state.radius}
-              onValueChange={(v) => update({ radius: v })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0.25rem">Sharp (0.25rem)</SelectItem>
-                <SelectItem value="0.5rem">Subtle (0.5rem)</SelectItem>
-                <SelectItem value="0.625rem">Default (0.625rem)</SelectItem>
-                <SelectItem value="0.75rem">Rounded (0.75rem)</SelectItem>
-                <SelectItem value="1rem">Pill (1rem)</SelectItem>
-              </SelectContent>
-            </Select>
-          </FieldRow>
           <FieldRow label="Initials" required hint="Auto-generated from name; editable.">
             <Input
               value={state.initials}
@@ -631,14 +777,62 @@ function BrandingStep({
               onChange={(e) => update({ initials: e.target.value.toUpperCase() })}
             />
           </FieldRow>
-          <FieldRow label="Logo URL (optional)" hint="Leave blank to use initials.">
-            <Input
-              value={state.logoUrl}
-              onChange={(e) => update({ logoUrl: e.target.value })}
-              placeholder="https://..."
-            />
-          </FieldRow>
         </div>
+        {/* Advanced branding — progressive disclosure (audit #3 fix #4) */}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          aria-expanded={showAdvanced}
+          className="flex w-full items-center gap-1.5 rounded-md border border-dashed px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50"
+        >
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")}
+            aria-hidden
+          />
+          Advanced branding (accent, radius, logo)
+        </button>
+        {showAdvanced ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            <FieldRow label="Accent color" required>
+              <div className="flex gap-2">
+                <input
+                  type="color"
+                  value={state.accentColor}
+                  onChange={(e) => update({ accentColor: e.target.value })}
+                  className="h-9 w-12 rounded-md border"
+                />
+                <Input
+                  value={state.accentColor}
+                  onChange={(e) => update({ accentColor: e.target.value })}
+                />
+              </div>
+            </FieldRow>
+            <FieldRow label="Border radius" required>
+              <Select
+                value={state.radius}
+                onValueChange={(v) => update({ radius: v })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.25rem">Sharp (0.25rem)</SelectItem>
+                  <SelectItem value="0.5rem">Subtle (0.5rem)</SelectItem>
+                  <SelectItem value="0.625rem">Default (0.625rem)</SelectItem>
+                  <SelectItem value="0.75rem">Rounded (0.75rem)</SelectItem>
+                  <SelectItem value="1rem">Pill (1rem)</SelectItem>
+                </SelectContent>
+              </Select>
+            </FieldRow>
+            <FieldRow label="Logo URL (optional)" hint="Leave blank to use initials.">
+              <Input
+                value={state.logoUrl}
+                onChange={(e) => update({ logoUrl: e.target.value })}
+                placeholder="https://..."
+              />
+            </FieldRow>
+          </div>
+        ) : null}
       </div>
 
       {/* Live preview */}
@@ -869,6 +1063,10 @@ function ReviewStep({
     () => allModules.filter((m) => state.enabledModules.includes(m.manifest.id)),
     [allModules, state.enabledModules],
   );
+  // Pre-flight checklist (audit #3 fix #4) — flags common misconfigurations
+  // before the provisioning saga starts, when they are still cheap to fix.
+  const checks = useMemo(() => preflightChecks(state), [state]);
+  const flagged = checks.filter((c) => !c.ok);
 
   return (
     <div className="space-y-4">
@@ -879,6 +1077,31 @@ function ReviewStep({
         <p className="text-xs text-muted-foreground">
           Confirm the configuration below. You can change everything later from the tenant detail page.
         </p>
+      </div>
+      {/* Pre-flight checklist — audit #3 fix #4 */}
+      <div className="rounded-lg border p-3">
+        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+          <ListChecks className="h-3.5 w-3.5 text-primary" aria-hidden />
+          Pre-flight checklist
+          <span className="ml-auto font-normal text-muted-foreground">
+            {checks.length - flagged.length}/{checks.length} passed
+          </span>
+        </p>
+        <ul className="space-y-1">
+          {checks.map((c) => (
+            <li key={c.label} className="flex items-start gap-1.5 text-xs">
+              {c.ok ? (
+                <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />
+              ) : (
+                <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-amber-600" aria-hidden />
+              )}
+              <span className={c.ok ? "text-muted-foreground" : "text-foreground"}>
+                {c.label}
+                {c.fix ? <span className="block text-[11px] text-amber-700 dark:text-amber-400">{c.fix}</span> : null}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <ReviewCard title="Basics">

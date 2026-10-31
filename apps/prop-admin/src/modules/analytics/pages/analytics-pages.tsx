@@ -494,6 +494,10 @@ export function AnalyticsOverviewPage() {
             ) : null}
           </div>
         ) : null}
+        {/* Key insights (audit #3 fix #7) — one-glance hierarchy: what
+            changed, what needs attention. Rendered above the charts so
+            the headline story lands before the supporting detail. */}
+        <AnalyticsInsightsBand tid={tid} fmt={fmt} totalRev={totalRev} />
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Revenue (30d)" value={fmt(totalRev)} delta={8} icon={DollarSign} tone="positive" />
           <MetricCard label="Avg Daily Rev" value={fmt(totalRev / 30)} delta={4} icon={TrendingUp} tone="positive" />
@@ -509,17 +513,104 @@ export function AnalyticsOverviewPage() {
             <p className="mb-2 text-sm font-medium">{`${term("trader")} growth`}</p>
             <AreaSeries data={traderGrowthSeries(tid)} xKey="date" yKey="value" color="#0d9488" />
           </div>
-          <div className="rounded-lg border bg-card p-4">
-            <p className="mb-2 text-sm font-medium">Risk distribution</p>
-            <DonutSeries data={riskDistribution(tid)} />
-          </div>
-          <div className="rounded-lg border bg-card p-4">
-            <p className="mb-2 text-sm font-medium">Breach trend (30d)</p>
-            <BarSeries data={breachTrend(tid)} xKey="date" yKey="value" color="#dc2626" />
-          </div>
+          {/* Secondary detail (audit #3 fix #7) — progressive disclosure:
+              distribution and trend charts are supporting data, collapsed
+              by default so the headline metrics and revenue stay primary. */}
+          <details className="group rounded-lg border bg-card p-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium marker:hidden">
+              Supporting detail — risk distribution &amp; breach trend
+              <span className="text-xs text-muted-foreground group-open:hidden">Show</span>
+              <span className="hidden text-xs text-muted-foreground group-open:inline">Hide</span>
+            </summary>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Risk distribution</p>
+                <DonutSeries data={riskDistribution(tid)} />
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Breach trend (30d)</p>
+                <BarSeries data={breachTrend(tid)} xKey="date" yKey="value" color="#dc2626" />
+              </div>
+            </div>
+          </details>
         </div>
       </PageContent>
     </Page>
+  );
+}
+
+/**
+ * Key insights band (audit #3 fix #7) — auto-derived narrative on top of
+ * the numbers: the single strongest signal, the thing to watch, and the
+ * thing to act on. Keeps dense analytics screens readable at a glance.
+ */
+function AnalyticsInsightsBand({
+  tid,
+  fmt,
+  totalRev,
+}: {
+  tid: string;
+  fmt: (v: number) => string;
+  totalRev: number;
+}) {
+  const breaches = breachTrend(tid);
+  const recent = breaches.slice(-7).reduce((s, b) => s + b.value, 0);
+  const earlier = breaches.slice(-14, -7).reduce((s, b) => s + b.value, 0);
+  const breachDelta = earlier > 0 ? Math.round(((recent - earlier) / earlier) * 100) : 0;
+  const growth = traderGrowthSeries(tid);
+  const lastGrowth = growth[growth.length - 1]?.value ?? 0;
+  const firstGrowth = growth[0]?.value ?? 1;
+  const growthPct = Math.round(((lastGrowth - firstGrowth) / Math.max(1, firstGrowth)) * 100);
+
+  const insights: Array<{ tone: "positive" | "warning" | "negative"; text: string }> = [
+    {
+      tone: growthPct >= 0 ? "positive" : "negative",
+      text:
+        growthPct >= 0
+          ? `Trader base grew ${growthPct}% over the last 30 days — revenue per trader is ${fmt(totalRev / Math.max(1, lastGrowth))}.`
+          : `Trader base shrank ${Math.abs(growthPct)}% over the last 30 days — check churn analytics.`,
+    },
+    {
+      tone: breachDelta <= -10 ? "positive" : breachDelta >= 10 ? "negative" : "warning",
+      text:
+        breachDelta <= -10
+          ? `Breaches are down ${Math.abs(breachDelta)}% week-over-week — risk rules are working.`
+          : breachDelta >= 10
+            ? `Breaches are up ${breachDelta}% week-over-week — review risk rules and at-risk accounts.`
+            : `Breach volume is flat week-over-week — no immediate risk action needed.`,
+    },
+    {
+      tone: "warning",
+      text: "Payout approvals still need manual review — see the pending payouts queue for traders waiting on profit splits.",
+    },
+  ];
+
+  const toneCls = {
+    positive: "border-emerald-500/30 bg-emerald-500/5",
+    warning: "border-amber-500/30 bg-amber-500/5",
+    negative: "border-rose-500/30 bg-rose-500/5",
+  } as const;
+  const dotCls = {
+    positive: "bg-emerald-500",
+    warning: "bg-amber-500",
+    negative: "bg-rose-500",
+  } as const;
+
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <p className="mb-2 text-sm font-medium">Key insights</p>
+      <ul className="space-y-1.5">
+        {insights.map((ins) => (
+          <li
+            key={ins.text}
+            className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${toneCls[ins.tone]}`}
+          >
+            <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${dotCls[ins.tone]}`} aria-hidden />
+            <span className="text-foreground">{ins.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

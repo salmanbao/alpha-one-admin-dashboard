@@ -71,6 +71,7 @@ import {
   type PayoutRejectTarget,
   type PayoutRejectResult,
 } from "@/components/platform/payout-reject-dialog";
+import { TraderPerformanceChip } from "@/components/platform/trader-performance-chip";
 import {
   Wallet,
   Clock,
@@ -160,33 +161,10 @@ function countryForPayout(p: Payout, traderCountry?: string): string {
 }
 
 /**
- * Inline Trader Performance chip — audit fix #2 (A2-F2): shows key
- * trader performance metrics alongside each payout request so reviewers
- * don't have to open a separate detail page.
+ * Trader performance for payout decisions comes from the shared
+ * TraderPerformanceChip (audit #3 fix #2) so every payout surface —
+ * pending queue, table, this withdrawals queue — renders identical context.
  */
-function TraderPerformanceChip({ traderId, traders }: { traderId: string; traders: Map<string, { name: string; country: string; totalPnl: number; accountBalance: number; winRate: number; trades: number; challengePhase?: string }> }) {
-  const t = traders.get(traderId);
-  if (!t) return <span className="text-xs text-muted-foreground">—</span>;
-  
-  const pnlPct = t.accountBalance > 0 ? ((t.totalPnl / t.accountBalance) * 100).toFixed(1) : "0";
-  const isProfitable = t.totalPnl > 0;
-  
-  return (
-    <div className="flex flex-col gap-1 text-xs">
-      <div className="flex items-center gap-2">
-        <span className={cn("font-semibold", isProfitable ? "text-emerald-600" : "text-rose-600")}>
-          {isProfitable ? "+" : ""}{pnlPct}%
-        </span>
-        <span className="text-muted-foreground">PnL</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-foreground">{t.winRate}%</span>
-        <span className="text-muted-foreground">win rate</span>
-      </div>
-      <div className="text-muted-foreground">{t.trades} trades</div>
-    </div>
-  );
-}
 
 export function EnhancedWithdrawalsPage() {
   const { runtime, user, pushNotification } = usePlatform();
@@ -690,7 +668,7 @@ export function EnhancedWithdrawalsPage() {
                         {new Date(p.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="px-3 py-2.5">
-                        <TraderPerformanceChip traderId={p.traderId} traders={traderById} />
+                        <TraderPerformanceChip trader={traderById.get(p.traderId)} />
                       </TableCell>
                       <TableCell className="px-3 py-2.5">
                         <ExplainableStateBadge status={p.status} entityType="payout" />

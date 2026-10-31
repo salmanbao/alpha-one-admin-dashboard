@@ -188,6 +188,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  plans: dynamic(
+    () =>
+      import("@/modules/super-admin/plans-page").then((m) => ({
+        default: m.PlansPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   notifications: dynamic(
     () =>
       import("@/modules/super-admin/notifications-page").then((m) => ({
