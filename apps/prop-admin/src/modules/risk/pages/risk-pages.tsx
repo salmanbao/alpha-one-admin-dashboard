@@ -10,7 +10,7 @@ import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, breachSeverityTone, formatCurrency } from "@/components/platform/status";
 import { AttentionCenter } from "@/components/platform/attention-center";
-import { ShieldAlert, ShieldCheck, AlertTriangle, Activity, Users, DollarSign } from "lucide-react";
+import { ShieldAlert, ShieldCheck, AlertTriangle, Activity, Users, DollarSign, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -121,12 +121,171 @@ export function RiskOverviewPage() {
         {/* Attention Center — §11 centralized attention model */}
         <AttentionCenter />
 
+        {/* Actionable Insights — derived risk factors + mitigation (finding #5) */}
+        <RiskInsightsPanel breaches={breaches} />
+
         <div className="rounded-lg border bg-card p-4">
           <p className="mb-3 text-sm font-medium">Recent Breaches</p>
           <BreachesTable filter={(b) => true} />
         </div>
       </PageContent>
     </Page>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Actionable Insights — derived risk factors + mitigations (finding #5) */
+/* ------------------------------------------------------------------ */
+
+interface RiskInsight {
+  id: string;
+  title: string;
+  detail: string;
+  mitigation: string;
+  severity: "critical" | "warning" | "info";
+  actions: { label: string; onClick: () => void }[];
+}
+
+function RiskInsightsPanel({
+  breaches,
+}: {
+  breaches: { type: string; severity: string; status: string; traderId: string; traderName: string; triggeredAt: string }[];
+}) {
+  const { navigate } = usePlatform();
+  const open = breaches.filter((b) => b.status === "open");
+
+  const insights: RiskInsight[] = [];
+
+  // Top risk factor: most common breach type among open breaches
+  if (open.length > 0) {
+    const typeCounts: Record<string, number> = {};
+    open.forEach((b) => { typeCounts[b.type] = (typeCounts[b.type] ?? 0) + 1; });
+    const sorted = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+    const [topType, topCount] = sorted[0];
+    if (topCount > 1) {
+      const label = topType.replace(/-/g, " ");
+      insights.push({
+        id: "top-risk-factor",
+        title: `Top risk factor: ${label}`,
+        detail: `${topCount} of ${open.length} open breaches are ${label} violations — the dominant risk driver this period.`,
+        mitigation: "Review the daily-loss parameters for this program; consider whether thresholds are mis-calibrated for current market volatility.",
+        severity: topCount >= 3 ? "critical" : "warning",
+        actions: [
+          { label: "Configure rules", onClick: () => navigate("trading-events") },
+          { label: "View breaches", onClick: () => navigate("breaches") },
+        ],
+      });
+    }
+  }
+
+  // Repeat offenders: traders with multiple open breaches
+  if (open.length > 0) {
+    const traderCounts: Record<string, { name: string; count: number }> = {};
+    open.forEach((b) => {
+      const t = traderCounts[b.traderId] ?? { name: b.traderName, count: 0 };
+      t.count += 1;
+      traderCounts[b.traderId] = t;
+    });
+    const repeatOffenders = Object.entries(traderCounts)
+      .filter(([, v]) => v.count >= 2)
+      .sort((a, b) => b[1].count - a[1].count);
+    if (repeatOffenders.length > 0) {
+      const [traderId, { name, count }] = repeatOffenders[0];
+      insights.push({
+        id: "repeat-offender",
+        title: `Repeat risk: ${name}`,
+        detail: `${name} has ${count} open breaches — repeated rule violations suggest the trader is struggling with risk discipline.`,
+        mitigation: "Reach out with educational resources on drawdown management, or consider a temporary leverage reduction until compliance improves.",
+        severity: "warning",
+        actions: [
+          { label: "Review trader", onClick: () => navigate("trader-detail", { id: traderId }) },
+          { label: "Contact trader", onClick: () => navigate("trader-detail", { id: traderId }) },
+        ],
+      });
+    }
+  }
+
+  // Critical breach requiring immediate triage
+  const criticalOpen = open.filter((b) => b.severity === "critical");
+  if (criticalOpen.length > 0) {
+    const [first] = criticalOpen;
+    insights.push({
+      id: "critical-triage",
+      title: "Critical breaches need immediate triage",
+      detail: `${criticalOpen.length} critical-severity breach${criticalOpen.length > 1 ? "es are" : " is"} open — unaddressed critical violations can cascade to account suspension and liability.`,
+      mitigation: "Prioritize review of each critical breach: confirm whether the breach was a genuine limit breach or a false-positive from data latency; resolve or escalate accordingly.",
+      severity: "critical",
+      actions: [
+        { label: "Triage now", onClick: () => navigate("breaches") },
+        { label: "Review account", onClick: () => navigate("trader-detail", { id: first.traderId }) },
+      ],
+    });
+  }
+
+  // Stale breaches (open > 7 days)
+  const staleCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const stale = open.filter((b) => new Date(b.triggeredAt).getTime() < staleCutoff);
+  if (stale.length > 0) {
+    insights.push({
+      id: "stale-breaches",
+      title: "Stale breaches pending resolution",
+      detail: `${stale.length} open breach${stale.length > 1 ? "es have" : " has"} been waiting more than 7 days — unresolved items accumulate risk and erode operational discipline.`,
+      mitigation: "Assign a risk officer to clear the backlog; use bulk-resolve if the underlying issue has been addressed at the policy level.",
+      severity: "warning",
+      actions: [
+        { label: "Clear backlog", onClick: () => navigate("breaches") },
+      ],
+    });
+  }
+
+  if (insights.length === 0) return null;
+
+  const severityStyles = {
+    critical: { border: "border-red-500/40", bg: "bg-red-50 dark:bg-red-950/30", text: "text-red-700 dark:text-red-400" },
+    warning: { border: "border-amber-500/40", bg: "bg-amber-50 dark:bg-amber-950/30", text: "text-amber-700 dark:text-amber-400" },
+    info: { border: "border-sky-500/40", bg: "bg-sky-50 dark:bg-sky-950/30", text: "text-sky-700 dark:text-sky-400" },
+  };
+
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <Lightbulb className="h-4 w-4 text-primary" />
+        <p className="text-sm font-medium">Risk Insights &amp; Recommended Actions</p>
+        <Badge variant="secondary" className="ml-auto">{insights.length}</Badge>
+      </div>
+      <div className="space-y-3">
+        {insights.map((insight) => {
+          const style = severityStyles[insight.severity];
+          return (
+            <div key={insight.id} className={`rounded-md border ${style.border} ${style.bg} p-3`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-semibold ${style.text}`}>{insight.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{insight.detail}</p>
+                  <div className="mt-2 rounded-md bg-background/60 p-2">
+                    <p className="text-[11px] font-medium text-foreground/80">Mitigation:</p>
+                    <p className="text-[11px] text-muted-foreground">{insight.mitigation}</p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col gap-1.5">
+                  {insight.actions.map((action) => (
+                    <Button
+                      key={action.label}
+                      size="sm"
+                      variant="outline"
+                      onClick={action.onClick}
+                      className="h-7 text-[11px]"
+                    >
+                      {action.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
