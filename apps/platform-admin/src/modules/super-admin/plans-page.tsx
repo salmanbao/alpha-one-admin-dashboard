@@ -50,6 +50,7 @@ import {
   TrendingUp,
   Bell,
   BellRing,
+  Lock,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -440,15 +441,16 @@ function PlanChangeButtons({ tenant, plans }: { tenant: TenantContext; plans: Pl
 }
 
 /* ------------------------------------------------------------------ */
-/* Overage monitoring — audit #4 fix #4 (MEDIUM)                       */
+/* Overage monitoring — audit #4 fix #4 (MEDIUM) + finding #1 (HIGH)    */
 /*                                                                     */
 /* The usage meters below are reactive (current state only). This      */
 /* panel is proactive: it projects each tenant's usage trend against   */
 /* their plan ceilings, flags tenants that are over-limit, ≥80%, or    */
-/* projected to hit a limit within 90 days, recommends the smallest    */
-/* upgrade that clears the binding metric, and offers per-tenant       */
-/* usage-alert toggles so overages are caught before they impact       */
-/* service.                                                            */
+/* projected to hit a limit within 90 days, and offers three quick     */
+/* actions per flagged tenant — upgrade to the smallest tier that      */
+/* clears the binding metric, enforce the cap (throttle at the plan    */
+/* ceiling), or arm 80%/95% usage-alert notifications so overages are  */
+/* caught before they impact service.                                  */
 /* ------------------------------------------------------------------ */
 
 const PLAN_ORDER: PlanId[] = ["starter", "growth", "scale", "enterprise"];
@@ -582,6 +584,15 @@ function OverageMonitoringPanel({
     });
   };
 
+  /** Enforcement path (finding #1): cap the binding metric instead of upgrading. */
+  const enforceLimit = (tenantName: string, metric: string, limit: string) => {
+    toast({
+      title: "Limit enforcement scheduled",
+      description: `${tenantName}: ${metric} hard-capped at ${limit} from the next billing cycle — usage above the ceiling is throttled until the plan is upgraded.`,
+      variant: "destructive",
+    });
+  };
+
   const criticalCount = flagged.filter((f) => f.status === "critical").length;
   const approachingCount = flagged.length - criticalCount;
 
@@ -663,7 +674,7 @@ function OverageMonitoringPanel({
                       {isCritical ? "Over limit" : "Approaching"}
                     </Badge>
                   </div>
-                  <div className="flex shrink-0 gap-1">
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                     {f.upgrade ? (
                       <Button
                         size="sm"
@@ -678,6 +689,20 @@ function OverageMonitoringPanel({
                         Contact sales — top tier
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1 border-destructive/40 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() =>
+                        enforceLimit(
+                          f.tenant.name,
+                          b.label,
+                          `${compact(b.limit)}${b.key === "storageGb" ? " GB" : ""}`,
+                        )
+                      }
+                    >
+                      <Lock className="h-3 w-3" /> Enforce cap
+                    </Button>
                     <Button
                       size="sm"
                       variant={armed ? "default" : "outline"}
