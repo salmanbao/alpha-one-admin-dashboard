@@ -8,10 +8,12 @@
  * not just "reviewing":
  *
  *   reviewing  → stage timeline + checklist (original stitch layout)
- *   rejected   → rejection reasons in plain language, per-check issue
- *                badges, a resubmit CTA (pre-filled from the prior
- *                submission, attempts counter) and support as the
- *                secondary path — no more dead end.
+ *   rejected   → 'What to fix' reasons in plain language, per-check issue
+ *                badges, an inline 'Update documents' re-upload card
+ *                (finding #1 — replace flagged files right on this
+ *                screen, required items gate the resubmit button), the
+ *                'How to resubmit' steps, a full-form fallback and
+ *                support as the secondary path — no more dead end.
  *   approved   → confirmation with what it unlocks.
  *
  * The state comes from the kycSubmission fixture; ?state=rejected
@@ -19,6 +21,7 @@
  */
 
 import Link from "next/link";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   TerraBadge,
@@ -31,6 +34,7 @@ import {
   rejectedKycSubmission,
   type KycSubmission,
 } from "@/lib/fixtures/terra-fixtures";
+import { toast } from "@/hooks/use-toast";
 
 const stages = [
   { label: "Documents received", done: true, note: "Submitted 2 days ago" },
@@ -69,15 +73,169 @@ function ChecklistCard({ submission }: { submission: KycSubmission }) {
 /* Rejected state — reasons, retry path, support fallback              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Inline re-upload (finding #1): flagged documents can be replaced
+ * directly on the rejection screen — no trip through the full
+ * resubmission form. Required items gate the button; optional items
+ * (e.g. source of funds) attach without blocking. Frontend-only demo:
+ * chosen filenames are held in component state and "submitting" flips
+ * the parent into a resubmitted state.
+ */
+function UpdateDocumentsCard({
+  submission,
+  submitted,
+  onSubmit,
+}: {
+  submission: KycSubmission;
+  submitted: boolean;
+  onSubmit: () => void;
+}) {
+  const [files, setFiles] = useState<Record<string, string>>({});
+  const failed = submission.checks.filter((c) => !c.ok);
+  const required = failed.filter((c) => !c.optional);
+  const passed = submission.checks.filter((c) => c.ok);
+  const missingRequired = required.filter((c) => !files[c.item]);
+  const requiredReady = failed.length > 0 && missingRequired.length === 0;
+  const chosenCount = failed.filter((c) => files[c.item]).length;
+
+  if (submitted) {
+    return (
+      <TerraCard className="border border-primary/30 bg-primary-fixed/30">
+        <TerraSectionTitle title="Documents updated" />
+        <p className="text-sm text-on-surface">
+          ✓ Resubmission received — attempt {submission.attempts + 1} of{" "}
+          {submission.maxAttempts} is now under review. Automated checks run first
+          (usually minutes), then compliance reviews the new files (usually under
+          24 hours). You&apos;ll get an email either way.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/kyc-verification-status?state=reviewing"
+            className="rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-on-primary hover:bg-primary/90"
+          >
+            View review progress
+          </Link>
+          <Link
+            href="/support"
+            className="rounded-xl bg-surface-container-low px-4 py-2.5 text-xs font-semibold text-on-surface hover:bg-surface-container"
+          >
+            Questions? Contact support
+          </Link>
+        </div>
+      </TerraCard>
+    );
+  }
+
+  return (
+    <TerraCard className="border border-primary/30">
+      <TerraSectionTitle
+        title="Update documents"
+        description="Re-upload the flagged files right here — no need to complete the full form again."
+      />
+      <div className="space-y-2">
+        {failed.map((c) => (
+          <div
+            key={c.item}
+            className="rounded-xl bg-surface-container-low px-3 py-2.5 text-sm"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <span className="font-semibold text-on-surface">{c.item}</span>
+                {c.issue ? (
+                  <p className="text-xs text-error">{c.issue}</p>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <TerraBadge tone={c.optional ? "neutral" : "error"}>
+                  {c.optional ? "Optional" : "Required"}
+                </TerraBadge>
+                <label className="cursor-pointer rounded-lg bg-surface-container px-3 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container-high">
+                  {files[c.item] ? "Change file" : "Choose file"}
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="sr-only"
+                    aria-label={`Upload a new ${c.item} document`}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) {
+                        setFiles((prev) => ({ ...prev, [c.item]: f.name }));
+                        toast({
+                          title: `${c.item} attached`,
+                          description: f.name,
+                        });
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+            {files[c.item] ? (
+              <p className="mt-1 text-xs font-semibold text-primary">
+                ✓ {files[c.item]} ready to send
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-on-surface-variant">
+                No new file chosen yet
+              </p>
+            )}
+          </div>
+        ))}
+        {passed.map((c) => (
+          <p
+            key={c.item}
+            className="flex items-center gap-2 px-3 text-xs text-on-surface-variant"
+          >
+            <span className="font-bold text-primary" aria-hidden>✓</span>
+            {c.item} — received, no change needed
+          </p>
+        ))}
+      </div>
+      <button
+        type="button"
+        disabled={!requiredReady}
+        onClick={() => {
+          onSubmit();
+          toast({
+            title: "Documents resubmitted",
+            description: `${chosenCount} new file${chosenCount === 1 ? "" : "s"} sent — attempt ${submission.attempts + 1} of ${submission.maxAttempts} is now in review.`,
+          });
+        }}
+        className="mt-4 w-full rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {requiredReady
+          ? "Update documents & resubmit"
+          : `Attach ${missingRequired.length} required file${missingRequired.length === 1 ? "" : "s"} to continue`}
+      </button>
+      <p className="mt-2 text-center text-[11px] text-on-surface-variant">
+        JPG, PNG or PDF • {chosenCount} of {failed.length} flagged items have a new
+        file • {Math.max(0, submission.maxAttempts - submission.attempts)} attempt
+        {Math.max(0, submission.maxAttempts - submission.attempts) === 1 ? "" : "s"}{" "}
+        left
+      </p>
+    </TerraCard>
+  );
+}
+
 function RejectedView({ submission }: { submission: KycSubmission }) {
-  const attemptsLeft = Math.max(0, submission.maxAttempts - submission.attempts);
+  const [resubmitted, setResubmitted] = useState(false);
+  const attemptsUsed = submission.attempts + (resubmitted ? 1 : 0);
+  const attemptsLeft = Math.max(0, submission.maxAttempts - attemptsUsed);
 
   return (
     <div className="space-y-6">
       <TerraPageHeader
         title="KYC Verification Status"
-        description="Your documents need one more pass"
-        actions={<TerraBadge tone="error" dot>Rejected</TerraBadge>}
+        description={
+          resubmitted
+            ? "New documents received — back in review"
+            : "Your documents need one more pass"
+        }
+        actions={
+          <TerraBadge tone={resubmitted ? "tertiary" : "error"} dot pulse={resubmitted}>
+            {resubmitted ? "Reviewing" : "Rejected"}
+          </TerraBadge>
+        }
       />
 
       {/* Rejection reasons — plain language, one row per fix needed */}
@@ -86,15 +244,19 @@ function RejectedView({ submission }: { submission: KycSubmission }) {
           <span className="text-2xl">⚠️</span>
           <div>
             <p className="font-headline text-lg font-bold text-on-error-container">
-              Verification was rejected
+              {resubmitted ? "Resubmission received" : "Verification was rejected"}
             </p>
             <p className="text-sm text-on-error-container/80">
-              You can fix these and resubmit — attempts {submission.attempts} of{" "}
-              {submission.maxAttempts} used. Most resubmissions are approved within 24 hours.
+              {resubmitted
+                ? `Attempt ${attemptsUsed} of ${submission.maxAttempts} is under review with your new files — decisions usually land within 24 hours.`
+                : `You can fix these and resubmit — attempts ${attemptsUsed} of ${submission.maxAttempts} used. Most resubmissions are approved within 24 hours.`}
             </p>
           </div>
         </div>
-        <ul className="mt-4 space-y-2">
+        <p className="mt-4 text-xs font-bold uppercase tracking-wider text-on-error-container/70">
+          What to fix
+        </p>
+        <ul className="mt-2 space-y-2">
           {(submission.rejectionReasons ?? []).map((r) => (
             <li
               key={r}
@@ -109,10 +271,19 @@ function RejectedView({ submission }: { submission: KycSubmission }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <ChecklistCard submission={submission} />
+          {/* Inline re-upload — the retry path, right on this screen */}
+          <UpdateDocumentsCard
+            submission={submission}
+            submitted={resubmitted}
+            onSubmit={() => setResubmitted(true)}
+          />
+
+          <div className="mt-6">
+            <ChecklistCard submission={submission} />
+          </div>
 
           <TerraCard className="mt-6">
-            <TerraSectionTitle title="What happens next" />
+            <TerraSectionTitle title="How to resubmit" />
             <ol className="space-y-4">
               {[
                 {
@@ -146,10 +317,14 @@ function RejectedView({ submission }: { submission: KycSubmission }) {
           <TerraCard className="flex flex-col gap-2">
             <Link
               href="/kyc-onboarding?resubmit=1"
-              className="rounded-xl bg-primary px-5 py-3 text-center text-sm font-bold text-on-primary hover:bg-primary/90"
+              className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
             >
-              Fix & resubmit ({attemptsLeft} attempt{attemptsLeft === 1 ? "" : "s"} left)
+              Use the full resubmission form
             </Link>
+            <p className="text-center text-[11px] text-on-surface-variant">
+              Pre-filled from your previous answers • {attemptsLeft} attempt
+              {attemptsLeft === 1 ? "" : "s"} left
+            </p>
             <Link
               href="/support"
               className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
