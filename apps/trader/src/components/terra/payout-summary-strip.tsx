@@ -19,7 +19,15 @@
  */
 
 import { formatMoney } from "@/components/terra/terra-ui";
-import { payoutSchedule, terraTrades } from "@/lib/fixtures/terra-fixtures";
+import {
+  payoutSchedule,
+  terraAccounts,
+  terraTrades,
+  withdrawalMethods,
+} from "@/lib/fixtures/terra-fixtures";
+
+/** Minimum single payout request — shared by every payout surface. */
+export const minPayout = 100;
 
 /** Minimum trading days per payout cycle — single source for both screens. */
 export const MIN_PAYOUT_DAYS = 5;
@@ -39,6 +47,50 @@ export function payoutWindow() {
   const open = now >= opensAt.getTime() && now <= closesAt.getTime();
   const daysToOpen = Math.max(0, Math.ceil((opensAt.getTime() - now) / 86_400_000));
   return { open, daysToOpen, opensAt, closesAt };
+}
+
+export type PayoutCriterion = { label: string; ok: boolean; note: string };
+
+/**
+ * All payout requirements for an account — the single source the
+ * pre-request checklist, the summary strip AND the Payouts page's
+ * eligibility card (finding #1) all draw from, so the three surfaces
+ * can never disagree about what is (not) met.
+ */
+export function buildPayoutCriteria(
+  accountId: string,
+  withdrawable: number,
+): PayoutCriterion[] {
+  const acc = terraAccounts.find((a) => a.id === accountId);
+  const traded = tradedDaysFor(accountId);
+  const daysLeft = Math.max(0, MIN_PAYOUT_DAYS - traded);
+  return [
+    {
+      label: "Account is funded",
+      ok: acc?.phase === "Funded",
+      note: acc ? `${acc.phase} — payouts unlock on funded accounts` : "Account not found",
+    },
+    {
+      label: "Net profit above starting balance",
+      ok: acc ? acc.balance > acc.startingBalance : false,
+      note: acc ? `${formatMoney(acc.balance - acc.startingBalance)} net profit` : "—",
+    },
+    {
+      label: `Minimum payout ${formatMoney(minPayout)}`,
+      ok: withdrawable >= minPayout,
+      note: `${formatMoney(withdrawable)} withdrawable now`,
+    },
+    {
+      label: `Minimum trading days (${MIN_PAYOUT_DAYS} per payout cycle)`,
+      ok: traded >= MIN_PAYOUT_DAYS,
+      note:
+        traded >= MIN_PAYOUT_DAYS
+          ? `${traded} of ${MIN_PAYOUT_DAYS} required — met`
+          : `${traded} of ${MIN_PAYOUT_DAYS} required • ${daysLeft} trading day${daysLeft === 1 ? "" : "s"} remaining`,
+    },
+    { label: "Payout method configured", ok: true, note: withdrawalMethods[0]?.name ?? "—" },
+    { label: "KYC approved", ok: true, note: "Verified" },
+  ];
 }
 
 interface PayoutSummaryStripProps {
