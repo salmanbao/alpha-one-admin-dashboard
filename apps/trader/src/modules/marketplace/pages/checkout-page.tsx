@@ -159,6 +159,13 @@ function PaymentFailedView({ reason, onRetry }: { reason: PaymentFailureCode; on
             >
               Try again with the same method
             </button>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container-low"
+            >
+              Retry with different payment method
+            </button>
             <Link
               href="/marketplace"
               className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
