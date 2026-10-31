@@ -16,11 +16,12 @@
  *                          (entities are observable, but the console has
  *                          no tenant-realm pages, so hits land on the
  *                          closest console workspace)
- *   - Settings           → global-defaults, reference-data, feature-flags…
+ *   - Settings           → global-defaults, reference-data, challenge-programs, feature-flags…
  *   - Audit              → platform-audit → audit-log → model-audit-log
  */
 
 import { useMemo, useState } from "react";
+import { Target as TargetIcon } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -97,6 +98,7 @@ const SETTINGS_ENTRIES: Array<{
 }> = [
   { id: "general", label: "Global Defaults", description: "Platform-wide defaults: currency, locale, branding", icon: SettingsIcon, viewId: "global-defaults" },
   { id: "reference-data", label: "Reference Data", description: "Countries, currencies, and shared lookup data", icon: SettingsIcon, viewId: "reference-data" },
+  { id: "challenge-programs", label: "Challenge Programs", description: "Challenge phase configurations and minimum trading days", icon: TargetIcon, viewId: "challenge-programs" },
   { id: "modules", label: "Module Catalog", description: "Platform service catalog and entitlements", icon: Plug, viewId: "module-catalog" },
   { id: "feature-flags", label: "Feature Flags", description: "Global kill switches and gradual rollouts", icon: Flag, viewId: "feature-flags" },
   { id: "providers", label: "Provider Registry", description: "Payment, KYC, and broker provider connections", icon: Plug, viewId: "provider-registry" },
@@ -181,7 +183,7 @@ export function GlobalSearchDialog() {
           id: `chal-${c.id}`,
           label: c.name,
           description: `${c.traderName} · ${c.phase} · ${c.progressPct}%`,
-          icon: Target,
+          icon: TargetIcon,
           group: "Challenges",
           navigateTo: "cross-tenant-queues",
         });
