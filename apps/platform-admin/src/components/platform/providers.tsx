@@ -10,6 +10,7 @@
 import { useState, useEffect } from "react";
 import { PlatformProvider } from "@/lib/platform/platform-context";
 import { bootstrapModules } from "@/lib/platform/module-bootstrap";
+import { applyThemeMode } from "@/lib/platform/theme-engine";
 import { Toaster } from "@/components/ui/toaster";
 import { BootScreen } from "@/components/shell/boot-screen";
 import { ConsoleLogin } from "@/components/shell/console-login";
@@ -25,6 +26,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    try {
+      applyThemeMode("light");
+    } catch { /* ignore */ }
     try {
       if (window.sessionStorage.getItem(BOOTED_KEY) === "1") setBooted(true);
       if (window.sessionStorage.getItem(SESSION_KEY) === "1") setSessionOk(true);

@@ -11,6 +11,7 @@
 import { useState, useEffect } from "react";
 import { PlatformProvider } from "@/lib/platform/platform-context";
 import { bootstrapModules } from "@/lib/platform/module-bootstrap";
+import { applyThemeMode } from "@/lib/platform/theme-engine";
 import { Toaster } from "@/components/ui/toaster";
 import { BootScreen } from "@/components/shell/boot-screen";
 
@@ -29,6 +30,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // Initialize theme mode consistently across all dashboards (#12)
+    try {
+      applyThemeMode("light");
+    } catch { /* ignore */ }
     try {
       if (window.sessionStorage.getItem("pfaas:booted") === "1") {
         // Already booted in this session — skip the animation. One-shot
