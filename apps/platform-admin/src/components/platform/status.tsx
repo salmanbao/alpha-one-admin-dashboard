@@ -9,6 +9,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 
 type Tone = "default" | "success" | "warning" | "danger" | "info" | "muted";
 
@@ -122,13 +123,13 @@ export function ticketStatusTone(s: string): Tone {
   }
 }
 
-/** Format currency compactly. */
+/**
+ * Format currency for display — delegates to the canonical utility in
+ * `@pfaas/platform-core` (finding #2: one formatting source, one set of
+ * rules — symbol + separators + exactly 2 decimals).
+ */
 export function formatCurrency(value: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: value < 100 ? 2 : 0,
-  }).format(value);
+  return formatCurrencyValue(value, currency);
 }
 
 /** Format compact numbers like 12.4k */

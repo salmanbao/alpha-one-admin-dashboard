@@ -235,7 +235,7 @@ export function PlatformTransactionsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {tx.fee > 0 ? `$${tx.fee.toFixed(2)}` : "—"}
+                        {tx.fee > 0 ? formatCurrency(tx.fee) : "—"}
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant="secondary" className="text-[10px]">
@@ -250,7 +250,7 @@ export function PlatformTransactionsPage() {
                       </td>
                       <td className="px-4 py-3 flex items-center gap-2">
                         {/* Detail (Eye) */}
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-[11px]" onClick={() => alert(`TX Detail\n\n${tx.id}\nTenant: ${tx.tenant}\nType: ${tx.type}\nAmount: ${formatCurrency(tx.amount)}\nFee: ${tx.fee > 0 ? `$${tx.fee.toFixed(2)}` : "—"}\nMethod: ${tx.method}\nDate: ${new Date(tx.date).toLocaleString()}\nStatus: ${tx.status}`)}>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-[11px]" onClick={() => alert(`TX Detail\n\n${tx.id}\nTenant: ${tx.tenant}\nType: ${tx.type}\nAmount: ${formatCurrency(tx.amount)}\nFee: ${tx.fee > 0 ? formatCurrency(tx.fee) : "—"}\nMethod: ${tx.method}\nDate: ${new Date(tx.date).toLocaleString()}\nStatus: ${tx.status}`)}>
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
                         {/* Refund (for completed/refund/revenue) */}

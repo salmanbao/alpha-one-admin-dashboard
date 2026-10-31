@@ -20,6 +20,7 @@
  * snapshot would carry.
  */
 
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { challengePhaseConfigs } from "@/lib/platform/mock-data";
 import type { ChallengePhaseConfig, Payout, TradingAccount } from "@/lib/platform/mock-data";
 
@@ -219,7 +220,12 @@ export function computePayoutQuote(
   };
 }
 
-/** Money formatting local to this module (avoids a component import cycle). */
+/**
+ * Money formatting — delegates to the canonical utility in
+ * `@pfaas/platform-core` (finding #2: was 0-decimal here, which
+ * diverged from every other dashboard). Kept as a local alias so this
+ * module stays free of component imports (no import cycle).
+ */
 function formatMoney(n: number): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+  return formatCurrencyValue(n, "USD");
 }
