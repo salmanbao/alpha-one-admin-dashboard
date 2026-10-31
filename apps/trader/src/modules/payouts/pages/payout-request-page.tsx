@@ -27,8 +27,53 @@ import {
   withdrawalMethods,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
+import {
+  MIN_PAYOUT_DAYS,
+  PayoutSummaryStrip,
+  tradedDaysFor,
+} from "@/components/terra/payout-summary-strip";
 
 const minPayout = 100;
+
+type PayoutCriterion = { label: string; ok: boolean; note: string };
+
+/**
+ * All payout requirements for an account — the single source both the
+ * pre-request checklist and the summary strip draw from, so the two
+ * surfaces can never disagree about what is (not) met.
+ */
+function buildPayoutCriteria(accountId: string, withdrawable: number): PayoutCriterion[] {
+  const acc = terraAccounts.find((a) => a.id === accountId);
+  const traded = tradedDaysFor(accountId);
+  const daysLeft = Math.max(0, MIN_PAYOUT_DAYS - traded);
+  return [
+    {
+      label: "Account is funded",
+      ok: acc?.phase === "Funded",
+      note: acc ? `${acc.phase} — payouts unlock on funded accounts` : "Account not found",
+    },
+    {
+      label: "Net profit above starting balance",
+      ok: acc ? acc.balance > acc.startingBalance : false,
+      note: acc ? `${formatMoney(acc.balance - acc.startingBalance)} net profit` : "—",
+    },
+    {
+      label: `Minimum payout ${formatMoney(minPayout)}`,
+      ok: withdrawable >= minPayout,
+      note: `${formatMoney(withdrawable)} withdrawable now`,
+    },
+    {
+      label: `Minimum trading days (${MIN_PAYOUT_DAYS} per payout cycle)`,
+      ok: traded >= MIN_PAYOUT_DAYS,
+      note:
+        traded >= MIN_PAYOUT_DAYS
+          ? `${traded} of ${MIN_PAYOUT_DAYS} required — met`
+          : `${traded} of ${MIN_PAYOUT_DAYS} required • ${daysLeft} trading day${daysLeft === 1 ? "" : "s"} remaining`,
+    },
+    { label: "Payout method configured", ok: true, note: withdrawalMethods[0]?.name ?? "—" },
+    { label: "KYC approved", ok: true, note: "Verified" },
+  ];
+}
 
 /**
  * Pre-request eligibility checklist (audit #4, HIGH): the payout gates
@@ -38,34 +83,12 @@ const minPayout = 100;
 function EligibilityPreCheck({
   accountId,
   eligible,
-  withdrawable,
+  criteria,
 }: {
   accountId: string;
   eligible: boolean;
-  withdrawable: number;
+  criteria: PayoutCriterion[];
 }) {
-  const acc = terraAccounts.find((a) => a.id === accountId);
-  const criteria = [
-    {
-      label: "Account is funded",
-      ok: acc?.phase === "Funded",
-      note: acc ? `${acc.phase} — payouts unlock on funded accounts` : "Account not found",
-    },
-    {
-      label: `Net profit above starting balance`,
-      ok: acc ? acc.balance > acc.startingBalance : false,
-      note: acc
-        ? `${formatMoney(acc.balance - acc.startingBalance)} net profit`
-        : "—",
-    },
-    {
-      label: `Minimum payout ${formatMoney(minPayout)}`,
-      ok: withdrawable >= minPayout,
-      note: `${formatMoney(withdrawable)} withdrawable now`,
-    },
-    { label: "Payout method configured", ok: true, note: withdrawalMethods[0]?.name ?? "—" },
-    { label: "KYC approved", ok: true, note: "Verified" },
-  ];
   const met = criteria.filter((c) => c.ok).length;
 
   return (
@@ -122,6 +145,8 @@ export function PayoutRequestPage() {
   const [methodId, setMethodId] = useState("wm-wise");
   const [submitted, setSubmitted] = useState(false);
   const method = withdrawalMethods.find((m) => m.id === methodId) ?? withdrawalMethods[0];
+  const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable);
+  const outstanding = criteria.filter((c) => !c.ok).length;
 
   const asked = Number(amount);
   const valid =
@@ -176,6 +201,13 @@ export function PayoutRequestPage() {
           title={entitlement.isFunded ? "Nothing to withdraw yet" : "Payouts are funded-only"}
           description={entitlement.reason}
         />
+        {/* Upfront eligibility summary — what's missing before a request is possible */}
+        <PayoutSummaryStrip
+          accountId={acc.id}
+          withdrawable={entitlement.withdrawable}
+          balance={acc.balance}
+          outstanding={outstanding}
+        />
         <div className="flex flex-wrap gap-3">
           <Link
             href={entitlement.isFunded ? "/dashboard" : "/objectives"}
@@ -214,6 +246,15 @@ export function PayoutRequestPage() {
         </TerraBadge>
       )}
 
+      {/* Upfront eligibility summary — the exact amount available, next
+          window date, trading-day progress, and unmet requirements … */}
+      <PayoutSummaryStrip
+        accountId={acc.id}
+        withdrawable={entitlement.withdrawable}
+        balance={acc.balance}
+        outstanding={outstanding}
+      />
+      {/* … and the detailed criteria list right before the request button */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <TerraCard>
@@ -288,7 +329,7 @@ export function PayoutRequestPage() {
           <EligibilityPreCheck
             accountId={acc.id}
             eligible={entitlement.eligible}
-            withdrawable={entitlement.withdrawable}
+            criteria={criteria}
           />
           <TerraCard className="flex flex-col gap-4">
             <TerraSectionTitle title="Request" />
