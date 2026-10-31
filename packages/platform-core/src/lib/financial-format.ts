@@ -52,14 +52,15 @@ export function formatSignedCurrencyValue(amount: number, currency = "USD"): str
   return `${sign}${formatCurrencyValue(Math.abs(amount), currency)}`;
 }
 
-/** Compact money for chart axes — $12k / $3.4M / $850. */
+/** Compact money for chart axes — $12k / $3.4M / $850 / −$2k (sign kept). */
 export function formatCompactCurrencyValue(amount: number, currency = "USD"): string {
+  const sign = amount < 0 ? "−" : "";
   const abs = Math.abs(amount);
   const symbol =
     currency === "EUR" ? "€" : currency === "GBP" ? "£" : currency === "JPY" ? "¥" : "$";
-  if (abs >= 1_000_000) return `${symbol}${(abs / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `${symbol}${(abs / 1_000).toFixed(0)}k`;
-  return `${symbol}${abs.toFixed(0)}`;
+  if (abs >= 1_000_000) return `${sign}${symbol}${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}${symbol}${(abs / 1_000).toFixed(0)}k`;
+  return `${sign}${symbol}${abs.toFixed(0)}`;
 }
 
 /** Percent display — `value` is already in percent units (12.5 → "12.5%"). */

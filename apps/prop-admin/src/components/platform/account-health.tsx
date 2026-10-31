@@ -50,7 +50,8 @@ const statusConfig: Record<HealthStatus, { label: string; color: string; barColo
 };
 
 function formatValue(v: number, unit: HealthMetric["unit"], currency = "USD"): string {
-  if (unit === "currency") return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
+  // finding #7: exact amounts follow the canonical 2-decimal money rules
+  if (unit === "currency") return formatCurrencyValue(v, currency);
   if (unit === "percent") return `${v}%`;
   return v.toLocaleString("en-US");
 }

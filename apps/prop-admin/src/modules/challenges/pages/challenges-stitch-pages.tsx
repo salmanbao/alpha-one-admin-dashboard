@@ -27,6 +27,7 @@
  */
 
 import * as React from "react";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { getTenantChallenges, type Challenge } from "@/lib/platform/mock-data";
 import {
@@ -70,8 +71,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
+/**
+ * finding #7: exact amounts follow the canonical money rules —
+ * delegates to the central utility in `@pfaas/platform-core`.
+ */
 function money(v: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(v);
+  return formatCurrencyValue(v, "USD");
 }
 function chTone(s: Challenge["status"]): "positive" | "negative" | "warning" | "info" | "muted" {
   switch (s) {
@@ -690,7 +695,7 @@ export function ChallengeWizardStitchPage() {
             <div className="grid gap-2 sm:grid-cols-2">
               <StitchDetailRow label="Name" value="2-Phase Standard" />
               <StitchDetailRow label="Type" value="2-step" />
-              <StitchDetailRow label="Sizes" value={sizes.map((s) => `$${s.size.toLocaleString()}`).join(", ")} />
+              <StitchDetailRow label="Sizes" value={sizes.map((s) => formatCurrencyValue(s.size, "USD")).join(", ")} />
               <StitchDetailRow label="Phases" value={phases.map((p) => `${p.label}: ${p.target}%`).join(" · ")} />
               <StitchDetailRow label="Profit Split" value={`${sizes[0]?.split ?? 80} / ${100 - (sizes[0]?.split ?? 80)}`} />
               <StitchDetailRow label="Add-ons" value={`${addOns.length} (${addOns.map((a) => a.name).join(", ")})`} />

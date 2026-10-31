@@ -17,6 +17,7 @@
  */
 
 import * as React from "react";
+import { formatCurrencyValue, formatCompactCurrencyValue } from "@pfaas/platform-core";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { hasPermission } from "@/lib/platform/permission-engine";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
@@ -88,12 +89,13 @@ function statusTone(s: string): "positive" | "negative" | "warning" | "info" | "
   }
 }
 
+/**
+ * finding #7: money formatting delegates to the central utility in
+ * `@pfaas/platform-core`. Non-compact = exact amounts (2 decimals);
+ * compact = dense KPI labels only (canonical compact rules).
+ */
 function money(v: number, currency = "USD", compact = false) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency", currency,
-    notation: compact ? "compact" : "standard",
-    maximumFractionDigits: compact ? 1 : 0,
-  }).format(v);
+  return compact ? formatCompactCurrencyValue(v, currency) : formatCurrencyValue(v, currency);
 }
 
 const TABS = ["Overview", "Accounts", "Payments", "Payouts", "Positions", "Performance", "KYC", "Risk", "Activity Log", "Internal Notes", "Change History"] as const;

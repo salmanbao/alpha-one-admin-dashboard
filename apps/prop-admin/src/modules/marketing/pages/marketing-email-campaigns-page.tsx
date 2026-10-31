@@ -21,6 +21,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver } from "@/lib/platform/terminology";
 import { exportToCsv } from "@/lib/platform/export-utils";
@@ -646,11 +647,7 @@ function TEMPLATE_COLUMNS(currency: string): Column<typeof TEMPLATE_PERF[number]
       header: "Revenue Attributed",
       cell: (t) => (
         <span className="font-semibold text-emerald-600">
-          {new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency,
-            maximumFractionDigits: 0,
-          }).format(t.revenue)}
+          {formatCurrencyValue(t.revenue, currency)}
         </span>
       ),
       sortValue: (t) => t.revenue,

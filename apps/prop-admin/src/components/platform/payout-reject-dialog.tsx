@@ -28,6 +28,7 @@
 
 import { useEffect, useState } from "react";
 import { Ban } from "lucide-react";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -150,8 +151,8 @@ export function PayoutRejectDialog({
           </DialogTitle>
           <DialogDescription>
             {count > 1
-              ? `You are about to reject ${count} payout requests totalling ${target ? target.amount.toLocaleString("en-US", { style: "currency", currency: target.currency || "USD" }) : ""}.`
-              : `You are about to reject the payout of ${target ? target.amount.toLocaleString("en-US", { style: "currency", currency: target.currency || "USD" }) : ""} for ${target?.traderName ?? "this trader"}.`}
+              ? `You are about to reject ${count} payout requests totalling ${target ? formatCurrencyValue(target.amount, target.currency || "USD") : ""}.`
+              : `You are about to reject the payout of ${target ? formatCurrencyValue(target.amount, target.currency || "USD") : ""} for ${target?.traderName ?? "this trader"}.`}
           </DialogDescription>
           <div className="rounded-md border border-rose-500/20 bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
             <span className="font-medium">Consequence:</span> Rejecting a payout notifies the
