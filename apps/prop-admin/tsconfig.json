@@ -45,6 +45,9 @@
       "@/components/platform/payout-reject-dialog": [
         "./src/components/platform/payout-reject-dialog"
       ],
+      "@/components/platform/trader-performance-chip": [
+        "./src/components/platform/trader-performance-chip"
+      ],
       "@/components/platform/detail-overlay": [
         "./src/components/platform/detail-overlay"
       ],

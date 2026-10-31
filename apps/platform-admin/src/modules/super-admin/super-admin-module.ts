@@ -114,6 +114,7 @@ const navigation: NavigationItem[] = [
       { id: "super.abuse", label: "Abuse Signals", href: "abuse-signals", icon: AlertTriangle, application: ["super-admin"], group: "Security" },
 
       // ───────── Finance ─────────
+      { id: "super.plans", label: "Plans & Subscriptions", href: "plans", icon: CreditCard, application: ["super-admin"], group: "Finance" },
       { id: "super.financials", label: "Financial Overview", href: "platform-financials", icon: DollarSign, application: ["super-admin"], group: "Finance" },
       { id: "super.transactions", label: "Transactions", href: "platform-transactions", icon: CreditCard, application: ["super-admin"], group: "Finance" },
       { id: "super.tax-currency", label: "Tax & Currency", href: "tax-currency", icon: Percent, application: ["super-admin"], group: "Finance" },
@@ -182,6 +183,7 @@ const routes: RouteDefinition[] = [
   { path: "role-management", viewId: "role-management", label: "Role Management", application: ["super-admin"] },
   { path: "tenant-view-as", viewId: "tenant-view-as", label: "Tenant View-As", application: ["super-admin"] },
   { path: "abuse-signals", viewId: "abuse-signals", label: "Abuse Signals", application: ["super-admin"] },
+  { path: "plans", viewId: "plans", label: "Plans & Subscriptions", application: ["super-admin"] },
   { path: "platform-financials", viewId: "platform-financials", label: "Platform Financials", application: ["super-admin"] },
   { path: "platform-analytics", viewId: "platform-analytics", label: "Platform Analytics", application: ["super-admin"] },
   { path: "platform-audit", viewId: "platform-audit", label: "Platform Audit Log", application: ["super-admin"], permission: "platform.audit.read" },

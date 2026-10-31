@@ -105,6 +105,7 @@ const SETTINGS_ENTRIES: Array<{
   { id: "roles", label: "Role Management", description: "platform:* role definitions and permissions", icon: KeyRound, viewId: "role-management" },
   { id: "sessions", label: "My Sessions", description: "Active console sessions and revocation", icon: Fingerprint, viewId: "my-sessions" },
   { id: "announcements", label: "Announcements", description: "Operator-facing platform announcements", icon: Bell, viewId: "announcements" },
+  { id: "plans", label: "Plans & Subscriptions", description: "Pricing tiers, feature entitlements, limits, and trials", icon: CreditCard, viewId: "plans" },
 ];
 
 const AUDIT_ENTRIES: Array<{

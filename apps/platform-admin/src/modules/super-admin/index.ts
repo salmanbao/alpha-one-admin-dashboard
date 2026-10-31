@@ -46,4 +46,5 @@ export {
   BridgeSyncLogPage,
   GettingStartedPage,
   PlatformArchitecturePage,
+  PlansPage,
 } from "./super-admin-pages";
