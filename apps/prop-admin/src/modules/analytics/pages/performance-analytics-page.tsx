@@ -9,8 +9,10 @@ import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { AreaSeries } from "@/components/platform/charts";
 import { formatCurrency } from "@/components/platform/status";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { TrendingUp, Target, Activity, Award, Percent, Clock } from "lucide-react";
 import { hashStr } from "@/lib/platform/mock-data";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 
 export function TraderPerformancePage() {
   const { runtime, user } = usePlatform();
@@ -19,16 +21,26 @@ export function TraderPerformancePage() {
   const accounts = trader ? getTraderAccounts(trader.id) : [];
 
   // Equity curve (deterministic)
-  const equityCurve = Array.from({ length: 30 }, (_, i) => ({
+  const equitySeries = Array.from({ length: 30 }, (_, i) => ({
     date: `D-${30 - i}`,
     value: Math.round(25000 + Math.sin(i / 3) * 800 + i * 65),
   }));
 
   // Daily P&L
-  const dailyPnl = Array.from({ length: 14 }, (_, i) => ({
+  const dailySeries = Array.from({ length: 14 }, (_, i) => ({
     date: `D-${14 - i}`,
     value: Math.round((Math.sin(i * 0.7) * 240 + Math.cos(i * 1.3) * 180)),
   }));
+
+  // Finding #10 — resolve the charts through the async mock layer so the
+  // page shows a structural skeleton (then real content) instead of
+  // jumping in rendered.
+  const { data, loading, error, retry } = useAsyncMock(
+    () => mockAsync(() => ({ equity: equitySeries, daily: dailySeries }), { delayMs: 500 }),
+    [],
+  );
+  const equityCurve = data?.equity ?? [];
+  const dailyPnl = data?.daily ?? [];
 
   const totalPnl = (equityCurve.at(-1)?.value ?? 25000) - 25000;
   const winRate = 62;
@@ -42,6 +54,7 @@ export function TraderPerformancePage() {
     <Page>
       <PageHeader title="Performance Analytics" description="Your trading performance — deeper analysis belongs here." icon={TrendingUp} />
       <PageContent>
+        <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading performance…">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total P&L" value={formatCurrency(totalPnl, currency)} icon={TrendingUp} tone={totalPnl >= 0 ? "positive" : "negative"} />
           <MetricCard label="Win Rate" value={formatPercentValue(winRate, 0)} icon={Target} tone="positive" />
@@ -73,6 +86,7 @@ export function TraderPerformancePage() {
             </div>
           </CardContent>
         </Card>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

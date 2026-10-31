@@ -69,7 +69,8 @@ import {
   Activity as ActivityIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PermissionGuard, FeatureGuard } from "@/components/platform/guards";
+import { PermissionGuard, FeatureGuard, PageAsyncBoundary } from "@/components/platform/guards";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { toast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { convertCurrency, formatConverted, getRateLabel, fxRatesStale, fxRatesAgeDays, CURRENCIES } from "@/lib/platform/currency";
@@ -426,7 +427,13 @@ export function AnalyticsOverviewPage() {
   const tid = runtime.tenant?.id ?? "platform";
   const tenantCurrency = runtime.tenant?.currency ?? "USD";
   const [displayCurrency, setDisplayCurrency] = useState(tenantCurrency);
-  const rev = revenueSeries(tid);
+  // Finding #10 — revenue resolves through the async mock layer:
+  // structural skeleton until loaded, error + retry on failure.
+  const { data: revData, loading, error, retry } = useAsyncMock(
+    () => mockAsync(() => revenueSeries(tid), { delayMs: 550 }),
+    [tid],
+  );
+  const rev = revData ?? revenueSeries(tid);
   const totalRev = rev.reduce((s, r) => s + r.value, 0);
   // Convert to display currency
   const convertedRev = convertCurrency(totalRev, tenantCurrency, displayCurrency);
@@ -474,6 +481,7 @@ export function AnalyticsOverviewPage() {
         }
       />
       <PageContent>
+        <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={revData !== undefined} loadingLabel="Loading analytics…">
         {/* Exchange rate banner — carries the rate's as-of date and flags
             a stale table so converted amounts aren't read as live values. */}
         {displayCurrency !== tenantCurrency ? (
@@ -534,6 +542,7 @@ export function AnalyticsOverviewPage() {
             </div>
           </details>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );
@@ -623,7 +632,12 @@ export function TraderAnalyticsPage() {
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
-  const traders = getTenantTraders(tid);
+  // Finding #10 — cohort source resolves through the async mock layer.
+  const { data: tradersData, loading, error, retry } = useAsyncMock(
+    () => mockAsync(() => getTenantTraders(tid), { delayMs: 550 }),
+    [tid],
+  );
+  const traders = tradersData ?? getTenantTraders(tid);
 
   // Top 10 by equity (descending).
   const topTraders = [...traders]
@@ -785,6 +799,7 @@ export function TraderAnalyticsPage() {
         icon={Users}
       />
       <PageContent>
+        <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={tradersData !== undefined} loadingLabel="Loading trader analytics…">
         {/* KPI strip */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard
@@ -886,6 +901,7 @@ export function TraderAnalyticsPage() {
             formatValue={(v) => `${v} ${plural(term("trader")).toLowerCase()}`}
           />
         </ChartCard>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );
@@ -901,9 +917,22 @@ export function PerformanceAnalyticsPage() {
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
-  const traders = getTenantTraders(tid);
-  const accounts = getTenantAccounts(tid);
-  const payouts = getTenantPayouts(tid);
+  // Finding #10 — all three datasets resolve together through the async
+  // mock layer: structural skeleton until loaded, error + retry on failure.
+  const { data, loading, error, retry } = useAsyncMock(
+    () => mockAsync(
+      () => ({
+        traders: getTenantTraders(tid),
+        accounts: getTenantAccounts(tid),
+        payouts: getTenantPayouts(tid),
+      }),
+      { delayMs: 600 },
+    ),
+    [tid],
+  );
+  const traders = data?.traders ?? getTenantTraders(tid);
+  const accounts = data?.accounts ?? getTenantAccounts(tid);
+  const payouts = data?.payouts ?? getTenantPayouts(tid);
 
   // ---- KPI computations ---------------------------------------------------
   const CHALLENGE_TYPES = [
@@ -1041,6 +1070,7 @@ export function PerformanceAnalyticsPage() {
         icon={TrendingUp}
       />
       <PageContent>
+        <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading performance…">
         {/* KPI strip */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard
@@ -1156,6 +1186,7 @@ export function PerformanceAnalyticsPage() {
             colorFor={(v) => (v >= 12 ? TERRA.emerald : v >= 6 ? TERRA.amber : TERRA.rose)}
           />
         </ChartCard>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );
@@ -1171,9 +1202,22 @@ export function RiskAnalyticsPage() {
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
-  const accounts = getTenantAccounts(tid);
-  const breaches = getTenantBreaches(tid);
-  const traders = getTenantTraders(tid);
+  // Finding #10 — all three datasets resolve together through the async
+  // mock layer: structural skeleton until loaded, error + retry on failure.
+  const { data, loading, error, retry } = useAsyncMock(
+    () => mockAsync(
+      () => ({
+        accounts: getTenantAccounts(tid),
+        breaches: getTenantBreaches(tid),
+        traders: getTenantTraders(tid),
+      }),
+      { delayMs: 600 },
+    ),
+    [tid],
+  );
+  const accounts = data?.accounts ?? getTenantAccounts(tid);
+  const breaches = data?.breaches ?? getTenantBreaches(tid);
+  const traders = data?.traders ?? getTenantTraders(tid);
   const traderById = new Map(traders.map((t) => [t.id, t]));
 
   // ---- KPI computations ---------------------------------------------------
@@ -1341,6 +1385,7 @@ export function RiskAnalyticsPage() {
         icon={Activity}
       />
       <PageContent>
+        <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading risk analytics…">
         {/* KPI strip — every label is explained per §33 */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <ExplainableMetricCard
@@ -1468,6 +1513,7 @@ export function RiskAnalyticsPage() {
             emptyDescription="Accounts approaching breach thresholds will surface here for review."
           />
         </ChartCard>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );
