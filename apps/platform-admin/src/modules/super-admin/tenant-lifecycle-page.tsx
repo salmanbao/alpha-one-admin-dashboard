@@ -8,7 +8,12 @@
  *   Invited → Trial → Active → Suspended → Terminated
  *
  * Each stage card shows count + tenant names + color-coded badge. Clicking
- * a stage filters the table below by that stage. The table includes a
+ * a stage filters the table below by that stage. Above the stage cards sit
+ * two derived views (finding #2): a proportional distribution bar (share
+ * per stage — no mental mapping between states and counts) and bottleneck
+ * callouts that flag operational hot spots (suspended buildup, elevated
+ * terminations, stalling invitations, trial backlog) with a one-click
+ * Focus filter. The table includes a
  * lifecycle-action button per row (Suspend / Reactivate / Terminate)
  * appropriate to the current status. Phase C (CON-06): destructive
  * actions route through SensitiveActionDialog — consequence + required
@@ -222,6 +227,59 @@ export function TenantLifecyclePage() {
   const filteredTenants =
     activeFilter === "all" ? tenants : (buckets[activeFilter] ?? []);
 
+  /* ---- Distribution + bottleneck analysis (finding #2) ----
+   * The stage cards show raw counts; these derive the two things the
+   * pipeline previously made operators work out mentally: each stage's
+   * proportional share, and operational hot spots (suspended buildup,
+   * unusual terminations, stalling invitations, trial backlog). */
+  const total = tenants.length;
+  const distribution = useMemo(
+    () =>
+      STAGES.map((s) => ({ ...s, count: buckets[s.id].length })).filter(
+        (s) => s.count > 0,
+      ),
+    [buckets],
+  );
+  const shareOf = (count: number) =>
+    total > 0 ? Math.round((count / total) * 100) : 0;
+
+  const bottlenecks = useMemo(() => {
+    const n = (s: LifecycleStage) => buckets[s].length;
+    const pctOf = (c: number) => (total > 0 ? Math.round((c / total) * 100) : 0);
+    const out: { stage: LifecycleStage; title: string; detail: string }[] = [];
+    const heavy = (c: number) => c >= 2 || (total >= 5 && c / total >= 0.2);
+
+    if (heavy(n("suspended"))) {
+      out.push({
+        stage: "suspended",
+        title: `Suspended buildup — ${n("suspended")} tenant${n("suspended") === 1 ? "" : "s"} held`,
+        detail: `${pctOf(n("suspended"))}% of tenants sit in the retention window — review for reactivation or schedule a purge.`,
+      });
+    }
+    if (heavy(n("terminated"))) {
+      out.push({
+        stage: "terminated",
+        title: `Elevated terminations — ${n("terminated")} archived`,
+        detail: `${pctOf(n("terminated"))}% of the roster has churned — check exit reasons and whether trials convert before termination.`,
+      });
+    }
+    if (heavy(n("invited"))) {
+      out.push({
+        stage: "invited",
+        title: `Invitations stalling — ${n("invited")} awaiting first login`,
+        detail: `${pctOf(n("invited"))}% of tenants never started — send a reminder or review onboarding friction.`,
+      });
+    }
+    if (n("trial") >= 2 && n("trial") >= n("active")) {
+      out.push({
+        stage: "trial",
+        title: `Trial backlog — ${n("trial")} in trial vs ${n("active")} active`,
+        detail: "Trials are not converting to active billing at the expected rate.",
+      });
+    }
+    return out;
+  }, [buckets, total]);
+
   /* ---- Apply status change (with audit trail) ---- */
   const applyStatus = (
     tenant: TenantContext,
@@ -409,7 +467,96 @@ export function TenantLifecyclePage() {
 
         {/* Lifecycle pipeline */}
         <div className="rounded-lg border bg-card p-4">
-          <p className="mb-3 text-sm font-medium">Lifecycle pipeline</p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">Lifecycle pipeline</p>
+            <span className="text-[11px] text-muted-foreground">
+              {total} tenant{total === 1 ? "" : "s"} across{" "}
+              {distribution.length} stage{distribution.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          {/* Bottleneck callouts — operational hot spots + one-click focus */}
+          {bottlenecks.length > 0 ? (
+            <div className="mb-3 space-y-2">
+              {bottlenecks.map((b) => {
+                const stage = STAGES.find((s) => s.id === b.stage)!;
+                return (
+                  <div
+                    key={b.stage}
+                    className="flex flex-wrap items-center gap-2 rounded-md border-l-4 bg-muted/40 px-3 py-2"
+                    style={{ borderColor: stage.color }}
+                  >
+                    <AlertTriangle
+                      className="h-3.5 w-3.5 shrink-0"
+                      style={{ color: stage.color }}
+                      aria-hidden
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-foreground">{b.title}</p>
+                      <p className="text-[11px] text-muted-foreground">{b.detail}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 gap-0.5 text-[11px]"
+                      onClick={() => setActiveFilter(b.stage)}
+                    >
+                      Focus <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : total > 0 ? (
+            <p className="mb-3 flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-1.5 text-[11px] text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              No stage bottlenecks — every tenant sits in a healthy stage.
+            </p>
+          ) : null}
+
+          {/* Proportional distribution — share per stage at a glance (no
+              mental mapping between states and counts) */}
+          {total > 0 ? (
+            <div
+              className="mb-3"
+              role="img"
+              aria-label={`Tenant distribution: ${distribution
+                .map(
+                  (s) =>
+                    `${s.label} ${s.count} (${Math.round((s.count / total) * 100)}%)`,
+                )
+                .join(", ")}`}
+            >
+              <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                {distribution.map((s) => (
+                  <span
+                    key={s.id}
+                    className="h-full"
+                    style={{
+                      width: `${(s.count / total) * 100}%`,
+                      background: s.color,
+                    }}
+                  />
+                ))}
+              </div>
+              <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                {distribution.map((s) => (
+                  <li
+                    key={s.id}
+                    className="flex items-center gap-1 text-[10px] text-muted-foreground"
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ background: s.color }}
+                      aria-hidden
+                    />
+                    {s.label} · {s.count} ({shareOf(s.count)}%)
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <div className="flex flex-col items-stretch gap-2 lg:flex-row lg:items-center">
             {STAGES.map((s, i) => {
               const StageIcon = s.icon;
