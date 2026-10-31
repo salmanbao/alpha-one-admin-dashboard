@@ -20,12 +20,17 @@ import {
 import {
   payoutEntitlement,
   terraPayouts,
-  terraTrades,
   scalingPlan,
   payoutSchedule,
   payoutScheduleOptions,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
+import {
+  MIN_PAYOUT_DAYS,
+  PayoutSummaryStrip,
+  payoutWindow,
+  tradedDaysFor,
+} from "@/components/terra/payout-summary-strip";
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -37,16 +42,16 @@ export function PayoutEligibilityPage() {
   // globally active trading account from the header switcher.
   const account = useSyncActiveAccount(params.get("id"));
   const entitlement = payoutEntitlement(account.id);
-  const availableSince = account.payoutNote ? "Available in 4 days" : "Aware 14 days";
+  // The fixture note ("Bi-weekly • Available in 4 days") is the source
+  // of truth for the status row — never a hardcoded guess.
+  const availableSince = account.payoutNote ?? "Available in 14 days";
   const [schedule, setSchedule] = useState(payoutSchedule.current);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
   // Checklist reflects the real payout gates — evaluation accounts fail
   // the funded gate; flat accounts fail the profit gate.
-  const MIN_PAYOUT_DAYS = 5;
-  const tradedDays = new Set(
-    terraTrades.filter((t) => t.accountId === account.id).map((t) => t.openedAt.slice(0, 10)),
-  ).size;
+  const tradedDays = tradedDaysFor(account.id);
+  const nextWindow = payoutWindow();
   const checklist = [
     {
       label: "Account funded (payouts are funded-only)",
@@ -78,8 +83,15 @@ export function PayoutEligibilityPage() {
     },
     { label: "No open risk breaches", ok: true, note: "Clear" },
     { label: "Payout method configured", ok: true, note: "Bank Transfer (Wise)" },
-    { label: "Bi-weekly window is open", ok: true, note: "Next window opens in 4 days" },
+    {
+      label: `${payoutSchedule.current} window is open`,
+      ok: nextWindow.open,
+      note: nextWindow.open
+        ? "Requests are processed in this window"
+        : `Next window opens in ${nextWindow.daysToOpen} day${nextWindow.daysToOpen === 1 ? "" : "s"}`,
+    },
   ];
+  const outstanding = checklist.filter((c) => !c.ok).length;
 
   const scalePct = Math.round(
     (scalingPlan.consecutivePayouts / scalingPlan.requiredPayouts) * 100,
@@ -125,6 +137,15 @@ export function PayoutEligibilityPage() {
           {entitlement.reason}
         </p>
       )}
+
+      {/* Upfront eligibility summary — exact amount available, next window
+          date, trading-day progress and unmet requirements at a glance */}
+      <PayoutSummaryStrip
+        accountId={account.id}
+        withdrawable={entitlement.withdrawable}
+        balance={account.balance}
+        outstanding={outstanding}
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
