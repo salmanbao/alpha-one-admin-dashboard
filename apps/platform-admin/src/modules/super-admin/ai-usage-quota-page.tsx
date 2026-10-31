@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -76,7 +77,7 @@ export function AiUsageQuotaPage() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Used" value={totalUsed > 999 ? `${(totalUsed / 1000).toFixed(0)}k` : totalUsed} icon={Activity} />
           <MetricCard label="Total Quota" value={totalQuota > 999 ? `${(totalQuota / 1000).toFixed(0)}k` : totalQuota} icon={BarChart3} />
-          <MetricCard label="Total Spend" value={`$${totalSpend.toLocaleString()}`} icon={DollarSign} tone="positive" />
+          <MetricCard label="Total Spend" value={formatCurrencyValue(totalSpend, "USD")} icon={DollarSign} tone="positive" />
           <MetricCard label="Exceeded" value={exceeded} icon={AlertTriangle} tone="positive" />
         </div>
 

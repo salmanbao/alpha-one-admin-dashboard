@@ -12,6 +12,7 @@
  */
 
 import * as React from "react";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { MsIcon } from "@/components/stitch/stitch";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { toast } from "@/hooks/use-toast";
@@ -61,7 +62,8 @@ const METHOD_ICON: Record<QueueRow["method"], string> = {
   Wise: "swap_horiz",
 };
 
-const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+/** finding #7: delegates to the canonical money utility in `@pfaas/platform-core`. */
+const usd = (n: number) => formatCurrencyValue(n, "USD");
 
 export function PayoutsBulkApprovalStitchPage() {
   const { navigate } = usePlatform();

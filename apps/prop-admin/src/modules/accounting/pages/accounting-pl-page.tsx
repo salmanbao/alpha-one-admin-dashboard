@@ -16,6 +16,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { formatCompactCurrencyValue } from "@pfaas/platform-core";
 import {
   Bar,
   BarChart,
@@ -466,7 +467,7 @@ export function AccountingPlPage() {
                     tickLine={false}
                     axisLine={false}
                     width={50}
-                    tickFormatter={(v) => `$${Number(v) / 1000}k`}
+                    tickFormatter={(v) => formatCompactCurrencyValue(Number(v), "USD")}
                   />
                   <Tooltip
                     contentStyle={{

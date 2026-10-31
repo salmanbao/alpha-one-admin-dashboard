@@ -137,7 +137,7 @@ export function PlatformFinancialsPage() {
                   <p className="text-xs text-muted-foreground truncate">{p.features}</p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="font-bold tabular-nums">{p.price ? `$${p.price}/mo` : "Custom"}</span>
+                  <span className="font-bold tabular-nums">{p.price ? `${formatCurrency(p.price, "USD")}/mo` : "Custom"}</span>
                   <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => toast({ title: "Plan details", description: `${p.name} plan configuration opened.` })}>
                     Configure
                   </Button>

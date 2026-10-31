@@ -16,6 +16,7 @@
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { TrendingDown, ShieldAlert, Target, Info } from "lucide-react";
 import { useState, type ComponentType } from "react";
 
@@ -49,7 +50,8 @@ const statusConfig: Record<HealthStatus, { label: string; color: string; barColo
 };
 
 function formatValue(v: number, unit: HealthMetric["unit"], currency = "USD"): string {
-  if (unit === "currency") return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
+  // finding #7: exact amounts follow the canonical 2-decimal money rules
+  if (unit === "currency") return formatCurrencyValue(v, currency);
   if (unit === "percent") return `${v}%`;
   return v.toLocaleString("en-US");
 }
@@ -142,8 +144,8 @@ export function AccountHealthWidget({
       direction: "loss",
       explanation: "You can lose up to this amount per trading day. Resets at 00:00 server time.",
       advancedDetails: [
-        { label: "Peak Equity", value: `$${(accountBalance + dailyLoss.current).toLocaleString()}` },
-        { label: "Current Equity", value: `$${accountBalance.toLocaleString()}` },
+        { label: "Peak Equity", value: formatCurrencyValue(accountBalance + dailyLoss.current, currency) },
+        { label: "Current Equity", value: formatCurrencyValue(accountBalance, currency) },
         { label: "Reset Time", value: "00:00 UTC" },
         { label: "Calculation", value: "Peak - Current" },
       ],
@@ -158,8 +160,8 @@ export function AccountHealthWidget({
       direction: "loss",
       explanation: "You can lose up to this amount from your highest recorded equity. Does not reset.",
       advancedDetails: [
-        { label: "Peak Equity", value: `$${(accountBalance + maxDrawdown.current).toLocaleString()}` },
-        { label: "Current Equity", value: `$${accountBalance.toLocaleString()}` },
+        { label: "Peak Equity", value: formatCurrencyValue(accountBalance + maxDrawdown.current, currency) },
+        { label: "Current Equity", value: formatCurrencyValue(accountBalance, currency) },
         { label: "Threshold", value: "Trailing" },
         { label: "Last Updated", value: new Date().toLocaleTimeString() },
       ],
@@ -174,8 +176,8 @@ export function AccountHealthWidget({
       direction: "gain",
       explanation: "Reach this profit to pass the current phase and advance to the next step.",
       advancedDetails: [
-        { label: "Current Profit", value: `$${profitTarget.current.toLocaleString()}` },
-        { label: "Target", value: `$${profitTarget.limit.toLocaleString()}` },
+        { label: "Current Profit", value: formatCurrencyValue(profitTarget.current, currency) },
+        { label: "Target", value: formatCurrencyValue(profitTarget.limit, currency) },
         { label: "Progress", value: `${Math.round((profitTarget.current / profitTarget.limit) * 100)}%` },
         { label: "Days Remaining", value: "12" },
       ],
