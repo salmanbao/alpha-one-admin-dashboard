@@ -159,6 +159,35 @@ function countryForPayout(p: Payout, traderCountry?: string): string {
   return fallback[n % fallback.length];
 }
 
+/**
+ * Inline Trader Performance chip — audit fix #2 (A2-F2): shows key
+ * trader performance metrics alongside each payout request so reviewers
+ * don't have to open a separate detail page.
+ */
+function TraderPerformanceChip({ traderId, traders }: { traderId: string; traders: Map<string, { name: string; country: string; totalPnl: number; accountBalance: number; winRate: number; trades: number; challengePhase?: string }> }) {
+  const t = traders.get(traderId);
+  if (!t) return <span className="text-xs text-muted-foreground">—</span>;
+  
+  const pnlPct = t.accountBalance > 0 ? ((t.totalPnl / t.accountBalance) * 100).toFixed(1) : "0";
+  const isProfitable = t.totalPnl > 0;
+  
+  return (
+    <div className="flex flex-col gap-1 text-xs">
+      <div className="flex items-center gap-2">
+        <span className={cn("font-semibold", isProfitable ? "text-emerald-600" : "text-rose-600")}>
+          {isProfitable ? "+" : ""}{pnlPct}%
+        </span>
+        <span className="text-muted-foreground">PnL</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-foreground">{t.winRate}%</span>
+        <span className="text-muted-foreground">win rate</span>
+      </div>
+      <div className="text-muted-foreground">{t.trades} trades</div>
+    </div>
+  );
+}
+
 export function EnhancedWithdrawalsPage() {
   const { runtime, user, pushNotification } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
@@ -194,11 +223,20 @@ export function EnhancedWithdrawalsPage() {
   // Audit fix #3: batch reject target for the shared PayoutRejectDialog.
   const [rejectTarget, setRejectTarget] = useState<PayoutRejectTarget | null>(null);
 
-  // Build trader lookup for name + country
+  // Build trader lookup for name + country + performance metrics
   const traderById = useMemo(() => {
-    const m = new Map<string, { name: string; country: string; fullName: string }>();
+    const m = new Map<string, { name: string; country: string; fullName: string; totalPnl: number; accountBalance: number; winRate: number; trades: number; challengePhase?: string }>();
     for (const t of traders) {
-      m.set(t.id, { name: t.name, country: t.country, fullName: t.name });
+      m.set(t.id, { 
+        name: t.name, 
+        country: t.country, 
+        fullName: t.name,
+        totalPnl: t.totalPnl,
+        accountBalance: t.accountBalance,
+        winRate: t.winRate,
+        trades: t.trades,
+        challengePhase: t.challengePhase,
+      });
     }
     return m;
   }, [traders]);
@@ -374,6 +412,9 @@ export function EnhancedWithdrawalsPage() {
       { key: "method", header: "Method", value: (p) => p.method },
       { key: "status", header: "Status", value: (p) => p.status },
       { key: "createdAt", header: "Created", value: (p) => p.createdAt },
+      { key: "traderPnl", header: "Trader PnL", value: (p) => traderById.get(p.traderId)?.totalPnl ?? "—" },
+      { key: "winRate", header: "Win Rate %", value: (p) => traderById.get(p.traderId)?.winRate ?? "—" },
+      { key: "trades", header: "Trades", value: (p) => traderById.get(p.traderId)?.trades ?? "—" },
     ];
     exportToCsv(selectedPayouts, cols, `withdrawals-selected-${Date.now()}.csv`);
   };
@@ -387,6 +428,9 @@ export function EnhancedWithdrawalsPage() {
       { key: "method", header: "Method", value: (p) => p.method },
       { key: "status", header: "Status", value: (p) => p.status },
       { key: "createdAt", header: "Created", value: (p) => p.createdAt },
+      { key: "traderPnl", header: "Trader PnL", value: (p) => traderById.get(p.traderId)?.totalPnl ?? "—" },
+      { key: "winRate", header: "Win Rate %", value: (p) => traderById.get(p.traderId)?.winRate ?? "—" },
+      { key: "trades", header: "Trades", value: (p) => traderById.get(p.traderId)?.trades ?? "—" },
     ];
     exportToCsv(sorted, cols, `withdrawals-${Date.now()}.csv`);
   };
@@ -576,6 +620,7 @@ export function EnhancedWithdrawalsPage() {
                 <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">
                   <SortHeader k="created" label="Created" />
                 </TableHead>
+                <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">Performance</TableHead>
                 <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">
                   <SortHeader k="status" label="Status" />
                 </TableHead>
@@ -584,7 +629,7 @@ export function EnhancedWithdrawalsPage() {
             <TableBody>
               {sorted.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={11} className="px-3 py-8 text-center text-sm text-muted-foreground">
                     No withdrawals match your filters.
                   </TableCell>
                 </TableRow>
@@ -643,6 +688,9 @@ export function EnhancedWithdrawalsPage() {
                       </TableCell>
                       <TableCell className="px-3 py-2.5 text-xs text-muted-foreground">
                         {new Date(p.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="px-3 py-2.5">
+                        <TraderPerformanceChip traderId={p.traderId} traders={traderById} />
                       </TableCell>
                       <TableCell className="px-3 py-2.5">
                         <ExplainableStateBadge status={p.status} entityType="payout" />
