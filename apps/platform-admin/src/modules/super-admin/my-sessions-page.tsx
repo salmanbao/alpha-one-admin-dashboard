@@ -32,7 +32,7 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { timeAgo } from "@/hooks/use-countdown";
 import {
   Monitor, Smartphone, Clock, ShieldCheck, AlertTriangle,
-  CheckCircle2, XCircle, Lock, KeyRound, Activity,
+  CheckCircle2, XCircle, Lock, KeyRound, Activity, MonitorSmartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -55,7 +55,7 @@ export function MySessionsPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const { user } = usePlatform();
+  const { user, navigate } = usePlatform();
   const { sessions, audit } = useConsoleStore();
   const [otpTarget, setOtpTarget] = useState<ConsoleSession | null>(null);
   const [bulkRevoke, setBulkRevoke] = useState(false);
@@ -175,6 +175,20 @@ export function MySessionsPage() {
           <KeyRound className="h-3.5 w-3.5" /> Signed in as {user.name} ({user.email}) · 2FA enabled
           <Lock className="ml-3 h-3.5 w-3.5" /> Last password change 12d ago
         </div>
+        {/* Cross-link (audit finding #4): this page is the operator's own
+            devices; tenant-scoped user sessions live on Tenant Sessions. */}
+        <button
+          type="button"
+          onClick={() => navigate("tenant-sessions")}
+          className="flex items-center gap-2 self-start rounded-lg border bg-card p-3 text-left text-xs text-muted-foreground transition-colors hover:bg-muted"
+        >
+          <MonitorSmartphone className="h-4 w-4 shrink-0" />
+          <span>
+            <span className="font-medium text-foreground">Looking for a tenant firm&apos;s user sessions?</span>{" "}
+            Tenant Sessions shows who from each firm is signed in, from where, with stale and
+            unusual-location flags.
+          </span>
+        </button>
         </PageAsyncBoundary>
       </PageContent>
 
