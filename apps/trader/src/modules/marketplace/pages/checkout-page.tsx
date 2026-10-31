@@ -61,6 +61,131 @@ const promos: Record<string, { percent: number; label: string }> = {
 const sizeLabel = (accountSize: number) =>
   `$${(accountSize / 1000).toLocaleString("en-US")}K`;
 
+const paymentFailureReasons = [
+  {
+    code: "insufficient_funds",
+    title: "Insufficient funds",
+    detail: "Your card or account doesn't have enough balance to cover this purchase.",
+    fix: "Check your balance, or try a different payment method below.",
+  },
+  {
+    code: "card_declined",
+    title: "Card declined",
+    detail: "Your bank or card issuer declined this transaction.",
+    fix: "Contact your bank to approve the charge, or try another card.",
+  },
+  {
+    code: "network_timeout",
+    title: "Network timeout",
+    detail: "The payment didn't complete because the connection dropped.",
+    fix: "Check your internet connection and try again.",
+  },
+] as const;
+
+type PaymentFailureCode = (typeof paymentFailureReasons)[number]["code"];
+
+/**
+ * Payment Failed View — audit finding: challenge purchase flow lacks
+ * payment failure handling. This view shows why the payment failed and
+ * gives clear recovery steps so traders aren't stranded.
+ */
+function PaymentFailedView({ reason, onRetry }: { reason: PaymentFailureCode; onRetry: () => void }) {
+  const reasonInfo = paymentFailureReasons.find((r) => r.code === reason)!;
+
+  return (
+    <div className="space-y-6">
+      <TerraPageHeader
+        title="Payment Failed"
+        description="Your challenge was not purchased"
+        actions={<TerraBadge tone="error" dot>Payment declined</TerraBadge>}
+      />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          {/* Failure explanation */}
+          <TerraCard className="border border-error/30 bg-error-container/40">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <p className="font-headline text-lg font-bold text-on-error-container">
+                  {reasonInfo.title}
+                </p>
+                <p className="text-sm text-on-error-container/80">
+                  {reasonInfo.detail} — your account was not charged.
+                </p>
+              </div>
+            </div>
+          </TerraCard>
+
+          {/* Recovery steps */}
+          <TerraCard>
+            <TerraSectionTitle title="How to fix this" />
+            <ol className="space-y-4">
+              {[
+                {
+                  title: reasonInfo.fix,
+                  note: "Most payment failures clear on retry or with a different method.",
+                },
+                {
+                  title: "Try a different payment method",
+                  note: "Switch between card, crypto, or PayPal — sometimes a different issuer or network works.",
+                },
+                {
+                  title: "Contact support if it persists",
+                  note: "We'll manually verify your payment and provision your challenge.",
+                },
+              ].map((s, i) => (
+                <li key={s.title} className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-container text-xs font-bold text-on-surface-variant">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-on-surface">{s.title}</p>
+                    <p className="text-xs text-on-surface-variant">{s.note}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </TerraCard>
+        </div>
+
+        {/* Action sidebar */}
+        <div className="space-y-6">
+          <TerraCard className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-xl bg-primary px-5 py-3 text-center text-sm font-bold text-on-primary hover:bg-primary/90"
+            >
+              Try again with the same method
+            </button>
+            <Link
+              href="/marketplace"
+              className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
+            >
+              Back to Marketplace
+            </Link>
+            <Link
+              href="/support"
+              className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
+            >
+              Contact support
+            </Link>
+          </TerraCard>
+
+          <TerraCard>
+            <TerraSectionTitle title="Alternative payment" />
+            <p className="text-xs text-on-surface-variant">
+              You can switch to another payment method from the checkout form. Crypto
+              (USDT) has the highest approval rate, and PayPal is instant for most banks.
+            </p>
+          </TerraCard>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CheckoutPage() {
   const params = useSearchParams();
   const router = useRouter();
@@ -84,6 +209,7 @@ export function CheckoutPage() {
   const [promo, setPromo] = useState<{ code: string; percent: number } | null>(null);
   const [method, setMethod] = useState<string>("card");
   const [processing, setProcessing] = useState(false);
+  const [paymentFailed, setPaymentFailed] = useState<{ reason: PaymentFailureCode } | null>(null);
 
   const addonsTotal = addons
     .filter((a) => selectedAddons.includes(a.id))
@@ -118,7 +244,21 @@ export function CheckoutPage() {
 
   function pay() {
     setProcessing(true);
-    setTimeout(() => router.push("/purchase-completed"), 700);
+    // Simulate a payment failure for demo purposes (e.g., 1 in 3 attempts fails)
+    setTimeout(() => {
+      setProcessing(false);
+      // Simulate payment failure - randomize reason for demo
+      const randomFailure = Math.random() > 0.3;
+      if (randomFailure) {
+        setPaymentFailed({ reason: "card_declined" });
+      } else {
+        router.push("/purchase-completed");
+      }
+    }, 700);
+  }
+
+  if (paymentFailed) {
+    return <PaymentFailedView reason={paymentFailed.reason} onRetry={() => setPaymentFailed(null)} />;
   }
 
   return (
