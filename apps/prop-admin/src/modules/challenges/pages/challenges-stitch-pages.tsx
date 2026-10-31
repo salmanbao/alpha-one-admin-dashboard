@@ -57,6 +57,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDetailOverlay } from "@/components/platform/detail-overlay";
 import { openViewInNewTab } from "@/lib/platform/view-links";
+import { simulateChallengeRules } from "@/lib/challenges/rule-simulation";
 
 function MsIconSafe({ name = "more_vert" }: { name?: string }) {
   return <span aria-hidden className="ms-icon text-[18px] leading-none">{name}</span>;
@@ -826,8 +827,174 @@ export function ChallengeTypesStitchPage() {
 
 /* ═══════════════ Challenge Configuration (challenge-config) ═══════════════ */
 
+/* Rule simulator — audit finding #5 (LOW).
+ *
+ * The canned dry-run above validates ONE simulated trader against the
+ * config. This sheet validates the RULES themselves: a seeded cohort
+ * simulation (see lib/challenges/rule-simulation.ts) over hypothetical
+ * traders produces the expected pass rate, the failure-reason mix, and
+ * the profit (final-equity) distribution before the rules are
+ * published. Deterministic seed → identical numbers every run. */
+function RuleSimulatorSheet({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const [profitTarget, setProfitTarget] = React.useState(10);
+  const [dailyDd, setDailyDd] = React.useState(5);
+  const [maxDd, setMaxDd] = React.useState(10);
+  const [timeLimit, setTimeLimit] = React.useState(30);
+  const [cohort, setCohort] = React.useState(200);
+
+  const result = React.useMemo(
+    () =>
+      simulateChallengeRules(
+        {
+          profitTargetPct: profitTarget,
+          dailyDrawdownPct: dailyDd,
+          maxDrawdownPct: maxDd,
+          timeLimitDays: timeLimit,
+        },
+        Math.min(1000, Math.max(10, cohort)),
+      ),
+    [profitTarget, dailyDd, maxDd, timeLimit, cohort],
+  );
+
+  const maxBucket = Math.max(1, ...result.distribution.map((b) => b.count));
+  const failTotal = Math.max(1, result.failed);
+
+  // Pass-rate guidance bands — challenge industry heuristics for a
+  // healthy funnel (most attempts fail; too-high = rules too loose).
+  const verdict =
+    result.passRatePct < 5
+      ? { label: "Very hard", tone: "text-terr", note: "Under 5% pass — most buyers never reach payout and won't retry." }
+      : result.passRatePct < 12
+        ? { label: "Standard", tone: "text-tp", note: "5–12% pass — the typical prop-firm band; conversion and payout costs stay balanced." }
+        : result.passRatePct < 25
+          ? { label: "Lenient", tone: "text-tt", note: "12–25% pass — expect heavier payout load; consider tightening drawdown or target." }
+          : { label: "Too easy", tone: "text-terr", note: "Above 25% pass — the challenge won't screen risk effectively at these rules." };
+
+  return (
+    <StitchSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      icon="casino"
+      wide
+      title="Rule simulation — expected outcomes"
+      description="Seeded cohort of hypothetical traders against these rules (modeling, not historical data)"
+      footer={
+        <>
+          <StitchMonoChip>seed 42 · deterministic</StitchMonoChip>
+          <StitchButton variant="primary" onClick={() => onOpenChange(false)}>
+            Close
+          </StitchButton>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {/* Rule inputs */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <Field label="Profit target %">
+            <Input className="stitch-input" type="number" value={profitTarget} min={1} max={50}
+              onChange={(e) => setProfitTarget(Number(e.target.value) || 0)} />
+          </Field>
+          <Field label="Daily DD %">
+            <Input className="stitch-input" type="number" value={dailyDd} min={1} max={20}
+              onChange={(e) => setDailyDd(Number(e.target.value) || 0)} />
+          </Field>
+          <Field label="Max DD %">
+            <Input className="stitch-input" type="number" value={maxDd} min={1} max={30}
+              onChange={(e) => setMaxDd(Number(e.target.value) || 0)} />
+          </Field>
+          <Field label="Time limit (days)">
+            <Input className="stitch-input" type="number" value={timeLimit} min={1} max={120}
+              onChange={(e) => setTimeLimit(Number(e.target.value) || 0)} />
+          </Field>
+          <Field label="Cohort size">
+            <Input className="stitch-input" type="number" value={cohort} min={10} max={1000}
+              onChange={(e) => setCohort(Number(e.target.value) || 0)} />
+          </Field>
+        </div>
+
+        {/* Pass/fail headline + verdict */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl bg-sfc p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ink-variant">Pass rate</p>
+            <p className="mt-1 font-serif text-2xl font-bold text-ink">{result.passRatePct}%</p>
+            <div className="mt-2"><StitchProgress value={result.passRatePct} tone={result.passRatePct >= 5 && result.passRatePct < 12 ? "positive" : "warning"} /></div>
+            <p className={cn("mt-1.5 text-[11px] font-bold", verdict.tone)}>{verdict.label}</p>
+            <p className="mt-0.5 text-[10px] leading-snug text-ink-variant">{verdict.note}</p>
+          </div>
+          <div className="rounded-xl bg-sfc p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ink-variant">Failure reasons</p>
+            <div className="mt-2 space-y-1.5">
+              {([
+                ["Daily DD breach", result.failures.dailyDrawdown, "bg-terr"],
+                ["Max DD breach", result.failures.maxDrawdown, "bg-tt"],
+                ["Time expired", result.failures.timeLimit, "bg-ink-muted"],
+              ] as const).map(([label, count, bar]) => (
+                <div key={label}>
+                  <div className="flex justify-between text-[10px] text-ink-variant">
+                    <span>{label}</span>
+                    <span className="tabular-nums">{count} ({Math.round((count / failTotal) * 100)}%)</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-sfc-high">
+                    <div className={cn("h-full rounded-full", bar)} style={{ width: `${(count / failTotal) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-xl bg-sfc p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ink-variant">Pacing</p>
+            <dl className="mt-2 space-y-1.5 text-[11px]">
+              <div className="flex justify-between"><dt className="text-ink-variant">Median days to pass</dt><dd className="font-bold tabular-nums text-ink">{result.medianDaysToPass || "—"}</dd></div>
+              <div className="flex justify-between"><dt className="text-ink-variant">Time limit</dt><dd className="font-bold tabular-nums text-ink">{timeLimit}d</dd></div>
+              <div className="flex justify-between"><dt className="text-ink-variant">Median final equity</dt><dd className={cn("font-bold tabular-nums", result.medianFinalEquityPct >= 0 ? "text-tp" : "text-terr")}>{result.medianFinalEquityPct >= 0 ? "+" : ""}{result.medianFinalEquityPct}%</dd></div>
+              <div className="flex justify-between"><dt className="text-ink-variant">Passed / failed</dt><dd className="font-bold tabular-nums text-ink">{result.passed} / {result.failed}</dd></div>
+            </dl>
+          </div>
+        </div>
+
+        {/* Profit distribution histogram */}
+        <div className="rounded-xl bg-sfc p-3">
+          <div className="flex items-baseline justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ink-variant">
+              Final-equity distribution (% of account size)
+            </p>
+            <p className="text-[10px] text-ink-variant">{result.cohortSize} simulated traders</p>
+          </div>
+          <div className="mt-3 flex h-28 items-end gap-1" role="img"
+            aria-label={`Histogram of final equity: ${result.distribution.map((b) => `${b.from} to ${b.to} percent: ${b.count}`).join("; ")}`}>
+            {result.distribution.map((b) => (
+              <div key={b.from} className="flex flex-1 flex-col items-center gap-1">
+                <span className="text-[9px] tabular-nums text-ink-variant">{b.count || ""}</span>
+                <div
+                  className={cn("w-full rounded-t", b.to <= 0 ? "bg-terr/70" : b.from < result.distribution[3]?.to ? "bg-tt/70" : "bg-tp/70")}
+                  style={{ height: `${Math.max(2, (b.count / maxBucket) * 96)}px` }}
+                />
+                <span className="text-[8px] tabular-nums text-ink-variant">{b.from}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] leading-snug text-ink-variant">
+            Red buckets end at or below breakeven (losses), amber is the shallow-profit band, green
+            reaches toward the {profitTarget}% target and beyond. A healthy cohort shows a dense
+            left tail (most attempts fail) and a thin right tail of passers.
+          </p>
+        </div>
+
+        <StitchInfoHint text="Results are a seeded random-walk model of trader behavior — useful for comparing rule variants against each other, not a forecast. The seed is fixed so the same inputs always produce the same numbers." />
+      </div>
+    </StitchSheet>
+  );
+}
+
 export function ChallengeConfigStitchPage() {
   const [testOpen, setTestOpen] = React.useState(false);
+  const [simOpen, setSimOpen] = React.useState(false);
   const [addOpen, setAddOpen] = React.useState(false);
 
   return (
@@ -839,6 +1006,7 @@ export function ChallengeConfigStitchPage() {
         actions={
           <>
             <StitchButton variant="surface" icon="science" onClick={() => setTestOpen(true)}>Dry-Run Test</StitchButton>
+            <StitchButton variant="surface" icon="casino" onClick={() => setSimOpen(true)}>Simulate Rules</StitchButton>
             <StitchButton variant="surface" icon="add" onClick={() => setAddOpen(true)}>Add Type</StitchButton>
             <StitchButton variant="primary" icon="save" onClick={() => toast({ title: "Configuration saved" })}>Save</StitchButton>
           </>
@@ -876,6 +1044,8 @@ export function ChallengeConfigStitchPage() {
           ]}
         />
       </StitchSheet>
+
+      <RuleSimulatorSheet open={simOpen} onOpenChange={setSimOpen} />
 
       <StitchSheet
         open={addOpen} onOpenChange={setAddOpen} icon="add" title="Add challenge type"
