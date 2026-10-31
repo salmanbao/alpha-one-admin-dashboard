@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { hasPermission } from "@/lib/platform/permission-engine";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
-import { getTenantPayouts, getTraderPayouts, getTraderForUser, type Payout } from "@/lib/platform/mock-data";
+import { getTenantPayouts, getTraderPayouts, getTraderForUser, getTenantTraders, type Payout } from "@/lib/platform/mock-data";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { applyPayoutDecision, effectivePayoutStatus, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -26,6 +26,7 @@ import {
   type PayoutRejectTarget,
   type PayoutRejectResult,
 } from "@/components/platform/payout-reject-dialog";
+import { TraderPerformanceChip } from "@/components/platform/trader-performance-chip";
 
 /**
  * PRD §4.9 — Reject requires a reason (onReject(reason)). Uses the
@@ -118,11 +119,25 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
   const pays = (trader ? getTraderPayouts(trader.id) : getTenantPayouts(tid))
     .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
     .filter(filter);
+  // Trader performance lookup — payout reviewers see recent performance
+  // inline (audit #3 fix #2) instead of cross-referencing trader screens.
+  const perfByTrader = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof getTenantTraders>[number]>();
+    for (const t of getTenantTraders(tid)) m.set(t.id, t);
+    return m;
+  }, [tid]);
 
   const columns: Column<Payout>[] = [
     { key: "reference", header: "Reference", cell: (p) => <span className="font-mono text-xs">{p.reference}</span>, sortValue: (p) => p.reference },
     { key: "account", header: term("account"), cell: (p) => <span className="font-medium">{p.accountName}</span>, sortValue: (p) => p.accountName ?? "" },
     { key: "amount", header: "Amount", cell: (p) => <span className="font-semibold">{formatCurrency(p.amount, p.currency)}</span>, sortValue: (p) => p.amount },
+    {
+      // Audit #3 fix #2 — performance context for the payout decision.
+      key: "performance",
+      header: "Performance",
+      cell: (p) => <TraderPerformanceChip trader={perfByTrader.get(p.traderId)} compact />,
+      sortValue: (p) => perfByTrader.get(p.traderId)?.totalPnl ?? 0,
+    },
     { key: "method", header: "Method", cell: (p) => p.method, sortValue: (p) => p.method },
     { key: "split", header: "Split", cell: (p) => `${p.profitSplit}%`, sortValue: (p) => p.profitSplit },
     {
@@ -335,6 +350,12 @@ export function PendingPayoutsPage() {
   const pendingPayouts = getTenantPayouts(tid)
     .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
     .filter((p) => p.status === "pending");
+  // Audit #3 fix #2 — performance context shown with each approval card.
+  const perfByTrader = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof getTenantTraders>[number]>();
+    for (const t of getTenantTraders(tid)) m.set(t.id, t);
+    return m;
+  }, [tid]);
 
   return (
     <Page>
@@ -349,15 +370,44 @@ export function PendingPayoutsPage() {
             state instead of an empty list. */}
         {pendingPayouts.length > 0 ? (
           <div className="space-y-2">
-            {pendingPayouts.map((p) => (
-              <PayoutReviewActions
-                key={p.id}
-                payoutId={p.reference}
-                traderName={p.traderName}
-                amount={p.amount}
-                currency={p.currency}
-              />
-            ))}
+            {pendingPayouts.map((p) => {
+              const perf = perfByTrader.get(p.traderId);
+              return (
+                <div key={p.id} className="space-y-1">
+                  {/* Trader performance summary — profit target progress,
+                      drawdown usage proxy (PnL vs balance), trading activity.
+                      Reviewers approve with context instead of cross-referencing. */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs">
+                    <span className="font-medium text-foreground">{p.traderName}</span>
+                    {perf ? (
+                      <>
+                        <TraderPerformanceChip trader={perf} compact />
+                        <span className="text-muted-foreground">
+                          Balance <span className="tabular-nums text-foreground">{formatCurrency(perf.accountBalance, p.currency)}</span>
+                        </span>
+                        <span className="text-muted-foreground">
+                          Net PnL{" "}
+                          <span className={`tabular-nums font-medium ${perf.totalPnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                            {formatCurrency(perf.totalPnl, p.currency)}
+                          </span>
+                        </span>
+                        {perf.challengePhase ? (
+                          <span className="text-muted-foreground capitalize">{perf.challengePhase.replace("-", " ")}</span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">No performance data on file</span>
+                    )}
+                  </div>
+                  <PayoutReviewActions
+                    payoutId={p.reference}
+                    traderName={p.traderName}
+                    amount={p.amount}
+                    currency={p.currency}
+                  />
+                </div>
+              );
+            })}
           </div>
         ) : (
           <EmptyState

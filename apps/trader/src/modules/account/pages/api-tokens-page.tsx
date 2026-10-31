@@ -15,6 +15,9 @@ export function ApiTokensPage() {
   const [newName, setNewName] = useState("");
   const [newToken, setNewToken] = useState<string | null>(null);
   const [revokedId, setRevokedId] = useState<string | null>(null);
+  // Two-step confirm for revoke (audit #3 fix #8) — matches the
+  // withdrawal-methods page pattern so destructive actions are consistent.
+  const [pendingRevokeId, setPendingRevokeId] = useState<string | null>(null);
 
   const handleCreate = () => {
     if (!newName.trim()) return;
@@ -27,6 +30,7 @@ export function ApiTokensPage() {
   const handleRevoke = (id: string) => {
     setTokens((ts) => ts.filter((t) => t.id !== id));
     setRevokedId(id);
+    setPendingRevokeId(null);
     setTimeout(() => setRevokedId(null), 3000);
   };
 
@@ -128,13 +132,32 @@ export function ApiTokensPage() {
                   Created {t.createdAt.slice(0, 10)} • Last used {t.lastUsedAt.slice(0, 10)}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => handleRevoke(t.id)}
-                className="rounded-xl bg-error-container px-3 py-1.5 text-xs font-semibold text-on-error-container hover:bg-error-container/80"
-              >
-                Revoke
-              </button>
+              {pendingRevokeId === t.id ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleRevoke(t.id)}
+                    className="rounded-xl bg-error px-3 py-1.5 text-xs font-semibold text-on-error hover:bg-error/90"
+                  >
+                    Confirm revoke?
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingRevokeId(null)}
+                    className="rounded-xl bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPendingRevokeId(t.id)}
+                  className="rounded-xl bg-error-container px-3 py-1.5 text-xs font-semibold text-on-error-container hover:bg-error-container/80"
+                >
+                  Revoke
+                </button>
+              )}
             </div>
           ))}
         </div>

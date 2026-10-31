@@ -34,6 +34,7 @@ import {
 } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { AccountSwitcher } from "@/components/shell/account-switcher";
+import { GettingStartedTour } from "@/components/onboarding/getting-started-tour";
 
 const ranges = ["7d", "30d", "90d"] as const;
 
@@ -135,6 +136,10 @@ export function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* First-use onboarding tour (audit #3 fix #6) — dismissible
+          checklist for new traders; hidden once dismissed/completed. */}
+      <GettingStartedTour />
 
       {/* Alerts banner */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-12">

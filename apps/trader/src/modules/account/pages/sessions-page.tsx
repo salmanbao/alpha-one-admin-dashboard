@@ -25,18 +25,24 @@ const loginHistory = [
 export function SessionsPage() {
   const [revoked, setRevoked] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  // Two-step confirm (audit #3 fix #8) — destructive session revokes
+  // require a second click, matching the withdrawal-methods pattern.
+  const [pendingRevokeId, setPendingRevokeId] = useState<string | null>(null);
+  const [confirmingBulk, setConfirmingBulk] = useState(false);
 
   const otherSessions = loginSessions.filter((s) => !s.current);
   const othersRemaining = otherSessions.filter((s) => !revoked.includes(s.id));
 
   const handleRevoke = (id: string, device: string) => {
     setRevoked((r) => [...r, id]);
+    setPendingRevokeId(null);
     setNotice(`Revoked "${device}" — that device must sign in again. (Demo)`);
     setTimeout(() => setNotice(null), 4000);
   };
 
   const handleRevokeOthers = () => {
     setRevoked(otherSessions.map((s) => s.id));
+    setConfirmingBulk(false);
     setNotice(
       `Revoked ${otherSessions.length} other sessions — only this device stays signed in. (Demo)`,
     );
@@ -49,16 +55,35 @@ export function SessionsPage() {
         title="Sessions & Login History"
         description="Devices signed in to your account"
         actions={
-          <button
-            type="button"
-            onClick={handleRevokeOthers}
-            disabled={othersRemaining.length === 0}
-            className="rounded-xl bg-error-container px-4 py-2 text-sm font-bold text-on-error-container hover:bg-error-container/80 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {othersRemaining.length > 0
-              ? `Revoke other sessions (${othersRemaining.length})`
-              : "No other sessions"}
-          </button>
+          confirmingBulk ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRevokeOthers}
+                className="rounded-xl bg-error px-4 py-2 text-sm font-bold text-on-error hover:bg-error/90"
+              >
+                Confirm revoke {othersRemaining.length}?
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingBulk(false)}
+                className="rounded-xl bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingBulk(true)}
+              disabled={othersRemaining.length === 0}
+              className="rounded-xl bg-error-container px-4 py-2 text-sm font-bold text-on-error-container hover:bg-error-container/80 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {othersRemaining.length > 0
+                ? `Revoke other sessions (${othersRemaining.length})`
+                : "No other sessions"}
+            </button>
+          )
         }
       />
 
@@ -98,10 +123,27 @@ export function SessionsPage() {
                   </TerraBadge>
                 ) : isRevoked ? (
                   <TerraBadge tone="neutral">Revoked</TerraBadge>
+                ) : pendingRevokeId === s.id ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleRevoke(s.id, s.device)}
+                      className="rounded-xl bg-error px-3 py-1.5 text-xs font-semibold text-on-error hover:bg-error/90"
+                    >
+                      Confirm?
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingRevokeId(null)}
+                      className="rounded-xl bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => handleRevoke(s.id, s.device)}
+                    onClick={() => setPendingRevokeId(s.id)}
                     className="rounded-xl bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container"
                   >
                     Revoke
