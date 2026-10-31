@@ -234,8 +234,10 @@ export function Sidebar({
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="scrollbar-thin flex-1 overflow-y-auto px-2 py-2">
+      {/* Nav — named landmark (finding #6): with the terms page also
+          rendering a <nav>, unnamed navigation landmarks are ambiguous
+          in a screen reader's landmark list. */}
+      <nav aria-label="Main" className="scrollbar-thin flex-1 overflow-y-auto px-2 py-2">
         <ul className="space-y-0.5">
           {directItems.map((item) => {
             const Icon = item.icon;
@@ -246,6 +248,7 @@ export function Sidebar({
                   href={item.href}
                   onClick={onClose}
                   title={collapsed ? item.label : undefined}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
                     "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
                     active
@@ -416,6 +419,7 @@ function SectionItem({
                 <Link
                   href={child.href}
                   onClick={onNavigate}
+                  aria-current={childActive ? "page" : undefined}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors",
                     childActive

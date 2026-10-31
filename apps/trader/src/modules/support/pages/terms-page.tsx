@@ -66,12 +66,13 @@ export function TermsPage() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-        <nav className="flex flex-row gap-1.5 overflow-x-auto lg:flex-col lg:overflow-visible">
+        <nav aria-label="Terms sections" className="flex flex-row gap-1.5 overflow-x-auto lg:flex-col lg:overflow-visible">
           {sections.map((s) => (
             <button
               key={s.id}
               type="button"
               onClick={() => setActive(s.id)}
+              aria-current={active === s.id ? "true" : undefined}
               className={cn(
                 "whitespace-nowrap rounded-lg px-3.5 py-2 text-sm text-left transition-all",
                 active === s.id
