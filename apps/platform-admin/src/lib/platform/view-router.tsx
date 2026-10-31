@@ -125,6 +125,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "tenant-sessions": dynamic(
+    () =>
+      import("@/modules/super-admin/tenant-sessions-page").then((m) => ({
+        default: m.TenantSessionsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "security-overview": dynamic(
     () =>
       import("@/modules/super-admin/security-overview-page").then((m) => ({

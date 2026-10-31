@@ -53,6 +53,7 @@ import {
   Megaphone,
   TrendingDown,
   CalendarClock,
+  MonitorSmartphone,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -106,6 +107,7 @@ const navigation: NavigationItem[] = [
       // ───────── Security ─────────
       { id: "super.security", label: "Security Overview", href: "security-overview", icon: Lock, application: ["super-admin"], group: "Security" },
       { id: "super.sessions", label: "My Sessions", href: "my-sessions", icon: ShieldCheck, application: ["super-admin"], group: "Security" },
+      { id: "super.tenant-sessions", label: "Tenant Sessions", href: "tenant-sessions", icon: MonitorSmartphone, application: ["super-admin"], group: "Security" },
       // `operator-directory` nav entry folded into Platform Staff (Governance);
       // route stays registered and is linked from the platform-staff page.
       // `role-management` nav entry folded into Platform Roles (Governance);
@@ -179,6 +181,7 @@ const routes: RouteDefinition[] = [
   { path: "notifications", viewId: "notifications", label: "Notifications", application: ["super-admin"] },
   { path: "security-overview", viewId: "security-overview", label: "Security Overview", application: ["super-admin"] },
   { path: "my-sessions", viewId: "my-sessions", label: "My Sessions", application: ["super-admin"] },
+  { path: "tenant-sessions", viewId: "tenant-sessions", label: "Tenant Sessions", application: ["super-admin"] },
   { path: "operator-directory", viewId: "operator-directory", label: "Operator Directory", application: ["super-admin"] },
   { path: "role-management", viewId: "role-management", label: "Role Management", application: ["super-admin"] },
   { path: "tenant-view-as", viewId: "tenant-view-as", label: "Tenant View-As", application: ["super-admin"] },

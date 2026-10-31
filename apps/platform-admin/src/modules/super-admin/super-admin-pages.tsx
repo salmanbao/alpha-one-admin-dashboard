@@ -25,6 +25,7 @@ export { IncidentCenterPage } from "./incident-center-page";
 export { FeatureFlagsPage } from "./feature-flags-page";
 // Round 8b: deferred screens from the research inventory
 export { MySessionsPage } from "./my-sessions-page";
+export { TenantSessionsPage } from "./tenant-sessions-page";
 export { SecurityOverviewPage } from "./security-overview-page";
 
 // Stitch screens — platform admin scope
