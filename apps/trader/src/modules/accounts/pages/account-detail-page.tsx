@@ -35,12 +35,16 @@ import {
   terraTrades,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
+import { useRovingTabs } from "@/lib/a11y/roving-tabs";
 import { toast } from "@/hooks/use-toast";
 
 const detailTabs = ["Charts & Analytics", "Trade History", "Credentials"] as const;
 
 export function AccountDetailPage() {
   const [tab, setTab] = useState<(typeof detailTabs)[number]>("Charts & Analytics");
+  // Keyboard support for the tab strip (audit finding #3): arrow keys,
+  // Home/End, roving tabindex, tab↔panel ARIA wiring.
+  const tabs = useRovingTabs(detailTabs, tab, setTab, "account-detail");
   // Account scope: ?id= from My Accounts deep links, otherwise the globally
   // active account from the header switcher (URL and switcher stay in sync).
   const params = useSearchParams();
@@ -213,15 +217,18 @@ export function AccountDetailPage() {
       </TerraCard>
       )}
 
-      {/* Tabs: Charts & Analytics / Trade History / Credentials (PRD §3.7.1) */}
-      <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Account sections">
+      {/* Tabs: Charts & Analytics / Trade History / Credentials (PRD §3.7.1)
+          Roving tabindex + arrow-key navigation (audit finding #3) */}
+      <div
+        className="flex flex-wrap items-center gap-1.5"
+        role="tablist"
+        aria-label="Account sections"
+        onKeyDown={tabs.onKeyDown}
+      >
         {detailTabs.map((t) => (
           <button
+            {...tabs.tabProps(t)}
             key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
             className={cn(
               "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all",
               tab === t
@@ -235,7 +242,7 @@ export function AccountDetailPage() {
       </div>
 
       {tab === "Charts & Analytics" && (
-        <>
+        <div {...tabs.panelProps("Charts & Analytics")} className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Objectives progress + charts */}
             <div className="space-y-6 lg:col-span-2">
@@ -391,10 +398,11 @@ export function AccountDetailPage() {
               ])}
             />
           </TerraCard>
-        </>
+        </div>
       )}
 
       {tab === "Trade History" && (
+        <div {...tabs.panelProps("Trade History")}>
         <TerraCard>
           <TerraSectionTitle
             title="Trade History"
@@ -448,9 +456,11 @@ export function AccountDetailPage() {
             </>
           )}
         </TerraCard>
+        </div>
       )}
 
       {tab === "Credentials" && (
+        <div {...tabs.panelProps("Credentials")}>
         <TerraCard>
           <TerraSectionTitle
             title="Trading Credentials"
@@ -458,6 +468,7 @@ export function AccountDetailPage() {
           />
           <AccountCredentials account={acc} />
         </TerraCard>
+        </div>
       )}
     </div>
   );
