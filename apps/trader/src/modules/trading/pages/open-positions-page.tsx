@@ -26,6 +26,7 @@ import { useActiveAccount } from "@/lib/platform/account-context";
 import { useTrading } from "@/lib/trading/trading-context";
 import { useRovingTabs } from "@/lib/a11y/roving-tabs";
 import { DetailDialog } from "@/components/terra/detail-dialog";
+import { ChallengeRulesDialog } from "@/components/terra/challenge-rules-dialog";
 import { PositionDetailContent } from "./position-detail-content";
 
 const tabs = ["Positions", "Pending Orders"] as const;
@@ -43,6 +44,8 @@ export function OpenPositionsPage() {
   // Quick-view overlay: clicking a symbol opens the trade detail in a
   // dialog on top of the live table — the positions view is never lost.
   const [quickPosId, setQuickPosId] = useState<string | null>(null);
+  // finding #5 — quick access to the full program rules (shared dialog)
+  const [rulesOpen, setRulesOpen] = useState(false);
   const quickPos = quickPosId ? (positions.find((p) => p.id === quickPosId) ?? null) : null;
   // Scope: the active trading account by default (follows the header
   // switcher); "All accounts" shows the cross-account view.
@@ -102,6 +105,14 @@ export function OpenPositionsPage() {
             >
               + New Order
             </Link>
+            <button
+              type="button"
+              title="Full program rules for this account — targets, drawdowns, trading days"
+              onClick={() => setRulesOpen(true)}
+              className="rounded-xl border border-outline-variant/60 px-4 py-2 text-sm font-bold text-on-surface-variant hover:bg-surface-container-low"
+            >
+              View rules
+            </button>
           </div>
         }
       />
@@ -304,6 +315,15 @@ export function OpenPositionsPage() {
       >
         {quickPos && <PositionDetailContent id={quickPos.id} embedded />}
       </DetailDialog>
+
+      {/* finding #5 — quick access to the full program rules */}
+      {rulesOpen ? (
+        <ChallengeRulesDialog
+          account={activeAccount}
+          open={rulesOpen}
+          onOpenChange={setRulesOpen}
+        />
+      ) : null}
     </div>
   );
 }
