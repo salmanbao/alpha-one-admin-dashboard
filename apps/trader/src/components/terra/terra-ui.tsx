@@ -327,8 +327,13 @@ export function TerraAreaChart({
     Math.round((i / (tickCount - 1 || 1)) * (data.length - 1)),
   );
 
+  // Starting-balance reference line (visual + text) + pattern markers beyond color
+  const startVal = values[0];
+  const startY = sy(startVal);
+
   return (
-    <svg
+    <>
+      <svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
       className="w-full overflow-visible"
@@ -374,6 +379,24 @@ export function TerraAreaChart({
       <path d={line} fill="none" stroke="#4a7c59" strokeWidth="3" strokeLinecap="round" />
       <circle cx={lastX} cy={lastY} fill="#4a7c59" r="5" />
       <circle className="animate-pulse" cx={lastX} cy={lastY} fill="#4a7c59" opacity="0.25" r="10" />
+      {/* Starting-balance reference line: a distinct visual + text encoding beyond color alone */}
+      <line
+        x1={padL}
+        x2={W - padR}
+        y1={startY}
+        y2={startY}
+        stroke="#9aa39a"
+        strokeWidth="1.2"
+        strokeDasharray="6 3"
+      />
+      <text
+        x={padL - 6}
+        y={startY - 4}
+        textAnchor="end"
+        className="fill-current text-[9px] font-medium text-on-surface-variant"
+      >
+        start {formatValue ? formatValue(startVal) : Math.round(startVal)}
+      </text>
       <g className="fill-current text-[10px] text-on-surface-variant opacity-80">
         {xTickIdx.map((i) => (
           <text
@@ -387,6 +410,16 @@ export function TerraAreaChart({
         ))}
       </g>
     </svg>
+    {/* Accessible data table: color-independent encoding for screen readers / print */}
+    <table className="sr-only" aria-label="Equity curve data (date vs value)">
+      <thead><tr><th>Date</th><th>Value</th></tr></thead>
+      <tbody>
+        {data.map((d) => (
+          <tr key={d.x}><td>{d.x}</td><td>{formatValue ? formatValue(d.y) : Math.round(d.y)}</td></tr>
+        ))}
+      </tbody>
+    </table>
+    </>
   );
 }
 
@@ -432,7 +465,8 @@ export function TerraBarChart({
   );
 
   return (
-    <svg
+    <>
+      <svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
       className="w-full overflow-visible"
@@ -495,6 +529,24 @@ export function TerraBarChart({
         stroke="#8f8b83"
         strokeWidth="1"
       />
+      {/* Starting-zero reference line: visual + text for accessibility */}
+      <line
+        x1={padL}
+        x2={W - padR}
+        y1={zeroY}
+        y2={zeroY}
+        stroke="#9aa39a"
+        strokeWidth="1.2"
+        strokeDasharray="4 2"
+      />
+      <text
+        x={padL - 6}
+        y={zeroY - 4}
+        textAnchor="end"
+        className="fill-current text-[9px] font-medium text-on-surface-variant"
+      >
+        0 {formatValue ? formatValue(0) : '0'}
+      </text>
       <g className="fill-current text-[10px] text-on-surface-variant opacity-80">
         {xTickIdx.map((i) => (
           <text
@@ -508,6 +560,16 @@ export function TerraBarChart({
         ))}
       </g>
     </svg>
+    {/* Accessible data table: color-independent encoding for screen readers / print */}
+    <table className="sr-only" aria-label="Daily P&L data (date vs value)">
+      <thead><tr><th>Date</th><th>P&L</th></tr></thead>
+      <tbody>
+        {data.map((d) => (
+          <tr key={d.x}><td>{d.x}</td><td>{formatValue ? formatValue(d.y) : Math.round(d.y)}</td></tr>
+        ))}
+      </tbody>
+    </table>
+    </>
   );
 }
 
