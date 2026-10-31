@@ -23,6 +23,7 @@ import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform
 import { AreaSeries } from "@/components/platform/charts";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
 import { DataTable, type Column } from "@/components/platform/data-table";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,7 @@ import {
   Download,
 } from "lucide-react";
 import { exportToCsv } from "@/lib/platform/export-utils";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 
 const RANGES = [
   { id: "7d", label: "7d" },
@@ -63,7 +65,14 @@ export function FirmStatisticsPage() {
   const currency = runtime.tenant?.currency ?? "USD";
   const [range, setRange] = useState<RangeId>("30d");
 
-  const stats = getFirmStatistics(tid);
+  // Finding #10 — firm statistics resolve through the async mock layer:
+  // structural skeleton until loaded, error + retry on failure.
+  const { data, loading, error, retry } = useAsyncMock(
+    () => mockAsync(() => getFirmStatistics(tid), { delayMs: 550 }),
+    [tid],
+  );
+  // Sync fallback keeps children unchanged (hidden behind the boundary).
+  const stats = data ?? getFirmStatistics(tid);
   const fmt = (v: number) => formatCurrency(v, currency);
 
   const summaryRows: SummaryRow[] = [
@@ -146,6 +155,7 @@ export function FirmStatisticsPage() {
         }
       />
       <PageContent>
+        <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading firm statistics…">
         {/* 1. KPI strip — 10 cards in a 2 / 5 / 5 / 10 responsive grid */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
           <MetricCard label="Total Revenue" value={fmt(stats.totalRevenue)} delta={8} deltaLabel="vs prev period" icon={DollarSign} tone="positive" />
@@ -234,6 +244,7 @@ export function FirmStatisticsPage() {
             pageSize={10}
           />
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

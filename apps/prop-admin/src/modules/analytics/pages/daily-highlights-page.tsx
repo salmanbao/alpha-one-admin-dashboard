@@ -36,6 +36,8 @@ import {
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageAsyncBoundary } from "@/components/platform/guards";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 
 const HOURLY_CHART_COLORS = ["#059669", "#0f766e", "#d97706", "#0d9488"];
 
@@ -46,7 +48,14 @@ export function DailyHighlightsPage() {
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
 
-  const h = getDailyHighlights(tid);
+  // Finding #10 — resolve through the async mock layer so the page
+  // shows a structural skeleton (and error + retry) before rendering.
+  const { data, loading, error, retry } = useAsyncMock(
+    () => mockAsync(() => getDailyHighlights(tid), { delayMs: 550 }),
+    [tid],
+  );
+  // Sync fallback keeps children unchanged (hidden behind the boundary).
+  const h = data ?? getDailyHighlights(tid);
   const fmt = (v: number) => formatCurrency(v, currency);
 
   // Synthesize hourly orders attributed to the top PSP per hour.
@@ -84,6 +93,7 @@ export function DailyHighlightsPage() {
         }
       />
       <PageContent>
+        <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading daily highlights…">
         {/* 1. KPI strip */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
           <MetricCard label="Daily Revenue" value={fmt(h.dailyRevenue)} delta={6} deltaLabel="vs yesterday" icon={DollarSign} tone="positive" />
@@ -188,6 +198,7 @@ export function DailyHighlightsPage() {
         <p className="text-xs text-muted-foreground">
           All times are in UTC. Values shown for {date || "today"}.
         </p>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

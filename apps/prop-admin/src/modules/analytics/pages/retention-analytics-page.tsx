@@ -22,8 +22,10 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantTraders } from "@/lib/platform/mock-data";
 import { exportToCsv } from "@/lib/platform/export-utils";
+import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { BarSeries, DonutSeries } from "@/components/platform/charts";
 import { formatCompact } from "@/components/platform/status";
 import { Badge } from "@/components/ui/badge";
@@ -71,7 +73,14 @@ export function RetentionAnalyticsPage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
-  const traders = useMemo(() => getTenantTraders(tid), [tid]);
+  // Finding #10 — the trader cohort source resolves through the async
+  // mock layer: structural skeleton until loaded, error + retry on failure.
+  const { data, loading, error, retry } = useAsyncMock(
+    () => mockAsync(() => getTenantTraders(tid), { delayMs: 550 }),
+    [tid],
+  );
+  // Sync fallback keeps children unchanged (hidden behind the boundary).
+  const traders = data ?? getTenantTraders(tid);
 
   // Headline KPIs (per spec).
   const threeMonthRetention = 72;
@@ -174,6 +183,7 @@ export function RetentionAnalyticsPage() {
         }
       />
       <PageContent>
+        <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading retention…">
         {/* KPI row — headline retention metrics first */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <MetricCard label="3-Month Retention" value={`${threeMonthRetention}%`} icon={TrendingUp} tone="positive" />
@@ -293,6 +303,7 @@ export function RetentionAnalyticsPage() {
             </li>
           </ul>
         </div>
+        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );
