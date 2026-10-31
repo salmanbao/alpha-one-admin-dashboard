@@ -1,13 +1,32 @@
 "use client";
 
 /**
- * PFaaS Platform — Financial Display Formatting
+ * PFaaS Platform — Financial Display Formatting (CENTRAL UTILITY)
  *
  * Audit fix #9: money, percent and trading-day values were formatted
  * with ad-hoc `toFixed` / `toLocaleString` / `$${(v/1000)}k` code in
  * each app, so the same number rendered differently between screens
  * (and rounding drifted). These helpers are the canonical form used by
  * every app's performance/analytics surfaces.
+ *
+ * Display rules — one set for all three dashboards (trader,
+ * prop-admin, platform-admin). Every app-level money helper delegates
+ * here instead of re-implementing Intl rules:
+ *
+ *   1. Exact amounts       → formatCurrencyValue: currency symbol +
+ *      thousands separators + EXACTLY 2 decimals, en-US locale,
+ *      currency-code aware (Intl decides $ / € / £ / ¥). Never
+ *      hand-roll `$${x.toLocaleString()}` or `$${x.toFixed(2)}`.
+ *   2. Signed P&L          → formatSignedCurrencyValue: "+" / "−"
+ *      (U+2212 minus, never a hyphen) prefix, then rule 1.
+ *   3. Abbreviated amounts → formatCompactCurrencyValue: ONLY for
+ *      chart axes, sparkline labels and dense tickers (≥1M → 1dp "M",
+ *      ≥1k → 0dp "k", below → whole units). Never mix an abbreviated
+ *      figure next to an exact figure for the same measure.
+ *   4. Non-money counters  → formatCompact / Intl compact notation
+ *      (traders, events, API calls) — no currency symbol.
+ *   5. Percent             → formatPercentValue: value is already in
+ *      percent units (12.5 → "12.5%"), 1 decimal by default.
  *
  * Pure functions, no React — safe to import anywhere.
  */

@@ -14,6 +14,7 @@
  */
 
 import * as React from "react";
+import { formatCurrencyValue, formatCompactCurrencyValue } from "@pfaas/platform-core";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { DemoDataStamp } from "@/components/platform/demo-data";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
@@ -416,13 +417,14 @@ function EquityCurve({ data, currency }: { data: { date: string; value: number }
   );
 }
 
+/**
+ * Money formatting — delegates to the canonical utilities in
+ * `@pfaas/platform-core` (finding #2). Non-compact = exact amounts
+ * (2 decimals); compact = chart-axis labels only (rule 3 in the
+ * financial-format rules doc).
+ */
 function formatMoney(v: number, currency = "USD", compact = false) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    notation: compact ? "compact" : "standard",
-    maximumFractionDigits: compact ? 1 : 0,
-  }).format(v);
+  return compact ? formatCompactCurrencyValue(v, currency) : formatCurrencyValue(v, currency);
 }
 
 function statusTone(s: string): StitchTone {

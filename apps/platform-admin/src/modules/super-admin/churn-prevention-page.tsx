@@ -11,7 +11,7 @@ import { useState, useMemo } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
-import { StatusBadge } from "@/components/platform/status";
+import { StatusBadge, formatCurrency } from "@/components/platform/status";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,8 +106,8 @@ export function ChurnPreventionPage() {
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="At-Risk Accounts" value={stats.atRiskCount} icon={AlertTriangle} tone="negative" />
-          <MetricCard label="MRR at Risk" value={`$${stats.mrrAtRisk.toLocaleString()}`} icon={TrendingDown} tone="warning" />
-          <MetricCard label="Revenue Saved (30d)" value={`$${stats.savedRevenue.toLocaleString()}`} icon={HeartHandshake} tone="positive" />
+          <MetricCard label="MRR at Risk" value={formatCurrency(stats.mrrAtRisk)} icon={TrendingDown} tone="warning" />
+          <MetricCard label="Revenue Saved (30d)" value={formatCurrency(stats.savedRevenue)} icon={HeartHandshake} tone="positive" />
           <MetricCard label="Active Rules" value={stats.activeRules} icon={CheckCircle2} />
         </div>
 

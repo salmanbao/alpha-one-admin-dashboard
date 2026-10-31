@@ -16,6 +16,7 @@
 import { Progress } from "@pfaas/ui/progress";
 import { Badge } from "@pfaas/ui/badge";
 import { cn } from "@pfaas/ui/cn";
+import { formatCurrencyValue } from "@pfaas/platform-core";
 import { TrendingDown, ShieldAlert, Target, Info } from "lucide-react";
 import { useState, type ComponentType } from "react";
 
@@ -140,8 +141,8 @@ export function AccountHealthWidget({
       direction: "loss",
       explanation: "You can lose up to this amount per trading day. Resets at 00:00 server time.",
       advancedDetails: [
-        { label: "Peak Equity", value: `$${(accountBalance + dailyLoss.current).toLocaleString()}` },
-        { label: "Current Equity", value: `$${accountBalance.toLocaleString()}` },
+        { label: "Peak Equity", value: formatCurrencyValue(accountBalance + dailyLoss.current, currency) },
+        { label: "Current Equity", value: formatCurrencyValue(accountBalance, currency) },
         { label: "Reset Time", value: "00:00 UTC" },
         { label: "Calculation", value: "Peak - Current" },
       ],
@@ -156,8 +157,8 @@ export function AccountHealthWidget({
       direction: "loss",
       explanation: "You can lose up to this amount from your highest recorded equity. Does not reset.",
       advancedDetails: [
-        { label: "Peak Equity", value: `$${(accountBalance + maxDrawdown.current).toLocaleString()}` },
-        { label: "Current Equity", value: `$${accountBalance.toLocaleString()}` },
+        { label: "Peak Equity", value: formatCurrencyValue(accountBalance + maxDrawdown.current, currency) },
+        { label: "Current Equity", value: formatCurrencyValue(accountBalance, currency) },
         { label: "Threshold", value: "Trailing" },
         { label: "Last Updated", value: new Date().toLocaleTimeString() },
       ],
@@ -172,8 +173,8 @@ export function AccountHealthWidget({
       direction: "gain",
       explanation: "Reach this profit to pass the current phase and advance to the next step.",
       advancedDetails: [
-        { label: "Current Profit", value: `$${profitTarget.current.toLocaleString()}` },
-        { label: "Target", value: `$${profitTarget.limit.toLocaleString()}` },
+        { label: "Current Profit", value: formatCurrencyValue(profitTarget.current, currency) },
+        { label: "Target", value: formatCurrencyValue(profitTarget.limit, currency) },
         { label: "Progress", value: `${Math.round((profitTarget.current / profitTarget.limit) * 100)}%` },
         { label: "Days Remaining", value: "12" },
       ],

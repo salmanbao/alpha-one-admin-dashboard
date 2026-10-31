@@ -30,6 +30,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { formatSignedCurrencyValue } from "@pfaas/platform-core";
 import { toast } from "@/hooks/use-toast";
 import {
   marketWatch,
@@ -67,11 +68,7 @@ interface TradingContextValue {
 
 const TradingContext = createContext<TradingContextValue | null>(null);
 
-const money = (n: number) =>
-  `${n >= 0 ? "+" : "−"}$${Math.abs(n).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+const money = (n: number) => formatSignedCurrencyValue(n, "USD");
 
 function quote(symbol: string) {
   return marketWatch.find((m) => m.symbol === symbol) ?? marketWatch[0];
