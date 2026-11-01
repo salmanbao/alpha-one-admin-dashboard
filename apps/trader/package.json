@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node init.cjs && next dev -p 3002",
-    "build": "node init.cjs && next build --webpack && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
-    "start": "node init.cjs && NODE_ENV=production bun .next/standalone/server.js",
+    "dev": "next dev -p 3002",
+    "build": "next build --webpack && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
+    "start": "NODE_ENV=production bun .next/standalone/server.js",
     "lint": "eslint ."
   },
   "dependencies": {
