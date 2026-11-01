@@ -314,14 +314,29 @@ export function PayoutRequestPage() {
                     type="text"
                     inputMode="decimal"
                     value={amount}
+                    aria-invalid={amount !== "" && !valid}
+                    aria-describedby={amount !== "" && !valid ? "amount-error" : undefined}
                     onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-                    className="rounded-lg border border-outline-variant bg-surface-container-lowest pl-7 pr-3 py-2 text-sm font-bold tabular-nums outline-none focus:border-primary"
+                    className={`rounded-lg border bg-surface-container-lowest pl-7 pr-3 py-2 text-sm font-bold tabular-nums outline-none focus:border-primary ${
+                      amount !== "" && !valid ? "border-error focus:border-error" : "border-outline-variant"
+                    }`}
                   />
                 </div>
                 <p className="text-xs text-on-surface-variant">
                   Min {formatMoney(minPayout)} • Max {formatMoney(entitlement.withdrawable)} (
                   {entitlement.splitPct}% of {formatMoney(entitlement.netProfit)} net profit)
                 </p>
+                {/* Real-time amount validation — say exactly what's wrong
+                    (audit: eligibility preview before submission) */}
+                {amount !== "" && !valid && (
+                  <p id="amount-error" role="alert" className="text-xs font-bold text-error">
+                    {!Number.isFinite(asked) || asked === 0
+                      ? "Enter a valid payout amount."
+                      : asked < minPayout
+                        ? `Below the ${formatMoney(minPayout)} minimum — enter at least ${formatMoney(minPayout - asked)} more.`
+                        : `Exceeds your withdrawable ${formatMoney(entitlement.withdrawable)} — reduce the amount by ${formatMoney(asked - entitlement.withdrawable)}.`}
+                  </p>
+                )}
               </label>
 
               <div className="grid grid-cols-2 gap-4">

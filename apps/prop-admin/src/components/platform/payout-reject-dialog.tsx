@@ -83,6 +83,32 @@ export type PayoutRejectResult = {
 };
 
 /**
+ * What the trader should do next, per category — shown under the
+ * dropdown so the rejection guides them toward resolution instead of
+ * leaving them to guess (audit: detailed reason selection).
+ */
+const categoryGuidance: Record<string, string> = {
+  "Account breached a trading rule during the payout window":
+    "Share the breach timeline (Risk → Breaches) and the targeted retry plan with the trader.",
+  "Daily loss limit exceeded before the payout date":
+    "Include the daily drawdown meter reading and the date the limit was crossed.",
+  "Maximum drawdown breached during the payout period":
+    "Point to the max-drawdown meter and the exact trade that crossed the trailing line.",
+  "Minimum trading days not met":
+    "Show the trading-days progress (X of 5 required) and when the remaining days can be traded.",
+  "Consistency rule not satisfied":
+    "Explain the best-day share of total profit vs the cap, with the numbers from the cycle.",
+  "KYC / identity verification incomplete":
+    "Link the trader to the KYC status screen — rejected items there can be re-uploaded inline.",
+  "Withdrawal method not verified or mismatched":
+    "Ask the trader to re-verify the payout method (name mismatch) in Withdrawal Methods.",
+  "Duplicate or fraudulent payout request":
+    "Escalate to compliance before responding — do not disclose detection details to the trader.",
+  "Other (describe below)":
+    "No preset guidance — write what happened and what the trader needs to fix.",
+};
+
+/**
  * Build the audit-trail reason string from the dialog's inputs.
  * Kept here so every surface records the reason in the same shape.
  */
@@ -183,6 +209,12 @@ export function PayoutRejectDialog({
                 ))}
               </SelectContent>
             </Select>
+            {category !== "" && (
+              <p className="text-[11px] leading-snug text-muted-foreground">
+                <span className="font-medium text-foreground">Next step:</span>{" "}
+                {categoryGuidance[category]}
+              </p>
+            )}
           </div>
 
           {/* 2. Required detail — the specific explanation */}
