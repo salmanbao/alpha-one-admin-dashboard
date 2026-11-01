@@ -7,8 +7,9 @@
  * Tier 1 — Search, filter, and review platform audit events for compliance.
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { tenants } from "@/lib/platform/mock-data";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -17,6 +18,13 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -113,10 +121,34 @@ const severityTones: Record<string, "success" | "info" | "warning" | "danger"> =
 };
 
 export function AuditLogPage() {
-  const { navigate } = usePlatform();
+  const { navigate, router } = usePlatform();
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
+  // Tenant scope — preset via navigate("audit-log", { tenant }) from the
+  // tenant detail view (audit: tenant-specific log viewer).
+  const [tenantFilter, setTenantFilter] = useState<string>(router.params.tenant ?? "all");
+
+  useEffect(() => {
+    if (router.params.tenant) setTenantFilter(router.params.tenant);
+  }, [router.params.tenant]);
+
+  const tenantName = useMemo(
+    () => tenants.find((t) => t.id === tenantFilter)?.name ?? "",
+    [tenantFilter],
+  );
+
+  /** Which tenant an event belongs to — derived from the tenant names
+   *  referenced in its target/details; null = platform-wide / other. */
+  const tenantOf = useMemo(() => {
+    const byName = new Map(tenants.map((t) => [t.name, t.id]));
+    return (evt: (typeof demoAuditEvents)[number]): string | null => {
+      for (const [name, id] of byName) {
+        if (evt.target === name || evt.details.includes(name)) return id;
+      }
+      return null;
+    };
+  }, []);
 
   // Async seam (frontend-first): event stream resolves via the mock layer.
   const {
@@ -137,9 +169,10 @@ export function AuditLogPage() {
         evt.target.toLowerCase().includes(search.toLowerCase());
       const matchesAction = actionFilter === "all" || evt.action === actionFilter;
       const matchesSeverity = severityFilter === "all" || evt.severity === severityFilter;
-      return matchesSearch && matchesAction && matchesSeverity;
+      const matchesTenant = tenantFilter === "all" || tenantOf(evt) === tenantFilter;
+      return matchesSearch && matchesAction && matchesSeverity && matchesTenant;
     });
-  }, [auditEvents, search, actionFilter, severityFilter]);
+  }, [auditEvents, search, actionFilter, severityFilter, tenantFilter, tenantOf]);
 
   const actions = useMemo(() => {
     const set = new Set(auditEvents.map((e) => e.action));
@@ -218,7 +251,34 @@ export function AuditLogPage() {
               className="pl-9"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Tenant scope — same audit events, narrowed to one tenant */}
+            <Select value={tenantFilter} onValueChange={setTenantFilter}>
+              <SelectTrigger className="h-8 w-[160px] text-xs" aria-label="Filter by tenant">
+                <SelectValue placeholder="All tenants" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All tenants</SelectItem>
+                {tenants.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {tenantFilter !== "all" && (
+              <Badge variant="secondary" className="gap-1">
+                Tenant: {tenantName}
+                <button
+                  type="button"
+                  aria-label="Clear tenant filter"
+                  onClick={() => setTenantFilter("all")}
+                  className="rounded-full p-0.5 hover:bg-muted"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
             <Button
               size="sm"
               variant={actionFilter === "all" ? "default" : "outline"}

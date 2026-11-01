@@ -22,6 +22,7 @@ import {
   type TerraAccount,
 } from "@/lib/fixtures/terra-fixtures";
 import { formatCurrencyValue } from "@pfaas/platform-core";
+import Link from "next/link";
 import { DetailDialog } from "@/components/terra/detail-dialog";
 
 function RuleRow({
@@ -104,6 +105,27 @@ export function ChallengeRulesDialog({
               : "Evaluation phase requirement — see objectives for progress"
           }
         />
+        {/* Why the minimum exists — plain-language explanation + the
+            educational surface (audit: clarify min trading days) */}
+        <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+          <p className="text-xs font-bold text-primary">Why minimum trading days?</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Profit in a single lucky trade doesn&apos;t prove a repeatable edge. Spreading
+            results across at least {challenge?.minDays ?? "the required number of"} trading
+            days lets the evaluation measure consistency instead of one outlier — a common
+            pattern is hitting the target in {Math.max(1, (challenge?.minDays ?? 5) - 3)}–
+            {challenge?.minDays ?? 5} days of steady risk, then pacing the remainder rather
+            than forcing trades. Missing the minimum by the deadline (day{" "}
+            {timeline?.maxCalendarDays ?? "set per program"}) fails the phase even when the
+            profit target is met, so plan your days alongside your target.
+          </p>
+          <Link
+            href="/trading-plan-builder"
+            className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-primary underline-offset-2 hover:underline"
+          >
+            Build a trading plan that paces your days →
+          </Link>
+        </div>
         {timeline ? (
           <RuleRow
             label="Consistency rule"

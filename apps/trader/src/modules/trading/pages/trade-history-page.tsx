@@ -328,6 +328,7 @@ export function TradeHistoryPage() {
         )}
         <span className="ml-auto text-xs font-semibold text-on-surface-variant">
           {sorted.length} of {terraTrades.length} trades
+          <span className="hidden font-normal sm:inline"> • ↑/↓ move • Enter open • Esc close</span>
         </span>
       </div>
 
@@ -337,6 +338,35 @@ export function TradeHistoryPage() {
           description="Try widening the outcome, symbol or side filters."
         />
       ) : (
+        /* Keyboard navigation: ArrowUp/ArrowDown move focus between the
+           ticket quick-view buttons, Home/End jump to the first/last row,
+           Enter opens the focused trade (native button activation) and
+           Escape closes the dialog (Radix) — audit: keyboard-only review. */
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+        <div
+          role="group"
+          aria-label="Trade history table — use arrow keys to move between rows, Enter to open a trade"
+          onKeyDown={(e) => {
+            if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
+            const buttons = Array.from(
+              e.currentTarget.querySelectorAll<HTMLButtonElement>('button[aria-haspopup="dialog"]'),
+            );
+            if (buttons.length === 0) return;
+            const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+            const next =
+              e.key === "Home"
+                ? 0
+                : e.key === "End"
+                  ? buttons.length - 1
+                  : current === -1
+                    ? 0
+                    : e.key === "ArrowDown"
+                      ? Math.min(buttons.length - 1, current + 1)
+                      : Math.max(0, current - 1);
+            e.preventDefault();
+            buttons[next]?.focus();
+          }}
+        >
         <TerraCard>
           <TerraTable
             head={[
@@ -356,7 +386,7 @@ export function TradeHistoryPage() {
                 type="button"
                 aria-haspopup="dialog"
                 onClick={() => setQuickTradeId(t.id)}
-                className="text-left font-mono text-xs font-bold text-primary hover:underline"
+                className="rounded text-left font-mono text-xs font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 {t.ticket}
               </button>,
@@ -405,6 +435,7 @@ export function TradeHistoryPage() {
             </div>
           </div>
         </TerraCard>
+        </div>
       )}
 
       {/* Quick-view overlay — inspect a trade without leaving the table */}
