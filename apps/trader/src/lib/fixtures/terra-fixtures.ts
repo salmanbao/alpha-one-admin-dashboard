@@ -1410,12 +1410,28 @@ export const economicEvents = [
 /* Leaderboard                                                         */
 /* ------------------------------------------------------------------ */
 
-export const leaderboard = [
-  { rank: 1, name: "Mia Chen", gain: "+18.4%", trades: 212, country: "🇸🇬" },
-  { rank: 2, name: "Diego Alvarez", gain: "+15.1%", trades: 178, country: "🇪🇸" },
-  { rank: 3, name: "Tom Allen", gain: "+9.7%", trades: 142, country: "🇺🇸", me: true },
-  { rank: 4, name: "Sara Lindqvist", gain: "+8.2%", trades: 96, country: "🇸🇪" },
-  { rank: 5, name: "Ahmed Hassan", gain: "+7.6%", trades: 233, country: "🇦🇪" },
+/**
+ * Leaderboard entry — segment facets (challenge, region) and per-period
+ * gains power the view filters and the "My Ranking" benchmarks
+ * (audit finding #5). Deterministic values, no Math.random().
+ */
+export interface LeaderboardEntry {
+  name: string;
+  challenge: "flash-50k" | "evaluation-100k" | "funded";
+  region: "americas" | "emea" | "apac";
+  country: string;
+  trades: number;
+  gains: { thisMonth: number; lastMonth: number; allTime: number };
+  /** Marked on the signed-in trader's row. */
+  me?: boolean;
+}
+
+export const leaderboard: LeaderboardEntry[] = [
+  { name: "Mia Chen", challenge: "flash-50k", region: "apac", country: "🇸🇬", trades: 212, gains: { thisMonth: 18.4, lastMonth: 12.9, allTime: 46.1 } },
+  { name: "Diego Alvarez", challenge: "evaluation-100k", region: "emea", country: "🇪🇸", trades: 178, gains: { thisMonth: 15.1, lastMonth: 9.4, allTime: 38.7 } },
+  { name: "Tom Allen", challenge: "flash-50k", region: "americas", country: "🇺🇸", trades: 142, gains: { thisMonth: 9.7, lastMonth: 6.2, allTime: 28.4 }, me: true },
+  { name: "Sara Lindqvist", challenge: "evaluation-100k", region: "emea", country: "🇸🇪", trades: 96, gains: { thisMonth: 8.2, lastMonth: 11.1, allTime: 33.5 } },
+  { name: "Ahmed Hassan", challenge: "funded", region: "apac", country: "🇦🇪", trades: 233, gains: { thisMonth: 7.6, lastMonth: 8.8, allTime: 31.2 } },
 ];
 
 /* ------------------------------------------------------------------ */

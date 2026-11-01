@@ -237,6 +237,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "tenant-health": dynamic(
+    () =>
+      import("@/modules/super-admin/tenant-health-page").then((m) => ({
+        default: m.TenantHealthPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "provisioning-saga": dynamic(
     () =>
       import("@/modules/super-admin/provisioning-saga-page").then((m) => ({
