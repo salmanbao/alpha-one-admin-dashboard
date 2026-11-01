@@ -34,6 +34,7 @@ import {
   AlertTriangle,
   ArrowRight,
   ArrowUpRight,
+  Bell,
   CheckCircle2,
   Gauge,
   Key,
@@ -67,6 +68,23 @@ const PLAN_API_CAP: Record<TenantApiRow["plan"], number> = {
   scale: 5_000_000,
   enterprise: 10_000_000,
 };
+
+/**
+ * Usage forecasting — linear projection from the 7-day series: how many
+ * days until the tenant hits its limit at the current trend. Deterministic
+ * (no randomness): slope = (last − first) / days. Returns:
+ *   0        → already at/over the limit,
+ *   1..365   → projected breach day count,
+ *   null     → flat/declining trend or >1 year out — not actionable.
+ */
+function forecastDaysToLimit(series: number[], callsPerDay: number, limit: number): number | null {
+  if (callsPerDay >= limit) return 0;
+  if (series.length < 2) return null;
+  const slope = (series[series.length - 1] - series[0]) / (series.length - 1);
+  if (slope <= 0) return null;
+  const days = (limit - callsPerDay) / slope;
+  return days > 365 ? null : Math.ceil(days);
+}
 
 const TENANT_API: TenantApiRow[] = [
   {
@@ -174,7 +192,8 @@ export function TenantApiUsagePage() {
         const limit = effectiveLimit(row);
         const usagePct = (row.callsPerDay / Math.max(1, limit)) * 100;
         const wow = ((row.series[row.series.length - 1] - row.series[0]) / Math.max(1, row.series[0])) * 100;
-        return { row, limit, usagePct, wow, anomalies: anomaliesFor(row, limit) };
+        const daysToLimit = forecastDaysToLimit(row.series, row.callsPerDay, limit);
+        return { row, limit, usagePct, wow, daysToLimit, anomalies: anomaliesFor(row, limit) };
       }),
     [limits],
   );
@@ -184,6 +203,26 @@ export function TenantApiUsagePage() {
   const total429 = TENANT_API.reduce((s, r) => s + r.rateLimited429, 0);
   const avgError =
     TENANT_API.reduce((s, r) => s + r.errorRatePct * r.callsPerDay, 0) / Math.max(1, totalCalls);
+  // Forecast summary — tenants projected to reach their limit within 30 days.
+  const projected = rows.filter((r) => r.daysToLimit !== null && r.daysToLimit <= 30);
+
+  /** Mock "automated notification" — queues an alert to every tenant the
+   *  forecast flags, so operators act before the overage (audit #10). */
+  const sendForecastAlerts = () => {
+    if (projected.length === 0) {
+      toast({
+        title: "No forecast alerts",
+        description: "No tenant is projected to hit its limit in the next 30 days.",
+      });
+      return;
+    }
+    toast({
+      title: "Forecast alerts queued",
+      description: `${projected.length} tenant${projected.length === 1 ? "" : "s"} flagged at the 80% threshold — ${projected
+        .map((r) => `${r.row.name} (${r.daysToLimit === 0 ? "over limit now" : `${r.daysToLimit}d`})`)
+        .join(", ")}. Mock notification — no emails sent.`,
+    });
+  };
 
   const applyLimits = () => {
     const changed = TENANT_API.filter((r) => (limits[r.tenantId] ?? null) !== r.customLimit);
@@ -266,6 +305,34 @@ export function TenantApiUsagePage() {
         </div>
       ),
       sortValue: (r) => r.usagePct,
+    },
+    {
+      /* Usage forecast — when the tenant hits their limit at the current
+         7-day trend, so operators can reach out BEFORE the overage
+         (audit: proactive limit forecasting). */
+      key: "forecast",
+      header: "Limit forecast",
+      cell: (r) => {
+        if (r.daysToLimit === null)
+          return <span className="text-xs text-muted-foreground">No projected breach</span>;
+        if (r.daysToLimit === 0)
+          return (
+            <Badge variant="destructive" className="text-[10px]">
+              Over limit now
+            </Badge>
+          );
+        const soon = r.daysToLimit <= 7;
+        return (
+          <Badge
+            variant={soon ? "destructive" : "secondary"}
+            className="text-[10px]"
+            title={`At the current 7-day trend (~${Math.round(r.wow >= 0 ? r.wow : 0)}% growth over the week), this tenant reaches ${Math.round(r.usagePct)}% → 100% of its limit in ${r.daysToLimit} day${r.daysToLimit === 1 ? "" : "s"}.`}
+          >
+            {soon ? `⚠ Hits limit in ${r.daysToLimit}d` : `In ${r.daysToLimit} days`}
+          </Badge>
+        );
+      },
+      sortValue: (r) => (r.daysToLimit === null ? 999 : r.daysToLimit),
     },
     {
       key: "custom-limit",
@@ -366,6 +433,10 @@ export function TenantApiUsagePage() {
           <>
             <Button size="sm" variant="outline" onClick={() => navigate("api-analytics")}>
               Global API analytics <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+            </Button>
+            <Button size="sm" variant="outline" onClick={sendForecastAlerts} title="Queue mock usage alerts for tenants projected to hit their limit within 30 days">
+              <Bell className="mr-1 h-3.5 w-3.5" />
+              Send forecast alerts{projected.length > 0 ? ` (${projected.length})` : ""}
             </Button>
             <Button size="sm" onClick={applyLimits}>
               <Save className="mr-1 h-3.5 w-3.5" /> Save limits
