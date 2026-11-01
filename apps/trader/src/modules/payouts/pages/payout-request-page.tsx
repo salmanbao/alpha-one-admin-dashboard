@@ -75,6 +75,15 @@ function EligibilityPreCheck({
             <div>
               <span className="text-on-surface">{c.label}</span>
               <p className="text-xs text-on-surface-variant">{c.note}</p>
+              {/* Unmet criteria get a direct path to resolution (audit: clarity) */}
+              {!c.ok && c.resolve && (
+                <Link
+                  href={c.resolve.href}
+                  className="mt-0.5 inline-block text-xs font-bold text-primary hover:text-on-primary-fixed-variant"
+                >
+                  → {c.resolve.label}
+                </Link>
+              )}
             </div>
             <span
               className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${

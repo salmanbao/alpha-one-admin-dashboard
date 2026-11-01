@@ -13,6 +13,7 @@ export { TenantDetailPage } from "./tenant-detail-page";
 export { CreateTenantPage } from "./create-tenant-page";
 export { TenantLifecyclePage } from "./tenant-lifecycle-page";
 export { TenantHealthPage } from "./tenant-health-page";
+export { TenantApiUsagePage } from "./tenant-api-usage-page";
 // Round 8: new platform operations screens
 export { PlatformOperationsPage } from "./platform-operations-page";
 export { EmergencyControlsPage } from "./emergency-controls-page";
