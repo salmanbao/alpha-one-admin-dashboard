@@ -18,6 +18,7 @@ import { GlobalSearchDialog } from "./global-search";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { OnboardingWizard } from "./onboarding-wizard";
 import { ImpersonationBanner } from "@/components/platform/impersonation-banner";
+import { SessionExpiryBanner } from "@/components/platform/session-expiry-banner";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { setSearchOpen } = usePlatform();
@@ -47,6 +48,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         Skip to content
       </a>
+      {/* Session expiry warning — fixed banner, appears 5 min before the
+          session lapses (audit #7: identical banner in all three apps) */}
+      <SessionExpiryBanner />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
