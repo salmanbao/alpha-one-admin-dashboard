@@ -41,7 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Check, X, UserPlus } from "lucide-react";
+import { Check, X, UserPlus, ShieldAlert, ShieldCheck } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /* Shared model                                                        */
@@ -152,6 +152,25 @@ const TRADER_POOL = [
   "Liam Smith", "Emma Wilson", "Noah Davis", "Olivia Brown", "James Taylor",
   "Ava Martin", "Ethan Clark", "Mia Rodriguez", "Lucas Moore", "Sofia Lee",
 ];
+
+/**
+ * Deterministic enrollment eligibility per pool trader (mock data) —
+ * KYC standing + account rules. Pending requests show WHY an entrant
+ * is (not) eligible, so approving is a decision instead of a guess
+ * (audit: enrollment management with trader eligibility criteria).
+ */
+const ELIGIBILITY: Record<string, { eligible: boolean; note: string }> = {
+  "Liam Smith": { eligible: true, note: "KYC verified • funded account" },
+  "Emma Wilson": { eligible: true, note: "KYC verified • funded account" },
+  "Noah Davis": { eligible: false, note: "KYC document expired — renew to enroll" },
+  "Olivia Brown": { eligible: true, note: "KYC verified • Phase 2 challenge" },
+  "James Taylor": { eligible: false, note: "Open rule breach on funded account" },
+  "Ava Martin": { eligible: true, note: "KYC verified • funded account" },
+  "Ethan Clark": { eligible: false, note: "Email unverified — send verification link" },
+  "Mia Rodriguez": { eligible: true, note: "KYC verified • Phase 1 challenge" },
+  "Lucas Moore": { eligible: false, note: "Account age under 30 days" },
+  "Sofia Lee": { eligible: true, note: "KYC verified • funded account" },
+};
 
 const isoDate = (offsetDays: number) => {
   const d = new Date();
@@ -398,6 +417,15 @@ export function CompetitionEnrollmentDialog({ open, onOpenChange, competition, o
   const approved = competition.entrants.filter((e) => e.status === "approved");
   const rejected = competition.entrants.filter((e) => e.status === "rejected");
   const [pick, setPick] = useState("");
+  // Eligibility lens for the pending queue (audit: filter by trader
+  // eligibility criteria) — deterministic from the ELIGIBILITY map.
+  const [eligFilter, setEligFilter] = useState<"all" | "eligible" | "needs-review">("all");
+  const pendingVisible = pending.filter((e) => {
+    const eligible = ELIGIBILITY[e.trader]?.eligible ?? true;
+    if (eligFilter === "eligible") return eligible;
+    if (eligFilter === "needs-review") return !eligible;
+    return true;
+  });
 
   const candidates = useMemo(
     () => TRADER_POOL.filter((t) => !competition.entrants.some((e) => e.trader === t)),
@@ -453,22 +481,77 @@ export function CompetitionEnrollmentDialog({ open, onOpenChange, competition, o
 
           {/* Pending approvals */}
           <div>
-            <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Pending requests ({pending.length})</p>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Pending requests ({pending.length})
+              </p>
+              {pending.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground" htmlFor="elig-filter">
+                    Eligibility
+                  </label>
+                  <select
+                    id="elig-filter"
+                    value={eligFilter}
+                    onChange={(e) => setEligFilter(e.target.value as typeof eligFilter)}
+                    className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-semibold text-foreground focus:border-primary focus:outline-none"
+                  >
+                    <option value="all">All ({pending.length})</option>
+                    <option value="eligible">
+                      Eligible ({pending.filter((e) => ELIGIBILITY[e.trader]?.eligible ?? true).length})
+                    </option>
+                    <option value="needs-review">
+                      Needs review ({pending.filter((e) => !(ELIGIBILITY[e.trader]?.eligible ?? true)).length})
+                    </option>
+                  </select>
+                </div>
+              )}
+            </div>
             {pending.length === 0 ? (
               <p className="rounded-md border border-dashed p-3 text-[11px] text-muted-foreground">No pending requests.</p>
+            ) : pendingVisible.length === 0 ? (
+              <p className="rounded-md border border-dashed p-3 text-[11px] text-muted-foreground">
+                No {eligFilter === "eligible" ? "eligible" : "ineligible"} pending requests — switch the eligibility filter to see all.
+              </p>
             ) : (
               <div className="space-y-1">
-                {pending.map((e) => (
-                  <div key={e.id} className="flex items-center gap-2 rounded-md border p-2 text-xs">
-                    <span className="flex-1 font-medium">{e.trader}</span>
-                    <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => onDecide(e.id, "approved")}>
-                      <Check className="mr-1 h-3 w-3" /> Approve
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-7 px-2 text-rose-600" onClick={() => onDecide(e.id, "rejected")}>
-                      <X className="mr-1 h-3 w-3" /> Reject
-                    </Button>
-                  </div>
-                ))}
+                {pendingVisible.map((e) => {
+                  const elig = ELIGIBILITY[e.trader] ?? { eligible: true, note: "No eligibility record on file" };
+                  return (
+                    <div
+                      key={e.id}
+                      className={`rounded-md border p-2 text-xs ${elig.eligible ? "" : "border-amber-500/40 bg-amber-500/5"}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="flex-1 font-medium">{e.trader}</span>
+                        <span
+                          className={`flex items-center gap-1 text-[10px] font-semibold ${elig.eligible ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}
+                          title={elig.note}
+                        >
+                          {elig.eligible ? (
+                            <ShieldCheck className="h-3 w-3" />
+                          ) : (
+                            <ShieldAlert className="h-3 w-3" />
+                          )}
+                          {elig.eligible ? "Eligible" : "Needs review"}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2"
+                          title={elig.eligible ? undefined : `⚠ ${elig.note}`}
+                          onClick={() => onDecide(e.id, "approved")}
+                        >
+                          <Check className="mr-1 h-3 w-3" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-rose-600" onClick={() => onDecide(e.id, "rejected")}>
+                          <X className="mr-1 h-3 w-3" /> Reject
+                        </Button>
+                      </div>
+                      <p className="mt-0.5 pl-0.5 text-[10px] text-muted-foreground">{elig.note}</p>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
