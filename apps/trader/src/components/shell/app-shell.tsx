@@ -18,10 +18,10 @@
  * separate Topbar component.
  */
 
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Moon, Search, Sun } from "lucide-react";
+import { Moon, Search, Sun, ChevronRight } from "lucide-react";
 import { usePlatform } from "@pfaas/platform-core";
 import { Sidebar } from "./sidebar";
 import { AccountSwitcher } from "./account-switcher";
@@ -257,6 +257,28 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
+
+        {/* Breadcrumbs — pathname-based (audit #6: trader shell had none) */}
+        <nav aria-label="Breadcrumb" className="bg-background/90 border-b px-4 py-2 md:px-6 backdrop-blur">
+          <ol className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <li>
+              <Link href="/dashboard" className="hover:text-foreground hover:underline">Home</Link>
+            </li>
+            <li aria-hidden="true"><ChevronRight className="h-3 w-3" /></li>
+            {useMemo(() => {
+              const p = pathname || "/";
+              if (p === "/" || p === "/dashboard") return null;
+              const first = p.split("/").filter(Boolean)[0];
+              if (!first) return null;
+              const label = first.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              return (
+                <>
+                  <li aria-current="page" className="font-medium text-foreground">{label}</li>
+                </>
+              );
+            }, [pathname])}
+          </ol>
+        </nav>
 
         <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-4 md:px-6 md:py-6">
           {children}

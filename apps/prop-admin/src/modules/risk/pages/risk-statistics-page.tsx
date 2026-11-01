@@ -26,6 +26,7 @@ import {
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
+import { BarSeries, LineSeries, AreaSeries } from "@/components/platform/charts";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ import {
   Users,
   Globe,
   Ruler,
+  Activity,
   Download,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -179,6 +181,34 @@ export function RiskStatisticsPage() {
     return rows;
   }, [traders]);
 
+  // ---- Chart data (audit #1 — visual trend analysis) ----
+  const profitTrend = useMemo(() => {
+    const byWeek = new Map<string, { amount: number; count: number }>();
+    for (const p of rangedPayouts) {
+      const d = new Date(p.createdAt);
+      const w = new Date(d); w.setDate(d.getDate() - d.getDay());
+      const key = w.toISOString().slice(0, 10);
+      const cur = byWeek.get(key) ?? { amount: 0, count: 0 };
+      cur.amount += p.amount; cur.count += 1;
+      byWeek.set(key, cur);
+    }
+    return Array.from(byWeek.entries()).sort(([a], [b]) => (a < b ? -1 : 1)).map(([date, v]) => ({
+      label: new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      payout: Math.round(v.amount),
+    }));
+  }, [rangedPayouts]);
+
+  const countryBarData = useMemo(
+    () => countryRows.map((r) => ({ country: r.country, revenue: r.revenue }))
+      .sort((a, b) => b.revenue - a.revenue).slice(0, 8),
+    [countryRows],
+  );
+
+  const sizeAreaData = useMemo(
+    () => sizeRows.map((r) => ({ range: r.range, funded: r.funded, revenue: r.revenue })),
+    [sizeRows],
+  );
+
   // Headline KPIs — aggregated across all tabs. Revenue uses the
   // per-challenge revenue baseline so the totals match the table.
   const totalRevenue = challengeRows.reduce((s, r) => s + r.revenue, 0);
@@ -319,6 +349,22 @@ export function RiskStatisticsPage() {
                 <ShieldCheck className="h-3.5 w-3.5" />
                 <span>{resolveTermsInString(`Grouped by challenge type — ${challengeRows.length} types`, tenant)}</span>
               </div>
+              {/* Profit Trend — line chart over selected date range (audit #1) */}
+              <div className="mb-4 rounded-lg bg-muted/30 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-medium text-foreground">Profit Trend</p>
+                  <span className="text-xs text-muted-foreground">{rangedPayouts.length} payouts in range</span>
+                </div>
+                <LineSeries
+                  data={profitTrend}
+                  xKey="label"
+                  yKey="payout"
+                  color="var(--brand-primary)"
+                  height={220}
+                  formatValue={(v) => formatCurrency(v, currency)}
+                  label={`Payout trend over ${range === "all" ? "all time" : range === "30d" ? "30 days" : range === "90d" ? "90 days" : "1 year"} — ${profitTrend.length} weekly buckets`}
+                />
+              </div>
               <DataTable
                 columns={challengeColumns}
                 data={challengeRows}
@@ -336,6 +382,22 @@ export function RiskStatisticsPage() {
                 <Globe className="h-3.5 w-3.5" />
                 <span>{resolveTermsInString(`${countryRows.length} countries — sorted by trader count`, tenant)}</span>
               </div>
+              {/* Country Bar — top 8 by revenue (audit #1) */}
+              <div className="mb-4 rounded-lg bg-muted/30 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-medium text-foreground">Country Performance</p>
+                  <span className="text-xs text-muted-foreground">{countryBarData.length} countries shown</span>
+                </div>
+                <BarSeries
+                  data={countryBarData}
+                  xKey="country"
+                  yKey="revenue"
+                  color="var(--brand-primary)"
+                  height={220}
+                  formatValue={(v) => formatCurrency(v, currency)}
+                  label={`Top 8 countries by revenue — ${countryRows.length} total countries`}
+                />
+              </div>
               <DataTable
                 columns={countryColumns}
                 data={countryRows}
@@ -352,6 +414,22 @@ export function RiskStatisticsPage() {
               <div className="mb-2 flex items-center gap-2 px-2 pt-1 text-xs text-muted-foreground">
                 <Ruler className="h-3.5 w-3.5" />
                 <span>Account balance ranges (5 bands)</span>
+              </div>
+              {/* Account Size Area — distribution by range (audit #1) */}
+              <div className="mb-4 rounded-lg bg-muted/30 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-medium text-foreground">Account Size Distribution</p>
+                  <span className="text-xs text-muted-foreground">{sizeRows.length} ranges</span>
+                </div>
+                <AreaSeries
+                  data={sizeAreaData}
+                  xKey="range"
+                  yKey="revenue"
+                  color="var(--brand-primary)"
+                  height={220}
+                  formatValue={(v) => formatCurrency(v, currency)}
+                  label={`Account size bands — ${sizeRows.length} ranges`}
+                />
               </div>
               <DataTable
                 columns={sizeColumns}
