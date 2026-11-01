@@ -27,6 +27,9 @@ import { Sidebar } from "./sidebar";
 import { AccountSwitcher } from "./account-switcher";
 import { CommandPalette } from "./command-palette";
 import { notifications, terraTenant } from "@/lib/fixtures/terra-fixtures";
+// Relative import — the @/components/platform/* alias points at the shared
+// package; local platform components are opt-in via tsconfig paths.
+import { SessionExpiryBanner } from "../platform/session-expiry-banner";
 
 const THEME_KEY = "terra-theme";
 
@@ -82,6 +85,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
+      {/* Session expiry warning — fixed banner, appears 5 min before the
+          session lapses (audit #7: identical banner in all three apps) */}
+      <SessionExpiryBanner />
       {/* ⌘K command palette — nav, quick actions, account switching */}
       <CommandPalette onToggleTheme={toggleDark} dark={dark} />
       <Sidebar mobileOpen={menuOpen} onClose={() => setMenuOpen(false)} />
