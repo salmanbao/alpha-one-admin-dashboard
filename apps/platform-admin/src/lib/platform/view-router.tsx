@@ -258,6 +258,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "tenant-api-usage": dynamic(
+    () =>
+      import("@/modules/super-admin/tenant-api-usage-page").then((m) => ({
+        default: m.TenantApiUsagePage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "support-assist": dynamic(
     () =>
       import("@/modules/super-admin/support-assist-page").then((m) => ({
