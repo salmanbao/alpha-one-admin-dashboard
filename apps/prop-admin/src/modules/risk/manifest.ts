@@ -3,7 +3,7 @@
  * Includes Breaches (spec section 7 — Breaches is a sub-area of Risk).
  */
 
-import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2, DollarSign, Copy, ArrowLeftRight, MapPin, CalendarClock, Settings2, Bell } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2, DollarSign, Copy, ArrowLeftRight, MapPin, CalendarClock, Settings2, Bell, Gauge } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { RiskOverviewWidget, RiskDistributionWidget, BreachTrendWidget, OpenBreachesWidget } from "./widgets/risk-widgets";
 
@@ -16,6 +16,7 @@ const navigation: NavigationItem[] = [
     children: [
       // ───────── Overview & Breaches ─────────
       { id: "risk.overview", label: "Overview", href: "risk", icon: ShieldCheck, permission: ["risk.read", "risk.self", "breach.self"], group: "Overview & Breaches" },
+      { id: "risk.trader-scoring", label: "Trader Risk Scoring", href: "trader-risk-scoring", icon: Gauge, permission: "risk.read", group: "Overview & Breaches" },
       // "My Breaches" moved to the self-service module (§6.6).
       { id: "risk.cases", label: "Risk Cases", href: "risk-cases", icon: ShieldAlert, permission: ["risk.read", "breach.self"], group: "Overview & Breaches" },
       { id: "risk.statistics", label: "Statistics", href: "risk-statistics", icon: BarChart3, permission: "risk.read", group: "Overview & Breaches" },
@@ -54,6 +55,7 @@ const routes: RouteDefinition[] = [
   // access his own risk overview + breaches. Analytics-style pages stay
   // admin-only (risk.read).
   { path: "risk", viewId: "risk", label: "Risk Overview", permission: ["risk.read", "breach.self"], module: "risk" },
+  { path: "trader-risk-scoring", viewId: "trader-risk-scoring", label: "Trader Risk Scoring", permission: "risk.read", module: "risk" },
   { path: "risk-cases", viewId: "risk-cases", label: "Risk Cases", permission: ["risk.read", "breach.self"], module: "risk" },
   { path: "breaches", viewId: "breaches", label: "Breaches", permission: ["breach.read", "breach.self"], module: "risk" },
   { path: "risk-statistics", viewId: "risk-statistics", label: "Risk Statistics", permission: "risk.read", module: "risk" },

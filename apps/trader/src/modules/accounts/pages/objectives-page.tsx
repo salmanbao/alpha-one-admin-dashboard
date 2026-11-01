@@ -8,9 +8,13 @@
  * days counter, consistency-rule meter, breach-proximity warnings, and a
  * composite risk score with educational tooltips, so traders see their
  * full rule standing (not just drawdown) next to profit progress.
+ *
+ * What-if calculator (audit #6): project a hypothetical next trading day
+ * (presets or custom $ P&L) against the profit target, daily loss limit,
+ * and consistency cap — with breach warnings for bad outcomes.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   TerraBadge,
   TerraCard,
@@ -149,6 +153,39 @@ export function ObjectivesPage() {
     return { hasMinDays, hasConsistency, daysCurrent, daysTarget, bestDay, consCap, dailyPct, maxDdPct, consHeadroom, score };
   }, [objectives, limits, dailyUsed, ddUsed]);
 
+  const [whatIf, setWhatIf] = useState(0);
+
+  // What-if projection (audit #6) — deterministic math on the current
+  // account state: a loss consumes daily-loss headroom, a gain moves
+  // the profit target and can distort the consistency ratio.
+  const projLoss = whatIf < 0 ? Math.abs(whatIf) : 0;
+  const projGain = Math.max(0, whatIf);
+  const projDailyPct =
+    limits.daily > 0 ? ((dailyUsed + projLoss) / limits.daily) * 100 : 0;
+  const projPnl = activeAccount.pnl + projGain;
+  const projTargetPct =
+    activeAccount.profitTarget > 0 ? (projPnl / activeAccount.profitTarget) * 100 : 0;
+  const projConsPct =
+    projPnl > 0 ? (Math.max((adherence.bestDay / 100) * activeAccount.pnl, projGain) / projPnl) * 100 : 0;
+
+  const whatIfWarnings: string[] = [];
+  if (whatIf !== 0) {
+    if (projDailyPct >= 100) {
+      whatIfWarnings.push(
+        `A ${formatMoney(projLoss || 0)} loss at this size would breach the daily loss limit — the account and this evaluation would end immediately.`,
+      );
+    } else if (projDailyPct >= 80) {
+      whatIfWarnings.push(
+        `Daily loss usage would reach ${Math.round(projDailyPct)}% — inside the breach-proximity zone.`,
+      );
+    }
+    if (adherence.hasConsistency && projConsPct > adherence.consCap) {
+      whatIfWarnings.push(
+        `A ${formatMoney(projGain)} winning day would push your best day to ${Math.round(projConsPct)}% of total profit — above the ${adherence.consCap}% consistency cap.`,
+      );
+    }
+  }
+
   const tone = scoreTone(adherence.score);
   const daysMet = adherence.daysCurrent >= adherence.daysTarget;
   const consWarn =
@@ -252,6 +289,112 @@ export function ObjectivesPage() {
             warn={ddWarn}
           />
         </div>
+      </TerraCard>
+
+      {/* What-if calculator (audit #6) — project a hypothetical trade */}
+      <TerraCard>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-headline font-semibold text-on-surface">What-if calculator</h3>
+            <p className="mt-0.5 text-xs text-on-surface-variant">
+              See how a hypothetical next trading day would move your target and limit usage —
+              before you place it.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[-500, -250, 250, 500].map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={whatIf === v}
+                onClick={() => setWhatIf(whatIf === v ? 0 : v)}
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-bold tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                  whatIf === v
+                    ? v < 0
+                      ? "border-error bg-error/10 text-error"
+                      : "border-primary bg-primary/10 text-primary"
+                    : "border-outline-variant/60 bg-surface-container-low text-on-surface-variant hover:bg-surface-container"
+                }`}
+              >
+                {v > 0 ? `+${formatMoney(v)}` : formatMoney(v)}
+              </button>
+            ))}
+            <input
+              type="number"
+              value={whatIf === 0 ? "" : whatIf}
+              placeholder="$ P&L"
+              aria-label="Hypothetical profit or loss in dollars (negative for a loss)"
+              onChange={(e) => setWhatIf(Number(e.target.value) || 0)}
+              className="w-24 rounded-full border border-outline-variant/60 bg-surface-container-low px-3 py-1 text-[11px] font-bold tabular-nums text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            />
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-xl bg-surface-container-low px-3 py-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+              Profit target after
+            </p>
+            <p className="mt-0.5 text-base font-bold tabular-nums text-on-surface">
+              {Math.min(100, projTargetPct).toFixed(1)}%
+              <span className="ml-1 text-[11px] font-semibold text-on-surface-variant">
+                {whatIf >= 0 ? `(+${(projTargetPct - activeAccount.targetProgress).toFixed(1)} pts)` : `(${(projTargetPct - activeAccount.targetProgress).toFixed(1)} pts)`}
+              </span>
+            </p>
+            <p className="text-[11px] text-on-surface-variant">
+              {formatMoney(Math.max(0, activeAccount.profitTarget - projPnl))} left to target
+            </p>
+          </div>
+          <div className="rounded-xl bg-surface-container-low px-3 py-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+              Daily loss usage after
+            </p>
+            <p
+              className={`mt-0.5 text-base font-bold tabular-nums ${
+                projDailyPct >= 100
+                  ? "text-error"
+                  : projDailyPct >= 80
+                    ? "text-tertiary"
+                    : "text-on-surface"
+              }`}
+            >
+              {Math.round(projDailyPct)}%
+              <span className="ml-1 text-[11px] font-semibold text-on-surface-variant">
+                from {Math.round(limits.daily > 0 ? (dailyUsed / limits.daily) * 100 : 0)}%
+              </span>
+            </p>
+            <p className="text-[11px] text-on-surface-variant">
+              {formatMoney(Math.max(0, limits.daily - dailyUsed - projLoss))} remaining today
+            </p>
+          </div>
+          <div className="rounded-xl bg-surface-container-low px-3 py-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+              Consistency after
+            </p>
+            <p
+              className={`mt-0.5 text-base font-bold tabular-nums ${
+                adherence.hasConsistency && projConsPct > adherence.consCap ? "text-error" : "text-on-surface"
+              }`}
+            >
+              {adherence.hasConsistency ? `${Math.round(projConsPct)}% best day` : "—"}
+              <span className="ml-1 text-[11px] font-semibold text-on-surface-variant">
+                cap {adherence.consCap}%
+              </span>
+            </p>
+            <p className="text-[11px] text-on-surface-variant">
+              {adherence.hasConsistency
+                ? "Best day as a share of total profit"
+                : "No consistency rule on this account"}
+            </p>
+          </div>
+        </div>
+        {whatIfWarnings.map((w) => (
+          <p
+            key={w}
+            className="mt-3 flex items-start gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400"
+          >
+            <span aria-hidden>⚠</span> {w}
+          </p>
+        ))}
       </TerraCard>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

@@ -114,6 +114,7 @@ import {
   Shield,
   GitBranch,
   ArrowRight,
+  Server,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -342,6 +343,10 @@ export function TenantDetailPage() {
         }
         actions={
           <>
+            {/* Quick jump to this tenant's API usage analytics (audit #1) */}
+            <Button size="sm" variant="outline" onClick={() => navigate("tenant-api-usage")}>
+              <Server className="mr-1 h-4 w-4" />API usage
+            </Button>
             {/* Login-as / impersonate — privileged action with audit-trail
              * notice (§22 Contextual Actions + §24 friction proportional
              * to consequences). The AlertDialog spells out exactly what

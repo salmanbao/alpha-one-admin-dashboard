@@ -49,7 +49,13 @@ export function payoutWindow() {
   return { open, daysToOpen, opensAt, closesAt };
 }
 
-export type PayoutCriterion = { label: string; ok: boolean; note: string };
+export type PayoutCriterion = {
+  label: string;
+  ok: boolean;
+  note: string;
+  /** Where to go to fix this criterion when it's unmet (audit: clarity). */
+  resolve?: { label: string; href: string };
+};
 
 /**
  * All payout requirements for an account — the single source the
@@ -69,16 +75,19 @@ export function buildPayoutCriteria(
       label: "Account is funded",
       ok: acc?.phase === "Funded",
       note: acc ? `${acc.phase} — payouts unlock on funded accounts` : "Account not found",
+      resolve: { label: "Compare funded programs", href: "/challenge-comparison" },
     },
     {
       label: "Net profit above starting balance",
       ok: acc ? acc.balance > acc.startingBalance : false,
       note: acc ? `${formatMoney(acc.balance - acc.startingBalance)} net profit` : "—",
+      resolve: { label: "Review performance analytics", href: "/performance-analytics" },
     },
     {
       label: `Minimum payout ${formatMoney(minPayout)}`,
       ok: withdrawable >= minPayout,
       note: `${formatMoney(withdrawable)} withdrawable now`,
+      resolve: { label: "Track profit progress on the dashboard", href: "/dashboard" },
     },
     {
       label: `Minimum trading days (${MIN_PAYOUT_DAYS} per payout cycle)`,
@@ -87,9 +96,20 @@ export function buildPayoutCriteria(
         traded >= MIN_PAYOUT_DAYS
           ? `${traded} of ${MIN_PAYOUT_DAYS} required — met`
           : `${traded} of ${MIN_PAYOUT_DAYS} required • ${daysLeft} trading day${daysLeft === 1 ? "" : "s"} remaining`,
+      resolve: { label: "Open the order ticket to trade today", href: "/order-ticket" },
     },
-    { label: "Payout method configured", ok: true, note: withdrawalMethods[0]?.name ?? "—" },
-    { label: "KYC approved", ok: true, note: "Verified" },
+    {
+      label: "Payout method configured",
+      ok: true,
+      note: withdrawalMethods[0]?.name ?? "—",
+      resolve: { label: "Add a withdrawal method", href: "/withdrawal-methods" },
+    },
+    {
+      label: "KYC approved",
+      ok: true,
+      note: "Verified",
+      resolve: { label: "Complete identity verification", href: "/kyc-verification-status" },
+    },
   ];
 }
 

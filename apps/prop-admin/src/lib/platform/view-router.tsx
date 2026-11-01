@@ -86,6 +86,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   risk: dynamic(() => import("@/modules/risk/pages/risk-pages").then((m) => ({ default: m.RiskOverviewPage })), { loading: ViewSkeleton }),
   breaches: dynamic(() => import("@/modules/risk/pages/risk-pages").then((m) => ({ default: m.BreachesPage })), { loading: ViewSkeleton }),
   "risk-cases": dynamic(() => import("@/modules/risk/pages/risk-cases-page").then((m) => ({ default: m.RiskCasesPage })), { loading: ViewSkeleton }),
+  "trader-risk-scoring": dynamic(() => import("@/modules/risk/pages/trader-risk-scoring-page").then((m) => ({ default: m.TraderRiskScoringPage })), { loading: ViewSkeleton }),
   "risk-case-detail": dynamic(() => import("@/modules/risk/pages/risk-case-detail-page").then((m) => ({ default: m.RiskCaseDetailPage })), { loading: ViewSkeleton }),
   "risk-statistics": dynamic(() => import("@/modules/risk/pages/risk-statistics-page").then((m) => ({ default: m.RiskStatisticsPage })), { loading: ViewSkeleton }),
   "trading-events": dynamic(() => import("@/modules/risk/pages/trading-events-page").then((m) => ({ default: m.TradingEventsPage })), { loading: ViewSkeleton }),
