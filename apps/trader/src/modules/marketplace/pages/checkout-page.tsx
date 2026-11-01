@@ -75,6 +75,12 @@ const paymentFailureReasons = [
     fix: "Contact your bank to approve the charge, or try another card.",
   },
   {
+    code: "expired_card",
+    title: "Card expired",
+    detail: "The card used for this purchase has passed its expiry date.",
+    fix: "Update the expiry date and CVV, or switch to another card or payment method.",
+  },
+  {
     code: "network_timeout",
     title: "Network timeout",
     detail: "The payment didn't complete because the connection dropped.",
@@ -280,6 +286,10 @@ export function CheckoutPage() {
   const [method, setMethod] = useState<string>("card");
   const [processing, setProcessing] = useState(false);
   const [paymentFailed, setPaymentFailed] = useState<{ reason: PaymentFailureCode } | null>(null);
+  // Deterministic failure simulation — no Math.random(): every 3rd
+  // attempt succeeds, failures cycle through the reason catalog so each
+  // specific explanation (incl. expired card) is reachable in the demo.
+  const paymentAttempts = useRef(0);
 
   // "Change payment method" from the failure screen: scroll the payment
   // card into view and move focus there (nonce — effect only reruns on
@@ -325,15 +335,18 @@ export function CheckoutPage() {
 
   function pay() {
     setProcessing(true);
-    // Simulate a payment failure for demo purposes (e.g., 1 in 3 attempts fails)
+    // Simulate a payment outcome deterministically: attempts 1, 2 fail
+    // (cycling the reason catalog), attempt 3 succeeds.
     setTimeout(() => {
       setProcessing(false);
-      if (Math.random() > 0.3) {
+      paymentAttempts.current += 1;
+      const attempt = paymentAttempts.current;
+      if (attempt % 3 !== 0) {
         // Pick a real failure reason from the table (finding #2) so the
         // failure screen shows specific, actionable explanations instead
         // of always claiming "card declined".
         const picked =
-          paymentFailureReasons[Math.floor(Math.random() * paymentFailureReasons.length)];
+          paymentFailureReasons[(attempt - 1) % paymentFailureReasons.length];
         setPaymentFailed({ reason: picked.code });
       } else {
         router.push("/purchase-completed");
