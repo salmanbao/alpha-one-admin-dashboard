@@ -394,7 +394,7 @@ export function AffiliateLinkTrackingStitchPage() {
                   <td className="py-3.5 px-4 text-right">
                     <div className="inline-flex items-center gap-1">
                       <button className="px-2 py-1 rounded hover:bg-surface-container text-xs text-on-surface-variant font-medium">View</button>
-                      <button className="px-2 py-1 rounded hover:bg-surface-container text-xs text-tsc font-medium" onClick={() => setSo1(true)}>Suspend</button>
+                      <button className="px-2 py-1 rounded hover:bg-error-container text-xs text-error font-semibold" onClick={() => setSo1(true)}>Suspend</button>
                     </div>
                   </td>
                 </tr>
@@ -433,7 +433,7 @@ export function AffiliateLinkTrackingStitchPage() {
                   <td className="py-3.5 px-4 text-right">
                     <div className="inline-flex items-center gap-1">
                       <button className="px-2 py-1 rounded hover:bg-surface-container text-xs text-on-surface-variant font-medium">View</button>
-                      <button className="px-2 py-1 rounded hover:bg-surface-container text-xs text-tsc font-medium">Suspend</button>
+                      <button className="px-2 py-1 rounded hover:bg-error-container text-xs text-error font-semibold">Suspend</button>
                     </div>
                   </td>
                 </tr>
@@ -472,7 +472,7 @@ export function AffiliateLinkTrackingStitchPage() {
                   <td className="py-3.5 px-4 text-right">
                     <div className="inline-flex items-center gap-1">
                       <button className="px-2 py-1 rounded hover:bg-surface-container text-xs text-on-surface-variant font-medium">View</button>
-                      <button className="px-2 py-1 rounded hover:bg-surface-container text-xs text-tsc font-medium">Suspend</button>
+                      <button className="px-2 py-1 rounded hover:bg-error-container text-xs text-error font-semibold">Suspend</button>
                     </div>
                   </td>
                 </tr>
@@ -511,7 +511,7 @@ export function AffiliateLinkTrackingStitchPage() {
                   <td className="py-3.5 px-4 text-right">
                     <div className="inline-flex items-center gap-1">
                       <button className="px-2 py-1 rounded hover:bg-surface-container text-xs text-on-surface-variant font-medium">View</button>
-                      <button className="px-2 py-1 rounded hover:bg-surface-container text-xs text-tsc font-medium">Suspend</button>
+                      <button className="px-2 py-1 rounded hover:bg-error-container text-xs text-error font-semibold">Suspend</button>
                     </div>
                   </td>
                 </tr>
@@ -550,7 +550,7 @@ export function AffiliateLinkTrackingStitchPage() {
                   <td className="py-3.5 px-4 text-right">
                     <div className="inline-flex items-center gap-1">
                       <button className="px-2 py-1 rounded hover:bg-surface-container text-xs text-on-surface-variant font-medium">View</button>
-                      <button className="px-2 py-1 rounded hover:bg-surface-container text-xs text-tsc font-medium">Suspend</button>
+                      <button className="px-2 py-1 rounded hover:bg-error-container text-xs text-error font-semibold">Suspend</button>
                     </div>
                   </td>
                 </tr>

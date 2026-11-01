@@ -1232,7 +1232,7 @@ export function TaxVatConfigStitchPage() {
                 Export Full Audit Ledger (CSV/PDF)
               </button>
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                <button className="px-4 py-2.5 rounded-xl text-xs font-semibold text-on-surface-variant hover:bg-surface-container-high transition-colors" onClick={() => setSo1(false)}>                  Reject / Flag Discrepancy</button>
+                <button className="px-4 py-2.5 rounded-xl text-xs font-semibold text-error bg-error-container hover:bg-error/20 transition-colors" onClick={() => setSo1(false)}>                  Reject / Flag Discrepancy</button>
                 <button className="px-5 py-2.5 rounded-xl text-xs font-bold bg-primary text-on-primary hover:opacity-95 shadow-md flex items-center gap-2 transition-all active:scale-[0.99]" id="sign-auth-btn">
 <MsIcon name="bolt" className="text-[16px]" />
                   <span>Sign &amp; Authorize HMRC Wire (£114,280.00)</span>

@@ -51,6 +51,7 @@ export const metadata: Metadata = {
     "TerraTrader dashboard — accounts, objectives, marketplace, trading, payouts and support.",
   keywords: ["TerraTrader", "trading", "forex", "funded", "challenge"],
   authors: [{ name: "TerraTrader" }],
+  manifest: "/manifest.json",
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
