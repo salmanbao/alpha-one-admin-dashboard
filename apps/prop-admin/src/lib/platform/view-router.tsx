@@ -74,6 +74,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "phase-migration-tool": dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then((m) => ({ default: m.PhaseMigrationToolStitchPage })), { loading: ViewSkeleton }),
   "bulk-phase-editor": dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then((m) => ({ default: m.BulkPhaseEditorStitchPage })), { loading: ViewSkeleton }),
   competitions: dynamic(() => import("@/modules/challenges/pages/competitions-page").then((m) => ({ default: m.CompetitionsPage })), { loading: ViewSkeleton }),
+  "leaderboard-management": dynamic(() => import("@/modules/challenges/pages/leaderboard-management-page").then((m) => ({ default: m.LeaderboardManagementPage })), { loading: ViewSkeleton }),
   "challenge-marketplace": dynamic(() => import("@/modules/challenges/pages/challenge-marketplace-page").then((m) => ({ default: m.ChallengeMarketplacePage })), { loading: ViewSkeleton }),
   checkout: dynamic(() => import("@/modules/challenges/pages/checkout-page").then((m) => ({ default: m.CheckoutPage })), { loading: ViewSkeleton }),
   "purchase-completed": dynamic(() => import("@/modules/challenges/pages/purchase-completed-page").then((m) => ({ default: m.PurchaseCompletedPage })), { loading: ViewSkeleton }),

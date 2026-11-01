@@ -2,7 +2,7 @@
  * Challenges Module — manifest, navigation, routes, widgets, settings.
  */
 
-import { Target, Clock, Plus, Settings2, Layers, GitBranch, Edit3 } from "lucide-react";
+import { Target, Clock, Plus, Settings2, Layers, GitBranch, Edit3, Medal } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { ChallengeOverviewWidget, ChallengeProgressWidget, ChallengePhasesWidget } from "./widgets/challenge-widgets";
 
@@ -25,6 +25,7 @@ const navigation: NavigationItem[] = [
       { id: "challenges.config", label: "Configuration", href: "challenge-config", icon: Settings2, permission: "challenge.update", group: "Management" },
       { id: "challenges.phases", label: "Phase Management", href: "phase-management", icon: GitBranch, permission: "challenge.read", group: "Management" },
       { id: "challenges.edit", label: "Edit Challenge", href: "challenge-edit", icon: Edit3, permission: "challenge.update", group: "Management" },
+      { id: "challenges.leaderboard", label: "Leaderboard", href: "leaderboard-management", icon: Medal, permission: "challenge.update", group: "Management" },
     ],
   },
 ];
@@ -41,6 +42,7 @@ const routes: RouteDefinition[] = [
   { path: "challenge-config", viewId: "challenge-config", label: "Challenge Configuration", permission: "challenge.update", module: "challenges" },
   { path: "phase-management", viewId: "phase-management", label: "Phase Management", permission: "challenge.read", module: "challenges" },
   { path: "challenge-edit", viewId: "challenge-edit", label: "Edit Challenge", permission: "challenge.update", module: "challenges" },
+  { path: "leaderboard-management", viewId: "leaderboard-management", label: "Leaderboard Management", permission: "challenge.update", module: "challenges" },
   { path: "phase-detail", viewId: "phase-detail", label: "Phase Detail", permission: "challenge.read", module: "challenges" },
   { path: "checkout", viewId: "checkout", label: "Checkout", permission: ["challenge.read", "challenge.self"], module: "challenges" },
   { path: "purchase-completed", viewId: "purchase-completed", label: "Purchase Completed", permission: ["challenge.read", "challenge.self"], module: "challenges" },

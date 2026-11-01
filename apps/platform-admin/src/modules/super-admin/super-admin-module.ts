@@ -54,6 +54,7 @@ import {
   TrendingDown,
   CalendarClock,
   MonitorSmartphone,
+  HeartPulse,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -70,6 +71,7 @@ const navigation: NavigationItem[] = [
       { id: "super.tenants", label: "Tenants", href: "tenants", icon: Building2, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.create-tenant", label: "Create Tenant", href: "create-tenant", icon: Plus, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.lifecycle", label: "Lifecycle", href: "tenant-lifecycle", icon: GitBranch, application: ["super-admin"], group: "Tenant Management" },
+      { id: "super.tenant-health", label: "Tenant Health", href: "tenant-health", icon: HeartPulse, application: ["super-admin"], group: "Tenant Management" },
 
       // ───────── Operations ─────────
       { id: "super.operations", label: "Operations Home", href: "platform-operations", icon: Activity, application: ["super-admin"], group: "Operations" },
@@ -159,6 +161,7 @@ const routes: RouteDefinition[] = [
   { path: "create-tenant", viewId: "create-tenant", label: "Create Tenant", application: ["super-admin"] },
   { path: "tenant-detail", viewId: "tenant-detail", label: "Tenant Detail", application: ["super-admin"] },
   { path: "tenant-lifecycle", viewId: "tenant-lifecycle", label: "Tenant Lifecycle", application: ["super-admin"] },
+  { path: "tenant-health", viewId: "tenant-health", label: "Tenant Health", application: ["super-admin"] },
   { path: "provisioning-saga", viewId: "provisioning-saga", label: "Provisioning Saga", application: ["super-admin"] },
   { path: "usage-metering", viewId: "usage-metering", label: "Tenant Usage & Overage", application: ["super-admin"] },
   { path: "support-assist", viewId: "support-assist", label: "Support Assist", application: ["super-admin"] },
