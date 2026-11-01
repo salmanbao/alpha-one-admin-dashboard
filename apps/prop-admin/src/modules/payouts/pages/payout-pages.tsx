@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { hasPermission } from "@/lib/platform/permission-engine";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
-import { getTenantPayouts, getTraderPayouts, getTraderForUser, getTenantTraders, type Payout } from "@/lib/platform/mock-data";
+import { getTenantPayouts, getTraderPayouts, getTraderForUser, getTenantTraders, getTenantBreaches, type Payout } from "@/lib/platform/mock-data";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { applyPayoutDecision, effectivePayoutStatus, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -15,7 +15,7 @@ import { DemoDataStamp } from "@/components/platform/demo-data";
 import { PayoutReviewActions } from "@/components/platform/contextual-actions";
 import { AttentionCenter } from "@/components/platform/attention-center";
 import { EmptyState } from "@/components/platform/guards";
-import { Wallet, Banknote, Clock, CheckCircle2, Timer, ExternalLink } from "lucide-react";
+import { Wallet, Banknote, Clock, CheckCircle2, Timer, ExternalLink, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useDetailOverlay } from "@/components/platform/detail-overlay";
@@ -343,7 +343,7 @@ export function PayoutsOverviewPage() {
 }
 
 export function PendingPayoutsPage() {
-  const { runtime, tenant } = usePlatform();
+  const { runtime, tenant, navigate } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   usePayoutVersion(); // review cards + table react to decisions
@@ -354,6 +354,16 @@ export function PendingPayoutsPage() {
   const perfByTrader = useMemo(() => {
     const m = new Map<string, ReturnType<typeof getTenantTraders>[number]>();
     for (const t of getTenantTraders(tid)) m.set(t.id, t);
+    return m;
+  }, [tid]);
+  // Account-health context — open breaches per trader so a reviewer
+  // never approves into an account that already broke a rule (audit:
+  // drawdown / breach status in the approval queue).
+  const openBreachesByTrader = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const b of getTenantBreaches(tid)) {
+      if (b.status === "open") m.set(b.traderId, (m.get(b.traderId) ?? 0) + 1);
+    }
     return m;
   }, [tid]);
 
@@ -394,10 +404,62 @@ export function PendingPayoutsPage() {
                         {perf.challengePhase ? (
                           <span className="text-muted-foreground capitalize">{perf.challengePhase.replace("-", " ")}</span>
                         ) : null}
+                        {/* Drawdown proxy — equity vs balance, the number a
+                            reviewer checks before approving (audit #1) */}
+                        {(() => {
+                          const drift =
+                            perf.accountBalance > 0
+                              ? ((perf.equity - perf.accountBalance) / perf.accountBalance) * 100
+                              : 0;
+                          return (
+                            <span className="text-muted-foreground">
+                              Equity{" "}
+                              <span className="tabular-nums text-foreground">
+                                {formatCurrency(perf.equity, p.currency)}
+                              </span>{" "}
+                              <span
+                                className={`tabular-nums ${drift < 0 ? "font-medium text-rose-600 dark:text-rose-400" : ""}`}
+                              >
+                                ({drift >= 0 ? "+" : ""}
+                                {drift.toFixed(1)}% vs bal)
+                              </span>
+                            </span>
+                          );
+                        })()}
+                        {/* Recent breaches — approve only with eyes open */}
+                        {(() => {
+                          const open = openBreachesByTrader.get(p.traderId) ?? 0;
+                          return open > 0 ? (
+                            <span className="flex items-center gap-1 font-medium text-rose-600 dark:text-rose-400">
+                              <AlertTriangle className="h-3 w-3" />
+                              {open} open breach{open > 1 ? "es" : ""}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">No open breaches</span>
+                          );
+                        })()}
+                        {perf.status === "breached" ? (
+                          <Badge variant="destructive" className="text-[10px]">
+                            Account breached
+                          </Badge>
+                        ) : null}
                       </>
                     ) : (
                       <span className="text-muted-foreground">No performance data on file</span>
                     )}
+                    {/* Quick link to the full trader detail view — the
+                        context here is the summary; the detail screen
+                        has positions, KYC, breaches and payout history */}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="ml-auto h-7 px-2 text-xs"
+                      title="Open the full trader detail view"
+                      onClick={() => navigate("trader-detail", { id: p.traderId })}
+                    >
+                      View trader
+                      <ExternalLink className="ml-1 h-3 w-3" />
+                    </Button>
                   </div>
                   <PayoutReviewActions
                     payoutId={p.reference}

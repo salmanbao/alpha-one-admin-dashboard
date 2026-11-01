@@ -171,8 +171,14 @@ export function CompetitionsPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Competition | undefined>(undefined);
   const [enrollmentFor, setEnrollmentFor] = useState<Competition | null>(null);
+  // Enrollment management — filter the list by lifecycle status so
+  // reviewers can triage one bucket at a time (audit: enrollment
+  // management view with status filtering).
+  const [statusFilter, setStatusFilter] = useState<Competition["status"] | "all">("all");
 
   const selected = list.find((c) => c.id === selectedId) ?? null;
+  const visibleList =
+    statusFilter === "all" ? list : list.filter((c) => c.status === statusFilter);
 
   const update = (id: string, fn: (c: Competition) => Competition) =>
     setList((prev) => prev.map((c) => (c.id === id ? fn(c) : c)));
@@ -316,7 +322,34 @@ export function CompetitionsPage() {
         <div className="grid gap-4 lg:grid-cols-[1fr_1.5fr]">
           {/* Competition list */}
           <div className="space-y-2">
-            {list.map((c) => (
+            {/* Status filter chips — triage one bucket at a time */}
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter competitions by status">
+              {(["all", "active", "upcoming", "completed"] as const).map((s) => {
+                const count = s === "all" ? list.length : list.filter((c) => c.status === s).length;
+                const active = statusFilter === s;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setStatusFilter(s)}
+                    className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize transition-colors ${
+                      active
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {s} ({count})
+                  </button>
+                );
+              })}
+            </div>
+            {visibleList.length === 0 ? (
+              <p className="rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">
+                No {statusFilter} competitions — try another status filter.
+              </p>
+            ) : (
+            visibleList.map((c) => (
               <Card key={c.id} className={`cursor-pointer transition hover:shadow-md ${selected?.id === c.id ? "ring-2 ring-primary" : ""}`} onClick={() => setSelectedId(c.id)}>
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2">
@@ -333,7 +366,8 @@ export function CompetitionsPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            ))
+            )}
           </div>
 
           {/* Competition detail */}
