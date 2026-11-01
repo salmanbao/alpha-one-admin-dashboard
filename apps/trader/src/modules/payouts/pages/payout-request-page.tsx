@@ -15,21 +15,26 @@ import { useSearchParams } from "next/navigation";
 import {
   TerraBadge,
   TerraCard,
+  TerraDrawdownMeter,
   TerraEmpty,
   TerraPageHeader,
+  TerraProgress,
   TerraSectionTitle,
   formatMoney,
 } from "@/components/terra/terra-ui";
 import {
   payoutEntitlement,
   terraPayouts,
+  terraRiskLimits,
   withdrawalMethods,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
 import {
+  MIN_PAYOUT_DAYS,
   PayoutSummaryStrip,
   buildPayoutCriteria,
   minPayout,
+  tradedDaysFor,
   type PayoutCriterion,
 } from "@/components/terra/payout-summary-strip";
 
@@ -105,6 +110,16 @@ export function PayoutRequestPage() {
   const method = withdrawalMethods.find((m) => m.id === methodId) ?? withdrawalMethods[0];
   const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable);
   const outstanding = criteria.filter((c) => !c.ok).length;
+
+  // Performance & risk context (audit #1, HIGH) — the metrics that can
+  // still put a payout at risk, shown alongside the request form.
+  const limits = terraRiskLimits[acc.id] ?? { daily: 1000, maxDd: 5000 };
+  const dailyUsed = Math.max(0, limits.daily - acc.dailyLossRemaining);
+  const ddUsed = Math.max(0, limits.maxDd - acc.maxDdRemaining);
+  const dailyPct = limits.daily > 0 ? (dailyUsed / limits.daily) * 100 : 0;
+  const ddPct = limits.maxDd > 0 ? (ddUsed / limits.maxDd) * 100 : 0;
+  const traded = tradedDaysFor(acc.id);
+  const daysLeft = Math.max(0, MIN_PAYOUT_DAYS - traded);
 
   const asked = Number(amount);
   const valid =
@@ -212,6 +227,68 @@ export function PayoutRequestPage() {
         balance={acc.balance}
         outstanding={outstanding}
       />
+
+      {/* Performance & risk context (audit #1, HIGH) — current metrics
+          that affect this payout's standing, with limit-proximity warnings */}
+      <TerraCard>
+        <TerraSectionTitle
+          title="Performance & risk context"
+          description="How your current trading position affects this payout — checked continuously, not just at submission."
+        />
+        <div className="space-y-4">
+          <div className="rounded-xl bg-surface-container-low p-4">
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <span className="text-sm font-bold text-on-surface">
+                {acc.phase === "Funded" ? "Scaling profit target" : "Profit target progress"}
+              </span>
+              <span className="text-xs font-bold tabular-nums text-on-surface">
+                {formatMoney(acc.pnl)} <span className="font-normal text-on-surface-variant">/ {formatMoney(acc.profitTarget)}</span>{" "}
+                <span className="text-primary">({acc.targetProgress.toFixed(1)}%)</span>
+              </span>
+            </div>
+            <TerraProgress value={acc.targetProgress} height="h-2.5" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <TerraDrawdownMeter
+              label="Daily loss usage"
+              used={dailyUsed}
+              limit={limits.daily}
+              remaining={acc.dailyLossRemaining}
+              description="resets at 5pm ET"
+            />
+            <TerraDrawdownMeter
+              label="Max drawdown usage"
+              used={ddUsed}
+              limit={limits.maxDd}
+              remaining={acc.maxDdRemaining}
+              description="trailing — never resets"
+            />
+          </div>
+
+          <div className="rounded-xl bg-surface-container-low p-4 text-xs text-on-surface-variant">
+            <span className="font-semibold text-on-surface">
+              Minimum trading days: {traded} of {MIN_PAYOUT_DAYS} this payout cycle.
+            </span>{" "}
+            {daysLeft > 0
+              ? `${daysLeft} more active trading day${daysLeft === 1 ? "" : "s"} required before payout.`
+              : "Requirement met."}
+          </div>
+
+          {/* Limit-proximity warnings — surface risk before submission */}
+          {dailyPct >= 80 || ddPct >= 80 ? (
+            <div className="flex items-start gap-2 rounded-xl border border-error/40 bg-error-container/40 p-3 text-xs font-semibold text-error">
+              <span aria-hidden>⚠</span>
+              <span>
+                {dailyPct >= 80
+                  ? `Daily loss limit is ${Math.round(dailyPct)}% consumed — one more adverse day could end the account and void this payout.`
+                  : `Max drawdown is ${Math.round(ddPct)}% consumed — a breach before processing would cancel the request.`}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      </TerraCard>
+
       {/* … and the detailed criteria list right before the request button */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

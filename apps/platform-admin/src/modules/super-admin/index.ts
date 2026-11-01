@@ -28,6 +28,7 @@ export {
   TenantDetailPage,
   CreateTenantPage,
   TenantLifecyclePage,
+  TenantHealthPage,
   DashboardManagerPage,
   PlatformAuditPage,
   PlatformOverviewPage,
