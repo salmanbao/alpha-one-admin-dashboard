@@ -141,6 +141,69 @@ export function TenantHealthPage() {
   const openBreaches = breaches.filter((b) => b.status === "open");
   const criticalBreaches = openBreaches.filter((b) => b.severity === "critical");
 
+  /**
+   * Recommended Actions — dynamic intervention suggestions derived from
+   * the same signals as the cards above, each with a one-click path to
+   * the affected segment (audit: proactive intervention from the health
+   * overview instead of manually investigating each tenant).
+   */
+  const recommendations = useMemo(() => {
+    type Rec = {
+      key: string;
+      icon: typeof Package;
+      title: string;
+      detail: string;
+      action: { label: string; onClick: () => void };
+    };
+    const out: Rec[] = [];
+
+    const attention = allRows.filter((r) => r.health === "critical");
+    if (attention.length > 0) {
+      out.push({
+        key: "critical",
+        icon: ShieldAlert,
+        title: `${attention.length} tenant${attention.length === 1 ? "" : "s"} need attention`,
+        detail: "Suspended, terminated, or failed provisioning — confirm status and reach out before the account churns.",
+        action: { label: "Review tenants", onClick: () => setFocus("critical") },
+      });
+    }
+
+    const lowAdoption = allRows.filter(
+      (r) => r.health === "watch" && r.tenant.enabledModules.length < 5,
+    );
+    if (lowAdoption.length > 0) {
+      out.push({
+        key: "adoption",
+        icon: Package,
+        title: `${lowAdoption.length} tenant${lowAdoption.length === 1 ? "" : "s"} have low module adoption`,
+        detail: "Fewer than 5 modules enabled — schedule an onboarding call to unlock more of the platform.",
+        action: { label: "Show these tenants", onClick: () => setFocus("watch") },
+      });
+    }
+
+    if (criticalBreaches.length > 0) {
+      out.push({
+        key: "breaches",
+        icon: AlertTriangle,
+        title: `${criticalBreaches.length} open critical breach${criticalBreaches.length === 1 ? "" : "es"}`,
+        detail: "Risk events waiting on triage — resolve before they escalate to payout or compliance issues.",
+        action: { label: "Open queues", onClick: () => navigate("cross-tenant-queues") },
+      });
+    }
+
+    if (highTickets.length > 0) {
+      out.push({
+        key: "tickets",
+        icon: LifeBuoy,
+        title: `${highTickets.length} high-priority support ticket${highTickets.length === 1 ? "" : "s"} open`,
+        detail: "Slow first responses are the top churn signal for at-risk tenants.",
+        action: { label: "Open queues", onClick: () => navigate("cross-tenant-queues") },
+      });
+    }
+
+    return out;
+  }, [allRows, criticalBreaches, highTickets, navigate]);
+
   const columns: Column<(typeof rows)[number]>[] = [
     {
       key: "tenant",
@@ -237,6 +300,48 @@ export function TenantHealthPage() {
               deltaLabel="active with full module footprint"
             />
           </div>
+
+          {/* Recommended Actions — what to do about the numbers above */}
+          <Card>
+            <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+              <div>
+                <h2 className="text-sm font-semibold">Recommended Actions</h2>
+                <p className="text-xs text-muted-foreground">
+                  Suggested interventions, derived from live health signals.
+                </p>
+              </div>
+              {recommendations.length > 0 && (
+                <Badge variant="secondary" className="text-[10px]">
+                  {recommendations.length} pending
+                </Badge>
+              )}
+            </div>
+            {recommendations.length === 0 ? (
+              <p className="px-4 py-3 text-xs text-muted-foreground">
+                Nothing needs intervention — all tenants are healthy.
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {recommendations.map((rec) => {
+                  const RecIcon = rec.icon;
+                  return (
+                    <li key={rec.key} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <RecIcon className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{rec.title}</p>
+                        <p className="text-xs text-muted-foreground">{rec.detail}</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={rec.action.onClick}>
+                        {rec.action.label} <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
 
           {/* Health focus filter — jump straight to the at-risk segment */}
           <div className="flex flex-wrap items-center gap-2">
