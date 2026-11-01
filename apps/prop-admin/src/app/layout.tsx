@@ -51,6 +51,7 @@ export const metadata: Metadata = {
   description: "Multi-tenant white-label prop firm dashboard platform with dynamic modules, widgets, and permissions.",
   keywords: ["PFaaS", "prop firm", "multi-tenant", "white-label", "dashboard", "modules"],
   authors: [{ name: "PFaaS Platform" }],
+  manifest: "/manifest.json",
   icons: {
     // Self-hosted — the previous icon pointed at an unrelated third-party CDN.
     icon: "/logo.svg",

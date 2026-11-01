@@ -263,7 +263,7 @@ export function AccountKycStatusesStitchPage() {
                           <div className="font-semibold text-on-surface text-[11px] uppercase tracking-wider mb-1">Manual Fast-Track</div>
                           <div className="flex items-center gap-2 mt-2">
                             <button className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-semibold shadow-sm hover:bg-[#3d674a]">Approve Match</button>
-                            <button className="px-3 py-1.5 rounded-lg bg-surface-container-high text-error text-xs font-semibold hover:bg-error-container">Reject</button>
+                            <button className="px-3 py-1.5 rounded-lg bg-error-container text-on-error-container text-xs font-bold hover:bg-error/20 transition-all">Reject</button>
                           </div>
                         </div>
                       </div>

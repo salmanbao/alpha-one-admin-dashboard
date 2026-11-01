@@ -397,7 +397,7 @@ export function OfferManagementStitchPage() {
                       <button className="px-2 py-1 rounded-lg text-tsc hover:text-on-surface hover:bg-surface-container text-[11px]">View</button>
                       <button className="p-1 rounded text-tsc hover:text-on-surface hover:bg-surface-container"><MsIcon name="edit" className="text-[16px]" /></button>
                       <button className="p-1 rounded text-tsc hover:text-on-surface hover:bg-surface-container"><MsIcon name="content_copy" className="text-[16px]" /></button>
-                      <button className="p-1 rounded text-tsc hover:text-on-surface hover:bg-surface-container"><MsIcon name="delete" className="text-[16px]" /></button>
+                      <button className="p-1 rounded text-error hover:text-on-error hover:bg-error-container"><MsIcon name="delete" className="text-[16px]" /></button>
                     </div>
                   </td>
                 </tr>
