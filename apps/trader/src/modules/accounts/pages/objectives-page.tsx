@@ -25,6 +25,7 @@ import {
 } from "@/components/terra/terra-ui";
 import { objectivesFor, terraRiskLimits } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
+import { ChallengeRulesDialog } from "@/components/terra/challenge-rules-dialog";
 
 /* ------------------------------------------------------------------ */
 /* Rule adherence panel (audit #3 fix #3)                              */
@@ -154,6 +155,7 @@ export function ObjectivesPage() {
   }, [objectives, limits, dailyUsed, ddUsed]);
 
   const [whatIf, setWhatIf] = useState(0);
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   // What-if projection (audit #6) — deterministic math on the current
   // account state: a loss consumes daily-loss headroom, a gain moves
@@ -207,9 +209,20 @@ export function ObjectivesPage() {
             : `${activeAccount.phase} evaluation objectives`
         }`}
         actions={
-          <TerraBadge tone="primary">
-            {completed}/{objectives.length} complete
-          </TerraBadge>
+          <>
+            {/* Full rules breakdown — every evaluation criterion with the
+                current standing against it (audit #2) */}
+            <button
+              type="button"
+              onClick={() => setRulesOpen(true)}
+              className="rounded-xl bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container"
+            >
+              Challenge Rules
+            </button>
+            <TerraBadge tone="primary">
+              {completed}/{objectives.length} complete
+            </TerraBadge>
+          </>
         }
       />
 
@@ -445,6 +458,15 @@ export function ObjectivesPage() {
           );
         })}
       </div>
+
+      {/* Challenge rules breakdown — same dialog the positions/dashboard use */}
+      {rulesOpen ? (
+        <ChallengeRulesDialog
+          account={activeAccount}
+          open={rulesOpen}
+          onOpenChange={setRulesOpen}
+        />
+      ) : null}
     </div>
   );
 }

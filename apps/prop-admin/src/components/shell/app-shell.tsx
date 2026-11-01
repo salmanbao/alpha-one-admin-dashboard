@@ -20,6 +20,9 @@ import { OnboardingWizard } from "./onboarding-wizard";
 import { useImpersonation, endImpersonation } from "@/lib/platform/impersonation";
 import { Button } from "@/components/ui/button";
 import { DemoDataBanner } from "@/components/platform/demo-data";
+// Relative import — the @/components/platform/* alias points at the shared
+// package; local platform components are opt-in via tsconfig paths.
+import { SessionExpiryBanner } from "../platform/session-expiry-banner";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { setSearchOpen } = usePlatform();
@@ -76,6 +79,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         Skip to content
       </a>
+      {/* Session expiry warning — fixed banner, appears 5 min before the
+          session lapses (audit #7: identical banner in all three apps) */}
+      <SessionExpiryBanner />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />

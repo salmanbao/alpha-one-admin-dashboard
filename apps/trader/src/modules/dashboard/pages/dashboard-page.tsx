@@ -38,6 +38,8 @@ import { useActiveAccount } from "@/lib/platform/account-context";
 import { AccountSwitcher } from "@/components/shell/account-switcher";
 import { GettingStartedTour } from "@/components/onboarding/getting-started-tour";
 import { PayoutSummaryStrip } from "@/components/terra/payout-summary-strip";
+import { KycStatusCard } from "@/components/terra/kyc-status-card";
+import { ChallengeRulesDialog } from "@/components/terra/challenge-rules-dialog";
 
 const ranges = ["7d", "30d", "90d"] as const;
 
@@ -84,6 +86,7 @@ export function DashboardPage() {
   // "Trading Account" selector below. Every acc.* value on this page
   // (target, risk buffers, balance, credentials) follows this context.
   const { activeAccount: acc } = useActiveAccount();
+  const [rulesOpen, setRulesOpen] = useState(false);
   const accPositions = terraPositions.filter((p) => p.accountId === acc.id);
   const accUnrealized = accPositions.reduce((s, p) => s + p.pnl, 0);
 
@@ -178,6 +181,8 @@ export function DashboardPage() {
             </Link>
           </div>
         )}
+        {/* KYC status — rejected state gets a prominent retry path (audit #1) */}
+        <KycStatusCard />
         <div className="flex items-center justify-between gap-3 rounded-xl bg-primary-fixed/50 p-4 shadow-sm md:col-span-7">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary">
@@ -327,6 +332,15 @@ export function DashboardPage() {
               >
                 Account Detail
               </Link>
+              {/* Full rules breakdown — every evaluation criterion with the
+                  account's current standing (audit #2) */}
+              <button
+                type="button"
+                onClick={() => setRulesOpen(true)}
+                className="rounded-xl bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container"
+              >
+                Challenge Rules
+              </button>
               <Link
                 href="/objectives"
                 className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary transition-colors hover:bg-primary/90"
@@ -605,6 +619,15 @@ export function DashboardPage() {
           })}
         </ol>
       </TerraCard>
+
+      {/* Challenge rules breakdown — same dialog the positions screens use */}
+      {rulesOpen ? (
+        <ChallengeRulesDialog
+          account={acc}
+          open={rulesOpen}
+          onOpenChange={setRulesOpen}
+        />
+      ) : null}
     </div>
   );
 }

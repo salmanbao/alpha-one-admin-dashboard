@@ -447,7 +447,7 @@ export function DashboardAccountsTab({ params }: { params: Record<string, string
             <p className="text-sm font-medium">Account Retention Cohort</p>
             <span className="text-[10px] text-muted-foreground">% of cohort still active at +30/+60/+90 days</span>
           </div>
-          <div className="overflow-hidden rounded-md border">
+          <div className="overflow-x-auto rounded-md border">
             <table className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr className="text-left text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -719,7 +719,7 @@ export function DashboardPayoutsTab({ params }: { params: Record<string, string>
             <p className="text-sm font-medium">Payout Cohort Matrix</p>
             <span className="text-[10px] text-muted-foreground">% of cohort paid out at +30/+60/+90 days</span>
           </div>
-          <div className="overflow-hidden rounded-md border">
+          <div className="overflow-x-auto rounded-md border">
             <table className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr className="text-left text-[10px] uppercase tracking-wide text-muted-foreground">
