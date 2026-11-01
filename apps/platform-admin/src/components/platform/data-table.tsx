@@ -131,11 +131,17 @@ export function DataTable<T>({
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               {columns.map((c) => (
-                <TableHead key={c.key} className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} h-9 px-3 text-xs uppercase tracking-wide`} style={c.width ? { width: c.width } : undefined}>
+                <TableHead
+                  key={c.key}
+                  aria-sort={c.sortValue ? (sortKey === c.key ? (sortDir === "asc" ? "ascending" : "descending") : "none") : undefined}
+                  className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} h-9 px-3 text-xs uppercase tracking-wide`}
+                  style={c.width ? { width: c.width } : undefined}
+                >
                   {c.sortValue ? (
                     <button
-                      className={`inline-flex items-center gap-1 ${c.numeric ? "justify-end" : "text-left"} font-medium text-muted-foreground hover:text-foreground`}
+                      className={`inline-flex items-center gap-1 ${c.numeric ? "justify-end" : "text-left"} font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm`}
                       onClick={() => toggleSort(c.key)}
+                      aria-label={`Sort by ${c.header}${sortKey === c.key ? ` (currently ${sortDir === "asc" ? "ascending" : "descending"})` : ""}`}
                     >
                       {c.header}
                       {sortKey === c.key ? (
@@ -176,8 +182,27 @@ export function DataTable<T>({
               paged.map((row) => (
                 <TableRow
                   key={rowKey(row)}
-                  className={onRowClick ? "cursor-pointer" : ""}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  className={onRowClick ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" : ""}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  onKeyDown={
+                    onRowClick
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onRowClick(row);
+                          } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                            // Arrow-key row navigation — move focus within the table body.
+                            e.preventDefault();
+                            const sibling =
+                              e.key === "ArrowDown"
+                                ? e.currentTarget.nextElementSibling
+                                : e.currentTarget.previousElementSibling;
+                            if (sibling instanceof HTMLElement && sibling.tabIndex >= 0) sibling.focus();
+                          }
+                        }
+                      : undefined
+                  }
                 >
                   {columns.map((c) => (
                     <TableCell key={c.key} className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} px-3 py-2.5 text-sm`}>
