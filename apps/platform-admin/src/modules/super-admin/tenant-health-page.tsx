@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/platform/guards";
+import { toast } from "@/hooks/use-toast";
 import {
   Activity,
   AlertTriangle,
@@ -153,9 +154,18 @@ export function TenantHealthPage() {
       icon: typeof Package;
       title: string;
       detail: string;
+      /** Affected tenants (max 3 linked) — direct path to their detail. */
+      tenants: { id: string; name: string }[];
+      count: number;
       action: { label: string; onClick: () => void };
+      /** Mock direct intervention — one-click outreach from this screen. */
+      outreach?: { label: string; done: string };
     };
     const out: Rec[] = [];
+    const nameOf = (id: string) =>
+      availableTenants.find((t) => t.id === id)?.name ?? id;
+    const link = (ids: string[]) =>
+      ids.slice(0, 3).map((id) => ({ id, name: nameOf(id) }));
 
     const attention = allRows.filter((r) => r.health === "critical");
     if (attention.length > 0) {
@@ -164,7 +174,16 @@ export function TenantHealthPage() {
         icon: ShieldAlert,
         title: `${attention.length} tenant${attention.length === 1 ? "" : "s"} need attention`,
         detail: "Suspended, terminated, or failed provisioning — confirm status and reach out before the account churns.",
+        tenants: link(attention.map((r) => r.tenant.id)),
+        count: attention.length,
         action: { label: "Review tenants", onClick: () => setFocus("critical") },
+        outreach: {
+          label: "Schedule check-in",
+          done: `Check-in scheduled for ${attention
+            .slice(0, 3)
+            .map((r) => r.tenant.name)
+            .join(", ")}${attention.length > 3 ? ` +${attention.length - 3} more` : ""} (mock).`,
+        },
       });
     }
 
@@ -177,7 +196,16 @@ export function TenantHealthPage() {
         icon: Package,
         title: `${lowAdoption.length} tenant${lowAdoption.length === 1 ? "" : "s"} have low module adoption`,
         detail: "Fewer than 5 modules enabled — schedule an onboarding call to unlock more of the platform.",
+        tenants: link(lowAdoption.map((r) => r.tenant.id)),
+        count: lowAdoption.length,
         action: { label: "Show these tenants", onClick: () => setFocus("watch") },
+        outreach: {
+          label: "Send onboarding email",
+          done: `Onboarding email queued for ${lowAdoption
+            .slice(0, 3)
+            .map((r) => r.tenant.name)
+            .join(", ")}${lowAdoption.length > 3 ? ` +${lowAdoption.length - 3} more` : ""} (mock).`,
+        },
       });
     }
 
@@ -187,6 +215,8 @@ export function TenantHealthPage() {
         icon: AlertTriangle,
         title: `${criticalBreaches.length} open critical breach${criticalBreaches.length === 1 ? "" : "es"}`,
         detail: "Risk events waiting on triage — resolve before they escalate to payout or compliance issues.",
+        tenants: link([...new Set(criticalBreaches.map((b) => b.tenantId))]),
+        count: criticalBreaches.length,
         action: { label: "Open queues", onClick: () => navigate("cross-tenant-queues") },
       });
     }
@@ -197,12 +227,18 @@ export function TenantHealthPage() {
         icon: LifeBuoy,
         title: `${highTickets.length} high-priority support ticket${highTickets.length === 1 ? "" : "s"} open`,
         detail: "Slow first responses are the top churn signal for at-risk tenants.",
+        tenants: link([...new Set(highTickets.map((s) => s.tenantId))]),
+        count: highTickets.length,
         action: { label: "Open queues", onClick: () => navigate("cross-tenant-queues") },
+        outreach: {
+          label: "Reply to all",
+          done: `Draft replies queued for ${highTickets.length} ticket${highTickets.length === 1 ? "" : "s"} (mock).`,
+        },
       });
     }
 
     return out;
-  }, [allRows, criticalBreaches, highTickets, navigate]);
+  }, [allRows, criticalBreaches, highTickets, navigate, availableTenants]);
 
   const columns: Column<(typeof rows)[number]>[] = [
     {
@@ -332,7 +368,40 @@ export function TenantHealthPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">{rec.title}</p>
                         <p className="text-xs text-muted-foreground">{rec.detail}</p>
+                        {rec.tenants.length > 0 && (
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                            Affects:{" "}
+                            {rec.tenants.map((tn, i) => (
+                              <span key={tn.id}>
+                                {i > 0 && " · "}
+                                <button
+                                  type="button"
+                                  className="font-medium text-primary underline-offset-2 hover:underline"
+                                  title={`Open ${tn.name}`}
+                                  onClick={() => navigate("tenant-detail", { id: tn.id })}
+                                >
+                                  {tn.name}
+                                </button>
+                              </span>
+                            ))}
+                            {rec.count > rec.tenants.length
+                              ? ` +${rec.count - rec.tenants.length} more`
+                              : ""}
+                          </p>
+                        )}
                       </div>
+                      {rec.outreach && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() =>
+                            toast({ title: "Queued (mock)", description: rec.outreach!.done })
+                          }
+                        >
+                          {rec.outreach.label}
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" className="h-8 text-xs" onClick={rec.action.onClick}>
                         {rec.action.label} <ArrowRight className="ml-1 h-3.5 w-3.5" />
                       </Button>
