@@ -97,6 +97,47 @@ const STAGES: {
   { id: "terminated", label: "Terminated", tone: "muted", color: "#6b7280", icon: Ban, description: "Permanently archived — irreversible." },
 ];
 
+/* ------------------------------------------------------------------ */
+/* Tenant health — same derivation as the Tenant Health dashboard, so  */
+/* the lifecycle list and the health view can never disagree.          */
+/* ------------------------------------------------------------------ */
+
+type Health = "healthy" | "watch" | "critical";
+
+function healthOf(t: TenantContext): Health {
+  if (t.status === "suspended" || t.status === "terminated" || t.status === "provisioning_failed") {
+    return "critical";
+  }
+  if (t.status === "trial" || t.status === "onboarding" || t.status === "invited" || t.status === "provisioning") {
+    return "watch";
+  }
+  return t.enabledModules.length >= 5 ? "healthy" : "watch";
+}
+
+const HEALTH_META: Record<
+  Health,
+  { label: string; variant: "default" | "secondary" | "destructive"; dot: string; tooltip: string }
+> = {
+  healthy: {
+    label: "Healthy",
+    variant: "default",
+    dot: "bg-emerald-500",
+    tooltip: "Healthy — active tenant with a full module footprint.",
+  },
+  watch: {
+    label: "Watch",
+    variant: "secondary",
+    dot: "bg-amber-500",
+    tooltip: "Watch — early lifecycle stage or low module adoption.",
+  },
+  critical: {
+    label: "Needs attention",
+    variant: "destructive",
+    dot: "bg-rose-500",
+    tooltip: "Needs attention — suspended, terminated, or failed provisioning.",
+  },
+};
+
 
 /* ------------------------------------------------------------------ */
 /* Suspension data handling (audit fix #7)                            */
@@ -375,6 +416,24 @@ export function TenantLifecyclePage() {
         );
       },
       sortValue: (t) => t.status,
+    },
+    {
+      /* Health at a glance — color-coded with a plain-language tooltip
+         and a quick path to the at-risk tenant (audit: tenant health
+         indicators in the tenant list). Clicking the row opens the
+         tenant detail; critical rows are pre-flagged here. */
+      key: "health",
+      header: "Health",
+      cell: (t) => {
+        const meta = HEALTH_META[healthOf(t)];
+        return (
+          <Badge variant={meta.variant} className="gap-1.5 text-[10px]" title={meta.tooltip}>
+            <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} aria-hidden />
+            {meta.label}
+          </Badge>
+        );
+      },
+      sortValue: (t) => (healthOf(t) === "critical" ? 0 : healthOf(t) === "watch" ? 1 : 2),
     },
     {
       key: "plan",
