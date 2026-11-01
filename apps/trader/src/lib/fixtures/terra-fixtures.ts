@@ -2110,3 +2110,81 @@ export const challengeBreach: ChallengeBreach = {
   minTradingDays: 5,
   bestDayPct: 38,
 };
+
+/**
+ * Breach-day trade timeline backing the Evaluation Failed screen —
+ * the trades that pushed equity through the daily loss limit, in
+ * chronological order, with the running daily P&L so the trader can
+ * see the breach coming (the "last safe exit" moment) rather than
+ * only the aftermath. Sums to exactly -(limit + breachedBy).
+ */
+export const breachDayTrades: {
+  time: string;
+  pair: string;
+  side: "Long" | "Short";
+  pnl: number;
+  running: number;
+  /** Coaching annotation for notable rows. */
+  note?: string;
+}[] = [
+  { time: "09:42", pair: "EUR/USD", side: "Long", pnl: -180, running: -180 },
+  { time: "10:15", pair: "XAU/USD", side: "Long", pnl: -260, running: -440 },
+  { time: "11:03", pair: "GBP/JPY", side: "Short", pnl: -310, running: -750, note: "75% of the daily limit used — the last moment to stop trading" },
+  { time: "13:27", pair: "EUR/USD", side: "Long", pnl: -464, running: -1214, note: "Daily Loss Limit ($1,000) crossed — evaluation ended" },
+];
+
+/**
+ * Breach-type coaching (audit: educational context) — why each rule
+ * exists, strategies that keep a trader inside it, a targeted retry
+ * plan, and in-app educational content. Keyed by ChallengeBreach.rule.
+ */
+export const breachCoaching: Record<
+  ChallengeBreach["rule"],
+  {
+    whyItExists: string;
+    strategies: string[];
+    retryPlan: string[];
+    learnLinks: { label: string; href: string }[];
+  }
+> = {
+  "Daily Loss Limit": {
+    whyItExists:
+      "A funded firm covers your losses up to this line. The daily limit exists so one bad day can't consume months of risk budget — it's the same rule a risk desk would impose on its own traders.",
+    strategies: [
+      "Size from the stop, not the target: with a $150 stop and a $1,000 daily budget you get ~6 full-size losses — plan for 3, not 6.",
+      "Trade in defined windows. Most daily-limit breaches are revenge trades after the first two losers, not planned setups.",
+      "After two consecutive losers, cut size by half for the rest of the day. The meter at 60% is a hard stop, not a suggestion.",
+    ],
+    retryPlan: [
+      "Place a broker-side hard stop at 60% of the daily limit before your first trade",
+      "Cap risk at 0.75% of balance for the first 3 days",
+      "Block trading in the 30-minute windows around high-impact news",
+    ],
+    learnLinks: [
+      { label: "Risk dashboard — live daily-loss meter", href: "/risk-dashboard" },
+      { label: "Trading plan builder — write your stop rules down", href: "/trading-plan-builder" },
+      { label: "Trade replay — walk through the breach day", href: "/trade-replay" },
+      { label: "Book a risk consultation", href: "/risk-consultation" },
+    ],
+  },
+  "Maximum Drawdown": {
+    whyItExists:
+      "The maximum drawdown is the firm's total loss allowance on the account — permanent and trailing, because it protects the capital the firm actually put at risk, not just this month's P&L.",
+    strategies: [
+      "Treat the max drawdown as your real balance: measure every position against how far it would push equity toward the line, not against account size.",
+      "Pause after drawdowns of 25% of the line. Trading out of a hole is how the trailing drawdown becomes unreachable.",
+      "Keep a spreadsheet of cumulative drawdown daily — the trailing line moves with your high-water mark, so stale assumptions breach silently.",
+    ],
+    retryPlan: [
+      "Compute your trailing line at the start of every day and log it",
+      "Hard-stop the week at 40% of the max drawdown — review before resuming",
+      "Risk ≤ 0.5% per trade until equity makes a new high",
+    ],
+    learnLinks: [
+      { label: "Risk dashboard — drawdown usage meter", href: "/risk-dashboard" },
+      { label: "Trading journal — spot your drawdown patterns", href: "/trading-journal" },
+      { label: "Trade replay — walk through the drawdown", href: "/trade-replay" },
+      { label: "Book a risk consultation", href: "/risk-consultation" },
+    ],
+  },
+};
