@@ -331,6 +331,10 @@ export function TerraAreaChart({
   const startVal = values[0];
   const startY = sy(startVal);
 
+  // Deterministic unique gradient id (hardcoded id previously collided
+  // when a page rendered more than one TerraAreaChart together).
+  const gradId = `terraGrad-${String(values[0] ?? 0)}-${String(values.at(-1) ?? 0)}`;
+
   return (
     <>
       <svg
@@ -339,10 +343,10 @@ export function TerraAreaChart({
       className="w-full overflow-visible"
       style={{ height }}
       role="img"
-      aria-label="Area chart"
+      aria-label={`Equity area chart: ${data.length} points from ${data[0]?.x ?? "—"} to ${data[data.length-1]?.x ?? "—"}, range ${Math.round(min)} to ${Math.round(max)}`}
     >
       <defs>
-        <linearGradient id="terraChartGrad" x1="0" x2="0" y1="0" y2="1">
+        <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="#4a7c59" stopOpacity="0.28" />
           <stop offset="85%" stopColor="#4a7c59" stopOpacity="0.02" />
           <stop offset="100%" stopColor="#4a7c59" stopOpacity="0" />
@@ -375,7 +379,7 @@ export function TerraAreaChart({
           );
         })}
       </g>
-      <path d={area} fill="url(#terraChartGrad)" />
+      <path d={area} fill={`url(#${gradId})`} />
       <path d={line} fill="none" stroke="#4a7c59" strokeWidth="3" strokeLinecap="round" />
       <circle cx={lastX} cy={lastY} fill="#4a7c59" r="5" />
       <circle className="animate-pulse" cx={lastX} cy={lastY} fill="#4a7c59" opacity="0.25" r="10" />
