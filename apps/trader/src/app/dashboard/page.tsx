@@ -4,8 +4,10 @@ import { DashboardPage } from "../../modules/dashboard/pages/dashboard-page";
 
 export default function Page() {
   return (
-    <Suspense fallback={<PageSkeleton />}>
-      <DashboardPage />
-    </Suspense>
+    <main role="main" aria-label="Dashboard">
+      <Suspense fallback={<PageSkeleton />}>
+        <DashboardPage />
+      </Suspense>
+    </main>
   );
 }

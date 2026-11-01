@@ -16,7 +16,9 @@ export default function Home() {
   return (
     <Providers>
       <AppShell>
-        <DashboardRouter />
+        <main role="main" aria-label="Prop Firm Dashboard">
+          <DashboardRouter />
+        </main>
         {/* Sub-screen overlays (?panel=…) — enterprise pattern: inspect
             a row without leaving the list behind it. */}
         <DetailOverlayHost />
