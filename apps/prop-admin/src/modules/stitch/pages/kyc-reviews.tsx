@@ -316,7 +316,7 @@ export function KycReviewsStitchPage() {
                     <td className="py-4 pr-6 pl-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-label font-bold shadow-sm hover:bg-primary/90 transition-all" type="button">                          Approve</button>
-                        <button className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-error-container hover:text-on-error-container text-tsc text-xs font-label font-bold transition-all" type="button">                          Reject</button>
+                        <button className="px-3 py-1.5 rounded-lg bg-error-container text-on-error-container text-xs font-label font-bold hover:bg-error/20 transition-all" type="button">                          Reject</button>
                         <button className="px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant text-xs font-label font-bold flex items-center gap-1 transition-all" type="button">
 <MsIcon name="help_outline" className="text-[15px]" />
                           <span>Request Info</span>
@@ -374,7 +374,7 @@ export function KycReviewsStitchPage() {
                     <td className="py-4 pr-6 pl-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-label font-bold shadow-sm hover:bg-primary/90 transition-all" type="button">                          Approve</button>
-                        <button className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-tsc text-xs font-label font-bold transition-all" type="button">                          Reject</button>
+                        <button className="px-3 py-1.5 rounded-lg bg-error-container text-on-error-container text-xs font-label font-bold hover:bg-error/20 transition-all" type="button">                          Reject</button>
                         <button className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-tsc transition-all" title="Trigger Auto-Triage Recheck" type="button"><MsIcon name="sync" className="text-[17px]" /></button>
                       </div>
                     </td>

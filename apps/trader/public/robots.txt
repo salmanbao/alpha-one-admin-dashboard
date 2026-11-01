@@ -1,0 +1,18 @@
+# Terra Trader — public storefront/onboarding pages are crawlable;
+# every account-specific path is disallowed (allow-list pattern:
+# the longest matching rule wins, so the Disallow below only catches
+# everything NOT explicitly allowed).
+User-agent: *
+Allow: /login$
+Allow: /marketplace
+Allow: /challenge-detail
+Allow: /challenge-comparison
+Allow: /rules$
+Allow: /terms$
+Allow: /help-center
+Allow: /competitions
+Allow: /leaderboard
+Allow: /announcements
+Allow: /market-watch
+Allow: /documents$
+Disallow: /
