@@ -3,6 +3,11 @@
 /**
  * Performance Analytics — converted from stitch_screens/performance_analytics
  * Win rate, expectancy, equity curve and symbol breakdown.
+ *
+ * + Detailed analytics (audit #8): computed avg holding period, profit
+ *   factor + win rate per symbol, consistency analysis (best-day share,
+ *   green days), a P&L distribution histogram and a weekday heatmap —
+ *   all derived deterministically from the trade fixtures.
  */
 
 import { useState } from "react";
@@ -66,15 +71,69 @@ export function PerformanceAnalyticsPage() {
   // Canonical formatting (audit #9) — shared zero-guard lives in platform-core.
   const profitFactor = formatProfitFactor(grossWin, grossLoss);
 
-  const bySymbol = pool.reduce<Record<string, { pnl: number; count: number }>>(
+  const bySymbol = pool.reduce<Record<string, { pnl: number; count: number; grossWin: number; grossLoss: number }>>(
     (acc, t) => {
-      acc[t.symbol] ??= { pnl: 0, count: 0 };
+      acc[t.symbol] ??= { pnl: 0, count: 0, grossWin: 0, grossLoss: 0 };
       acc[t.symbol].pnl += t.pnl;
       acc[t.symbol].count += 1;
+      if (t.pnl > 0) acc[t.symbol].grossWin += t.pnl;
+      else if (t.pnl < 0) acc[t.symbol].grossLoss += -t.pnl;
       return acc;
     },
     {},
   );
+
+  // Average holding period — computed from open/close timestamps (audit:
+  // detailed trade analytics; was a hardcoded demo value).
+  const avgHoldMs = pool.length
+    ? pool.reduce((s, t) => s + (new Date(t.closedAt).getTime() - new Date(t.openedAt).getTime()), 0) /
+      pool.length
+    : 0;
+  const fmtHold = (ms: number) => {
+    const h = Math.floor(ms / 3_600_000);
+    const m = Math.round((ms % 3_600_000) / 60_000);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  // Consistency — best trading day's share of net profit + how many days
+  // were green (the metric the challenge consistency rule measures).
+  const byDay = pool.reduce<Record<string, number>>((acc, t) => {
+    const d = t.closedAt.slice(0, 10);
+    acc[d] = (acc[d] ?? 0) + t.pnl;
+    return acc;
+  }, {});
+  const dayValues = Object.values(byDay);
+  const totalNet = dayValues.reduce((s, v) => s + v, 0);
+  const bestDay = dayValues.length ? Math.max(...dayValues) : 0;
+  const bestDayShare = totalNet > 0 ? Math.round((bestDay / totalNet) * 100) : null;
+  const profitableDays = dayValues.filter((v) => v > 0).length;
+
+  // P&L distribution — 6 deterministic buckets over the trade range.
+  const pnlValues = pool.map((t) => t.pnl);
+  const minPnl = pnlValues.length ? Math.min(...pnlValues) : 0;
+  const maxPnl = pnlValues.length ? Math.max(...pnlValues) : 0;
+  const bucketCount = 6;
+  const span = (maxPnl - minPnl) / bucketCount || 1;
+  const distribution = Array.from({ length: bucketCount }, (_, i) => {
+    const lo = minPnl + i * span;
+    const hi = lo + span;
+    const count = pool.filter((t) =>
+      i === bucketCount - 1 ? t.pnl >= lo && t.pnl <= hi : t.pnl >= lo && t.pnl < hi,
+    ).length;
+    return { lo, hi, count };
+  });
+  const maxBucketCount = Math.max(1, ...distribution.map((d) => d.count));
+
+  // Weekday heatmap — net P&L per weekday (Mon–Sun), color intensity
+  // scaled to the largest day so patterns pop without a chart library.
+  const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const byWeekday = Array.from({ length: 7 }, () => ({ pnl: 0, count: 0 }));
+  for (const t of pool) {
+    const wd = (new Date(t.closedAt).getDay() + 6) % 7; // Mon = 0
+    byWeekday[wd].pnl += t.pnl;
+    byWeekday[wd].count += 1;
+  }
+  const maxAbsDay = Math.max(1, ...byWeekday.map((d) => Math.abs(d.pnl)));
 
   const handleExportReport = () => {
     toast({
@@ -135,7 +194,7 @@ export function PerformanceAnalyticsPage() {
           <TerraStat label="Profit Factor" value={profitFactor} sub="gross win / loss" />
         </TerraCard>
         <TerraCard className="p-5">
-          <TerraStat label="Avg Hold" value="4h 22m" sub="per trade" />
+          <TerraStat label="Avg Hold" value={fmtHold(avgHoldMs)} sub="per trade" />
         </TerraCard>
       </div>
 
@@ -187,6 +246,106 @@ export function PerformanceAnalyticsPage() {
         <TerraAreaChart data={curve} formatValue={(v) => formatCompactCurrencyValue(v)} />
       </TerraCard>
 
+      {/* Consistency + distribution + heatmap (audit: detailed analytics) */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <TerraCard className="p-5">
+          <TerraSectionTitle
+            title="Consistency"
+            description="How evenly results are spread across days."
+          />
+          <div className="space-y-1 pt-2">
+            <TerraStat
+              label="Best day share"
+              value={bestDayShare === null ? "—" : `${bestDayShare}%`}
+              sub={bestDayShare === null ? "no net profit yet" : "of net profit"}
+              tone={bestDayShare !== null && bestDayShare <= 50 ? "positive" : "negative"}
+            />
+            <TerraStat
+              label="Green days"
+              value={`${profitableDays}/${dayValues.length}`}
+              sub="profitable trading days"
+            />
+            {bestDayShare !== null && bestDayShare > 50 && (
+              <p className="text-xs text-on-surface-variant">
+                ⚠ One day carries most of your profit — spread risk across
+                more days to reduce consistency-rule risk.
+              </p>
+            )}
+          </div>
+        </TerraCard>
+
+        <TerraCard className="p-5 lg:col-span-2">
+          <TerraSectionTitle
+            title="Trade distribution"
+            description="How your trade results cluster across P&L buckets."
+          />
+          <div className="flex h-32 items-end gap-1.5 pt-4" role="img" aria-label="Histogram of trade results across six P&L buckets">
+            {distribution.map((d, i) => (
+              <div key={i} className="flex flex-1 flex-col items-center gap-1">
+                <span className="text-[10px] font-bold tabular-nums text-on-surface-variant">
+                  {d.count}
+                </span>
+                <div
+                  className={`w-full rounded-t ${d.lo >= 0 ? "bg-primary" : "bg-error"}`}
+                  style={{ height: `${Math.max(4, (d.count / maxBucketCount) * 100)}%` }}
+                />
+                <span className="text-[9px] tabular-nums text-on-surface-variant">
+                  {d.lo >= 0 ? "+" : ""}
+                  {Math.round(d.lo)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="pt-2 text-[11px] text-on-surface-variant">
+            {pool.length} trades across {distribution.length} buckets • red
+            buckets are net-loss ranges, green are net-profit
+          </p>
+        </TerraCard>
+      </div>
+
+      <TerraCard>
+        <TerraSectionTitle
+          title="Performance by weekday"
+          description="Net P&L per weekday — spot which days actually pay off."
+        />
+        <div className="grid grid-cols-4 gap-2 pt-2 sm:grid-cols-7">
+          {byWeekday.map((d, i) => {
+            const alpha = (0.08 + 0.55 * (Math.abs(d.pnl) / maxAbsDay)).toFixed(2);
+            return (
+              <div
+                key={WEEKDAYS[i]}
+                className={`rounded-xl p-3 text-center ${d.count === 0 ? "bg-surface-container-low" : ""}`}
+                style={
+                  d.count === 0
+                    ? undefined
+                    : {
+                        backgroundColor:
+                          d.pnl >= 0
+                            ? `rgba(16, 185, 129, ${alpha})`
+                            : `rgba(244, 63, 94, ${alpha})`,
+                      }
+                }
+                title={`${WEEKDAYS[i]}: ${formatSignedMoney(d.pnl)} across ${d.count} trades`}
+              >
+                <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                  {WEEKDAYS[i]}
+                </p>
+                <p
+                  className={`font-headline text-sm font-bold tabular-nums ${
+                    d.pnl >= 0 ? "text-primary" : "text-error"
+                  }`}
+                >
+                  {d.count === 0 ? "—" : formatSignedMoney(d.pnl)}
+                </p>
+                <p className="text-[10px] text-on-surface-variant">
+                  {d.count} trade{d.count === 1 ? "" : "s"}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </TerraCard>
+
       <div className="flex items-center gap-1.5">
         {tabs.map((t) => (
           <button
@@ -235,6 +394,11 @@ export function PerformanceAnalyticsPage() {
                   {formatSignedMoney(v.pnl)}
                 </p>
                 <p className="text-xs text-on-surface-variant">{v.count} trades</p>
+                <p className="text-xs text-on-surface-variant">
+                  PF <span className="font-bold text-on-surface">{formatProfitFactor(v.grossWin, v.grossLoss)}</span>
+                  {" • "}
+                  {v.count ? Math.round((pool.filter((t) => t.symbol === sym && t.pnl > 0).length / v.count) * 100) : 0}% win
+                </p>
               </div>
             ))}
           </div>
