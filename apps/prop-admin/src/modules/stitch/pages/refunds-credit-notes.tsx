@@ -380,7 +380,7 @@ export function RefundsCreditNotesStitchPage() {
                   <td className="py-3 px-4 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <button className="px-2 py-1 bg-primary text-on-primary font-bold rounded text-[11px] hover:bg-primary/90 shadow-sm">Approve</button>
-                      <button className="px-2 py-1 bg-surface-container hover:bg-surface-container-high text-on-surface rounded text-[11px]">Reject</button>
+                      <button className="px-2 py-1 bg-error-container text-on-error-container hover:bg-error/20 rounded text-[11px] font-semibold">Reject</button>
                     </div>
                   </td>
                 </tr>
@@ -424,7 +424,7 @@ export function RefundsCreditNotesStitchPage() {
                   <td className="py-3 px-4 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <button className="px-2 py-1 bg-primary text-on-primary font-bold rounded text-[11px] hover:bg-primary/90 shadow-sm">Approve</button>
-                      <button className="px-2 py-1 bg-surface-container hover:bg-surface-container-high text-on-surface rounded text-[11px]">Reject</button>
+                      <button className="px-2 py-1 bg-error-container text-on-error-container hover:bg-error/20 rounded text-[11px] font-semibold">Reject</button>
                     </div>
                   </td>
                 </tr>
@@ -468,7 +468,7 @@ export function RefundsCreditNotesStitchPage() {
                   <td className="py-3 px-4 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <button className="px-2 py-1 bg-primary text-on-primary font-bold rounded text-[11px] hover:bg-primary/90 shadow-sm">Approve</button>
-                      <button className="px-2 py-1 bg-surface-container hover:bg-surface-container-high text-on-surface rounded text-[11px]">Reject</button>
+                      <button className="px-2 py-1 bg-error-container text-on-error-container hover:bg-error/20 rounded text-[11px] font-semibold">Reject</button>
                     </div>
                   </td>
                 </tr>

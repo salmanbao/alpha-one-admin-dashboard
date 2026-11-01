@@ -49,6 +49,7 @@ export const metadata: Metadata = {
   description: "PFaaS platform administration console for super admins.",
   keywords: ["PFaaS", "platform admin", "super admin", "dashboard"],
   authors: [{ name: "PFaaS Platform" }],
+  manifest: "/manifest.json",
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
