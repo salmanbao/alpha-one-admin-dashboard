@@ -115,6 +115,7 @@ import {
   GitBranch,
   ArrowRight,
   Server,
+  ScrollText,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -346,6 +347,10 @@ export function TenantDetailPage() {
             {/* Quick jump to this tenant's API usage analytics (audit #1) */}
             <Button size="sm" variant="outline" onClick={() => navigate("tenant-api-usage")}>
               <Server className="mr-1 h-4 w-4" />API usage
+            </Button>
+            {/* Tenant-scoped audit trail — same platform events, pre-filtered */}
+            <Button size="sm" variant="outline" onClick={() => navigate("audit-log", { tenant: tenantId })}>
+              <ScrollText className="mr-1 h-4 w-4" />Audit log
             </Button>
             {/* Login-as / impersonate — privileged action with audit-trail
              * notice (§22 Contextual Actions + §24 friction proportional

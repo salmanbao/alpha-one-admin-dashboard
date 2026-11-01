@@ -23,11 +23,13 @@ import {
   scalingPlan,
   payoutSchedule,
   payoutScheduleOptions,
+  withdrawalMethods,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
 import {
   MIN_PAYOUT_DAYS,
   PayoutSummaryStrip,
+  minPayout,
   payoutWindow,
   tradedDaysFor,
 } from "@/components/terra/payout-summary-strip";
@@ -282,6 +284,58 @@ export function PayoutEligibilityPage() {
                 </TerraBadge>
               </div>
             </div>
+
+            {/* Timing indicator — days until the window opens, with a
+                visual countdown, plus the minimums up front (audit:
+                payout timing must be clear BEFORE requesting) */}
+            <div className="space-y-2 rounded-xl border border-outline-variant/60 bg-surface-container-low p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-on-surface-variant">
+                  {nextWindow.open ? "Window open — closes" : "Next payout window opens in"}
+                </span>
+                <span className="font-bold text-on-surface">
+                  {nextWindow.open
+                    ? fmtDate(payoutSchedule.windowClosesAt)
+                    : `${nextWindow.daysToOpen} day${nextWindow.daysToOpen === 1 ? "" : "s"}`}
+                </span>
+              </div>
+              <div
+                role="img"
+                aria-label={
+                  nextWindow.open
+                    ? "Payout window is open"
+                    : `${nextWindow.daysToOpen} days until the next payout window`
+                }
+              >
+                <TerraProgress
+                  value={
+                    nextWindow.open
+                      ? 100
+                      : Math.max(
+                          4,
+                          Math.min(
+                            96,
+                            ((payoutSchedule.cycleDays - nextWindow.daysToOpen) /
+                              payoutSchedule.cycleDays) *
+                              100,
+                          ),
+                        )
+                  }
+                />
+              </div>
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                <dt className="text-on-surface-variant">Minimum request</dt>
+                <dd className="text-right font-bold text-on-surface">{formatMoney(minPayout)}</dd>
+                <dt className="text-on-surface-variant">Min. trading days</dt>
+                <dd className="text-right font-bold text-on-surface">
+                  {MIN_PAYOUT_DAYS} per cycle ({tradedDaysFor(account.id)} done)
+                </dd>
+                <dt className="text-on-surface-variant">Window</dt>
+                <dd className="text-right font-bold text-on-surface">
+                  {fmtDate(payoutSchedule.windowOpensAt)} – {fmtDate(payoutSchedule.windowClosesAt)}
+                </dd>
+              </dl>
+            </div>
             <Link
               href="/payout-request"
               aria-disabled={!entitlement.eligible}
@@ -344,6 +398,63 @@ export function PayoutEligibilityPage() {
                 ✓ Schedule set to {savedAt} (demo — not persisted)
               </p>
             )}
+          </TerraCard>
+
+          {/* Payout cycle FAQ — plain-language answers so traders don't
+              need support to understand timing and minimums (audit #1) */}
+          <TerraCard className="flex flex-col gap-3">
+            <TerraSectionTitle
+              title="Payout cycle FAQ"
+              description="How timing, minimums and trading days work."
+            />
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="font-bold text-on-surface">How often can I request a payout?</p>
+                <p className="text-xs leading-relaxed text-on-surface-variant">
+                  Your schedule is <span className="font-semibold">{schedule}</span> — one
+                  request per {payoutSchedule.cycleDays}-day cycle, submitted during the
+                  open window ({fmtDate(payoutSchedule.windowOpensAt)} –{" "}
+                  {fmtDate(payoutSchedule.windowClosesAt)}).
+                </p>
+              </div>
+              <div>
+                <p className="font-bold text-on-surface">
+                  When is my next payout available?
+                </p>
+                <p className="text-xs leading-relaxed text-on-surface-variant">
+                  {nextWindow.open
+                    ? "The window is open now — requests submitted before the cutoff are processed in this cycle."
+                    : `The next window opens in ${nextWindow.daysToOpen} day${nextWindow.daysToOpen === 1 ? "" : "s"} (${fmtDate(payoutSchedule.windowOpensAt)}). ${payoutSchedule.cutoffNote}`}
+                </p>
+              </div>
+              <div>
+                <p className="font-bold text-on-surface">What is the minimum?</p>
+                <p className="text-xs leading-relaxed text-on-surface-variant">
+                  A single request must be at least {formatMoney(minPayout)} and cannot
+                  exceed your withdrawable balance ({entitlement.splitPct}% of net profit
+                  on funded accounts).
+                </p>
+              </div>
+              <div>
+                <p className="font-bold text-on-surface">
+                  Why do I need {MIN_PAYOUT_DAYS} trading days?
+                </p>
+                <p className="text-xs leading-relaxed text-on-surface-variant">
+                  The minimum spread results across the cycle so payouts reflect a
+                  consistent edge rather than a single outlier trade. You&apos;ve traded{" "}
+                  {tradedDaysFor(account.id)} of {MIN_PAYOUT_DAYS} required days this
+                  cycle — see the objectives page for live progress.
+                </p>
+              </div>
+              <div>
+                <p className="font-bold text-on-surface">How long does processing take?</p>
+                <p className="text-xs leading-relaxed text-on-surface-variant">
+                  {withdrawalMethods[0].name}: {withdrawalMethods[0].eta} after approval —
+                  crypto methods settle faster (within 24 hours). Approved requests appear
+                  in Recent payouts below.
+                </p>
+              </div>
+            </div>
           </TerraCard>
         </div>
       </div>
