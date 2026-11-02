@@ -26,15 +26,17 @@ import {
   type PayoutRejectTarget,
   type PayoutRejectResult,
 } from "@/components/platform/payout-reject-dialog";
-import { TraderPerformanceChip } from "@/components/platform/trader-performance-chip";
+import { TraderPerformanceChip, type PayoutTraderPerformance } from "@/components/platform/trader-performance-chip";
 
 /**
  * PRD §4.9 — Reject requires a reason (onReject(reason)). Uses the
  * shared PayoutRejectDialog (audit fix #3): structured category +
  * required detail + optional internal comment + notify-trader toggle,
- * so every reject surface records the same audit-trail shape.
+ * so every reject surface records the same audit-trail shape. The
+ * target carries the profit split + performance snapshot (audit X
+ * #1/#5) so the dialog can show the payout calculation.
  */
-function PayoutRejectButton({ p }: { p: Payout }) {
+function PayoutRejectButton({ p, perf }: { p: Payout; perf?: PayoutTraderPerformance }) {
   const { user, pushNotification } = usePlatform();
   const [rejectTarget, setRejectTarget] = useState<PayoutRejectTarget | null>(null);
   // In-page guard — rejecting is a payout decision, not just a view.
@@ -73,6 +75,8 @@ function PayoutRejectButton({ p }: { p: Payout }) {
             amount: p.amount,
             currency: p.currency,
             count: 1,
+            profitSplit: p.profitSplit,
+            performance: perf,
           })
         }
       >
@@ -204,7 +208,7 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
                 trader, reverses pending fees, forces re-request). AlertDialog
                 friction matches PayoutReviewActions inline pattern; PRD
                 requires a captured reason (onReject(reason)). */}
-            <PayoutRejectButton p={p} />
+            <PayoutRejectButton p={p} perf={perfByTrader.get(p.traderId)} />
             {/* Escalate → PRD multi-level approval: payout stays pending
                 but requires senior sign-off (badge on the status cell). */}
             {!payoutEscalated(p.reference) ? (
