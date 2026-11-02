@@ -41,6 +41,14 @@ import {
 import { formatCurrency, formatCompact } from "@/components/platform/status";
 import { ExplainableStateBadge } from "@/components/platform/state-explanations";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -200,6 +208,9 @@ export function EnhancedWithdrawalsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   // Audit fix #3: batch reject target for the shared PayoutRejectDialog.
   const [rejectTarget, setRejectTarget] = useState<PayoutRejectTarget | null>(null);
+  // Approve confirmation with profit-split preview (audit W #2) — the
+  // operator sees trader vs firm share before the batch is committed.
+  const [approveOpen, setApproveOpen] = useState(false);
 
   // Build trader lookup for name + country + performance metrics
   const traderById = useMemo(() => {
@@ -538,7 +549,7 @@ export function EnhancedWithdrawalsPage() {
               {selected.size} selected · {formatCurrency(selectedPayouts.reduce((s, p) => s + p.amount, 0), currency)}
             </span>
             <div className="ml-auto flex flex-wrap gap-2">
-              <Button size="sm" variant="default" onClick={batchApprove} disabled={!canDecide} title={decideTitle} className="bg-emerald-600 hover:bg-emerald-700">
+              <Button size="sm" variant="default" onClick={() => setApproveOpen(true)} disabled={!canDecide} title={decideTitle} className="bg-emerald-600 hover:bg-emerald-700">
                 <CheckCircle2 className="mr-1 h-4 w-4" /> Approve Selected
               </Button>
               <Button
@@ -697,6 +708,71 @@ export function EnhancedWithdrawalsPage() {
         onOpenChange={(o) => !o && setRejectTarget(null)}
         onConfirm={confirmBatchReject}
       />
+      {/* Approve confirmation with profit-split preview (audit W #2) —
+          trader share vs firm retention per payout and in total, shown
+          before the batch is committed instead of after. */}
+      <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Approve {selectedPayouts.length} withdrawal{selectedPayouts.length === 1 ? "" : "s"}?
+            </DialogTitle>
+            <DialogDescription>
+              Profit-split preview at each payout&apos;s configured split — what the trader receives
+              versus what the firm retains.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-64 space-y-2 overflow-y-auto">
+            {selectedPayouts.map((p) => {
+              const traderShare = Math.round((p.amount * p.profitSplit) / 100);
+              const firmShare = p.amount - traderShare;
+              return (
+                <div key={p.id} className="rounded-lg border p-3 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{p.reference} · {p.traderName}</span>
+                    <span className="tabular-nums font-semibold">{formatCurrency(p.amount, p.currency)}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    <span>Split {p.profitSplit}% trader / {100 - p.profitSplit}% firm</span>
+                    <span className="tabular-nums">
+                      {formatCurrency(traderShare, p.currency)} to trader · {formatCurrency(firmShare, p.currency)} to firm
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm font-medium">
+            <span>Totals</span>
+            <span className="tabular-nums">
+              {formatCurrency(
+                selectedPayouts.reduce((s, p) => s + Math.round((p.amount * p.profitSplit) / 100), 0),
+                currency,
+              )}{" "}
+              to traders ·{" "}
+              {formatCurrency(
+                selectedPayouts.reduce((s, p) => s + p.amount - Math.round((p.amount * p.profitSplit) / 100), 0),
+                currency,
+              )}{" "}
+              to firm
+            </span>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApproveOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => {
+                setApproveOpen(false);
+                batchApprove();
+              }}
+            >
+              <CheckCircle2 className="mr-1 h-4 w-4" /> Approve
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Page>
   );
 }

@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { EmptyState } from "@/components/platform/guards";
 import { recordAudit } from "@/lib/platform/console-store";
 import { cn } from "@/lib/utils";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import {
   AlertTriangle,
   ArrowRight,
@@ -37,6 +38,7 @@ import {
   MessageSquare,
   Search,
   User,
+  X,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -83,6 +85,9 @@ export function SupportAssistPage() {
   );
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<SupportTicket | null>(null);
+  // Keyboard parity (audit W #1) — Escape dismisses the detail pane, so
+  // keyboard users can leave a selected ticket without tabbing back.
+  useEscapeKey(selected !== null, () => setSelected(null));
 
   const tenant = availableTenants.find((t) => t.id === tenantId) ?? null;
   const tickets = useMemo(
@@ -243,9 +248,21 @@ export function SupportAssistPage() {
                             {selected.id} · opened {selected.createdAt}
                           </p>
                         </div>
-                        <Badge variant={statusTone(selected.status)} className="capitalize">
-                          {selected.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={statusTone(selected.status)} className="capitalize">
+                            {selected.status}
+                          </Badge>
+                          {/* Visible dismissal for the pane (audit W #1) —
+                              pairs with the Escape handler above. */}
+                          <button
+                            type="button"
+                            aria-label="Close ticket detail"
+                            onClick={() => setSelected(null)}
+                            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                       <Separator />
                       <div className="grid grid-cols-2 gap-3 text-xs">
