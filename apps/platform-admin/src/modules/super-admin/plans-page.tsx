@@ -31,6 +31,8 @@ import {
 import { formatCurrency } from "@/components/platform/status";
 import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
 import { toast } from "@/hooks/use-toast";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { recordAudit } from "@/lib/platform/console-store";
 import type { TenantContext } from "@/lib/platform/types";
 import { usageGrowth30d, daysToLimit } from "@/lib/platform/usage-forecast";
 import {
@@ -418,31 +420,321 @@ function traderTypeLabel(n: number) {
   return Math.abs(n) === 1 ? "trader" : "traders";
 }
 
-/* Upgrade/downgrade buttons per tenant — demo mutation + toast. */
+/* Upgrade/downgrade buttons per tenant → guided migration dialog. */
 function PlanChangeButtons({ tenant, plans }: { tenant: TenantContext; plans: Plan[] }) {
   const order: PlanId[] = ["starter", "growth", "scale", "enterprise"];
   const idx = order.indexOf(tenant.plan);
-  const change = (dir: 1 | -1) => {
-    const target = plans.find((p) => p.id === order[idx + dir]);
-    if (!target) return;
-    toast({
-      title: `Plan change scheduled`,
-      description: `${tenant.name}: ${tenant.plan} → ${target.id} at the next billing cycle.`,
-    });
-  };
+  const [target, setTarget] = useState<PlanId | null>(null);
   return (
     <div className="flex gap-1">
       {idx > 0 ? (
-        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => change(-1)}>
+        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setTarget(order[idx - 1])}>
           <ArrowDown className="h-3 w-3" /> Downgrade
         </Button>
       ) : null}
       {idx < order.length - 1 ? (
-        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => change(1)}>
+        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setTarget(order[idx + 1])}>
           <ArrowUp className="h-3 w-3" /> Upgrade
         </Button>
       ) : null}
+      {target !== null && (
+        <PlanMigrationDialog
+          tenant={tenant}
+          plans={plans}
+          initialTarget={target}
+          onOpenChange={(o) => !o && setTarget(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Guided tenant migration workflow — audit X #6 (MEDIUM).
+ *
+ * Replaces the toast-only upgrade/downgrade buttons with the full
+ * four-step workflow the finding asked for:
+ *   1. plan selection — every tier, current one marked and locked;
+ *   2. limit validation — the tenant's live usage is checked against
+ *      the target plan's ceilings; over-limit downgrades are blocked
+ *      with the offending metric named (the "data migration preview");
+ *   3. feature delta — what the tenant gains and loses, filtered of
+ *      the "Everything in …" bundle lines;
+ *   4. effective date — immediately (prorated) or next billing cycle.
+ * Confirming toasts + records a `console.plan_migration_*` audit entry.
+ */
+function PlanMigrationDialog({
+  tenant,
+  plans,
+  initialTarget,
+  onOpenChange,
+}: {
+  tenant: TenantContext;
+  plans: Plan[];
+  initialTarget: PlanId;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { user } = usePlatform();
+  const [targetId, setTargetId] = useState<PlanId>(initialTarget);
+  const [effective, setEffective] = useState<"immediate" | "cycle">("cycle");
+
+  const currentPlan = plans.find((p) => p.id === tenant.plan);
+  const targetPlan = plans.find((p) => p.id === targetId);
+  const isCurrent = targetId === tenant.plan;
+  const usage = tenantUsage(tenant.id);
+
+  const checks: Array<{ label: string; used: number; limit: number }> = targetPlan
+    ? [
+        { label: "Traders", used: usage.traders, limit: targetPlan.limits.traders },
+        { label: "API calls/day", used: usage.apiCallsPerDay, limit: targetPlan.limits.apiCallsPerDay },
+        { label: "Storage (GB)", used: usage.storageGb, limit: targetPlan.limits.storageGb },
+        { label: "Events/day", used: usage.eventsPerDay, limit: targetPlan.limits.eventsPerDay },
+      ]
+    : [];
+  const violations = checks.filter((c) => c.used > c.limit);
+  const bundle = (f: string) => f.startsWith("Everything in ");
+  const gained =
+    targetPlan && currentPlan
+      ? targetPlan.features.filter((f) => !currentPlan.features.includes(f) && !bundle(f))
+      : [];
+  const lost =
+    targetPlan && currentPlan
+      ? currentPlan.features.filter((f) => !targetPlan.features.includes(f) && !bundle(f))
+      : [];
+  const priceDelta =
+    targetPlan && currentPlan ? targetPlan.priceMonthly - currentPlan.priceMonthly : 0;
+
+  const canMigrate = Boolean(targetPlan) && !isCurrent && violations.length === 0;
+
+  const confirm = () => {
+    if (!canMigrate || !targetPlan) return;
+    toast({
+      title: effective === "immediate" ? "Migration started" : "Plan change scheduled",
+      description: `${tenant.name}: ${tenant.plan} → ${targetPlan.id} ${
+        effective === "immediate" ? "immediately (prorated)" : "at the next billing cycle"
+      }. Provisioning will re-evaluate entitlements automatically.`,
+    });
+    recordAudit({
+      actor: user.name,
+      action: "console.plan_migration_scheduled",
+      target: tenant.id,
+      tenantId: tenant.id,
+      severity: "info",
+      detail: `${tenant.name}: ${tenant.plan} → ${targetPlan.id} (effective ${
+        effective === "immediate" ? "immediately" : "next billing cycle"
+      })`,
+    });
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Migrate {tenant.name} to a different plan</DialogTitle>
+          <DialogDescription>
+            Guided workflow — pick the target plan, validate today&apos;s usage against its
+            limits, review the feature delta, and choose when it takes effect.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 text-sm">
+          {/* 1. Plan selection */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              1 · Target plan
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {plans.map((p) => {
+                const selected = p.id === targetId;
+                const current = p.id === tenant.plan;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    disabled={current}
+                    aria-pressed={selected}
+                    onClick={() => setTargetId(p.id)}
+                    className={`rounded-md border p-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      selected
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted/60"
+                    } ${current ? "opacity-60" : ""}`}
+                  >
+                    <span className="flex items-center justify-between gap-1">
+                      <span className="font-medium" style={{ color: PLAN_TONE[p.id] }}>
+                        {p.name}
+                      </span>
+                      {current ? (
+                        <Badge variant="outline" className="text-[9px] uppercase">
+                          Current
+                        </Badge>
+                      ) : null}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {formatCurrency(p.priceMonthly)}/mo
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. Limit-vs-usage validation */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              2 · Usage validation against target limits
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {checks.map((c) => {
+                const over = c.used > c.limit;
+                const near = !over && pct(c.used, c.limit) >= 80;
+                return (
+                  <div
+                    key={c.label}
+                    className={`rounded-md border p-2 text-xs ${
+                      over
+                        ? "border-red-500/40 bg-red-50/60 dark:bg-red-950/20"
+                        : near
+                          ? "border-amber-500/40 bg-amber-50/60 dark:bg-amber-950/20"
+                          : "border-border"
+                    }`}
+                  >
+                    <span className="block text-muted-foreground">{c.label}</span>
+                    <span className="tabular-nums font-medium">
+                      {compact(c.used)} / {compact(c.limit)}
+                    </span>
+                    {over ? (
+                      <span className="mt-0.5 block font-medium text-red-700 dark:text-red-400">
+                        Exceeds target limit
+                      </span>
+                    ) : near ? (
+                      <span className="mt-0.5 block text-amber-700 dark:text-amber-400">
+                        ≥80% of target limit
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+            {violations.length > 0 && (
+              <p
+                role="alert"
+                className="rounded-md border border-red-500/40 bg-red-50/60 p-2 text-xs font-medium text-red-700 dark:bg-red-950/20 dark:text-red-400"
+              >
+                Migration blocked — {violations
+                  .map((v) => `${compact(v.used)} ${v.label.toLowerCase()} exceed the ${targetPlan?.name} limit of ${compact(v.limit)}`)
+                  .join("; ")}. Free capacity or upgrade instead.
+              </p>
+            )}
+          </div>
+
+          {/* 3. Feature delta */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              3 · Feature delta
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-md border border-emerald-500/30 bg-emerald-50/50 p-2.5 dark:bg-emerald-950/20">
+                <span className="mb-1 block font-medium text-emerald-700 dark:text-emerald-400">
+                  Gains
+                </span>
+                {gained.length === 0 ? (
+                  <span className="text-muted-foreground">No new features</span>
+                ) : (
+                  <ul className="space-y-0.5">
+                    {gained.map((f) => (
+                      <li key={f} className="flex items-start gap-1">
+                        <Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" aria-hidden="true" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="rounded-md border border-rose-500/30 bg-rose-50/50 p-2.5 dark:bg-rose-950/20">
+                <span className="mb-1 block font-medium text-rose-700 dark:text-rose-400">
+                  Losses
+                </span>
+                {lost.length === 0 ? (
+                  <span className="text-muted-foreground">Nothing removed</span>
+                ) : (
+                  <ul className="space-y-0.5">
+                    {lost.map((f) => (
+                      <li key={f} className="flex items-start gap-1">
+                        <X className="mt-0.5 h-3 w-3 shrink-0 text-rose-600" aria-hidden="true" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+            {priceDelta !== 0 && currentPlan && targetPlan && (
+              <p className="text-xs text-muted-foreground">
+                Price change:{" "}
+                <span className="font-medium text-foreground">
+                  {priceDelta > 0 ? "+" : ""}
+                  {formatCurrency(priceDelta)}/mo
+                </span>{" "}
+                ({currentPlan.name} {formatCurrency(currentPlan.priceMonthly)} →{" "}
+                {targetPlan.name} {formatCurrency(targetPlan.priceMonthly)})
+              </p>
+            )}
+          </div>
+
+          {/* 4. Effective date */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              4 · Effective date
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name={`migration-effective-${tenant.id}`}
+                  checked={effective === "immediate"}
+                  onChange={() => setEffective("immediate")}
+                />
+                Immediately (prorated)
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name={`migration-effective-${tenant.id}`}
+                  checked={effective === "cycle"}
+                  onChange={() => setEffective("cycle")}
+                />
+                Next billing cycle
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            disabled={!canMigrate}
+            onClick={confirm}
+            title={
+              isCurrent
+                ? "That is already the current plan"
+                : violations.length > 0
+                  ? "Usage exceeds the target plan's limits"
+                  : undefined
+            }
+          >
+            {isCurrent
+              ? "Current plan"
+              : effective === "immediate"
+                ? "Migrate now"
+                : "Schedule migration"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

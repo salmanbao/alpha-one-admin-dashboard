@@ -76,6 +76,11 @@ export const viewRegistry: Record<string, ViewComponent> = {
   competitions: dynamic(() => import("@/modules/challenges/pages/competitions-page").then((m) => ({ default: m.CompetitionsPage })), { loading: ViewSkeleton }),
   "leaderboard-management": dynamic(() => import("@/modules/challenges/pages/leaderboard-management-page").then((m) => ({ default: m.LeaderboardManagementPage })), { loading: ViewSkeleton }),
   "challenge-marketplace": dynamic(() => import("@/modules/challenges/pages/challenge-marketplace-page").then((m) => ({ default: m.ChallengeMarketplacePage })), { loading: ViewSkeleton }),
+  "competitive-analysis": dynamic(
+    () => import("@/modules/challenges/pages/competitive-analysis-page").then((m) => ({ default: m.CompetitiveAnalysisPage })),
+    { loading: ViewSkeleton },
+  ),
+
   checkout: dynamic(() => import("@/modules/challenges/pages/checkout-page").then((m) => ({ default: m.CheckoutPage })), { loading: ViewSkeleton }),
   "purchase-completed": dynamic(() => import("@/modules/challenges/pages/purchase-completed-page").then((m) => ({ default: m.PurchaseCompletedPage })), { loading: ViewSkeleton }),
   "phase-management": dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then((m) => ({ default: m.PhaseManagementStitchPage })), { loading: ViewSkeleton }),
