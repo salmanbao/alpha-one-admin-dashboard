@@ -555,16 +555,33 @@ export function EnhancedWithdrawalsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() =>
-                  selectedPayouts.length > 0 &&
+                onClick={() => {
+                  if (selectedPayouts.length === 0) return;
+                  // Batch target carries the amount-weighted split blend
+                  // and (for a single payout) the trader snapshot, so the
+                  // shared dialog renders the payout calculation preview
+                  // (audit X #1/#5).
+                  const totalAmt = selectedPayouts.reduce((s, p) => s + p.amount, 0);
+                  const blended =
+                    totalAmt > 0
+                      ? Math.round(
+                          selectedPayouts.reduce((s, p) => s + (p.amount * p.profitSplit) / 100, 0) /
+                            totalAmt,
+                        )
+                      : undefined;
                   setRejectTarget({
                     reference: selectedPayouts[0].reference,
                     traderName: selectedPayouts[0].traderName,
-                    amount: selectedPayouts.reduce((s, p) => s + p.amount, 0),
+                    amount: totalAmt,
                     currency: selectedPayouts[0].currency,
                     count: selectedPayouts.length,
-                  })
-                }
+                    profitSplit: blended,
+                    performance:
+                      selectedPayouts.length === 1
+                        ? traderById.get(selectedPayouts[0].traderId)
+                        : undefined,
+                  });
+                }}
                 disabled={!canDecide || selected.size === 0}
                 title={decideTitle}
                 className="border-rose-500/40 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20"
@@ -731,6 +748,11 @@ export function EnhancedWithdrawalsPage() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium">{p.reference} · {p.traderName}</span>
                     <span className="tabular-nums font-semibold">{formatCurrency(p.amount, p.currency)}</span>
+                  </div>
+                  {/* Performance snapshot (audit X #5) — same chip as the
+                      table rows, so the approval carries full context. */}
+                  <div className="mt-1">
+                    <TraderPerformanceChip trader={traderById.get(p.traderId)} compact />
                   </div>
                   <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                     <span>Split {p.profitSplit}% trader / {100 - p.profitSplit}% firm</span>

@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/components/platform/status";
 import { EntityAuditTimeline } from "@/components/platform/audit";
 import { applyPayoutDecision, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
+import { payouts, getTenantTraders } from "@/lib/platform/mock-data";
 import { resolveBreach } from "@/modules/risk/breach-store";
 import { useState, type ComponentType } from "react";
 
@@ -203,6 +204,13 @@ export function PayoutReviewActions({
   // Audit fix #3: reject collects a structured reason via the shared
   // PayoutRejectDialog instead of a reason-less confirmation.
   const [rejectTarget, setRejectTarget] = useState<PayoutRejectTarget | null>(null);
+  // Payout calculation + performance context for the reject dialog
+  // (audit X #1/#5) — resolve the payout by its unique reference so the
+  // dialog can show the split math and the trader's recent performance.
+  const payout = payouts.find((x) => x.reference === payoutId);
+  const perf = payout
+    ? getTenantTraders(payout.tenantId).find((t) => t.id === payout.traderId)
+    : undefined;
 
   const actions: ContextualAction[] = [
     {
@@ -242,6 +250,8 @@ export function PayoutReviewActions({
           amount,
           currency: currency || "USD",
           count: 1,
+          profitSplit: payout?.profitSplit,
+          performance: perf,
         }),
     },
     {
