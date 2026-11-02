@@ -44,6 +44,14 @@ export function HelpCenterPage() {
       <TerraPageHeader
         title="Help Center"
         description="Answers to the most common questions"
+        actions={
+          <Link
+            href="/learning-center"
+            className="rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90"
+          >
+            Learning Center →
+          </Link>
+        }
       />
 
       <TerraCard className="py-8">

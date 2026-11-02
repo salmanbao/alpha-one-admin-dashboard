@@ -310,20 +310,29 @@ function RequiredLabel({ children }: { children: React.ReactNode }) {
 function FieldRow({
   label,
   hint,
+  error,
   required,
   children,
 }: {
   label: string;
   hint?: string;
+  /** Inline validation message — announced via role="alert" (audit U #8). */
+  error?: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
+  const errorId = `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-error`;
   return (
     <div className="space-y-1.5">
       {required ? <RequiredLabel>{label}</RequiredLabel> : (
         <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       )}
       {children}
+      {error ? (
+        <p id={errorId} role="alert" className="text-[10px] font-medium text-destructive">
+          {error}
+        </p>
+      ) : null}
       {hint ? <p className="text-[10px] text-muted-foreground/80">{hint}</p> : null}
     </div>
   );
@@ -589,6 +598,13 @@ function BasicsStep({
 }) {
   const update = (patch: Partial<WizardState>) =>
     setState((s) => ({ ...s, ...patch }));
+  // Canonical validation timing (audit U #8): real-time once a field has
+  // been blurred — before that, stay quiet so the wizard isn't noisy.
+  const [touched, setTouched] = useState({ name: false, slug: false });
+  const nameError =
+    touched.name && !state.name.trim() ? "Tenant name is required." : undefined;
+  const slugError =
+    touched.slug && !state.slug.trim() ? "Slug is required." : undefined;
 
   return (
     <div className="space-y-4">
@@ -600,7 +616,7 @@ function BasicsStep({
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <FieldRow label="Tenant name" required hint="Display name shown across the platform.">
+        <FieldRow label="Tenant name" required error={nameError} hint="Display name shown across the platform.">
           <Input
             value={state.name}
             onChange={(e) => {
@@ -611,13 +627,19 @@ function BasicsStep({
                 initials: initialsFromName(name),
               });
             }}
+            onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+            aria-invalid={nameError ? true : undefined}
+            aria-describedby={nameError ? "tenant-name-error" : undefined}
             placeholder="Acme Trading"
           />
         </FieldRow>
-        <FieldRow label="Slug" required hint="URL-safe identifier; auto-generated from the name.">
+        <FieldRow label="Slug" required error={slugError} hint="URL-safe identifier; auto-generated from the name.">
           <Input
             value={state.slug}
             onChange={(e) => update({ slug: slugify(e.target.value) })}
+            onBlur={() => setTouched((t) => ({ ...t, slug: true }))}
+            aria-invalid={slugError ? true : undefined}
+            aria-describedby={slugError ? "slug-error" : undefined}
             placeholder="acme-trading"
           />
         </FieldRow>
@@ -997,6 +1019,18 @@ function AdminStep({
   const update = (patch: Partial<WizardState>) =>
     setState((s) => ({ ...s, ...patch }));
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.adminEmail);
+  // Canonical validation timing (audit U #8): real-time after blur, and
+  // the moment a partial email stops being valid as the user types.
+  const [touched, setTouched] = useState({ adminName: false, adminEmail: false });
+  const nameError =
+    touched.adminName && state.adminName.trim().length <= 1
+      ? "Admin name is required."
+      : undefined;
+  const emailError = !emailValid && (touched.adminEmail || state.adminEmail)
+    ? state.adminEmail
+      ? "Enter a valid email address."
+      : "Admin email is required."
+    : undefined;
 
   return (
     <div className="space-y-4">
@@ -1008,22 +1042,28 @@ function AdminStep({
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <FieldRow label="Admin name" required>
+        <FieldRow label="Admin name" required error={nameError}>
           <Input
             value={state.adminName}
             onChange={(e) => update({ adminName: e.target.value })}
+            onBlur={() => setTouched((t) => ({ ...t, adminName: true }))}
+            aria-invalid={nameError ? true : undefined}
+            aria-describedby={nameError ? "admin-name-error" : undefined}
             placeholder="Sarah Chen"
           />
         </FieldRow>
         <FieldRow
           label="Admin email"
           required
-          hint={state.adminEmail && !emailValid ? "Enter a valid email address." : undefined}
+          error={emailError}
         >
           <Input
             type="email"
             value={state.adminEmail}
             onChange={(e) => update({ adminEmail: e.target.value })}
+            onBlur={() => setTouched((t) => ({ ...t, adminEmail: true }))}
+            aria-invalid={emailError ? true : undefined}
+            aria-describedby={emailError ? "admin-email-error" : undefined}
             placeholder="sarah@acme.io"
           />
         </FieldRow>

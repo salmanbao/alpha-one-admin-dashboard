@@ -438,6 +438,31 @@ export function PendingPayoutsPage() {
                             <span className="text-muted-foreground">No open breaches</span>
                           );
                         })()}
+                        {/* Payout history — prior approved/paid requests for
+                            this trader beside the one under review (audit U #6) */}
+                        {(() => {
+                          const prior = getTraderPayouts(p.traderId).filter(
+                            (h) =>
+                              h.reference !== p.reference &&
+                              (h.status === "paid" || h.status === "approved"),
+                          );
+                          const total = prior.reduce((s, h) => s + h.amount, 0);
+                          return (
+                            <span
+                              className="text-muted-foreground"
+                              title="Previously paid or approved payouts for this trader"
+                            >
+                              History{" "}
+                              {prior.length > 0 ? (
+                                <span className="tabular-nums text-foreground">
+                                  {prior.length} paid · {formatCurrency(total, p.currency)}
+                                </span>
+                              ) : (
+                                "none yet"
+                              )}
+                            </span>
+                          );
+                        })()}
                         {perf.status === "breached" ? (
                           <Badge variant="destructive" className="text-[10px]">
                             Account breached
