@@ -39,6 +39,7 @@ import {
   Globe,
   Ruler,
   Activity,
+  AlertTriangle,
   Download,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -209,6 +210,69 @@ export function RiskStatisticsPage() {
     [sizeRows],
   );
 
+  // ---- Predictive insights (audit #2) — deterministic projections ----
+  // Payout liability forecast: least-squares trend over the weekly payout
+  // buckets, projected forward 4 weeks. No randomness — same fixtures.
+  const payoutForecast = useMemo(() => {
+    const pts = profitTrend;
+    if (pts.length < 2) return null;
+    const n = pts.length;
+    const ys = pts.map((p) => p.payout);
+    const mx = (n - 1) / 2;
+    const my = ys.reduce((s, v) => s + v, 0) / n;
+    let num = 0;
+    let den = 0;
+    for (let i = 0; i < n; i++) {
+      num += (i - mx) * (ys[i] - my);
+      den += (i - mx) ** 2;
+    }
+    const slope = den === 0 ? 0 : num / den;
+    const intercept = my - slope * mx;
+    const next = [0, 1, 2, 3].map((k) =>
+      Math.max(0, Math.round(intercept + slope * (n + k))),
+    );
+    return {
+      next30: next.reduce((s, v) => s + v, 0),
+      next90: next.reduce((s, v) => s + v, 0) * 2 + next.reduce((s, v) => s + v, 0),
+      direction: slope > 5 ? "rising" : slope < -5 ? "falling" : "flat",
+      slope: Math.round(slope),
+    };
+  }, [profitTrend]);
+
+  // Anomaly detection: challenge margins > 1σ below the mean, and
+  // countries whose breach rate is 2× the platform average.
+  const anomalies = useMemo(() => {
+    const out: string[] = [];
+    const margins = challengeRows.map((r) => r.profitMargin);
+    if (margins.length >= 3) {
+      const mean = margins.reduce((s, v) => s + v, 0) / margins.length;
+      const sd = Math.sqrt(
+        margins.reduce((s, v) => s + (v - mean) ** 2, 0) / margins.length,
+      );
+      if (sd > 0) {
+        for (const r of challengeRows) {
+          if (r.profitMargin < mean - sd) {
+            out.push(
+              `${r.challengeType} margin ${r.profitMargin}% is ${Math.round(sd)}pts below the ${Math.round(mean)}% average — review its payout split.`,
+            );
+          }
+        }
+      }
+    }
+    const totalTraders = countryRows.reduce((s, r) => s + r.traders, 0) || 1;
+    const totalBreached = countryRows.reduce((s, r) => s + r.breached, 0);
+    const avgRate = totalBreached / totalTraders;
+    for (const r of countryRows) {
+      const rate = r.traders > 0 ? r.breached / r.traders : 0;
+      if (r.traders >= 3 && rate > avgRate * 2 && rate > 0.1) {
+        out.push(
+          `${r.country} breach rate ${Math.round(rate * 100)}% is over 2× the ${Math.round(avgRate * 100)}% average — possible onboarding or risk-education gap.`,
+        );
+      }
+    }
+    return out.slice(0, 4);
+  }, [challengeRows, countryRows]);
+
   // Headline KPIs — aggregated across all tabs. Revenue uses the
   // per-challenge revenue baseline so the totals match the table.
   const totalRevenue = challengeRows.reduce((s, r) => s + r.revenue, 0);
@@ -217,6 +281,16 @@ export function RiskStatisticsPage() {
     ? Math.round(((totalRevenue - totalPayouts) / totalRevenue) * 1000) / 10
     : 0;
   const totalFunded = traders.filter((t) => t.challengePhase === "funded").length;
+
+  // Scenario simulator — stress % shrinks the new-revenue run rate and
+  // lifts payout liability; projected margin is recomputed from totals.
+  const [stress, setStress] = useState(0);
+  const stressedRevenue = Math.round(totalRevenue * (1 - (stress / 100) * 0.5));
+  const stressedPayouts = Math.round(totalPayouts * (1 + (stress / 100) * 0.4));
+  const stressedMargin =
+    stressedRevenue > 0
+      ? Math.round(((stressedRevenue - stressedPayouts) / stressedRevenue) * 1000) / 10
+      : 0;
 
   // ---- Column definitions ----
   const challengeColumns: Column<ChallengeRow>[] = [
@@ -442,6 +516,99 @@ export function RiskStatisticsPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Predictive insights (audit #2) — forward-looking projections,
+            anomaly flags and a stress scenario, all deterministic */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Payout liability forecast</p>
+            </div>
+            {payoutForecast ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Trend over the last {profitTrend.length} weekly buckets:{" "}
+                  <span className="font-semibold text-foreground">
+                    {payoutForecast.direction === "rising" ? "↑ rising" : payoutForecast.direction === "falling" ? "↓ falling" : "→ flat"}
+                  </span>{" "}
+                  ({payoutForecast.slope >= 0 ? "+" : ""}{payoutForecast.slope} {currency}/week)
+                </p>
+                <p className="font-headline text-xl font-bold tabular-nums">
+                  {formatCurrency(payoutForecast.next30, currency)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  projected payouts over the next 30 days · ~{formatCurrency(payoutForecast.next90, currency)} over 90 days
+                </p>
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Not enough payout history in this range to project a trend.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Anomaly detection</p>
+            </div>
+            {anomalies.length > 0 ? (
+              <ul className="mt-3 space-y-2">
+                {anomalies.map((a, i) => (
+                  <li key={i} className="flex gap-2 text-xs text-muted-foreground">
+                    <span className="text-amber-600 dark:text-amber-400" aria-hidden>⚠</span>
+                    <span>{a}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-xs text-muted-foreground">
+                No anomalies — margins and breach rates are within one standard deviation of the mean.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Scenario analysis</p>
+            </div>
+            <label htmlFor="stress" className="mt-3 block text-xs text-muted-foreground">
+              Market stress: <span className="font-semibold text-foreground">{stress}%</span> — shrinks new revenue 50%, lifts payouts 40%
+            </label>
+            <input
+              id="stress"
+              type="range"
+              min={0}
+              max={50}
+              step={5}
+              value={stress}
+              onChange={(e) => setStress(Number(e.target.value))}
+              className="mt-2 w-full"
+              aria-valuetext={`${stress}% market stress`}
+            />
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-md bg-muted/40 p-2">
+                <p className="text-muted-foreground">Revenue</p>
+                <p className="font-headline text-sm font-bold tabular-nums">
+                  {formatCurrency(stressedRevenue, currency)}
+                  {stress > 0 && (
+                    <span className="ml-1 text-rose-600 dark:text-rose-400">
+                      ({formatCurrency(stressedRevenue - totalRevenue, currency)})
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="rounded-md bg-muted/40 p-2">
+                <p className="text-muted-foreground">Margin</p>
+                <p className={`font-headline text-sm font-bold tabular-nums ${stressedMargin < 0 ? "text-rose-600 dark:text-rose-400" : ""}`}>
+                  {stressedMargin}%{stress > 0 && <span className="ml-1 text-muted-foreground">vs {overallMargin}%</span>}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Footnote with derived totals */}
         <p className="text-xs text-muted-foreground">

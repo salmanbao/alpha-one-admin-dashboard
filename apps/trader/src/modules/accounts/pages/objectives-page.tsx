@@ -14,7 +14,7 @@
  * and consistency cap — with breach warnings for bad outcomes.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   TerraBadge,
   TerraCard,
@@ -156,6 +156,31 @@ export function ObjectivesPage() {
 
   const [whatIf, setWhatIf] = useState(0);
   const [rulesOpen, setRulesOpen] = useState(false);
+
+  // Personal goals (audit #1) — custom profit target / drawdown cap /
+  // plan note set by the trader, persisted per device in localStorage
+  // and compared side-by-side with the official evaluation metrics.
+  const [personalGoal, setPersonalGoal] = useState({ target: 0, maxDrawdown: 0, note: "" });
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("terra:personalGoals");
+      if (saved) setPersonalGoal(JSON.parse(saved));
+    } catch {
+      // Storage unavailable — session-only goals.
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("terra:personalGoals", JSON.stringify(personalGoal));
+    } catch {
+      // Storage unavailable — session-only goals.
+    }
+  }, [personalGoal]);
+
+  const personalPct =
+    personalGoal.target > 0 ? Math.min(100, (activeAccount.pnl / personalGoal.target) * 100) : 0;
+  const personalDdPct =
+    personalGoal.maxDrawdown > 0 ? Math.min(100, (ddUsed / personalGoal.maxDrawdown) * 100) : 0;
 
   // What-if projection (audit #6) — deterministic math on the current
   // account state: a loss consumes daily-loss headroom, a gain moves
@@ -458,6 +483,109 @@ export function ObjectivesPage() {
           );
         })}
       </div>
+
+      {/* My Personal Goals (audit #1) — stretch targets beyond the official
+          evaluation, persisted in localStorage, shown side-by-side with the
+          challenge metrics so traders can track both */}
+      <TerraCard>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-headline text-lg font-bold text-on-surface">My Personal Goals</h2>
+            <p className="text-xs text-on-surface-variant">
+              Stretch targets you set for yourself — saved on this device.
+            </p>
+          </div>
+          <TerraBadge tone={personalGoal.target > 0 && activeAccount.pnl >= personalGoal.target ? "success" : "primary"}>
+            {personalGoal.target > 0
+              ? `${Math.round(personalPct)}% of my target`
+              : "Not set"}
+          </TerraBadge>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div>
+            <label htmlFor="pg-target" className="text-xs font-semibold text-on-surface-variant">
+              Personal profit target ($)
+            </label>
+            <input
+              id="pg-target"
+              type="number"
+              min={0}
+              value={personalGoal.target || ""}
+              placeholder="e.g. 3000"
+              onChange={(e) => setPersonalGoal((g) => ({ ...g, target: Math.max(0, Number(e.target.value)) }))}
+              className="mt-1 w-full rounded-xl border border-outline-variant/60 bg-surface-container-low px-3 py-2 text-sm font-bold tabular-nums text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            />
+          </div>
+          <div>
+            <label htmlFor="pg-drawdown" className="text-xs font-semibold text-on-surface-variant">
+              Personal max drawdown ($)
+            </label>
+            <input
+              id="pg-drawdown"
+              type="number"
+              min={0}
+              value={personalGoal.maxDrawdown || ""}
+              placeholder="e.g. 1500"
+              onChange={(e) => setPersonalGoal((g) => ({ ...g, maxDrawdown: Math.max(0, Number(e.target.value)) }))}
+              className="mt-1 w-full rounded-xl border border-outline-variant/60 bg-surface-container-low px-3 py-2 text-sm font-bold tabular-nums text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            />
+          </div>
+          <div>
+            <label htmlFor="pg-note" className="text-xs font-semibold text-on-surface-variant">
+              Trading plan note
+            </label>
+            <input
+              id="pg-note"
+              value={personalGoal.note}
+              maxLength={140}
+              placeholder="e.g. Risk 1% per trade, no Friday entries"
+              onChange={(e) => setPersonalGoal((g) => ({ ...g, note: e.target.value }))}
+              className="mt-1 w-full rounded-xl border border-outline-variant/60 bg-surface-container-low px-3 py-2 text-sm text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            />
+          </div>
+        </div>
+
+        {/* Visual comparison — personal vs official progress together */}
+        <div className="mt-4 space-y-3">
+          {personalGoal.target > 0 ? (
+            <div>
+              <div className="flex items-baseline justify-between text-xs">
+                <span className="font-bold text-on-surface">
+                  My target: {formatMoney(personalGoal.target)}
+                </span>
+                <span className="text-on-surface-variant">
+                  Official: {formatMoney(activeAccount.profitTarget)} • P&L now:{" "}
+                  {formatMoney(activeAccount.pnl)}
+                </span>
+              </div>
+              <TerraProgress value={personalPct} height="h-2.5" />
+            </div>
+          ) : (
+            <p className="text-xs text-on-surface-variant">
+              Set a personal profit target above to compare it with the official
+              challenge target.
+            </p>
+          )}
+          {personalGoal.maxDrawdown > 0 && (
+            <div>
+              <div className="flex items-baseline justify-between text-xs">
+                <span className="font-bold text-on-surface">
+                  My drawdown cap: {formatMoney(personalGoal.maxDrawdown)}
+                </span>
+                <span className="text-on-surface-variant">
+                  Used {formatMoney(ddUsed)} of the official {formatMoney(limits.maxDd)}
+                </span>
+              </div>
+              <TerraProgress value={personalDdPct} height="h-2.5" />
+            </div>
+          )}
+          {personalGoal.note && (
+            <p className="rounded-xl bg-surface-container-low px-3 py-2 text-xs text-on-surface-variant">
+              📝 {personalGoal.note}
+            </p>
+          )}
+        </div>
+      </TerraCard>
 
       {/* Challenge rules breakdown — same dialog the positions/dashboard use */}
       {rulesOpen ? (
