@@ -93,6 +93,11 @@ export function OpenPositionsPage() {
             {rows.length > 0 && (
               <button
                 type="button"
+                aria-label={
+                  scopeAll
+                    ? "Flatten all open positions across every account"
+                    : `Flatten all open positions on #${activeAccount.login}`
+                }
                 onClick={() => closeAll(scopeAll ? undefined : activeAccountId)}
                 className="rounded-xl border border-error/60 px-4 py-2 text-sm font-bold text-error hover:bg-error/10"
               >
@@ -250,6 +255,7 @@ export function OpenPositionsPage() {
                 <button
                   key="x"
                   type="button"
+                  aria-label={`Close ${p.symbol} ${p.side} position #${p.id}`}
                   onClick={() => closePosition(p.id)}
                   className="rounded-lg border border-outline-variant px-2.5 py-1 text-xs font-semibold text-on-surface hover:bg-surface-container-low"
                 >
@@ -288,6 +294,7 @@ export function OpenPositionsPage() {
                 <button
                   key="x"
                   type="button"
+                  aria-label={`Cancel ${o.symbol} ${o.type} order`}
                   onClick={() => cancelOrder(o.id)}
                   className="rounded-lg border border-error/50 px-2.5 py-1 text-xs font-semibold text-error hover:bg-error/10"
                 >
