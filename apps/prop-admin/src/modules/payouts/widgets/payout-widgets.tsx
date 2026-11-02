@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { hasPermission } from "@/lib/platform/permission-engine";
-import { getTenantPayouts, payoutSeries, type Payout } from "@/lib/platform/mock-data";
+import { getTenantPayouts, getTenantTraders, payoutSeries, type Payout } from "@/lib/platform/mock-data";
 import { MetricCard } from "@/components/platform/page";
 import { StatusBadge, payoutStatusTone, formatCurrency, formatCompact } from "@/components/platform/status";
 import { applyPayoutDecision, effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
@@ -52,6 +52,13 @@ export function PayoutQueueWidget() {
   // Audit fix #3: reject collects a structured reason via the shared
   // PayoutRejectDialog (same flow as the payouts table + batch toolbar).
   const [rejectTarget, setRejectTarget] = useState<PayoutRejectTarget | null>(null);
+  // Performance snapshot for the reject dialog (audit X #5) — the same
+  // trader lookup the payouts table uses, scoped to this tenant.
+  const perfByTrader = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof getTenantTraders>[number]>();
+    for (const t of getTenantTraders(tid)) m.set(t.id, t);
+    return m;
+  }, [tid]);
   const pending = getTenantPayouts(tid)
     .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
     .filter((p) => p.status === "pending")
@@ -122,6 +129,8 @@ export function PayoutQueueWidget() {
                 amount: p.amount,
                 currency,
                 count: 1,
+                profitSplit: p.profitSplit,
+                performance: perfByTrader.get(p.traderId),
               })
             }
           >

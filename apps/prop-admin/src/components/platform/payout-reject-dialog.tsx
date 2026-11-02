@@ -10,6 +10,10 @@
  * with no reason at all.
  *
  * Every reject now goes through this dialog:
+ *   0. payout calculation preview (audit X #1/#5) — when the caller
+ *      passes `profitSplit`/`performance`, the dialog shows the trader
+ *      vs firm split of the requested amount plus the trader's recent
+ *      performance chip above the reason controls;
  *   1. structured reason — a preset category (dropdown) so rejections
  *      are reportable, plus a required free-text detail so the trader
  *      and the audit trail get a specific explanation;
@@ -48,6 +52,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  TraderPerformanceChip,
+  type PayoutTraderPerformance,
+} from "@/components/platform/trader-performance-chip";
 
 /** What is being rejected — one payout, or a batch of them. */
 export type PayoutRejectTarget = {
@@ -58,6 +66,16 @@ export type PayoutRejectTarget = {
   currency: string;
   /** Number of payouts in the reject batch (1 = single row). */
   count?: number;
+  /**
+   * Trader's share of the profit split (80 = trader keeps 80%).
+   * For a batch, the caller passes the amount-weighted blend.
+   * When present the dialog renders the payout-calculation preview
+   * (audit X #1) — trader share vs firm retention — next to the
+   * rejection controls so the reviewer sees the math before deciding.
+   */
+  profitSplit?: number;
+  /** Recent performance snapshot (audit X #5) — chip above the reason. */
+  performance?: PayoutTraderPerformance;
 };
 
 /** Preset rejection categories — reportable + consistent across surfaces. */
@@ -188,6 +206,53 @@ export function PayoutRejectDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* 0. Payout calculation preview (audit X #1 + #5) — the split
+              math and the trader's recent performance, so the reviewer
+              verifies the numbers instead of rejecting blind. */}
+          {(target?.profitSplit !== undefined || target?.performance) && (
+            <div className="space-y-2.5 rounded-md border bg-muted/40 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
+                <span className="text-xs font-medium text-foreground">
+                  Payout calculation
+                </span>
+                {target?.profitSplit !== undefined && (
+                  <span className="text-[11px] text-muted-foreground">
+                    Split {target.profitSplit}% trader / {100 - target.profitSplit}% firm
+                  </span>
+                )}
+              </div>
+              {target?.performance && (
+                <TraderPerformanceChip trader={target.performance} />
+              )}
+              {target?.profitSplit !== undefined && target && (
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded bg-background p-2">
+                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Trader receives
+                    </span>
+                    <span className="block font-semibold tabular-nums">
+                      {formatCurrencyValue(
+                        Math.round((target.amount * target.profitSplit) / 100),
+                        target.currency || "USD",
+                      )}
+                    </span>
+                  </div>
+                  <div className="rounded bg-background p-2">
+                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Firm retains
+                    </span>
+                    <span className="block font-semibold tabular-nums">
+                      {formatCurrencyValue(
+                        target.amount - Math.round((target.amount * target.profitSplit) / 100),
+                        target.currency || "USD",
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 1. Structured reason — reportable across surfaces */}
           <div className="space-y-1.5">
             <Label htmlFor="payout-reject-category" className="text-xs text-muted-foreground">
