@@ -28,11 +28,15 @@ import {
 import { equityCurveFor, terraAccounts, terraTrades } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { toast } from "@/hooks/use-toast";
+import { useRovingTabs } from "@/lib/a11y/roving-tabs";
 
 const tabs = ["Overview", "Symbols", "Sessions"] as const;
 
 export function PerformanceAnalyticsPage() {
   const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
+  // Roving tabindex + arrow keys (audit W #1) — same ARIA tabs pattern
+  // as account detail and open positions.
+  const roving = useRovingTabs(tabs, tab, setTab, "performance-analytics");
 
   // Account scope — follows the header switcher; "All accounts" shows the
   // cross-account view (matches the previous behavior).
@@ -346,12 +350,16 @@ export function PerformanceAnalyticsPage() {
         </div>
       </TerraCard>
 
-      <div className="flex items-center gap-1.5">
+      <div
+        className="flex items-center gap-1.5"
+        role="tablist"
+        aria-label="Performance analytics sections"
+        onKeyDown={roving.onKeyDown}
+      >
         {tabs.map((t) => (
           <button
+            {...roving.tabProps(t)}
             key={t}
-            type="button"
-            onClick={() => setTab(t)}
             className={cn(
               "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all",
               tab === t
@@ -365,6 +373,7 @@ export function PerformanceAnalyticsPage() {
       </div>
 
       {tab === "Overview" && (
+        <div {...roving.panelProps("Overview")}>
         <TerraCard>
           <TerraSectionTitle title="Trade breakdown" />
           <TerraTable
@@ -381,9 +390,11 @@ export function PerformanceAnalyticsPage() {
             ])}
           />
         </TerraCard>
+        </div>
       )}
 
       {tab === "Symbols" && (
+        <div {...roving.panelProps("Symbols")}>
         <TerraCard>
           <TerraSectionTitle title="By symbol" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -403,9 +414,11 @@ export function PerformanceAnalyticsPage() {
             ))}
           </div>
         </TerraCard>
+        </div>
       )}
 
       {tab === "Sessions" && (
+        <div {...roving.panelProps("Sessions")}>
         <TerraCard>
           <TerraSectionTitle title="By session" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -424,6 +437,7 @@ export function PerformanceAnalyticsPage() {
             ))}
           </div>
         </TerraCard>
+        </div>
       )}
     </div>
   );
