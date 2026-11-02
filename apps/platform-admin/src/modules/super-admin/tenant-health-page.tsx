@@ -17,8 +17,8 @@ import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
-import type { TenantContext } from "@/lib/platform/types";
 import { supportTickets, breaches } from "@/lib/platform/mock-data";
+import { healthOf, tenantHealthScore, type Health } from "@/lib/platform/tenant-health";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -43,25 +43,10 @@ import {
 /* ------------------------------------------------------------------ */
 /* Health model (deterministic)                                        */
 /* ------------------------------------------------------------------ */
-
-type Health = "healthy" | "watch" | "critical";
-
-/**
- * Health derivation — status first, then adoption depth:
- *  - critical: suspended / terminated / failed provisioning
- *  - watch:    trial / onboarding / invited / provisioning, or a live
- *              tenant running very few modules (low adoption)
- *  - healthy:  active tenants with a real module footprint
- */
-function healthOf(t: TenantContext): Health {
-  if (t.status === "suspended" || t.status === "terminated" || t.status === "provisioning_failed") {
-    return "critical";
-  }
-  if (t.status === "trial" || t.status === "onboarding" || t.status === "invited" || t.status === "provisioning") {
-    return "watch";
-  }
-  return t.enabledModules.length >= 5 ? "healthy" : "watch";
-}
+/* Band + numeric score come from lib/platform/tenant-health — the one */
+/* derivation shared with the lifecycle list and tenant detail (audit  */
+/* V #7), so the three surfaces can never disagree.                    */
+/* ------------------------------------------------------------------ */
 
 const healthTone: Record<Health, "destructive" | "secondary" | "default"> = {
   critical: "destructive",
@@ -101,7 +86,7 @@ export function TenantHealthPage() {
         const openBreaches = breaches.filter(
           (b) => b.tenantId === t.id && b.status === "open",
         );
-        return { tenant: t, health, openTickets, highTickets, openBreaches };
+        return { tenant: t, health, score: tenantHealthScore(t), openTickets, highTickets, openBreaches };
       })
       .filter((r) => focus === "all" || r.health === focus)
       .sort((a, b) => {
@@ -257,6 +242,20 @@ export function TenantHealthPage() {
         </button>
       ),
       sortValue: (r) => r.tenant.name,
+    },
+    {
+      key: "score",
+      header: "Score",
+      cell: (r) => (
+        <span
+          className="text-xs font-semibold tabular-nums"
+          title={r.score.recommendations.join(" ")}
+        >
+          {r.score.score}
+          <span className="ml-0.5 font-normal text-muted-foreground">/100</span>
+        </span>
+      ),
+      sortValue: (r) => r.score.score,
     },
     {
       key: "health",

@@ -217,6 +217,14 @@ export function NotificationCenterPage() {
                   return (
                     <div
                       key={item.id}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.currentTarget.click();
+                        }
+                      }}
                       onClick={() => {
                         if (selectMode) {
                           setSelected((prev) => {

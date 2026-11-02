@@ -91,6 +91,7 @@ import { markApprovalExecuted, recordAudit, useConsoleStore } from "@/lib/platfo
 import { useProvisioningStore } from "@/lib/platform/provisioning-saga";
 import { toast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/platform/export-utils";
+import { tenantHealthScore } from "@/lib/platform/tenant-health";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -686,8 +687,15 @@ function OverviewTab({ tenant }: { tenant: TenantContext }) {
     { label: "Application", value: tenant.application },
   ];
 
+  // Health band + numeric score + next steps — same derivation as the
+  // Tenant Health dashboard and the lifecycle list (audit V #7).
+  const { score, band, recommendations } = tenantHealthScore(tenant);
+  const bandTone = band === "healthy" ? "success" : band === "watch" ? "warning" : "danger";
+  const bandLabel = band === "healthy" ? "Healthy" : band === "watch" ? "Watch" : "Needs attention";
+
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-3">
       <div className="rounded-lg border bg-card p-4 lg:col-span-2">
         <p className="mb-3 text-sm font-medium">Tenant summary</p>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-2">
@@ -727,6 +735,39 @@ function OverviewTab({ tenant }: { tenant: TenantContext }) {
           {tenant.enabledModules.length} of {allModules.length} modules enabled
         </p>
         <Progress value={(tenant.enabledModules.length / allModules.length) * 100} className="mt-1.5 h-1.5" />
+      </div>
+      </div>
+
+      {/* Health score (audit V #7) — numeric score, band, and concrete
+          next steps, from the one shared derivation in
+          lib/platform/tenant-health. */}
+      <div className="rounded-lg border bg-card p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">
+              <LabelWithHelp help="Deterministic health score (0–100) from lifecycle status, module adoption, support-ticket load and open breaches. The score always sits inside its band's range, and every signal that cost points lists a concrete next step below.">
+                Tenant health score
+              </LabelWithHelp>
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Higher is healthier — same score shown on the Tenant Health dashboard and lifecycle list.
+            </p>
+          </div>
+          <StatusBadge tone={bandTone}>{bandLabel}</StatusBadge>
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <span className="text-3xl font-semibold tabular-nums">{score}</span>
+          <span className="text-sm text-muted-foreground">/100</span>
+          <Progress value={score} className="h-2 flex-1" />
+        </div>
+        <ul className="mt-3 space-y-1.5">
+          {recommendations.map((rec) => (
+            <li key={rec} className="flex items-start gap-2 text-xs text-muted-foreground">
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/70" aria-hidden />
+              <span>{rec}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

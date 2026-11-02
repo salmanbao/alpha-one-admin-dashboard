@@ -275,6 +275,15 @@ export function GroupManagementPage() {
                   return (
                     <div
                       key={g.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.currentTarget.click();
+                        }
+                      }}
                       className={cn(
                         "flex items-start gap-2 rounded-md border p-3 transition-colors cursor-pointer",
                         isSelected

@@ -13,10 +13,15 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 
 export function AiQuotaStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  // Keyboard parity (audit V #4) — Escape closes these modal surfaces
+  // instead of trapping keyboard users in click-to-close sheets.
+  useEscapeKey(so0, () => setSo0(false));
+  useEscapeKey(so1, () => setSo1(false));
   return (
     <>
       <div className="flex flex-col w-full">
@@ -106,7 +111,7 @@ export function AiQuotaStitchPage() {
                 <span className="text-on-surface-variant/80 font-mono">Optimal</span>
               </div>
             </div>
-            <div className="p-5 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between relative overflow-hidden group" onClick={() => setSo1(true)}>
+            <div className="p-5 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between relative overflow-hidden group" onClick={() => setSo1(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSo1(true); } } } role="button" tabIndex={0}>
               <div className="absolute top-0 left-0 right-0 h-1 bg-error"></div>
               <div className="flex items-center justify-between text-xs text-on-surface-variant font-semibold">
                 <span>Burst Limit Hits</span>
