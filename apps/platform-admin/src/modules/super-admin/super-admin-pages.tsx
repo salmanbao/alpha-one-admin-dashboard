@@ -41,6 +41,7 @@ export { AiUsageQuotaPage } from "./ai-usage-quota-page";
 export { BridgeSyncLogPage } from "./bridge-sync-log-page";
 export { GettingStartedPage } from "./getting-started-page";
 export { PlatformArchitecturePage } from "./platform-architecture-page";
+export { PlatformBillingPage } from "./platform-billing-page";
 export { PlatformFinancialsPage } from "./platform-financials-page";
 export { GlobalDefaultsPage } from "./global-defaults-page";
 export { ReferenceDataPage } from "./reference-data-page";
