@@ -6,13 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { DataTable, type Column } from "@/components/platform/data-table";
-import { formatCurrency } from "@/components/platform/status";
+import { formatCurrency, StatusBadge } from "@/components/platform/status";
 import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { toast } from "@/hooks/use-toast";
 import type { TenantContext } from "@/lib/platform/types";
-import { DollarSign, TrendingUp, TrendingDown, Receipt, CheckCircle2, Clock } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Receipt, CheckCircle2, Clock, FileText } from "lucide-react";
 
 interface TenantRevenue {
   tenant: TenantContext;
@@ -20,6 +20,16 @@ interface TenantRevenue {
   usageRevenue: number;
   passThrough: number;
   total: number;
+}
+
+/** One row of the platform-level invoice ledger (audit X #2). */
+interface PlatformInvoice {
+  id: string;
+  tenant: TenantContext;
+  amount: number;
+  status: "paid" | "pending" | "past due" | "disputed";
+  due: string;
+  method: string;
 }
 
 export function PlatformFinancialsPage() {
@@ -54,6 +64,35 @@ export function PlatformFinancialsPage() {
   const usageTotal = rows.reduce((s, r) => s + r.usageRevenue, 0);
   const passThroughTotal = rows.reduce((s, r) => s + r.passThrough, 0);
 
+  // Invoice ledger (audit X #2) — deterministic per-tenant invoice
+  // history derived from the same revenue rows, so the platform-level
+  // billing screen has the invoice list its evidence said was missing.
+  const invoices: PlatformInvoice[] = [];
+  rows.forEach((r) => {
+    const seed = r.tenant.id.split("").reduce((s, c) => s + c.charCodeAt(0), 0);
+    const methods = ["Card", "ACH", "Wire transfer"];
+    const count = 2 + (seed % 2); // 2–3 invoices per tenant
+    for (let i = 0; i < count; i++) {
+      const status: PlatformInvoice["status"] =
+        i === 0
+          ? seed % 7 === 0
+            ? "past due"
+            : "pending"
+          : (seed + i) % 9 === 0
+            ? "disputed"
+            : "paid";
+      const dueDate = new Date(Date.now() + (i - 1) * 30 * 24 * 60 * 60 * 1000);
+      invoices.push({
+        id: `INV-${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}-${String(((seed + i * 13) % 900) + 100)}`,
+        tenant: r.tenant,
+        amount: r.total,
+        status,
+        due: dueDate.toISOString(),
+        method: methods[(seed + i) % methods.length],
+      });
+    }
+  });
+
   const columns: Column<TenantRevenue>[] = [
     { key: "tenant", header: "Tenant", cell: (r) => <span className="font-medium">{r.tenant.name}</span>, sortValue: (r) => r.tenant.name },
     { key: "plan", header: "Plan", cell: (r) => <Badge variant="outline" className="text-[10px] capitalize">{r.tenant.plan}</Badge>, sortValue: (r) => r.tenant.plan },
@@ -61,6 +100,40 @@ export function PlatformFinancialsPage() {
     { key: "usage", header: "Usage Revenue", cell: (r) => <span className="tabular-nums text-xs">{formatCurrency(r.usageRevenue)}</span>, sortValue: (r) => r.usageRevenue, numeric: true },
     { key: "passThrough", header: "Pass-Through", cell: (r) => <span className="tabular-nums text-xs">{formatCurrency(r.passThrough)}</span>, sortValue: (r) => r.passThrough, numeric: true },
     { key: "total", header: "Total MRR", cell: (r) => <span className="font-bold tabular-nums">{formatCurrency(r.total)}</span>, sortValue: (r) => r.total, numeric: true },
+  ];
+
+  const invoiceColumns: Column<PlatformInvoice>[] = [
+    { key: "id", header: "Invoice", cell: (r) => <span className="font-mono text-xs">{r.id}</span>, sortValue: (r) => r.id },
+    { key: "tenant", header: "Tenant", cell: (r) => <span className="font-medium">{r.tenant.name}</span>, sortValue: (r) => r.tenant.name },
+    { key: "amount", header: "Amount", cell: (r) => <span className="tabular-nums text-xs">{formatCurrency(r.amount, r.tenant.currency)}</span>, sortValue: (r) => r.amount, numeric: true },
+    { key: "due", header: "Due", cell: (r) => <span className="text-xs">{new Date(r.due).toLocaleDateString()}</span>, sortValue: (r) => r.due },
+    { key: "method", header: "Method", cell: (r) => <span className="text-xs text-muted-foreground">{r.method}</span>, sortValue: (r) => r.method },
+    {
+      key: "status",
+      header: "Status",
+      cell: (r) => (
+        <StatusBadge tone={r.status === "paid" ? "success" : r.status === "pending" ? "warning" : "danger"}>
+          {r.status}
+        </StatusBadge>
+      ),
+      sortValue: (r) => r.status,
+    },
+    {
+      key: "actions",
+      header: "",
+      cell: (r) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-xs"
+          onClick={() =>
+            toast({ title: "Invoice opened", description: `${r.id} · ${r.tenant.name} — PDF preview would open here. (demo)` })
+          }
+        >
+          <FileText className="mr-1 h-3 w-3" /> View
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -118,6 +191,27 @@ export function PlatformFinancialsPage() {
           <CardHeader className="pb-2"><span className="text-sm font-medium">Per-tenant revenue</span></CardHeader>
           <CardContent>
             <DataTable columns={columns} data={rows} rowKey={(r) => r.tenant.id} searchableText={(r) => r.tenant.name} searchPlaceholder="Search tenants…" pageSize={20} emptyTitle="No data" emptyDescription="Tenants will appear here." />
+          </CardContent>
+        </Card>
+
+        {/* Invoice ledger (audit X #2) — platform-level invoice history
+            across every tenant: the invoice list, statuses, methods and
+            per-invoice actions the billing screen was missing. */}
+        <Card>
+          <CardHeader className="pb-2">
+            <span className="text-sm font-medium">Invoice ledger</span>
+          </CardHeader>
+          <CardContent>
+            <DataTable
+              columns={invoiceColumns}
+              data={invoices}
+              rowKey={(r) => r.id}
+              searchableText={(r) => `${r.id} ${r.tenant.name} ${r.status}`}
+              searchPlaceholder="Search invoices…"
+              pageSize={10}
+              emptyTitle="No invoices yet"
+              emptyDescription="Invoices appear here after the first billing cycle."
+            />
           </CardContent>
         </Card>
 
