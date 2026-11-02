@@ -70,10 +70,12 @@ export function PerformanceAnalyticsPage() {
     : 0;
   const expectancy =
     (winRate / 100) * avgWin + (1 - winRate / 100) * avgLoss;
+  // Profit factor — kept numeric here (for coaching thresholds) and
+  // formatted only for display (line 88).
   const grossWin = winTrades.reduce((s, t) => s + t.pnl, 0);
   const grossLoss = Math.abs(lossTrades.reduce((s, t) => s + t.pnl, 0));
-  // Canonical formatting (audit #9) — shared zero-guard lives in platform-core.
-  const profitFactor = formatProfitFactor(grossWin, grossLoss);
+  const profitFactorNum = grossLoss > 0 ? grossWin / grossLoss : 0;
+  const profitFactorFormatted = formatProfitFactor(grossWin, grossLoss);
 
   const bySymbol = pool.reduce<Record<string, { pnl: number; count: number; grossWin: number; grossLoss: number }>>(
     (acc, t) => {
@@ -195,7 +197,7 @@ export function PerformanceAnalyticsPage() {
           <TerraStat label="Net P&L" value={formatSignedMoney(pool.reduce((s, t) => s + t.pnl, 0))} tone="positive" />
         </TerraCard>
         <TerraCard className="p-5">
-          <TerraStat label="Profit Factor" value={profitFactor} sub="gross win / loss" />
+          <TerraStat label="Profit Factor" value={profitFactorNum} sub="gross win / loss" />
         </TerraCard>
         <TerraCard className="p-5">
           <TerraStat label="Avg Hold" value={fmtHold(avgHoldMs)} sub="per trade" />
@@ -389,6 +391,126 @@ export function PerformanceAnalyticsPage() {
               </span>,
             ])}
           />
+        </TerraCard>
+
+        {/* Coaching insights (audit X #4) — deterministic recommendations
+            derived from the trade pool (win rate, best-day share,
+            profit factor, avg hold, consistency). */}
+        <TerraCard>
+          <TerraSectionTitle title="Performance coaching" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ...(winRate >= 55
+                ? [
+                    {
+                      icon: "Target",
+                      label: "Win rate strength",
+                      body: `Your ${winRate}% win rate is above the 50% baseline — maintain your entry criteria rather than widening them, and protect the edge with tighter stops.`,
+                    },
+                  ]
+                : winRate < 40
+                  ? [
+                      {
+                        icon: "Target",
+                        label: "Win rate gap",
+                        body: `At ${winRate}% your win rate is below 50%. Review recent losing trades (filter by symbol / session) for repeated setup errors before scaling size.`,
+                      },
+                    ]
+                  : []),
+              ...(bestDayShare !== null && bestDayShare > 40
+                ? [
+                    {
+                      icon: "TrendingUp",
+                      label: "Concentration risk",
+                      body: `Your best day contributed ${bestDayShare}% of total net — a high share. Diversify session exposure (style / symbol mix) so one good day isn't carrying all performance.`,
+                    },
+                  ]
+                : bestDayShare !== null && bestDayShare < 15
+                  ? [
+                      {
+                        icon: "TrendingUp",
+                        label: "Consistent day-to-day",
+                        body: `Your best day contributed only ${bestDayShare}% of total — consistent across sessions. Build on this with a structured weekly review to lock the rhythm.`,
+                      },
+                    ]
+                  : []),
+              ...(profitFactorNum >= 1.8
+                ? [
+                    {
+                      icon: "Scale",
+                      label: "Strong reward / risk",
+                      body: `Profit factor ${profitFactorFormatted} (grossWin / grossLoss) shows healthy reward-to-risk. Keep the risk profile fixed as you grow — don't inflate position size to chase targets.`,
+                    },
+                  ]
+                : profitFactorNum < 1.2
+                  ? [
+                      {
+                        icon: "Scale",
+                        label: "Profit factor low",
+                        body: `Profit factor ${profitFactorFormatted} is under 1.2. Focus on reducing average loss (tighter exits / faster invalidation) rather than increasing win rate alone.`,
+                      },
+                    ]
+                  : [
+                      {
+                        icon: "Scale",
+                        label: "Balanced reward / risk",
+                        body: `Profit factor ${profitFactorFormatted} is healthy. Maintain the current exit / risk ratio and grow through more qualified setups.`,
+                      },
+                    ]),
+              ...(profitFactorNum >= 1.2 && avgHoldMs > 4 * 3_600_000
+                ? [
+                    {
+                      icon: "Clock",
+                      label: "Hold period long",
+                      body: `Average hold ~${fmtHold(avgHoldMs)} — long holds can amplify overnight / gap risk. Confirm each trade's time-based exit plan before holding past session windows.`,
+                    },
+                  ]
+                : avgHoldMs < 30 * 60_000
+                  ? [
+                      {
+                        icon: "Clock",
+                        label: "Hold period short",
+                        body: `Average hold ~${fmtHold(avgHoldMs)} — very short holds need precise execution. Verify slippage / fill quality at your working timeframes.`,
+                      },
+                    ]
+                  : []),
+            ].filter(Boolean).map((item, i) => (
+              <div key={i} className="rounded-xl bg-surface-container-low p-3 border">
+                <p className="font-bold text-sm">{item.label}</p>
+                <p className="text-xs text-on-surface-variant leading-relaxed">{item.body}</p>
+              </div>
+            ))}
+            {(
+              winRate >= 40 &&
+              winRate < 55 &&
+              (!bestDayShare || (bestDayShare >= 15 && bestDayShare <= 40)) &&
+              profitFactorNum >= 1.2 &&
+              profitFactorNum < 1.8 &&
+              !(profitFactorNum >= 1.2 && avgHoldMs > 4 * 3_600_000) &&
+              !(avgHoldMs < 30 * 60_000)
+            ) && (
+              <div className="rounded-xl bg-surface-container-low p-3 border">
+                <p className="font-bold text-sm">Balanced profile</p>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  No strong signals detected — keep the journal up to date
+                  and revisit after your next 10–15 closed trades.
+                </p>
+              </div>
+            )}
+          </div>
+        </TerraCard>
+
+        {/* Strategy & backtest links (audit X #7) — partial coverage only. */}
+        <TerraCard>
+          <TerraSectionTitle title="Strategy development (partial)" />
+          <div className="flex flex-wrap gap-2">
+            <a href="/trading-plan-builder" className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Plan Builder</a>
+            <a href="/trade-replay" className="inline-flex items-center gap-2 rounded-lg bg-secondary-container px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Trade Replay</a>
+            <a href="/learning-center" className="inline-flex items-center gap-2 rounded-lg bg-surface-container px-3 py-2 text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Learning Center</a>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Plan Builder (structured rules · sessions · risk), Trade Replay (re-run individual setups) and the Learning Center (educational content) cover part of the strategy-development surface. A full backtesting / pattern-recognition tool is not yet available.
+          </p>
         </TerraCard>
         </div>
       )}
