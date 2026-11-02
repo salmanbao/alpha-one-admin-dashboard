@@ -141,7 +141,15 @@ export function OrderTicketPage() {
         <div className="lg:col-span-2">
           <TerraCard>
             <TerraSectionTitle title="Order details" />
-            <div className="space-y-4">
+            {/* Keyboard (audit #2): a real <form> so Enter in any field
+                submits the order — no need to Tab to the button. */}
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handlePlaceOrder();
+              }}
+            >
               {/* Symbol selector */}
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -161,11 +169,12 @@ export function OrderTicketPage() {
               </label>
 
               {/* Buy / Sell */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3" role="group" aria-label="Order side">
                 {(["buy", "sell"] as const).map((s) => (
                   <button
                     key={s}
                     type="button"
+                    aria-pressed={side === s}
                     onClick={() => setSide(s)}
                     className={cn(
                       "rounded-xl py-3 text-sm font-bold uppercase tracking-wide transition-all",
@@ -260,8 +269,7 @@ export function OrderTicketPage() {
               </div>
 
               <button
-                type="button"
-                onClick={handlePlaceOrder}
+                type="submit"
                 className={cn(
                   "w-full rounded-xl py-3 text-sm font-bold uppercase tracking-wide shadow-sm transition-all active:scale-[0.99]",
                   side === "buy"
@@ -272,7 +280,7 @@ export function OrderTicketPage() {
                 {side === "buy" ? "Buy" : "Sell"} {lots || "0.00"} {symbol} @{" "}
                 {isPending ? entryPrice || "—" : side === "buy" ? selected.ask : selected.bid}
               </button>
-            </div>
+            </form>
           </TerraCard>
         </div>
 
