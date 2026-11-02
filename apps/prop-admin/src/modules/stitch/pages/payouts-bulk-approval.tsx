@@ -79,6 +79,12 @@ export function PayoutsBulkApprovalStitchPage() {
   const selectedRows = QUEUE.filter((r) => selected.has(r.ref));
   const gross = selectedRows.reduce((s, r) => s + r.amount, 0);
   const largeSel = selectedRows.filter((r) => r.large);
+  // Profit-split preview (audit W #2) — trader net vs firm retention for
+  // exactly what is about to be signed, derived from each row's net
+  // (trader share) so the operator sees the calculation before attesting.
+  const traderNet = selectedRows.reduce((s, r) => s + r.net, 0);
+  const firmNet = gross - traderNet;
+  const splitPct = gross > 0 ? Math.round((traderNet / gross) * 100) : 80;
   const visibleRows = QUEUE.filter((r) =>
     preset === "kyc" ? r.kycVerified : preset === "large" ? r.large : preset === "risk" ? r.highRisk : true,
   );
@@ -620,6 +626,20 @@ export function PayoutsBulkApprovalStitchPage() {
                 <div className="space-y-0.5">
                   <span className="font-label text-[10px] uppercase font-bold tracking-wider text-tertiary block">Dual-Auth Staged</span>
                   <span className="font-mono text-sm font-bold text-on-surface block">{largeSel.length} Payouts <span className="text-xs text-tsc font-normal">({usd(largeSel.reduce((s, r) => s + r.amount, 0))})</span></span>
+                </div>
+              </div>
+              {/* Profit-split preview (audit W #2) — how this disbursement
+                  divides between the traders and the firm. */}
+              <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container grid grid-cols-2 gap-3 text-center">
+                <div className="space-y-0.5">
+                  <span className="font-label text-[10px] uppercase font-bold tracking-wider text-primary block">Trader Net ({splitPct}%)</span>
+                  <span className="font-mono text-sm font-bold text-on-surface block">{usd(traderNet)} USD</span>
+                  <span className="text-[10px] text-on-surface-variant block">Disbursable to traders</span>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="font-label text-[10px] uppercase font-bold tracking-wider text-tertiary block">Firm Retention ({100 - splitPct}%)</span>
+                  <span className="font-mono text-sm font-bold text-on-surface block">{usd(firmNet)} USD</span>
+                  <span className="text-[10px] text-on-surface-variant block">Platform treasury</span>
                 </div>
               </div>
               <div className="space-y-3 pt-1">
