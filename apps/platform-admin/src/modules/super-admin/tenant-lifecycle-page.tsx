@@ -68,6 +68,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { hashStr } from "@/lib/platform/mock-data";
+import { healthOf, tenantHealthScore, type Health } from "@/lib/platform/tenant-health";
 import { formatCurrencyValue } from "@pfaas/platform-core";
 
 /* ------------------------------------------------------------------ */
@@ -98,21 +99,11 @@ const STAGES: {
 ];
 
 /* ------------------------------------------------------------------ */
-/* Tenant health — same derivation as the Tenant Health dashboard, so  */
-/* the lifecycle list and the health view can never disagree.          */
+/* Tenant health — imported from lib/platform/tenant-health so the     */
+/* lifecycle list, the Tenant Health dashboard and tenant detail all   */
+/* read the same band + numeric score (audit V #7) and can never       */
+/* disagree.                                                           */
 /* ------------------------------------------------------------------ */
-
-type Health = "healthy" | "watch" | "critical";
-
-function healthOf(t: TenantContext): Health {
-  if (t.status === "suspended" || t.status === "terminated" || t.status === "provisioning_failed") {
-    return "critical";
-  }
-  if (t.status === "trial" || t.status === "onboarding" || t.status === "invited" || t.status === "provisioning") {
-    return "watch";
-  }
-  return t.enabledModules.length >= 5 ? "healthy" : "watch";
-}
 
 const HEALTH_META: Record<
   Health,
@@ -426,14 +417,20 @@ export function TenantLifecyclePage() {
       header: "Health",
       cell: (t) => {
         const meta = HEALTH_META[healthOf(t)];
+        const { score, recommendations } = tenantHealthScore(t);
         return (
-          <Badge variant={meta.variant} className="gap-1.5 text-[10px]" title={meta.tooltip}>
+          <Badge
+            variant={meta.variant}
+            className="gap-1.5 text-[10px]"
+            title={`${meta.tooltip} Health score ${score}/100. ${recommendations.join(" ")}`}
+          >
             <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} aria-hidden />
             {meta.label}
+            <span className="tabular-nums opacity-80">{score}</span>
           </Badge>
         );
       },
-      sortValue: (t) => (healthOf(t) === "critical" ? 0 : healthOf(t) === "watch" ? 1 : 2),
+      sortValue: (t) => tenantHealthScore(t).score,
     },
     {
       key: "plan",

@@ -13,10 +13,15 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 
 export function RiskRevenueLossStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  // Keyboard parity (audit V #4) — Escape closes these modal surfaces
+  // instead of trapping keyboard users in click-to-close sheets.
+  useEscapeKey(so0, () => setSo0(false));
+  useEscapeKey(so1, () => setSo1(false));
   const [period, setPeriod] = React.useState({ id: "Week 12 (Jun 16 - Jun 22)", gross: "$295,400.00", pnl: "$410,200.00", loss: "-$114,800.00", drag: "$284,500.00" });
   return (
     <>

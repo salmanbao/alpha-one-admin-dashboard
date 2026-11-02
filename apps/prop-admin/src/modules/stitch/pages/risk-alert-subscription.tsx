@@ -13,11 +13,17 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 
 export function RiskAlertSubscriptionStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
   const [so2, setSo2] = React.useState(false);
+  // Keyboard parity (audit V #4) — Escape closes these modal surfaces
+  // instead of trapping keyboard users in click-to-close sheets.
+  useEscapeKey(so0, () => setSo0(false));
+  useEscapeKey(so1, () => setSo1(false));
+  useEscapeKey(so2, () => setSo2(false));
   return (
     <>
       <div className="flex flex-col w-full space-y-6">
@@ -25,7 +31,7 @@ export function RiskAlertSubscriptionStitchPage() {
           <div className="flex items-center gap-2 text-on-surface-variant font-medium">
             <span className="hover:text-primary transition-colors cursor-pointer">OPERATIONS CORE</span>
             <span>/</span>
-            <span className="hover:text-primary transition-colors cursor-pointer" onClick={() => setSo2(true)}>RISK SURVEILLANCE</span>
+            <span className="hover:text-primary transition-colors cursor-pointer" onClick={() => setSo2(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSo2(true); } } } role="button" tabIndex={0}>RISK SURVEILLANCE</span>
             <span>/</span>
             <span className="text-on-surface font-semibold tracking-wide">ALERT SUBSCRIPTIONS</span>
           </div>

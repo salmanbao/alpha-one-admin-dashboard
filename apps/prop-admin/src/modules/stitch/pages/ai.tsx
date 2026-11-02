@@ -13,10 +13,15 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 
 export function AiStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  // Keyboard parity (audit V #4) — Escape closes these modal surfaces
+  // instead of trapping keyboard users in click-to-close sheets.
+  useEscapeKey(so0, () => setSo0(false));
+  useEscapeKey(so1, () => setSo1(false));
   return (
     <>
       <div className="w-full px-8 py-8">
@@ -137,7 +142,7 @@ export function AiStitchPage() {
                   <button className="px-3 py-1 rounded-full text-xs font-semibold bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors flex-shrink-0" type="button">                    Execution (8)</button>
                 </div>
                 <div className="divide-y divide-surface-container">
-                  <div className="py-4 hover:bg-surface-container-low/50 rounded-lg p-3 -mx-3 transition-colors cursor-pointer group" onClick={() => setSo0(true)}>
+                  <div className="py-4 hover:bg-surface-container-low/50 rounded-lg p-3 -mx-3 transition-colors cursor-pointer group" onClick={() => setSo0(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSo0(true); } } } role="button" tabIndex={0}>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 min-w-0">
                         <div className="w-8 h-8 rounded-lg bg-error-container text-error flex items-center justify-center flex-shrink-0 mt-0.5"><MsIcon name="warning" className="text-[18px]" /></div>
@@ -161,7 +166,7 @@ export function AiStitchPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="py-4 hover:bg-surface-container-low/50 rounded-lg p-3 -mx-3 transition-colors cursor-pointer group" onClick={() => setSo0(true)}>
+                  <div className="py-4 hover:bg-surface-container-low/50 rounded-lg p-3 -mx-3 transition-colors cursor-pointer group" onClick={() => setSo0(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSo0(true); } } } role="button" tabIndex={0}>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 min-w-0">
                         <div className="w-8 h-8 rounded-lg bg-error-container text-error flex items-center justify-center flex-shrink-0 mt-0.5"><MsIcon name="trending_down" className="text-[18px]" /></div>
