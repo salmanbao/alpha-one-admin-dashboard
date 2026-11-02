@@ -17,18 +17,34 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (!email.trim()) e.email = "Email is required.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = "Enter a valid email address.";
-    if (!password || password.length < 6) e.password = "Password must be at least 6 characters.";
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  // Canonical field validators — shared by blur, change and submit so the
+  // same rule always produces the same message (audit U #8).
+  const emailError = (v: string) => {
+    if (!v.trim()) return "Email is required.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return "Enter a valid email address.";
+    return "";
+  };
+  const passwordError = (v: string) =>
+    !v || v.length < 6 ? "Password must be at least 6 characters." : "";
+
+  // Canonical validation timing (audit U #8): validate on blur for
+  // real-time feedback, keep re-validating on change once a field has
+  // errored, and validate everything on submit. Messages are announced
+  // with role="alert" and linked via aria-describedby.
+  const onEmailChange = (v: string) => {
+    setEmail(v);
+    setErrors((prev) => ("email" in prev ? { ...prev, email: emailError(v) } : prev));
+  };
+  const onPasswordChange = (v: string) => {
+    setPassword(v);
+    setErrors((prev) => ("password" in prev ? { ...prev, password: passwordError(v) } : prev));
   };
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!validate()) return;
+    const next = { email: emailError(email), password: passwordError(password) };
+    setErrors(next);
+    if (next.email || next.password) return;
     setLoading(true);
     setTimeout(() => router.push("/dashboard"), 600);
   }
@@ -56,12 +72,17 @@ export function LoginPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setErrors((prev) => { const n = { ...prev }; delete n.email; return n; }); }}
+                onChange={(e) => onEmailChange(e.target.value)}
+                onBlur={() => setErrors((prev) => ({ ...prev, email: emailError(email) }))}
                 aria-invalid={!!errors.email}
                 aria-describedby="email-error"
                 className={`rounded-lg border bg-surface-container-lowest px-3 py-2.5 text-sm outline-none focus:border-primary ${errors.email ? "border-error" : "border-outline-variant"}`}
               />
-              {errors.email && <p id="email-error" className="text-xs text-error">{errors.email}</p>}
+              {errors.email ? (
+                <p id="email-error" role="alert" className="text-xs text-error">
+                  {errors.email}
+                </p>
+              ) : null}
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -73,12 +94,17 @@ export function LoginPage() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => { setPassword(e.target.value); setErrors((prev) => { const n = { ...prev }; delete n.password; return n; }); }}
+                onChange={(e) => onPasswordChange(e.target.value)}
+                onBlur={() => setErrors((prev) => ({ ...prev, password: passwordError(password) }))}
                 aria-invalid={!!errors.password}
                 aria-describedby="password-error"
                 className={`rounded-lg border bg-surface-container-lowest px-3 py-2.5 text-sm outline-none focus:border-primary ${errors.password ? "border-error" : "border-outline-variant"}`}
               />
-              {errors.password && <p id="password-error" className="text-xs text-error">{errors.password}</p>}
+              {errors.password ? (
+                <p id="password-error" role="alert" className="text-xs text-error">
+                  {errors.password}
+                </p>
+              ) : null}
             </label>
             <label className="flex items-center gap-2 text-xs text-on-surface-variant">
               <input type="checkbox" defaultChecked className="accent-primary" />

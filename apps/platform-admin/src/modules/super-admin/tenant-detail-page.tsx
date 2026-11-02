@@ -3,15 +3,16 @@
 /**
  * Tenant Detail Page — comprehensive tenant workspace (spec §6, §41, §43).
  *
- * Super Admin's view into a single tenant: header + KPI row + 7 tabs that
+ * Super Admin's view into a single tenant: header + KPI row + 8 tabs that
  * cover the full tenant lifecycle surface:
  *   1. Overview       — summary + module adoption progress
- *   2. Modules        — toggle which modules this tenant can access (KEY feature)
- *   3. Users          — tenant's admin/support users
- *   4. Billing        — subscription + invoice history
- *   5. Activity       — recent audit timeline
- *   6. Configuration  — edit tenant settings (name, currency, branding, etc.)
- *   7. Risk           — risk summary + quick nav to tenant risk workspace
+ *   2. Analytics      — per-tenant revenue, adoption & growth vs portfolio
+ *   3. Modules        — toggle which modules this tenant can access (KEY feature)
+ *   4. Users          — tenant's admin/support users
+ *   5. Billing        — subscription + invoice history
+ *   6. Activity       — recent audit timeline
+ *   7. Configuration  — edit tenant settings (name, currency, branding, etc.)
+ *   8. Risk           — risk summary + quick nav to tenant risk workspace
  *
  * Destructive actions (Suspend, Terminate) route through
  * SensitiveActionDialog (Phase C, CON-06): consequence-first review with
@@ -34,6 +35,8 @@ import {
   getTenantPayouts,
   getTenantKyc,
   getTenantAudit,
+  tenants as allTenants,
+  hashStr,
   users as allUsers,
 } from "@/lib/platform/mock-data";
 import type { AuthUser, TenantContext } from "@/lib/platform/types";
@@ -46,6 +49,7 @@ import {
 } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
+import { AreaSeries, BarSeries } from "@/components/platform/charts";
 import { ActivityTimeline } from "@/components/platform/audit";
 import { EmptyState } from "@/components/platform/guards";
 import { LabelWithHelp } from "@/components/platform/contextual-help";
@@ -97,6 +101,7 @@ import {
   Users,
   Package,
   DollarSign,
+  Banknote,
   AlertTriangle,
   Clock,
   Activity,
@@ -589,6 +594,7 @@ export function TenantDetailPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="flex flex-wrap justify-start">
           <TabsTrigger value="overview" className="gap-1"><Activity className="h-3 w-3" />Overview</TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-1"><TrendingUp className="h-3 w-3" />Analytics</TabsTrigger>
           <TabsTrigger value="modules" className="gap-1"><Package className="h-3 w-3" />Modules</TabsTrigger>
           <TabsTrigger value="users" className="gap-1"><Users className="h-3 w-3" />Users</TabsTrigger>
           <TabsTrigger value="billing" className="gap-1"><DollarSign className="h-3 w-3" />Billing</TabsTrigger>
@@ -599,6 +605,9 @@ export function TenantDetailPage() {
 
         <TabsContent value="overview">
           <OverviewTab tenant={localTenant} />
+        </TabsContent>
+        <TabsContent value="analytics">
+          <AnalyticsTab tenant={localTenant} />
         </TabsContent>
         <TabsContent value="modules">
           <ModulesTab tenant={localTenant} onChange={setLocalTenant} onPersist={setTenant} />
@@ -1334,7 +1343,207 @@ function ConfigurationTab({
 }
 
 /* ------------------------------------------------------------------ */
-/* Tab 7 — Risk                                                       */
+/* Tab — Analytics (audit U #5): per-tenant revenue, adoption, growth  */
+/* ------------------------------------------------------------------ */
+
+function AnalyticsTab({ tenant }: { tenant: TenantContext }) {
+  const seed = hashStr(tenant.id);
+  const traders = getTenantTraders(tenant.id);
+  const accounts = getTenantAccounts(tenant.id);
+  const payouts = getTenantPayouts(tenant.id);
+  const allModules = moduleRegistry
+    .getAll()
+    .filter((m) => m.manifest.id !== "super-admin");
+  const enabledCount = allModules.filter((m) =>
+    tenant.enabledModules.includes(m.manifest.id),
+  ).length;
+  const adoptionPct =
+    allModules.length > 0 ? Math.round((enabledCount / allModules.length) * 100) : 0;
+
+  const cost =
+    typeof PLAN_COST[tenant.plan] === "number"
+      ? (PLAN_COST[tenant.plan] as number)
+      : 4900;
+
+  // Deterministic 12-month revenue trend — plan-cost anchored with a
+  // tenant-seeded jitter (no Math.random: stable across reloads).
+  const revenue = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 12 }).map((_, i) => {
+      const back = 11 - i;
+      const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
+      const growth = 1 - back * 0.045;
+      const jitter = ((seed >>> (i % 12)) % 7) - 3; // -3..+3 %
+      return {
+        date: d.toLocaleDateString("en-US", { month: "short" }),
+        value: Math.max(1, Math.round(cost * (growth + jitter / 100))),
+      };
+    });
+  }, [seed, cost]);
+
+  // Traders added per month over the last 6 months — seeded per tenant.
+  const signups = useMemo(() => {
+    const now = new Date();
+    const base =
+      tenant.plan === "enterprise"
+        ? 8
+        : tenant.plan === "scale"
+          ? 6
+          : tenant.plan === "growth"
+            ? 4
+            : 2;
+    return Array.from({ length: 6 }).map((_, i) => {
+      const back = 5 - i;
+      const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
+      return {
+        month: d.toLocaleDateString("en-US", { month: "short" }),
+        value: base + ((seed >>> i) % 5),
+      };
+    });
+  }, [seed, tenant.plan]);
+
+  const thisMonth = revenue[revenue.length - 1].value;
+  const prevMonth = revenue[revenue.length - 2].value;
+  const momDelta =
+    prevMonth > 0 ? Math.round(((thisMonth - prevMonth) / prevMonth) * 100) : 0;
+
+  // Last 30 days — payout volume and pending exposure.
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const recentPayouts = payouts.filter((p) => Date.parse(p.createdAt) >= cutoff);
+  const payoutVolume = recentPayouts.reduce((s, p) => s + p.amount, 0);
+  const pendingCount = payouts.filter((p) => p.status === "pending").length;
+
+  // Portfolio benchmarks — how this tenant compares to every other tenant.
+  const avgTraders =
+    allTenants.length > 0
+      ? allTenants.reduce((s, t) => s + getTenantTraders(t.id).length, 0) /
+        allTenants.length
+      : 0;
+  const avgAdoption =
+    allTenants.length > 0 && allModules.length > 0
+      ? (allTenants.reduce((s, t) => {
+          const n = allModules.filter((m) =>
+            t.enabledModules.includes(m.manifest.id),
+          ).length;
+          return s + n / allModules.length;
+        }, 0) /
+          allTenants.length) *
+        100
+      : 0;
+  const avgPayoutVolume =
+    allTenants.length > 0
+      ? allTenants.reduce((s, t) => {
+          const v = getTenantPayouts(t.id)
+            .filter((p) => Date.parse(p.createdAt) >= cutoff)
+            .reduce((a, p) => a + p.amount, 0);
+          return s + v;
+        }, 0) / allTenants.length
+      : 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <MetricCard
+          label="Monthly revenue"
+          value={formatCurrency(thisMonth, tenant.currency)}
+          icon={DollarSign}
+          tone="positive"
+          delta={momDelta}
+          deltaLabel="vs last month"
+        />
+        <MetricCard
+          label="Active traders"
+          value={traders.filter((t) => t.status === "active").length}
+          icon={Users}
+          deltaLabel={`${traders.length} total · ${accounts.length} accounts`}
+        />
+        <MetricCard
+          label="30-day payout volume"
+          value={formatCurrency(payoutVolume, tenant.currency)}
+          icon={Banknote}
+          tone={pendingCount > 0 ? "warning" : "default"}
+          deltaLabel={`${pendingCount} pending review`}
+        />
+        <MetricCard
+          label="Module adoption"
+          value={`${adoptionPct}%`}
+          icon={Package}
+          tone={adoptionPct >= 70 ? "positive" : adoptionPct >= 40 ? "warning" : "negative"}
+          deltaLabel={`${enabledCount}/${allModules.length} modules enabled`}
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border bg-card p-4">
+          <p className="mb-3 text-sm font-medium">Monthly revenue (12 months)</p>
+          <AreaSeries
+            data={revenue}
+            xKey="date"
+            yKey="value"
+            color="#0f766e"
+            height={200}
+            formatValue={(v) => formatCurrency(v, tenant.currency)}
+            label={`Monthly revenue for ${tenant.name} over 12 months, ending at ${formatCurrency(thisMonth, tenant.currency)}.`}
+          />
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <p className="mb-3 text-sm font-medium">Traders added (6 months)</p>
+          <BarSeries
+            data={signups}
+            xKey="month"
+            yKey="value"
+            color="#b45309"
+            height={200}
+            label={`Traders added per month for ${tenant.name} — ${signups
+              .map((s) => `${s.month}: ${s.value}`)
+              .join(", ")}.`}
+          />
+        </div>
+      </div>
+
+      {/* Benchmarks — tenant performance in portfolio context (audit U #5) */}
+      <div className="rounded-lg border bg-card p-4">
+        <p className="mb-3 text-sm font-medium">Benchmarks vs portfolio</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Traders per tenant
+            </p>
+            <p className="mt-1 text-2xl font-bold">{traders.length}</p>
+            <p className="text-[11px] text-muted-foreground">
+              portfolio avg {avgTraders.toFixed(1)} —{" "}
+              {traders.length >= avgTraders ? "above" : "below"} average
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Module adoption
+            </p>
+            <p className="mt-1 text-2xl font-bold">{adoptionPct}%</p>
+            <p className="text-[11px] text-muted-foreground">
+              portfolio avg {Math.round(avgAdoption)}% —{" "}
+              {adoptionPct >= avgAdoption ? "above" : "below"} average
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              30-day payout volume
+            </p>
+            <p className="mt-1 text-2xl font-bold">
+              {formatCurrency(payoutVolume, tenant.currency)}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              portfolio avg {formatCurrency(avgPayoutVolume, tenant.currency)}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Tab 8 — Risk summary + quick nav (audit #2 fix)                    */
 /* ------------------------------------------------------------------ */
 
 function RiskTab({

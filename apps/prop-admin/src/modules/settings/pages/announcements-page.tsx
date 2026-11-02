@@ -235,9 +235,12 @@ function AnnouncementComposer({
               placeholder="e.g. Scheduled maintenance — FIX bridge failover"
               maxLength={120}
               aria-invalid={titleError ? true : undefined}
+              aria-describedby={titleError ? "ann-title-error" : undefined}
             />
             {titleError ? (
-              <p className="text-[11px] text-rose-600 dark:text-rose-400">{titleError}</p>
+              <p id="ann-title-error" role="alert" className="text-[11px] text-rose-600 dark:text-rose-400">
+                {titleError}
+              </p>
             ) : null}
           </div>
 
@@ -252,9 +255,12 @@ function AnnouncementComposer({
               placeholder="What should traders know?"
               className="min-h-[96px]"
               aria-invalid={contentError ? true : undefined}
+              aria-describedby={contentError ? "ann-content-error" : undefined}
             />
             {contentError ? (
-              <p className="text-[11px] text-rose-600 dark:text-rose-400">{contentError}</p>
+              <p id="ann-content-error" role="alert" className="text-[11px] text-rose-600 dark:text-rose-400">
+                {contentError}
+              </p>
             ) : null}
           </div>
 
@@ -319,7 +325,9 @@ function AnnouncementComposer({
                 </SelectContent>
               </Select>
               {challengeError ? (
-                <p className="text-[11px] text-rose-600 dark:text-rose-400">{challengeError}</p>
+                <p id="ann-challenge-error" role="alert" className="text-[11px] text-rose-600 dark:text-rose-400">
+                  {challengeError}
+                </p>
               ) : null}
             </div>
           ) : null}

@@ -15,6 +15,7 @@ import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, breachSeverityTone, formatCurrency } from "@/components/platform/status";
 import { AttentionCenter } from "@/components/platform/attention-center";
+import { BarSeries, DonutSeries } from "@/components/platform/charts";
 import { ShieldAlert, ShieldCheck, AlertTriangle, Activity, Users, DollarSign, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -134,6 +135,21 @@ export function RiskOverviewPage() {
   const kpiAction =
     "h-7 w-full justify-center text-[11px] font-semibold";
 
+  // Audit U #3 — risk distribution across the book: severity split +
+  // breach-type breakdown derived from the same open-breach list the
+  // KPIs use (deterministic, no Math.random).
+  const openBreaches = breaches.filter((b) => b.status === "open");
+  const openCritical = openBreaches.filter((b) => b.severity === "critical").length;
+  const openWarning = openBreaches.length - openCritical;
+  const breachTypeData = (
+    ["daily-drawdown", "max-drawdown", "profit-target-miss", "time-limit"] as const
+  )
+    .map((t) => ({
+      type: t.replace(/-/g, " "),
+      count: openBreaches.filter((b) => b.type === t).length,
+    }))
+    .filter((d) => d.count > 0);
+
   return (
     <Page>
       <PageHeader
@@ -248,6 +264,61 @@ export function RiskOverviewPage() {
               </Button>
             }
           />
+        </div>
+
+        {/* Risk distribution — severity donut + type breakdown (audit U #3) */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="rounded-lg border bg-card p-4">
+            <p className="mb-3 text-sm font-medium">Open breaches by severity</p>
+            {open > 0 ? (
+              <DonutSeries
+                data={[
+                  { label: "Critical", value: openCritical, color: "#dc2626" },
+                  { label: "Warning", value: openWarning, color: "#d97706" },
+                ]}
+                height={170}
+                label={`Open breaches by severity — critical: ${openCritical}, warning: ${openWarning}. Total ${open}.`}
+              />
+            ) : (
+              <p className="py-10 text-center text-xs text-muted-foreground">
+                No open breaches — nothing needs triage right now.
+              </p>
+            )}
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <p className="mb-3 text-sm font-medium">Open breaches by type</p>
+            {breachTypeData.length > 0 ? (
+              <BarSeries
+                data={breachTypeData}
+                xKey="type"
+                yKey="count"
+                height={170}
+                label={`Open breaches by violation type — ${breachTypeData
+                  .map((d) => `${d.type}: ${d.count}`)
+                  .join(", ")}.`}
+              />
+            ) : (
+              <p className="py-10 text-center text-xs text-muted-foreground">
+                No open breaches by type — nothing needs triage right now.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Quick access — jump straight to the detailed risk screens (audit U #3) */}
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Quick access to risk screens">
+          <Button size="sm" variant="outline" title="Open the full breach queue" onClick={() => navigate("breaches")}>
+            Breach queue
+          </Button>
+          <Button size="sm" variant="outline" title="Open escalated and pending risk cases" onClick={() => navigate("risk-cases")}>
+            Risk cases
+          </Button>
+          <Button size="sm" variant="outline" title="Review per-trader risk scores" onClick={() => navigate("trader-risk-scoring")}>
+            Trader scoring
+          </Button>
+          <Button size="sm" variant="outline" title="Open firm-wide risk statistics" onClick={() => navigate("risk-statistics")}>
+            Risk statistics
+          </Button>
         </div>
 
         {/* Attention Center — §11 centralized attention model */}

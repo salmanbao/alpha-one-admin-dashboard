@@ -45,6 +45,7 @@ import {
   Flag,
   FolderOpen,
   GitCompare,
+  GraduationCap,
   HelpCircle,
   History,
   LayoutGrid,
@@ -162,6 +163,7 @@ export const sections: NavSection[] = [
   { id: "support", label: "Support", icon: LifeBuoy, children: [
     { href: "/support", label: "Support Tickets", icon: MessageCircle, activePrefixes: ["/ticket-detail"] },
     { href: "/help-center", label: "Help Center", icon: HelpCircle },
+    { href: "/learning-center", label: "Learning Center", icon: GraduationCap },
     { href: "/risk-consultation", label: "Risk Consultation", icon: CalendarCheck },
     { href: "/terms", label: "Terms & Policies", icon: ScrollText },
   ]},

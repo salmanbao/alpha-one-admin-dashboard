@@ -16,6 +16,7 @@ import {
   TerraCard,
   TerraEmpty,
   TerraPageHeader,
+  TerraSectionTitle,
   TerraStat,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
@@ -23,6 +24,13 @@ import { journalEntries, terraTrades } from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
 
 const STORAGE_KEY = "terra.journal-entries";
+
+/** Reflective prompts offered as one-tap starters in the entry form (audit U #4). */
+const reflectionPrompts = [
+  "What was my thesis before entry?",
+  "Did I follow my risk rules?",
+  "What would I repeat or change next time?",
+] as const;
 
 const moodTone = {
   disciplined: "success",
@@ -115,6 +123,33 @@ export function TradingJournalPage() {
       cursor.setDate(cursor.getDate() - 1);
     }
     return streak;
+  }, [entries]);
+
+  // Trade analysis — performance metrics derived from every entry (audit U #4).
+  const analysis = useMemo(() => {
+    const withPnl = entries.filter((e) => e.pnl !== 0);
+    const winners = withPnl.filter((e) => e.pnl > 0).length;
+    const losers = withPnl.filter((e) => e.pnl < 0).length;
+    const winRate = withPnl.length > 0 ? Math.round((winners / withPnl.length) * 100) : null;
+    const avg = withPnl.length > 0 ? withPnl.reduce((s, e) => s + e.pnl, 0) / withPnl.length : 0;
+    const sorted = [...withPnl].sort((a, b) => b.pnl - a.pnl);
+    const tagCounts = new Map<string, number>();
+    for (const e of entries) {
+      for (const t of e.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+    }
+    return {
+      withPnlCount: withPnl.length,
+      winners,
+      losers,
+      winRate,
+      avg,
+      best: sorted[0] ?? null,
+      worst: sorted.length > 0 ? sorted[sorted.length - 1] : null,
+      topTags: [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5),
+      linked: entries.filter((e) => e.tradeIds.length > 0).length,
+      maxAbs: withPnl.reduce((m, e) => Math.max(m, Math.abs(e.pnl)), 0),
+      recent: withPnl.slice(0, 8),
+    };
   }, [entries]);
 
   const handleCreateEntry = () => {
@@ -237,6 +272,19 @@ export function TradingJournalPage() {
               <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                 Notes
               </label>
+              <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Reflection prompts">
+                {reflectionPrompts.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    title="Add this prompt to your notes"
+                    onClick={() => setNotes((n) => (n ? `${n}\n` : "") + `${p} `)}
+                    className="rounded-full bg-surface-container px-2.5 py-1 text-[11px] font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+                  >
+                    + {p}
+                  </button>
+                ))}
+              </div>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -284,6 +332,130 @@ export function TradingJournalPage() {
           <TerraStat label="Streak" value={`${streakDays} day${streakDays === 1 ? "" : "s"}`} sub="entries logged" />
         </TerraCard>
       </div>
+
+      {/* Performance analysis — metrics, P&L distribution, reflection (audit U #4) */}
+      <TerraCard className="p-6">
+        <TerraSectionTitle
+          title="Performance Analysis"
+          description="Derived from your entries — winners, losers and the tags behind them."
+        />
+        <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <TerraStat
+            label="Win Rate"
+            value={analysis.winRate === null ? "—" : `${analysis.winRate}%`}
+            sub={
+              analysis.withPnlCount > 0
+                ? `${analysis.winners}W · ${analysis.losers}L`
+                : "no scored entries yet"
+            }
+            tone={
+              analysis.winRate === null ? "neutral" : analysis.winRate >= 50 ? "positive" : "negative"
+            }
+          />
+          <TerraStat
+            label="Avg Entry P&L"
+            value={analysis.withPnlCount > 0 ? formatSignedMoney(analysis.avg) : "—"}
+            tone={analysis.withPnlCount > 0 ? (analysis.avg >= 0 ? "positive" : "negative") : "neutral"}
+            sub={`${analysis.withPnlCount} scored entr${analysis.withPnlCount === 1 ? "y" : "ies"}`}
+          />
+          <TerraStat
+            label="Best Entry"
+            value={analysis.best ? formatSignedMoney(analysis.best.pnl) : "—"}
+            sub={analysis.best ? analysis.best.title : "no scored entries"}
+            tone={analysis.best ? "positive" : "neutral"}
+          />
+          <TerraStat
+            label="Worst Entry"
+            value={analysis.worst ? formatSignedMoney(analysis.worst.pnl) : "—"}
+            sub={analysis.worst ? analysis.worst.title : "no scored entries"}
+            tone={analysis.worst ? "negative" : "neutral"}
+          />
+        </div>
+
+        {analysis.recent.length > 0 ? (
+          <div
+            className="mt-5 space-y-2"
+            role="img"
+            aria-label={`P&L per entry for the ${analysis.recent.length} most recent scored entries`}
+          >
+            {analysis.recent.map((e) => {
+              const pct =
+                analysis.maxAbs > 0
+                  ? Math.max(6, Math.round((Math.abs(e.pnl) / analysis.maxAbs) * 100))
+                  : 6;
+              return (
+                <div key={e.id} className="flex items-center gap-3">
+                  <span
+                    className="w-36 shrink-0 truncate text-xs text-on-surface-variant sm:w-44"
+                    title={e.title}
+                  >
+                    {e.title}
+                  </span>
+                  <span
+                    className="h-3 flex-1 overflow-hidden rounded-full bg-surface-container-low"
+                    aria-hidden="true"
+                  >
+                    <span
+                      className={`block h-full rounded-full ${e.pnl >= 0 ? "bg-primary" : "bg-error"}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </span>
+                  <span
+                    className={`w-20 shrink-0 text-right text-xs font-bold tabular-nums ${e.pnl >= 0 ? "text-primary" : "text-error"}`}
+                  >
+                    {formatSignedMoney(e.pnl)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-5 rounded-xl bg-surface-container-low p-4 text-xs text-on-surface-variant">
+            Link a trade to an entry to score it — the P&amp;L distribution appears here once
+            entries carry a trade.
+          </p>
+        )}
+
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-xl bg-surface-container-low p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              Top tags
+            </p>
+            {analysis.topTags.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {analysis.topTags.map(([t, c]) => (
+                  <span
+                    key={t}
+                    className="rounded-full bg-surface-container px-2.5 py-0.5 text-[11px] font-semibold text-on-surface-variant"
+                  >
+                    #{t} · {c}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-on-surface-variant">
+                No tags yet — tag entries to spot recurring patterns.
+              </p>
+            )}
+            <p className="mt-3 text-[11px] text-on-surface-variant">
+              {analysis.linked} of {entries.length} entries linked to a trade.
+            </p>
+          </div>
+          <div className="rounded-xl bg-surface-container-low p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              Reflection prompts
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {reflectionPrompts.map((p) => (
+                <li key={p} className="flex gap-2 text-xs text-on-surface-variant">
+                  <span aria-hidden="true">💬</span>
+                  {p}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </TerraCard>
 
       {entries.length === 0 ? (
         <TerraEmpty

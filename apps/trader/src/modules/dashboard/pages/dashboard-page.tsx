@@ -68,6 +68,17 @@ const actIcon: Record<ActivityEntry["kind"], string> = {
   system: "🛠️",
 };
 
+/**
+ * Trading platforms available on this account (audit U #1) — the
+ * dashboard used to be a dead end: the only way to a terminal was the
+ * sidebar's Web Terminal link. Deterministic statuses (no Math.random).
+ */
+const tradingPlatforms = [
+  { id: "web", name: "Web Terminal", detail: "Runs in the browser — no install", status: "Connected" },
+  { id: "mt5", name: "MetaTrader 5", detail: "Desktop & mobile", status: "Connected" },
+  { id: "ctrader", name: "cTrader", detail: "Web & desktop", status: "Available" },
+] as const;
+
 function activityTime(iso: string) {
   const d = new Date(iso);
   const diffMs = Date.now() - d.getTime();
@@ -82,6 +93,7 @@ function activityTime(iso: string) {
 export function DashboardPage() {
   const [range, setRange] = useState<(typeof ranges)[number]>("30d");
   const [riskAlertVisible, setRiskAlertVisible] = useState(true);
+  const [platform, setPlatform] = useState<(typeof tradingPlatforms)[number]["id"]>("web");
   // Active trading account — switched via the header switcher or the
   // "Trading Account" selector below. Every acc.* value on this page
   // (target, risk buffers, balance, credentials) follows this context.
@@ -512,6 +524,66 @@ export function DashboardPage() {
           </TerraCard>
         </div>
       </div>
+
+      {/* Trading Platforms — launch without leaving the dashboard (audit U #1) */}
+      <TerraCard className="p-6 lg:p-7">
+        <TerraSectionTitle
+          title="Trading Platforms"
+          description="Pick a platform and launch it in a new tab — this dashboard stays open."
+        />
+        <div
+          className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3"
+          role="group"
+          aria-label="Available trading platforms"
+        >
+          {tradingPlatforms.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              aria-pressed={platform === p.id}
+              onClick={() => setPlatform(p.id)}
+              className={cn(
+                "rounded-xl border p-4 text-left transition-colors",
+                platform === p.id
+                  ? "border-primary bg-primary-fixed/30"
+                  : "border-outline-variant bg-surface-container-low hover:bg-surface-container",
+              )}
+            >
+              <span className="flex items-center justify-between gap-2">
+                <span className="text-sm font-bold text-on-surface">{p.name}</span>
+                <TerraBadge tone={p.status === "Connected" ? "success" : "neutral"}>
+                  {p.status}
+                </TerraBadge>
+              </span>
+              <span className="mt-1 block text-xs text-on-surface-variant">{p.detail}</span>
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-container-low p-4">
+          <p className="text-xs text-on-surface-variant">
+            <span className="font-bold text-on-surface">
+              {tradingPlatforms.find((p) => p.id === platform)?.name}
+            </span>{" "}
+            · account #{acc.login} · launches in a new tab so you keep your dashboard context
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/order-ticket"
+              className="rounded-xl bg-surface-container px-4 py-2.5 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-highest"
+            >
+              New Order
+            </Link>
+            <Link
+              href="/web-terminal"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90"
+            >
+              Launch Platform →
+            </Link>
+          </div>
+        </div>
+      </TerraCard>
 
       {/* Announcements / News (M12 Overview) */}
       <TerraCard>
