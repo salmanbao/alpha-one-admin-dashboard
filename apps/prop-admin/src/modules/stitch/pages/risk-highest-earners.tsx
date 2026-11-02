@@ -13,10 +13,15 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 
 export function RiskHighestEarnersStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  // Keyboard parity (audit V #4) — Escape closes these modal surfaces
+  // instead of trapping keyboard users in click-to-close sheets.
+  useEscapeKey(so0, () => setSo0(false));
+  useEscapeKey(so1, () => setSo1(false));
   return (
     <>
       <div className="flex flex-col w-full space-y-8">
@@ -390,7 +395,7 @@ export function RiskHighestEarnersStitchPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-bold text-xs text-primary shrink-0">EA</div>
                       <div>
-                        <div className="font-bold text-sm text-on-surface hover:text-primary transition-colors cursor-pointer" onClick={() => setSo0(true)}>Elena Althaus</div>
+                        <div className="font-bold text-sm text-on-surface hover:text-primary transition-colors cursor-pointer" onClick={() => setSo0(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSo0(true); } } } role="button" tabIndex={0}>Elena Althaus</div>
                         <div className="text-[11px] font-mono text-outline font-semibold">TR-1049</div>
                       </div>
                     </div>

@@ -16,6 +16,7 @@ import { MsIcon } from "@/components/stitch/stitch";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { toast } from "@/hooks/use-toast";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 
 const STAFF = [
   { i: 0, name: "Marcus Vance", email: "marcus.vance@terradesk.io", role: "CRO / Level 4 Ops", status: "Active" },
@@ -45,6 +46,12 @@ export function TeamMembersStitchPage() {
   const { navigate } = usePlatform();
 
   const closeMenu = () => setOpenMenu(null);
+  // Keyboard parity (audit V #4) — Escape dismisses the row menu, the
+  // invite modal, and both sheet overlays (backdrop click only before).
+  useEscapeKey(openMenu !== null, closeMenu);
+  useEscapeKey(inviteOpen, () => setInviteOpen(false));
+  useEscapeKey(so0, () => setSo0(false));
+  useEscapeKey(so1, () => setSo1(false));
   const filteredStaff = STAFF.filter((s) => {
     const q = search.trim().toLowerCase();
     return (

@@ -13,10 +13,15 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 
 export function AccountingPlStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  // Keyboard parity (audit V #4) — Escape closes these modal surfaces
+  // instead of trapping keyboard users in click-to-close sheets.
+  useEscapeKey(so0, () => setSo0(false));
+  useEscapeKey(so1, () => setSo1(false));
   return (
     <>
       <div className="flex flex-col w-full space-y-8">
@@ -407,7 +412,7 @@ export function AccountingPlStitchPage() {
               </span>
               <span className="text-[11px] font-normal text-tsc lowercase">direct clearing &amp; splits</span>
             </div>
-            <div className="cursor-pointer group grid grid-cols-12 items-center px-4 py-3 rounded-xl hover:bg-surface-container-low transition-colors text-xs text-on-surface" onClick={() => setSo1(true)}>
+            <div className="cursor-pointer group grid grid-cols-12 items-center px-4 py-3 rounded-xl hover:bg-surface-container-low transition-colors text-xs text-on-surface" onClick={() => setSo1(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSo1(true); } } } role="button" tabIndex={0}>
               <div className="col-span-7 sm:col-span-8 flex items-center gap-2">
                 <span className="font-medium group-hover:text-primary transition-colors">Trader Profit Split Payouts Disbursed</span>
 <MsIcon name="info" className="text-[15px] text-tsc/60 group-hover:text-primary" />

@@ -13,10 +13,15 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 
 export function MarketingStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  // Keyboard parity (audit V #4) — Escape closes these modal surfaces
+  // instead of trapping keyboard users in click-to-close sheets.
+  useEscapeKey(so0, () => setSo0(false));
+  useEscapeKey(so1, () => setSo1(false));
   return (
     <>
       <div className="flex flex-col w-full">

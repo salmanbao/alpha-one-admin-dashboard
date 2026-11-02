@@ -13,10 +13,15 @@
 
 import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 
 export function AccountKycStatusesStitchPage() {
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
+  // Keyboard parity (audit V #4) — Escape closes these modal surfaces
+  // instead of trapping keyboard users in click-to-close sheets.
+  useEscapeKey(so0, () => setSo0(false));
+  useEscapeKey(so1, () => setSo1(false));
   return (
     <>
       <div className="flex flex-col w-full pb-16">
@@ -28,7 +33,7 @@ export function AccountKycStatusesStitchPage() {
             </a>
             <span className="text-outline-variant font-mono text-xs">/</span>
             <nav className="flex items-center gap-1.5 text-xs text-on-surface-variant font-medium">
-              <span className="hover:text-on-surface cursor-pointer" onClick={() => setSo0(true)}>Accounts</span>
+              <span className="hover:text-on-surface cursor-pointer" onClick={() => setSo0(true)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSo0(true); } } } role="button" tabIndex={0}>Accounts</span>
               <span className="text-outline-variant">›</span>
               <span className="font-mono text-on-surface bg-surface-container-high px-2 py-0.5 rounded">MT5-882049</span>
               <span className="text-outline-variant">›</span>
