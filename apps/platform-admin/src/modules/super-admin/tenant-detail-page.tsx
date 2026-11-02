@@ -104,6 +104,8 @@ import {
   DollarSign,
   Banknote,
   AlertTriangle,
+  CreditCard,
+  Plus,
   Clock,
   Activity,
   Palette,
@@ -617,7 +619,9 @@ export function TenantDetailPage() {
           <UsersTab tenantId={localTenant.id} />
         </TabsContent>
         <TabsContent value="billing">
-          <BillingTab tenant={localTenant} />
+          {/* key: remount per tenant so the tab's session-scoped billing
+              state (schedule, methods, disputes) resets with the tenant. */}
+          <BillingTab key={localTenant.id} tenant={localTenant} />
         </TabsContent>
         <TabsContent value="activity">
           <div className="rounded-lg border bg-card p-4">
@@ -988,8 +992,130 @@ interface InvoiceRow {
 }
 
 function BillingTab({ tenant }: { tenant: TenantContext }) {
+  const { user } = usePlatform();
   const cost = PLAN_COST[tenant.plan];
   const costLabel = typeof cost === "number" ? formatCurrency(cost, tenant.currency) : "Custom";
+
+  /* ── Invoicing configuration, payment methods, disputes (audit X #2)
+     Session-scoped demo state — the tab remounts per tenant (key below),
+     so each tenant starts from its own deterministic baseline. ── */
+  const seed = tenant.id.split("").reduce((s, c) => s + c.charCodeAt(0), 0);
+  const [schedule, setSchedule] = useState("Monthly");
+  const [methods, setMethods] = useState<Array<{ id: string; label: string; detail: string }>>(
+    () => {
+      const list = [
+        {
+          id: "pm-primary",
+          label: paymentMethodFor(tenant),
+          detail: `Expires ${String((seed % 12) + 1).padStart(2, "0")}/${27 + (seed % 3)}`,
+        },
+      ];
+      if (seed % 2 === 0) {
+        list.push({
+          id: "pm-backup",
+          label: `ACH ··${String(1000 + (seed % 9000))}`,
+          detail: "Business checking",
+        });
+      }
+      return list;
+    },
+  );
+  const [defaultMethod, setDefaultMethod] = useState("pm-primary");
+  const [disputes, setDisputes] = useState<
+    Array<{
+      id: string;
+      invoice: string;
+      reason: string;
+      amount: number;
+      openedDays: number;
+      status: "open" | "contested";
+    }>
+  >(() => {
+    const reasons = ["Usage overage contested", "Plan proration disputed", "Seat count mismatch"];
+    return Array.from({ length: seed % 3 }, (_, i) => ({
+      id: `DSP-${4100 + ((seed + i * 7) % 800)}`,
+      invoice: `INV-2026-${String(((seed + i) % 12) + 1).padStart(2, "0")}-${String(((seed + i * 3) % 90) + 10).padStart(3, "0")}`,
+      reason: reasons[(seed + i) % reasons.length],
+      amount: typeof cost === "number" ? cost : 4900,
+      openedDays: 3 + ((seed + i * 5) % 18),
+      status: "open" as const,
+    }));
+  });
+
+  const changeSchedule = (next: string) => {
+    if (next === schedule) return;
+    setSchedule(next);
+    toast({
+      title: "Billing schedule updated",
+      description: `${tenant.name} now invoices ${next.toLowerCase()}.`,
+    });
+    recordAudit({
+      actor: user.name,
+      action: "console.billing_schedule_changed",
+      target: tenant.id,
+      tenantId: tenant.id,
+      severity: "info",
+      detail: `${tenant.name}: invoicing schedule ${schedule} → ${next}`,
+    });
+  };
+
+  const makeDefault = (m: { id: string; label: string }) => {
+    setDefaultMethod(m.id);
+    toast({ title: "Default method updated", description: `${m.label} is now the default.` });
+    recordAudit({
+      actor: user.name,
+      action: "console.billing_method_default_changed",
+      target: tenant.id,
+      tenantId: tenant.id,
+      severity: "info",
+      detail: `${tenant.name}: default payment method → ${m.label}`,
+    });
+  };
+
+  const removeMethod = (m: { id: string; label: string }) => {
+    setMethods((prev) => {
+      const next = prev.filter((x) => x.id !== m.id);
+      if (defaultMethod === m.id) setDefaultMethod(next[0]?.id ?? "");
+      return next;
+    });
+    toast({ title: "Payment method removed", description: `${m.label} removed from ${tenant.name}.` });
+    recordAudit({
+      actor: user.name,
+      action: "console.billing_method_removed",
+      target: tenant.id,
+      tenantId: tenant.id,
+      severity: "warning",
+      detail: `${tenant.name}: removed payment method ${m.label}`,
+    });
+  };
+
+  const resolveDispute = (d: { id: string; invoice: string }) => {
+    setDisputes((prev) => prev.filter((x) => x.id !== d.id));
+    toast({ title: "Dispute resolved", description: `${d.id} (${d.invoice}) resolved and credited.` });
+    recordAudit({
+      actor: user.name,
+      action: "console.billing_dispute_resolved",
+      target: d.id,
+      tenantId: tenant.id,
+      severity: "info",
+      detail: `${tenant.name}: dispute ${d.id} on ${d.invoice} resolved`,
+    });
+  };
+
+  const contestDispute = (d: { id: string; invoice: string }) => {
+    setDisputes((prev) =>
+      prev.map((x) => (x.id === d.id ? { ...x, status: "contested" as const } : x)),
+    );
+    toast({ title: "Dispute contested", description: `${d.id} contested — processor response pending.` });
+    recordAudit({
+      actor: user.name,
+      action: "console.billing_dispute_contested",
+      target: d.id,
+      tenantId: tenant.id,
+      severity: "warning",
+      detail: `${tenant.name}: dispute ${d.id} on ${d.invoice} contested with processor`,
+    });
+  };
 
   // Mock billing history — 6 deterministic entries
   const history: InvoiceRow[] = useMemo(() => {
@@ -1045,7 +1171,7 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Current plan</p>
             <p className="mt-1 text-lg font-semibold capitalize">{tenant.plan}</p>
             <p className="text-sm text-muted-foreground">
-              {costLabel} / month · billed monthly
+              {costLabel} / month · billed {schedule.toLowerCase()}
             </p>
           </div>
           <StatusBadge tone="success">active</StatusBadge>
@@ -1054,7 +1180,30 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">Billing cycle</dt>
-            <dd className="mt-0.5">Monthly</dd>
+            <dd className="mt-0.5">
+              {/* Invoicing schedule config (audit X #2) — cycle is a
+                  real selector, not static text; changes are toasted +
+                  recorded in the audit trail. */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="-ml-1.5 inline-flex items-center gap-1 rounded-md px-1.5 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`Invoicing schedule: ${schedule}. Change schedule`}
+                  >
+                    {schedule} <ChevronDown className="h-3 w-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {["Weekly", "Monthly", "Quarterly", "Annually"].map((s) => (
+                    <DropdownMenuItem key={s} onClick={() => changeSchedule(s)}>
+                      {s}
+                      {s === schedule ? <CheckCircle2 className="ml-auto h-3.5 w-3.5" /> : null}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">Next billing</dt>
@@ -1064,8 +1213,11 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">Payment method</dt>
             {/* Round 4 fix: previously hardcoded "Visa ··4242" for every
                 tenant — deterministic per-tenant card brand + last 4 so
-                each tenant shows a different (but stable) card. */}
-            <dd className="mt-0.5">{paymentMethodFor(tenant)}</dd>
+                each tenant shows a different (but stable) card. Now bound
+                to the managed methods list below (audit X #2). */}
+            <dd className="mt-0.5">
+              {methods.find((m) => m.id === defaultMethod)?.label ?? "No method on file"}
+            </dd>
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">Status</dt>
@@ -1170,6 +1322,115 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
                 <Button size="sm" variant="destructive" className="h-6 px-2 text-[10px]" onClick={() => toast({ title: "Paused", description: `Dunning paused for ${d.invoice}.` })}>Pause</Button>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Payment method management + dispute handling (audit X #2) —
+            the two billing workflows that previously had no surface at
+            all: methods are managed (add/default/remove) and disputes
+            are resolved or contested with audit-trail entries. */}
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-lg border bg-card p-4 lg:col-span-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Payment methods</p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 text-xs"
+                onClick={() =>
+                  toast({
+                    title: "Add payment method",
+                    description: "The card verification form would open here. (demo)",
+                  })
+                }
+              >
+                <Plus className="h-3 w-3" /> Add method
+              </Button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {methods.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No payment methods on file — the next invoice will enter dunning.
+                </p>
+              ) : (
+                methods.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex flex-wrap items-center gap-3 rounded-md border p-2.5 text-sm"
+                  >
+                    <CreditCard className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{m.label}</p>
+                      <p className="text-[11px] text-muted-foreground">{m.detail}</p>
+                    </div>
+                    {defaultMethod === m.id ? (
+                      <StatusBadge tone="success">default</StatusBadge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => makeDefault(m)}
+                      >
+                        Set default
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-[10px] text-destructive hover:text-destructive"
+                      onClick={() => removeMethod(m)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <p className="text-sm font-medium">Billing disputes</p>
+            <div className="mt-3 space-y-2">
+              {disputes.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No open disputes for this tenant.</p>
+              ) : (
+                disputes.map((d) => (
+                  <div key={d.id} className="rounded-md border p-2.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-medium">{d.id}</span>
+                      <StatusBadge tone={d.status === "contested" ? "warning" : "danger"}>
+                        {d.status}
+                      </StatusBadge>
+                    </div>
+                    <p className="mt-1 text-muted-foreground">{d.reason}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {d.invoice} · {formatCurrency(d.amount, tenant.currency)} · {d.openedDays}d open
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-[10px]"
+                        disabled={d.status === "contested"}
+                        onClick={() => resolveDispute(d)}
+                      >
+                        Resolve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-[10px]"
+                        disabled={d.status === "contested"}
+                        onClick={() => contestDispute(d)}
+                      >
+                        Contest
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
