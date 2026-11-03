@@ -81,3 +81,7 @@ export {
   ErrorAlert,
   RetryButton,
 } from "./components/platform/error-alert";
+export {
+  RiskContextPanel,
+  type PayoutTraderRisk,
+} from "./components/platform/risk-context-panel";

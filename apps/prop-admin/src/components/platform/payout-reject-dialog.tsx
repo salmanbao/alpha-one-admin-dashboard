@@ -56,6 +56,7 @@ import {
   TraderPerformanceChip,
   type PayoutTraderPerformance,
 } from "@/components/platform/trader-performance-chip";
+import { RiskContextPanel, type PayoutTraderRisk } from "@pfaas/ui/platform-risk-context";
 
 /** What is being rejected — one payout, or a batch of them. */
 export type PayoutRejectTarget = {
@@ -76,6 +77,8 @@ export type PayoutRejectTarget = {
   profitSplit?: number;
   /** Recent performance snapshot (audit X #5) — chip above the reason. */
   performance?: PayoutTraderPerformance;
+  /** Risk context (audit #1 fix) — recent breaches, risk score, account health. */
+  risk?: PayoutTraderRisk;
 };
 
 /** Preset rejection categories — reportable + consistent across surfaces. */
@@ -209,7 +212,7 @@ export function PayoutRejectDialog({
           {/* 0. Payout calculation preview (audit X #1 + #5) — the split
               math and the trader's recent performance, so the reviewer
               verifies the numbers instead of rejecting blind. */}
-          {(target?.profitSplit !== undefined || target?.performance) && (
+          {(target?.profitSplit !== undefined || target?.performance || target?.risk) && (
             <div className="space-y-2.5 rounded-md border bg-muted/40 p-3">
               <div className="flex flex-wrap items-center justify-between gap-1.5">
                 <span className="text-xs font-medium text-foreground">
@@ -223,6 +226,9 @@ export function PayoutRejectDialog({
               </div>
               {target?.performance && (
                 <TraderPerformanceChip trader={target.performance} />
+              )}
+              {target?.risk && (
+                <RiskContextPanel risk={target.risk} currency={target.currency} />
               )}
               {target?.profitSplit !== undefined && target && (
                 <div className="grid grid-cols-2 gap-2 text-xs">

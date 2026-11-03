@@ -60,7 +60,9 @@
     "./platform-page": "./src/components/platform/page.tsx",
     "./platform-status": "./src/components/platform/status.tsx",
     "./platform-charts": "./src/components/platform/charts.tsx",
-    "./platform-animated-number": "./src/components/platform/animated-number.tsx"
+"./platform-error-alert": "./src/components/platform/error-alert.tsx",
+    "./platform-risk-context": "./src/components/platform/risk-context-panel.tsx",
+
   },
   "peerDependencies": {
     "react": "^19",
