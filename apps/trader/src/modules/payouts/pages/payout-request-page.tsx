@@ -154,8 +154,16 @@ export function PayoutRequestPage() {
           <p className="mt-2 text-on-surface-variant">
             Your request for {formatMoney(asked)} via {method.name} has been received.
           </p>
+          {method.eta !== 'immediate' && method.eta !== 'same-day' && (
+            <p className="mt-1 text-sm text-on-surface-variant">
+              Expected processing: {method.eta} business days
+            </p>
+          )}
           <p className="mt-1 text-sm text-on-surface-variant">
-            Reference: PO-2026-0415 • Expected processing: {method.eta}
+            Status: <span className="font-bold">Submitted</span> — you’ll receive a confirmation email when approved
+          </p>
+          <p className="mt-1 text-sm text-on-surface-variant">
+            Payouts are reviewed within 1 business day and processed during the open window (see payout schedule page).
           </p>
         </div>
         <div className="flex gap-3">
