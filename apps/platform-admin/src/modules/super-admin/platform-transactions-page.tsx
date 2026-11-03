@@ -10,6 +10,7 @@
 import { useState, useMemo } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
+import { DestructiveActionDialog } from "@/components/platform/destructive-action-dialog";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
@@ -73,6 +74,10 @@ export function PlatformTransactionsPage() {
     retry,
   } = useAsyncMock(() => mockAsync(() => demoTransactions, { delayMs: 450 }), []);
   const platformTransactions = loadedData ?? [];
+
+  // Refund confirmation (audit finding #1): refunds were fire-and-forget
+  // toasts — now they require a typed reason before the money moves.
+  const [refundTarget, setRefundTarget] = useState<(typeof demoTransactions)[number] | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -255,7 +260,7 @@ export function PlatformTransactionsPage() {
                         </Button>
                         {/* Refund (for completed/refund/revenue) */}
                         {(tx.type === "refund" || tx.type === "revenue" || tx.type === "chargeback") && (
-                          <Button size="sm" variant="destructive" className="h-7 px-2 text-[10px] gap-1" onClick={() => toast({ title: "Refund requested", description: `${tx.id} (${tx.tenant}) — refund of ${formatCurrency(tx.amount)}. Audited.` })}>
+                          <Button size="sm" variant="destructive" className="h-7 px-2 text-[10px] gap-1" onClick={() => setRefundTarget(tx)}>
                             Refund
                           </Button>
                         )}
@@ -281,6 +286,35 @@ export function PlatformTransactionsPage() {
           </CardContent>
         </Card>
         </PageAsyncBoundary>
+
+        {/* Refund confirmation — reason required (audit finding #1) */}
+        <DestructiveActionDialog
+          dialogId="tx-refund-reason"
+          open={refundTarget !== null}
+          onOpenChange={(o) => { if (!o) setRefundTarget(null); }}
+          variant="refund"
+          title={`Refund ${refundTarget ? formatCurrency(refundTarget.amount, refundTarget.currency) : ""}?`}
+          consequence={
+            refundTarget
+              ? `${formatCurrency(refundTarget.amount, refundTarget.currency)} will be returned to ${refundTarget.tenant}'s original payment method for transaction ${refundTarget.id}. This posts a compensating entry in the financial ledger and cannot be reversed.`
+              : ""
+          }
+          context={
+            refundTarget ? (
+              <span className="block text-xs">
+                Tenant: <strong>{refundTarget.tenant}</strong> · Method: {refundTarget.method} ·
+                Original status: {refundTarget.status}
+              </span>
+            ) : null
+          }
+          onConfirm={(reason) => {
+            toast({
+              title: "Refund requested",
+              description: `${refundTarget?.id} (${refundTarget?.tenant}) — refund of ${formatCurrency(refundTarget?.amount ?? 0, refundTarget?.currency ?? "USD")}. Reason: ${reason}`,
+            });
+            setRefundTarget(null);
+          }}
+        />
       </PageContent>
     </Page>
   );

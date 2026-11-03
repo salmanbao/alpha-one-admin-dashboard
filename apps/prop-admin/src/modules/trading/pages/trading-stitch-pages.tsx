@@ -946,6 +946,7 @@ export function AccountsStitchPage() {
   const [query, setQuery] = React.useState("");
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [blockTarget, setBlockTarget] = React.useState<TradingAccount | null>(null);
+  const [bulkBlockOpen, setBulkBlockOpen] = React.useState(false);
   const [resetTarget, setResetTarget] = React.useState<TradingAccount | null>(null);
   const [rotateTarget, setRotateTarget] = React.useState<TradingAccount | null>(null);
 
@@ -1004,7 +1005,7 @@ export function AccountsStitchPage() {
           <div className="flex gap-2">
             <StitchButton variant="surface" icon="sync" onClick={() => toast({ title: "Sync queued", description: `${selected.size} accounts queued for bridge sync.` })}>Sync Selected</StitchButton>
             <StitchButton variant="surface" icon="download" onClick={() => toast({ title: "Export ready", description: `${selected.size} accounts exported.` })}>Export Selected</StitchButton>
-            <StitchButton variant="destructive" icon="block" onClick={() => toast({ title: "Accounts blocked", description: `${selected.size} accounts blocked.` })}>Block Selected</StitchButton>
+            <StitchButton variant="destructive" icon="block" onClick={() => setBulkBlockOpen(true)}>Block Selected</StitchButton>
           </div>
         </div>
       ) : null}
@@ -1054,6 +1055,19 @@ export function AccountsStitchPage() {
 
       {/* ── Wired state screens ── */}
       <BlockAccountDialog target={blockTarget} onClose={() => setBlockTarget(null)} />
+      <StitchConfirm
+        open={bulkBlockOpen}
+        onOpenChange={(o) => !o && setBulkBlockOpen(false)}
+        icon="block"
+        title={`Block ${selected.size} account${selected.size === 1 ? "" : "s"}?`}
+        body={`${selected.size} selected account${selected.size === 1 ? "" : "s"} will lose all trading access immediately. Open positions are handled by your block settings. Every account is written to the audit trail with the reason below.`}
+        confirmLabel={`Block ${selected.size} account${selected.size === 1 ? "" : "s"}`}
+        requireReason
+        onConfirm={(reason) => {
+          toast({ title: "Accounts blocked", description: `${selected.size} accounts blocked — ${reason}` });
+          setSelected(new Set());
+        }}
+      />
       <ResetAccountDialog target={resetTarget} onClose={() => setResetTarget(null)} />
       <RotatePasswordSheet
         open={!!rotateTarget}
