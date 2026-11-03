@@ -73,6 +73,7 @@ import { PermissionGuard, FeatureGuard, PageAsyncBoundary } from "@/components/p
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { toast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/platform/export-utils";
+import { DetailDisclosure } from "@/components/detail-disclosure";
 import { convertCurrency, formatConverted, getRateLabel, fxRatesStale, fxRatesAgeDays, CURRENCIES } from "@/lib/platform/currency";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
@@ -514,11 +515,11 @@ export function AnalyticsOverviewPage() {
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-lg border bg-card p-4">
-            <p className="mb-2 text-sm font-medium">Revenue (30d) — {displayCurrency}</p>
+            <p className="mb-2 text-sm font-medium text-foreground">Revenue (30d) — {displayCurrency}</p>
             <AreaSeries data={rev} xKey="date" yKey="value" formatValue={(v) => fmt(v)} />
           </div>
           <div className="rounded-lg border bg-card p-4">
-            <p className="mb-2 text-sm font-medium">{`${term("trader")} growth`}</p>
+            <p className="mb-2 text-sm font-medium text-foreground">{`${term("trader")} growth`}</p>
             <AreaSeries data={traderGrowthSeries(tid)} xKey="date" yKey="value" color="#0d9488" />
           </div>
           {/* Secondary detail (audit #3 fix #7) — progressive disclosure:
@@ -607,7 +608,7 @@ function AnalyticsInsightsBand({
 
   return (
     <div className="rounded-lg border bg-card p-4">
-      <p className="mb-2 text-sm font-medium">Key insights</p>
+      <p className="mb-2 text-sm font-medium text-foreground">Key insights</p>
       <ul className="space-y-1.5">
         {insights.map((ins) => (
           <li
@@ -897,7 +898,7 @@ export function TraderAnalyticsPage() {
             xKey="tier"
             yKey="value"
             color={TERRA.teal}
-            height={220}
+            height={240}
             formatValue={(v) => `${v} ${plural(term("trader")).toLowerCase()}`}
           />
         </ChartCard>
@@ -1173,9 +1174,10 @@ export function PerformanceAnalyticsPage() {
         </ChartCard>
 
         {/* Performance by hour of day */}
-        <ChartCard
+        <DetailDisclosure
           title="Performance by Hour of Day (UTC)"
           subtitle="Trade count per hour — colored by profitability signal"
+          hint="Collapse to hide per-hour breakdown"
         >
           <ColoredBars
             data={hourData}
@@ -1185,7 +1187,7 @@ export function PerformanceAnalyticsPage() {
             formatValue={(v) => `${v} trades`}
             colorFor={(v) => (v >= 12 ? TERRA.emerald : v >= 6 ? TERRA.amber : TERRA.rose)}
           />
-        </ChartCard>
+        </DetailDisclosure>
         </PageAsyncBoundary>
       </PageContent>
     </Page>
@@ -1443,9 +1445,10 @@ export function RiskAnalyticsPage() {
 
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Drawdown distribution */}
-          <ChartCard
+          <DetailDisclosure
             title="Drawdown Distribution"
             subtitle="Account count bucketed by peak-to-trough drawdown"
+            hint="Collapse to hide drawdown detail"
           >
             <AreaSeries
               data={ddData}
@@ -1455,7 +1458,7 @@ export function RiskAnalyticsPage() {
               height={220}
               formatValue={(v) => `${v} accounts`}
             />
-          </ChartCard>
+          </DetailDisclosure>
 
           {/* VaR confidence curve */}
           <ChartCard
@@ -1532,7 +1535,7 @@ export function AdvancedAnalyticsPage() {
         <PageHeader title="Advanced Analytics" description={`Cohort retention and predictive insights across ${plural(term("trader")).toLowerCase()} and ${plural(term("challenge")).toLowerCase()}.`} icon={Brain} actions={<Badge variant="secondary">Pro feature</Badge>} />
         <PageContent>
           <div className="rounded-lg border bg-card p-4">
-            <p className="mb-2 text-sm font-medium">Cohort retention</p>
+            <p className="mb-2 text-sm font-medium text-foreground">Cohort retention</p>
             <BarSeries
               data={[
                 { date: "Cohort A", value: 24 },
@@ -1544,7 +1547,7 @@ export function AdvancedAnalyticsPage() {
               xKey="date"
               yKey="value"
               color="#0d9488"
-              height={220}
+              height={240}
             />
           </div>
         </PageContent>

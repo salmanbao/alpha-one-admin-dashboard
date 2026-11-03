@@ -64,11 +64,11 @@ export function TraderPerformancePage() {
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader className="pb-2"><span className="text-sm font-medium">Equity curve (30 days)</span></CardHeader>
-            <CardContent><AreaSeries data={equityCurve} xKey="date" yKey="value" color="#0f766e" height={200} formatValue={(v) => formatCurrency(v, currency)} /></CardContent>
+            <CardContent><AreaSeries data={equityCurve} xKey="date" yKey="value" color="#0f766e" height={220} formatValue={(v) => formatCurrency(v, currency)} /></CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2"><span className="text-sm font-medium">Daily P&L (14 days)</span></CardHeader>
-            <CardContent><AreaSeries data={dailyPnl} xKey="date" yKey="value" color="#b45309" height={200} formatValue={(v) => formatCurrency(v, currency)} /></CardContent>
+            <CardContent><AreaSeries data={dailyPnl} xKey="date" yKey="value" color="#b45309" height={220} formatValue={(v) => formatCurrency(v, currency)} /></CardContent>
           </Card>
         </div>
         <Card>
