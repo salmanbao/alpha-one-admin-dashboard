@@ -284,6 +284,19 @@ export const scalingTiers: {
   },
 ];
 
+/**
+ * How long the $25,000 → $50,000 step usually takes for traders who
+ * started at the same stage (audit C #3) — sample size, quartiles and
+ * the fastest observed run. Fixed values; the pace calculator beside it
+ * varies only with the trader's own assumed monthly gain.
+ */
+export const scalingCohort = {
+  label: "$25,000 traders scaling to $50,000",
+  sample: 148,
+  fastestDays: 74,
+  daysToNext: { p25: 92, median: 118, p75: 164 },
+};
+
 /* ------------------------------------------------------------------ */
 /* Payout schedule (M10 Payout Scheduling)                             */
 /* ------------------------------------------------------------------ */
@@ -2478,3 +2491,109 @@ export function detectTerraPatterns(): TerraPatternEvent[] {
 
   return out.sort((x, y) => +new Date(y.detectedAt) - +new Date(x.detectedAt));
 }
+
+/* ------------------------------------------------------------------ */
+/* Peer cohorts + industry references (audit C #1)                      */
+/*                                                                     */
+/* `terraBenchmarks` above compares the trader against a single        */
+/* segment's p25–p75 band. This adds the two comparisons that were      */
+/* missing: the same five figures for peer cohorts (account size /      */
+/* challenge type) and a fixed industry reference per metric.           */
+/* All values are fixed fixtures — no Math.random, no backend.          */
+/* ------------------------------------------------------------------ */
+
+export type TerraBenchmarkMetricKey =
+  | "winRate"
+  | "profitFactor"
+  | "expectancy"
+  | "bestDayShare"
+  | "avgHoldHours";
+
+export interface TerraBenchmarkMetric {
+  key: TerraBenchmarkMetricKey;
+  label: string;
+  unit: string;
+  decimals: number;
+  /** null = no better/worse direction (hold time is contextual). */
+  higherIsBetter: boolean | null;
+  /** Render with the money formatter instead of plain decimals. */
+  money?: boolean;
+}
+
+export const terraBenchmarkMetrics: TerraBenchmarkMetric[] = [
+  { key: "winRate", label: "Win rate", unit: "%", decimals: 0, higherIsBetter: true },
+  { key: "profitFactor", label: "Profit factor", unit: "", decimals: 2, higherIsBetter: true },
+  {
+    key: "expectancy",
+    label: "Expectancy / trade",
+    unit: "",
+    decimals: 1,
+    higherIsBetter: true,
+    money: true,
+  },
+  {
+    key: "bestDayShare",
+    label: "Best-day share of net",
+    unit: "%",
+    decimals: 0,
+    higherIsBetter: false,
+  },
+  { key: "avgHoldHours", label: "Average hold", unit: "h", decimals: 1, higherIsBetter: null },
+];
+
+export interface TerraCohort {
+  key: string;
+  /** What the group is — account size or challenge stage. */
+  label: string;
+  /** Sample the medians were drawn from — shown on screen, never implied. */
+  n: number;
+  medians: Record<TerraBenchmarkMetricKey, number>;
+}
+
+export const terraCohorts: TerraCohort[] = [
+  {
+    key: "funded-all",
+    label: "All funded traders",
+    n: 902,
+    medians: { winRate: 48, profitFactor: 1.55, expectancy: 19, bestDayShare: 44, avgHoldHours: 2.9 },
+  },
+  {
+    key: "100k",
+    label: "$100K accounts",
+    n: 148,
+    medians: { winRate: 52, profitFactor: 1.72, expectancy: 46, bestDayShare: 41, avgHoldHours: 3.4 },
+  },
+  {
+    key: "25k",
+    label: "$25K accounts",
+    n: 312,
+    medians: { winRate: 49, profitFactor: 1.58, expectancy: 15, bestDayShare: 45, avgHoldHours: 2.6 },
+  },
+  {
+    key: "evaluation",
+    label: "Evaluation phase",
+    n: 640,
+    medians: { winRate: 46, profitFactor: 1.41, expectancy: 9, bestDayShare: 48, avgHoldHours: 2.1 },
+  },
+  {
+    key: "instant",
+    label: "Instant funded",
+    n: 96,
+    medians: { winRate: 44, profitFactor: 1.33, expectancy: 12, bestDayShare: 51, avgHoldHours: 1.8 },
+  },
+];
+
+export interface TerraIndustryStandard {
+  key: TerraBenchmarkMetricKey;
+  value: number;
+  /** Where the reference comes from — stated on screen, never implied. */
+  source: string;
+}
+
+export const terraIndustryStandards: TerraIndustryStandard[] = [
+  { key: "winRate", value: 50, source: "retail trading surveys (published aggregate)" },
+  { key: "profitFactor", value: 1.4, source: "prop-firm program averages, rolling 90 days" },
+  { key: "expectancy", value: 0, source: "break-even floor — positive expectancy is the bar" },
+  { key: "bestDayShare", value: 40, source: "consistency-rule guidance (≤40% from one day)" },
+  { key: "avgHoldHours", value: 2.5, source: "median hold across comparable programs" },
+];
