@@ -11,6 +11,7 @@
 
 import { useState, useEffect } from "react";
 import { AlertTriangle, Trash2, UserX, ShieldAlert, Zap, Ban, CircleAlert } from "lucide-react";
+import { ErrorAlert } from "./error-alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -175,13 +176,11 @@ export function DestructiveActionDialog({
             <div className="space-y-2">
               <p>{effectiveConsequence}</p>
               {context && <div className="text-sm text-muted-foreground">{context}</div>}
-              <div
-                className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs"
-                role="alert"
-              >
-                <span className="font-medium">This action requires a reason.</span> Your reason will
-                be recorded in the audit trail and shown to affected parties where applicable.
-              </div>
+              <ErrorAlert
+                title="Reason required"
+                description="Your reason will be recorded in the audit trail and shown to affected parties where applicable."
+                tone="warning"
+              />
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -204,9 +203,12 @@ export function DestructiveActionDialog({
               disabled={loading}
             />
             {showError && (
-              <p id={`${dialogId}-error`} role="alert" className="text-xs font-medium text-destructive">
-                Reason must be at least {minReasonLength} characters.
-              </p>
+              <ErrorAlert
+                title={`Reason must be at least ${minReasonLength} characters`}
+                tone="destructive"
+                className="text-xs font-medium text-destructive"
+                ariaLive="polite"
+              />
             )}
             <p className="text-[11px] text-muted-foreground">
               {reason.trim().length} / {minReasonLength} min characters
