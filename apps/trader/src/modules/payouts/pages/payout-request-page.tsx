@@ -55,16 +55,19 @@ function EligibilityPreCheck({
   const met = criteria.filter((c) => c.ok).length;
 
   return (
-    <TerraCard
-      className={eligible ? "border border-primary/30" : "border border-tertiary/40"}
-    >
+    <div className="border-2 border-primary/50 rounded-xl bg-surface-container-lowest p-6">
       <div className="flex items-center justify-between pb-3">
         <h2 className="font-headline text-lg font-bold text-on-surface">
-          Payout eligibility
+          Payout Eligibility Checklist
         </h2>
-        <TerraBadge tone={eligible ? "success" : "tertiary"}>
-          {met}/{criteria.length} criteria met
-        </TerraBadge>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-on-surface">
+            {eligible ? "✓ Eligible" : "✗ Not eligible"}
+          </span>
+          <TerraBadge tone={eligible ? "success" : "tertiary"}>
+            {met}/{criteria.length} criteria met
+          </TerraBadge>
+        </div>
       </div>
       <div className="space-y-2">
         {criteria.map((c) => (
@@ -98,13 +101,16 @@ function EligibilityPreCheck({
           </div>
         ))}
       </div>
-      <Link
-        href={`/payout-eligibility?id=${accountId}`}
-        className="mt-3 block text-center text-xs font-bold text-primary hover:text-on-primary-fixed-variant"
-      >
-        Full eligibility details, schedule & scaling →
-      </Link>
-    </TerraCard>
+      {eligible ? (
+        <div className="mt-4 p-3 bg-primary-fixed/10 rounded-lg text-sm text-on-primary-fixed-variant">
+          ✓ All requirements met - proceed to submit your payout request
+        </div>
+      ) : (
+        <div className="mt-4 p-3 bg-error-fixed/10 rounded-lg text-sm text-on-error-fixed-variant">
+          ⚠️ Review the unmet criteria above - fix before requesting payout
+        </div>
+      )}
+    </div>
   );
 }
 
