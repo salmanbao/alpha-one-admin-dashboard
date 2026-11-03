@@ -59,8 +59,20 @@ export function PositionDetailContent({
     setTp("");
   };
 
+  // Live region for dynamic P&L / position changes — the slider above
+  // mutates `positions` on every tick, so a screen reader must announce
+  // the resulting net P&L change rather than just reading a static value.
+  const liveMessage =
+    `Position changed — ${pos.side === "long" ? "Long" : "Short"}, ` +
+    `net ${formatSignedMoney(netPnl)}, floating ${formatSignedMoney(pos.pnl)}.`;
+
   return (
     <div className="space-y-6">
+      {/* Position detail live region — announces every position mutation */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {liveMessage}
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <TerraBadge tone={pos.side === "long" ? "primary" : "error"}>
           {pos.side === "long" ? "Long" : "Short"}
@@ -74,23 +86,27 @@ export function PositionDetailContent({
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+      <div
+        className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3"
+        data-table-region
+        role="list"
+        aria-label="Position detail metrics"
+      >
         {[
-          ["Ticket", `#${pos.id.replace("pos-", "").toUpperCase()}`],
-          ["Symbol", pos.symbol],
-          ["Volume", `${pos.lots.toFixed(2)} lots`],
-          ["Entry Price", String(pos.entry)],
-          ["Current Price", String(pos.current)],
-          ["Stop Loss", pos.sl === null ? "—" : `${pos.sl} (${distance(pos.sl) ?? ""})`],
-          ["Take Profit", pos.tp === null ? "—" : `${pos.tp} (${distance(pos.tp) ?? ""})`],
-          ["Opened", fmt(pos.openedAt)],
-          ["Account", account ? `#${account.login}` : pos.accountId],
-        ].map(([k, v]) => (
-          <div key={k} className="rounded-xl bg-surface-container-low p-3">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
-              {k}
-            </span>
+          ["Ticket", `#${pos.id.replace("pos-", "").toUpperCase()}`, "Position ticket number"],
+          ["Symbol", pos.symbol, "Trading symbol"],
+          ["Volume", `${pos.lots.toFixed(2)} lots`, "Number of lots"],
+          ["Entry Price", String(pos.entry), "Entry price in quote currency"],
+          ["Current Price", String(pos.current), "Current market price"],
+          ["Stop Loss", pos.sl === null ? "—" : `${pos.sl} (${distance(pos.sl) ?? ""})`, `Stop loss: ${pos.sl ?? "not set"}`],
+          ["Take Profit", pos.tp === null ? "—" : `${pos.tp} (${distance(pos.tp) ?? ""})`, `Take profit: ${pos.tp ?? "not set"}`],
+          ["Opened", fmt(pos.openedAt), "Opened at"],
+          ["Account", account ? `#${account.login}` : pos.accountId, "Account the position belongs to"],
+        ].map(([k, v, ariaLabel]) => (
+          <div key={k} className="rounded-xl bg-surface-container-low p-3" role="listitem">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">{k}</span>
             <span className="text-sm font-bold text-on-surface">{v}</span>
+            <span className="sr-only">{ariaLabel}</span>
           </div>
         ))}
       </div>
