@@ -7,11 +7,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { TerraCard } from "@/components/terra/terra-ui";
 
 export function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("tom.allen@terra.trader");
   const [password, setPassword] = useState("••••••••");
   const [loading, setLoading] = useState(false);
@@ -46,7 +47,19 @@ export function LoginPage() {
     setErrors(next);
     if (next.email || next.password) return;
     setLoading(true);
-    setTimeout(() => router.push("/dashboard"), 600);
+    // Session-expiry sign-out hands the return path along as `?next=`
+    // (audit B #4) — land the user back where they were rather than always
+    // on the dashboard. Same-app absolute paths only: a protocol-relative
+    // `//host` or an absolute URL is never followed.
+    const returnTo = searchParams.get("next");
+    const target =
+      returnTo &&
+      returnTo.startsWith("/") &&
+      !returnTo.startsWith("//") &&
+      !returnTo.startsWith("/login")
+        ? returnTo
+        : "/dashboard";
+    setTimeout(() => router.push(target), 600);
   }
 
   return (
