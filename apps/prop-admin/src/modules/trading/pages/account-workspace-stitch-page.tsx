@@ -109,6 +109,7 @@ export function AccountWorkspaceStitchPage() {
   const [syncOpen, setSyncOpen] = React.useState(false);
   const [blockOpen, setBlockOpen] = React.useState(false);
   const [resetOpen, setResetOpen] = React.useState(false);
+  const [overrideFailOpen, setOverrideFailOpen] = React.useState(false);
 
   const pnl = account.equity - account.balance;
 
@@ -167,7 +168,7 @@ export function AccountWorkspaceStitchPage() {
         ))}
       </div>
 
-      {tab === "configuration" ? <ConfigurationTab account={account} onBlock={() => setBlockOpen(true)} onReset={() => setResetOpen(true)} /> : null}
+      {tab === "configuration" ? <ConfigurationTab account={account} onBlock={() => setBlockOpen(true)} onReset={() => setResetOpen(true)} onOverrideFail={() => setOverrideFailOpen(true)} /> : null}
       {tab === "events" ? <EventsTab /> : null}
       {tab === "versions" ? <VersionHistoryTab /> : null}
       {tab === "broker" ? <BrokerDetailsTab account={account} /> : null}
@@ -185,13 +186,21 @@ export function AccountWorkspaceStitchPage() {
         onConfirm={() => toast({ title: "Account blocked", description: account.login })}
       />
       <ResetAccountConfirm open={resetOpen} onOpenChange={setResetOpen} login={account.login} />
+      <StitchConfirm
+        open={overrideFailOpen} onOpenChange={setOverrideFailOpen} icon="gpp_bad"
+        title={`Mark ${account.login} as failed?`}
+        body="A manual override records a failed evaluation outcome for this account immediately. The trader is notified and the decision is written to the audit trail with your reason."
+        confirmLabel="Record manual fail"
+        requireReason
+        onConfirm={(reason) => toast({ title: "Manual fail recorded", description: `${account.login} marked as failed by operator override — ${reason}`, variant: "destructive" })}
+      />
     </div>
   );
 }
 
 /* ═══════════════ Configuration tab (account_configuration) ═══════════════ */
 
-function ConfigurationTab({ account, onBlock, onReset }: { account: ReturnType<typeof getTenantAccounts>[number]; onBlock: () => void; onReset: () => void }) {
+function ConfigurationTab({ account, onBlock, onReset, onOverrideFail }: { account: ReturnType<typeof getTenantAccounts>[number]; onBlock: () => void; onReset: () => void; onOverrideFail: () => void }) {
   const currency = account.currency;
   const [resendOpen, setResendOpen] = React.useState(false);
   const drawdownPct = Math.abs(((account.balance - account.equity) / Math.max(1, account.balance)) * 100);
@@ -315,7 +324,7 @@ function ConfigurationTab({ account, onBlock, onReset }: { account: ReturnType<t
         <div className="flex gap-2">
           {/* PRD §4.18 /accounts/:id/override-pass · override-fail — manual evaluation decisions */}
           <StitchButton variant="primary" icon="task_alt" onClick={() => toast({ title: "Manual pass recorded", description: `${account.login} marked as passed by operator override.` })}>Override Pass</StitchButton>
-          <StitchButton variant="destructive" icon="gpp_bad" onClick={() => toast({ title: "Manual fail recorded", description: `${account.login} marked as failed by operator override.`, variant: "destructive" })}>Override Fail</StitchButton>
+          <StitchButton variant="destructive" icon="gpp_bad" onClick={onOverrideFail}>Override Fail</StitchButton>
           <StitchButton variant="destructive" icon="block" onClick={onBlock}>Block Account</StitchButton>
           <StitchButton variant="outline" icon="restart_alt" onClick={onReset}>Reset Account</StitchButton>
         </div>

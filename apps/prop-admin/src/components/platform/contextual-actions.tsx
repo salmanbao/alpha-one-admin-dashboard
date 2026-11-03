@@ -16,17 +16,7 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { hasPermission } from "@/lib/platform/permission-engine";
 import { resolveTermsInString } from "@/lib/platform/terminology";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { DestructiveActionDialog } from "@/components/platform/destructive-action-dialog";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,7 +24,7 @@ import {
   type PayoutRejectTarget,
   type PayoutRejectResult,
 } from "@/components/platform/payout-reject-dialog";
-import { Check, X, FileQuestion, ChevronRight, ShieldAlert, MessageCircle, AlertTriangle } from "lucide-react";
+import { Check, X, FileQuestion, ChevronRight, MessageCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/components/platform/status";
 import { EntityAuditTimeline } from "@/components/platform/audit";
@@ -62,8 +52,12 @@ interface ContextualAction {
    * a queue is not the same permission as deciding on it (gap analysis §4).
    */
   requires?: string;
-  /** Action handler */
-  onAction: () => void;
+  /**
+   * Action handler. Destructive actions receive the operator's typed
+   * reason (required by DestructiveActionDialog) so it can be written
+   * into the audit detail.
+   */
+  onAction: (reason?: string) => void;
 }
 
 interface ContextualActionPanelProps {
@@ -116,6 +110,7 @@ export function ContextualActionPanel({
 function ContextualActionButton({ action, isPrimary = false }: { action: ContextualAction; isPrimary?: boolean }) {
   const { user } = usePlatform();
   const Icon = action.icon;
+  const [open, setOpen] = useState(false);
   const variant = isPrimary ? "default" : action.variant === "destructive" ? "outline" : "ghost";
   const size = "sm";
   const className = cn("gap-1.5", isPrimary && "shadow-sm");
@@ -126,43 +121,33 @@ function ContextualActionButton({ action, isPrimary = false }: { action: Context
 
   if (action.destructive) {
     return (
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button
-            variant={variant}
-            size={size}
-            disabled={!allowed}
-            title={deniedTitle}
-            className={cn(className, "text-rose-600 hover:text-rose-700")}
-          >
-            <Icon className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{action.label}</span>
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-rose-600" />
-              {action.destructive.title}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {action.destructive.description}
-            </AlertDialogDescription>
-            <div className="rounded-md border border-rose-500/20 bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
-              <span className="font-medium">Consequence:</span> {action.destructive.consequence}
-            </div>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => { action.onAction(); }}
-              className="bg-rose-600 text-white hover:bg-rose-700"
-            >
-              {action.label}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <>
+        <Button
+          variant={variant}
+          size={size}
+          disabled={!allowed}
+          title={deniedTitle}
+          className={cn(className, "text-rose-600 hover:text-rose-700")}
+          onClick={() => setOpen(true)}
+        >
+          <Icon className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{action.label}</span>
+        </Button>
+        {/* §24 proportionate friction: consequence + required reason (§25) */}
+        <DestructiveActionDialog
+          dialogId={`ctx-${action.id}`}
+          open={open}
+          onOpenChange={setOpen}
+          variant="custom"
+          title={action.destructive.title}
+          consequence={action.destructive.consequence}
+          context={<p className="text-sm">{action.destructive.description}</p>}
+          onConfirm={(reason) => {
+            setOpen(false);
+            action.onAction(reason);
+          }}
+        />
+      </>
     );
   }
 
@@ -173,7 +158,7 @@ function ContextualActionButton({ action, isPrimary = false }: { action: Context
       className={className}
       disabled={!allowed}
       title={deniedTitle}
-      onClick={action.onAction}
+      onClick={() => action.onAction()}
     >
       <Icon className="h-3.5 w-3.5" />
       <span className="hidden sm:inline">{action.label}</span>

@@ -767,6 +767,8 @@ export function StitchConfirm({
   onConfirm,
   destructive = true,
   children,
+  requireReason = false,
+  reasonPlaceholder = "Why is this action necessary? Recorded in the audit trail.",
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -774,10 +776,23 @@ export function StitchConfirm({
   title: string;
   body: React.ReactNode;
   confirmLabel: string;
-  onConfirm: () => void;
+  onConfirm: (reason: string) => void;
   destructive?: boolean;
   children?: React.ReactNode;
+  /**
+   * Require a typed reason before confirming (audit finding #1 — every
+   * destructive action records why). The reason is passed to `onConfirm`
+   * and is empty when `requireReason` is false.
+   */
+  requireReason?: boolean;
+  reasonPlaceholder?: string;
 }) {
+  const [reason, setReason] = React.useState("");
+  React.useEffect(() => {
+    if (open) setReason("");
+  }, [open]);
+  const reasonOk = !requireReason || reason.trim().length >= 8;
+
   return (
     <StitchSheet
       open={open}
@@ -791,8 +806,10 @@ export function StitchConfirm({
           </StitchButton>
           <StitchButton
             variant={destructive ? "destructive" : "primary"}
+            disabled={!reasonOk}
             onClick={() => {
-              onConfirm();
+              if (!reasonOk) return;
+              onConfirm(reason.trim());
               onOpenChange(false);
             }}
           >
@@ -803,6 +820,30 @@ export function StitchConfirm({
     >
       <div className="space-y-3">
         <p className="text-sm leading-relaxed text-ink-variant">{body}</p>
+        {requireReason ? (
+          <label className="block space-y-1">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+              Reason (required)
+            </span>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={reasonPlaceholder}
+              aria-required="true"
+              aria-invalid={reason.trim().length > 0 && reason.trim().length < 8}
+              className="min-h-[72px] w-full rounded-xl border border-ink/15 bg-sfc-low px-3 py-2 text-sm text-ink outline-none focus:border-tp"
+            />
+            {reason.trim().length > 0 && reason.trim().length < 8 ? (
+              <span role="alert" className="block text-[11px] font-semibold text-terr">
+                Give a meaningful reason (at least 8 characters).
+              </span>
+            ) : (
+              <span className="block text-[11px] text-ink-muted">
+                {reason.trim().length} characters — flows into the audit detail.
+              </span>
+            )}
+          </label>
+        ) : null}
         {children}
       </div>
     </StitchSheet>
