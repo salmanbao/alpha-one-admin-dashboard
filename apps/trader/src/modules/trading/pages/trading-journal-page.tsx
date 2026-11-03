@@ -18,9 +18,11 @@ import {
   TerraPageHeader,
   TerraSectionTitle,
   TerraStat,
+  TerraTable,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
 import { journalEntries, terraTrades } from "@/lib/fixtures/terra-fixtures";
+import { exportToCsv, type ExportColumn } from "@/lib/export/export-csv";
 import { toast } from "@/hooks/use-toast";
 
 const STORAGE_KEY = "terra.journal-entries";
@@ -44,11 +46,22 @@ interface JournalEntry {
   date: string;
   title: string;
   mood: string;
+  /** Closed-list setup the entry was taken under (audit B #9). */
+  strategy?: string;
   tags: string[];
   notes: string;
   pnl: number;
   tradeIds: string[];
 }
+
+/** Closed list behind the strategy axis — keeps the comparison finite. */
+const strategies = ["Reversal", "Trend follow", "Range fade", "Breakout"] as const;
+
+/** Display order for the strategy table (Uncategorised always last). */
+const strategyOrder = new Map<string, number>(strategies.map((s, i) => [s, i]));
+
+/** Entries saved before the strategy field existed group here. */
+const strategyOf = (entry: JournalEntry) => entry.strategy ?? "Uncategorised";
 
 /** Recent closed trades, newest first — offered as link targets. */
 const recentTrades = [...terraTrades]
@@ -82,10 +95,20 @@ export function TradingJournalPage() {
   );
   const total = entries.reduce((s, e) => s + e.pnl, 0);
 
+  // Tag filter (audit B #9) — a tag chip anywhere on the page scopes the
+  // entry list; the strip above the list states what is showing so a
+  // filtered view can never be mistaken for the full journal.
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const visibleEntries = useMemo(
+    () => (activeTag ? entries.filter((e) => e.tags.includes(activeTag)) : entries),
+    [entries, activeTag],
+  );
+
   const [showNewEntry, setShowNewEntry] = useState(false);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [mood, setMood] = useState("disciplined");
+  const [strategy, setStrategy] = useState<string>(strategies[0]);
   const [tagsInput, setTagsInput] = useState("");
   const [linkedTradeId, setLinkedTradeId] = useState("");
 
@@ -125,6 +148,67 @@ export function TradingJournalPage() {
     return streak;
   }, [entries]);
 
+  /**
+   * Per-tag performance correlation (audit B #9) — every tag scored
+   * across the entries carrying it, so a recurring tag can be judged on
+   * results rather than recall. Scored = entry has a non-zero P&L.
+   */
+  const tagStats = useMemo(() => {
+    const by = new Map<string, { count: number; scored: number; net: number; wins: number }>();
+    for (const e of entries) {
+      for (const t of e.tags) {
+        const b = by.get(t) ?? { count: 0, scored: 0, net: 0, wins: 0 };
+        b.count += 1;
+        if (e.pnl !== 0) {
+          b.scored += 1;
+          b.net += e.pnl;
+          if (e.pnl > 0) b.wins += 1;
+        }
+        by.set(t, b);
+      }
+    }
+    return [...by.entries()]
+      .map(([tag, b]) => ({
+        tag,
+        ...b,
+        avg: b.scored > 0 ? b.net / b.scored : 0,
+        winRate: b.scored > 0 ? Math.round((b.wins / b.scored) * 100) : null,
+      }))
+      .sort((a, b) => b.net - a.net);
+  }, [entries]);
+
+  /**
+   * Strategy comparison (audit B #9) — the same scoring keyed by the
+   * closed strategy list. Entries from before the field existed land in
+   * "Uncategorised" rather than disappearing from the comparison.
+   */
+  const strategyStats = useMemo(() => {
+    const by = new Map<string, { count: number; scored: number; net: number; wins: number }>();
+    for (const e of entries) {
+      const key = strategyOf(e);
+      const b = by.get(key) ?? { count: 0, scored: 0, net: 0, wins: 0 };
+      b.count += 1;
+      if (e.pnl !== 0) {
+        b.scored += 1;
+        b.net += e.pnl;
+        if (e.pnl > 0) b.wins += 1;
+      }
+      by.set(key, b);
+    }
+    return [...by.entries()]
+      .map(([strategyName, b]) => ({
+        strategy: strategyName,
+        ...b,
+        avg: b.scored > 0 ? b.net / b.scored : 0,
+        winRate: b.scored > 0 ? Math.round((b.wins / b.scored) * 100) : null,
+      }))
+      .sort(
+        (a, b) =>
+          (strategyOrder.get(a.strategy) ?? strategies.length) -
+          (strategyOrder.get(b.strategy) ?? strategies.length),
+      );
+  }, [entries]);
+
   // Trade analysis — performance metrics derived from every entry (audit U #4).
   const analysis = useMemo(() => {
     const withPnl = entries.filter((e) => e.pnl !== 0);
@@ -159,6 +243,7 @@ export function TradingJournalPage() {
       date: new Date().toISOString(),
       title: title.trim(),
       mood,
+      strategy,
       tags,
       notes: notes.trim(),
       // Journal P&L follows the linked trade when one is attached.
@@ -168,7 +253,7 @@ export function TradingJournalPage() {
     persist([entry, ...userEntries]);
     toast({
       title: "Journal entry saved",
-      description: `"${entry.title}" — mood: ${mood}${linkedTrade ? ` • linked #${linkedTrade.ticket}` : ""}. Stored locally in this browser.`,
+      description: `"${entry.title}" — ${strategy} • mood: ${mood}${linkedTrade ? ` • linked #${linkedTrade.ticket}` : ""}. Stored locally in this browser.`,
     });
     setShowNewEntry(false);
     setTitle("");
@@ -176,6 +261,27 @@ export function TradingJournalPage() {
     setTagsInput("");
     setLinkedTradeId("");
     setMood("disciplined");
+    setStrategy(strategies[0]);
+  };
+
+  // Export the current view (audit B #9) — a filtered journal exports what
+  // is on screen, so the CSV always matches what the user was looking at.
+  const handleExport = () => {
+    const columns: ExportColumn<JournalEntry>[] = [
+      { header: "Date", value: (e) => e.date },
+      { header: "Title", value: (e) => e.title },
+      { header: "Mood", value: (e) => e.mood },
+      { header: "Strategy", value: (e) => strategyOf(e) },
+      { header: "Tags", value: (e) => e.tags.join(" | ") },
+      { header: "P&L", value: (e) => e.pnl },
+      { header: "Linked trades", value: (e) => e.tradeIds.join(" | ") },
+      { header: "Notes", value: (e) => e.notes },
+    ];
+    exportToCsv(
+      visibleEntries,
+      columns,
+      `terra-journal${activeTag ? `-${activeTag.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}` : ""}-${new Date().toISOString().slice(0, 10)}`,
+    );
   };
 
   return (
@@ -184,13 +290,22 @@ export function TradingJournalPage() {
         title="Trading Journal"
         description="Review your trades, mindset and lessons — entries are saved in this browser"
         actions={
-          <button
-            type="button"
-            onClick={() => setShowNewEntry(true)}
-            className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
-          >
-            + New Entry
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleExport}
+              className="rounded-xl border border-outline-variant/60 bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container"
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowNewEntry(true)}
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
+            >
+              + New Entry
+            </button>
+          </div>
         }
       />
 
@@ -225,6 +340,25 @@ export function TradingJournalPage() {
                   <option value="patient">Patient</option>
                   <option value="frustrated">Frustrated</option>
                 </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                  Strategy
+                </label>
+                <select
+                  value={strategy}
+                  onChange={(e) => setStrategy(e.target.value)}
+                  className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:border-primary"
+                >
+                  {strategies.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-[11px] text-on-surface-variant">
+                  Drives the strategy comparison — pick the setup this entry belongs to.
+                </p>
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-on-surface-variant">
@@ -422,14 +556,25 @@ export function TradingJournalPage() {
               Top tags
             </p>
             {analysis.topTags.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <div
+                className="mt-2 flex flex-wrap gap-1.5"
+                role="group"
+                aria-label="Filter the entry list by tag"
+              >
                 {analysis.topTags.map(([t, c]) => (
-                  <span
+                  <button
                     key={t}
-                    className="rounded-full bg-surface-container px-2.5 py-0.5 text-[11px] font-semibold text-on-surface-variant"
+                    type="button"
+                    aria-pressed={activeTag === t}
+                    onClick={() => setActiveTag((cur) => (cur === t ? null : t))}
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+                      activeTag === t
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                    }`}
                   >
                     #{t} · {c}
-                  </span>
+                  </button>
                 ))}
               </div>
             ) : (
@@ -457,14 +602,122 @@ export function TradingJournalPage() {
         </div>
       </TerraCard>
 
-      {entries.length === 0 ? (
-        <TerraEmpty
-          title="No journal entries yet"
-          description="Log your first session review — mood, tags and lessons learned."
-        />
+      {/* Correlation + comparison (audit B #9) — the two questions the
+          journal could not answer: "which tags actually make money?" and
+          "which of my setups is carrying me?". Both are derived from the
+          same entries the list below shows. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <TerraCard className="p-6">
+          <TerraSectionTitle
+            title="Tag performance"
+            description="Every tag scored across the entries carrying it — click one to filter the list."
+          />
+          {tagStats.length > 0 ? (
+            <div className="mt-3">
+              <TerraTable
+                head={["Tag", "Entries", "Net", "Avg", "Win rate"]}
+                rows={tagStats.map((s) => [
+                  <button
+                    key={s.tag}
+                    type="button"
+                    aria-pressed={activeTag === s.tag}
+                    onClick={() => setActiveTag((cur) => (cur === s.tag ? null : s.tag))}
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+                      activeTag === s.tag
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                    }`}
+                  >
+                    #{s.tag}
+                  </button>,
+                  <span key="n" className="tabular-nums text-on-surface-variant">{s.count}</span>,
+                  <span key="net" className={`font-bold tabular-nums ${s.net >= 0 ? "text-primary" : "text-error"}`}>
+                    {formatSignedMoney(s.net)}
+                  </span>,
+                  <span key="avg" className="tabular-nums text-on-surface-variant">
+                    {s.scored > 0 ? formatSignedMoney(s.avg) : "—"}
+                  </span>,
+                  <span key="wr" className="tabular-nums text-on-surface-variant">
+                    {s.winRate === null ? "—" : `${s.winRate}%`}
+                  </span>,
+                ])}
+              />
+              <p className="mt-3 text-[11px] text-on-surface-variant">
+                Scored entries only — untagged P&amp;L stays in the totals above but not in any
+                one row.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-on-surface-variant">
+              No tags yet — tag entries to spot recurring patterns.
+            </p>
+          )}
+        </TerraCard>
+
+        <TerraCard className="p-6">
+          <TerraSectionTitle
+            title="Strategy comparison"
+            description="The same scoring by setup — where the edge comes from, and what is costing you."
+          />
+          <div className="mt-3">
+            <TerraTable
+              head={["Strategy", "Entries", "Net", "Avg", "Win rate"]}
+              rows={strategyStats.map((s) => [
+                <span key="s" className="font-semibold text-on-surface">{s.strategy}</span>,
+                <span key="n" className="tabular-nums text-on-surface-variant">{s.count}</span>,
+                <span key="net" className={`font-bold tabular-nums ${s.net >= 0 ? "text-primary" : "text-error"}`}>
+                  {formatSignedMoney(s.net)}
+                </span>,
+                <span key="avg" className="tabular-nums text-on-surface-variant">
+                  {s.scored > 0 ? formatSignedMoney(s.avg) : "—"}
+                </span>,
+                <span key="wr" className="tabular-nums text-on-surface-variant">
+                  {s.winRate === null ? "—" : `${s.winRate}%`}
+                </span>,
+              ])}
+            />
+            <p className="mt-3 text-[11px] text-on-surface-variant">
+              Entries logged before strategies existed are grouped as Uncategorised rather than
+              dropped from the comparison.
+            </p>
+          </div>
+        </TerraCard>
+      </div>
+
+      {activeTag && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary-fixed/40 px-4 py-3"
+        >
+          <p className="text-sm text-on-surface">
+            Filtered by <span className="font-bold">#{activeTag}</span> — showing{" "}
+            {visibleEntries.length} of {entries.length} entries.
+          </p>
+          <button
+            type="button"
+            onClick={() => setActiveTag(null)}
+            className="text-xs font-bold text-on-primary-fixed-variant underline-offset-2 hover:underline"
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
+
+      {visibleEntries.length === 0 ? (
+        activeTag ? (
+          <TerraEmpty
+            title="No entries with this tag"
+            description={`Nothing in the journal is tagged #${activeTag} yet — use "Clear filter" above to see every entry.`}
+          />
+        ) : (
+          <TerraEmpty
+            title="No journal entries yet"
+            description="Log your first session review — mood, tags and lessons learned."
+          />
+        )
       ) : (
         <div className="space-y-4">
-          {entries.map((e) => (
+          {visibleEntries.map((e) => (
             <TerraCard key={e.id} className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -474,6 +727,7 @@ export function TradingJournalPage() {
                   <h2 className="font-headline font-bold text-on-surface">{e.title}</h2>
                 </div>
                 <div className="flex items-center gap-2">
+                  <TerraBadge tone="secondary">{strategyOf(e)}</TerraBadge>
                   <TerraBadge tone={moodTone[e.mood as keyof typeof moodTone] ?? "neutral"}>{e.mood}</TerraBadge>
                   <span className={`font-bold tabular-nums ${e.pnl >= 0 ? "text-primary" : "text-error"}`}>
                     {formatSignedMoney(e.pnl)}
@@ -504,11 +758,21 @@ export function TradingJournalPage() {
                   })}
                 </div>
               )}
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tags on this entry">
                 {e.tags.map((t) => (
-                  <span key={t} className="rounded-full bg-surface-container px-2.5 py-0.5 text-[11px] font-semibold text-on-surface-variant">
+                  <button
+                    key={t}
+                    type="button"
+                    aria-pressed={activeTag === t}
+                    onClick={() => setActiveTag((cur) => (cur === t ? null : t))}
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+                      activeTag === t
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                    }`}
+                  >
                     #{t}
-                  </span>
+                  </button>
                 ))}
               </div>
             </TerraCard>

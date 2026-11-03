@@ -55,7 +55,7 @@ export function TraderPerformancePage() {
       <PageHeader title="Performance Analytics" description="Your trading performance — deeper analysis belongs here." icon={TrendingUp} />
       <PageContent>
         <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading performance…">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <MetricCard label="Total P&L" value={formatCurrency(totalPnl, currency)} icon={TrendingUp} tone={totalPnl >= 0 ? "positive" : "negative"} />
           <MetricCard label="Win Rate" value={formatPercentValue(winRate, 0)} icon={Target} tone="positive" />
           <MetricCard label="Profit Factor" value={profitFactor.toString()} icon={Percent} tone="positive" />

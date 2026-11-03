@@ -140,6 +140,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "affiliates-list": dynamic(() => import("@/modules/affiliates/pages/affiliate-pages").then((m) => ({ default: m.AffiliatesListPage })), { loading: ViewSkeleton }),
   "affiliates-campaigns": dynamic(() => import("@/modules/affiliates/pages/affiliate-pages").then((m) => ({ default: m.AffiliateCampaignsPage })), { loading: ViewSkeleton }),
   "affiliates-commissions": dynamic(() => import("@/modules/affiliates/pages/affiliate-pages").then((m) => ({ default: m.AffiliateCommissionsPage })), { loading: ViewSkeleton }),
+  "affiliates-performance": dynamic(() => import("@/modules/affiliates/pages/affiliate-pages").then((m) => ({ default: m.AffiliatePerformancePage })), { loading: ViewSkeleton }),
   "offer-management": dynamic(() => import("@/modules/affiliates/pages/offer-management-page").then((m) => ({ default: m.OfferManagementPage })), { loading: ViewSkeleton }),
   "offer-edit": dynamic(() => import("@/modules/affiliates/pages/offer-edit-page").then((m) => ({ default: m.OfferEditPage })), { loading: ViewSkeleton }),
   "offer-matching-users": dynamic(() => import("@/modules/affiliates/pages/offer-matching-users-page").then((m) => ({ default: m.OfferMatchingUsersPage })), { loading: ViewSkeleton }),

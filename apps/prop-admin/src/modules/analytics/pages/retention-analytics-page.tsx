@@ -185,7 +185,7 @@ export function RetentionAnalyticsPage() {
       <PageContent>
         <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading retention…">
         {/* KPI row — headline retention metrics first */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
           <MetricCard label="3-Month Retention" value={`${threeMonthRetention}%`} icon={TrendingUp} tone="positive" />
           <MetricCard label="6-Month Retention" value={`${sixMonthRetention}%`} icon={TrendingUp} tone="positive" />
           <MetricCard label="12-Month Retention" value={`${twelveMonthRetention}%`} icon={TrendingUp} tone="warning" />
