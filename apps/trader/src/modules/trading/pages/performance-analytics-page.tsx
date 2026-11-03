@@ -30,14 +30,19 @@ import {
   equityCurveFor,
   terraAccounts,
   terraBenchmarks,
+  terraBenchmarkMetrics,
+  terraCohorts,
+  terraIndustryStandards,
   terraTrades,
   type TerraBenchmark,
+  type TerraBenchmarkMetric,
+  type TerraBenchmarkMetricKey,
 } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { toast } from "@/hooks/use-toast";
 import { useRovingTabs } from "@/lib/a11y/roving-tabs";
 
-const tabs = ["Overview", "Symbols", "Sessions"] as const;
+const tabs = ["Overview", "Symbols", "Sessions", "Benchmarks"] as const;
 
 export function PerformanceAnalyticsPage() {
   const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
@@ -49,6 +54,10 @@ export function PerformanceAnalyticsPage() {
   // cross-account view (matches the previous behavior).
   const { activeAccount, activeAccountId } = useActiveAccount();
   const [scopeAll, setScopeAll] = useState(false);
+  // Cohort the Benchmarks tab measures against (audit C #1) — every
+  // figure in that panel re-reads this selection.
+  const [cohortKey, setCohortKey] = useState("funded-all");
+  const cohort = terraCohorts.find((c) => c.key === cohortKey) ?? terraCohorts[0];
   const pool = scopeAll
     ? terraTrades
     : terraTrades.filter((t) => t.accountId === activeAccountId);
@@ -171,6 +180,57 @@ export function PerformanceAnalyticsPage() {
     bestDayShare,
     losingStreak: maxLosingStreak,
   };
+
+  // Benchmarks tab inputs (audit C #1) — the five figures the cohorts
+  // carry, recomputed from the current scope so the comparison tracks
+  // the account switcher, plus the running win-rate path the cohort
+  // median is plotted against.
+  const yourBenchmarks: Record<TerraBenchmarkMetricKey, number | null> = {
+    winRate,
+    profitFactor: profitFactorNum,
+    expectancy: Math.round(expectancy * 10) / 10,
+    bestDayShare,
+    avgHoldHours: Math.round((avgHoldMs / 3_600_000) * 10) / 10,
+  };
+  const industryByKey = new Map(terraIndustryStandards.map((s) => [s.key, s]));
+  const runningWinRate = (() => {
+    const sorted = [...pool].sort(
+      (a, b) => +new Date(a.closedAt) - +new Date(b.closedAt),
+    );
+    let wins = 0;
+    return sorted.map((t, i) => {
+      if (t.pnl > 0) wins += 1;
+      return { trade: i + 1, winRate: (wins / (i + 1)) * 100 };
+    });
+  })();
+
+  // Read-out sentence — ahead / behind / level lists built from the
+  // direction-aware metrics, so the prose can never contradict the table.
+  const aheadOf: string[] = [];
+  const behindOn: string[] = [];
+  for (const m of terraBenchmarkMetrics) {
+    if (m.higherIsBetter === null) continue;
+    const you = yourBenchmarks[m.key];
+    if (you === null) continue;
+    const median = cohort.medians[m.key];
+    const better = m.higherIsBetter ? you > median : you < median;
+    const worse = m.higherIsBetter ? you < median : you > median;
+    if (better) aheadOf.push(m.label);
+    else if (worse) behindOn.push(m.label);
+  }
+  const joinList = (items: string[]) =>
+    items.length <= 1
+      ? (items[0] ?? "")
+      : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+  const readout =
+    aheadOf.length === 0 && behindOn.length === 0
+      ? `Level with ${cohort.label} on every directional metric — the gap to close is consistency, not edge.`
+      : [
+          aheadOf.length ? `Ahead of ${cohort.label} on ${joinList(aheadOf)}` : null,
+          behindOn.length ? `behind on ${joinList(behindOn)}` : null,
+        ]
+          .filter(Boolean)
+          .join(", ") + ".";
 
   const handleExportReport = () => {
     toast({
@@ -414,7 +474,7 @@ export function PerformanceAnalyticsPage() {
       </div>
 
       {tab === "Overview" && (
-        <div {...roving.panelProps("Overview")}>
+        <div {...roving.panelProps("Overview")} className="space-y-6">
         <TerraCard>
           <TerraSectionTitle title="Trade breakdown" />
           <TerraTable
@@ -560,7 +620,7 @@ export function PerformanceAnalyticsPage() {
       )}
 
       {tab === "Symbols" && (
-        <div {...roving.panelProps("Symbols")}>
+        <div {...roving.panelProps("Symbols")} className="space-y-6">
         <TerraCard>
           <TerraSectionTitle title="By symbol" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -584,7 +644,7 @@ export function PerformanceAnalyticsPage() {
       )}
 
       {tab === "Sessions" && (
-        <div {...roving.panelProps("Sessions")}>
+        <div {...roving.panelProps("Sessions")} className="space-y-6">
         <TerraCard>
           <TerraSectionTitle title="By session" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -605,6 +665,265 @@ export function PerformanceAnalyticsPage() {
         </TerraCard>
         </div>
       )}
+
+      {tab === "Benchmarks" && (
+        <div {...roving.panelProps("Benchmarks")} className="space-y-6">
+          {/* Cohort + industry comparison (audit C #1) — the two
+              comparisons the fixed benchmark bands could not make: peers
+              at the same account size / stage, and a published industry
+              reference. Every figure re-reads the scope toggle above. */}
+          <TerraCard>
+            <TerraSectionTitle
+              title="Benchmarking"
+              description="Your current scope against peer cohorts and an industry reference — pick the group closest to you."
+            />
+            <div
+              className="flex flex-wrap gap-2 pb-4"
+              role="group"
+              aria-label="Comparison cohort"
+            >
+              {terraCohorts.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  aria-pressed={c.key === cohortKey}
+                  onClick={() => setCohortKey(c.key)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    c.key === cohortKey
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+                  }`}
+                >
+                  {c.label}
+                  <span className="ml-1.5 opacity-70">n={c.n}</span>
+                </button>
+              ))}
+            </div>
+            <TerraTable
+              head={[
+                "Metric",
+                "You",
+                `${cohort.label} (n=${cohort.n})`,
+                "Industry ref",
+                "Vs cohort",
+              ]}
+              rows={terraBenchmarkMetrics.map((m) => {
+                const you = yourBenchmarks[m.key];
+                const median = cohort.medians[m.key];
+                const industry = industryByKey.get(m.key)?.value ?? null;
+                let verdict = "Level with median";
+                let tone: "success" | "error" | "secondary" = "secondary";
+                if (you !== null) {
+                  if (m.higherIsBetter === null) {
+                    const delta = you - median;
+                    verdict = `${
+                      delta >= 0 ? "+" : ""
+                    }${fmtBenchmark(m, Math.round(delta * 10) / 10)} vs median`;
+                  } else if (you !== median) {
+                    const above = you > median;
+                    const good = m.higherIsBetter ? above : !above;
+                    verdict = above ? "Above median" : "Below median";
+                    tone = good ? "success" : "error";
+                  }
+                } else {
+                  verdict = "—";
+                }
+                return [
+                  <span key="m" className="font-semibold text-on-surface">
+                    {m.label}
+                  </span>,
+                  <span key="you" className="font-bold tabular-nums text-on-surface">
+                    {fmtBenchmark(m, you)}
+                  </span>,
+                  <span key="cohort" className="tabular-nums text-on-surface-variant">
+                    {fmtBenchmark(m, median)}
+                  </span>,
+                  <span key="ind" className="tabular-nums text-on-surface-variant">
+                    {industry === null ? "—" : fmtBenchmark(m, industry)}
+                  </span>,
+                  <span key="v">
+                    <TerraBadge tone={tone}>{verdict}</TerraBadge>
+                  </span>,
+                ];
+              })}
+            />
+            <p className="pt-3 text-xs text-on-surface-variant">{readout}</p>
+            <p className="pt-1 text-[11px] text-on-surface-variant">
+              Industry reference —{" "}
+              {terraBenchmarkMetrics
+                .map((m) => {
+                  const s = industryByKey.get(m.key);
+                  return s ? `${m.label.toLowerCase()}: ${s.source}` : null;
+                })
+                .filter(Boolean)
+                .join(" • ")}
+              . Cohort figures are medians of the stated sample; at this
+              sample size the direction matters more than the decimal place.
+            </p>
+          </TerraCard>
+
+          {/* Running win-rate trend (audit C #1) — the snapshot above is
+              one number; this is the path that produced it, against the
+              selected cohort's median. */}
+          <TerraCard>
+            <TerraSectionTitle
+              title="Running win rate"
+              description={`Your win rate after each closed trade in this scope, plotted against the ${cohort.label} median.`}
+            />
+            <RunningWinRateChart
+              series={runningWinRate}
+              cohortMedian={cohort.medians.winRate}
+              cohortLabel={cohort.label}
+            />
+          </TerraCard>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Format one benchmark figure with its metric's unit / decimals. */
+function fmtBenchmark(m: TerraBenchmarkMetric, v: number | null): string {
+  if (v === null || Number.isNaN(v)) return "—";
+  return m.money ? formatSignedMoney(Math.round(v)) : `${v.toFixed(m.decimals)}${m.unit}`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Running win rate (audit C #1)                                        */
+/*                                                                     */
+/* Cumulative win rate after each closed trade, against the selected   */
+/* cohort's median line. The SVG is stretched (preserveAspectRatio      */
+/* none) to fill the card, so every stroke opts into non-scaling —     */
+/* otherwise the 2px line would distort with the card width. Axis       */
+/* labels live in HTML (never inside the stretched viewBox) and the     */
+/* full series is mirrored into an sr-only table.                       */
+/* ------------------------------------------------------------------ */
+function RunningWinRateChart({
+  series,
+  cohortMedian,
+  cohortLabel,
+}: {
+  series: { trade: number; winRate: number }[];
+  cohortMedian: number;
+  cohortLabel: string;
+}) {
+  if (series.length < 2) {
+    return (
+      <p className="rounded-xl bg-surface-container-low p-4 text-xs text-on-surface-variant">
+        Two or more closed trades are needed to draw the running win-rate
+        line — the cohort median stays in the table above.
+      </p>
+    );
+  }
+
+  const n = series.length;
+  const clamp = (v: number) => Math.max(0, Math.min(100, v));
+  const points = series
+    .map((p, i) => `${((i / (n - 1)) * 100).toFixed(2)},${(100 - clamp(p.winRate)).toFixed(2)}`)
+    .join(" ");
+  const cohortY = 100 - clamp(cohortMedian);
+  const last = series[n - 1].winRate;
+  // Mirrored table — sample ~12 points so the fallback stays skimmable.
+  const step = Math.max(1, Math.ceil(n / 12));
+  const sampled = series.filter((_, i) => i % step === 0 || i === n - 1);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pb-3 text-[11px] text-on-surface-variant">
+        <span className="flex items-center gap-1.5">
+          <span className="block h-0.5 w-5 rounded-full bg-primary" aria-hidden="true" />
+          Your running win rate — ends at {last.toFixed(0)}%
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="block w-5 border-t-2 border-dashed border-on-surface"
+            aria-hidden="true"
+          />
+          {cohortLabel} median — {cohortMedian.toFixed(0)}%
+        </span>
+      </div>
+
+      <div className="flex gap-2">
+        <div
+          aria-hidden="true"
+          className="flex h-[240px] w-9 flex-col justify-between text-right text-[10px] tabular-nums text-on-surface-variant"
+        >
+          <span>100%</span>
+          <span>75%</span>
+          <span>50%</span>
+          <span>25%</span>
+          <span>0%</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            className="h-[240px] w-full"
+            role="img"
+            aria-label={`Running win rate over ${n} closed trades, ending at ${last.toFixed(0)}%. ${cohortLabel} median is ${cohortMedian.toFixed(0)}%.`}
+          >
+            <g className="text-on-surface-variant" stroke="currentColor" strokeOpacity="0.25">
+              {[0, 25, 50, 75, 100].map((g) => (
+                <line
+                  key={g}
+                  x1="0"
+                  y1={g}
+                  x2="100"
+                  y2={g}
+                  strokeWidth="1"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </g>
+            <g className="text-on-surface" stroke="currentColor">
+              <line
+                x1="0"
+                y1={cohortY}
+                x2="100"
+                y2={cohortY}
+                strokeWidth="1.5"
+                strokeDasharray="6 5"
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+            <g className="text-primary" stroke="currentColor">
+              <polyline
+                points={points}
+                fill="none"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+          </svg>
+          <div
+            aria-hidden="true"
+            className="flex justify-between pt-1.5 text-[10px] tabular-nums text-on-surface-variant"
+          >
+            <span>Trade 1</span>
+            <span>Trade {n}</span>
+          </div>
+        </div>
+      </div>
+
+      <table className="sr-only">
+        <caption>Running win rate by trade</caption>
+        <thead>
+          <tr>
+            <th scope="col">Closed trades</th>
+            <th scope="col">Running win rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sampled.map((p) => (
+            <tr key={p.trade}>
+              <td>{p.trade}</td>
+              <td>{p.winRate.toFixed(1)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

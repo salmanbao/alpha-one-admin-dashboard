@@ -238,10 +238,10 @@ export function RetentionAnalyticsPage() {
 
           {/* New vs Repeating donut */}
           <div className="rounded-lg border bg-card p-4">
-            <p className="mb-2 text-sm font-medium">New vs repeating customers</p>
+            <p className="mb-2 text-sm font-medium text-foreground">New vs repeating customers</p>
             <DonutSeries
               data={newVsRepeat}
-              height={180}
+              height={220}
               formatValue={(v) => formatCompact(v)}
             />
           </div>
@@ -249,13 +249,13 @@ export function RetentionAnalyticsPage() {
 
         {/* Challenges per user bar */}
         <div className="rounded-lg border bg-card p-4">
-          <p className="mb-2 text-sm font-medium">Challenges per user — distribution</p>
+          <p className="mb-2 text-sm font-medium text-foreground">Challenges per user — distribution</p>
           <BarSeries
             data={challengesDistribution}
             xKey="label"
             yKey="value"
             color="#0d9488"
-            height={200}
+            height={240}
             formatValue={(v) => formatCompact(Number(v))}
           />
         </div>

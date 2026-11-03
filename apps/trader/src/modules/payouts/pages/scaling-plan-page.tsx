@@ -17,7 +17,7 @@
  */
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   TerraBadge,
   TerraCard,
@@ -27,7 +27,7 @@ import {
   TerraTable,
   TerraProgress,
 } from "@/components/terra/terra-ui";
-import { scalingPlan, scalingTiers } from "@/lib/fixtures/terra-fixtures";
+import { scalingPlan, scalingTiers, scalingCohort } from "@/lib/fixtures/terra-fixtures";
 import { Check, Info, X } from "lucide-react";
 
 export function ScalingPlanPage() {
@@ -69,6 +69,126 @@ export function ScalingPlanPage() {
       100,
   );
 
+  /* ---------------------------------------------------------------- */
+  /* Progress path + pace calculator (audit C #3)                      */
+  /*                                                                   */
+  /* The checklist above said *whether* the tier was close; this says   */
+  /* where the trader sits on the route, how long peers took, and when */
+  /* an assumed monthly gain would unlock each stage.                  */
+  /* ---------------------------------------------------------------- */
+
+  // Assumed net gain per month — the only interactive input on the page.
+  const [monthlyGain, setMonthlyGain] = useState(4);
+
+  // Milestone stops — met stays green, the first unmet stop is where
+  // the work is, later stops read as locked.
+  const pathChecks = [
+    {
+      key: "funded",
+      label: "Funded account",
+      detail: "Day 0",
+      met: true,
+      why: "account funded — the clock starts here.",
+    },
+    {
+      key: "days",
+      label: `${scalingPlan.requiredFundedDays} funded days`,
+      detail: `${scalingPlan.fundedDays} days logged`,
+      met: scalingPlan.fundedDays >= scalingPlan.requiredFundedDays,
+      why: "parallel track — it does not reset the payout streak.",
+    },
+    {
+      key: "gain",
+      label: `${scalingPlan.requiredGainPct}% net gain`,
+      detail: `${scalingPlan.gainPct}% banked`,
+      met: scalingPlan.gainPct >= scalingPlan.requiredGainPct,
+      why: "real performance before the firm sizes up capital.",
+    },
+    {
+      key: "payouts",
+      label: `${scalingPlan.requiredPayouts} consecutive payouts`,
+      detail: `${scalingPlan.consecutivePayouts} of ${scalingPlan.requiredPayouts} counted`,
+      met: scalingPlan.consecutivePayouts >= scalingPlan.requiredPayouts,
+      why: "one payout below the minimum resets the streak.",
+    },
+  ];
+  const firstUnmet = pathChecks.findIndex((c) => !c.met);
+  const pathMilestones = [
+    ...pathChecks.map((c, i) => ({
+      label: c.label,
+      detail: c.detail,
+      state: c.met ? "done" : i === firstUnmet ? "current" : "locked",
+      status: c.met ? "Met" : i === firstUnmet ? "In progress" : "Not started",
+      why: c.why,
+    })),
+    {
+      label: `Scale to ${scalingPlan.nextTier}`,
+      detail: ready ? "Next payout cycle" : `${overallPct}% ready`,
+      state: ready ? "current" : "locked",
+      status: ready ? "Ready" : "Waiting",
+      why: ready
+        ? "every requirement met — the tier moves on the next payout cycle."
+        : "all three requirements above must be met at the same time.",
+    },
+  ];
+
+  // Pace math — gain, funded days and the payout streak run in
+  // parallel, so the slowest track sets the date. Counted payouts are
+  // assumed one per monthly cycle.
+  const gainRemaining = Math.max(0, scalingPlan.requiredGainPct - scalingPlan.gainPct);
+  const daysRemaining = Math.max(0, scalingPlan.requiredFundedDays - scalingPlan.fundedDays);
+  const payoutsRemaining = Math.max(
+    0,
+    scalingPlan.requiredPayouts - scalingPlan.consecutivePayouts,
+  );
+  const gainMonths = gainRemaining / monthlyGain;
+  const dayMonths = daysRemaining / 30;
+  const payoutMonths = payoutsRemaining;
+  const monthsToNext = Math.max(
+    1,
+    Math.ceil(Math.max(gainMonths, dayMonths, payoutMonths)),
+  );
+  const bottleneck = ready
+    ? "ready"
+    : gainMonths >= dayMonths && gainMonths >= payoutMonths
+      ? "gain"
+      : dayMonths >= payoutMonths
+        ? "days"
+        : "payouts";
+
+  // Stage durations up the ladder — a tier's funded-day requirement is
+  // cumulative, so only the days that stage actually adds count here.
+  const stageMonths = (targetIndex: number): number | null => {
+    const enter = scalingTiers[targetIndex]?.enter;
+    if (!enter) return null;
+    const prevDays =
+      targetIndex > 0 ? scalingTiers[targetIndex - 1].enter?.fundedDays ?? 0 : 0;
+    return Math.max(
+      Math.ceil(enter.gainPct / monthlyGain),
+      Math.ceil(Math.max(0, enter.fundedDays - prevDays) / 30),
+      enter.payouts,
+    );
+  };
+  const stage2Months = currentIndex >= 0 ? stageMonths(currentIndex + 2) : null;
+  const stage3Months = currentIndex >= 0 ? stageMonths(currentIndex + 3) : null;
+
+  // Projection plotted on the cohort scale beside this card.
+  const projectedDays = monthsToNext * 30;
+  const bandMax = Math.max(
+    scalingCohort.daysToNext.p75 * 1.25,
+    scalingCohort.fastestDays * 1.5,
+    projectedDays * 1.15,
+  );
+  const dayPct = (d: number) => Math.min(100, (d / bandMax) * 100);
+
+  const bottleneckText = ready
+    ? "You are already eligible — the next payout cycle moves the account to the next tier."
+    : bottleneck === "gain"
+      ? `Net gain — ${gainRemaining.toFixed(2)}% still needed. At ${monthlyGain}%/month that is about ${Math.max(1, Math.ceil(gainMonths))} month${Math.ceil(gainMonths) === 1 ? "" : "s"} of trading.`
+      : bottleneck === "days"
+        ? `Funded days — ${daysRemaining} more day${daysRemaining === 1 ? "" : "s"} at roughly ${Math.max(1, Math.ceil(dayMonths))} month${Math.ceil(dayMonths) === 1 ? "" : "s"}. The day count is calendar-bound and cannot be accelerated by trading more.`
+        : `The payout streak — ${payoutsRemaining} more counted payout${payoutsRemaining === 1 ? "" : "s"}. Payout cycles are roughly monthly, so gain alone cannot shorten this stage.`;
+
   return (
     <div className="space-y-6">
       <TerraPageHeader
@@ -80,6 +200,187 @@ export function ScalingPlanPage() {
           </TerraBadge>
         }
       />
+
+      {/* Progress path (audit C #3) — the requirements above as stops
+          on one line, so the next tier reads as a route rather than a
+          checklist of unrelated numbers. */}
+      <TerraCard>
+        <TerraSectionTitle
+          title={`Your path to ${scalingPlan.nextTier}`}
+          description="Every stop must be reached — met stops stay green, the first unmet stop is where the work is."
+        />
+        <ol className="grid grid-cols-1 gap-5 sm:grid-cols-5 sm:gap-4">
+          {pathMilestones.map((m, i) => (
+            <li key={m.label} className="relative">
+              {i < pathMilestones.length - 1 && (
+                <span
+                  aria-hidden="true"
+                  className={`absolute left-4 -right-4 top-1.5 hidden h-0.5 sm:block ${
+                    m.state === "done" ? "bg-primary" : "bg-surface-container-high"
+                  }`}
+                />
+              )}
+              <span
+                aria-hidden="true"
+                className={`relative z-10 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 ${
+                  m.state === "done"
+                    ? "border-primary bg-primary text-on-primary"
+                    : m.state === "current"
+                      ? "border-primary bg-surface-container-lowest"
+                      : "border-outline-variant bg-surface-container-lowest"
+                }`}
+              >
+                {m.state === "done" ? <Check className="h-2 w-2" strokeWidth={4} /> : null}
+                {m.state === "current" ? (
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                ) : null}
+              </span>
+              <p className="mt-2.5 text-xs font-bold text-on-surface">{m.label}</p>
+              <p
+                className={`text-sm tabular-nums ${
+                  m.state === "locked" ? "text-on-surface-variant" : "text-on-surface"
+                }`}
+              >
+                {m.detail}
+              </p>
+              <p className="mt-0.5 text-[11px] text-on-surface-variant">
+                {m.status} — {m.why}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </TerraCard>
+
+      {/* Cohort timing + pace calculator (audit C #3) — how long this
+          step usually takes for peers, and what an assumed monthly gain
+          would mean for the trader's own dates. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <TerraCard>
+          <TerraSectionTitle
+            title="How long this step usually takes"
+            description={`Days from ${scalingPlan.currentTier} to ${scalingPlan.nextTier} for ${scalingCohort.label.toLowerCase()} — sample of ${scalingCohort.sample}.`}
+          />
+          <div className="pt-4">
+            <div className="relative h-10" aria-hidden="true">
+              <div className="absolute inset-x-0 top-4 h-2 rounded-full bg-surface-container" />
+              <div
+                className="absolute top-4 h-2 rounded-full bg-primary/30"
+                style={{
+                  left: `${dayPct(scalingCohort.daysToNext.p25)}%`,
+                  width: `${dayPct(scalingCohort.daysToNext.p75) - dayPct(scalingCohort.daysToNext.p25)}%`,
+                }}
+              />
+              <div
+                className="absolute top-2.5 h-5 w-0.5 bg-on-surface-variant"
+                style={{ left: `${dayPct(scalingCohort.fastestDays)}%` }}
+              />
+              <div
+                className="absolute top-2 h-6 w-0.5 bg-on-surface"
+                style={{ left: `${dayPct(scalingCohort.daysToNext.median)}%` }}
+              />
+              <div
+                className="absolute top-1.5 h-7 w-1 rounded-full bg-primary"
+                style={{ left: `${dayPct(projectedDays)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] tabular-nums text-on-surface-variant">
+              <span>0 days</span>
+              <span>{Math.round(bandMax)} days</span>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <TerraStat
+              label="Fastest"
+              value={`${scalingCohort.fastestDays} days`}
+              sub="best in sample"
+            />
+            <TerraStat
+              label="Median"
+              value={`${scalingCohort.daysToNext.median} days`}
+              sub="half scaled sooner"
+            />
+            <TerraStat
+              label="Middle 50%"
+              value={`${scalingCohort.daysToNext.p25}–${scalingCohort.daysToNext.p75} days`}
+              sub="p25 to p75"
+            />
+            <TerraStat
+              label="Your projection"
+              value={`${projectedDays} days`}
+              sub={`at ${monthlyGain}%/month`}
+              tone="positive"
+            />
+          </div>
+          <p className="mt-3 text-xs text-on-surface-variant">
+            The shaded band is the middle 50% of the sample. The marker is your
+            projection from the calculator beside this card — move the slider
+            and it moves with you.
+          </p>
+        </TerraCard>
+
+        <TerraCard>
+          <TerraSectionTitle
+            title="Project your pace"
+            description="Assume a monthly net gain and see when each stage unlocks — a planning assumption, not a promise."
+          />
+          <div>
+            <label
+              htmlFor="pace-monthly-gain"
+              className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-on-surface-variant"
+            >
+              <span>Net gain per month</span>
+              <span className="tabular-nums text-on-surface">{monthlyGain}%</span>
+            </label>
+            <input
+              id="pace-monthly-gain"
+              type="range"
+              min={0.5}
+              max={15}
+              step={0.5}
+              value={monthlyGain}
+              onChange={(e) => setMonthlyGain(Number(e.target.value))}
+              aria-describedby="pace-monthly-gain-help"
+              className="mt-2 w-full accent-primary"
+            />
+            <p
+              id="pace-monthly-gain-help"
+              className="mt-1 text-[11px] text-on-surface-variant"
+            >
+              0.5%–15% per month. Counted payouts are assumed one per monthly
+              cycle — the streak cannot be shortened by trading more.
+            </p>
+          </div>
+          <div role="status" aria-live="polite" className="mt-4 space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <TerraStat
+                label={`To ${scalingPlan.nextTier}`}
+                value={`${monthsToNext} mo`}
+                sub={ready ? "next cycle" : "from today"}
+                tone={ready ? "positive" : "neutral"}
+              />
+              <TerraStat
+                label="Then $100,000"
+                value={stage2Months === null ? "—" : `${stage2Months} mo`}
+                sub="after scaling"
+              />
+              <TerraStat
+                label="Then $200,000"
+                value={stage3Months === null ? "—" : `${stage3Months} mo`}
+                sub="after that"
+              />
+            </div>
+            <p className="rounded-xl bg-surface-container-low p-3 text-xs text-on-surface-variant">
+              <span className="font-bold text-on-surface">Bottleneck: </span>
+              {bottleneckText}
+            </p>
+          </div>
+          <p className="mt-3 text-[11px] text-on-surface-variant">
+            Stage months apply each tier&apos;s own requirements — gain %, the
+            funded days that stage adds, and its payout streak. The slowest
+            track sets the date.
+          </p>
+        </TerraCard>
+      </div>
 
       {/* Readiness */}
       <TerraCard>

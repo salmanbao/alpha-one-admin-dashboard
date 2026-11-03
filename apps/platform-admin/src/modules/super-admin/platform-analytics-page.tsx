@@ -103,7 +103,7 @@ export function PlatformAnalyticsPage() {
           hasData={rows.length > 0}
           loadingLabel="Loading analytics…"
         >
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <MetricCard label="Total Traders" value={formatCompact(totalTraders)} icon={Users} tone="positive" />
           <MetricCard label="Total Accounts" value={formatCompact(totalAccounts)} icon={Activity} />
           <MetricCard label="Funded Accounts" value={formatCompact(totalFunded)} icon={TrendingUp} tone="positive" />
@@ -114,14 +114,14 @@ export function PlatformAnalyticsPage() {
           <Card>
             <CardHeader className="pb-2"><span className="text-sm font-medium">Monthly revenue (12 months)</span></CardHeader>
             <CardContent>
-              <AreaSeries data={monthlyRevenue} xKey="date" yKey="value" color="#0f766e" height={200} formatValue={(v) => formatCurrency(v)} />
+              <AreaSeries data={monthlyRevenue} xKey="date" yKey="value" color="#0f766e" height={220} formatValue={(v) => formatCurrency(v)} />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2"><span className="text-sm font-medium">Trader count by tenant</span></CardHeader>
             <CardContent>
-              <BarSeries data={traderComparison} xKey="name" yKey="value" color="#b45309" height={200} />
+              <BarSeries data={traderComparison} xKey="name" yKey="value" color="#b45309" height={220} />
             </CardContent>
           </Card>
         </div>

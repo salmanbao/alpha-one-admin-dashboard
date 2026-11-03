@@ -68,6 +68,13 @@ const recentTrades = [...terraTrades]
   .sort((a, b) => +new Date(b.closedAt) - +new Date(a.closedAt))
   .slice(0, 20);
 
+/** Hold duration in hours → "3h 24m" (or "48m" under an hour). */
+const fmtHoldHours = (hours: number) => {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
 export function TradingJournalPage() {
   // User entries live in localStorage; fixture entries seed the list.
   const [userEntries, setUserEntries] = useState<JournalEntry[]>(() => {
@@ -233,6 +240,68 @@ export function TradingJournalPage() {
       linked: entries.filter((e) => e.tradeIds.length > 0).length,
       maxAbs: withPnl.reduce((m, e) => Math.max(m, Math.abs(e.pnl)), 0),
       recent: withPnl.slice(0, 8),
+    };
+  }, [entries]);
+
+  /**
+   * Advanced journal analytics (audit C #2) — the three views the tag
+   * and strategy tables could not show: the win/loss split as a single
+   * bar, how scored entries cluster across P&L buckets, and how long
+   * each setup actually holds once an entry is linked to a real trade.
+   * Derived from the same entries — no fixtures beyond the linked
+   * trades themselves.
+   */
+  const advanced = useMemo(() => {
+    const withPnl = entries.filter((e) => e.pnl !== 0);
+    const winners = withPnl.filter((e) => e.pnl > 0).length;
+    const losers = withPnl.length - winners;
+
+    // Profit distribution — 5 buckets over the scored-entry range.
+    const pnls = withPnl.map((e) => e.pnl);
+    const lo = pnls.length ? Math.min(...pnls) : 0;
+    const hi = pnls.length ? Math.max(...pnls) : 1;
+    const span = (hi - lo) / 5 || 1;
+    const histogram = Array.from({ length: 5 }, (_, i) => {
+      const bucketLo = lo + i * span;
+      const bucketHi = bucketLo + span;
+      const count = withPnl.filter((e) =>
+        i === 4 ? e.pnl >= bucketLo && e.pnl <= bucketHi : e.pnl >= bucketLo && e.pnl < bucketHi,
+      ).length;
+      return { lo: bucketLo, count };
+    });
+
+    // Average hold per strategy — hold time comes from the linked
+    // trades, so only entries with a real trade contribute.
+    const tradeById = new Map(terraTrades.map((t) => [t.id, t]));
+    const holds = new Map<string, { total: number; n: number }>();
+    for (const e of entries) {
+      for (const id of e.tradeIds) {
+        const t = tradeById.get(id);
+        if (!t) continue;
+        const key = strategyOf(e);
+        const bucket = holds.get(key) ?? { total: 0, n: 0 };
+        bucket.total += +new Date(t.closedAt) - +new Date(t.openedAt);
+        bucket.n += 1;
+        holds.set(key, bucket);
+      }
+    }
+    const holdByStrategy = [...holds.entries()]
+      .map(([strategy, b]) => ({ strategy, hours: b.total / b.n / 3_600_000, n: b.n }))
+      .sort(
+        (a, b) =>
+          (strategyOrder.get(a.strategy) ?? strategies.length) -
+          (strategyOrder.get(b.strategy) ?? strategies.length),
+      );
+
+    return {
+      winners,
+      losers,
+      scored: withPnl.length,
+      histogram,
+      maxBucket: Math.max(1, ...histogram.map((h) => h.count)),
+      holdByStrategy,
+      maxHold: Math.max(0, ...holdByStrategy.map((h) => h.hours)),
+      linkedTrades: holdByStrategy.reduce((s, h) => s + h.n, 0),
     };
   }, [entries]);
 
@@ -504,6 +573,128 @@ export function TradingJournalPage() {
             sub={analysis.worst ? analysis.worst.title : "no scored entries"}
             tone={analysis.worst ? "negative" : "neutral"}
           />
+        </div>
+
+        {/* Win/loss split, profit distribution and hold time by setup
+            (audit C #2) — the performance views a journal needs beyond
+            averages: how often you win, where results cluster, and how
+            long each setup is actually held. */}
+        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="rounded-xl bg-surface-container-low p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              Win / loss split
+            </p>
+            {analysis.withPnlCount > 0 ? (
+              <>
+                <div
+                  className="mt-3 flex h-6 overflow-hidden rounded-full bg-surface-container"
+                  role="img"
+                  aria-label={`${advanced.winners} winning and ${advanced.losers} losing entries — ${analysis.winRate}% win rate`}
+                >
+                  <span
+                    className="flex items-center justify-center bg-primary text-[10px] font-bold text-on-primary"
+                    style={{ width: `${(advanced.winners / advanced.scored) * 100}%` }}
+                    aria-hidden="true"
+                  >
+                    {advanced.winners / advanced.scored >= 0.15 ? advanced.winners : ""}
+                  </span>
+                  <span
+                    className="flex items-center justify-center bg-error text-[10px] font-bold text-on-primary"
+                    style={{ width: `${(advanced.losers / advanced.scored) * 100}%` }}
+                    aria-hidden="true"
+                  >
+                    {advanced.losers / advanced.scored >= 0.15 ? advanced.losers : ""}
+                  </span>
+                </div>
+                <div className="mt-2 flex justify-between text-[11px] tabular-nums text-on-surface-variant">
+                  <span className="text-primary">
+                    {analysis.winRate}% winners ({advanced.winners})
+                  </span>
+                  <span className="text-error">
+                    {100 - (analysis.winRate ?? 0)}% losers ({advanced.losers})
+                  </span>
+                </div>
+                <p className="mt-2 text-[11px] text-on-surface-variant">
+                  Scored entries only — zero-P&amp;L entries stay out of the ratio.
+                </p>
+              </>
+            ) : (
+              <p className="mt-3 text-xs text-on-surface-variant">
+                No scored entries yet — the split appears once entries carry a P&amp;L.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-xl bg-surface-container-low p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              Profit distribution
+            </p>
+            <div
+              className="mt-3 flex h-24 items-end gap-1.5"
+              role="img"
+              aria-label={`Distribution of ${advanced.scored} scored entries across five P&L buckets: ${advanced.histogram
+                .map((b) => `${Math.round(b.lo)} dollars, ${b.count}`)
+                .join("; ")}`}
+            >
+              {advanced.histogram.map((b, i) => (
+                <div key={i} className="flex flex-1 flex-col items-center gap-1">
+                  {b.count > 0 && (
+                    <span className="text-[10px] font-bold tabular-nums text-on-surface-variant">
+                      {b.count}
+                    </span>
+                  )}
+                  <div
+                    className={`w-full rounded-t ${b.lo >= 0 ? "bg-primary" : "bg-error"}`}
+                    style={{ height: `${Math.max(4, (b.count / advanced.maxBucket) * 100)}%` }}
+                  />
+                  <span className="text-[9px] tabular-nums text-on-surface-variant">
+                    {Math.round(b.lo)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-on-surface-variant">
+              Labels are bucket floors in $ — green buckets start at or above zero.
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-surface-container-low p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              Avg hold by strategy
+            </p>
+            {advanced.holdByStrategy.length > 0 ? (
+              <ul className="mt-3 space-y-2.5">
+                {advanced.holdByStrategy.map((h) => (
+                  <li key={h.strategy}>
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="font-semibold text-on-surface">{h.strategy}</span>
+                      <span className="tabular-nums text-on-surface-variant">
+                        {fmtHoldHours(h.hours)} · {h.n} trade{h.n === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <div
+                      className="mt-1 h-2 overflow-hidden rounded-full bg-surface-container"
+                      aria-hidden="true"
+                    >
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{
+                          width: `${Math.max(6, (h.hours / advanced.maxHold) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-xs text-on-surface-variant">
+                Link trades to entries — hold time then breaks down per setup.
+              </p>
+            )}
+            <p className="mt-3 text-[11px] text-on-surface-variant">
+              {advanced.linkedTrades} of {entries.length} entries linked to a real trade.
+            </p>
+          </div>
         </div>
 
         {analysis.recent.length > 0 ? (

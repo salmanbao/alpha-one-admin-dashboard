@@ -119,7 +119,7 @@ export function JobsDashboardPage() {
           hasData={rows !== undefined}
           loadingLabel="Loading jobs…"
         >
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <MetricCard label="Succeeded" value={succeeded} icon={CheckCircle2} tone="positive" />
           <MetricCard label="Running" value={running} icon={Clock} tone="positive" />
           <MetricCard label="Failed" value={failed} icon={XCircle} tone={failed > 0 ? "negative" : "positive"} />

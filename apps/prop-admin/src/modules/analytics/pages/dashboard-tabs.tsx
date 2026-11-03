@@ -34,6 +34,7 @@ import { AreaSeries, BarSeries } from "@/components/platform/charts";
 import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
 import { fundedConversionPct, winRatePct } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
+import { DetailDisclosure } from "@/components/detail-disclosure";
 import {
   Bar,
   BarChart,
@@ -436,7 +437,7 @@ export function DashboardAccountsTab({ params }: { params: Record<string, string
               { key: "pass", label: "Passed", color: TERRA.emerald },
               { key: "fail", label: "Failed", color: TERRA.rose },
             ]}
-            height={260}
+            height={240}
             formatValue={(v) => String(v)}
           />
         </ChartCard>
@@ -1016,9 +1017,10 @@ export function DashboardOrdersTab({ params }: { params: Record<string, string> 
         </div>
 
         {/* Monthly revenue trend */}
-        <ChartCard
+        <DetailDisclosure
           title="Monthly Revenue Trend (12 months)"
           subtitle={`Monthly gross revenue — ${currency}`}
+          hint="Collapse to hide revenue trend"
         >
           <AreaSeries
             data={monthlyRevenue}
@@ -1028,7 +1030,7 @@ export function DashboardOrdersTab({ params }: { params: Record<string, string> 
             height={240}
             formatValue={(v) => fmt(v)}
           />
-        </ChartCard>
+        </DetailDisclosure>
 
         {/* Hourly revenue / orders movement — side by side */}
         <div className="grid gap-4 lg:grid-cols-2">
@@ -1275,7 +1277,7 @@ export function DashboardPositionsTab({ params }: { params: Record<string, strin
               xKey="hour"
               yKey="value"
               color={TERRA.forest}
-              height={240}
+              height={220}
               formatValue={(v) => String(v)}
             />
           </ChartCard>
@@ -1287,7 +1289,7 @@ export function DashboardPositionsTab({ params }: { params: Record<string, strin
               data={performanceByHour}
               xKey="hour"
               yKey="value"
-              height={240}
+              height={220}
               formatValue={(v) => fmt(v)}
             />
             <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">

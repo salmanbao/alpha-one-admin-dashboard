@@ -1267,7 +1267,7 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
 
       {/* Spending summary */}
       <div className="rounded-lg border bg-card p-4">
-        <p className="mb-2 text-sm font-medium">Spending summary</p>
+        <p className="mb-2 text-sm font-medium text-foreground">Spending summary</p>
         <div className="space-y-2 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">This month</span>
@@ -1295,7 +1295,7 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
 
       {/* Billing history */}
       <div className="lg:col-span-3">
-        <p className="mb-2 text-sm font-medium">Billing history</p>
+        <p className="mb-2 text-sm font-medium text-foreground">Billing history</p>
         <DataTable
           columns={columns}
           data={history}
@@ -1600,7 +1600,7 @@ function ConfigurationTab({
       </div>
 
       <div className="rounded-lg border bg-card p-4">
-        <p className="mb-2 text-sm font-medium">Live preview</p>
+        <p className="mb-2 text-sm font-medium text-foreground">Live preview</p>
         <div
           className="rounded-lg border p-4"
           style={{ background: tenant.branding.surfaceColor }}
@@ -1907,7 +1907,7 @@ function RiskTab({
         </div>
       </div>
       <div className="rounded-lg border bg-card p-4">
-        <p className="mb-2 text-sm font-medium">Quick actions</p>
+        <p className="mb-2 text-sm font-medium text-foreground">Quick actions</p>
         <div className="space-y-2">
           <Button
             size="sm"
