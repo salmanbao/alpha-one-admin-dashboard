@@ -17,11 +17,35 @@ import { Button } from "@/components/ui/button";
  * page in the last 10 minutes, the session rolls silently and a short
  * confirmation bar replaces the warning. An idle user still gets the
  * explicit warning so a forgotten tab expires on schedule.
+ *
+ * Expiry is graceful (audit B #4): when the countdown reaches zero the
+ * banner becomes an explicit expired dialog instead of disappearing, so
+ * the user is never dropped into a silently dead session. Signing out
+ * carries the current location along (`/login?next=…`) so the login flow
+ * can return them to exactly where they were.
  */
 
 const AUTO_RENEW_KEY = "pfaas:session:auto-renew";
 /** Input within this window counts as "actively engaged". */
 const ACTIVITY_WINDOW_MS = 10 * 60_000;
+/** Session flags cleared on sign-out so the app re-runs its auth gate. */
+const SESSION_KEYS = ["pfaas:session", "pfaas:booted"] as const;
+
+/**
+ * Terminate the session and hand off to login, preserving where the user
+ * was. The `next` target is restricted to same-app absolute paths (a
+ * protocol-relative `//evil.com` or an absolute URL is dropped).
+ */
+function signOutPreservingContext(): void {
+  const here = `${window.location.pathname}${window.location.search}`;
+  try {
+    for (const key of SESSION_KEYS) window.sessionStorage.removeItem(key);
+  } catch {
+    // Storage unavailable — the auth gate still re-runs on next load.
+  }
+  const safe = here.startsWith("/") && !here.startsWith("//") && !here.startsWith("/login");
+  window.location.href = safe ? `/login?next=${encodeURIComponent(here)}` : "/login";
+}
 
 export function SessionExpiryBanner({
   onRenew,
@@ -72,7 +96,9 @@ export function SessionExpiryBanner({
         }
         if (next <= 0) {
           clearInterval(interval);
-          // Session expired - would redirect to login in real app
+          // Session expired — the expired dialog below takes over rather
+          // than the banner vanishing into an unusable page.
+          setTimeLeft(0);
           return 0;
         }
         return next;
@@ -89,12 +115,13 @@ export function SessionExpiryBanner({
     if (!autoRenew || !isVisible) return;
     if (lastActivityRef.current < Date.now() - ACTIVITY_WINDOW_MS) return;
     setCountdown(sessionDurationMinutes * 60);
+    setTimeLeft(warningMinutes * 60);
     setIsVisible(false);
     setAutoRenewedAt(
       new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     );
     onRenew?.();
-  }, [autoRenew, isVisible, sessionDurationMinutes, onRenew]);
+  }, [autoRenew, isVisible, sessionDurationMinutes, warningMinutes, onRenew]);
 
   // Confirmation bar is transient — retire it after a few seconds.
   useEffect(() => {
@@ -105,9 +132,12 @@ export function SessionExpiryBanner({
 
   const handleRenew = useCallback(() => {
     setCountdown(sessionDurationMinutes * 60);
+    // Reset the warning window too, otherwise a renew issued from the
+    // expired dialog would leave `timeLeft` at 0 and stay stuck there.
+    setTimeLeft(warningMinutes * 60);
     setIsVisible(false);
     onRenew?.();
-  }, [onRenew, sessionDurationMinutes]);
+  }, [onRenew, sessionDurationMinutes, warningMinutes]);
 
   const setPreference = (on: boolean) => {
     setAutoRenew(on);
@@ -131,7 +161,42 @@ export function SessionExpiryBanner({
     </label>
   );
 
-  if (timeLeft <= 0) return null;
+  // Expired — an explicit dialog, not a silent disappearance. Work in the
+  // tab is untouched; the user chooses to resume or to sign out (and is
+  // returned here after logging in again).
+  if (timeLeft <= 0) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="session-expired-title"
+          aria-describedby="session-expired-desc"
+          className="w-full max-w-md rounded-xl bg-background p-6 shadow-2xl"
+        >
+          <div className="mb-3 flex items-center gap-3">
+            <span className="text-2xl" aria-hidden="true">⏳</span>
+            <h2 id="session-expired-title" className="text-lg font-semibold text-on-surface">
+              Your session has expired
+            </h2>
+          </div>
+          <p id="session-expired-desc" className="text-sm text-on-surface-variant">
+            For security, the session timed out. Nothing in this tab was lost — renew to
+            pick up exactly where you left off, or sign out and we&apos;ll bring you back
+            to this page once you sign in again.
+          </p>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => signOutPreservingContext()}>
+              Sign out
+            </Button>
+            <Button autoFocus onClick={handleRenew}>
+              Renew session &amp; continue
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
@@ -192,10 +257,7 @@ export function SessionExpiryBanner({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => {
-              // In real app, redirect to logout
-              window.location.href = "/login";
-            }}
+            onClick={() => signOutPreservingContext()}
             className={isUrgent ? "text-white hover:bg-rose-700" : "text-black hover:bg-amber-600"}
           >
             Sign Out

@@ -408,7 +408,7 @@ export function DashboardAccountsTab({ params }: { params: Record<string, string
       />
       <PageContent>
         {/* KPI strip — 13 cards */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-7">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-7">
           <MetricCard label="Total Accounts" value={totalAccounts} icon={Users} tone="positive" />
           <MetricCard label="Phase 1 Accounts" value={phase1Accounts} icon={Layers} />
           <MetricCard label="Phase 2 Accounts" value={phase2Accounts} icon={Layers} />
@@ -493,7 +493,7 @@ export function DashboardAccountsTab({ params }: { params: Record<string, string
               Pass / fail counts and failure rate per challenge type.
             </span>
           </div>
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2">
             {CHALLENGE_PERF.map((c) => (
               <div key={c.name} className="rounded-lg border bg-card p-4">
                 <div className="mb-3 flex items-center justify-between">
@@ -689,7 +689,7 @@ export function DashboardPayoutsTab({ params }: { params: Record<string, string>
       />
       <PageContent>
         {/* KPI strip — 6 cards */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           <MetricCard label={resolveTermsInString("Approved Payouts", tenant)} value={approvedPayouts} icon={CheckCircle2} tone="positive" />
           <MetricCard label={resolveTermsInString("Total Payout Amount", tenant)} value={fmt(payoutsTotalAmount)} icon={DollarSign} tone="positive" />
           <MetricCard label="Avg Profit Split" value={`${avgSplit}%`} icon={Percent} tone="positive" />
@@ -983,7 +983,7 @@ export function DashboardOrdersTab({ params }: { params: Record<string, string> 
       />
       <PageContent>
         {/* KPI strip — 5 cards */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
           <MetricCard label="Total Orders" value={totalOrders} icon={ShoppingCart} tone="positive" />
           <MetricCard label="Total Revenue" value={fmt(totalRevenueReal)} icon={DollarSign} tone="positive" />
           <MetricCard label="Avg Order Value" value={fmt(avgOrderValue)} icon={Target} tone="positive" />
@@ -1233,7 +1233,7 @@ export function DashboardPositionsTab({ params }: { params: Record<string, strin
       />
       <PageContent>
         {/* KPI strip — 6 cards */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           <MetricCard label="Total Open Positions" value={totalOpenPositions} delta={4} deltaLabel="vs yesterday" icon={ArrowLeftRight} tone="positive" />
           <MetricCard label="Total Volume" value={`${formatCompact(totalVolume)} lots`} delta={6} deltaLabel="vs yesterday" icon={Layers} />
           <MetricCard

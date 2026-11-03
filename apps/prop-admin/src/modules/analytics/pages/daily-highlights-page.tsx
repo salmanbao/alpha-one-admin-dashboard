@@ -95,7 +95,7 @@ export function DailyHighlightsPage() {
       <PageContent>
         <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading daily highlights…">
         {/* 1. KPI strip */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
           <MetricCard label="Daily Revenue" value={fmt(h.dailyRevenue)} delta={6} deltaLabel="vs yesterday" icon={DollarSign} tone="positive" />
           <MetricCard label="Daily Payouts" value={fmt(h.dailyPayouts)} delta={-2} deltaLabel="vs yesterday" icon={TrendingDown} tone="warning" />
           <MetricCard label="Daily Net Revenue" value={fmt(h.dailyNetRevenue)} delta={7} deltaLabel="vs yesterday" icon={TrendingUp} tone="positive" />

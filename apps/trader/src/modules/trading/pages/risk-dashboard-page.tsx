@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   TerraBadge,
   TerraCard,
@@ -22,6 +22,7 @@ import {
   formatMoney,
 } from "@/components/terra/terra-ui";
 import {
+  detectTerraPatterns,
   traderBreachesFallback,
   terraRiskLimits,
 } from "@/lib/fixtures/terra-fixtures";
@@ -86,6 +87,18 @@ export function RiskDashboardPage() {
         ? { grade: "B", sub: "Moderate risk", tone: undefined }
         : { grade: "A", sub: "Low risk", tone: "positive" as const };
   const limitsHealthy = acc.status !== "breached" && dailyUsedPct < 70 && ddUsedPct < 70;
+
+  // Pattern detections (audit B #1) — the same derivation the Pattern
+  // Monitor screen uses, so the two surfaces can never disagree.
+  const patterns = useMemo(() => detectTerraPatterns(), []);
+  const patternCounts = useMemo(
+    () => ({
+      copy: patterns.filter((p) => p.kind === "copy").length,
+      inverse: patterns.filter((p) => p.kind === "inverse").length,
+      weekend: patterns.filter((p) => p.kind === "weekend").length,
+    }),
+    [patterns],
+  );
 
   return (
     <div className="space-y-6">
@@ -186,6 +199,29 @@ export function RiskDashboardPage() {
               <TerraStat label="Open Lots" value={openLots.toFixed(1)} />
               <TerraStat label="Risk Score" value={riskScore.grade} tone={riskScore.tone} sub={riskScore.sub} />
             </div>
+          </TerraCard>
+          <TerraCard>
+            <TerraSectionTitle
+              title="Pattern monitoring"
+              description="Trades checked across your linked accounts — copy, inverse and weekend entries."
+            />
+            <div className="flex flex-wrap gap-2">
+              <TerraBadge tone={patternCounts.copy > 0 ? "error" : "success"}>
+                {patternCounts.copy} copy
+              </TerraBadge>
+              <TerraBadge tone={patternCounts.inverse > 0 ? "error" : "success"}>
+                {patternCounts.inverse} inverse
+              </TerraBadge>
+              <TerraBadge tone={patternCounts.weekend > 0 ? "error" : "success"}>
+                {patternCounts.weekend} weekend
+              </TerraBadge>
+            </div>
+            <Link
+              href="/trading-patterns"
+              className="mt-4 block rounded-xl border border-outline-variant/60 bg-surface-container-low px-4 py-2.5 text-center text-xs font-bold text-on-surface hover:bg-surface-container"
+            >
+              Review detections &amp; how to avoid them
+            </Link>
           </TerraCard>
           <TerraCard className="bg-primary-fixed/40">
             <h3 className="font-headline font-bold text-on-primary-fixed-variant">

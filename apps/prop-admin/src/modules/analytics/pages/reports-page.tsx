@@ -125,7 +125,7 @@ export function ReportsPage() {
           hasData={data !== undefined}
           loadingLabel="Loading reports…"
         >
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <MetricCard label="Total Reports" value={list.length} icon={FileText} />
             <MetricCard label="Ready" value={ready} icon={CheckCircle2} tone="positive" />
             <MetricCard label="Processing" value={processing} icon={Clock} tone={processing > 0 ? "warning" : "positive"} />

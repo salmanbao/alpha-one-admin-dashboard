@@ -199,6 +199,17 @@ export function OpenPositionsPage() {
             </div>
           </div>
 
+          {/* Live region for dynamic P&L (audit B #5): the aggregate is
+              recomputed on every tick, so the announcement is rounded to
+              the nearest $50 — routine drift stays silent instead of
+              flooding the screen reader, while a meaningful move is
+              announced as it happens. */}
+          <div aria-live="polite" aria-atomic="true" className="sr-only">
+            {`Unrealized P&L ${formatSignedMoney(
+              Math.round(totalPnl / 50) * 50,
+            )} across ${rows.length} open position${rows.length === 1 ? "" : "s"}.`}
+          </div>
+
           {/* Summary strip */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <TerraCard className="p-5">

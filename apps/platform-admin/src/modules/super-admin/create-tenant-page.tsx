@@ -17,6 +17,7 @@
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { moduleRegistry } from "@/lib/platform/module-registry";
+import { tenantModuleCatalog } from "@/lib/platform/module-catalog";
 import type { TenantContext } from "@/lib/platform/types";
 import { startProvisioning } from "@/lib/platform/provisioning-saga";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
@@ -50,6 +51,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   ChevronDown,
+  Megaphone,
+  ShieldCheck,
+  Target,
+  Eraser,
   type LucideIcon,
 } from "lucide-react";
 
@@ -142,6 +147,110 @@ const INITIAL_STATE: WizardState = {
 };
 
 /* ------------------------------------------------------------------ */
+/* Templates (audit B #10) — one click to a sane starting config.      */
+/*                                                                     */
+/* Every template prefills plan, branding, module set and (optionally) */
+/* identity so the wizard starts from a real firm profile instead of a */
+/* blank form. Module sets are derived from the module catalog — never */
+/* hardcoded here — so adding a module to the catalog automatically     */
+/* reaches the "everything on" template. All fields stay editable.      */
+/* ------------------------------------------------------------------ */
+
+/** Every tenant-facing module the platform ships (from the catalog). */
+const ALL_MODULE_IDS = tenantModuleCatalog.map((m) => m.manifest.id);
+
+/** Core modules every firm needs, plus the growth stack for acquisition. */
+const GROWTH_MODULE_IDS = [
+  ...CORE_MODULE_IDS,
+  "analytics",
+  "affiliates",
+  "marketing",
+  "crm",
+  "support",
+];
+
+interface TenantTemplate {
+  id: string;
+  label: string;
+  /** One-line "who this is for" — shown under the chips. */
+  blurb: string;
+  icon: LucideIcon;
+  patch: Partial<WizardState>;
+}
+
+const TENANT_TEMPLATES: TenantTemplate[] = [
+  {
+    id: "starter",
+    label: "Starter firm",
+    blurb: "Lean launch: core trading, challenges, risk, payouts and settings on the Starter plan.",
+    icon: Target,
+    patch: {
+      name: "Acme Trading",
+      slug: "acme-trading",
+      initials: "AT",
+      plan: "starter",
+      tagline: "Trade smart, fund faster.",
+      primaryColor: COLOR_PRESETS[1].primary,
+      accentColor: COLOR_PRESETS[1].accent,
+      surfaceColor: COLOR_PRESETS[1].surface,
+      enabledModules: [...CORE_MODULE_IDS],
+    },
+  },
+  {
+    id: "growth",
+    label: "Growth firm",
+    blurb: "Adds analytics, affiliates, marketing, CRM and support — for firms actively acquiring traders.",
+    icon: Megaphone,
+    patch: {
+      name: "Northwind Capital",
+      slug: "northwind-capital",
+      initials: "NC",
+      plan: "growth",
+      tagline: "Funded traders, faster.",
+      primaryColor: COLOR_PRESETS[0].primary,
+      accentColor: COLOR_PRESETS[0].accent,
+      surfaceColor: COLOR_PRESETS[0].surface,
+      enabledModules: [...GROWTH_MODULE_IDS],
+    },
+  },
+  {
+    id: "full",
+    label: "Full platform",
+    blurb: "Every module from the catalog enabled — enterprise-style operation with compliance and AI.",
+    icon: Package,
+    patch: {
+      name: "Vertex Markets",
+      slug: "vertex-markets",
+      initials: "VM",
+      plan: "scale",
+      tagline: "Institutional-grade prop trading.",
+      primaryColor: COLOR_PRESETS[3].primary,
+      accentColor: COLOR_PRESETS[3].accent,
+      surfaceColor: COLOR_PRESETS[3].surface,
+      enabledModules: [...ALL_MODULE_IDS],
+    },
+  },
+  {
+    id: "enterprise",
+    label: "Enterprise + SSO",
+    blurb: "Full module set on the Enterprise plan with contracted SSO (provisioning sub-step 3a runs).",
+    icon: ShieldCheck,
+    patch: {
+      name: "Meridian Global",
+      slug: "meridian-global",
+      initials: "MG",
+      plan: "enterprise",
+      tagline: "Global desk, single sign-on.",
+      primaryColor: COLOR_PRESETS[5].primary,
+      accentColor: COLOR_PRESETS[5].accent,
+      surfaceColor: COLOR_PRESETS[5].surface,
+      enabledModules: [...ALL_MODULE_IDS],
+      contractSso: true,
+    },
+  },
+];
+
+/* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -188,6 +297,7 @@ const STEP_GUIDANCE: Array<{ title: string; tips: string[] }> = [
   {
     title: "Naming & plan — before you start",
     tips: [
+      "Pick a template chip first — it prefills plan, branding and the module set from a real firm profile; every field stays editable afterwards.",
       "The slug becomes the tenant's URL and API namespace — it cannot be changed once traders are onboarded.",
       "Match the plan to projected volume: Starter caps at 1,000 traders; talk to finance before assigning Enterprise.",
       "Set the reporting currency to where the firm invoices from — historical amounts are pinned to it.",
@@ -346,6 +456,20 @@ export function CreateTenantPage() {
   const { navigate, registerTenant, pushNotification, user } = usePlatform();
   const [state, setState] = useState<WizardState>(INITIAL_STATE);
   const [step, setStep] = useState(0);
+  // Audit B #10 — which template (if any) seeded the current state. Purely
+  // a UI marker: manual edits keep the chip highlighted until another
+  // template (or a reset) is chosen, so the operator always knows the
+  // starting point of the form in front of them.
+  const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
+
+  const applyTemplate = (t: TenantTemplate) => {
+    setState((s) => ({ ...s, ...t.patch }));
+    setActiveTemplate(t.id);
+    toast({
+      title: `${t.label} template applied`,
+      description: t.blurb,
+    });
+  };
 
   // Tenant modules only — the console's own super-admin module is never a
   // tenant entitlement. The catalog lives in lib/platform/module-catalog.ts.
@@ -445,7 +569,14 @@ export function CreateTenantPage() {
     switch (step) {
       case 0:
         return (
-          <BasicsStep state={state} setState={setState} />
+          <BasicsStep
+            state={state}
+            setState={setState}
+            templates={TENANT_TEMPLATES}
+            activeTemplate={activeTemplate}
+            onApplyTemplate={applyTemplate}
+            onClearTemplate={() => setActiveTemplate(null)}
+          />
         );
       case 1:
         return <BrandingStep state={state} setState={setState} />;
@@ -592,9 +723,17 @@ export function CreateTenantPage() {
 function BasicsStep({
   state,
   setState,
+  templates,
+  activeTemplate,
+  onApplyTemplate,
+  onClearTemplate,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  templates: TenantTemplate[];
+  activeTemplate: string | null;
+  onApplyTemplate: (t: TenantTemplate) => void;
+  onClearTemplate: () => void;
 }) {
   const update = (patch: Partial<WizardState>) =>
     setState((s) => ({ ...s, ...patch }));
@@ -606,8 +745,64 @@ function BasicsStep({
   const slugError =
     touched.slug && !state.slug.trim() ? "Slug is required." : undefined;
 
+  const active = templates.find((t) => t.id === activeTemplate);
+
   return (
     <div className="space-y-4">
+      {/* Templates (audit B #10) — prefill plan, branding and modules from
+          a real firm profile. aria-pressed marks the active chip; applying
+          one only patches fields, every later edit sticks. */}
+      <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+          <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />
+          Start from a template
+        </p>
+        <div
+          className="mt-2 flex flex-wrap gap-2"
+          role="group"
+          aria-label="Tenant setup templates"
+        >
+          {templates.map((t) => {
+            const Icon = t.icon;
+            const isActive = t.id === activeTemplate;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => onApplyTemplate(t)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  isActive
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:border-primary/50 hover:bg-primary/5",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" aria-hidden />
+                {t.label}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            aria-pressed={activeTemplate === null && state.name === "" && state.slug === ""}
+            onClick={() => {
+              setState(INITIAL_STATE);
+              onClearTemplate();
+            }}
+            className="flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+          >
+            <Eraser className="h-3.5 w-3.5" aria-hidden />
+            Blank form
+          </button>
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {active
+            ? `${active.blurb} Applied to the fields below — everything stays editable.`
+            : "A template prefills plan, branding and module selection from a real firm profile. Nothing is locked: edit any field afterwards."}
+        </p>
+      </div>
+
       <div>
         <RequiredLabel>Tenant basics</RequiredLabel>
         <p className="text-xs text-muted-foreground">

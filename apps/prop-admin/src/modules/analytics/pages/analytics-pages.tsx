@@ -506,7 +506,7 @@ export function AnalyticsOverviewPage() {
             changed, what needs attention. Rendered above the charts so
             the headline story lands before the supporting detail. */}
         <AnalyticsInsightsBand tid={tid} fmt={fmt} totalRev={totalRev} />
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <MetricCard label="Revenue (30d)" value={fmt(totalRev)} delta={8} icon={DollarSign} tone="positive" />
           <MetricCard label="Avg Daily Rev" value={fmt(totalRev / 30)} delta={4} icon={TrendingUp} tone="positive" />
           <MetricCard label={`${term("trader")} Growth`} value="+18%" delta={18} icon={Users} tone="positive" />
@@ -801,7 +801,7 @@ export function TraderAnalyticsPage() {
       <PageContent>
         <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={tradersData !== undefined} loadingLabel="Loading trader analytics…">
         {/* KPI strip */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <MetricCard
             label={`Top ${term("trader")} Equity`}
             value={formatCurrency(maxEquity, currency)}
@@ -1072,7 +1072,7 @@ export function PerformanceAnalyticsPage() {
       <PageContent>
         <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading performance…">
         {/* KPI strip */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <MetricCard
             label={`Best ${term("challenge")} Type`}
             value={bestChallenge.type}
@@ -1387,7 +1387,7 @@ export function RiskAnalyticsPage() {
       <PageContent>
         <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading risk analytics…">
         {/* KPI strip — every label is explained per §33 */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <ExplainableMetricCard
             label="VaR (95%)"
             help={

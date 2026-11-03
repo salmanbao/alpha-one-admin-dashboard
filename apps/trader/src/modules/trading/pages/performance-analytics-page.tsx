@@ -18,6 +18,7 @@ import {
 } from "@pfaas/platform-core";
 import {
   TerraAreaChart,
+  TerraBadge,
   TerraCard,
   TerraPageHeader,
   TerraSectionTitle,
@@ -25,7 +26,13 @@ import {
   TerraTable,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { equityCurveFor, terraAccounts, terraTrades } from "@/lib/fixtures/terra-fixtures";
+import {
+  equityCurveFor,
+  terraAccounts,
+  terraBenchmarks,
+  terraTrades,
+  type TerraBenchmark,
+} from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { toast } from "@/hooks/use-toast";
 import { useRovingTabs } from "@/lib/a11y/roving-tabs";
@@ -76,6 +83,21 @@ export function PerformanceAnalyticsPage() {
   const grossLoss = Math.abs(lossTrades.reduce((s, t) => s + t.pnl, 0));
   const profitFactorNum = grossLoss > 0 ? grossWin / grossLoss : 0;
   const profitFactorFormatted = formatProfitFactor(grossWin, grossLoss);
+
+  // Longest run of consecutive losses (audit B #7) — evaluated in close
+  // order so the streak is the same number the journal would report.
+  let streakRun = 0;
+  let maxLosingStreak = 0;
+  for (const t of [...pool].sort(
+    (a, b) => +new Date(a.closedAt) - +new Date(b.closedAt),
+  )) {
+    if (t.pnl < 0) {
+      streakRun += 1;
+      if (streakRun > maxLosingStreak) maxLosingStreak = streakRun;
+    } else {
+      streakRun = 0;
+    }
+  }
 
   const bySymbol = pool.reduce<Record<string, { pnl: number; count: number; grossWin: number; grossLoss: number }>>(
     (acc, t) => {
@@ -140,6 +162,15 @@ export function PerformanceAnalyticsPage() {
     byWeekday[wd].count += 1;
   }
   const maxAbsDay = Math.max(1, ...byWeekday.map((d) => Math.abs(d.pnl)));
+
+  // Values fed to the benchmark bands — keyed by the fixture's `key`.
+  // Declared after every input exists (bestDayShare is computed above).
+  const benchmarkValues: Record<string, number | null> = {
+    winRate,
+    profitFactor: profitFactorNum,
+    bestDayShare,
+    losingStreak: maxLosingStreak,
+  };
 
   const handleExportReport = () => {
     toast({
@@ -314,12 +345,20 @@ export function PerformanceAnalyticsPage() {
           title="Performance by weekday"
           description="Net P&L per weekday — spot which days actually pay off."
         />
-        <div className="grid grid-cols-4 gap-2 pt-2 sm:grid-cols-7">
+        {/* Colour encodes magnitude, but the numbers are the real data —
+            grouping the cells as a list keeps a screen reader from
+            reading seven loose divs with no relationship (audit B #5). */}
+        <div
+          className="grid grid-cols-4 gap-2 pt-2 sm:grid-cols-7"
+          role="list"
+          aria-label="Net P&L by weekday"
+        >
           {byWeekday.map((d, i) => {
             const alpha = (0.08 + 0.55 * (Math.abs(d.pnl) / maxAbsDay)).toFixed(2);
             return (
               <div
                 key={WEEKDAYS[i]}
+                role="listitem"
                 className={`rounded-xl p-3 text-center ${d.count === 0 ? "bg-surface-container-low" : ""}`}
                 style={
                   d.count === 0
@@ -500,6 +539,11 @@ export function PerformanceAnalyticsPage() {
           </div>
         </TerraCard>
 
+        {/* Benchmarks (audit B #7) — the metric, the segment band it sits
+            in and the quartile verdict. Placed after coaching so the
+            numbers explain the advice above. */}
+        <BenchmarksCard values={benchmarkValues} />
+
         {/* Strategy & backtest links (audit X #7) — partial coverage only. */}
         <TerraCard>
           <TerraSectionTitle title="Strategy development (partial)" />
@@ -562,5 +606,94 @@ export function PerformanceAnalyticsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Benchmarks (audit B #7)                                             */
+/*                                                                     */
+/* Your figure plotted inside the segment's p25–p75 band. The track and */
+/* marker are decorative (aria-hidden): label, value, quartile verdict   */
+/* and segment median are all real text, so the comparison still reads   */
+/* with colour and images turned off.                                    */
+/* ------------------------------------------------------------------ */
+function BenchmarksCard({ values }: { values: Record<string, number | null> }) {
+  const rows = terraBenchmarks
+    .map((metric) => ({ metric, value: values[metric.key] }))
+    .filter(
+      (r): r is { metric: TerraBenchmark; value: number } => typeof r.value === "number",
+    );
+
+  if (rows.length === 0) return null;
+
+  return (
+    <TerraCard>
+      <TerraSectionTitle
+        title="How you compare"
+        description="Your figures against the same segment's 25th–75th percentile band — the shaded middle is where most funded traders sit."
+      />
+      <div className="space-y-5">
+        {rows.map(({ metric, value }) => {
+          const { p25, median, p75, higherIsBetter, unit, decimals, label, segment } = metric;
+          // The domain widens past the band when the value sits outside it,
+          // so the marker can never fall off the track.
+          const pad = Math.max((p75 - p25) * 0.6, 1);
+          const lo = Math.min(p25, value) - pad;
+          const hi = Math.max(p75, value) + pad;
+          const at = (v: number) => ((v - lo) / (hi - lo)) * 100;
+          const topQuartile = higherIsBetter ? value >= p75 : value <= p25;
+          const bottomQuartile = higherIsBetter ? value <= p25 : value >= p75;
+          const verdict = topQuartile
+            ? "Top quartile"
+            : bottomQuartile
+              ? "Bottom quartile"
+              : "Middle 50%";
+          const fmt = (v: number) => `${v.toFixed(decimals)}${unit}`;
+          const vsMedian = value === median ? "level with" : value > median ? "above" : "below";
+
+          return (
+            <div key={metric.key} className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-on-surface">{label}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-sm font-bold tabular-nums text-on-surface">
+                    {fmt(value)}
+                  </span>
+                  <TerraBadge tone={topQuartile ? "success" : bottomQuartile ? "error" : "secondary"}>
+                    {verdict}
+                  </TerraBadge>
+                </span>
+              </div>
+
+              <div className="relative h-3 rounded-full bg-surface-container" aria-hidden="true">
+                <div
+                  className="absolute inset-y-0 rounded-full bg-surface-container-high"
+                  style={{ left: `${at(p25)}%`, width: `${at(p75) - at(p25)}%` }}
+                />
+                <div
+                  className="absolute inset-y-0 w-px bg-on-surface-variant"
+                  style={{ left: `${at(median)}%` }}
+                />
+                <div
+                  className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary shadow-sm"
+                  style={{ left: `${at(value)}%` }}
+                />
+              </div>
+
+              <p className="text-xs text-on-surface-variant">
+                You {vsMedian} the segment median of {fmt(median)} •{" "}
+                {higherIsBetter ? "higher is better" : "lower is better"} • band{" "}
+                {fmt(p25)}–{fmt(p75)}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+      <p className="pt-4 text-xs text-on-surface-variant">
+        Bands are a fixed reference for {rows[0].metric.segment}. At this sample size the
+        direction matters more than the decimal place — read the quartile, then the trend in
+        your journal.
+      </p>
+    </TerraCard>
   );
 }

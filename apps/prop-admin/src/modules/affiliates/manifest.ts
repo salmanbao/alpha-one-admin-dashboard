@@ -5,7 +5,7 @@
  * depends on Trading. Manages affiliates, campaigns, and commissions.
  */
 
-import { Megaphone, Users, BarChart3, DollarSign, ListChecks, Tag, Settings2, Ticket, Link } from "lucide-react";
+import { Megaphone, Users, BarChart3, DollarSign, LineChart, ListChecks, Tag, Settings2, Ticket, Link } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { AffiliateOverviewWidget, TopAffiliatesWidget, AffiliateRevenueWidget } from "./widgets/affiliate-widgets";
 
@@ -21,6 +21,7 @@ const navigation: NavigationItem[] = [
       { id: "affiliates.list", label: "Affiliates", href: "affiliates-list", icon: Users, permission: "affiliate.read", group: "Management" },
       { id: "affiliates.campaigns", label: "Campaigns", href: "affiliates-campaigns", icon: Megaphone, permission: "affiliate.read", group: "Management" },
       { id: "affiliates.commissions", label: "Commissions", href: "affiliates-commissions", icon: DollarSign, permission: "affiliate.read", group: "Management" },
+      { id: "affiliates.performance", label: "Performance", href: "affiliates-performance", icon: LineChart, permission: "affiliate.read", group: "Management" },
 
       // ───────── Promotion & Offers ─────────
       { id: "affiliates.coupons", label: "Coupons", href: "affiliate-coupons", icon: Ticket, permission: "affiliate.read", group: "Promotion & Offers" },
@@ -36,6 +37,7 @@ const routes: RouteDefinition[] = [
   { path: "affiliates-list", viewId: "affiliates-list", label: "Affiliates List", permission: "affiliate.read", module: "affiliates" },
   { path: "affiliates-campaigns", viewId: "affiliates-campaigns", label: "Affiliate Campaigns", permission: "affiliate.read", module: "affiliates" },
   { path: "affiliates-commissions", viewId: "affiliates-commissions", label: "Affiliate Commissions", permission: "affiliate.read", module: "affiliates" },
+  { path: "affiliates-performance", viewId: "affiliates-performance", label: "Affiliate Performance", permission: "affiliate.read", module: "affiliates" },
   { path: "affiliate-coupons", viewId: "affiliate-coupons", label: "Coupon Codes", permission: "affiliate.read", module: "affiliates" },
   { path: "affiliate-link-tracking", viewId: "affiliate-link-tracking", label: "Link Tracking", permission: "affiliate.read", module: "affiliates" },
   { path: "offer-management", viewId: "offer-management", label: "Offer Management", permission: "affiliate.read", module: "affiliates" },

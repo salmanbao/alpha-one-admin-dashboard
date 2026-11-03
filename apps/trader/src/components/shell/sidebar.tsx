@@ -59,6 +59,7 @@ import {
   Receipt,
   RefreshCw,
   Repeat,
+  ScanSearch,
   ScrollText,
   Settings,
   Settings2,
@@ -67,6 +68,7 @@ import {
   ShoppingBag,
   Store,
   Target,
+  TrendingUp,
   Trophy,
   Users,
   UserCheck,
@@ -122,6 +124,7 @@ export const sections: NavSection[] = [
     { href: "/web-terminal", label: "Web Terminal", icon: Monitor },
     { href: "/performance-analytics", label: "Performance", icon: BarChart3 },
     { href: "/risk-dashboard", label: "Risk Dashboard", icon: ShieldAlert },
+    { href: "/trading-patterns", label: "Pattern Monitor", icon: ScanSearch },
   ]},
   { id: "tools", label: "Tools", icon: Wrench, children: [
     { href: "/trading-journal", label: "Trading Journal", icon: BookOpen },
@@ -138,6 +141,7 @@ export const sections: NavSection[] = [
     { href: "/payout-history", label: "Payout History", icon: History, activePrefixes: ["/payout-detail"] },
     { href: "/payout-request", label: "Request Payout", icon: ArrowDownToLine },
     { href: "/payout-eligibility", label: "Eligibility", icon: BadgeCheck },
+    { href: "/scaling-plan", label: "Scaling Plan", icon: TrendingUp },
     { href: "/withdrawal-methods", label: "Withdrawal Methods", icon: CreditCard },
   ]},
   { id: "finance", label: "Finance", icon: FileText, children: [

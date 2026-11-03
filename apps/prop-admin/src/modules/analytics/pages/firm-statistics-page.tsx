@@ -157,7 +157,7 @@ export function FirmStatisticsPage() {
       <PageContent>
         <PageAsyncBoundary loading={loading} error={error} onRetry={retry} hasData={data !== undefined} loadingLabel="Loading firm statistics…">
         {/* 1. KPI strip — 10 cards in a 2 / 5 / 5 / 10 responsive grid */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
           <MetricCard label="Total Revenue" value={fmt(stats.totalRevenue)} delta={8} deltaLabel="vs prev period" icon={DollarSign} tone="positive" />
           <MetricCard label={resolveTermsInString("Total Payouts", tenant)} value={fmt(stats.totalPayouts)} delta={4} deltaLabel="vs prev period" icon={TrendingDown} tone="warning" />
           <MetricCard label="Net Profit" value={fmt(stats.netProfit)} delta={11} deltaLabel="vs prev period" icon={TrendingUp} tone="positive" />

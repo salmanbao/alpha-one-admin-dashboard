@@ -415,7 +415,7 @@ export function TerraAreaChart({
       </g>
     </svg>
     {/* Accessible data table: color-independent encoding for screen readers / print */}
-    <table className="sr-only" aria-label="Equity curve data (date vs value)">
+    <table className="sr-only" aria-label={`Equity curve data — ${data.length} rows, ${data[0].x} to ${data[data.length - 1].x}`}>
       <thead><tr><th>Date</th><th>Value</th></tr></thead>
       <tbody>
         {data.map((d) => (
@@ -435,12 +435,23 @@ export function TerraBarChart({
   data,
   height = 220,
   formatValue,
+  label,
 }: {
   data: { x: string; y: number }[];
   height?: number;
   formatValue?: (v: number) => string;
+  /** Screen-reader description; defaults to a summary derived from the data. */
+  label?: string;
 }) {
   if (data.length < 1) return null;
+
+  // Derived (never static): the same chart can be fed 7 sessions or 30, so
+  // the accessible name states the span instead of always claiming "Daily".
+  const firstX = data[0].x;
+  const lastX = data[data.length - 1].x;
+  const chartLabel =
+    label ??
+    `Daily P&L bar chart — ${data.length} sessions from ${firstX} to ${lastX}`;
 
   const W = 680;
   const H = 240;
@@ -476,7 +487,7 @@ export function TerraBarChart({
       className="w-full overflow-visible"
       style={{ height }}
       role="img"
-      aria-label="Daily P&L bar chart"
+      aria-label={chartLabel}
     >
       <g opacity="0.4">
         {gridLines.map((g) => {
@@ -565,7 +576,7 @@ export function TerraBarChart({
       </g>
     </svg>
     {/* Accessible data table: color-independent encoding for screen readers / print */}
-    <table className="sr-only" aria-label="Daily P&L data (date vs value)">
+    <table className="sr-only" aria-label={`Daily P&L data — ${data.length} rows, ${firstX} to ${lastX}`}>
       <thead><tr><th>Date</th><th>P&L</th></tr></thead>
       <tbody>
         {data.map((d) => (

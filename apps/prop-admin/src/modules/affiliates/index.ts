@@ -4,4 +4,5 @@ export {
   AffiliatesListPage,
   AffiliateCampaignsPage,
   AffiliateCommissionsPage,
+  AffiliatePerformancePage,
 } from "./pages/affiliate-pages";

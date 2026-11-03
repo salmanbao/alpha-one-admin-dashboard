@@ -245,6 +245,45 @@ export const scalingPlan = {
   ],
 };
 
+/**
+ * The full ladder above the current tier (audit B #3) — the trader could
+ * see *that* the next tier was close, never what comes after it or what
+ * each step costs. `enter` is the requirement to move into that tier from
+ * the previous one; null marks the tier the account starts on.
+ */
+export const scalingTiers: {
+  tier: string;
+  split: string;
+  enter: { payouts: number; fundedDays: number; gainPct: number } | null;
+  note: string;
+}[] = [
+  { tier: "$25,000", split: "80/20", enter: null, note: "Starting tier for this program." },
+  {
+    tier: "$50,000",
+    split: "85/15",
+    enter: { payouts: 3, fundedDays: 90, gainPct: 10 },
+    note: "Three consecutive counted payouts plus 90 funded days and 10% net gain.",
+  },
+  {
+    tier: "$100,000",
+    split: "90/10",
+    enter: { payouts: 3, fundedDays: 120, gainPct: 10 },
+    note: "Same payout streak, longer track record on the funded account.",
+  },
+  {
+    tier: "$200,000",
+    split: "90/10",
+    enter: { payouts: 4, fundedDays: 180, gainPct: 12 },
+    note: "Four consecutive counted payouts — sized positions matter more than frequency here.",
+  },
+  {
+    tier: "$500,000",
+    split: "90/10",
+    enter: { payouts: 5, fundedDays: 270, gainPct: 15 },
+    note: "Program ceiling: nine months of funded history at the required gain.",
+  },
+];
+
 /* ------------------------------------------------------------------ */
 /* Payout schedule (M10 Payout Scheduling)                             */
 /* ------------------------------------------------------------------ */
@@ -906,12 +945,20 @@ export const traderBreachesFallback = [
 /* Journal entries                                                     */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Journal entries — `strategy` is the comparison axis (audit B #9): tags
+ * stay free-form for how a session *felt* (#london, #A+ setup), while the
+ * strategy field is a closed list so setups can be scored against each
+ * other. Entries saved before the field existed simply read as
+ * "Uncategorised".
+ */
 export const journalEntries = [
   {
     id: "jr-31",
     date: daysAgo(1),
     title: "London session — GBPJPY short",
     mood: "disciplined",
+    strategy: "Reversal",
     tags: ["reversal", "london", "A+ setup"],
     notes:
       "Waited for the double-top at 189.40 with RSI divergence. Entered on the break of the second top's neckline. Exited at structure support.",
@@ -923,6 +970,7 @@ export const journalEntries = [
     date: daysAgo(2),
     title: "NY open — EURUSD continuation",
     mood: "confident",
+    strategy: "Trend follow",
     tags: ["trend", "new-york"],
     notes:
       "Followed the plan: only longs above 1.0820. Added on the pullback to the 15m EMA. Closed half at TP1, rest at structural target.",
@@ -934,11 +982,60 @@ export const journalEntries = [
     date: daysAgo(3),
     title: "Chop day — cut losses early",
     mood: "frustrated",
+    strategy: "Range fade",
     tags: ["range", "revenge-risk"],
     notes:
       "USDCAD went against me immediately. Stop was hit for -0.4%. No revenge trades — closed the platform and reviewed tomorrow's levels.",
     pnl: -64,
     tradeIds: ["trd-84005"],
+  },
+  {
+    id: "jr-28",
+    date: daysAgo(4),
+    title: "Gold breakout — waited for the retest",
+    mood: "disciplined",
+    strategy: "Breakout",
+    tags: ["breakout", "news-safe", "gold"],
+    notes:
+      "Skipped the first spike and entered on the retest of the broken range at 2638. Sized down because of the calendar — the smaller size made the hold easy.",
+    pnl: 405,
+    tradeIds: ["trd-83998"],
+  },
+  {
+    id: "jr-27",
+    date: daysAgo(5),
+    title: "Asia range — NZDUSD fade failed",
+    mood: "patient",
+    strategy: "Range fade",
+    tags: ["range", "asia", "choppy"],
+    notes:
+      "Fade at the range edge looked textbook but the range had already broken. Stop did its job; no re-entry, which was the right call.",
+    pnl: -102,
+    tradeIds: ["trd-83990"],
+  },
+  {
+    id: "jr-26",
+    date: daysAgo(7),
+    title: "Trend continuation entered too early",
+    mood: "frustrated",
+    strategy: "Trend follow",
+    tags: ["trend", "review", "london"],
+    notes:
+      "Took the pullback before the higher low confirmed. The idea was right, the timing wasn't — wait for structure, not for the indicator.",
+    pnl: -65,
+    tradeIds: ["trd-83799"],
+  },
+  {
+    id: "jr-25",
+    date: daysAgo(9),
+    title: "Breakout retest — clean execution",
+    mood: "confident",
+    strategy: "Breakout",
+    tags: ["breakout", "london"],
+    notes:
+      "Planned entry at the retest level, one shot, stop under the shelf. No management changes after entry.",
+    pnl: 155,
+    tradeIds: ["trd-83946"],
   },
 ];
 
@@ -2210,3 +2307,174 @@ export const breachCoaching: Record<
     ],
   },
 };
+
+/* ------------------------------------------------------------------ */
+/* Performance benchmarks (audit B #7)                                 */
+/*                                                                     */
+/* "How am I doing?" only has an answer relative to someone else. The  */
+/* leaderboard answered "where do I rank?" but performance analytics   */
+/* never put the trader's own numbers against a peer group, so every   */
+/* metric read as a bare figure with no bar to clear. Bands (p25/median */
+/* /p75) are a fixed, documented segment reference — the comparison is  */
+/* to the band, never to a hand-picked flattering number.               */
+/* ------------------------------------------------------------------ */
+
+export interface TerraBenchmark {
+  key: string;
+  label: string;
+  /** Display unit appended to every value (`%`, ` trades`, …). */
+  unit: string;
+  /** Direction of "better" — best-day share and streaks improve downward. */
+  higherIsBetter: boolean;
+  /** Decimal places used when rendering this metric. */
+  decimals: number;
+  p25: number;
+  median: number;
+  p75: number;
+  /** Who the band describes — stated on screen, never implied. */
+  segment: string;
+}
+
+export const terraBenchmarks: TerraBenchmark[] = [
+  {
+    key: "winRate",
+    label: "Win rate",
+    unit: "%",
+    higherIsBetter: true,
+    decimals: 0,
+    p25: 41,
+    median: 48,
+    p75: 56,
+    segment: "Terra funded accounts • rolling 90 days",
+  },
+  {
+    key: "profitFactor",
+    label: "Profit factor",
+    unit: "",
+    higherIsBetter: true,
+    decimals: 2,
+    p25: 1.15,
+    median: 1.55,
+    p75: 2.1,
+    segment: "Terra funded accounts • rolling 90 days",
+  },
+  {
+    key: "bestDayShare",
+    label: "Best-day share of net",
+    unit: "%",
+    higherIsBetter: false,
+    decimals: 0,
+    p25: 32,
+    median: 44,
+    p75: 60,
+    segment: "Terra funded accounts • rolling 90 days",
+  },
+  {
+    key: "losingStreak",
+    label: "Longest losing streak",
+    unit: " trades",
+    higherIsBetter: false,
+    decimals: 0,
+    p25: 3,
+    median: 5,
+    p75: 8,
+    segment: "Terra funded accounts • rolling 90 days",
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/* Trading pattern detection (audit B #1)                              */
+/*                                                                     */
+/* The prop-firm risk stack flags three trading patterns across a      */
+/* trader's linked accounts. Operators have always had them (see        */
+/* prop-admin's risk module); the trader never saw them, so a rule was  */
+/* only ever explained *after* it was broken. This derives the same     */
+/* detections from the trader's own closed-trade history — deterministically, */
+/* from the fixtures, no Math.random — so the Pattern Monitor screen    */
+/* can explain what is watched *before* it triggers.                    */
+/* ------------------------------------------------------------------ */
+
+export type TerraPatternKind = "copy" | "inverse" | "weekend";
+
+export interface TerraPatternEvent {
+  id: string;
+  kind: TerraPatternKind;
+  symbol: string;
+  /** Account ids that took part (one for weekend entries). */
+  accounts: string[];
+  /** Trade tickets behind the detection. */
+  tickets: string[];
+  /** Direction of the matched entries — "both" for an inverse pair. */
+  side: "long" | "short" | "both";
+  /** ISO time of the later entry (the moment the pattern completed). */
+  detectedAt: string;
+  /** Entry-to-entry gap in minutes for copy/inverse pairs, null otherwise. */
+  deltaMinutes: number | null;
+}
+
+/** Entry-to-entry gap that counts as "synchronized" across accounts. */
+const PATTERN_WINDOW_MS = 4 * 60 * 60 * 1000;
+
+/** Forex market-closed window (UTC): Saturday 00:00 → Sunday 21:00. */
+function enteredDuringMarketClosed(iso: string): boolean {
+  const day = new Date(iso).getUTCDay();
+  if (day === 6) return true;
+  return day === 0 && new Date(iso).getUTCHours() < 21;
+}
+
+/**
+ * Scan closed trades across every linked account and return the
+ * detections a risk desk would see:
+ *
+ *  - `copy`    — same symbol, same direction, two accounts, entries
+ *                within PATTERN_WINDOW_MS (mirror / copy trading).
+ *  - `inverse` — same symbol, opposite direction, two accounts,
+ *                entries within PATTERN_WINDOW_MS (hedging a leg on a
+ *                second account rather than closing the first).
+ *  - `weekend` — entry placed while the market is closed (weekend).
+ *
+ * Pure and derived: the same fixtures always produce the same events.
+ */
+export function detectTerraPatterns(): TerraPatternEvent[] {
+  const out: TerraPatternEvent[] = [];
+
+  for (let a = 0; a < terraTrades.length; a++) {
+    for (let b = a + 1; b < terraTrades.length; b++) {
+      const first = terraTrades[a];
+      const second = terraTrades[b];
+      if (first.accountId === second.accountId || first.symbol !== second.symbol) continue;
+      const delta = Math.abs(
+        +new Date(first.openedAt) - +new Date(second.openedAt),
+      );
+      if (delta > PATTERN_WINDOW_MS) continue;
+      const later =
+        +new Date(first.openedAt) > +new Date(second.openedAt) ? first : second;
+      out.push({
+        id: `pat-${first.ticket}-${second.ticket}`,
+        kind: first.side === second.side ? "copy" : "inverse",
+        symbol: first.symbol,
+        accounts: [first.accountId, second.accountId],
+        tickets: [first.ticket, second.ticket],
+        side: first.side === second.side ? first.side : "both",
+        detectedAt: later.openedAt,
+        deltaMinutes: Math.round(delta / 60_000),
+      });
+    }
+  }
+
+  for (const trade of terraTrades) {
+    if (!enteredDuringMarketClosed(trade.openedAt)) continue;
+    out.push({
+      id: `pat-wk-${trade.ticket}`,
+      kind: "weekend",
+      symbol: trade.symbol,
+      accounts: [trade.accountId],
+      tickets: [trade.ticket],
+      side: trade.side,
+      detectedAt: trade.openedAt,
+      deltaMinutes: null,
+    });
+  }
+
+  return out.sort((x, y) => +new Date(y.detectedAt) - +new Date(x.detectedAt));
+}
