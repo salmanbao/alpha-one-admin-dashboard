@@ -19,6 +19,13 @@ import type { ReactNode } from "react";
  * (audit fix #9 — one formatting utility for every dashboard). These
  * thin wrappers keep the Terra call sites unchanged.
  */
+/** Standardized money formatting (audit finding #1) — delegates to
+ *  `formatCurrencyValue` from `@pfaas/platform-core` (canonical: 2
+ *  decimals, Intl locale, currency symbol, thousands separators).
+ *  All three dashboards (trader/prop-admin/platform-admin) use this
+ *  same central utility; `formatMoney` is the trader-shell wrapper,
+ *  `formatCurrency` is the prop-admin/platform wrapper.
+ */
 export function formatMoney(value: number, currency = "USD"): string {
   return formatCurrencyValue(value, currency);
 }
