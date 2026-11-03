@@ -77,3 +77,7 @@ export {
   ContextualHelp,
   LabelWithHelp,
 } from "./components/platform/contextual-help";
+export {
+  ErrorAlert,
+  RetryButton,
+} from "./components/platform/error-alert";

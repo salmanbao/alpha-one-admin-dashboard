@@ -1,9 +1,9 @@
 "use client";
 
 import React, { Component, ErrorInfo, ReactNode } from "react";
+import { ErrorAlert, RetryButton } from "@/components/platform/error-alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { RefreshCw, AlertCircle, ExternalLink, Loader2 } from "lucide-react";
+import { AlertCircle, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
 
 /**
  * Enhanced ErrorBoundary — finding #10 (LOW).
@@ -131,60 +131,40 @@ function ErrorFallback({
   retrying: boolean;
 }) {
   return (
-    <div className="flex min-h-[50vh] items-center justify-center p-4" role="alert" aria-live="assertive">
-      <Card className="w-full max-w-md border-destructive/30 bg-destructive/5">
-        <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10" aria-hidden="true">
-            <AlertCircle className="h-6 w-6 text-destructive" />
-          </div>
-          <h3 className="font-headline text-lg font-bold text-destructive">{title}</h3>
-          <p className="mt-1 text-sm text-on-surface-variant">{description}</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              className="flex-1 gap-2"
-              onClick={onRetry}
-              disabled={retrying}
-              aria-busy={retrying}
-            >
-              {retrying ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  Retrying…
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                  Try again
-                </>
-              )}
-            </Button>
-            <Button variant="outline" className="flex-1 gap-2" onClick={onReload}>
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              Reload page
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" className="flex-1 gap-1.5" onClick={onReport}>
-              <AlertCircle className="h-4 w-4" aria-hidden="true" />
-              Copy error details
-            </Button>
-            <a
-              href={helpHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 rounded-xl border border-outline-variant px-4 py-2 text-center text-sm font-medium text-on-surface hover:bg-surface-container-low"
-            >
-              <ExternalLink className="mr-1 h-4 w-4 inline" aria-hidden="true" />
-              {helpLabel}
-            </a>
-          </div>
-          <p className="text-center text-[11px] text-muted-foreground">
-            If this persists, contact support with the copied error details.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <ErrorAlert
+      title={title}
+      description={description}
+      tone="destructive"
+      helpHref={helpHref}
+      helpLabel={helpLabel}
+      onRetry={() => onRetry()}
+      onReload={onReload}
+      onReport={onReport}
+      retrying={retrying}
+    >
+      <RetryButton onClick={onRetry} loading={retrying} label="Try again" />
+      <Button variant="outline" className="flex-1 gap-2" onClick={onReload}>
+        <RefreshCw className="h-4 w-4" aria-hidden="true" />
+        Reload page
+      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="ghost" className="flex-1 gap-1.5" onClick={onReport}>
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
+          Copy error details
+        </Button>
+        <a
+          href={helpHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 rounded-xl border border-outline-variant px-4 py-2 text-center text-sm font-medium text-on-surface hover:bg-surface-container-low"
+        >
+          <ExternalLink className="mr-1 h-4 w-4 inline" aria-hidden="true" />
+          {helpLabel}
+        </a>
+      </div>
+      <p className="text-center text-[11px] text-muted-foreground">
+        If this persists, contact support with the copied error details.
+      </p>
+    </ErrorAlert>
   );
 }
