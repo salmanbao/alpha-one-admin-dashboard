@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DataTable, type Column } from "@/components/platform/data-table";
+import { explainSignal } from "@/modules/risk/risk-explanations";
 import {
   Select,
   SelectContent,
@@ -224,7 +225,15 @@ export function RiskCasesPage() {
         {c.traderName}
       </button>
     ), sortValue: (c) => c.traderName },
-    { key: "signal", header: "Signal", cell: (c) => <span className="text-xs">{c.signal}</span>, sortValue: (c) => c.signal },
+    { key: "signal", header: "Signal", cell: (c) => (
+      <span className="flex flex-col gap-0.5">
+        <span className="text-xs">{c.signal}</span>
+        {/* Second context line — the rule at risk (audit finding #5) */}
+        <span className="text-[10px] leading-tight text-muted-foreground">
+          {explainSignal(c.signal, c.signalDetail).rule}
+        </span>
+      </span>
+    ), sortValue: (c) => c.signal },
     { key: "exposure", header: "Exposure", cell: (c) => <span className="text-xs tabular-nums">${c.currentExposure.toLocaleString()}</span>, sortValue: (c) => c.currentExposure, numeric: true },
     { key: "payoutHold", header: "Payout Hold", cell: (c) => c.payoutHold ? <Badge variant="outline" className="border-amber-500/30 text-amber-700 text-[10px] dark:text-amber-400">${c.payoutHoldAmount.toLocaleString()}</Badge> : <span className="text-xs text-muted-foreground">—</span> },
     { key: "age", header: "Age", cell: (c) => <span className="text-xs text-muted-foreground tabular-nums">{c.age}</span>, sortValue: (c) => c.age },
