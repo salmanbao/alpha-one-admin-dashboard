@@ -6,10 +6,31 @@ import { XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Focus-restore channel (audit finding #7 — keyboard navigation).
+ *
+ * Radix's modal DialogContent always `preventDefault()`s FocusScope's
+ * default focus restore and focuses `triggerRef.current` instead — for
+ * trigger-less controlled `<Dialog open …>` wrappers that ref is null,
+ * so keyboard focus dropped to <body> after Esc/close instead of
+ * returning to the control that opened the dialog. DialogRoot records
+ * the element focused just before the dialog takes focus; DialogContent
+ * restores it on close. Radix's own trigger focus still runs afterwards
+ * when a trigger exists, so trigger-based dialogs behave as before.
+ */
+type OpenerRef = React.RefObject<HTMLElement | null>
+
+const DialogOpenerContext = React.createContext<OpenerRef | null>(null)
+
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  const openerRef = React.useRef<HTMLElement | null>(null)
+  return (
+    <DialogOpenerContext.Provider value={openerRef}>
+      <DialogPrimitive.Root data-slot="dialog" {...props} />
+    </DialogOpenerContext.Provider>
+  )
 }
 
 function DialogTrigger({
@@ -50,10 +71,13 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  const openerRef = React.useContext(DialogOpenerContext)
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -64,6 +88,29 @@ function DialogContent({
           className
         )}
         {...props}
+        onOpenAutoFocus={(event) => {
+          onOpenAutoFocus?.(event)
+          // Runs before FocusScope moves focus into the dialog, so
+          // activeElement is still the opener (works for dialogs mounted
+          // fresh with open=true, where there is no open transition).
+          if (openerRef) {
+            openerRef.current =
+              typeof document !== "undefined" &&
+              document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null
+          }
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event)
+          // A caller that preventDefault()'d owns restore — leave it.
+          if (event.defaultPrevented) return
+          const opener = openerRef?.current ?? null
+          if (openerRef) openerRef.current = null
+          if (opener && opener.isConnected && opener !== document.body) {
+            opener.focus()
+          }
+        }}
       >
         {children}
         {showCloseButton && (
@@ -141,3 +188,7 @@ export {
   DialogTitle,
   DialogTrigger,
 }
+
+/* Shared with alert-dialog.tsx so AlertDialogs use the same opener
+ * capture/restore channel. Not part of the public component surface. */
+export { DialogOpenerContext }
