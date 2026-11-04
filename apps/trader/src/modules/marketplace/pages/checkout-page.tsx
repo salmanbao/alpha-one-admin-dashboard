@@ -58,8 +58,11 @@ const promos: Record<string, { percent: number; label: string }> = {
   FLASH25: { percent: 25, label: "25% off Flash accounts" },
 };
 
-const sizeLabel = (accountSize: number) =>
-  `$${(accountSize / 1000).toLocaleString("en-US")}K`;
+/** Account-size label — same formatter as the marketplace cards
+ *  (`formatMoney(…).replace(".00", "")`), so a $100,000 account reads
+ *  identically on the marketplace, the detail page and checkout
+ *  (audit finding #9: the raw `$${(n/1000)}K` string drifted). */
+const sizeLabel = (accountSize: number) => formatMoney(accountSize, "USD").replace(".00", "");
 
 const paymentFailureReasons = [
   {
