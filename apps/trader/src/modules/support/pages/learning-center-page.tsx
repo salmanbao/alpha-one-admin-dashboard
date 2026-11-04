@@ -19,6 +19,11 @@ import {
   TerraSectionTitle,
   TerraStat,
 } from "@/components/terra/terra-ui";
+import {
+  terraAccounts,
+  terraTrades,
+  traderBreachesFallback,
+} from "@/lib/fixtures/terra-fixtures";
 
 const STORAGE_KEY = "terra.learning-progress";
 
@@ -71,6 +76,93 @@ const filters: Array<{ id: "all" | Level; label: string }> = [
   { id: "advanced", label: "Advanced" },
 ];
 
+/* ------------------------------------------------------------------ */
+/* Personalized recommendations (audit finding #10)                    */
+/* ------------------------------------------------------------------ */
+/* Derived from the SAME fixtures the dashboard uses — breach history,  */
+/* daily-loss headroom on the active accounts, realised win rate and   */
+/* profit-target progress — so the suggestion always points at a real  */
+/* signal instead of generic content. Deterministic: no Math.random.    */
+
+interface Recommendation {
+  lesson: Lesson;
+  reason: string;
+}
+
+function deriveRecommendations(completed: Record<string, boolean>): Recommendation[] {
+  const out: Recommendation[] = [];
+  const push = (id: string, reason: string) => {
+    const lesson = lessons.find((l) => l.id === id);
+    if (!lesson || completed[id] || out.some((r) => r.lesson.id === id)) return;
+    out.push({ lesson, reason });
+  };
+
+  const activeAccounts = terraAccounts.filter((a) => a.status === "active");
+  const dailyBreach = traderBreachesFallback.find((b) => b.type === "daily-drawdown");
+  const ddBreach = traderBreachesFallback.find((b) => b.type === "max-drawdown");
+
+  // Tightest daily-loss headroom across active accounts, as a share of
+  // the starting balance (below 3% = the limit is genuinely close).
+  const tightest = activeAccounts.length
+    ? Math.min(...activeAccounts.map((a) => a.dailyLossRemaining / a.startingBalance))
+    : null;
+
+  const wins = terraTrades.filter((t) => t.pnl > 0).length;
+  const winRate = terraTrades.length > 0 ? Math.round((wins / terraTrades.length) * 100) : null;
+  const minTargetProgress = activeAccounts.length
+    ? Math.min(...activeAccounts.map((a) => a.targetProgress))
+    : 100;
+
+  if (dailyBreach) {
+    push(
+      "b4",
+      `You hit the daily loss limit ${new Date(dailyBreach.at).toLocaleDateString(undefined, { month: "short", day: "numeric" })} — this lesson shows exactly how the limit is calculated and how much room it really leaves.`,
+    );
+  }
+  if (tightest !== null && tightest < 0.03) {
+    push(
+      "b4",
+      `Your closest account has only ${Math.round(tightest * 100)}% of its starting balance left as daily-loss room — learn what a normal losing day looks like against that budget.`,
+    );
+  }
+  if (ddBreach) {
+    push(
+      "a1",
+      `Your equity came within 1% of the maximum drawdown — the advanced drawdown lesson covers why volatility pushes you there faster than intuition suggests.`,
+    );
+  }
+  if (winRate !== null && winRate < 50) {
+    push(
+      "i2",
+      `Your realised win rate is ${winRate}% — position sizing and expectancy matter more than hit rate at that level.`,
+    );
+  }
+  if (minTargetProgress < 50) {
+    push(
+      "i1",
+      `Your profit target is only ${minTargetProgress}% complete — a written plan with entry and session rules is the fastest way to close that gap.`,
+    );
+  }
+  if (winRate !== null && winRate >= 60) {
+    push(
+      "i3",
+      `You're winning ${winRate}% of trades — journaling which setups produce them turns a good stretch into a repeatable edge.`,
+    );
+  }
+
+  // Progression fallback — point at the next unfinished lesson in order.
+  if (out.length < 3) {
+    for (const l of lessons) {
+      if (out.length >= 3) break;
+      if (!completed[l.id] && !out.some((r) => r.lesson.id === l.id)) {
+        push(l.id, `Next up in the ${levelMeta[l.level].label.toLowerCase()} track — ${l.minutes} min.`);
+      }
+    }
+  }
+
+  return out.slice(0, 3);
+}
+
 export function LearningCenterPage() {
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [hydrated, setHydrated] = useState(false);
@@ -111,6 +203,10 @@ export function LearningCenterPage() {
     () => (level === "all" ? lessons : lessons.filter((l) => l.level === level)),
     [level],
   );
+
+  // Personalized picks (audit finding #10) — recomputed only when the
+  // completion record changes, so marking a lesson done refreshes them.
+  const recommendations = useMemo(() => deriveRecommendations(completed), [completed]);
 
   const byLevel = (lv: Level) => visible.filter((l) => l.level === lv);
   const levels: Level[] = ["beginner", "intermediate", "advanced"];
@@ -154,6 +250,52 @@ export function LearningCenterPage() {
         <div className="mt-4" role="img" aria-label={`Overall lesson progress: ${progressPct}% complete`}>
           <TerraProgress value={progressPct} />
         </div>
+      </TerraCard>
+
+      {/* Recommended for you (audit finding #10) — personalized picks */}
+      <TerraCard className="p-6">
+        <TerraSectionTitle
+          title="✨ Recommended for you"
+          description="Chosen from your own signals — breach history, daily-loss room, win rate and target progress."
+        />
+        {recommendations.length === 0 ? (
+          <p className="mt-4 text-sm text-on-surface-variant">
+            Nothing left to suggest — you&apos;ve completed every lesson we&apos;d recommend.
+          </p>
+        ) : (
+          <ul className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3" aria-label="Personalized lesson recommendations">
+            {recommendations.map(({ lesson, reason }) => {
+              const isDone = !!completed[lesson.id];
+              return (
+                <li
+                  key={lesson.id}
+                  className="flex flex-col gap-2 rounded-xl border border-primary/30 bg-primary-fixed/10 p-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <TerraBadge tone="neutral">{levelMeta[lesson.level].label}</TerraBadge>
+                    <span className="text-[11px] text-on-surface-variant">
+                      {kindMeta[lesson.kind].icon} {kindMeta[lesson.kind].label} · {lesson.minutes} min
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold text-on-surface">{lesson.title}</p>
+                  <p className="text-xs leading-relaxed text-on-surface-variant">{reason}</p>
+                  <button
+                    type="button"
+                    aria-pressed={isDone}
+                    onClick={() => toggle(lesson.id)}
+                    className={`mt-auto self-start rounded-lg px-3 py-1.5 text-[11px] font-bold transition-colors ${
+                      isDone
+                        ? "bg-primary text-on-primary hover:bg-primary/90"
+                        : "bg-surface-container text-on-surface hover:bg-surface-container-high"
+                    }`}
+                  >
+                    {isDone ? "✓ Completed" : "Start lesson"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </TerraCard>
 
       {/* Level filter */}
