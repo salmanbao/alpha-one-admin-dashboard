@@ -5,7 +5,7 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { hasPermission } from "@/lib/platform/permission-engine";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import { getTenantPayouts, getTraderPayouts, getTraderForUser, getTenantTraders, getTenantBreaches, type Payout } from "@/lib/platform/mock-data";
-import { buildPayoutRisk } from "@/lib/platform/payout-risk";
+import { buildPayoutRisk, worstPayoutRisk } from "@/lib/platform/payout-risk";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { applyPayoutDecision, effectivePayoutStatus, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -17,8 +17,10 @@ import { PayoutReviewActions } from "@/components/platform/contextual-actions";
 import { AttentionCenter } from "@/components/platform/attention-center";
 import { EmptyState } from "@/components/platform/guards";
 import { Wallet, Banknote, Clock, CheckCircle2, Timer, ExternalLink, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useDetailOverlay } from "@/components/platform/detail-overlay";
 import { openViewInNewTab } from "@/lib/platform/view-links";
 import { toast } from "@/hooks/use-toast";
@@ -28,6 +30,8 @@ import {
   type PayoutRejectResult,
 } from "@/components/platform/payout-reject-dialog";
 import { TraderPerformanceChip, type PayoutTraderPerformance } from "@/components/platform/trader-performance-chip";
+import { autoApproveRuleSchema } from "@/lib/platform/validation";
+import { loadDemoState } from "@/lib/platform/demo-persistence";
 
 /**
  * PRD §4.9 — Reject requires a reason (onReject(reason)). Uses the
@@ -376,10 +380,98 @@ export function PendingPayoutsPage() {
     return m;
   }, [tid]);
 
+  /** ── Batch-selection state ───────────────────────────────────────── */
+  const [selectedPayouts, setSelectedPayouts] = useState<Set<string>>(new Set());
+  const selectedCount = selectedPayouts.size;
+
+  /** ── Toolbar actions for selected payouts ────────────────────────── */
+  const handleBatchApprove = () => {
+    const payouts = pendingPayouts.filter((p) => selectedPayouts.has(p.reference));
+    if (payouts.length === 0) return;
+    const traderIds = [...new Set(payouts.map((p) => p.traderId))];
+    const worst = worstPayoutRisk(tid, traderIds);
+    if (worst && worst.riskScore < 70) {
+      toast({
+        title: "Batch approve blocked",
+        description: `The riskiest trader has score ${worst.riskScore} (threshold 70). Lower the threshold or review individually.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    // Check for open breaches
+    for (const p of payouts) {
+      const breaches = getTenantBreaches(tid).filter((b) => b.traderId === p.traderId && b.status === "open");
+      if (breaches.length > 0) {
+        toast({
+          title: "Batch approve blocked",
+          description: `Trader ${p.traderName} has ${breaches.length} open breach(es). Resolve before auto-approving.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    // Apply approved decision to all selected
+    for (const p of payouts) {
+      applyPayoutDecision(p.reference, "approved");
+    }
+    toast({
+      title: "Batch approved",
+      description: `${selectedCount} payout(s) approved.`,
+    });
+    setSelectedPayouts(new Set());
+  };
+
+  const handleBatchReject = () => {
+    const payouts = pendingPayouts.filter((p) => selectedPayouts.has(p.reference));
+    if (payouts.length === 0) return;
+    if (!window.confirm(`Reject ${selectedCount} selected payout(s)?`)) return;
+    for (const p of payouts) {
+      applyPayoutDecision(p.reference, "rejected", { reason: "Rejected via batch processing" });
+    }
+    toast({
+      title: "Batch rejected",
+      description: `${selectedCount} payout(s) rejected.`,
+    });
+    setSelectedPayouts(new Set());
+  };
+
+  const toggleSelection = (reference: string) => {
+    setSelectedPayouts((prev) => {
+      const next = new Set(prev);
+      if (next.has(reference)) next.delete(reference);
+      else next.add(reference);
+      return next;
+    });
+  };
+
+  const isAllSelected = pendingPayouts.length > 0 && selectedCount === pendingPayouts.length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) setSelectedPayouts(new Set());
+    else setSelectedPayouts(new Set(pendingPayouts.map((p) => p.reference)));
+  };
+
   return (
     <Page>
       <PageHeader title={`Pending ${plural(term("payout"))}`} description="Awaiting approval." icon={Clock} />
       <PageContent>
+        {/* ── Batch toolbar ───────────────────────────────────────────── */}
+        {selectedCount > 0 && (
+          <div className="flex flex-col sm:flex-row gap-2 mb-4 p-3 rounded-md border bg-muted/30">
+            <div className="text-sm font-medium text-foreground">
+              {selectedCount} of {pendingPayouts.length} selected
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="default" onClick={handleBatchApprove}>
+                Approve Selected ({selectedCount})
+              </Button>
+              <Button variant="destructive" onClick={handleBatchReject}>
+                Reject Selected ({selectedCount})
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Contextual Action Panel — inline approve/reject with one primary action (§22-23).
             Previously the SAME pending payouts were ALSO rendered in the
             PayoutsTable below — duplicating data on one screen. The
@@ -389,10 +481,42 @@ export function PendingPayoutsPage() {
             state instead of an empty list. */}
         {pendingPayouts.length > 0 ? (
           <div className="space-y-2">
+            {/* Select-all checkbox row */}
+            <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={toggleSelectAll}
+                className="cursor-pointer accent-primary"
+                aria-label={isAllSelected ? "Deselect all" : "Select all"}
+              />
+              <span className="font-medium text-foreground">
+                {isAllSelected ? "Deselect all" : "Select all"}
+              </span>
+              <span className="text-muted-foreground">({selectedCount} selected)</span>
+            </div>
             {pendingPayouts.map((p) => {
               const perf = perfByTrader.get(p.traderId);
+              const isSelected = selectedPayouts.has(p.reference);
               return (
-                <div key={p.id} className="space-y-1">
+                <div
+                  key={p.id}
+                  className={cn(
+                    "relative space-y-1 rounded-md border bg-card p-3 transition-colors",
+                    isSelected && "ring-2 ring-primary/30",
+                  )}
+                >
+                  {/* Selection checkbox */}
+                  <div className="absolute left-2 top-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelection(p.reference)}
+                      className="cursor-pointer accent-primary"
+                      aria-label={isSelected ? `Deselect ${p.traderName}` : `Select ${p.traderName}`}
+                    />
+                  </div>
+
                   {/* Trader performance summary — profit target progress,
                       drawdown usage proxy (PnL vs balance), trading activity.
                       Reviewers approve with context instead of cross-referencing. */}
