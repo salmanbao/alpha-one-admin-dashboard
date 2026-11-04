@@ -26,6 +26,7 @@ import { usePlatform } from "@pfaas/platform-core";
 import { Sidebar } from "./sidebar";
 import { AccountSwitcher } from "./account-switcher";
 import { CommandPalette } from "./command-palette";
+import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { notifications, terraTenant } from "@/lib/fixtures/terra-fixtures";
 // Relative import — the @/components/platform/* alias points at the shared
 // package; local platform components are opt-in via tsconfig paths.
@@ -90,6 +91,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <SessionExpiryBanner />
       {/* ⌘K command palette — nav, quick actions, account switching */}
       <CommandPalette onToggleTheme={toggleDark} dark={dark} />
+      {/* `?` keyboard-shortcuts help (audit finding #1) */}
+      <KeyboardShortcutsHelp />
       <Sidebar mobileOpen={menuOpen} onClose={() => setMenuOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
