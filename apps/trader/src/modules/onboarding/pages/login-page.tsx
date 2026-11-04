@@ -118,6 +118,12 @@ export function LoginPage() {
             Start a challenge
           </Link>
         </p>
+        <p className="text-center text-xs text-on-surface-variant">
+          Account restricted?{" "}
+          <Link href="/account-locked" className="font-bold text-primary hover:underline">
+            View unlock steps
+          </Link>
+        </p>
       </div>
     </div>
   );

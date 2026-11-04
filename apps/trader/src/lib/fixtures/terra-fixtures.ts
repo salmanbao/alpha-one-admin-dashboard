@@ -2597,3 +2597,65 @@ export const terraIndustryStandards: TerraIndustryStandard[] = [
   { key: "bestDayShare", value: 40, source: "consistency-rule guidance (≤40% from one day)" },
   { key: "avgHoldHours", value: 2.5, source: "median hold across comparable programs" },
 ];
+
+/* ------------------------------------------------------------------ */
+/* Account lock / suspension (audit: account-locked state)             */
+/* ------------------------------------------------------------------ */
+
+export type AccountLock = {
+  accountId: string;
+  login: string;
+  challenge: string;
+  /** Why the account was restricted — plain language, one per cause. */
+  reasons: string[];
+  /** How long the restriction lasts; null = until resolved. */
+  duration: string;
+  /** The date the restriction was applied. */
+  lockedAt: string;
+  /** Steps the trader must take to regain access, in order. */
+  steps: { title: string; note: string; href?: string }[];
+  /** Whether an appeal is available for this lock type. */
+  appealAvailable: boolean;
+  /** Reference number for support tickets. */
+  caseRef: string;
+};
+
+/**
+ * Account-lock record backing the Account Locked screen — why the
+ * account was restricted, how long it lasts, and the exact steps to
+ * resolve it. Deterministic: no Math.random().
+ */
+export const accountLock: AccountLock = {
+  accountId: "acc-098412",
+  login: "098412",
+  challenge: "Terra Starter $25K",
+  reasons: [
+    "Multiple failed login attempts from an unrecognized device",
+    "Unusual withdrawal request pending verification",
+  ],
+  duration: "24 hours from the time of the restriction",
+  lockedAt: daysAgo(0),
+  steps: [
+    {
+      title: "Verify your identity",
+      note: "Complete the one-time identity check sent to your registered email.",
+      href: "/kyc-verification-status",
+    },
+    {
+      title: "Reset your password",
+      note: "Set a new password to secure your account.",
+    },
+    {
+      title: "Review recent activity",
+      note: "Confirm the recent logins and trades listed in your session history.",
+      href: "/account-settings",
+    },
+    {
+      title: "Contact support if needed",
+      note: `Reference case ${"CASE-2026-0847"} for a faster resolution.`,
+      href: "/help-center",
+    },
+  ],
+  appealAvailable: true,
+  caseRef: "CASE-2026-0847",
+};
