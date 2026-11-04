@@ -23,6 +23,18 @@ import {
 } from "@/components/terra/terra-ui";
 import { toast } from "@/hooks/use-toast";
 import { terraChallenges } from "@/lib/fixtures/terra-fixtures";
+import { FormField, useFormValidation } from "@pfaas/ui/platform-form-field";
+
+const billingValidators = {
+  firstName: (v: string) => (!v.trim() ? "First name is required." : ""),
+  lastName: (v: string) => (!v.trim() ? "Last name is required." : ""),
+  email: (v: string) => {
+    if (!v.trim()) return "Email is required.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return "Enter a valid email address.";
+    return "";
+  },
+  country: (v: string) => (!v.trim() ? "Country is required." : ""),
+};
 
 const paymentMethods = [
   { id: "card", label: "Credit / Debit Card", note: "Visa, Mastercard, Amex" },
@@ -305,6 +317,13 @@ export function CheckoutPage() {
     methodCardRef.current?.focus({ preventScroll: true });
   }, [methodFocusNonce]);
 
+  // Billing details — shared validation (audit #5)
+  const [firstName, setFirstName] = useState("Tom");
+  const [lastName, setLastName] = useState("Allen");
+  const [email, setEmail] = useState("tom.allen@terra.trader");
+  const [country, setCountry] = useState("United States");
+  const { field: billingField, validateAll: validateBilling } = useFormValidation(billingValidators);
+
   const addonsTotal = addons
     .filter((a) => selectedAddons.includes(a.id))
     .reduce((s, a) => s + a.price, 0);
@@ -337,6 +356,8 @@ export function CheckoutPage() {
     );
 
   function pay() {
+    // Validate billing details before processing (audit #5)
+    if (!validateBilling({ firstName, lastName, email, country })) return;
     setProcessing(true);
     // Simulate a payment outcome deterministically: attempts 1, 2 fail
     // (cycling the reason catalog), attempt 3 succeeds.
@@ -492,22 +513,35 @@ export function CheckoutPage() {
           <TerraCard>
             <TerraSectionTitle title="Billing details" />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {[
-                ["First name", "Tom"],
-                ["Last name", "Allen"],
-                ["Email", "tom.allen@terra.trader"],
-                ["Country", "United States"],
-              ].map(([label, value]) => (
-                <label key={label} className="flex flex-col gap-1.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                    {label}
-                  </span>
-                  <input
-                    defaultValue={value}
-                    className="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                  />
-                </label>
-              ))}
+              <FormField
+                id="billing-first-name"
+                label="First name"
+                required
+                value={firstName}
+                {...billingField("firstName", firstName, setFirstName)}
+              />
+              <FormField
+                id="billing-last-name"
+                label="Last name"
+                required
+                value={lastName}
+                {...billingField("lastName", lastName, setLastName)}
+              />
+              <FormField
+                id="billing-email"
+                label="Email"
+                type="email"
+                required
+                value={email}
+                {...billingField("email", email, setEmail)}
+              />
+              <FormField
+                id="billing-country"
+                label="Country"
+                required
+                value={country}
+                {...billingField("country", country, setCountry)}
+              />
             </div>
           </TerraCard>
 
