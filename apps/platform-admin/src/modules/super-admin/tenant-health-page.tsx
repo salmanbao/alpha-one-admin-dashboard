@@ -18,7 +18,13 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { supportTickets, breaches } from "@/lib/platform/mock-data";
-import { healthOf, tenantHealthScore, type Health } from "@/lib/platform/tenant-health";
+import {
+  healthOf,
+  tenantHealthScore,
+  tenantForecast,
+  forecastSummary,
+  type Health,
+} from "@/lib/platform/tenant-health";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -32,13 +38,16 @@ import {
   ArrowRight,
   Building2,
   CheckCircle2,
+  Gauge,
   HeartPulse,
   Inbox,
   LifeBuoy,
   Package,
   ShieldAlert,
+  TrendingUp,
   Users,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
 /* Health model (deterministic)                                        */
@@ -86,7 +95,15 @@ export function TenantHealthPage() {
         const openBreaches = breaches.filter(
           (b) => b.tenantId === t.id && b.status === "open",
         );
-        return { tenant: t, health, score: tenantHealthScore(t), openTickets, highTickets, openBreaches };
+        return {
+          tenant: t,
+          health,
+          score: tenantHealthScore(t),
+          forecast: tenantForecast(t),
+          openTickets,
+          highTickets,
+          openBreaches,
+        };
       })
       .filter((r) => focus === "all" || r.health === focus)
       .sort((a, b) => {
@@ -99,7 +116,7 @@ export function TenantHealthPage() {
     () =>
       availableTenants
         .filter((t) => t.id !== "platform")
-        .map((t) => ({ tenant: t, health: healthOf(t) })),
+        .map((t) => ({ tenant: t, health: healthOf(t), forecast: tenantForecast(t) })),
     [availableTenants],
   );
 
@@ -126,6 +143,29 @@ export function TenantHealthPage() {
   const highTickets = openTickets.filter((s) => s.priority === "high" || s.priority === "urgent");
   const openBreaches = breaches.filter((b) => b.status === "open");
   const criticalBreaches = openBreaches.filter((b) => b.severity === "critical");
+
+  // Predictive layer (audit finding #8) — churn risk + growth signals,
+  // derived in lib/platform/tenant-health from the same fixtures as the
+  // health score, so the forecast never contradicts the score next to it.
+  const forecastCounts = useMemo(
+    () => forecastSummary(allRows.map((r) => r.forecast)),
+    [allRows],
+  );
+  const churnRanked = useMemo(
+    () =>
+      allRows
+        .filter((r) => r.forecast.churnScore > 0)
+        .sort((a, b) => b.forecast.churnScore - a.forecast.churnScore),
+    [allRows],
+  );
+  const nearLimitTenants = useMemo(
+    () => allRows.filter((r) => r.forecast.nearLimit),
+    [allRows],
+  );
+  const underusedTenants = useMemo(
+    () => allRows.filter((r) => r.forecast.underutilized),
+    [allRows],
+  );
 
   /**
    * Recommended Actions — dynamic intervention suggestions derived from
@@ -262,6 +302,31 @@ export function TenantHealthPage() {
       header: "Health",
       cell: (r) => <Badge variant={healthTone[r.health]}>{healthLabel[r.health]}</Badge>,
       sortValue: (r) => (r.health === "critical" ? 0 : r.health === "watch" ? 1 : 2),
+    },
+    {
+      key: "churn",
+      header: "Churn risk",
+      cell: (r) => (
+        <span
+          className="text-xs font-semibold tabular-nums"
+          title={r.forecast.churnDrivers.join(" ") || "No churn signals."}
+        >
+          <span
+            className={cn(
+              "mr-1.5 text-[10px] font-semibold uppercase tracking-wide",
+              r.forecast.churnRisk === "high"
+                ? "text-destructive"
+                : r.forecast.churnRisk === "medium"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-emerald-600 dark:text-emerald-400",
+            )}
+          >
+            {r.forecast.churnRisk}
+          </span>
+          {r.forecast.churnScore}/100
+        </span>
+      ),
+      sortValue: (r) => r.forecast.churnScore,
     },
     { key: "status", header: "Status", cell: (r) => <Badge variant="outline" className="capitalize">{r.tenant.status}</Badge>, sortValue: (r) => r.tenant.status },
     { key: "plan", header: "Plan", cell: (r) => <span className="capitalize text-xs">{r.tenant.plan}</span>, sortValue: (r) => r.tenant.plan },
@@ -409,6 +474,167 @@ export function TenantHealthPage() {
                 })}
               </ul>
             )}
+          </Card>
+
+          {/* Predictive insights (audit finding #8) — churn risk scores,
+              plan-limit warnings and growth suggestions derived from
+              health + usage signals, so operators act before tenants
+              churn instead of after. */}
+          <Card>
+            <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+              <div>
+                <h2 className="text-sm font-semibold">Predictive insights</h2>
+                <p className="text-xs text-muted-foreground">
+                  90-day churn risk and growth opportunities, derived from health, support, and plan usage.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                <Badge variant={forecastCounts.high > 0 ? "destructive" : "secondary"} className="text-[10px]">
+                  {forecastCounts.high} high churn risk
+                </Badge>
+                <Badge variant={forecastCounts.nearLimit > 0 ? "default" : "secondary"} className="text-[10px]">
+                  {forecastCounts.nearLimit} near plan limit
+                </Badge>
+                <Badge variant={forecastCounts.underutilized > 0 ? "secondary" : "outline"} className="text-[10px]">
+                  {forecastCounts.underutilized} underutilized
+                </Badge>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+              {/* Churn risk ranking */}
+              <div className="space-y-3">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <TrendingUp className="h-3.5 w-3.5" aria-hidden /> Highest churn risk
+                </p>
+                {churnRanked.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No tenant shows churn signals right now.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {churnRanked.slice(0, 4).map((r) => (
+                      <li key={r.tenant.id} className="rounded-md border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
+                            onClick={() => navigate("tenant-detail", { id: r.tenant.id })}
+                          >
+                            {r.tenant.name}
+                          </button>
+                          <span
+                            className="flex items-center gap-2"
+                            title={r.forecast.churnDrivers.join(" ")}
+                          >
+                            <span
+                              className={cn(
+                                "text-[10px] font-semibold uppercase tracking-wide",
+                                r.forecast.churnRisk === "high"
+                                  ? "text-destructive"
+                                  : r.forecast.churnRisk === "medium"
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : "text-emerald-600 dark:text-emerald-400",
+                              )}
+                            >
+                              {r.forecast.churnRisk} risk
+                            </span>
+                            <span className="text-xs font-semibold tabular-nums">
+                              {r.forecast.churnScore}
+                              <span className="font-normal text-muted-foreground">/100</span>
+                            </span>
+                          </span>
+                        </div>
+                        <div
+                          className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"
+                          role="progressbar"
+                          aria-valuenow={r.forecast.churnScore}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`${r.tenant.name} churn risk: ${r.forecast.churnScore} of 100 (${r.forecast.churnRisk})`}
+                        >
+                          <div
+                            className={cn(
+                              "h-full rounded-full",
+                              r.forecast.churnRisk === "high"
+                                ? "bg-destructive"
+                                : r.forecast.churnRisk === "medium"
+                                  ? "bg-amber-500"
+                                  : "bg-emerald-500",
+                            )}
+                            style={{ width: `${r.forecast.churnScore}%` }}
+                          />
+                        </div>
+                        {r.forecast.churnDrivers.length > 0 && (
+                          <p className="mt-1.5 text-[11px] text-muted-foreground">
+                            {r.forecast.churnDrivers[0]}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {/* Growth suggestions — expansion vs adoption plays */}
+              <div className="space-y-3">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Gauge className="h-3.5 w-3.5" aria-hidden /> Growth suggestions
+                </p>
+                {nearLimitTenants.length === 0 && underusedTenants.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    All tenants sit comfortably inside their plan — no expansion or adoption plays.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {nearLimitTenants.map((r) => (
+                      <li key={`limit-${r.tenant.id}`} className="rounded-md border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium">
+                            {r.tenant.name} — at {r.forecast.peakUtilization}% of {r.tenant.plan}
+                          </span>
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => navigate("usage-metering")}>
+                            Usage <ArrowRight className="ml-1 h-3 w-3" />
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {r.forecast.suggestions[0]}
+                        </p>
+                      </li>
+                    ))}
+                    {underusedTenants.map((r) => (
+                      <li key={`under-${r.tenant.id}`} className="rounded-md border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium">
+                            {r.tenant.name} — underusing the {r.tenant.plan} plan
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => navigate("tenant-detail", { id: r.tenant.id })}
+                          >
+                            Tenant <ArrowRight className="ml-1 h-3 w-3" />
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {r.forecast.suggestions[0]}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="mt-1 h-7 text-xs"
+                          onClick={() =>
+                            toast({
+                              title: "Queued (mock)",
+                              description: `Adoption review queued for ${r.tenant.name}.`,
+                            })
+                          }
+                        >
+                          Queue adoption review
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           </Card>
 
           {/* Health focus filter — jump straight to the at-risk segment */}
