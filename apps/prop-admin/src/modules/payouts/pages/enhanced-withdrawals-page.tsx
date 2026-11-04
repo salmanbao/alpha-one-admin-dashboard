@@ -136,6 +136,40 @@ const KYC_OPTIONS: { value: KycFilter; label: string }[] = [
   { value: "rejected", label: "Verification failed" },
 ];
 
+const DAY_MS = 86_400_000;
+
+/** Processing SLA per method (business days from request → decision) —
+ *  drives the queue ETA column and the "Processing timeframes" card so
+ *  admins can answer "when will it arrive?" without leaving the queue
+ *  (audit finding #4). Deterministic fixture, no runtime sampling. */
+const METHOD_SLA_DAYS: Record<Payout["method"], number> = {
+  "bank-transfer": 5,
+  crypto: 1,
+  paypal: 2,
+  skrill: 3,
+};
+
+/** Average request → paid days per method over the last 12 months,
+ *  with the SLA target the firm commits to. */
+const METHOD_AVG_DAYS: Record<Payout["method"], { avg: number; target: number }> = {
+  "bank-transfer": { avg: 5.4, target: 5 },
+  crypto: { avg: 1.2, target: 1 },
+  paypal: { avg: 2.3, target: 2 },
+  skrill: { avg: 3.6, target: 3 },
+};
+
+/** Firm-wide average processing days per month (oldest → newest) —
+ *  the historical view used to spot bottlenecks. Fixed fixture so the
+ *  chart is stable across renders and screenshots. */
+const MONTHLY_PROCESSING_DAYS = [4.9, 4.7, 5.2, 5.0, 4.6, 4.3, 4.5, 4.2, 4.0, 4.1, 3.9, 3.8];
+
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Month label for the trend bars — `back` months before the current one. */
+function monthLabel(back: number): string {
+  return MONTH_ABBR[(new Date().getMonth() - back + 24) % 12];
+}
+
 /** Account size buckets — derived from amount for the demo. */
 function sizeForAmount(amount: number): { label: string; tone: "default" | "success" | "warning" } {
   if (amount >= 5000) return { label: "Large", tone: "warning" };
@@ -319,6 +353,57 @@ export function EnhancedWithdrawalsPage() {
   const rejectedToday = payouts.filter(
     (p) => p.status === "rejected" && p.processedAt && new Date(p.processedAt).getTime() >= startOfDay.getTime(),
   ).length;
+
+  // Pending queue position (audit finding #4) — oldest request first,
+  // so the admin can tell a trader exactly where their payout sits.
+  const pendingQueue = useMemo(() => {
+    const q = payouts
+      .filter((p) => p.status === "pending")
+      .slice()
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return new Map(q.map((p, i) => [p.id, i + 1]));
+  }, [payouts]);
+
+  /** Timing cell — queue position + ETA for in-flight requests, actual
+   *  turnaround for completed ones (audit finding #4). */
+  const renderTiming = (p: Payout) => {
+    if (p.status === "paid" && p.processedAt) {
+      const days = Math.max(
+        0,
+        Math.round((new Date(p.processedAt).getTime() - new Date(p.createdAt).getTime()) / DAY_MS),
+      );
+      return <span className="text-xs text-muted-foreground">Completed in {days}d</span>;
+    }
+    if (p.status === "rejected") {
+      return <span className="text-xs text-muted-foreground">Decided, not paid</span>;
+    }
+    const sla = METHOD_SLA_DAYS[p.method] ?? 3;
+    const eta = new Date(new Date(p.createdAt).getTime() + sla * DAY_MS);
+    const overdueBy = Math.ceil((Date.now() - eta.getTime()) / DAY_MS);
+    const queuePos = pendingQueue.get(p.id);
+    return (
+      <div className="flex flex-col gap-0.5">
+        {queuePos ? (
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Queue #{queuePos} of {pendingCount}
+          </span>
+        ) : (
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {sla}d method SLA
+          </span>
+        )}
+        {overdueBy > 0 ? (
+          <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+            Overdue by {overdueBy}d
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            ETA {eta.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </span>
+        )}
+      </div>
+    );
+  };
 
   // Selection helpers
   const toggleAll = () => {
@@ -634,6 +719,10 @@ export function EnhancedWithdrawalsPage() {
                 <TableHead className="h-9 px-3 text-xs uppercase tracking-wide" aria-sort={sortKey === "created" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader k="created" label="Created" />
                 </TableHead>
+                <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">
+                  Timing
+                  <span className="sr-only"> — queue position and expected completion date</span>
+                </TableHead>
                 <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">Performance</TableHead>
                 <TableHead className="h-9 px-3 text-xs uppercase tracking-wide" aria-sort={sortKey === "status" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader k="status" label="Status" />
@@ -643,7 +732,7 @@ export function EnhancedWithdrawalsPage() {
             <TableBody>
               {sorted.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={12} className="px-3 py-8 text-center text-sm text-muted-foreground">
                     No withdrawals match your filters.
                   </TableCell>
                 </TableRow>
@@ -703,6 +792,7 @@ export function EnhancedWithdrawalsPage() {
                       <TableCell className="px-3 py-2.5 text-xs text-muted-foreground">
                         {new Date(p.createdAt).toLocaleDateString()}
                       </TableCell>
+                      <TableCell className="px-3 py-2.5">{renderTiming(p)}</TableCell>
                       <TableCell className="px-3 py-2.5">
                         <TraderPerformanceChip trader={traderById.get(p.traderId)} />
                       </TableCell>
@@ -720,6 +810,84 @@ export function EnhancedWithdrawalsPage() {
               Showing 50 of {sorted.length} withdrawals. Refine filters to narrow results.
             </div>
           ) : null}
+        </div>
+
+        {/* Processing timeframes (audit finding #4) — per-method averages
+            vs SLA target plus a 12-month trend, so admins can set exact
+            expectations ("crypto lands next day, bank transfer ~5 days")
+            and spot the method that is becoming the bottleneck. */}
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-medium text-foreground">Processing timeframes</h3>
+              <p className="text-xs text-muted-foreground">
+                Average request → paid per method, last 12 months. ETAs above use the same SLA.
+              </p>
+            </div>
+            <Badge variant="outline" className="text-[10px]">
+              {MONTHLY_PROCESSING_DAYS[MONTHLY_PROCESSING_DAYS.length - 1]}d current average
+            </Badge>
+          </div>
+          <div className="mt-3 grid gap-5 md:grid-cols-2">
+            {/* Per-method averages vs target */}
+            <div className="space-y-2" role="list" aria-label="Average processing days by method">
+              {(["bank-transfer", "crypto", "paypal", "skrill"] as const).map((m) => {
+                const Icon = methodIcon(m);
+                const { avg, target } = METHOD_AVG_DAYS[m];
+                const pct = Math.min(100, Math.round((avg / 6) * 100));
+                const overTarget = avg > target;
+                return (
+                  <div key={m} className="flex items-center gap-2 text-xs" role="listitem">
+                    <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                    <span className="w-24 shrink-0 capitalize text-foreground">{m.replace("-", " ")}</span>
+                    <div
+                      className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
+                      role="progressbar"
+                      aria-valuenow={avg}
+                      aria-valuemin={0}
+                      aria-valuemax={6}
+                      aria-label={`${m.replace("-", " ")}: ${avg} day average, ${target} day target`}
+                    >
+                      <div
+                        className={cn("h-full rounded-full", overTarget ? "bg-amber-500" : "bg-emerald-500")}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="w-24 shrink-0 text-right tabular-nums text-muted-foreground">
+                      {avg}d avg · {target}d target
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {/* 12-month firm-wide trend */}
+            <div>
+              <p className="text-xs text-muted-foreground">
+                Firm-wide average days per month
+              </p>
+              <div
+                className="mt-2 flex h-24 items-end gap-1"
+                role="img"
+                aria-label={`12-month processing trend, improving from ${MONTHLY_PROCESSING_DAYS[0]} days to ${MONTHLY_PROCESSING_DAYS[MONTHLY_PROCESSING_DAYS.length - 1]} days: ${MONTHLY_PROCESSING_DAYS.join(", ")}`}
+              >
+                {MONTHLY_PROCESSING_DAYS.map((d, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "flex-1 rounded-t",
+                      i === MONTHLY_PROCESSING_DAYS.length - 1 ? "bg-emerald-500" : "bg-emerald-500/50",
+                    )}
+                    style={{ height: `${Math.min(100, Math.round((d / 6) * 100))}%` }}
+                    title={`${monthLabel(MONTHLY_PROCESSING_DAYS.length - 1 - i)}: ${d} days`}
+                  />
+                ))}
+              </div>
+              <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+                <span>{monthLabel(MONTHLY_PROCESSING_DAYS.length - 1)}</span>
+                <span>{monthLabel(0)}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <p className="text-xs text-muted-foreground">
