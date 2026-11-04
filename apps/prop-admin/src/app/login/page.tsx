@@ -43,7 +43,13 @@ function LoginRedirect() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={
+      <div className="flex min-h-[60vh] items-center justify-center p-8">
+        <p className="text-sm text-muted-foreground" role="status">
+          Loading…
+        </p>
+      </div>
+    }>
       <LoginRedirect />
     </Suspense>
   );
