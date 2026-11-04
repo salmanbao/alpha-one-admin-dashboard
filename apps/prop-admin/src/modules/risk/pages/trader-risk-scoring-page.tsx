@@ -321,17 +321,32 @@ export function TraderRiskScoringPage() {
       key: "actions",
       header: "Actions",
       cell: (s) => (
-        <Button
-          size="sm"
-          variant="ghost"
-          title="Open the trader profile to investigate"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate("trader-detail", { id: s.trader.id });
-          }}
-        >
-          Investigate <ArrowRight className="ml-1 h-3.5 w-3.5" />
-        </Button>
+        <span className="flex items-center justify-end gap-1">
+          {/* Audit finding #2 — jump straight into coaching for the
+              trader this row just flagged. */}
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Open the coaching tab to send feedback or schedule a follow-up"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("trader-detail", { id: s.trader.id, tab: "Coaching" });
+            }}
+          >
+            Coach
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Open the trader profile to investigate"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("trader-detail", { id: s.trader.id });
+            }}
+          >
+            Investigate <ArrowRight className="ml-1 h-3.5 w-3.5" />
+          </Button>
+        </span>
       ),
     },
   ];
