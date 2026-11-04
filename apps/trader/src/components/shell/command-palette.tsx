@@ -36,6 +36,7 @@ import {
   ArrowLeftRight,
   ArrowDownToLine,
   FileSpreadsheet,
+  Keyboard,
   Moon,
   Sun,
   Wallet,
@@ -123,6 +124,17 @@ export function CommandPalette({ onToggleTheme, dark }: { onToggleTheme: () => v
         run: () => {
           setCommandOpen(false);
           onToggleTheme();
+        },
+      },
+      {
+        id: "qa-shortcuts",
+        label: "Show keyboard shortcuts",
+        group: "Quick actions",
+        icon: Keyboard,
+        keywords: "help keys ? accessibility",
+        run: () => {
+          setCommandOpen(false);
+          (window as unknown as { __openShortcutsHelp?: () => void }).__openShortcutsHelp?.();
         },
       },
     );

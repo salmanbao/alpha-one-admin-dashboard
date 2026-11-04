@@ -59,13 +59,15 @@ export function MarketplacePage() {
         }
       />
 
-      {/* Filter pills */}
-      <div className="flex items-center gap-1.5">
+      {/* Filter pills — aria-pressed marks the active filter for assistive
+          tech (audit finding #1: toggle state was visual-only). */}
+      <div className="flex items-center gap-1.5" role="group" aria-label="Filter challenges">
         {filters.map((f) => (
           <button
             key={f}
             type="button"
             onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
             className={cn(
               "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all",
               filter === f
