@@ -8,7 +8,7 @@
 import { cn } from "@pfaas/ui";
 import { formatCurrencyValue, formatSignedCurrencyValue } from "@pfaas/platform-core";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 /* ------------------------------------------------------------------ */
 /* Formatting helpers                                                  */
@@ -298,6 +298,12 @@ export function TerraAreaChart({
   height?: number;
   formatValue?: (v: number) => string;
 }) {
+  // Interactive hover / focus tooltip (audit finding #5 — trader charts
+  // had no hover affordance while the admin dashboards' recharts did).
+  // Hover, keyboard focus, and ←/→ all drive the same index, so mouse
+  // and keyboard users get identical information.
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
   if (data.length < 2) return null;
 
   const W = 680;
@@ -342,15 +348,53 @@ export function TerraAreaChart({
   // when a page rendered more than one TerraAreaChart together).
   const gradId = `terraGrad-${String(values[0] ?? 0)}-${String(values.at(-1) ?? 0)}`;
 
+  // Hover / focus plumbing — pointer position → nearest data index
+  // (the svg stretches with preserveAspectRatio="none", so x maps
+  // linearly from client px to viewBox units).
+  const clampIdx = (i: number) => Math.max(0, Math.min(data.length - 1, i));
+  const idxFromClientX = (clientX: number, el: SVGSVGElement) => {
+    const rect = el.getBoundingClientRect();
+    const rel = ((clientX - rect.left) / (rect.width || 1)) * W;
+    const t = (rel - padL) / (W - padL - padR);
+    return clampIdx(Math.round(t * (data.length - 1)));
+  };
+  const hovered = hoverIdx !== null ? data[hoverIdx] : null;
+  const hoveredValue = hoverIdx !== null ? values[hoverIdx] : null;
+  const hoverText =
+    hovered && hoveredValue !== null
+      ? `${hovered.x}: ${formatValue ? formatValue(hoveredValue) : Math.round(hoveredValue)}`
+      : "";
+  // Keep the tooltip inside the plot: flip below when the point is high.
+  const tipLeftPct = hoverIdx !== null ? (sx(hoverIdx) / W) * 100 : 50;
+  const tipLeft = Math.min(86, Math.max(14, tipLeftPct));
+  const tipAbove = hoverIdx !== null ? sy(values[hoverIdx]) / H > 0.28 : true;
+
   return (
     <>
+      <div className="relative">
       <svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
       className="w-full overflow-visible"
       style={{ height }}
       role="img"
-      aria-label={`Equity area chart: ${data.length} points from ${data[0]?.x ?? "—"} to ${data[data.length-1]?.x ?? "—"}, range ${Math.round(min)} to ${Math.round(max)}`}
+      tabIndex={0}
+      aria-label={`Equity area chart: ${data.length} points from ${data[0]?.x ?? "—"} to ${data[data.length-1]?.x ?? "—"}, range ${Math.round(min)} to ${Math.round(max)}. Hover or use the left and right arrow keys to read individual points.`}
+      onMouseMove={(e) => setHoverIdx(idxFromClientX(e.clientX, e.currentTarget))}
+      onMouseLeave={() => setHoverIdx(null)}
+      onFocus={() => setHoverIdx((h) => h ?? data.length - 1)}
+      onBlur={() => setHoverIdx(null)}
+      onKeyDown={(e) => {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Home" && e.key !== "End") return;
+        e.preventDefault();
+        setHoverIdx((h) => {
+          const cur = h ?? data.length - 1;
+          if (e.key === "ArrowLeft") return clampIdx(cur - 1);
+          if (e.key === "ArrowRight") return clampIdx(cur + 1);
+          if (e.key === "Home") return 0;
+          return data.length - 1;
+        });
+      }}
     >
       <defs>
         <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
@@ -390,6 +434,29 @@ export function TerraAreaChart({
       <path d={line} fill="none" stroke="#4a7c59" strokeWidth="3" strokeLinecap="round" />
       <circle cx={lastX} cy={lastY} fill="#4a7c59" r="5" />
       <circle className="animate-pulse" cx={lastX} cy={lastY} fill="#4a7c59" opacity="0.25" r="10" />
+      {/* Hover / focus crosshair + point marker (audit finding #5) */}
+      {hoverIdx !== null && (
+        <g pointerEvents="none">
+          <line
+            x1={sx(hoverIdx)}
+            x2={sx(hoverIdx)}
+            y1={padT}
+            y2={H - padB}
+            stroke="#4a7c59"
+            strokeWidth="1"
+            strokeDasharray="3 3"
+            opacity="0.7"
+          />
+          <circle
+            cx={sx(hoverIdx)}
+            cy={sy(values[hoverIdx])}
+            r="4.5"
+            fill="#ffffff"
+            stroke="#4a7c59"
+            strokeWidth="2.5"
+          />
+        </g>
+      )}
       {/* Starting-balance reference line: a distinct visual + text encoding beyond color alone */}
       <line
         x1={padL}
@@ -421,6 +488,28 @@ export function TerraAreaChart({
         ))}
       </g>
     </svg>
+      {/* Tooltip — mirrors the hovered point; aria-hidden because the
+          live region below announces it for screen readers. */}
+      {hovered && hoveredValue !== null && (
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-md border bg-popover px-2 py-1 text-xs shadow-md",
+            tipAbove ? "-translate-y-full" : "translate-y-1",
+          )}
+          style={{ left: `${tipLeft}%`, top: `${(sy(hoveredValue) / H) * 100}%` }}
+        >
+          <span className="block font-medium text-foreground">{hovered.x}</span>
+          <span className="block tabular-nums text-muted-foreground">
+            {formatValue ? formatValue(hoveredValue) : Math.round(hoveredValue)}
+          </span>
+        </div>
+      )}
+      </div>
+      {/* Keyboard/screen-reader equivalent of the hover tooltip */}
+      <span className="sr-only" aria-live="polite">
+        {hoverText ? `Point ${hoverIdx! + 1} of ${data.length} — ${hoverText}` : ""}
+      </span>
     {/* Accessible data table: color-independent encoding for screen readers / print */}
     <table className="sr-only" aria-label={`Equity curve data — ${data.length} rows, ${data[0].x} to ${data[data.length - 1].x}`}>
       <thead><tr><th>Date</th><th>Value</th></tr></thead>
