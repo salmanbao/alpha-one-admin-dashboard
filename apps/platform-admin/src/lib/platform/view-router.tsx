@@ -251,6 +251,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "sla-monitoring": dynamic(
+    () =>
+      import("@/modules/super-admin/sla-monitoring-page").then((m) => ({
+        default: m.SlaMonitoringPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "provisioning-saga": dynamic(
     () =>
       import("@/modules/super-admin/provisioning-saga-page").then((m) => ({
