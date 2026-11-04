@@ -251,6 +251,55 @@ const TENANT_TEMPLATES: TenantTemplate[] = [
 ];
 
 /* ------------------------------------------------------------------ */
+/* Business-model personalization (audit B #6) — per-template tips   */
+/* shown when a template is active, guiding the operator on           */
+/* configuration best practices for their firm type.                   */
+/* ------------------------------------------------------------------ */
+
+/** Per-template business-model recommendations. */
+const TENANT_BUSINESS_MODEL_RECOMMENDATIONS: Record<
+  string,
+  { title: string; tips: string[] }
+> = {
+  starter: {
+    title: "Starter firm — lean launch focus",
+    tips: [
+      "Start with core modules only (trading, challenges, risk, payouts, settings).",
+      "Enable additional modules later as the firm grows — unused modules add dashboard noise.",
+      "Focus on trader onboarding and challenge completion to reach payout eligibility quickly.",
+      "Set the reporting currency to match where the firm invoices from — historical amounts are pinned to it.",
+    ],
+  },
+  growth: {
+    title: "Growth firm — acquisition focus",
+    tips: [
+      "Enable analytics, affiliates, and marketing if the firm runs acquisition programs.",
+      "CRM and support modules help retain and manage an expanding trader base.",
+      "Consider the Scale plan when module count exceeds 8 — Scale caps are higher than Growth.",
+      "Monitor affiliate commission structures to ensure they align with trader payout schedules.",
+    ],
+  },
+  full: {
+    title: "Full platform — enterprise operation",
+    tips: [
+      "Every module enabled provides comprehensive coverage but increases dashboard complexity.",
+      "Compliance and AI modules require ongoing configuration and governance.",
+      "Regular module audits ensure unused features don't clutter the operator experience.",
+      "Set up SSO (SAML/OIDC) on the Scale or Enterprise plan for team management.",
+    ],
+  },
+  enterprise: {
+    title: "Enterprise + SSO — global desk",
+    tips: [
+      "Contracted SSO requires a Scale or Enterprise plan — verify plan tier before enabling.",
+      "Configure SAML/OIDC identity provider before provisioning to avoid saga blocker.",
+      "Global desks should establish regional admin roles and delegated permissions.",
+      "Enterprise plan entitlements include higher trader ceilings and custom compliance rules.",
+    ],
+  },
+};
+
+/* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -802,6 +851,24 @@ function BasicsStep({
             : "A template prefills plan, branding and module selection from a real firm profile. Nothing is locked: edit any field afterwards."}
         </p>
       </div>
+
+      {/* Business-model personalization (audit B #6) — shown when a template is active */}
+      {activeTemplate && (
+        <div className="mt-3 rounded-lg border bg-muted/30 p-3">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <Sparkles className="h-3 w-3 text-primary" aria-hidden />
+            {TENANT_BUSINESS_MODEL_RECOMMENDATIONS[activeTemplate].title}
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {TENANT_BUSINESS_MODEL_RECOMMENDATIONS[activeTemplate].tips.map((tip) => (
+              <li key={tip} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <span className="mt-px text-primary" aria-hidden>•</span>
+                {tip}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div>
         <RequiredLabel>Tenant basics</RequiredLabel>
