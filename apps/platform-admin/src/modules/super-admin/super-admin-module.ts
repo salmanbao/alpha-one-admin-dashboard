@@ -142,6 +142,7 @@ const navigation: NavigationItem[] = [
 
       // ───────── Analytics ─────────
       { id: "super.analytics", label: "Platform Analytics", href: "platform-analytics", icon: BarChart3, application: ["super-admin"], group: "Analytics" },
+      { id: "super.benchmarking", label: "Tenant Benchmarking", href: "tenant-benchmarking", icon: Gauge, application: ["super-admin"], group: "Analytics" },
       { id: "super.scheduled-reports", label: "Scheduled Reports", href: "scheduled-reports", icon: CalendarClock, application: ["super-admin"], group: "Analytics" },
 
       // ───────── Content & Marketing ─────────
@@ -196,6 +197,7 @@ const routes: RouteDefinition[] = [
   { path: "platform-billing", viewId: "platform-billing", label: "Billing & Invoices", application: ["super-admin"] },
   { path: "platform-financials", viewId: "platform-financials", label: "Platform Financials", application: ["super-admin"] },
   { path: "platform-analytics", viewId: "platform-analytics", label: "Platform Analytics", application: ["super-admin"] },
+  { path: "tenant-benchmarking", viewId: "tenant-benchmarking", label: "Tenant Benchmarking", application: ["super-admin"] },
   { path: "platform-audit", viewId: "platform-audit", label: "Platform Audit Log", application: ["super-admin"], permission: "platform.audit.read" },
   { path: "knowledge-base", viewId: "knowledge-base", label: "Knowledge Base", application: ["super-admin"] },
   { path: "changelog", viewId: "changelog", label: "What's New", application: ["super-admin"] },
