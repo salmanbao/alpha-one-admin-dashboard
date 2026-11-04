@@ -27,6 +27,7 @@ import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
 import type { TenantContext } from "@/lib/platform/types";
 import { soonestLimit } from "@/lib/platform/usage-forecast";
+import { PLAN_LIMITS, USAGE } from "@/lib/platform/usage-facts";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,34 +56,9 @@ import {
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/* Deterministic per-tenant usage (mock)                               */
+/* Deterministic per-tenant usage — owned by lib/platform/usage-facts   */
+/* so the tenant health forecast reads the same numbers (audit #8).     */
 /* ------------------------------------------------------------------ */
-
-/** Plan ceilings per CON-05 entitlements — the numbers CON-10 metering checks against. */
-const PLAN_LIMITS: Record<
-  TenantContext["plan"],
-  { accounts: number; apiCallsPerDay: number; storageGb: number; eventsPerDay: number }
-> = {
-  starter: { accounts: 1_000, apiCallsPerDay: 100_000, storageGb: 50, eventsPerDay: 10_000 },
-  growth: { accounts: 5_000, apiCallsPerDay: 1_000_000, storageGb: 250, eventsPerDay: 100_000 },
-  scale: { accounts: 20_000, apiCallsPerDay: 5_000_000, storageGb: 1_000, eventsPerDay: 500_000 },
-  enterprise: { accounts: 50_000, apiCallsPerDay: 10_000_000, storageGb: 2_000, eventsPerDay: 1_000_000 },
-};
-
-interface TenantUsage {
-  tenantId: string;
-  accounts: number;
-  apiCallsPerDay: number;
-  storageGb: number;
-  eventsPerDay: number;
-}
-
-/** Deterministic pseudo-usage derived from the tenant id — stable across renders. */
-const USAGE: TenantUsage[] = [
-  { tenantId: "tenant-alpha", accounts: 1_842, apiCallsPerDay: 742_310, storageGb: 188, eventsPerDay: 61_240 },
-  { tenantId: "tenant-beta", accounts: 918, apiCallsPerDay: 88_400, storageGb: 31, eventsPerDay: 8_120 },
-  { tenantId: "tenant-gamma", accounts: 3_104, apiCallsPerDay: 1_284_900, storageGb: 302, eventsPerDay: 148_500 },
-];
 
 const pct = (used: number, limit: number) => Math.min(100, Math.round((used / limit) * 100));
 
