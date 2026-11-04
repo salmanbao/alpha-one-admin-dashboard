@@ -90,9 +90,14 @@ export function PlatformAnalyticsPage() {
         description="Cross-tenant comparisons — growth, usage, revenue, and provider consumption."
         icon={BarChart3}
         actions={
-          <Button size="sm" variant="outline" onClick={() => navigate("ai-usage-quota")}>
-            AI usage & quotas
-          </Button>
+          <>
+            <Button size="sm" variant="outline" onClick={() => navigate("tenant-benchmarking")}>
+              Tenant benchmarking
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate("ai-usage-quota")}>
+              AI usage & quotas
+            </Button>
+          </>
         }
       />
       <PageContent>

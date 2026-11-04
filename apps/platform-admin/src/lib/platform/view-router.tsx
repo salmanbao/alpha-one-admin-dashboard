@@ -216,6 +216,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "tenant-benchmarking": dynamic(
+    () =>
+      import("@/modules/super-admin/tenant-benchmarking-page").then((m) => ({
+        default: m.TenantBenchmarkingPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "tenant-detail": dynamic(
     () =>
       import("@/modules/super-admin/tenant-detail-page").then((m) => ({
