@@ -252,6 +252,30 @@ export function DashboardPage() {
             </button>
           </div>
         )}
+        {/* Evaluation progress detail — trade-by-trade timeline and rule adherence (audit #5) */}
+        {acc.status === "breached" && (
+          <div className="mt-6 rounded-xl bg-surface-container-low border border-border p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <TerraBadge tone="error" className="h-3 w-3">
+                ⚠️
+              </TerraBadge>
+              <p className="text-sm font-medium text-on-surface-variant">
+                Evaluation Progress Detail
+              </p>
+            </div>
+            <div className="text-xs text-on-surface-variant mb-3">
+              Review the specific trades and rules that triggered the breach, along
+              with coaching suggestions for your next attempt.
+            </div>
+            <Link
+              href="/account-breach"
+              className="inline-flex items-center gap-1 text-xs font-bold text-error hover:text-on-error-fixed-variant underline"
+              aria-label="View detailed evaluation progress showing which rules were breached and when"
+            >
+              View Detailed Progress →
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Primary account card */}
