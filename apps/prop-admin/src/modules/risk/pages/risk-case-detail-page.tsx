@@ -57,6 +57,7 @@ import {
 import {
   AlertTriangle,
   ArrowRight,
+  BookOpen,
   CheckCircle2,
   ChevronRight,
   Eye,
@@ -66,6 +67,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { explainSignal } from "@/modules/risk/risk-explanations";
 import { toast } from "@/hooks/use-toast";
 import {
   addRiskCaseNote,
@@ -383,6 +385,42 @@ export function RiskCaseDetailPage() {
             <div className="rounded-md border p-2">
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Signal</p>
               <p className="text-xs">{riskCase.signalDetail}</p>
+            </div>
+
+            {/* Why this fired — rule → trigger → impact → action
+                (audit finding #5: breach explanation) */}
+            <div className="rounded-md border border-primary/25 bg-primary/5 p-2">
+              <p className="mb-1.5 text-[10px] uppercase tracking-wide text-primary">
+                Why this fired
+              </p>
+              <dl className="space-y-1.5 text-[11px] leading-relaxed">
+                <div>
+                  <dt className="font-semibold text-foreground">Rule violated</dt>
+                  <dd className="text-muted-foreground">{explainSignal(riskCase.signal).rule}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-foreground">What triggered it</dt>
+                  <dd className="text-muted-foreground">
+                    {explainSignal(riskCase.signal).trigger || riskCase.signalDetail}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-foreground">Account impact</dt>
+                  <dd className="text-muted-foreground">{explainSignal(riskCase.signal).implication}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-foreground">Recommended action</dt>
+                  <dd className="text-muted-foreground">{explainSignal(riskCase.signal).action}</dd>
+                </div>
+              </dl>
+              <button
+                onClick={() => navigate("risk-rules-editor")}
+                className="mt-2 flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+              >
+                <BookOpen className="h-3 w-3" />
+                Review this rule in the Risk Rules Editor
+                <ArrowRight className="h-3 w-3" />
+              </button>
             </div>
 
             {/* Evidence — review checklist gates Resolve (audit fix #5) */}
