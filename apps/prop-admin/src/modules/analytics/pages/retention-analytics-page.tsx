@@ -27,6 +27,7 @@ import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { BarSeries, DonutSeries } from "@/components/platform/charts";
+import { TERRA } from "@/lib/chart-palette";
 import { formatCompact } from "@/components/platform/status";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -104,8 +105,8 @@ export function RetentionAnalyticsPage() {
   const newCount = traders.length - repeatingCount;
   const newVsRepeat = useMemo(
     () => [
-      { label: "New customers", value: newCount, color: "#0d9488" /* teal-600 */ },
-      { label: "Repeating customers", value: repeatingCount, color: "#d97706" /* amber-600 */ },
+      { label: "New customers", value: newCount, color: TERRA.teal },
+      { label: "Repeating customers", value: repeatingCount, color: TERRA.warning },
     ],
     [newCount, repeatingCount],
   );
@@ -254,7 +255,7 @@ export function RetentionAnalyticsPage() {
             data={challengesDistribution}
             xKey="label"
             yKey="value"
-            color="#0d9488"
+            color={TERRA.teal}
             height={240}
             formatValue={(v) => formatCompact(Number(v))}
           />
