@@ -43,6 +43,7 @@ import {
   FileSpreadsheet,
   FileText,
   Flag,
+  FlaskConical,
   FolderOpen,
   GitCompare,
   GraduationCap,
@@ -127,6 +128,7 @@ export const sections: NavSection[] = [
     { href: "/trading-patterns", label: "Pattern Monitor", icon: ScanSearch },
   ]},
   { id: "tools", label: "Tools", icon: Wrench, children: [
+    { href: "/simulator", label: "Trading Simulator", icon: FlaskConical },
     { href: "/trading-journal", label: "Trading Journal", icon: BookOpen },
     { href: "/trading-plan-builder", label: "Plan Builder", icon: ClipboardList },
     { href: "/trading-calendar", label: "Trading Calendar", icon: CalendarDays },
