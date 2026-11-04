@@ -742,6 +742,7 @@ export function ChallengeTypesStitchPage() {
   const [addOpen, setAddOpen] = React.useState(false);
   const [disableTarget, setDisableTarget] = React.useState<string | null>(null);
   const [archiveTarget, setArchiveTarget] = React.useState<string | null>(null);
+  const [unpublishTarget, setUnpublishTarget] = React.useState<string | null>(null);
   const { openPanel } = useDetailOverlay();
   // PRD §4.18 duplicate/archive mutate the template list — keep it in state
   // so both actions visibly change the table instead of only toasting.
@@ -784,6 +785,10 @@ export function ChallengeTypesStitchPage() {
               cell: (t) => (
                 <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <StitchButton variant="surface" className="h-7 px-2" onClick={() => setDisableTarget(t.name)}>{t.active ? "Disable" : "Enable"}</StitchButton>
+                  {/* Unpublish — hides from marketplace, keeps existing evaluations (audit #6) */}
+                  {t.active && (
+                    <StitchButton variant="surface" className="h-7 px-2" icon="visibility_off" onClick={() => setUnpublishTarget(t.name)}>Unpublish</StitchButton>
+                  )}
                   {/* PRD §4.18 POST /challenges/:id/duplicate */}
                   <StitchButton variant="surface" className="h-7 px-2" icon="content_copy" onClick={() => duplicateType(t.name)}>Duplicate</StitchButton>
                   {/* PRD §4.18 DELETE /challenges/:id — archive */}
@@ -824,6 +829,17 @@ export function ChallengeTypesStitchPage() {
         onConfirm={() => {
           setTypes((prev) => prev.filter((t) => t.name !== archiveTarget));
           toast({ title: "Challenge archived", description: `${archiveTarget} moved to the archive.`, variant: "destructive" });
+        }}
+      />
+      {/* Unpublish confirmation — audit #6: prevent accidental unpublish */}
+      <StitchConfirm
+        open={!!unpublishTarget} onOpenChange={(o) => !o && setUnpublishTarget(null)} icon="visibility_off"
+        title={`Unpublish ${unpublishTarget ?? ""}?`}
+        body="This will hide the challenge from new traders in the marketplace but will not affect existing evaluations — active challenges continue running to completion. You can re-publish at any time."
+        confirmLabel="Unpublish"
+        onConfirm={() => {
+          setTypes((prev) => prev.map((t) => (t.name === unpublishTarget ? { ...t, active: false } : t)));
+          toast({ title: "Challenge unpublished", description: `${unpublishTarget} hidden from the marketplace. Existing evaluations unaffected.` });
         }}
       />
     </div>
