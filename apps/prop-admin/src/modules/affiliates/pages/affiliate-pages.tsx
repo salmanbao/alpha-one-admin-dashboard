@@ -5,6 +5,8 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver } from "@/lib/platform/terminology";
 import { getTenantAffiliates, affiliateCampaigns, type Affiliate, type AffiliateCampaign } from "@/lib/platform/mock-data";
 import { exportToCsv } from "@/lib/platform/export-utils";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoAffiliateKpisSchema, type DemoAffiliateKpi } from "@/lib/platform/validation";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, campaignStatusTone, formatCurrency, formatCompact } from "@/components/platform/status";
@@ -25,6 +27,8 @@ import {
   TrendingUp,
   Award,
   MousePointerClick,
+  Plus,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -416,6 +420,26 @@ const MONTHS_12 = [
 
 const TIER_ORDER = ["platinum", "gold", "silver", "bronze"] as const;
 
+/* ── Custom KPIs (audit #5) ─────────────────────────────────────── */
+
+/** Metric options the operator can hang a custom target on. */
+const KPI_METRICS: { id: DemoAffiliateKpi["metric"]; label: string }[] = [
+  { id: "referrals", label: "Referrals" },
+  { id: "activeReferrals", label: "Active referrals" },
+  { id: "conversions", label: "Conversions" },
+  { id: "commissionEarned", label: "Commission earned" },
+  { id: "revenue", label: "Attributed revenue" },
+];
+
+/** Metrics formatted as money rather than a count. */
+const KPI_CURRENCY: DemoAffiliateKpi["metric"][] = ["commissionEarned", "revenue"];
+
+/** Shown until the operator adds or removes their own targets. */
+const DEFAULT_KPIS: DemoAffiliateKpi[] = [
+  { id: "kpi-default-conversions", label: "Conversions", metric: "conversions", target: 200 },
+  { id: "kpi-default-commission", label: "Commission earned", metric: "commissionEarned", target: 100000 },
+];
+
 export function AffiliatePerformancePage() {
   const { runtime, tenant } = usePlatform();
   const term = makeTermResolver(tenant);
@@ -423,6 +447,23 @@ export function AffiliatePerformancePage() {
   const currency = runtime.tenant?.currency ?? "USD";
   const aff = getTenantAffiliates(tid);
   const camps = affiliateCampaigns.filter((c) => c.tenantId === tid);
+
+  // ── Custom KPIs (audit #5) — operator-defined targets on the metrics
+  //    this page already derives. Hydrated from the demo session after
+  //    mount (localStorage is unavailable during SSR, so the seeded
+  //    defaults render first and the effect swaps in saved rows). ──
+  const [kpis, setKpis] = React.useState<DemoAffiliateKpi[]>(DEFAULT_KPIS);
+  React.useEffect(() => {
+    setKpis(loadDemoState("affiliate-kpis", demoAffiliateKpisSchema, DEFAULT_KPIS));
+  }, []);
+  const [kpiMetric, setKpiMetric] = React.useState<DemoAffiliateKpi["metric"]>("conversions");
+  const [kpiLabel, setKpiLabel] = React.useState("");
+  const [kpiTarget, setKpiTarget] = React.useState("");
+
+  const persistKpis = (next: DemoAffiliateKpi[]) => {
+    setKpis(next);
+    saveDemoState("affiliate-kpis", next);
+  };
 
   // ── Affiliate-side aggregates ──
   const active = aff.filter((a) => a.status === "active").length;
@@ -574,6 +615,106 @@ export function AffiliatePerformancePage() {
     { from: "Signups", to: "Conversions", pct: signupToConv },
   ];
 
+  // ── Affiliate-side conversion funnel (audit #5) — the partner journey
+  //    the campaign funnel can't see: referred → still active → converted. ──
+  const referralStages = [
+    { label: "Referrals", value: referrals, icon: Share2 },
+    { label: "Active", value: activeReferrals, icon: UserCheck },
+    { label: "Conversions", value: conversions, icon: Target },
+  ];
+  const referralMax = Math.max(1, ...referralStages.map((s) => s.value));
+  const activationRate = referrals > 0 ? (activeReferrals / referrals) * 100 : 0;
+  const activeToConvRate = activeReferrals > 0 ? (conversions / activeReferrals) * 100 : 0;
+  const referralRates = [
+    { from: "Referrals", to: "Active", pct: activationRate },
+    { from: "Active", to: "Conversions", pct: activeToConvRate },
+  ];
+
+  // ── Partner LTV (audit #5) — what a converted referral is worth to the
+  //    partner (commission), to the firm (attributed revenue), and how
+  //    that differs by tier. ──
+  const commissionPerConv = conversions > 0 ? earned / conversions : 0;
+  const commissionPerActive = activeReferrals > 0 ? earned / activeReferrals : 0;
+  const revenuePerConv = campConversions > 0 ? revenue / campConversions : 0;
+  const commissionPerPartner = aff.length > 0 ? earned / aff.length : 0;
+  const ltvByTier = TIER_ORDER.map((tier) => {
+    const inTier = aff.filter((a) => a.tier === tier);
+    const tierConversions = inTier.reduce((s, a) => s + a.conversions, 0);
+    const tierEarned = inTier.reduce((s, a) => s + a.commissionEarned, 0);
+    return {
+      tier,
+      partners: inTier.length,
+      conversions: tierConversions,
+      earned: tierEarned,
+      perConv: tierConversions > 0 ? tierEarned / tierConversions : 0,
+    };
+  }).filter((t) => t.partners > 0);
+  const maxPerConv = Math.max(1, ...ltvByTier.map((t) => t.perConv));
+
+  // ── 6-month projection (audit #5) — least-squares slope over the same
+  //    12-month trend above, extrapolated forward. Pure arithmetic on the
+  //    fixture: no Math.random(), no Date.now(), same numbers every run. ──
+  const trendN = trend.length;
+  const meanX = (trendN - 1) / 2;
+  const meanY = trend.reduce((s, p) => s + p.value, 0) / trendN;
+  let slopeNum = 0;
+  let slopeDen = 0;
+  trend.forEach((p, i) => {
+    slopeNum += (i - meanX) * (p.value - meanY);
+    slopeDen += (i - meanX) ** 2;
+  });
+  const slope = slopeDen > 0 ? slopeNum / slopeDen : 0;
+  const projection = Array.from({ length: 6 }, (_, k) => ({
+    date: `M+${k + 1}`,
+    value: Math.max(0, Math.round(meanY + slope * (trendN - 1 + (k + 1) - meanX))),
+  }));
+  const projected6 = projection.reduce((s, p) => s + p.value, 0);
+  const recent6 = trend.slice(-6).reduce((s, p) => s + p.value, 0);
+  const projectionDelta = recent6 > 0 ? ((projected6 - recent6) / recent6) * 100 : 0;
+  const projMax = Math.max(1, ...projection.map((p) => p.value));
+
+  // ── Custom KPI progress (audit #5) ──
+  const kpiValues: Record<DemoAffiliateKpi["metric"], number> = {
+    referrals,
+    activeReferrals,
+    conversions,
+    commissionEarned: earned,
+    revenue,
+  };
+  const kpiFormat = (m: DemoAffiliateKpi["metric"], v: number) =>
+    KPI_CURRENCY.includes(m) ? formatCurrency(v, currency) : formatCompact(v);
+
+  const addKpi = () => {
+    const label = kpiLabel.trim();
+    const target = Number(kpiTarget);
+    if (!label || !Number.isFinite(target) || target <= 0) {
+      toast({
+        title: "KPI needs a label and a positive target",
+        description: "Pick the metric, name it, and set a target above zero.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Deterministic, collision-free id (no Date.now / Math.random).
+    const slug =
+      label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 32) || "kpi";
+    let n = kpis.length + 1;
+    let id = `kpi-${kpiMetric}-${slug}-${n}`;
+    while (kpis.some((k) => k.id === id)) {
+      n += 1;
+      id = `kpi-${kpiMetric}-${slug}-${n}`;
+    }
+    persistKpis([...kpis, { id, label, metric: kpiMetric, target }]);
+    setKpiLabel("");
+    setKpiTarget("");
+  };
+
+  const removeKpi = (id: string) => persistKpis(kpis.filter((k) => k.id !== id));
+
   const empty = aff.length === 0;
 
   return (
@@ -703,6 +844,301 @@ export function AffiliatePerformancePage() {
                 <MetricCard label="Attributed revenue" value={formatCurrency(revenue, currency)} icon={TrendingUp} tone="positive" />
                 <MetricCard label="ROAS" value={`${roas.toFixed(1)}×`} icon={Percent} tone={roas >= 2 ? "positive" : "warning"} />
                 <MetricCard label="Revenue / click" value={formatCurrency(clicks > 0 ? revenue / clicks : 0, currency)} icon={MousePointerClick} />
+              </div>
+            </div>
+
+            {/* Affiliate-side conversion funnel (audit #5) — referrals →
+                active → conversions, the partner journey behind the
+                campaign-side clicks → signups → conversions above. */}
+            <div className="rounded-lg border bg-card p-4">
+              <p className="mb-1 text-sm font-medium">Partner referral funnel</p>
+              <p className="mb-4 text-xs text-muted-foreground">
+                {formatCompact(referrals)} referrals → {formatCompact(activeReferrals)} still active →{" "}
+                {formatCompact(conversions)} converted — activation and conversion at each step.
+              </p>
+              <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr]">
+                {referralStages.map((stage, i) => (
+                  <React.Fragment key={stage.label}>
+                    {i > 0 && (
+                      <div className="flex flex-col items-center justify-center px-1 text-center">
+                        <span className="text-lg font-bold tabular-nums text-foreground">
+                          {referralRates[i - 1].pct.toFixed(1)}%
+                        </span>
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {referralRates[i - 1].from} → {referralRates[i - 1].to}
+                        </span>
+                      </div>
+                    )}
+                    <div className="rounded-lg border bg-muted/30 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <stage.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                          {stage.label}
+                        </span>
+                        <span className="text-lg font-bold tabular-nums text-foreground">
+                          {formatCompact(stage.value)}
+                        </span>
+                      </div>
+                      <span className="mt-2 block h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                        <span
+                          className="block h-full rounded-full"
+                          style={{
+                            width: `${Math.max(4, (stage.value / referralMax) * 100)}%`,
+                            background: "#b45309",
+                          }}
+                        />
+                      </span>
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+              <p className="mt-4 border-t pt-3 text-[11px] text-muted-foreground">
+                {activationRate.toFixed(1)}% of referrals stay active, and {activeToConvRate.toFixed(1)}% of
+                active referrals convert ({convRate.toFixed(1)}% end-to-end). The campaign funnel above
+                measures traffic; this one measures the partners behind it.
+              </p>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              {/* Partner LTV (audit #5) */}
+              <div className="rounded-lg border bg-card p-4">
+                <p className="mb-1 text-sm font-medium">Partner LTV</p>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  What a converted referral is worth — to the partner in commission, to the firm in
+                  attributed revenue — plus the per-tier split.
+                </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-lg bg-muted/30 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Commission / conversion
+                    </p>
+                    <p className="mt-1 text-lg font-bold tabular-nums">
+                      {formatCurrency(commissionPerConv, currency)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/30 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Commission / active
+                    </p>
+                    <p className="mt-1 text-lg font-bold tabular-nums">
+                      {formatCurrency(commissionPerActive, currency)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/30 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Revenue / conversion
+                    </p>
+                    <p className="mt-1 text-lg font-bold tabular-nums">
+                      {formatCurrency(revenuePerConv, currency)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/30 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Commission / partner
+                    </p>
+                    <p className="mt-1 text-lg font-bold tabular-nums">
+                      {formatCurrency(commissionPerPartner, currency)}
+                    </p>
+                  </div>
+                </div>
+                <ul className="mt-4 space-y-3">
+                  {ltvByTier.map((t) => (
+                    <li key={t.tier} className="flex items-center gap-3">
+                      <span className="flex w-32 shrink-0 items-center gap-1.5">
+                        <Award className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                        <StatusBadge tone={tierTone(t.tier)} className="capitalize">{t.tier}</StatusBadge>
+                      </span>
+                      <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                        <span
+                          className="block h-full rounded-full"
+                          style={{ width: `${Math.max(2, (t.perConv / maxPerConv) * 100)}%`, background: "#b45309" }}
+                        />
+                      </span>
+                      <span className="w-40 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                        {formatCurrency(t.perConv, currency)}/conv · {t.conversions} conv
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-[11px] text-muted-foreground">
+                  Commission per conversion is earned commission ÷ conversions for partners in that
+                  tier; revenue per conversion is campaign-attributed — the spread between them is
+                  the firm&apos;s margin on a referred trader.
+                </p>
+              </div>
+
+              {/* 6-month projection (audit #5) */}
+              <div className="rounded-lg border bg-card p-4">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">6-month projection</p>
+                  <span className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground">
+                    linear extrapolation
+                  </span>
+                </div>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Least-squares slope over the trailing 12-month commission trend, extended six
+                  months forward — arithmetic on the fixture, no random draws.
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-muted/30 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Next 6 months
+                    </p>
+                    <p className="mt-1 text-lg font-bold tabular-nums">
+                      {formatCurrency(projected6, currency)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/30 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      vs last 6 months
+                    </p>
+                    <p
+                      className={`mt-1 text-lg font-bold tabular-nums ${
+                        projectionDelta >= 0 ? "text-primary" : "text-destructive"
+                      }`}
+                    >
+                      {projectionDelta >= 0 ? "+" : ""}
+                      {projectionDelta.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/30 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Monthly slope
+                    </p>
+                    <p className="mt-1 text-lg font-bold tabular-nums">
+                      {slope >= 0 ? "+" : "−"}
+                      {formatCurrency(Math.abs(slope), currency)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 flex h-28 items-end gap-1.5" role="img" aria-label={`Projected monthly commission for the next 6 months: ${projection.map((p) => `${p.date} ${formatCurrency(p.value, currency)}`).join(", ")}.`}>
+                  {projection.map((p) => (
+                    <div key={p.date} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
+                      <span className="text-[9px] tabular-nums text-muted-foreground">
+                        {formatCompact(p.value)}
+                      </span>
+                      <div
+                        className="w-full rounded-t"
+                        style={{
+                          height: `${Math.max(6, (p.value / projMax) * 64)}px`,
+                          background: "#b45309",
+                        }}
+                      />
+                      <span className="text-[9px] text-muted-foreground">{p.date}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 border-t pt-3 text-[11px] text-muted-foreground">
+                  Projection holds the trailing trend constant: {formatCurrency(recent6, currency)} over
+                  the last 6 months → {formatCurrency(projected6, currency)} over the next 6 if the
+                  current slope persists. Recomputed from the chart data on every render.
+                </p>
+              </div>
+            </div>
+
+            {/* Custom KPIs (audit #5) — operator-defined targets on the
+                same derived metrics, persisted to the demo session. */}
+            <div className="rounded-lg border bg-card p-4">
+              <p className="mb-1 text-sm font-medium">Custom KPIs</p>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Set your own targets against the metrics on this page — progress is saved to this
+                demo session and survives a reload.
+              </p>
+
+              {kpis.length === 0 ? (
+                <p className="mb-4 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                  No custom KPIs yet — add one below to track a target the default cards don&apos;t
+                  cover.
+                </p>
+              ) : (
+                <ul className="mb-4 space-y-3">
+                  {kpis.map((k) => {
+                    const current = kpiValues[k.metric];
+                    const pct = k.target > 0 ? (current / k.target) * 100 : 0;
+                    const done = pct >= 100;
+                    return (
+                      <li key={k.id} className="rounded-lg border p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-sm font-medium">{k.label}</span>
+                          <span className="flex items-center gap-2">
+                            <span
+                              className={`text-xs tabular-nums ${done ? "text-primary" : "text-muted-foreground"}`}
+                            >
+                              {kpiFormat(k.metric, current)} of {kpiFormat(k.metric, k.target)} (
+                              {pct.toFixed(0)}%)
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeKpi(k.id)}
+                              aria-label={`Remove ${k.label} KPI`}
+                              className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          </span>
+                        </div>
+                        <span className="mt-2 block h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                          <span
+                            className="block h-full rounded-full"
+                            style={{
+                              width: `${Math.min(100, Math.max(2, pct))}%`,
+                              background: done ? "#15803d" : "#b45309",
+                            }}
+                          />
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+
+              <div className="flex flex-wrap items-end gap-3 border-t pt-3">
+                <div className="space-y-1">
+                  <Label htmlFor="kpi-metric" className="text-xs text-muted-foreground">
+                    Metric
+                  </Label>
+                  <select
+                    id="kpi-metric"
+                    value={kpiMetric}
+                    onChange={(e) => setKpiMetric(e.target.value as DemoAffiliateKpi["metric"])}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-ring"
+                  >
+                    {KPI_METRICS.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="kpi-label" className="text-xs text-muted-foreground">
+                    Label
+                  </Label>
+                  <Input
+                    id="kpi-label"
+                    value={kpiLabel}
+                    onChange={(e) => setKpiLabel(e.target.value)}
+                    placeholder="e.g. Gold-tier conversions"
+                    className="h-9 w-48"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="kpi-target" className="text-xs text-muted-foreground">
+                    Target
+                  </Label>
+                  <Input
+                    id="kpi-target"
+                    type="number"
+                    min={1}
+                    value={kpiTarget}
+                    onChange={(e) => setKpiTarget(e.target.value)}
+                    placeholder="100"
+                    className="h-9 w-28"
+                  />
+                </div>
+                <Button size="sm" onClick={addKpi}>
+                  <Plus className="mr-1 h-4 w-4" aria-hidden="true" /> Add KPI
+                </Button>
               </div>
             </div>
 

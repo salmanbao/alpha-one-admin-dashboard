@@ -38,6 +38,7 @@ const DEMO_STORES = [
   "announcements",
   "tickets",
   "evaluations",
+  "affiliate-kpis",
 ] as const;
 
 /**

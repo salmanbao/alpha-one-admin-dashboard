@@ -225,6 +225,22 @@ export const demoAnnouncementsSchema = z.array(
   }),
 );
 
+/**
+ * affiliate-pages: the operator's custom KPI rows on the Performance
+ * page (audit #5) — label + metric key + target, persisted to the demo
+ * session so a reload doesn't wipe a configured target list.
+ */
+export const demoAffiliateKpisSchema = z.array(
+  z.object({
+    id: z.string().min(1),
+    label: z.string().min(1).max(80),
+    metric: z.enum(["referrals", "activeReferrals", "conversions", "commissionEarned", "revenue"]),
+    target: z.number().positive().finite(),
+  }),
+);
+
+export type DemoAffiliateKpi = z.infer<typeof demoAffiliateKpisSchema>[number];
+
 /** risk-case-store: per-tenant case lists + the id sequence counter. */
 export const demoRiskCasesSchema = z.object({
   byTenant: z.record(
