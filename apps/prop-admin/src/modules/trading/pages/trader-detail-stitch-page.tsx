@@ -34,6 +34,7 @@ import {
   type Trader,
 } from "@/lib/platform/mock-data";
 import { buildOrders } from "@/modules/trading/pages/orders-page";
+import { TraderCoachingTab } from "@/modules/trading/pages/trader-coaching-tab";
 import { effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
 import {
   applyTraderStatus,
@@ -98,7 +99,7 @@ function money(v: number, currency = "USD", compact = false) {
   return compact ? formatCompactCurrencyValue(v, currency) : formatCurrencyValue(v, currency);
 }
 
-const TABS = ["Overview", "Accounts", "Payments", "Payouts", "Positions", "Performance", "KYC", "Risk", "Activity Log", "Internal Notes", "Change History"] as const;
+const TABS = ["Overview", "Accounts", "Payments", "Payouts", "Positions", "Performance", "KYC", "Risk", "Coaching", "Activity Log", "Internal Notes", "Change History"] as const;
 type Tab = (typeof TABS)[number];
 
 /** Internal note — PRD trader-360 "Internal Notes" tab (add/remove). */
@@ -136,7 +137,12 @@ export function TraderDetailStitchPage() {
   const traderPayouts = getTraderPayouts(trader.id);
   const activity = getTenantUserEvents(tid).filter((e) => e.userEmail === trader.email);
 
-  const [tab, setTab] = React.useState<Tab>("Overview");
+  // Initial tab — deep-linkable (`?view=trader-detail&tab=Coaching`),
+  // e.g. from the risk-scoring "Coach" action (audit finding #2).
+  const [tab, setTab] = React.useState<Tab>(() => {
+    const requested = router.params.tab as Tab | undefined;
+    return requested && TABS.includes(requested) ? requested : "Overview";
+  });
   const [addNoteOpen, setAddNoteOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [impersonateOpen, setImpersonateOpen] = React.useState(false);
@@ -432,6 +438,13 @@ export function TraderDetailStitchPage() {
             )}
           </StitchCard>
         </div>
+      ) : null}
+
+      {/* Coaching (audit finding #2) — templated feedback, education
+          links, follow-up scheduler and coaching history for the
+          trader the risk screens just flagged. */}
+      {tab === "Coaching" ? (
+        <TraderCoachingTab traderId={traderId} traderName={trader.name} />
       ) : null}
 
       {tab === "Activity Log" ? (
