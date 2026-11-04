@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { hasPermission } from "@/lib/platform/permission-engine";
 import { getTenantPayouts, getTenantTraders, payoutSeries, type Payout } from "@/lib/platform/mock-data";
+import { buildPayoutRisk } from "@/lib/platform/payout-risk";
 import { MetricCard } from "@/components/platform/page";
 import { StatusBadge, payoutStatusTone, formatCurrency, formatCompact } from "@/components/platform/status";
 import { applyPayoutDecision, effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
@@ -131,6 +132,9 @@ export function PayoutQueueWidget() {
                 count: 1,
                 profitSplit: p.profitSplit,
                 performance: perfByTrader.get(p.traderId),
+                // Risk context (audit #3) — the queue's reject dialog
+                // now carries the trader's breach history and score.
+                risk: buildPayoutRisk(tid, p.traderId),
               })
             }
           >
