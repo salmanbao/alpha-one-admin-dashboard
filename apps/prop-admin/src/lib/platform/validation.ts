@@ -241,6 +241,15 @@ export const demoAffiliateKpisSchema = z.array(
 
 export type DemoAffiliateKpi = z.infer<typeof demoAffiliateKpisSchema>[number];
 
+/** auto-approve-rule: persisted batch approval rule for payouts (audit #4). */
+export const autoApproveRuleSchema = z.object({
+  enabled: z.boolean(),
+  threshold: z.number().int().min(0).max(100),
+  excludeOpenBreaches: z.boolean(),
+});
+
+export type AutoApproveRule = z.infer<typeof autoApproveRuleSchema>;
+
 /** risk-case-store: per-tenant case lists + the id sequence counter. */
 export const demoRiskCasesSchema = z.object({
   byTenant: z.record(
