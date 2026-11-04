@@ -90,6 +90,7 @@ import {
   Calendar,
   ArrowUp,
   ArrowDown,
+  ArrowUpDown,
   Banknote,
   CreditCard,
   Bitcoin,
@@ -431,24 +432,31 @@ export function EnhancedWithdrawalsPage() {
     });
   };
 
-  // Sort header cell renderer
-  const SortHeader = ({ k, label, numeric = false }: { k: string; label: string; numeric?: boolean }) => (
-    <button
-      type="button"
-      className={cn(
-        "inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground",
-        numeric && "justify-end",
-      )}
-      onClick={() => toggleSort(k)}
-    >
-      {label}
-      {sortKey === k ? (
-        sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-      ) : (
-        <ArrowUp className="h-3 w-3 opacity-30" />
-      )}
-    </button>
-  );
+  // Sort header cell renderer — same visual language as the shared
+  // DataTable (audit finding #9): ArrowUpDown = sortable but inactive,
+  // ArrowUp/ArrowDown = active direction, and the button always says
+  // the current state for screen readers.
+  const SortHeader = ({ k, label, numeric = false }: { k: string; label: string; numeric?: boolean }) => {
+    const active = sortKey === k;
+    return (
+      <button
+        type="button"
+        className={cn(
+          "inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground",
+          numeric && "justify-end",
+        )}
+        onClick={() => toggleSort(k)}
+        aria-label={`Sort by ${label}${active ? ` (currently ${sortDir === "asc" ? "ascending" : "descending"})` : ""}`}
+      >
+        {label}
+        {active ? (
+          sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-50" />
+        )}
+      </button>
+    );
+  };
 
   const allChecked = sorted.length > 0 && selected.size === sorted.length;
   const someChecked = selected.size > 0 && selected.size < sorted.length;
@@ -610,24 +618,24 @@ export function EnhancedWithdrawalsPage() {
                     aria-label="Select all withdrawals"
                   />
                 </TableHead>
-                <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">
+                <TableHead className="h-9 px-3 text-xs uppercase tracking-wide" aria-sort={sortKey === "login" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader k="login" label="Account Login" />
                 </TableHead>
-                <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">
+                <TableHead className="h-9 px-3 text-xs uppercase tracking-wide" aria-sort={sortKey === "name" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader k="name" label="Full Name" />
                 </TableHead>
                 <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">Country</TableHead>
-                <TableHead className="h-9 px-3 text-right text-xs uppercase tracking-wide">
+                <TableHead className="h-9 px-3 text-right text-xs uppercase tracking-wide" aria-sort={sortKey === "amount" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader k="amount" label="Amount" numeric />
                 </TableHead>
                 <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">Size</TableHead>
                 <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">Method</TableHead>
                 <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">KYC Status</TableHead>
-                <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">
+                <TableHead className="h-9 px-3 text-xs uppercase tracking-wide" aria-sort={sortKey === "created" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader k="created" label="Created" />
                 </TableHead>
                 <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">Performance</TableHead>
-                <TableHead className="h-9 px-3 text-xs uppercase tracking-wide">
+                <TableHead className="h-9 px-3 text-xs uppercase tracking-wide" aria-sort={sortKey === "status" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <SortHeader k="status" label="Status" />
                 </TableHead>
               </TableRow>
