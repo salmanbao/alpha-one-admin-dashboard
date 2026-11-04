@@ -89,72 +89,64 @@ export function CrossTenantQueuesPage() {
 
   // Trend analysis data — 30-day historical queue counts per tenant
   const kycTrendData = (() => {
-    const labels = [];
-    const data = [];
+    const labels: string[] = [];
+    const data: Array<{ date: string; value: number }> = [];
     const now = new Date();
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      labels.push(d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
+      const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
       const base = rows.reduce((s, r) => s + r.kyc, 0);
       const noise = Math.sin((i / 7) * Math.PI) * 2;
-      data.push(Math.max(0, base + noise));
+      data.push({ date: label, value: Math.max(0, base + noise) });
     }
     return { labels, data };
   })();
 
   const riskTrendData = (() => {
-    const labels = [];
-    const data = [];
+    const labels: string[] = [];
+    const data: Array<{ date: string; value: number }> = [];
     const now = new Date();
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      labels.push(d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
+      const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
       const base = rows.reduce((s, r) => s + r.risk, 0);
       const noise = Math.cos((i / 7) * Math.PI) * 1.5;
-      data.push(Math.max(0, base + noise));
+      data.push({ date: label, value: Math.max(0, base + noise) });
     }
     return { labels, data };
   })();
 
   const payoutsTrendData = (() => {
-    const labels = [];
-    const data = [];
+    const labels: string[] = [];
+    const data: Array<{ date: string; value: number }> = [];
     const now = new Date();
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      labels.push(d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
+      const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
       const base = rows.reduce((s, r) => s + r.payouts, 0);
       const noise = Math.sin((i / 6) * Math.PI) * 2;
-      data.push(Math.max(0, base + noise));
+      data.push({ date: label, value: Math.max(0, base + noise) });
     }
     return { labels, data };
   })();
 
   const supportTrendData = (() => {
-    const labels = [];
-    const data = [];
+    const labels: string[] = [];
+    const data: Array<{ date: string; value: number }> = [];
     const now = new Date();
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      labels.push(d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
-    const supportTrendData = (() => {
-      const labels = [];
-      const data = [];
-      const now = new Date();
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(d.getDate() - i);
-        labels.push(d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
-        const base = rows.reduce((s, r) => s + r.support, 0);
-        const noise = Math.cos((i / 5) * Math.PI) * 1.5;
-        data.push(Math.max(0, base + noise));
-      }
-      return { labels, data };
-    });
+      const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const base = rows.reduce((s, r) => s + r.support, 0);
+      const noise = Math.cos((i / 5) * Math.PI) * 1.5;
+      data.push({ date: label, value: Math.max(0, base + noise) });
+    }
+    return { labels, data };
+  })();
   const columns: Column<QueueRow>[] = [
 { key: "tenant",
       header: "Tenant",
@@ -273,7 +265,7 @@ export function CrossTenantQueuesPage() {
               <div className="text-xs text-amber-700 font-bold tracking-wider mb-2">KYC Queue Trend (Last 30 Days)</div>
               <LineSeries
                 data={kycTrendData.data}
-                xKey={kycTrendData.labels[0]}
+                xKey="date"
                 yKey="value"
                 color="var(--brand-primary)"
                 height={160}
@@ -287,7 +279,7 @@ export function CrossTenantQueuesPage() {
               <div className="text-xs text-rose-600 font-bold tracking-wider mb-2">Risk Queue Trend (Last 30 Days)</div>
               <LineSeries
                 data={riskTrendData.data}
-                xKey={riskTrendData.labels[0]}
+                xKey="date"
                 yKey="value"
                 color="var(--rose-600)"
                 height={160}
@@ -301,7 +293,7 @@ export function CrossTenantQueuesPage() {
               <div className="text-xs text-amber-600 font-bold tracking-wider mb-2">Payouts Queue Trend (Last 30 Days)</div>
               <LineSeries
                 data={payoutsTrendData.data}
-                xKey={payoutsTrendData.labels[0]}
+                xKey="date"
                 yKey="value"
                 color="var(--brand-primary)"
                 height={160}
@@ -315,7 +307,7 @@ export function CrossTenantQueuesPage() {
               <div className="text-xs text-amber-600 font-bold tracking-wider mb-2">Support Queue Trend (Last 30 Days)</div>
               <LineSeries
                 data={supportTrendData.data}
-                xKey={supportTrendData.labels[0]}
+                xKey="date"
                 yKey="value"
                 color="var(--amber-600)"
                 height={160}
