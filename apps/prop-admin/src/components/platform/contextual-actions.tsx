@@ -30,6 +30,7 @@ import { formatCurrency } from "@/components/platform/status";
 import { EntityAuditTimeline } from "@/components/platform/audit";
 import { applyPayoutDecision, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { payouts, getTenantTraders } from "@/lib/platform/mock-data";
+import { buildPayoutRisk } from "@/lib/platform/payout-risk";
 import { resolveBreach } from "@/modules/risk/breach-store";
 import { useState, type ComponentType } from "react";
 
@@ -237,6 +238,10 @@ export function PayoutReviewActions({
           count: 1,
           profitSplit: payout?.profitSplit,
           performance: perf,
+          // Risk context (audit #3) — this panel is the primary
+          // single-payout decision surface, so it must carry the same
+          // breach history / score / account health as the queue.
+          risk: payout ? buildPayoutRisk(payout.tenantId, payout.traderId) : undefined,
         }),
     },
     {
