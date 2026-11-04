@@ -91,7 +91,7 @@ export function LoginPage() {
               {...field("password", password, setPassword)}
               labelSuffix={
                 <Link
-                  href="/help-center"
+                  href="/forgot-password"
                   className="text-[11px] font-semibold text-primary hover:underline"
                 >
                   Forgot?
