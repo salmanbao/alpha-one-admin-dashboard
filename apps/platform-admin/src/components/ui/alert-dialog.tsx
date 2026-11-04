@@ -5,11 +5,17 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { DialogOpenerContext } from "./dialog"
 
 function AlertDialog({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
-  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+  const openerRef = React.useRef<HTMLElement | null>(null)
+  return (
+    <DialogOpenerContext.Provider value={openerRef}>
+      <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+    </DialogOpenerContext.Provider>
+  )
 }
 
 function AlertDialogTrigger({
@@ -46,8 +52,11 @@ function AlertDialogOverlay({
 
 function AlertDialogContent({
   className,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content>) {
+  const openerRef = React.useContext(DialogOpenerContext)
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
@@ -58,6 +67,27 @@ function AlertDialogContent({
           className
         )}
         {...props}
+        onOpenAutoFocus={(event) => {
+          onOpenAutoFocus?.(event)
+          // Capture before Radix focuses the Cancel button — activeElement
+          // is still the opener here (audit finding #7 focus restore).
+          if (openerRef) {
+            openerRef.current =
+              typeof document !== "undefined" &&
+              document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null
+          }
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event)
+          if (event.defaultPrevented) return
+          const opener = openerRef?.current ?? null
+          if (openerRef) openerRef.current = null
+          if (opener && opener.isConnected && opener !== document.body) {
+            opener.focus()
+          }
+        }}
       />
     </AlertDialogPortal>
   )
