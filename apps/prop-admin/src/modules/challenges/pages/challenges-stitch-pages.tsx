@@ -881,6 +881,23 @@ function RuleSimulatorSheet({
           ? { label: "Lenient", tone: "text-tt", note: "12–25% pass — expect heavier payout load; consider tightening drawdown or target." }
           : { label: "Too easy", tone: "text-terr", note: "Above 25% pass — the challenge won't screen risk effectively at these rules." };
 
+  // Enhanced projections (audit #9) — project firm economics from pass rate
+  const avgAccountSize = 100000; // $100K typical challenge
+  const avgPayoutSplit = 80; // 80% to trader
+  const projectedPassers = Math.round((result.passRatePct / 100) * cohort);
+  const projectedPayoutCost = projectedPassers * avgAccountSize * (avgPayoutSplit / 100);
+  const projectedRevenue = cohort * avgAccountSize * 0.05; // 5% entry fee assumption
+  const projectedNetMargin = projectedRevenue - projectedPayoutCost;
+  const marginPct = projectedRevenue > 0 ? Math.round((projectedNetMargin / projectedRevenue) * 100) : 0;
+
+  // Scenario presets for quick comparison
+  const scenarios = [
+    { name: "Current", profitTarget, dailyDd, maxDd, timeLimit },
+    { name: "Conservative", profitTarget: 8, dailyDd: 4, maxDd: 8, timeLimit: 30 },
+    { name: "Aggressive", profitTarget: 12, dailyDd: 6, maxDd: 12, timeLimit: 45 },
+    { name: "Scalper", profitTarget: 5, dailyDd: 3, maxDd: 5, timeLimit: 15 },
+  ];
+
   return (
     <StitchSheet
       open={open}
