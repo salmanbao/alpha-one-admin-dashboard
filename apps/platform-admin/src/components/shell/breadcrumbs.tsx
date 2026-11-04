@@ -84,6 +84,8 @@ function resolveDetail(
       return { parent: "platform-analytics", label: "AI Usage Quota" };
     case "tenant-benchmarking":
       return { parent: "platform-analytics", label: "Tenant Benchmarking" };
+    case "sla-monitoring":
+      return { parent: "tenant-health", label: "SLA Monitoring" };
     case "bridge-sync-log":
       return { parent: "platform-operations", label: "Bridge Sync Log" };
     case "challenge-programs":

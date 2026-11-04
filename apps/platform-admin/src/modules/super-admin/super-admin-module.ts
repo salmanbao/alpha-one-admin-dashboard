@@ -72,6 +72,7 @@ const navigation: NavigationItem[] = [
       { id: "super.create-tenant", label: "Create Tenant", href: "create-tenant", icon: Plus, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.lifecycle", label: "Lifecycle", href: "tenant-lifecycle", icon: GitBranch, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.tenant-health", label: "Tenant Health", href: "tenant-health", icon: HeartPulse, application: ["super-admin"], group: "Tenant Management" },
+      { id: "super.sla-monitoring", label: "SLA Monitoring", href: "sla-monitoring", icon: ShieldCheck, application: ["super-admin"], group: "Tenant Management" },
 
       // ───────── Operations ─────────
       { id: "super.operations", label: "Operations Home", href: "platform-operations", icon: Activity, application: ["super-admin"], group: "Operations" },
@@ -165,6 +166,7 @@ const routes: RouteDefinition[] = [
   { path: "tenant-detail", viewId: "tenant-detail", label: "Tenant Detail", application: ["super-admin"] },
   { path: "tenant-lifecycle", viewId: "tenant-lifecycle", label: "Tenant Lifecycle", application: ["super-admin"] },
   { path: "tenant-health", viewId: "tenant-health", label: "Tenant Health", application: ["super-admin"] },
+  { path: "sla-monitoring", viewId: "sla-monitoring", label: "SLA Monitoring", application: ["super-admin"] },
   { path: "provisioning-saga", viewId: "provisioning-saga", label: "Provisioning Saga", application: ["super-admin"] },
   { path: "usage-metering", viewId: "usage-metering", label: "Tenant Usage & Overage", application: ["super-admin"] },
   { path: "tenant-api-usage", viewId: "tenant-api-usage", label: "Tenant API Usage", application: ["super-admin"] },
