@@ -60,9 +60,9 @@
     "./platform-page": "./src/components/platform/page.tsx",
     "./platform-status": "./src/components/platform/status.tsx",
     "./platform-charts": "./src/components/platform/charts.tsx",
-"./platform-error-alert": "./src/components/platform/error-alert.tsx",
-    "./platform-risk-context": "./src/components/platform/risk-context-panel.tsx",
-
+    "./platform-error-alert": "./src/components/platform/error-alert.tsx",
+    "./platform-form-field": "./src/components/platform/form-field.tsx",
+    "./platform-risk-context": "./src/components/platform/risk-context-panel.tsx"
   },
   "peerDependencies": {
     "react": "^19",
