@@ -12,8 +12,7 @@
 import { useState, useEffect } from "react";
 import { AlertTriangle, Trash2, UserX, ShieldAlert, Zap, Ban, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { FormTextArea } from "@pfaas/ui/platform-form-field";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -187,31 +186,28 @@ export function DestructiveActionDialog({
         </AlertDialogHeader>
 
         <div className="space-y-3 py-2">
-          <div className="space-y-1.5">
-            <Label htmlFor={dialogId} className="text-xs text-muted-foreground">
-              {reasonLabel}
-            </Label>
-            <Textarea
-              id={dialogId}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              onBlur={() => setTouched(true)}
-              placeholder={reasonPlaceholder}
-              className={`min-h-[80px] ${showError ? "border-destructive focus:border-destructive" : ""}`}
-              aria-required="true"
-              aria-invalid={showError}
-              aria-describedby={showError ? `${dialogId}-error` : undefined}
-              disabled={loading}
-            />
-            {showError && (
-              <p id={`${dialogId}-error`} role="alert" className="text-xs font-medium text-destructive">
-                Reason must be at least {minReasonLength} characters.
-              </p>
-            )}
-            <p className="text-[11px] text-muted-foreground">
-              {reason.trim().length} / {minReasonLength} min characters
-            </p>
-          </div>
+          {/* Shared FormTextArea — same inline validation chrome as every
+              other dashboard: destructive border while invalid, message in
+              role="alert", live counter with progressive help text. */}
+          <FormTextArea
+            id={dialogId}
+            label={reasonLabel}
+            required
+            value={reason}
+            onChange={setReason}
+            onBlur={() => setTouched(true)}
+            placeholder={reasonPlaceholder}
+            disabled={loading}
+            rows={3}
+            counter={{ count: reason.trim().length, min: minReasonLength }}
+            helpText={`${minReasonLength} characters minimum — your reason is recorded in the audit trail.`}
+            error={
+              showError
+                ? `Reason must be at least ${minReasonLength} characters.`
+                : undefined
+            }
+            className="min-h-[80px]"
+          />
         </div>
 
         <AlertDialogFooter>

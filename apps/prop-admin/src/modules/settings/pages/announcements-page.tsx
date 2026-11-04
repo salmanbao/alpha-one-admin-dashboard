@@ -35,6 +35,7 @@ import {
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge } from "@/components/platform/status";
+import { FormField, FormTextArea } from "@pfaas/ui/platform-form-field";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -224,45 +225,33 @@ function AnnouncementComposer({
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="ann-title" className="text-xs">
-              Title *
-            </Label>
-            <Input
-              id="ann-title"
-              value={form.title}
-              onChange={(e) => onFormChange({ ...form, title: e.target.value })}
-              placeholder="e.g. Scheduled maintenance — FIX bridge failover"
-              maxLength={120}
-              aria-invalid={titleError ? true : undefined}
-              aria-describedby={titleError ? "ann-title-error" : undefined}
-            />
-            {titleError ? (
-              <p id="ann-title-error" role="alert" className="text-[11px] text-rose-600 dark:text-rose-400">
-                {titleError}
-              </p>
-            ) : null}
-          </div>
+          {/* Shared FormField / FormTextArea (audit finding #1) — the same
+              inline validation chrome as the other dashboards: destructive
+              border, role="alert" message, live counter, progressive help. */}
+          <FormField
+            id="ann-title"
+            label="Title"
+            required
+            value={form.title}
+            onChange={(v) => onFormChange({ ...form, title: v })}
+            placeholder="e.g. Scheduled maintenance — FIX bridge failover"
+            maxLength={120}
+            showCount
+            error={titleError || undefined}
+            helpText="Shown as the announcement headline in-app."
+          />
 
-          <div className="space-y-1.5">
-            <Label htmlFor="ann-content" className="text-xs">
-              Content *
-            </Label>
-            <Textarea
-              id="ann-content"
-              value={form.content}
-              onChange={(e) => onFormChange({ ...form, content: e.target.value })}
-              placeholder="What should traders know?"
-              className="min-h-[96px]"
-              aria-invalid={contentError ? true : undefined}
-              aria-describedby={contentError ? "ann-content-error" : undefined}
-            />
-            {contentError ? (
-              <p id="ann-content-error" role="alert" className="text-[11px] text-rose-600 dark:text-rose-400">
-                {contentError}
-              </p>
-            ) : null}
-          </div>
+          <FormTextArea
+            id="ann-content"
+            label="Content"
+            required
+            value={form.content}
+            onChange={(v) => onFormChange({ ...form, content: v })}
+            placeholder="What should traders know?"
+            error={contentError || undefined}
+            helpText="Traders see this text verbatim — drafts stay hidden until their publish time."
+            className="min-h-[96px]"
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
