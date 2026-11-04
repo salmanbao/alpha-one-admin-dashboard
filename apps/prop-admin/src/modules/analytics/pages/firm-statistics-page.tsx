@@ -21,6 +21,7 @@ import { resolveTermsInString } from "@/lib/platform/terminology";
 import { getFirmStatistics } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { AreaSeries } from "@/components/platform/charts";
+import { TERRA } from "@/lib/chart-palette";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { PageAsyncBoundary } from "@/components/platform/guards";
@@ -181,7 +182,8 @@ export function FirmStatisticsPage() {
               data={stats.revenueSeries}
               xKey="date"
               yKey="revenue"
-              color="#059669"
+              color={TERRA.emerald}
+              height={220}
               formatValue={(v) => fmt(v)}
             />
           </ChartCard>
@@ -193,7 +195,8 @@ export function FirmStatisticsPage() {
               data={stats.revenueSeries}
               xKey="date"
               yKey="payouts"
-              color="#d97706"
+              color={TERRA.amber}
+              height={220}
               formatValue={(v) => fmt(v)}
             />
           </ChartCard>
@@ -205,7 +208,8 @@ export function FirmStatisticsPage() {
               data={stats.revenueSeries}
               xKey="date"
               yKey="net"
-              color="#0d9488"
+              color={TERRA.teal}
+              height={220}
               formatValue={(v) => fmt(v)}
             />
           </ChartCard>
@@ -217,7 +221,8 @@ export function FirmStatisticsPage() {
               data={stats.revenueSeries}
               xKey="date"
               yKey="challenges"
-              color="#e11d48"
+              color={TERRA.rose}
+              height={220}
               formatValue={(v) => String(v)}
             />
           </ChartCard>

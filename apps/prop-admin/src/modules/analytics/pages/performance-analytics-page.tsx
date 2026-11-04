@@ -8,6 +8,7 @@ import { getTraderForUser, getTraderAccounts } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { AreaSeries } from "@/components/platform/charts";
+import { TERRA } from "@/lib/chart-palette";
 import { formatCurrency } from "@/components/platform/status";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { TrendingUp, Target, Activity, Award, Percent, Clock } from "lucide-react";
@@ -64,11 +65,11 @@ export function TraderPerformancePage() {
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader className="pb-2"><span className="text-sm font-medium">Equity curve (30 days)</span></CardHeader>
-            <CardContent><AreaSeries data={equityCurve} xKey="date" yKey="value" color="#0f766e" height={220} formatValue={(v) => formatCurrency(v, currency)} /></CardContent>
+            <CardContent><AreaSeries data={equityCurve} xKey="date" yKey="value" color={TERRA.forest} height={220} formatValue={(v) => formatCurrency(v, currency)} /></CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2"><span className="text-sm font-medium">Daily P&L (14 days)</span></CardHeader>
-            <CardContent><AreaSeries data={dailyPnl} xKey="date" yKey="value" color="#b45309" height={220} formatValue={(v) => formatCurrency(v, currency)} /></CardContent>
+            <CardContent><AreaSeries data={dailyPnl} xKey="date" yKey="value" color={TERRA.amber} height={220} formatValue={(v) => formatCurrency(v, currency)} /></CardContent>
           </Card>
         </div>
         <Card>
