@@ -12,7 +12,8 @@
  * Shows the bill-from/bill-to parties, line items, totals and notes,
  * plus the contextual §22 actions (Download PDF, Send Email, Mark Paid,
  * Cancel Invoice) where the decision happens. The cancel confirmation
- * is an AlertDialog per §24 destructive friction.
+ * is the shared DestructiveActionDialog per §24 destructive friction
+ * (audit finding #11 — one standardized pattern everywhere).
  */
 
 import { useState } from "react";
@@ -36,16 +37,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { DestructiveActionDialog } from "@/components/platform/destructive-action-dialog";
 import { toast } from "@/hooks/use-toast";
 import {
   ArrowRight,
@@ -108,11 +100,11 @@ export function AccountingInvoiceDetailPage() {
       description: `${inv.id} download will start shortly (demo).`,
     });
   }
-  function confirmCancel() {
+  function confirmCancel(reason: string) {
     if (!cancelTarget) return;
     toast({
       title: "Invoice cancelled",
-      description: `${cancelTarget.id} has been voided (demo).`,
+      description: `${cancelTarget.id} has been voided — ${reason}`,
       variant: "destructive",
     });
     setCancelTarget(null);
@@ -276,34 +268,25 @@ export function AccountingInvoiceDetailPage() {
         </div>
       </PageContent>
 
-      {/* Cancel Invoice AlertDialog — §24 destructive action with consequence */}
-      <AlertDialog
+      {/* Void invoice — shared DestructiveActionDialog (audit finding #11):
+          warning icon, consequence, REQUIRED reason for the audit trail. */}
+      <DestructiveActionDialog
+        dialogId="void-invoice-reason"
         open={!!cancelTarget}
         onOpenChange={(o) => !o && setCancelTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel invoice {cancelTarget?.id}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will void the invoice and release the owed balance of{" "}
-              <span className="font-medium text-foreground">
-                {cancelTarget ? formatCurrency(cancelTarget.total, currency) : ""}
-              </span>
-              . The {term("account").toLowerCase()} will be notified, and the invoice cannot be re-activated.
-              Use this only if the charge was raised in error.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep invoice</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-rose-600 text-white hover:bg-rose-700"
-              onClick={confirmCancel}
-            >
-              <XCircle className="mr-2 h-4 w-4" /> Void invoice
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onConfirm={confirmCancel}
+        title={`Void invoice ${cancelTarget?.id ?? ""}?`}
+        consequence={`This voids the invoice and releases the owed balance. The ${term("account").toLowerCase()} will be notified, and the invoice cannot be re-activated. Use this only if the charge was raised in error.`}
+        reasonLabel="Reason for voiding (required)"
+        reasonPlaceholder="e.g. Charge was raised in error — duplicate billing for this period."
+        context={
+          cancelTarget ? (
+            <span className="font-medium text-foreground">
+              Balance released: {formatCurrency(cancelTarget.total, currency)}
+            </span>
+          ) : null
+        }
+      />
     </Page>
   );
 }

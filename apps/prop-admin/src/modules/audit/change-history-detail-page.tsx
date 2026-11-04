@@ -28,17 +28,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { useState } from "react";
+import { DestructiveActionDialog } from "@/components/platform/destructive-action-dialog";
 import { ArrowRight, ChevronRight, History, ShieldAlert } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -48,6 +39,9 @@ export function ChangeHistoryDetailPage() {
 
   const entry = getChangeHistoryEntry(router.params.id ?? "", tid);
   const close = () => navigate("audit-change-history");
+  // Audit finding #11 — rollback confirms through the shared
+  // DestructiveActionDialog (warning, consequence, required reason).
+  const [rollbackOpen, setRollbackOpen] = useState(false);
 
   if (!entry) {
     return (
@@ -155,45 +149,41 @@ export function ChangeHistoryDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    Roll back to old value
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Roll back this change?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This change will be rolled back to the previous
-                      state. Any dependent configurations may be
-                      affected. This action is logged in the audit trail.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => {
-                        toast({
-                          title: "Rollback queued",
-                          description: `Reverting ${entry.field} to ${entry.oldValue}.`,
-                        });
-                        close();
-                      }}
-                    >
-                      Roll back
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setRollbackOpen(true)}
+              >
+                Roll back to old value
+              </Button>
             </div>
           </div>
         </div>
       </PageContent>
+
+      {/* Rollback — shared DestructiveActionDialog (audit finding #11) */}
+      <DestructiveActionDialog
+        dialogId="change-rollback-reason"
+        open={rollbackOpen}
+        onOpenChange={setRollbackOpen}
+        onConfirm={(reason) => {
+          toast({
+            title: "Rollback queued",
+            description: `Reverting ${entry.field} to ${entry.oldValue} — ${reason}`,
+          });
+          close();
+        }}
+        title="Roll back this change?"
+        consequence="This change will be rolled back to the previous state. Any dependent configurations may be affected. This action is logged in the audit trail."
+        reasonLabel="Reason for rollback (required)"
+        reasonPlaceholder="e.g. Value was entered incorrectly during the original change."
+        context={
+          <span className="font-medium text-foreground">
+            {entry.field}: {entry.newValue} → {entry.oldValue}
+          </span>
+        }
+      />
     </Page>
   );
 }

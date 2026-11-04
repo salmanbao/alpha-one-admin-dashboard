@@ -47,17 +47,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { DestructiveActionDialog } from "@/components/platform/destructive-action-dialog";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -255,6 +245,9 @@ export function DeviceActivitiesPage() {
   const [platformFilter, setPlatformFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("all");
   const [guideOpen, setGuideOpen] = useState(false);
+  // Audit finding #11 — device removal confirms through the shared
+  // DestructiveActionDialog (warning, consequence, required reason).
+  const [deleteTarget, setDeleteTarget] = useState<DeviceActivity | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -305,12 +298,13 @@ export function DeviceActivitiesPage() {
     setDateRange("all");
   };
 
-  const handleDelete = (row: DeviceActivity) => {
+  const handleDelete = (row: DeviceActivity, reason: string) => {
     setActivities((prev) => prev.filter((a) => a.id !== row.id));
     toast({
       title: "Device removed",
-      description: `Fingerprint ${truncate(row.deviceId, 12)} was removed from the device history.`,
+      description: `Fingerprint ${truncate(row.deviceId, 12)} was removed from the device history — ${reason}`,
     });
+    setDeleteTarget(null);
   };
 
   const handleRowClick = (row: DeviceActivity) => {
@@ -460,41 +454,19 @@ export function DeviceActivitiesPage() {
             <Eye className="h-3.5 w-3.5" />
             <span className="sr-only">View</span>
           </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-400 dark:hover:bg-rose-950"
-                onClick={(e) => e.stopPropagation()}
-                aria-label={`Delete device ${truncate(a.deviceId, 12)}`}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span className="sr-only">Delete</span>
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Remove device record?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  The fingerprint {truncate(a.deviceId, 12)} ({a.ipAddress})
-                  will be removed from the device history. The next time this
-                  device logs in, a new fingerprint entry will be created.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className={cn(
-                    "bg-rose-600 text-white hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-800",
-                  )}
-                  onClick={() => handleDelete(a)}
-                >
-                  Remove device
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-400 dark:hover:bg-rose-950"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteTarget(a);
+            }}
+            aria-label={`Delete device ${truncate(a.deviceId, 12)}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span className="sr-only">Delete</span>
+          </Button>
         </div>
       ),
       width: "100px",
@@ -684,6 +656,25 @@ export function DeviceActivitiesPage() {
           )}
         </div>
       </PageContent>
+
+      {/* Remove device — shared DestructiveActionDialog (audit finding #11) */}
+      <DestructiveActionDialog
+        dialogId="remove-device-reason"
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onConfirm={(reason) => deleteTarget && handleDelete(deleteTarget, reason)}
+        title="Remove device record?"
+        consequence="The fingerprint will be removed from the device history. The next time this device logs in, a new fingerprint entry will be created."
+        reasonLabel="Reason for removal (required)"
+        reasonPlaceholder="e.g. Duplicate fingerprint from a shared office machine."
+        context={
+          deleteTarget ? (
+            <span className="font-medium text-foreground">
+              {truncate(deleteTarget.deviceId, 12)} · {deleteTarget.ipAddress}
+            </span>
+          ) : null
+        }
+      />
     </Page>
   );
 }
