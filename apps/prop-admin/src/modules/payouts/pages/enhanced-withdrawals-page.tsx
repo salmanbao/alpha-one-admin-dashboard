@@ -81,6 +81,11 @@ import {
 } from "@/components/platform/payout-reject-dialog";
 import { TraderPerformanceChip } from "@/components/platform/trader-performance-chip";
 import {
+  RiskContextPanel,
+  payoutRiskBandLabel,
+} from "@pfaas/ui/platform-risk-context";
+import { buildPayoutRisk, worstPayoutRisk } from "@/lib/platform/payout-risk";
+import {
   Wallet,
   Clock,
   CheckCircle2,
@@ -246,6 +251,10 @@ export function EnhancedWithdrawalsPage() {
   // Approve confirmation with profit-split preview (audit W #2) — the
   // operator sees trader vs firm share before the batch is committed.
   const [approveOpen, setApproveOpen] = useState(false);
+  // Risk acknowledgment (audit #3) — approval is gated on the reviewer
+  // explicitly confirming they read the risk context, so a payout can't
+  // be approved blind.
+  const [riskAcknowledged, setRiskAcknowledged] = useState(false);
 
   // Build trader lookup for name + country + performance metrics
   const traderById = useMemo(() => {
@@ -271,6 +280,15 @@ export function EnhancedWithdrawalsPage() {
     for (const k of kyc) m.set(k.traderId, k.status);
     return m;
   }, [kyc]);
+
+  // Risk context per trader (audit #3) — feeds both the reject dialog
+  // and the approval acknowledgment gate. Derived from the fixtures, so
+  // the same trader always shows the same rating.
+  const riskByTrader = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof buildPayoutRisk>>();
+    for (const t of traders) m.set(t.id, buildPayoutRisk(tid, t.id));
+    return m;
+  }, [traders, tid]);
 
   // Date cutoff
   const cutoff = useMemo(() => {
@@ -435,6 +453,19 @@ export function EnhancedWithdrawalsPage() {
   };
 
   const selectedPayouts = sorted.filter((p) => selected.has(p.id));
+
+  // The approval is gated on the *riskiest* trader in the selection —
+  // approving a batch is only as safe as its weakest member (audit #3).
+  const approveRisk = useMemo(
+    () =>
+      selectedPayouts.length > 0
+        ? worstPayoutRisk(
+            tid,
+            selectedPayouts.map((p) => p.traderId),
+          )
+        : undefined,
+    [selectedPayouts, tid],
+  );
 
   const batchApprove = () => {
     // Commit each selected payout's decision to the payout-store so
@@ -669,6 +700,13 @@ export function EnhancedWithdrawalsPage() {
                     currency: selectedPayouts[0].currency,
                     count: selectedPayouts.length,
                     profitSplit: blended,
+                    // Risk context (audit #3) — the batch is gated by its
+                    // riskiest member, so the reject dialog shows that
+                    // trader's breaches, score and account health.
+                    risk: worstPayoutRisk(
+                      tid,
+                      selectedPayouts.map((p) => p.traderId),
+                    ),
                     performance:
                       selectedPayouts.length === 1
                         ? traderById.get(selectedPayouts[0].traderId)
@@ -903,8 +941,19 @@ export function EnhancedWithdrawalsPage() {
       />
       {/* Approve confirmation with profit-split preview (audit W #2) —
           trader share vs firm retention per payout and in total, shown
-          before the batch is committed instead of after. */}
-      <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
+          before the batch is committed instead of after.
+          Audit #3 adds contextual risk assessment: the riskiest trader
+          in the selection, their breach history and account health, a
+          plain-language risk rating, and an acknowledgment that gates
+          the Approve button so no payout can be approved blind. */}
+      <Dialog
+        open={approveOpen}
+        onOpenChange={(o) => {
+          setApproveOpen(o);
+          // Acknowledgment is per-invocation — reopening starts clean.
+          if (!o) setRiskAcknowledged(false);
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
@@ -915,10 +964,43 @@ export function EnhancedWithdrawalsPage() {
               versus what the firm retains.
             </DialogDescription>
           </DialogHeader>
-          <div className="max-h-64 space-y-2 overflow-y-auto">
+
+          {/* Risk assessment (audit #3) — the context the reviewer must
+              read before the approve button unlocks. */}
+          <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-medium text-foreground">Risk assessment</span>
+              {approveRisk && (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    approveRisk.riskScore < 30
+                      ? "bg-rose-500/10 text-rose-700 dark:text-rose-400"
+                      : approveRisk.riskScore < 50
+                        ? "bg-orange-500/10 text-orange-700 dark:text-orange-400"
+                        : approveRisk.riskScore < 70
+                          ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                          : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  }`}
+                >
+                  {payoutRiskBandLabel(approveRisk.riskScore)} · {approveRisk.riskScore}/100
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {approveRisk
+                ? `Showing the riskiest trader in this selection${
+                    selectedPayouts.length > 1 ? ` (${selectedPayouts.length} payouts)` : ""
+                  } — approving a batch is only as safe as its weakest member.`
+                : "No risk profile is available for the selected traders; approve with the performance context below."}
+            </p>
+            <RiskContextPanel risk={approveRisk} currency={currency} />
+          </div>
+
+          <div className="max-h-56 space-y-2 overflow-y-auto">
             {selectedPayouts.map((p) => {
               const traderShare = Math.round((p.amount * p.profitSplit) / 100);
               const firmShare = p.amount - traderShare;
+              const rowRisk = riskByTrader.get(p.traderId);
               return (
                 <div key={p.id} className="rounded-lg border p-3 text-sm">
                   <div className="flex items-center justify-between gap-2">
@@ -930,6 +1012,20 @@ export function EnhancedWithdrawalsPage() {
                   <div className="mt-1">
                     <TraderPerformanceChip trader={traderById.get(p.traderId)} compact />
                   </div>
+                  {/* Per-payout risk line (audit #3) — score + open
+                      breaches at a glance, before the full panel. */}
+                  {rowRisk && (
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                      <span>
+                        Risk {rowRisk.riskScore}/100 · {payoutRiskBandLabel(rowRisk.riskScore)}
+                      </span>
+                      <span className={rowRisk.breaches.open > 0 ? "font-medium text-rose-700 dark:text-rose-400" : undefined}>
+                        {rowRisk.breaches.open > 0
+                          ? `${rowRisk.breaches.open} open breach${rowRisk.breaches.open === 1 ? "" : "es"}`
+                          : "No open breaches"}
+                      </span>
+                    </div>
+                  )}
                   <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                     <span>Split {p.profitSplit}% trader / {100 - p.profitSplit}% firm</span>
                     <span className="tabular-nums">
@@ -955,14 +1051,37 @@ export function EnhancedWithdrawalsPage() {
               to firm
             </span>
           </div>
+
+          {/* Acknowledgment gate (audit #3) — the reviewer confirms they
+              read the risk context; Approve stays disabled until then. */}
+          <label
+            htmlFor="payout-risk-ack"
+            className="flex cursor-pointer items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/20 dark:text-amber-200"
+          >
+            <Checkbox
+              id="payout-risk-ack"
+              checked={riskAcknowledged}
+              onCheckedChange={(v) => setRiskAcknowledged(v === true)}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="font-semibold">I have reviewed the risk context above</span> — recent
+              breaches, account health and the profit-split math — and approve this payout
+              knowingly.
+            </span>
+          </label>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setApproveOpen(false)}>
               Cancel
             </Button>
             <Button
               className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={!riskAcknowledged}
+              title={riskAcknowledged ? undefined : "Acknowledge the risk context to approve"}
               onClick={() => {
                 setApproveOpen(false);
+                setRiskAcknowledged(false);
                 batchApprove();
               }}
             >

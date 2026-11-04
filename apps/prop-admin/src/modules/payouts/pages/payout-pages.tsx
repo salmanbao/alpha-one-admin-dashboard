@@ -5,6 +5,7 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { hasPermission } from "@/lib/platform/permission-engine";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import { getTenantPayouts, getTraderPayouts, getTraderForUser, getTenantTraders, getTenantBreaches, type Payout } from "@/lib/platform/mock-data";
+import { buildPayoutRisk } from "@/lib/platform/payout-risk";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { applyPayoutDecision, effectivePayoutStatus, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -77,6 +78,10 @@ function PayoutRejectButton({ p, perf }: { p: Payout; perf?: PayoutTraderPerform
             count: 1,
             profitSplit: p.profitSplit,
             performance: perf,
+            // Risk context (audit #3) — breaches, score and account
+            // health alongside the reason, so the reject dialog shows
+            // what the reviewer is acting on.
+            risk: buildPayoutRisk(p.tenantId, p.traderId),
           })
         }
       >

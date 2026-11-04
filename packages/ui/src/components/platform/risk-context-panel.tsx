@@ -66,6 +66,16 @@ function riskBand(score: number) {
   return RISK_BANDS[0];
 }
 
+/**
+ * Public band label for a score — lets approval surfaces print the same
+ * rating the panel colours with, instead of re-deriving thresholds.
+ * Audit #3: the payout approve dialog needs a clear risk rating next to
+ * the panel so the reviewer reads one number, one word.
+ */
+export function payoutRiskBandLabel(score: number): string {
+  return riskBand(score).label;
+}
+
 function trendIcon(trend: string) {
   switch (trend) {
     case "improving":
