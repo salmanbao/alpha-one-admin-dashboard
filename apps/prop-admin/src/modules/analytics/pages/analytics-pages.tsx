@@ -45,6 +45,7 @@ import {
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { formatCurrency, formatCompact, StatusBadge, traderStatusTone } from "@/components/platform/status";
 import { AreaSeries, BarSeries, DonutSeries } from "@/components/platform/charts";
+import { TERRA } from "@/lib/chart-palette";
 import { LabelWithHelp } from "@/components/platform/contextual-help";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -93,19 +94,8 @@ import {
 } from "recharts";
 
 /* ================================================================== */
-/* Terra palette                                                      */
+/* Terra palette — shared (audit finding #3: one palette everywhere)  */
 /* ================================================================== */
-
-const TERRA = {
-  emerald: "#10b981",
-  amber: "#f59e0b",
-  rose: "#e11d48",
-  slate: "#64748b",
-  sky: "#0d9488",
-  teal: "#0d9488",
-  forest: "#4a7c59",
-  muted: "#78716c",
-} as const;
 
 const tooltipStyle: React.CSSProperties = {
   backgroundColor: "var(--popover)",
@@ -172,7 +162,7 @@ function ExplainableMetricCard({
   help?: React.ReactNode;
 }) {
   const toneColor =
-    tone === "positive" ? "#059669" : tone === "negative" ? "#e11d48" : tone === "warning" ? "#d97706" : "var(--brand-primary)";
+    tone === "positive" ? TERRA.emerald : tone === "negative" ? TERRA.rose : tone === "warning" ? TERRA.warning : "var(--brand-primary)";
   const deltaClass = delta === undefined ? "" : delta >= 0 ? "text-emerald-600" : "text-rose-600";
   return (
     <div className="group relative overflow-hidden rounded-lg border bg-card p-4 transition-shadow hover:shadow-sm">
@@ -516,11 +506,11 @@ export function AnalyticsOverviewPage() {
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-lg border bg-card p-4">
             <p className="mb-2 text-sm font-medium text-foreground">Revenue (30d) — {displayCurrency}</p>
-            <AreaSeries data={rev} xKey="date" yKey="value" formatValue={(v) => fmt(v)} />
+            <AreaSeries data={rev} xKey="date" yKey="value" height={220} formatValue={(v) => fmt(v)} />
           </div>
           <div className="rounded-lg border bg-card p-4">
             <p className="mb-2 text-sm font-medium text-foreground">{`${term("trader")} growth`}</p>
-            <AreaSeries data={traderGrowthSeries(tid)} xKey="date" yKey="value" color="#0d9488" />
+            <AreaSeries data={traderGrowthSeries(tid)} xKey="date" yKey="value" color={TERRA.teal} height={220} />
           </div>
           {/* Secondary detail (audit #3 fix #7) — progressive disclosure:
               distribution and trend charts are supporting data, collapsed
@@ -534,11 +524,13 @@ export function AnalyticsOverviewPage() {
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <div>
                 <p className="mb-2 text-xs font-medium text-muted-foreground">Risk distribution</p>
-                <DonutSeries data={riskDistribution(tid)} />
+                <DonutSeries data={riskDistribution(tid)} height={220} />
               </div>
               <div>
                 <p className="mb-2 text-xs font-medium text-muted-foreground">Breach trend (30d)</p>
-                <BarSeries data={breachTrend(tid)} xKey="date" yKey="value" color="#dc2626" />
+                {/* Time series → area, same family as revenue/growth above
+                    (audit finding #3: consistent chart types) */}
+                <AreaSeries data={breachTrend(tid)} xKey="date" yKey="value" color={TERRA.rose} height={220} />
               </div>
             </div>
           </details>
@@ -1360,13 +1352,13 @@ export function RiskAnalyticsPage() {
   };
   const BREACH_COLORS: Record<Breach["type"], string> = {
     "daily-drawdown": TERRA.rose,
-    "max-drawdown": "#9f1239",
+    "max-drawdown": TERRA.crimson,
     "profit-target-miss": TERRA.amber,
     "time-limit": TERRA.slate,
   };
   // Add three rule-engine-derived slices (news/weekend/copy).
   const ruleSlices = [
-    { label: "Trailing DD", color: "#fb7185", count: Math.max(2, Math.round(breaches.length * 0.4)) },
+    { label: "Trailing DD", color: TERRA.pink, count: Math.max(2, Math.round(breaches.length * 0.4)) },
     { label: "Margin Call", color: TERRA.sky, count: Math.max(1, Math.round(breaches.length * 0.25)) },
     { label: "News Trading", color: TERRA.teal, count: Math.max(1, Math.round(breaches.length * 0.18)) },
   ];
@@ -1546,7 +1538,7 @@ export function AdvancedAnalyticsPage() {
               ]}
               xKey="date"
               yKey="value"
-              color="#0d9488"
+              color={TERRA.teal}
               height={240}
             />
           </div>

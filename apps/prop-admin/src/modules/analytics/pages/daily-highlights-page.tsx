@@ -38,8 +38,11 @@ import {
 import { cn } from "@/lib/utils";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { TERRA } from "@/lib/chart-palette";
 
-const HOURLY_CHART_COLORS = ["#059669", "#0f766e", "#d97706", "#0d9488"];
+// One series colour per hourly chart, drawn from the shared palette
+// (audit finding #3) — also used for the PSP legend swatches below.
+const HOURLY_CHART_COLORS = [TERRA.emerald, TERRA.forest, TERRA.warning, TERRA.teal];
 
 export function DailyHighlightsPage() {
   const { runtime, tenant } = usePlatform();
@@ -106,16 +109,16 @@ export function DailyHighlightsPage() {
         {/* 2. Hourly charts */}
         <div className="grid gap-4 lg:grid-cols-2">
           <ChartCard title="Hourly Revenue" subtitle={`Total revenue per hour — ${currency}`}>
-            <AreaSeries data={h.hourlyRevenue} xKey="hour" yKey="value" color={HOURLY_CHART_COLORS[0]} formatValue={(v) => fmt(v)} />
+            <AreaSeries data={h.hourlyRevenue} xKey="hour" yKey="value" color={HOURLY_CHART_COLORS[0]} height={220} formatValue={(v) => fmt(v)} />
           </ChartCard>
           <ChartCard title="Hourly Orders" subtitle="Order count per hour">
-            <AreaSeries data={h.hourlyOrders} xKey="hour" yKey="value" color={HOURLY_CHART_COLORS[1]} formatValue={(v) => String(v)} />
+            <AreaSeries data={h.hourlyOrders} xKey="hour" yKey="value" color={HOURLY_CHART_COLORS[1]} height={220} formatValue={(v) => String(v)} />
           </ChartCard>
           <ChartCard title="Hourly Payouts" subtitle={`Payout amount per hour — ${currency}`}>
-            <AreaSeries data={h.hourlyPayouts} xKey="hour" yKey="value" color={HOURLY_CHART_COLORS[2]} formatValue={(v) => fmt(v)} />
+            <AreaSeries data={h.hourlyPayouts} xKey="hour" yKey="value" color={HOURLY_CHART_COLORS[2]} height={220} formatValue={(v) => fmt(v)} />
           </ChartCard>
           <ChartCard title="Hourly Orders by PSP" subtitle="Top PSP share per hour">
-            <AreaSeries data={hourlyOrdersByPSP} xKey="hour" yKey="value" color={HOURLY_CHART_COLORS[3]} formatValue={(v) => String(v)} />
+            <AreaSeries data={hourlyOrdersByPSP} xKey="hour" yKey="value" color={HOURLY_CHART_COLORS[3]} height={220} formatValue={(v) => String(v)} />
             <div className="mt-2 flex flex-wrap gap-1.5">
               {topPSPs.map((p, i) => (
                 <span key={p.psp} className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">

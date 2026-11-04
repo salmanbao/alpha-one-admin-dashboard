@@ -31,6 +31,7 @@ import {
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { AreaSeries, BarSeries } from "@/components/platform/charts";
+import { TERRA } from "@/lib/chart-palette";
 import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
 import { fundedConversionPct, winRatePct } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
@@ -73,19 +74,8 @@ import {
 /* Terra palette                                                      */
 /* ------------------------------------------------------------------ */
 
-const TERRA = {
-  forest: "#4a7c59",
-  sage: "#5a7c4a",
-  amber: "#705c30",
-  cream: "#f5efe6",
-  emerald: "#059669",
-  teal: "#0d9488",
-  green: "#16a34a",
-  warning: "#d97706",
-  danger: "#e11d48",
-  rose: "#dc2626",
-  muted: "#78716c",
-} as const;
+// TERRA is imported from the shared palette (audit finding #3: one
+// palette across every analytics screen instead of per-file copies).
 
 const tooltipStyle: React.CSSProperties = {
   backgroundColor: "var(--popover)",
