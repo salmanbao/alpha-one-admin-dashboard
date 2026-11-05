@@ -298,6 +298,10 @@ export function CheckoutPage() {
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [promoInput, setPromoInput] = useState("");
   const [promo, setPromo] = useState<{ code: string; percent: number } | null>(null);
+  // Inline promo error (finding #3) — invalid/expired codes show a
+  // persistent, specific message next to the field instead of only a
+  // transient toast, and clear as soon as the user edits the code.
+  const [promoError, setPromoError] = useState<string | null>(null);
   const [method, setMethod] = useState<string>("card");
   const [processing, setProcessing] = useState(false);
   const [paymentFailed, setPaymentFailed] = useState<{ reason: PaymentFailureCode } | null>(null);
@@ -336,6 +340,11 @@ export function CheckoutPage() {
     const found = promos[code];
     if (!found) {
       setPromo(null);
+      setPromoError(
+        code
+          ? `“${code}” isn’t a valid promo code. Check for typos, or the code may have expired.`
+          : "Enter a promo code first, then press Apply.",
+      );
       toast({
         title: "Invalid promo code",
         description: code ? `"${code}" is not a valid code.` : "Enter a code first.",
@@ -343,6 +352,7 @@ export function CheckoutPage() {
       });
       return;
     }
+    setPromoError(null);
     setPromo({ code, percent: found.percent });
     toast({
       title: "Promo applied",
@@ -630,9 +640,15 @@ export function CheckoutPage() {
             <div className="flex gap-2">
               <input
                 value={promoInput}
-                onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setPromoInput(e.target.value.toUpperCase());
+                  // Editing clears the stale error (finding #3)
+                  if (promoError) setPromoError(null);
+                }}
                 placeholder="Promo code"
                 aria-label="Promo code"
+                aria-invalid={promoError ? true : undefined}
+                aria-describedby={promoError ? "promo-error" : undefined}
                 className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm font-semibold uppercase tracking-wide outline-none focus:border-primary"
               />
               <button
@@ -643,6 +659,27 @@ export function CheckoutPage() {
                 Apply
               </button>
             </div>
+            {/* Inline promo failure (finding #3) — persistent, specific,
+                announced to assistive tech; toast alone wasn't enough. */}
+            {promoError && (
+              <p
+                id="promo-error"
+                role="alert"
+                className="rounded-lg border border-error/40 bg-error-container/40 px-3 py-2 text-xs font-semibold text-on-error-container"
+              >
+                {promoError}{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPromoError(null);
+                    setPromoInput("");
+                  }}
+                  className="underline underline-offset-2 hover:text-on-error-container"
+                >
+                  Clear and try another code
+                </button>
+              </p>
+            )}
             {promo && (
               <p className="rounded-lg bg-primary-fixed/40 px-3 py-2 text-xs font-bold text-on-primary-fixed-variant">
                 ✓ {promo.code} applied — {promo.percent}% off
