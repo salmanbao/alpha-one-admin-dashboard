@@ -5,7 +5,7 @@
  * pipeline stages, and lead tracking. Depends on Trading.
  */
 
-import { Contact, Users, GitBranch, BarChart3, History, UserPlus } from "lucide-react";
+import { Contact, Users, GitBranch, BarChart3, History, UserPlus, SlidersHorizontal } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { CrmOverviewWidget, PipelineWidget } from "./widgets/crm-widgets";
 
@@ -19,6 +19,7 @@ const navigation: NavigationItem[] = [
       { id: "crm.overview", label: "Overview", href: "crm", icon: BarChart3, permission: "crm.read" },
       { id: "crm.contacts", label: "Contacts", href: "crm-contacts", icon: Contact, permission: "crm.read" },
       { id: "crm.pipeline", label: "Pipeline", href: "crm-pipeline", icon: GitBranch, permission: "crm.read" },
+      { id: "crm.live-rules", label: "Live Rules", href: "crm-live-rules", icon: SlidersHorizontal, permission: "crm.read" },
 
       // ───────── Lead Operations (M11) ─────────
       { id: "crm.lead-scoring", label: "Lead Scoring", href: "crm-lead-scoring", icon: BarChart3, permission: "crm.read", group: "Lead Operations" },
@@ -32,6 +33,7 @@ const routes: RouteDefinition[] = [
   { path: "crm", viewId: "crm", label: "CRM Overview", permission: "crm.read", module: "crm" },
   { path: "crm-contacts", viewId: "crm-contacts", label: "Contacts", permission: "crm.read", module: "crm" },
   { path: "crm-pipeline", viewId: "crm-pipeline", label: "Pipeline", permission: "crm.read", module: "crm" },
+  { path: "crm-live-rules", viewId: "crm-live-rules", label: "Live Rule Changes", permission: "crm.read", module: "crm" },
   // Lead Operations (M11)
   { path: "crm-lead-scoring", viewId: "crm-lead-scoring", label: "Lead Scoring", permission: "crm.read", module: "crm" },
   { path: "crm-activity-log", viewId: "crm-activity-log", label: "CRM Activity Log", permission: "crm.read", module: "crm" },

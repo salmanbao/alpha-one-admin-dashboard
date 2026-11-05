@@ -191,6 +191,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   crm: dynamic(() => import("@/modules/crm/pages/crm-pages").then((m) => ({ default: m.CrmOverviewPage })), { loading: ViewSkeleton }),
   "crm-contacts": dynamic(() => import("@/modules/crm/pages/crm-pages").then((m) => ({ default: m.CrmContactsPage })), { loading: ViewSkeleton }),
   "crm-pipeline": dynamic(() => import("@/modules/crm/pages/crm-pages").then((m) => ({ default: m.CrmPipelinePage })), { loading: ViewSkeleton }),
+  "crm-live-rules": dynamic(() => import("@/modules/crm/pages/crm-live-rules-page").then((m) => ({ default: m.CrmLiveRulesPage })), { loading: ViewSkeleton }),
 
   /* kyc */
   kyc: dynamic(() => import("@/modules/kyc/pages/kyc-pages").then((m) => ({ default: m.KycOverviewPage })), { loading: ViewSkeleton }),
