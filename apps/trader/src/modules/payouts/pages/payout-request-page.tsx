@@ -162,9 +162,15 @@ export function PayoutRequestPage() {
           <p className="mt-1 text-sm text-on-surface-variant">
             Status: <span className="font-bold">Submitted</span> — you’ll receive a confirmation email when approved
           </p>
-          <p className="mt-1 text-sm text-on-surface-variant">
-            Payouts are reviewed within 1 business day and processed during the open window (see payout schedule page).
-          </p>
+          {method.id === "wm-confirmo" ? (
+            <p className="mt-1 text-sm text-on-surface-variant">
+              Confirmo auto-payout: funds settle on-chain within minutes of approval — 24/7.
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-on-surface-variant">
+              Payouts are reviewed within 1 business day and processed during the open window (see payout schedule page).
+            </p>
+          )}
         </div>
         <div className="flex gap-3">
           <Link
@@ -366,7 +372,9 @@ export function PayoutRequestPage() {
                   <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                     Processing time
                   </span>
-                  <p className="text-sm font-bold text-on-surface">{method.eta}</p>
+                  <p className="text-sm font-bold text-on-surface">
+                    {method.eta === "immediate" ? "Immediate — auto-settled" : method.eta}
+                  </p>
                 </label>
               </div>
             </div>
@@ -427,6 +435,14 @@ export function PayoutRequestPage() {
               <span className="font-bold text-on-surface">{valid ? formatMoney(asked) : "—"}</span>
             </div>
           </div>
+          {/* Confirmo auto-payout note (finding #7c) — replaces the manual
+              review expectations when instant crypto settlement is chosen. */}
+          {method.id === "wm-confirmo" && (
+            <p className="rounded-xl border border-primary/40 bg-primary-fixed/40 p-3 text-[11px] font-medium text-on-surface">
+              ⚡ Auto-payout via Confirmo — after approval, funds settle on-chain within
+              minutes, 24/7 (no bank windows, no manual transfers). Network fee ~1 USDT.
+            </p>
+          )}
           <p className="rounded-xl bg-secondary-fixed/60 p-3 text-[11px] text-on-secondary-fixed-variant">
             Your challenge fee is refunded with this payout — the first withdrawal on a funded
             account includes the original evaluation price.
@@ -446,7 +462,9 @@ export function PayoutRequestPage() {
           <p className="text-center text-[11px] text-on-surface-variant">
             {outstanding > 0
               ? "The checklist above explains each unmet requirement — submit once all are met."
-              : "Payouts are reviewed within 1 business day."}
+              : method.id === "wm-confirmo"
+                ? "Confirmo settles automatically within minutes of approval — 24/7."
+                : "Payouts are reviewed within 1 business day."}
           </p>
           </TerraCard>
         </div>
