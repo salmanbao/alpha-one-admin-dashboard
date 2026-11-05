@@ -477,6 +477,9 @@ function PlanMigrationDialog({
   const { user } = usePlatform();
   const [targetId, setTargetId] = useState<PlanId>(initialTarget);
   const [effective, setEffective] = useState<"immediate" | "cycle">("cycle");
+  // Required acknowledgment (audit #1/#9) — the operator must tick the
+  // summary of what the change does before Confirm unlocks.
+  const [acknowledged, setAcknowledged] = useState(false);
 
   const currentPlan = plans.find((p) => p.id === tenant.plan);
   const targetPlan = plans.find((p) => p.id === targetId);
@@ -504,14 +507,31 @@ function PlanMigrationDialog({
   const priceDelta =
     targetPlan && currentPlan ? targetPlan.priceMonthly - currentPlan.priceMonthly : 0;
 
-  const canMigrate = Boolean(targetPlan) && !isCurrent && violations.length === 0;
+  // Proration calculation (audit #1/#9) — deterministic fixture: the
+  // tenant's billing cycle is day 12 of 30, so 18 days remain. An
+  // immediate migration credits unused time on the current plan and
+  // charges the target plan for the remaining days; the net is what the
+  // tenant sees on the next invoice.
+  const CYCLE_DAYS = 30;
+  const CYCLE_DAY_USED = 12;
+  const daysRemaining = CYCLE_DAYS - CYCLE_DAY_USED; // 18
+  const dailyCurrent = currentPlan ? currentPlan.priceMonthly / CYCLE_DAYS : 0;
+  const dailyTarget = targetPlan ? targetPlan.priceMonthly / CYCLE_DAYS : 0;
+  const creditUnused = dailyCurrent * daysRemaining; // money back on old plan
+  const chargeRemaining = dailyTarget * daysRemaining; // money owed on new plan
+  const netProration = chargeRemaining - creditUnused; // >0 = tenant owes
+
+  const canMigrate =
+    Boolean(targetPlan) && !isCurrent && violations.length === 0 && acknowledged;
 
   const confirm = () => {
     if (!canMigrate || !targetPlan) return;
     toast({
       title: effective === "immediate" ? "Migration started" : "Plan change scheduled",
       description: `${tenant.name}: ${tenant.plan} → ${targetPlan.id} ${
-        effective === "immediate" ? "immediately (prorated)" : "at the next billing cycle"
+        effective === "immediate"
+          ? `immediately — net proration ${netProration >= 0 ? "charge" : "credit"} of ${formatCurrency(Math.abs(netProration))} (${daysRemaining} days remaining)`
+          : "at the next billing cycle"
       }. Provisioning will re-evaluate entitlements automatically.`,
     });
     recordAudit({
@@ -521,8 +541,10 @@ function PlanMigrationDialog({
       tenantId: tenant.id,
       severity: "info",
       detail: `${tenant.name}: ${tenant.plan} → ${targetPlan.id} (effective ${
-        effective === "immediate" ? "immediately" : "next billing cycle"
-      })`,
+        effective === "immediate"
+          ? `immediately, proration ${netProration >= 0 ? "+" : "−"}${formatCurrency(Math.abs(netProration))}`
+          : "next billing cycle"
+      }; acknowledged by ${user.name})`,
     });
     onOpenChange(false);
   };
@@ -683,10 +705,10 @@ function PlanMigrationDialog({
             )}
           </div>
 
-          {/* 4. Effective date */}
+          {/* 4. Effective date + proration calculation + acknowledgment */}
           <div className="space-y-1.5">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              4 · Effective date
+              4 · Effective date & proration
             </p>
             <div className="flex flex-wrap gap-4">
               <label className="flex items-center gap-2 text-sm">
@@ -708,6 +730,74 @@ function PlanMigrationDialog({
                 Next billing cycle
               </label>
             </div>
+
+            {/* Proration calculation (audit #1/#9) — what the change costs today */}
+            {effective === "immediate" && currentPlan && targetPlan && !isCurrent && (
+              <div className="rounded-md border border-border bg-muted/40 p-2.5 text-xs">
+                <p className="mb-1.5 font-medium text-muted-foreground">
+                  Proration — {daysRemaining} of {CYCLE_DAYS} days remaining in the current cycle
+                  (day {CYCLE_DAY_USED})
+                </p>
+                <dl className="space-y-1">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">
+                      Unused time on {currentPlan.name} (credited)
+                    </dt>
+                    <dd className="tabular-nums font-medium text-emerald-700 dark:text-emerald-400">
+                      −{formatCurrency(creditUnused)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">
+                      {targetPlan.name} for {daysRemaining} days (charged)
+                    </dt>
+                    <dd className="tabular-nums font-medium">
+                      +{formatCurrency(chargeRemaining)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-3 border-t border-border pt-1">
+                    <dt className="font-medium">
+                      Net {netProration >= 0 ? "charge" : "credit"} on next invoice
+                    </dt>
+                    <dd
+                      className={`tabular-nums font-semibold ${
+                        netProration >= 0
+                          ? "text-foreground"
+                          : "text-emerald-700 dark:text-emerald-400"
+                      }`}
+                    >
+                      {formatCurrency(Math.abs(netProration))}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            )}
+            {effective === "cycle" && (
+              <p className="text-xs text-muted-foreground">
+                No proration — the current plan runs to the end of its cycle, then the new plan&apos;s
+                full price applies.
+              </p>
+            )}
+
+            {/* Required acknowledgment (audit #1) — explicit confirmation before applying */}
+            <label className="flex items-start gap-2 rounded-md border border-border p-2.5 text-xs">
+              <input
+                type="checkbox"
+                checked={acknowledged}
+                onChange={(e) => setAcknowledged(e.target.checked)}
+                className="mt-0.5 shrink-0"
+              />
+              <span>
+                I understand this changes {tenant.name} from {currentPlan?.name} to{" "}
+                {targetPlan?.name}
+                {effective === "immediate"
+                  ? `, takes effect immediately, and applies a net ${
+                      netProration >= 0 ? "charge" : "credit"
+                    } of ${formatCurrency(Math.abs(netProration))} on the next invoice`
+                  : ", and takes effect at the next billing cycle"}
+                . Entitlements re-provision automatically.
+              </span>
+            </label>
           </div>
         </div>
 
@@ -723,7 +813,9 @@ function PlanMigrationDialog({
                 ? "That is already the current plan"
                 : violations.length > 0
                   ? "Usage exceeds the target plan's limits"
-                  : undefined
+                  : !acknowledged
+                    ? "Tick the acknowledgment to confirm you understand the change"
+                    : undefined
             }
           >
             {isCurrent
