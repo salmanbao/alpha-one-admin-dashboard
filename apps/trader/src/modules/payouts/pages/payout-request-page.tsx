@@ -432,14 +432,20 @@ export function PayoutRequestPage() {
           </p>
           <button
             type="button"
-            disabled={!valid}
+            disabled={!valid || outstanding > 0}
             onClick={() => setSubmitted(true)}
             className="rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {valid ? "Submit Payout Request" : "Enter a valid amount"}
+            {outstanding > 0
+              ? `Fix ${outstanding} unmet requirement${outstanding === 1 ? "" : "s"}`
+              : valid
+                ? "Submit Payout Request"
+                : "Enter a valid amount"}
           </button>
           <p className="text-center text-[11px] text-on-surface-variant">
-            Payouts are reviewed within 1 business day.
+            {outstanding > 0
+              ? "The checklist above explains each unmet requirement — submit once all are met."
+              : "Payouts are reviewed within 1 business day."}
           </p>
           </TerraCard>
         </div>
