@@ -23,6 +23,7 @@ import {
 } from "@/components/terra/terra-ui";
 import {
   announcements,
+  challengeForAccount,
   equityCurveFor,
   recentActivity,
   scalingPlan,
@@ -116,6 +117,11 @@ export function DashboardPage() {
   const accTrades = terraTrades.filter((t) => t.accountId === acc.id);
   const wins = accTrades.filter((t) => t.pnl > 0).length;
   const winRate = accTrades.length ? Math.round((wins / accTrades.length) * 100) : 0;
+  // Minimum trading days counter (audit D #2) — distinct days with a
+  // closed trade vs the program minimum, same derivation as
+  // objectivesFor so the dashboard can never disagree with Objectives.
+  const minDays = challengeForAccount(acc.id)?.minDays ?? 4;
+  const tradingDays = new Set(accTrades.map((t) => t.closedAt.slice(0, 10))).size;
   const avgHoldMs = accTrades.length
     ? accTrades.reduce(
         (s, t) => s + (+new Date(t.closedAt) - +new Date(t.openedAt)),
@@ -356,6 +362,54 @@ export function DashboardPage() {
             </span>
           </div>
           <TerraProgress value={acc.targetProgress} height="h-3" />
+
+          {/* Minimum trading days — same prominence as the profit target
+              and drawdown meters (audit D #2). Funded accounts have no
+              minimum-day requirement, so the counter only renders for
+              evaluation phases. */}
+          {acc.phase !== "Funded" && (
+            <div className="mt-4 rounded-xl bg-surface-container-low/60 p-4">
+              <div className="mb-2 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-on-surface">
+                    Minimum Trading Days
+                  </span>
+                  <span className="rounded bg-primary-fixed px-2 py-0.5 text-[11px] font-bold text-on-primary-fixed-variant">
+                    {tradingDays} / {minDays} days
+                  </span>
+                  {tradingDays >= minDays && (
+                    <span className="rounded bg-primary-fixed/60 px-2 py-0.5 text-[11px] font-bold text-primary">
+                      ✓ Requirement met
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs font-bold tabular-nums text-on-surface">
+                  {tradingDays >= minDays ? (
+                    <span className="text-primary">Satisfied — keep trading normally</span>
+                  ) : (
+                    <>
+                      <span className="text-primary">
+                        {minDays - tradingDays} day
+                        {minDays - tradingDays === 1 ? "" : "s"} remaining
+                      </span>{" "}
+                      <span className="font-normal text-on-surface-variant">
+                        · {Math.round(Math.min(100, (tradingDays / minDays) * 100))}% complete
+                      </span>
+                    </>
+                  )}
+                </span>
+              </div>
+              <TerraProgress
+                value={Math.min(100, (tradingDays / minDays) * 100)}
+                height="h-2.5"
+              />
+              <p className="mt-2 text-[11px] text-on-surface-variant">
+                A day counts once you close at least one trade on it — the rule keeps
+                evaluations from being passed on a single lucky day, so spread your
+                trading across multiple days.
+              </p>
+            </div>
+          )}
           <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-outline-variant/40 pt-4">
             <div className="flex items-center gap-2 text-xs text-on-surface-variant">
               <span className="font-semibold text-primary">✓</span>
