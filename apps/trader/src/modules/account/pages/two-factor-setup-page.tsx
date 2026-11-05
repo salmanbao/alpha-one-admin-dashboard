@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { cn } from "@pfaas/ui";
 import {
   TerraBadge,
@@ -31,10 +32,22 @@ const backupCodes = [
 export function TwoFactorSetupPage() {
   const [step, setStep] = useState(1);
   const [code, setCode] = useState("");
+  const [copied, setCopied] = useState(false);
   // Focus management: focus the new step's heading after every step
   // change (skip the initial render).
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstRender = useRef(true);
+
+  const handleCopyCodes = async () => {
+    try {
+      await navigator.clipboard.writeText(backupCodes.join("\n"));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   useEffect(() => {
     if (firstRender.current) {
@@ -213,16 +226,17 @@ export function TwoFactorSetupPage() {
             <div className="flex gap-2">
               <button
                 type="button"
+                onClick={handleCopyCodes}
                 className="flex-1 rounded-xl bg-surface-container-low px-4 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container"
               >
-                Copy codes
+                {copied ? "✓ Copied!" : "Copy codes"}
               </button>
-              <button
-                type="button"
-                className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-on-primary hover:bg-primary/90"
+              <Link
+                href="/recovery-codes"
+                className="flex-1 rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-on-primary hover:bg-primary/90"
               >
                 Done
-              </button>
+              </Link>
             </div>
           </TerraCard>
         )}
