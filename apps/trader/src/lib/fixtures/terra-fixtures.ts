@@ -921,6 +921,17 @@ export const withdrawalMethods = [
     eta: "Within 24 hours",
     primary: false,
   },
+  {
+    // Automatic crypto payouts via Confirmo (finding #7c) — eta is
+    // exactly "immediate" so the success screen skips the business-days
+    // line and the request card shows the auto-settlement note.
+    id: "wm-confirmo",
+    name: "Confirmo — Auto Crypto",
+    detail: "USDT · auto-settled on-chain, 24/7",
+    fee: "Network fee ~1 USDT",
+    eta: "immediate",
+    primary: false,
+  },
 ];
 
 /* ------------------------------------------------------------------ */
