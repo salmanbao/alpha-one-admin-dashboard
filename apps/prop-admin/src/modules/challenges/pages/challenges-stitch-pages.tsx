@@ -497,6 +497,22 @@ export function ChallengeWizardStitchPage() {
   const STEPS = ["Basic Info", "Pricing & Sizes", "Phase Configuration", "Trading Rules", "Scaling Plan", "Add-ons", "Review & Publish"];
   const [step, setStep] = React.useState(0);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  // Keyboard support (finding #6): each step change moves focus to the
+  // step's content container and announces the new step via an sr-only
+  // aria-live region; the stepper marks aria-current="step"; Left/Right
+  // arrow keys move between steps when focus is inside the wizard.
+  const stepBodyRef = React.useRef<HTMLDivElement>(null);
+  const firstStepRender = React.useRef(true);
+  const [stepAnnouncement, setStepAnnouncement] = React.useState("");
+
+  React.useEffect(() => {
+    if (firstStepRender.current) {
+      firstStepRender.current = false;
+      return;
+    }
+    stepBodyRef.current?.focus();
+    setStepAnnouncement(`Step ${step + 1} of ${STEPS.length}: ${STEPS[step]}`);
+  }, [step]);
   // Account size rows (size / price / profit split) — add + remove (PRD
   // accountSizes array with Plus/Trash2 row controls).
   const [sizes, setSizes] = React.useState([
@@ -527,18 +543,37 @@ export function ChallengeWizardStitchPage() {
         actions={<StitchButton variant="ghost" icon="visibility" onClick={() => setPreviewOpen(true)}>Trader Preview</StitchButton>}
       />
 
-      <div className="flex items-center gap-2 rounded-xl bg-sfc-low p-4 shadow-sm">
+      <div className="flex items-center gap-2 rounded-xl bg-sfc-low p-4 shadow-sm" role="list" aria-label="Wizard steps">
         {STEPS.map((s, i) => (
           <React.Fragment key={s}>
-            <div className="flex items-center gap-2">
-              <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold", i < step ? "bg-tp text-on-primary" : i === step ? "border-2 border-tp bg-sfc-lowest text-tp" : "bg-sfc text-ink-muted")}>{i < step ? <MsIconSafe name="check" /> : i + 1}</span>
+            <div className="flex items-center gap-2" role="listitem" aria-current={i === step ? "step" : undefined}>
+              <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold", i < step ? "bg-tp text-on-primary" : i === step ? "border-2 border-tp bg-sfc-lowest text-tp" : "bg-sfc text-ink-muted")} aria-hidden="true">{i < step ? <MsIconSafe name="check" /> : i + 1}</span>
               <span className={cn("hidden text-xs font-semibold sm:block", i === step ? "text-ink" : "text-ink-variant")}>{s}</span>
             </div>
-            {i < STEPS.length - 1 ? <div className={cn("h-0.5 flex-1", i < step ? "bg-tp" : "bg-sfc-high")} /> : null}
+            {i < STEPS.length - 1 ? <div className={cn("h-0.5 flex-1", i < step ? "bg-tp" : "bg-sfc-high")} aria-hidden="true" /> : null}
           </React.Fragment>
         ))}
       </div>
 
+      {/* Step-change announcement for screen readers (finding #6) */}
+      <p aria-live="polite" className="sr-only">{stepAnnouncement}</p>
+
+      {/* Focus target for step changes; arrow keys move between steps
+          when focus is inside the wizard body (finding #6). */}
+      <div
+        ref={stepBodyRef}
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight" && step < STEPS.length - 1) {
+            e.preventDefault();
+            setStep((s) => Math.min(STEPS.length - 1, s + 1));
+          } else if (e.key === "ArrowLeft" && step > 0) {
+            e.preventDefault();
+            setStep((s) => Math.max(0, s - 1));
+          }
+        }}
+        className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-tp"
+      >
       <StitchCard className="min-h-72 p-6">
         {step === 0 ? (
           <div className="space-y-4">
@@ -707,6 +742,7 @@ export function ChallengeWizardStitchPage() {
           </div>
         ) : null}
       </StitchCard>
+      </div>
 
       <div className="flex items-center justify-between rounded-xl bg-sfc-low px-4 py-3 shadow-sm">
         <StitchButton variant="ghost" icon="arrow_back" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))}>Back</StitchButton>

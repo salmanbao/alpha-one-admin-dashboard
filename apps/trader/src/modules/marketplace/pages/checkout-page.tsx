@@ -645,6 +645,14 @@ export function CheckoutPage() {
                   // Editing clears the stale error (finding #3)
                   if (promoError) setPromoError(null);
                 }}
+                // Keyboard (finding #6) — Enter applies the code without
+                // needing to tab to the Apply button.
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    applyPromo();
+                  }
+                }}
                 placeholder="Promo code"
                 aria-label="Promo code"
                 aria-invalid={promoError ? true : undefined}
