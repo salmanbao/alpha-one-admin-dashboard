@@ -459,11 +459,12 @@ export function CheckoutPage() {
               title="Trading platform"
               description="Credentials are provisioned for the platform you pick."
             />
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Trading platform">
               {ch.platforms.map((p) => (
                 <button
                   key={p}
                   type="button"
+                  aria-pressed={activePlatform === p}
                   onClick={() => setPlatform(p)}
                   className={cn(
                     "rounded-xl border px-3 py-3 text-sm font-bold transition-all",
@@ -565,11 +566,12 @@ export function CheckoutPage() {
           >
             <TerraCard>
             <TerraSectionTitle title="Payment method" />
-            <div className="space-y-2">
+            <div className="space-y-2" role="group" aria-label="Payment options">
               {paymentMethods.map((m) => (
                 <button
                   key={m.id}
                   type="button"
+                  aria-pressed={method === m.id}
                   onClick={() => setMethod(m.id)}
                   className={cn(
                     "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-all",

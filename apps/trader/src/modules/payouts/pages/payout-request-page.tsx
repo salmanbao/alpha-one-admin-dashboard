@@ -374,11 +374,12 @@ export function PayoutRequestPage() {
 
           <TerraCard>
             <TerraSectionTitle title="Payout methods" />
-            <div className="space-y-2">
+            <div className="space-y-2" role="group" aria-label="Payout methods">
               {withdrawalMethods.map((m) => (
                 <button
                   key={m.id}
                   type="button"
+                  aria-pressed={methodId === m.id}
                   onClick={() => setMethodId(m.id)}
                   className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-all ${
                     methodId === m.id
