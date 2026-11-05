@@ -41,6 +41,7 @@ import { GettingStartedTour } from "@/components/onboarding/getting-started-tour
 import { PayoutSummaryStrip } from "@/components/terra/payout-summary-strip";
 import { KycStatusCard } from "@/components/terra/kyc-status-card";
 import { ChallengeRulesDialog } from "@/components/terra/challenge-rules-dialog";
+import { OutageRecoveryBanner } from "@/components/terra/outage-recovery-banner";
 
 const ranges = ["7d", "30d", "90d"] as const;
 
@@ -137,6 +138,10 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Platform outage auto-recovery (finding #7a) — degraded → restored,
+          plays once per session (sessionStorage one-shot). */}
+      <OutageRecoveryBanner />
+
       {/* Top controls bar */}
       <div className="flex flex-col items-stretch justify-between gap-4 rounded-xl bg-surface-container-low p-4 shadow-sm sm:p-5 lg:flex-row lg:items-center">
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
