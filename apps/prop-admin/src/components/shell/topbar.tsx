@@ -18,6 +18,7 @@ import {
   Sun,
   Users as UsersIcon,
 } from "lucide-react";
+import { useRouter as useNextRouter } from "next/navigation";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { resolveTermsInString } from "@/lib/platform/terminology";
 import { moduleRegistry } from "@/lib/platform/module-registry";
@@ -61,6 +62,7 @@ export function Topbar() {
     user,
   } = usePlatform();
   const { switchUser } = useUserSwitcher();
+  const nextRouter = useNextRouter();
 
   const unread = notifications.filter((n) => !n.read).length;
 
@@ -319,6 +321,15 @@ export function Topbar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate("profile")}>Profile</DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("settings", { tab: "general" })}>Settings</DropdownMenuItem>
+            {/* Password recovery entry (finding #4) — the forgot-password
+                flow lives outside the SPA router, so it's a full route. */}
+            <DropdownMenuItem
+              onClick={() => {
+                nextRouter.push("/forgot-password");
+              }}
+            >
+              Reset password
+            </DropdownMenuItem>
             {/* Round 7 fix: filter Audit log menu item by audit-module-enabled
                 so tenants without the audit module don't dead-end into a
                 ForbiddenState (mirrors Round 3's command-menu fix). */}
