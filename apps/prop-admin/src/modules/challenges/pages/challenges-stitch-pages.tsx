@@ -747,9 +747,9 @@ export function ChallengeTypesStitchPage() {
   // PRD §4.18 duplicate/archive mutate the template list — keep it in state
   // so both actions visibly change the table instead of only toasting.
   const [types, setTypes] = React.useState([
-    { name: "2-Phase Standard", phases: 2, sizes: "10K–100K", split: "80%", active: true, sold30d: 412 },
-    { name: "1-Phase Turbo", phases: 1, sizes: "25K–50K", split: "75%", active: true, sold30d: 168 },
-    { name: "Instant Funded", phases: 0, sizes: "25K–100K", split: "70%", active: false, sold30d: 54 },
+    { name: "2-Phase Standard", phases: 2, sizes: "10K–100K", split: "80%", active: true, sold30d: 412, activeEvals: 1240 },
+    { name: "1-Phase Turbo", phases: 1, sizes: "25K–50K", split: "75%", active: true, sold30d: 168, activeEvals: 512 },
+    { name: "Instant Funded", phases: 0, sizes: "25K–100K", split: "70%", active: false, sold30d: 54, activeEvals: 96 },
   ]);
 
   const duplicateType = (name: string) => {
@@ -831,17 +831,42 @@ export function ChallengeTypesStitchPage() {
           toast({ title: "Challenge archived", description: `${archiveTarget} moved to the archive.`, variant: "destructive" });
         }}
       />
-      {/* Unpublish confirmation — audit #6: prevent accidental unpublish */}
+      {/* Unpublish confirmation — audit #6 + finding #2 (HIGH): destructive
+          guard with blast radius (sales + live evaluations) and a typed
+          reason recorded in the audit trail. */}
       <StitchConfirm
         open={!!unpublishTarget} onOpenChange={(o) => !o && setUnpublishTarget(null)} icon="visibility_off"
         title={`Unpublish ${unpublishTarget ?? ""}?`}
-        body="This will hide the challenge from new traders in the marketplace but will not affect existing evaluations — active challenges continue running to completion. You can re-publish at any time."
+        body="This hides the challenge from new traders in the marketplace. Existing evaluations are unaffected — active challenges continue running to completion, and you can re-publish at any time."
         confirmLabel="Unpublish"
-        onConfirm={() => {
+        requireReason
+        reasonPlaceholder="Why is this challenge being unpublished? Recorded in the audit trail."
+        onConfirm={(reason) => {
           setTypes((prev) => prev.map((t) => (t.name === unpublishTarget ? { ...t, active: false } : t)));
-          toast({ title: "Challenge unpublished", description: `${unpublishTarget} hidden from the marketplace. Existing evaluations unaffected.` });
+          toast({ title: "Challenge unpublished", description: `${unpublishTarget} hidden from the marketplace — reason recorded: “${reason}”. Existing evaluations unaffected.` });
         }}
-      />
+      >
+        {(() => {
+          const t = types.find((x) => x.name === unpublishTarget);
+          if (!t) return null;
+          return (
+            <div className="rounded-xl bg-sfc-low p-3">
+              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-variant">
+                Blast radius
+              </p>
+              <ul className="space-y-1 text-xs text-ink">
+                <li>• <strong>{t.sold30d}</strong> purchases in the last 30 days lose the ability to buy new seats</li>
+                <li>• <strong>{t.activeEvals.toLocaleString()}</strong> active evaluations keep running — no access is revoked</li>
+                <li>• Marketplace listing is removed immediately; re-publish restores it</li>
+              </ul>
+              <p className="mt-2 text-[11px] text-ink-variant">
+                Prefer to stop sales without touching the listing? Use <strong>Disable</strong> instead —
+                it blocks new purchases while keeping the page visible.
+              </p>
+            </div>
+          );
+        })()}
+      </StitchConfirm>
     </div>
   );
 }
