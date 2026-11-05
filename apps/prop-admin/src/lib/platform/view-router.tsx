@@ -185,6 +185,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "marketing-dashboard": dynamic(() => import("@/modules/marketing/pages/marketing-dashboard-page").then((m) => ({ default: m.MarketingDashboardPage })), { loading: ViewSkeleton }),
   "marketing-email-campaigns": dynamic(() => import("@/modules/marketing/pages/marketing-email-campaigns-page").then((m) => ({ default: m.MarketingEmailCampaignsPage })), { loading: ViewSkeleton }),
   "marketing-ad-spend": dynamic(() => import("@/modules/marketing/pages/marketing-ad-spend-page").then((m) => ({ default: m.MarketingAdSpendPage })), { loading: ViewSkeleton }),
+  "marketing-vip-campaigns": dynamic(() => import("@/modules/marketing/pages/marketing-vip-campaigns-page").then((m) => ({ default: m.MarketingVipCampaignsPage })), { loading: ViewSkeleton }),
 
   /* crm */
   crm: dynamic(() => import("@/modules/crm/pages/crm-pages").then((m) => ({ default: m.CrmOverviewPage })), { loading: ViewSkeleton }),
