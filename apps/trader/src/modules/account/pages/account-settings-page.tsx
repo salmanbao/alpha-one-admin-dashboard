@@ -31,6 +31,14 @@ const sections = [
     status: "Enabled",
   },
   {
+    id: "recovery-codes",
+    title: "Recovery Codes",
+    note: "View, download, or regenerate backup codes",
+    href: "/recovery-codes",
+    icon: "🔑",
+    status: "12 active",
+  },
+  {
     id: "sessions",
     title: "Sessions & Login History",
     note: "Active devices and recent logins",
