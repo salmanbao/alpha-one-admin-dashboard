@@ -160,6 +160,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "risk-engine": dynamic(
+    () =>
+      import("@/modules/super-admin/risk-engine-page").then((m) => ({
+        default: m.RiskEnginePage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "operator-directory": dynamic(
     () =>
       import("@/modules/super-admin/operator-directory-page").then((m) => ({
