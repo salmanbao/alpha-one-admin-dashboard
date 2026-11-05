@@ -8,7 +8,7 @@
  * module adoption, MRR trajectory, and operational intelligence.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
@@ -30,8 +30,20 @@ import {
   TrendingUp,
   CheckCircle2,
   ChevronRight,
+  ShieldCheck,
+  Wallet,
+  LifeBuoy,
+  ArrowRightLeft,
 } from "lucide-react";
-import { tenants as rosterTenants, getTenantTraders } from "@/lib/platform/mock-data";
+import {
+  tenants as rosterTenants,
+  getTenantTraders,
+  getTenantKyc,
+  getTenantBreaches,
+  getTenantPayouts,
+  getTenantTickets,
+} from "@/lib/platform/mock-data";
+import { healthOf, type Health } from "@/lib/platform/tenant-health";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 
 const tenantStatusTone = (s: string) =>
@@ -66,6 +78,38 @@ export function PlatformOverviewPage() {
   const allModules = moduleRegistry.getAll();
   const tenantFacingModules = allModules.filter((m) => m.manifest.id !== "super-admin");
   const activeTenants = allTenants.filter((t) => t.status === "active").length;
+
+  // Cross-tenant queue roll-up (finding #5) — the same per-tenant sums the
+  // cross-tenant-queues screen computes, surfaced here as the unified
+  // dashboard so operators don't need to open three screens to triage.
+  const queues = useMemo(() => {
+    let kyc = 0;
+    let risk = 0;
+    let payouts = 0;
+    let tickets = 0;
+    for (const t of allTenants) {
+      kyc += getTenantKyc(t.id).filter((k) => k.status === "pending" || k.status === "review").length;
+      risk += getTenantBreaches(t.id).filter((b) => b.status === "open").length;
+      payouts += getTenantPayouts(t.id).filter((p) => p.status === "pending").length;
+      tickets += getTenantTickets(t.id).filter((tk) => tk.status === "open").length;
+    }
+    return { kyc, risk, payouts, tickets };
+  }, [allTenants]);
+
+  // Tenants needing operator attention (watch/critical bands).
+  const attentionTenants = allTenants.filter((t) => healthOf(t) !== "healthy").length;
+
+  // Health filter chips on the Tenant Distribution card (finding #5).
+  const [healthFilter, setHealthFilter] = useState<Health | "all">("all");
+  const healthCounts = useMemo(() => {
+    const counts: Record<Health, number> = { healthy: 0, watch: 0, critical: 0 };
+    for (const t of allTenants) counts[healthOf(t)] += 1;
+    return counts;
+  }, [allTenants]);
+  const visibleTenants =
+    healthFilter === "all"
+      ? allTenants
+      : allTenants.filter((t) => healthOf(t) === healthFilter);
 
   // MRR trajectory data (12-month record)
   const mrrData = useMemo(() => [
@@ -151,6 +195,88 @@ export function PlatformOverviewPage() {
           <MetricCard label="Platform MRR" value={formatCurrency(totalRevenue * 100)} delta={18} icon={DollarSign} tone="positive" />
           <MetricCard label="Module Catalog" value={`${tenantFacingModules.length} / ${tenantFacingModules.length}`} delta={0} icon={Package} />
         </div>
+
+        {/* Cross-Tenant Operations — unified roll-up (finding #5) */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-semibold">Cross-Tenant Operations</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Unified queue roll-up across every tenant — triage systemic issues from one place.
+                </p>
+              </div>
+              {attentionTenants > 0 ? (
+                <Badge variant="outline" className="border-amber-500/50 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                  <AlertTriangle className="mr-1 h-3 w-3" /> {attentionTenants} need attention
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="border-emerald-500/50 text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 className="mr-1 h-3 w-3" /> All tenants healthy
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <button
+                type="button"
+                onClick={() => navigate("cross-tenant-queues")}
+                className="rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+              >
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5" /> KYC awaiting review
+                </div>
+                <p className="mt-1 text-xl font-bold tabular-nums">{queues.kyc}</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("cross-tenant-queues")}
+                className="rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+              >
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <AlertTriangle className="h-3.5 w-3.5" /> Open risk breaches
+                </div>
+                <p className="mt-1 text-xl font-bold tabular-nums">{queues.risk}</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("cross-tenant-queues")}
+                className="rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+              >
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Wallet className="h-3.5 w-3.5" /> Pending payouts
+                </div>
+                <p className="mt-1 text-xl font-bold tabular-nums">{queues.payouts}</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("cross-tenant-queues")}
+                className="rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+              >
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <LifeBuoy className="h-3.5 w-3.5" /> Open support tickets
+                </div>
+                <p className="mt-1 text-xl font-bold tabular-nums">{queues.tickets}</p>
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">Quick access:</span>
+              <Button size="sm" variant="outline" onClick={() => navigate("cross-tenant-queues")}>
+                <ArrowRightLeft className="mr-1.5 h-3.5 w-3.5" /> Operational queues
+                <ChevronRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => navigate("tenant-health")}>
+                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Tenant health
+                <ChevronRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => navigate("tenant-sessions")}>
+                <Users className="mr-1.5 h-3.5 w-3.5" /> Active sessions
+                <ChevronRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* MRR Trajectory Chart */}
         <Card>
@@ -249,8 +375,36 @@ export function PlatformOverviewPage() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Health filter chips (finding #5) — slice the roster by band. */}
+              <div className="mb-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter tenants by health">
+                {([
+                  { key: "all", label: "All", count: allTenants.length },
+                  { key: "healthy", label: "Healthy", count: healthCounts.healthy },
+                  { key: "watch", label: "Watch", count: healthCounts.watch },
+                  { key: "critical", label: "Critical", count: healthCounts.critical },
+                ] as const).map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    aria-pressed={healthFilter === chip.key}
+                    onClick={() => setHealthFilter(chip.key)}
+                    className={
+                      healthFilter === chip.key
+                        ? "rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground"
+                        : "rounded-full border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/60"
+                    }
+                  >
+                    {chip.label} · {chip.count}
+                  </button>
+                ))}
+              </div>
               <div className="space-y-2">
-                {allTenants.map((t) => (
+                {visibleTenants.length === 0 && (
+                  <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                    No tenants in this health band — try another filter.
+                  </p>
+                )}
+                {visibleTenants.map((t) => (
                   <div
                     key={t.id}
                     className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
