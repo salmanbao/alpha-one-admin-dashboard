@@ -21,6 +21,10 @@ import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@pfaas/ui/input-otp";
 import { DEMO_FAILING_CODE } from "@/components/platform/two-factor-dialog";
 import { Loader2, ShieldCheck, KeyRound, ArrowLeft, Building2 } from "lucide-react";
+import {
+  AccountLockedPage,
+  LOCKED_OPERATOR_EMAIL,
+} from "@/modules/auth/account-locked-page";
 
 const DEMO_EMAIL = "alex@pfaas.io";
 const DEMO_PASSWORD = "demo-password";
@@ -31,6 +35,9 @@ export function ConsoleLogin({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState(DEMO_PASSWORD);
   const [credError, setCredError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Restricted operator (audit D #4): the locked account never reaches
+  // the 2FA step — it lands on the account-locked screen instead.
+  const [locked, setLocked] = useState(false);
 
   const [code, setCode] = useState("");
   const [otpError, setOtpError] = useState<string | null>(null);
@@ -51,6 +58,13 @@ export function ConsoleLogin({ onLogin }: { onLogin: () => void }) {
       return;
     }
     setCredError(null);
+    // Restricted account (audit D #4) — an operator whose account is
+    // locked gets the dedicated state screen instead of a generic
+    // failure. Deterministic: exact match on the demo address.
+    if (email.trim().toLowerCase() === LOCKED_OPERATOR_EMAIL) {
+      setLocked(true);
+      return;
+    }
     setSubmitting(true);
     // Mock round-trip, then the mandatory 2FA step.
     setTimeout(() => {
@@ -75,6 +89,21 @@ export function ConsoleLogin({ onLogin }: { onLogin: () => void }) {
     }
     onLogin();
   };
+
+  // Restricted operator (audit D #4) — dedicated account-locked screen
+  // with reason, duration, resolution steps and appeal path.
+  if (locked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <AccountLockedPage
+          onBack={() => {
+            setLocked(false);
+            setCredError(null);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -135,7 +164,9 @@ export function ConsoleLogin({ onLogin }: { onLogin: () => void }) {
             </Button>
 
             <p className="text-center text-[11px] text-muted-foreground">
-              Demo: credentials are prefilled — just press Continue.
+              Demo: credentials are prefilled — just press Continue. Use{" "}
+              <span className="font-mono">{LOCKED_OPERATOR_EMAIL}</span> to see a
+              restricted account.
             </p>
           </div>
         ) : (
