@@ -9,6 +9,8 @@
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
+import Link from "next/link";
+import { isEmailVerified, setEmailVerified } from "@/lib/email-verification";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +40,13 @@ export function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatarUrl ?? null);
   const [displayName, setDisplayName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
+  // Email verification indicator (audit D #5) — same localStorage flag
+  // the /verify-email workflow writes. Read in an effect (storage isn't
+  // available during SSR) so the badge flips without a hydration mismatch.
+  const [emailVerified, setEmailVerifiedState] = useState(false);
+  useEffect(() => {
+    setEmailVerifiedState(isEmailVerified());
+  }, []);
   // Quick-preferences persist to localStorage so reloads keep the
   // operator's choices. Mirrors the NotificationsTab pattern in
   // settings-page.tsx (`pfaas:notificationPrefs`). Round 4 fix:
@@ -127,6 +136,11 @@ export function ProfilePage() {
       return;
     }
     updateUser({ name, email: mail || user.email, initials: initialsFrom(name) });
+    // A changed address must be re-verified before notices resume (audit D #5).
+    if (mail && mail.toLowerCase() !== user.email.toLowerCase()) {
+      setEmailVerified(false);
+      setEmailVerifiedState(false);
+    }
     toast({ title: "Profile saved", description: "Your changes have been saved." });
   };
 
@@ -178,8 +192,21 @@ export function ProfilePage() {
                     <Badge key={r} variant="outline" className="text-[10px]">{r.replace("-", " ")}</Badge>
                   ))}
                 </div>
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
                   <Mail className="h-3.5 w-3.5" /> {user.email}
+                  {emailVerified ? (
+                    <StatusBadge tone="success">Verified</StatusBadge>
+                  ) : (
+                    <>
+                      <StatusBadge tone="warning">Unverified</StatusBadge>
+                      <Link
+                        href="/verify-email"
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        Verify now →
+                      </Link>
+                    </>
+                  )}
                 </p>
                 <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground/70">
                   <Clock className="h-3 w-3" /> Last active: {new Date(user.lastActiveAt).toLocaleString()}
@@ -206,6 +233,22 @@ export function ProfilePage() {
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                  {emailVerified ? (
+                    <StatusBadge tone="success">Verified</StatusBadge>
+                  ) : (
+                    <>
+                      <StatusBadge tone="warning">Unverified</StatusBadge>
+                      <Link
+                        href="/verify-email"
+                        className="font-medium text-primary hover:underline"
+                      >
+                        Verify this address →
+                      </Link>
+                    </>
+                  )}
+                  <span>· changing the address requires re-verification.</span>
+                </p>
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
