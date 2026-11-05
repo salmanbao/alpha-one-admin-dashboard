@@ -17,6 +17,15 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -79,22 +88,83 @@ export function ComplianceReportsPage() {
   const [showSchedules, setShowSchedules] = useState(false);
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
 
+  // Report generation + schedule creation (finding #10) — real forms
+  // layered over the async fixture data. Deterministic: IDs derive from
+  // list position, next-run dates come from a fixed lookup (no clocks).
+  const [extraReports, setExtraReports] = useState<typeof demoReports>([]);
+  const [extraSchedules, setExtraSchedules] = useState<typeof demoSchedules>([]);
+  const [genOpen, setGenOpen] = useState(false);
+  const [schedOpen, setSchedOpen] = useState(false);
+  const [genType, setGenType] = useState("soc2");
+  const [genPeriod, setGenPeriod] = useState("2026-10-01 to 2026-10-31");
+  const [genSections, setGenSections] = useState<string[]>(["Access Controls", "Security"]);
+  const [schedName, setSchedName] = useState("");
+  const [schedType, setSchedType] = useState("soc2");
+  const [schedFrequency, setSchedFrequency] = useState("Monthly");
+  const [schedDelivery, setSchedDelivery] = useState("Email to compliance@");
+
+  const allReports = [...extraReports, ...data.reports];
+  const allSchedules = [...data.schedules, ...extraSchedules];
+
+  const SECTION_OPTIONS = ["Access Controls", "Availability", "Confidentiality", "Security", "Data Inventory", "Processing Activities", "Network Security", "Monitoring"];
+
+  const generateReport = () => {
+    const id = `rpt-${String(demoReports.length + extraReports.length + 1).padStart(3, "0")}`;
+    const typeName = genType === "soc2" ? "SOC2" : genType === "gdpr" ? "GDPR" : genType === "pci" ? "PCI DSS" : genType === "hipaa" ? "HIPAA" : "Custom";
+    setExtraReports((prev) => [
+      {
+        id,
+        name: `${typeName} — ${genPeriod.split(" to ")[0]}`,
+        type: genType,
+        period: genPeriod,
+        status: "generating",
+        generatedAt: null,
+        fileSize: null,
+        sections: genSections.length > 0 ? genSections : ["Security"],
+        schedule: null,
+      },
+      ...prev,
+    ]);
+    setGenOpen(false);
+    toast({ title: "Report generation started", description: `${typeName} for ${genPeriod} — ${genSections.length} sections. It will appear as completed once processing finishes.` });
+  };
+
+  const addSchedule = () => {
+    const name = schedName.trim() || `${schedFrequency} ${schedType.toUpperCase()}`;
+    const id = `sch-${String(demoSchedules.length + extraSchedules.length + 1).padStart(3, "0")}`;
+    // Deterministic next-run per frequency (fixed fixture dates).
+    const nextRunByFreq: Record<string, string> = {
+      Weekly: "2026-11-08T02:00:00Z",
+      Monthly: "2026-12-01T02:00:00Z",
+      Quarterly: "2027-01-01T02:00:00Z",
+      Annually: "2027-01-01T02:00:00Z",
+    };
+    setExtraSchedules((prev) => [
+      ...prev,
+      { id, name, type: schedType, frequency: schedFrequency, nextRun: nextRunByFreq[schedFrequency] ?? "2026-12-01T02:00:00Z", enabled: true, delivery: schedDelivery },
+    ]);
+    setSchedOpen(false);
+    setSchedName("");
+    setShowSchedules(true);
+    toast({ title: "Schedule created", description: `${name} — ${schedFrequency}, ${schedDelivery}.` });
+  };
+
   const filtered = useMemo(() => {
-    return data.reports.filter((rpt) => {
+    return allReports.filter((rpt) => {
       const matchesType = typeFilter === "all" || rpt.type === typeFilter;
       return matchesType;
     });
-  }, [data.reports, typeFilter]);
+  }, [allReports, typeFilter]);
 
   const stats = useMemo(() => ({
-    total: data.reports.length,
-    completed: data.reports.filter((r) => r.status === "completed").length,
-    generating: data.reports.filter((r) => r.status === "generating").length,
-    scheduled: data.reports.filter((r) => r.status === "scheduled").length,
-    activeSchedules: data.schedules.filter((s) => s.enabled).length,
-  }), [data.reports, data.schedules]);
+    total: allReports.length,
+    completed: allReports.filter((r) => r.status === "completed").length,
+    generating: allReports.filter((r) => r.status === "generating").length,
+    scheduled: allReports.filter((r) => r.status === "scheduled").length,
+    activeSchedules: allSchedules.filter((s) => s.enabled).length,
+  }), [allReports, allSchedules]);
 
-  const selectedRpt = data.reports.find((r) => r.id === selectedReport);
+  const selectedRpt = allReports.find((r) => r.id === selectedReport);
 
   return (
     <Page>
@@ -107,7 +177,7 @@ export function ComplianceReportsPage() {
             <Button variant="outline" size="sm" onClick={() => setShowSchedules(!showSchedules)}>
               <Calendar className="mr-1 h-4 w-4" /> {showSchedules ? "Hide" : "Show"} Schedules
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "Generate report", description: "Report generation form: type, period, sections." })}>
+            <Button size="sm" onClick={() => setGenOpen(true)}>
               <Plus className="mr-1 h-4 w-4" /> Generate Report
             </Button>
           </>
@@ -217,7 +287,7 @@ export function ComplianceReportsPage() {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold">Scheduled Reports</h2>
-                <Button size="sm" onClick={() => toast({ title: "Add schedule", description: "New schedule form: type, frequency, delivery." })}>
+                <Button size="sm" onClick={() => setSchedOpen(true)}>
                   <Plus className="mr-1 h-3 w-3" /> Add Schedule
                 </Button>
               </div>
@@ -237,7 +307,7 @@ export function ComplianceReportsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {data.schedules.map((sch) => (
+                    {allSchedules.map((sch) => (
                       <tr key={sch.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3 font-medium text-sm">{sch.name}</td>
                         <td className="px-4 py-3">
@@ -335,6 +405,139 @@ export function ComplianceReportsPage() {
           </Card>
         )}
         </PageAsyncBoundary>
+
+        {/* Generate report form (finding #10) — type, period, sections */}
+        <Dialog open={genOpen} onOpenChange={setGenOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Generate compliance report</DialogTitle>
+              <DialogDescription>
+                Pick the regulatory framework, reporting period, and sections to include. The
+                report is queued immediately and appears in the list above.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="gen-type">Framework</Label>
+                <select
+                  id="gen-type"
+                  value={genType}
+                  onChange={(e) => setGenType(e.target.value)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="soc2">SOC 2 Type II</option>
+                  <option value="gdpr">GDPR Data Processing</option>
+                  <option value="pci">PCI DSS</option>
+                  <option value="hipaa">HIPAA</option>
+                  <option value="custom">Custom audit</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="gen-period">Reporting period</Label>
+                <Input
+                  id="gen-period"
+                  value={genPeriod}
+                  onChange={(e) => setGenPeriod(e.target.value)}
+                  placeholder="2026-10-01 to 2026-10-31"
+                />
+              </div>
+              <fieldset className="space-y-1.5">
+                <legend className="text-sm font-medium">Sections</legend>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {SECTION_OPTIONS.map((sec) => (
+                    <label key={sec} className="flex items-center gap-1.5 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={genSections.includes(sec)}
+                        onChange={(e) =>
+                          setGenSections((prev) =>
+                            e.target.checked ? [...prev, sec] : prev.filter((s) => s !== sec),
+                          )
+                        }
+                        className="h-3.5 w-3.5"
+                      />
+                      {sec}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setGenOpen(false)}>Cancel</Button>
+              <Button onClick={generateReport} disabled={genSections.length === 0}>
+                <Play className="mr-1 h-4 w-4" /> Generate
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add schedule form (finding #10) — name, framework, frequency, delivery */}
+        <Dialog open={schedOpen} onOpenChange={setSchedOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Schedule automated report</DialogTitle>
+              <DialogDescription>
+                The report regenerates on this cadence and is delivered automatically — no
+                manual trigger needed.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="sched-name">Schedule name</Label>
+                <Input
+                  id="sched-name"
+                  value={schedName}
+                  onChange={(e) => setSchedName(e.target.value)}
+                  placeholder="Monthly PCI DSS"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sched-type">Framework</Label>
+                <select
+                  id="sched-type"
+                  value={schedType}
+                  onChange={(e) => setSchedType(e.target.value)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="soc2">SOC 2 Type II</option>
+                  <option value="gdpr">GDPR Data Processing</option>
+                  <option value="pci">PCI DSS</option>
+                  <option value="hipaa">HIPAA</option>
+                  <option value="custom">Custom audit</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sched-freq">Frequency</Label>
+                <select
+                  id="sched-freq"
+                  value={schedFrequency}
+                  onChange={(e) => setSchedFrequency(e.target.value)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="Weekly">Weekly</option>
+                  <option value="Monthly">Monthly</option>
+                  <option value="Quarterly">Quarterly</option>
+                  <option value="Annually">Annually</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="sched-delivery">Delivery</Label>
+                <Input
+                  id="sched-delivery"
+                  value={schedDelivery}
+                  onChange={(e) => setSchedDelivery(e.target.value)}
+                  placeholder="Email to compliance@"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSchedOpen(false)}>Cancel</Button>
+              <Button onClick={addSchedule}>
+                <Calendar className="mr-1 h-4 w-4" /> Create Schedule
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </PageContent>
     </Page>
   );
