@@ -120,11 +120,106 @@ const severityTones: Record<string, "success" | "info" | "warning" | "danger"> =
   critical: "danger",
 };
 
+/* ── Automated compliance checking (finding #8) ──────────────────────
+ * Deterministic rule-based flagging: each rule is a pure predicate
+ * over the audit event stream. Flagged events get an inline badge and
+ * rule names in the list, plus a "Flagged only" filter. Enable/disable
+ * state persists per operator in localStorage. */
+type AuditEvent = (typeof demoAuditEvents)[number];
+
+interface ComplianceRule {
+  id: string;
+  name: string;
+  description: string;
+  severity: "high" | "medium" | "low";
+  test: (evt: AuditEvent) => boolean;
+}
+
+const COMPLIANCE_RULES: ComplianceRule[] = [
+  {
+    id: "payout-threshold",
+    name: "High-value payout review",
+    description: "Flags payouts of $10,000+ for MLRO review before settlement.",
+    severity: "high",
+    test: (evt) => {
+      if (evt.action !== "billing.payout") return false;
+      const m = evt.details.match(/\$([\d,]+)/);
+      return m ? Number(m[1].replace(/,/g, "")) >= 10_000 : false;
+    },
+  },
+  {
+    id: "critical-escalation",
+    name: "Critical event escalation",
+    description: "Critical-severity events auto-escalate to the on-call security officer.",
+    severity: "high",
+    test: (evt) => evt.severity === "critical",
+  },
+  {
+    id: "cross-region-change",
+    name: "Cross-region configuration change",
+    description: "Tenant or module changes outside the primary region require review.",
+    severity: "medium",
+    test: (evt) => evt.region.startsWith("eu-") && /^(tenant|module)\./.test(evt.action),
+  },
+  {
+    id: "plan-change",
+    name: "Billing plan modification",
+    description: "Subscription plan changes are flagged for revenue-recognition audit.",
+    severity: "medium",
+    test: (evt) =>
+      evt.action === "tenant.update" && evt.details.toLowerCase().includes("billing plan"),
+  },
+  {
+    id: "audit-export",
+    name: "Audit log export",
+    description: "Every compliance export is itself an auditable disclosure event.",
+    severity: "low",
+    test: (evt) =>
+      evt.action === "security.audit" && evt.details.toLowerCase().includes("export"),
+  },
+];
+
+const COMPLIANCE_RULES_KEY = "pfaas:platform:complianceRules";
+
+function loadComplianceRuleOverrides(): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    const stored = window.localStorage.getItem(COMPLIANCE_RULES_KEY);
+    if (stored) return JSON.parse(stored) as Record<string, boolean>;
+  } catch { /* ignore corrupt storage */ }
+  return {};
+}
+
+function saveComplianceRuleOverrides(overrides: Record<string, boolean>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(COMPLIANCE_RULES_KEY, JSON.stringify(overrides));
+  } catch { /* ignore quota errors */ }
+}
+
 export function AuditLogPage() {
   const { navigate, router } = usePlatform();
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
+  // Automated compliance checking (finding #8) — rule toggles persist
+  // per operator; "Flagged only" narrows the list to rule matches.
+  const [ruleOverrides, setRuleOverrides] = useState<Record<string, boolean>>({});
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
+
+  useEffect(() => {
+    setRuleOverrides(loadComplianceRuleOverrides());
+  }, []);
+
+  const toggleRule = (ruleId: string) => {
+    setRuleOverrides((prev) => {
+      const next = { ...prev, [ruleId]: !(prev[ruleId] ?? true) };
+      saveComplianceRuleOverrides(next);
+      return next;
+    });
+  };
+
+  const isRuleEnabled = (ruleId: string) => ruleOverrides[ruleId] ?? true;
   // Tenant scope — preset via navigate("audit-log", { tenant }) from the
   // tenant detail view (audit: tenant-specific log viewer).
   const [tenantFilter, setTenantFilter] = useState<string>(router.params.tenant ?? "all");
@@ -159,6 +254,19 @@ export function AuditLogPage() {
   } = useAsyncMock(() => mockAsync(() => demoAuditEvents, { delayMs: 450 }), []);
   const auditEvents = loadedEvents ?? [];
 
+  // Evaluate enabled compliance rules against every event (finding #8).
+  // Map of eventId → matched rules (deterministic, no randomness).
+  const flagsByEvent = useMemo(() => {
+    const map = new Map<string, ComplianceRule[]>();
+    for (const evt of auditEvents) {
+      const matches = COMPLIANCE_RULES.filter(
+        (r) => (ruleOverrides[r.id] ?? true) && r.test(evt),
+      );
+      if (matches.length > 0) map.set(evt.id, matches);
+    }
+    return map;
+  }, [auditEvents, ruleOverrides]);
+
   const filtered = useMemo(() => {
     return auditEvents.filter((evt) => {
       const matchesSearch =
@@ -170,9 +278,10 @@ export function AuditLogPage() {
       const matchesAction = actionFilter === "all" || evt.action === actionFilter;
       const matchesSeverity = severityFilter === "all" || evt.severity === severityFilter;
       const matchesTenant = tenantFilter === "all" || tenantOf(evt) === tenantFilter;
-      return matchesSearch && matchesAction && matchesSeverity && matchesTenant;
+      const matchesFlagged = !flaggedOnly || flagsByEvent.get(evt.id)?.length;
+      return matchesSearch && matchesAction && matchesSeverity && matchesTenant && matchesFlagged;
     });
-  }, [auditEvents, search, actionFilter, severityFilter, tenantFilter, tenantOf]);
+  }, [auditEvents, search, actionFilter, severityFilter, tenantFilter, tenantOf, flaggedOnly, flagsByEvent]);
 
   const actions = useMemo(() => {
     const set = new Set(auditEvents.map((e) => e.action));
@@ -185,7 +294,10 @@ export function AuditLogPage() {
     warning: auditEvents.filter((e) => e.severity === "warning").length,
     info: auditEvents.filter((e) => e.severity === "info").length,
     actors: new Set(auditEvents.map((e) => e.actor)).size,
-  }), [auditEvents]);
+    flagged: flagsByEvent.size,
+  }), [auditEvents, flagsByEvent]);
+
+  const enabledRuleCount = COMPLIANCE_RULES.filter((r) => isRuleEnabled(r.id)).length;
 
   return (
     <Page>
@@ -239,6 +351,89 @@ export function AuditLogPage() {
             <Clock className="mr-1 h-3 w-3" /> Retention: 7 years
           </Badge>
         </div>
+
+        {/* Automated compliance rules (finding #8) — toggleable rules
+            that flag events inline below; matches counted live. */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+                Automated compliance checks
+              </h2>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {enabledRuleCount}/{COMPLIANCE_RULES.length} rules active ·{" "}
+                  <span className={stats.flagged > 0 ? "font-semibold text-amber-700 dark:text-amber-400" : ""}>
+                    {stats.flagged} events flagged
+                  </span>
+                </span>
+                <Button
+                  size="sm"
+                  variant={flaggedOnly ? "default" : "outline"}
+                  className="h-7 px-2 text-xs"
+                  aria-pressed={flaggedOnly}
+                  onClick={() => setFlaggedOnly((v) => !v)}
+                  disabled={stats.flagged === 0}
+                >
+                  <AlertTriangle className="mr-1 h-3 w-3" aria-hidden="true" />
+                  {flaggedOnly ? "Showing flagged" : "Flagged only"}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {COMPLIANCE_RULES.map((rule) => {
+                const enabled = isRuleEnabled(rule.id);
+                const hits = auditEvents.filter((e) => rule.test(e)).length;
+                return (
+                  <li
+                    key={rule.id}
+                    className={`rounded-md border p-2.5 text-xs ${enabled ? "border-border bg-background" : "border-border/50 bg-muted/30 opacity-70"}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium leading-tight">{rule.name}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">{rule.description}</p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={enabled}
+                        aria-label={`${enabled ? "Disable" : "Enable"} compliance rule: ${rule.name}`}
+                        onClick={() => toggleRule(rule.id)}
+                        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${enabled ? "bg-primary" : "bg-muted-foreground/30"}`}
+                      >
+                        <span
+                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${enabled ? "left-[18px]" : "left-0.5"}`}
+                          aria-hidden="true"
+                        />
+                      </button>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className={`text-[9px] uppercase ${
+                          rule.severity === "high"
+                            ? "border-rose-500/30 text-rose-700 dark:text-rose-400"
+                            : rule.severity === "medium"
+                              ? "border-amber-500/30 text-amber-700 dark:text-amber-400"
+                              : "border-teal-500/30 text-teal-700 dark:text-teal-400"
+                        }`}
+                      >
+                        {rule.severity}
+                      </Badge>
+                      <span className="text-[11px] text-muted-foreground">
+                        {hits} matching event{hits === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
 
         {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -307,10 +502,11 @@ export function AuditLogPage() {
               {filtered.map((evt) => {
                 const Icon = actionIcons[evt.action] ?? FileText;
                 const color = actionColors[evt.action] ?? "#74796e";
+                const flags = flagsByEvent.get(evt.id) ?? [];
                 return (
                   <div
                     key={evt.id}
-                    className="flex items-start gap-4 p-4 hover:bg-muted/30 transition-colors"
+                    className={`flex items-start gap-4 p-4 hover:bg-muted/30 transition-colors ${flags.length > 0 ? "border-l-2 border-l-amber-500 bg-amber-50/40 dark:bg-amber-950/10" : ""}`}
                   >
                     {/* Action icon */}
                     <div
@@ -330,6 +526,21 @@ export function AuditLogPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
+                          {flags.map((f) => (
+                            <Badge
+                              key={f.id}
+                              variant="outline"
+                              title={f.description}
+                              className={`text-[9px] ${
+                                f.severity === "high"
+                                  ? "border-rose-500/40 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400"
+                                  : "border-amber-500/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                              }`}
+                            >
+                              <ShieldAlert className="mr-0.5 h-2.5 w-2.5" aria-hidden="true" />
+                              {f.name}
+                            </Badge>
+                          ))}
                           <Badge
                             variant="outline"
                             className={`text-[9px] capitalize ${
