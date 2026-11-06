@@ -55,7 +55,7 @@ const navigation: NavigationItem[] = [
       { id: "settings.branding", label: "Branding", href: "settings?tab=branding", icon: Palette, permission: "settings.manage", group: "Branding & White-label" },
       { id: "settings.terminology", label: "Terminology", href: "settings?tab=terminology", icon: Type, permission: "settings.manage", group: "Branding & White-label" },
       { id: "settings.banners", label: "Banners", href: "banner-management", icon: Image, permission: "settings.manage", group: "Branding & White-label" },
-      { id: "settings.mkt-integrations", label: "Marketing Integrations", href: "marketing-integrations", icon: Plug, permission: "settings.manage", group: "Branding & White-label" },
+      { id: "settings.mkt-integrations", label: "Marketing Integrations", href: "marketing-integrations", icon: Plug, permission: ["marketing.connect", "settings.manage"], group: "Branding & White-label" },
       { id: "settings.social-media", label: "Social Media Links", href: "social-media-links", icon: Share2, permission: "settings.manage", group: "Branding & White-label" },
 
       // ───────── Website Content (M16 CMS) ─────────
@@ -113,7 +113,7 @@ const routes: RouteDefinition[] = [
   { path: "email-template-edit", viewId: "email-template-edit", label: "Email Template Edit", permission: "settings.manage", module: "settings" },
   { path: "certificate-template-designer", viewId: "certificate-template-designer", label: "Certificate Template Designer", permission: "settings.manage", module: "settings" },
   { path: "certificate-font-upload", viewId: "certificate-font-upload", label: "Certificate Font Upload", permission: "settings.manage", module: "settings" },
-  { path: "marketing-integrations", viewId: "marketing-integrations", label: "Marketing Integrations", permission: "settings.manage", module: "settings" },
+  { path: "marketing-integrations", viewId: "marketing-integrations", label: "Marketing Integrations", permission: ["marketing.connect", "settings.manage"], module: "settings" },
   { path: "marketing-banner-edit", viewId: "marketing-banner-edit", label: "Marketing Banner Edit", permission: "settings.manage", module: "settings" },
   { path: "social-media-links", viewId: "social-media-links", label: "Social Media Links", permission: "settings.manage", module: "settings" },
   { path: "device-activities", viewId: "device-activities", label: "Device Activities", permission: "settings.manage", module: "settings" },

@@ -239,7 +239,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "email-template-edit": dynamic(() => import("@/modules/settings/pages/email-template-edit-page").then((m) => ({ default: m.EmailTemplateEditPage })), { loading: ViewSkeleton }),
   "certificate-template-designer": dynamic(() => import("@/modules/settings/pages/certificate-template-designer-page").then((m) => ({ default: m.CertificateTemplateDesignerPage })), { loading: ViewSkeleton }),
   "certificate-font-upload": dynamic(() => import("@/modules/settings/pages/certificate-font-upload-page").then((m) => ({ default: m.CertificateFontUploadPage })), { loading: ViewSkeleton }),
-  "marketing-integrations": dynamic(() => import("@/modules/settings/pages/marketing-integrations-page").then((m) => ({ default: m.MarketingIntegrationsPage })), { loading: ViewSkeleton }),
+  "marketing-integrations": dynamic(() => import("@/modules/integrations/pages/integrations-hub-page").then((m) => ({ default: m.IntegrationsHubPage })), { loading: ViewSkeleton }),
   "marketing-banner-edit": dynamic(() => import("@/modules/settings/pages/marketing-banner-edit-page").then((m) => ({ default: m.MarketingBannerEditPage })), { loading: ViewSkeleton }),
   "social-media-links": dynamic(() => import("@/modules/settings/pages/social-media-links-page").then((m) => ({ default: m.SocialMediaLinksPage })), { loading: ViewSkeleton }),
   "device-activities": dynamic(() => import("@/modules/settings/pages/device-activities-page").then((m) => ({ default: m.DeviceActivitiesPage })), { loading: ViewSkeleton }),

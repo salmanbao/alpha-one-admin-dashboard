@@ -40,6 +40,7 @@ const DEMO_STORES = [
   "evaluations",
   "affiliate-kpis",
   "auto-approve-rule",
+  "connectors",
 ] as const;
 
 /**
