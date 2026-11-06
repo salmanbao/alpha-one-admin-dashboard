@@ -1,6 +1,7 @@
 "use client";
 
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+import { usePlatform } from "@/lib/platform/platform-context";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -75,6 +76,7 @@ const columns: Column<RefEntry>[] = [
 ];
 
 export function ReferenceDataPage() {
+  const { tenant } = usePlatform();
   const {
     data: hydrated,
     loading,
@@ -85,7 +87,33 @@ export function ReferenceDataPage() {
 
   return (
     <Page>
-      <PageHeader title="Master Reference Data" description="Controlled reference data — currencies, countries, platforms, rule types, account types, status definitions." icon={BookOpen} />
+      <PageHeader
+        title="Master Reference Data"
+        description="Controlled reference data — currencies, countries, platforms, rule types, account types, status definitions."
+        icon={BookOpen}
+        actions={
+          // Scope clarity (finding #9) — this workspace writes GLOBAL
+          // data; the chip names who is acting so a tenant-scoped
+          // operator can't mistake it for tenant-local configuration.
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="gap-1.5 text-[11px] font-semibold">
+              <Globe className="h-3 w-3" aria-hidden="true" />
+              Global scope — all tenants
+            </Badge>
+            <span
+              className="flex items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-1 text-[11px] font-medium"
+              title={`Acting tenant: ${tenant.id === "platform" ? "Platform (Super Admin)" : tenant.name}`}
+            >
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ background: tenant.branding.primaryColor }}
+                aria-hidden="true"
+              />
+              {tenant.id === "platform" ? "Platform" : tenant.name}
+            </span>
+          </div>
+        }
+      />
       <PageContent>
         <PageAsyncBoundary
           loading={loading}
