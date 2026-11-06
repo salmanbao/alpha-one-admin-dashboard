@@ -24,23 +24,21 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { terraChallenges } from "@/lib/fixtures/terra-fixtures";
 import { FormField, useFormValidation } from "@pfaas/ui/platform-form-field";
-
-const billingValidators = {
-  firstName: (v: string) => (!v.trim() ? "First name is required." : ""),
-  lastName: (v: string) => (!v.trim() ? "Last name is required." : ""),
-  email: (v: string) => {
-    if (!v.trim()) return "Email is required.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return "Enter a valid email address.";
-    return "";
-  },
-  country: (v: string) => (!v.trim() ? "Country is required." : ""),
-};
-
-const paymentMethods = [
-  { id: "card", label: "Credit / Debit Card", note: "Visa, Mastercard, Amex" },
-  { id: "crypto", label: "Crypto (USDT)", note: "TRC-20 / ERC-20" },
-  { id: "paypal", label: "PayPal", note: "Buyer protection" },
-] as const;
+import {
+  billingFieldLabels,
+  billingFieldOrder,
+  billingValidators,
+  bumpPayAttempt,
+  clearCheckoutDraft,
+  paymentFailureReasons,
+  paymentMethods,
+  promos,
+  readCheckoutDraft,
+  resetPayAttempts,
+  writeCheckoutDraft,
+  writeCheckoutFailure,
+  type PaymentMethodId,
+} from "@/lib/checkout/checkout-recovery";
 
 /** Optional paid extras — priced once, applied to the order total. */
 const addons = [
@@ -64,218 +62,11 @@ const addons = [
   },
 ] as const;
 
-/** Promo codes accepted in this demo. */
-const promos: Record<string, { percent: number; label: string }> = {
-  TERRA10: { percent: 10, label: "10% off" },
-  FLASH25: { percent: 25, label: "25% off Flash accounts" },
-};
-
 /** Account-size label — same formatter as the marketplace cards
  *  (`formatMoney(…).replace(".00", "")`), so a $100,000 account reads
  *  identically on the marketplace, the detail page and checkout
  *  (audit finding #9: the raw `$${(n/1000)}K` string drifted). */
 const sizeLabel = (accountSize: number) => formatMoney(accountSize, "USD").replace(".00", "");
-
-const paymentFailureReasons = [
-  {
-    code: "insufficient_funds",
-    title: "Insufficient funds",
-    detail: "Your card or account doesn't have enough balance to cover this purchase.",
-    fix: "Check your balance, or try a different payment method below.",
-  },
-  {
-    code: "card_declined",
-    title: "Card declined",
-    detail: "Your bank or card issuer declined this transaction.",
-    fix: "Contact your bank to approve the charge, or try another card.",
-  },
-  {
-    code: "expired_card",
-    title: "Card expired",
-    detail: "The card used for this purchase has passed its expiry date.",
-    fix: "Update the expiry date and CVV, or switch to another card or payment method.",
-  },
-  {
-    code: "network_timeout",
-    title: "Network timeout",
-    detail: "The payment didn't complete because the connection dropped.",
-    fix: "Check your internet connection and try again.",
-  },
-] as const;
-
-type PaymentFailureCode = (typeof paymentFailureReasons)[number]["code"];
-
-/**
- * Payment Failed View — dedicated recovery screen (audit finding #2).
- *
- * Shows the SPECIFIC failure reason (picked from paymentFailureReasons)
- * with its fix, names the exact method/amount/order that failed, and
- * offers genuinely different recovery paths:
- *
- *   • "Try again with the same method" — re-runs the payment with the
- *     failed method still pre-selected (state never left the form).
- *   • "Change payment method" — returns to the form and moves focus to
- *     the Payment method card so another method can be picked.
- *   • "Contact support" — carries the failure context (reason code,
- *     method, amount, order) as query params so the support ticket
- *     composer opens pre-filled.
- */
-function PaymentFailedView({
-  reason,
-  method,
-  amountLabel,
-  challenge,
-  onRetrySameMethod,
-  onChangeMethod,
-}: {
-  reason: PaymentFailureCode;
-  method: { label: string; note: string };
-  amountLabel: string;
-  challenge: string;
-  onRetrySameMethod: () => void;
-  onChangeMethod: () => void;
-}) {
-  const reasonInfo = paymentFailureReasons.find((r) => r.code === reason)!;
-  // Support link pre-populated with the failure context (finding #2).
-  const supportHref = `/support?${new URLSearchParams({
-    topic: "payment-failed",
-    reason,
-    reasonTitle: reasonInfo.title,
-    method: method.label,
-    amount: amountLabel,
-    challenge,
-  }).toString()}`;
-
-  return (
-    <div className="space-y-6">
-      <TerraPageHeader
-        title="Payment Failed"
-        description={`Your challenge was not purchased — ${challenge}`}
-        actions={<TerraBadge tone="error" dot>{reasonInfo.title}</TerraBadge>}
-      />
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          {/* Failure explanation — what failed, with the exact order */}
-          <TerraCard className="border border-error/30 bg-error-container/40">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">⚠️</span>
-              <div>
-                <p className="font-headline text-lg font-bold text-on-error-container">
-                  {reasonInfo.title}
-                </p>
-                <p className="text-sm text-on-error-container/80">
-                  {reasonInfo.detail} — your account was not charged.
-                </p>
-                <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-on-error-container/70">Order</dt>
-                    <dd className="font-semibold text-on-error-container">{challenge}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-on-error-container/70">Amount</dt>
-                    <dd className="font-semibold tabular-nums text-on-error-container">{amountLabel}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-on-error-container/70">Payment method</dt>
-                    <dd className="font-semibold text-on-error-container">{method.label}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-on-error-container/70">Failure code</dt>
-                    <dd className="font-mono text-on-error-container">{reason}</dd>
-                  </div>
-                </dl>
-              </div>
-            </div>
-          </TerraCard>
-
-          {/* Recovery steps */}
-          <TerraCard>
-            <TerraSectionTitle title="How to fix this" />
-            <ol className="space-y-4">
-              {[
-                {
-                  title: reasonInfo.fix,
-                  note: "Most payment failures clear on retry or with a different method.",
-                },
-                {
-                  title: "Try a different payment method",
-                  note: "Switch between card, crypto, or PayPal — sometimes a different issuer or network works.",
-                },
-                {
-                  title: "Contact support if it persists",
-                  note: "We'll manually verify your payment and provision your challenge.",
-                },
-              ].map((s, i) => (
-                <li key={s.title} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-container text-xs font-bold text-on-surface-variant">
-                    {i + 1}
-                  </span>
-                  <div>
-                    <p className="text-sm font-bold text-on-surface">{s.title}</p>
-                    <p className="text-xs text-on-surface-variant">{s.note}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </TerraCard>
-        </div>
-
-        {/* Action sidebar */}
-        <div className="space-y-6">
-          <TerraCard className="flex flex-col gap-2">
-            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
-              Recovery options
-            </p>
-            <button
-              type="button"
-              onClick={onRetrySameMethod}
-              className="rounded-xl bg-primary px-5 py-3 text-center text-sm font-bold text-on-primary hover:bg-primary/90"
-            >
-              Try again with {method.label}
-            </button>
-            <p className="text-center text-[11px] text-on-surface-variant">
-              This method stays pre-selected — no re-entry needed.
-            </p>
-            <button
-              type="button"
-              onClick={onChangeMethod}
-              className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
-            >
-              Change payment method
-            </button>
-            <p className="text-center text-[11px] text-on-surface-variant">
-              Returns to the form and jumps to the payment method choices.
-            </p>
-            <Link
-              href="/marketplace"
-              className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
-            >
-              Back to Marketplace
-            </Link>
-            <Link
-              href={supportHref}
-              className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
-            >
-              Contact support
-            </Link>
-            <p className="text-center text-[11px] text-on-surface-variant">
-              Opens a ticket pre-filled with the reason, method, and amount.
-            </p>
-          </TerraCard>
-
-          <TerraCard>
-            <TerraSectionTitle title="Alternative payment" />
-            <p className="text-xs text-on-surface-variant">
-              You can switch to another payment method from the checkout form. Crypto
-              (USDT) has the highest approval rate, and PayPal is instant for most banks.
-            </p>
-          </TerraCard>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function CheckoutPage() {
   const params = useSearchParams();
@@ -302,31 +93,52 @@ export function CheckoutPage() {
   // persistent, specific message next to the field instead of only a
   // transient toast, and clear as soon as the user edits the code.
   const [promoError, setPromoError] = useState<string | null>(null);
-  const [method, setMethod] = useState<string>("card");
+  const [method, setMethod] = useState<PaymentMethodId>("card");
   const [processing, setProcessing] = useState(false);
-  const [paymentFailed, setPaymentFailed] = useState<{ reason: PaymentFailureCode } | null>(null);
-  // Deterministic failure simulation — no Math.random(): every 3rd
-  // attempt succeeds, failures cycle through the reason catalog so each
-  // specific explanation (incl. expired card) is reachable in the demo.
-  const paymentAttempts = useRef(0);
+  // Billing submit summary (finding #1) — set when a submit fails
+  // validation, cleared on the next clean submit. The block rendered
+  // from it is derived from the live field errors, so entries drop out
+  // as each field is fixed.
+  const [billingSubmitted, setBillingSubmitted] = useState(false);
+  const [billingFocusNonce, setBillingFocusNonce] = useState(0);
 
-  // "Change payment method" from the failure screen: scroll the payment
-  // card into view and move focus there (nonce — effect only reruns on
-  // explicit retry, no state updates inside the effect).
+  // "Change payment method" from the failure route (?focus=method):
+  // start the nonce above zero so the effect below scrolls the payment
+  // card into view and moves focus there on mount.
   const methodCardRef = useRef<HTMLDivElement>(null);
-  const [methodFocusNonce, setMethodFocusNonce] = useState(0);
+  const [methodFocusNonce, setMethodFocusNonce] = useState(() =>
+    params.get("focus") === "method" ? 1 : 0,
+  );
   useEffect(() => {
     if (methodFocusNonce === 0) return;
     methodCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     methodCardRef.current?.focus({ preventScroll: true });
   }, [methodFocusNonce]);
 
-  // Billing details — shared validation (audit #5)
-  const [firstName, setFirstName] = useState("Tom");
-  const [lastName, setLastName] = useState("Allen");
-  const [email, setEmail] = useState("tom.allen@terra.trader");
-  const [country, setCountry] = useState("United States");
-  const { field: billingField, validateAll: validateBilling } = useFormValidation(billingValidators);
+  // Focus the first invalid billing field after a failed submit so
+  // keyboard / screen-reader users land on the problem (finding #5).
+  // The effect runs after render, when validateAll has applied
+  // aria-invalid to the inputs.
+  useEffect(() => {
+    if (billingFocusNonce === 0) return;
+    document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [billingFocusNonce]);
+
+  // Billing details — shared validation (audit #5). Prefilled from the
+  // draft saved by a failed submit, so returning from
+  // /checkout-validation restores exactly what was typed (finding #1).
+  const [draft] = useState(() => readCheckoutDraft());
+  const [firstName, setFirstName] = useState(() => draft?.firstName ?? "Tom");
+  const [lastName, setLastName] = useState(() => draft?.lastName ?? "Allen");
+  const [email, setEmail] = useState(() => draft?.email ?? "tom.allen@terra.trader");
+  const [country, setCountry] = useState(() => draft?.country ?? "United States");
+  const {
+    field: billingField,
+    validateAll: validateBilling,
+    errors: billingErrors,
+  } = useFormValidation(billingValidators);
+  // Fields currently failing — drives the submit summary block below.
+  const invalidBilling = billingFieldOrder.filter((f) => billingErrors[f]);
 
   const addonsTotal = addons
     .filter((a) => selectedAddons.includes(a.id))
@@ -367,54 +179,59 @@ export function CheckoutPage() {
 
   function pay() {
     // Validate billing details before processing (audit #5)
-    if (!validateBilling({ firstName, lastName, email, country })) return;
+    const values = { firstName, lastName, email, country };
+    if (!validateBilling(values)) {
+      // Save the failed draft for /checkout-validation, raise the
+      // inline summary, and move focus to the first invalid field
+      // (findings #1 and #5). Nothing is charged — and no pay attempt
+      // is consumed — while a field is invalid.
+      writeCheckoutDraft(values);
+      setBillingSubmitted(true);
+      setBillingFocusNonce((n) => n + 1);
+      return;
+    }
+    // Every check passed — the saved draft is stale now.
+    clearCheckoutDraft();
+    setBillingSubmitted(false);
     setProcessing(true);
-    // Simulate a payment outcome deterministically: attempts 1, 2 fail
-    // (cycling the reason catalog), attempt 3 succeeds.
+    // Simulate a payment outcome deterministically — no Math.random():
+    // attempts 1, 2 fail (cycling the reason catalog), attempt 3
+    // succeeds. The counter lives in sessionStorage so the cycle
+    // survives the round-trip to /checkout-failure and back, and it
+    // resets once a payment goes through.
     setTimeout(() => {
       setProcessing(false);
-      paymentAttempts.current += 1;
-      const attempt = paymentAttempts.current;
+      const attempt = bumpPayAttempt();
       if (attempt % 3 !== 0) {
-        // Pick a real failure reason from the table (finding #2) so the
-        // failure screen shows specific, actionable explanations instead
-        // of always claiming "card declined".
-        const picked =
-          paymentFailureReasons[(attempt - 1) % paymentFailureReasons.length];
-        setPaymentFailed({ reason: picked.code });
+        // Pick a real failure reason from the table (finding #2) so
+        // the recovery route shows a specific, actionable explanation
+        // instead of always claiming "card declined".
+        const picked = paymentFailureReasons[(attempt - 1) % paymentFailureReasons.length];
+        writeCheckoutFailure({
+          reason: picked.code,
+          methodId: method,
+          amountLabel: formatMoney(total),
+          challenge: `${ch.name} ${sizeLabel(ch.accountSize)}`,
+          attempt,
+        });
+        router.push("/checkout-failure");
       } else {
+        resetPayAttempts();
         router.push("/purchase-completed");
       }
     }, 700);
   }
 
-  if (paymentFailed) {
-    const failedMethod =
-      paymentMethods.find((m) => m.id === method) ?? paymentMethods[0];
-    return (
-      <PaymentFailedView
-        reason={paymentFailed.reason}
-        method={{ label: failedMethod.label, note: failedMethod.note }}
-        amountLabel={formatMoney(total)}
-        challenge={`${ch.name} ${sizeLabel(ch.accountSize)}`}
-        // Same method, immediate re-pay — its state never left the form,
-        // so it is still pre-selected on the checkout underneath.
-        onRetrySameMethod={() => {
-          setPaymentFailed(null);
-          pay();
-        }}
-        // Different method — back to the form, focused on the choices.
-        onChangeMethod={() => {
-          setPaymentFailed(null);
-          setMethodFocusNonce((n) => n + 1);
-          toast({
-            title: "Choose a different payment method",
-            description: `${failedMethod.label} is still selected — pick another, then pay again.`,
-          });
-        }}
-      />
-    );
-  }
+  // Auto-retry from the failure route (?retry=1) — re-runs the payment
+  // once, with the failed method still pre-selected. Deferred a tick so
+  // the form paints first (and satisfies react-hooks/set-state-in-effect).
+  const autoRetryUsed = useRef(false);
+  useEffect(() => {
+    if (params.get("retry") !== "1" || autoRetryUsed.current) return;
+    autoRetryUsed.current = true;
+    const t = setTimeout(() => pay(), 400);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -554,6 +371,36 @@ export function CheckoutPage() {
                 {...billingField("country", country, setCountry)}
               />
             </div>
+            {/* Submit-time billing summary (finding #1) — every field
+                that failed the last Pay press, with a link to the
+                dedicated validation screen. Derived from the live
+                errors, so fixed fields drop out immediately. */}
+            {billingSubmitted && invalidBilling.length > 0 && (
+              <div
+                role="alert"
+                className="mt-4 rounded-xl border border-error/40 bg-error-container/40 px-4 py-3 text-xs"
+              >
+                <p className="font-bold text-on-error-container">
+                  {invalidBilling.length === 1
+                    ? "1 billing field needs attention"
+                    : `${invalidBilling.length} billing fields need attention`}
+                </p>
+                <ul className="mt-1.5 space-y-0.5">
+                  {invalidBilling.map((field) => (
+                    <li key={field} className="text-on-error-container/90">
+                      <span className="font-semibold">{billingFieldLabels[field]}:</span>{" "}
+                      {billingErrors[field]}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/checkout-validation"
+                  className="mt-2 inline-block font-semibold text-on-error-container underline underline-offset-2"
+                >
+                  See how we check these details →
+                </Link>
+              </div>
+            )}
           </TerraCard>
 
           {/* Payment method — focus target when returning from the
@@ -687,7 +534,15 @@ export function CheckoutPage() {
                   className="underline underline-offset-2 hover:text-on-error-container"
                 >
                   Clear and try another code
-                </button>
+                </button>{" "}
+                {/* Recovery route for rejected codes (finding #1) —
+                    explains why codes fail and lists the live ones. */}
+                <Link
+                  href={`/promo-error?code=${encodeURIComponent(promoInput.trim().toUpperCase())}`}
+                  className="underline underline-offset-2 hover:text-on-error-container"
+                >
+                  Why was it rejected?
+                </Link>
               </p>
             )}
             {promo && (
