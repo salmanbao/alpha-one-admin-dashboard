@@ -9,7 +9,7 @@
  * profit (not a % of balance). Flat accounts are blocked too.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -55,7 +55,11 @@ function EligibilityPreCheck({
   const met = criteria.filter((c) => c.ok).length;
 
   return (
-    <div className="border-2 border-primary/50 rounded-xl bg-surface-container-lowest p-6">
+    <div
+      id="payout-eligibility"
+      tabIndex={-1}
+      className="border-2 border-primary/50 rounded-xl bg-surface-container-lowest p-6 outline-none"
+    >
       <div className="flex items-center justify-between pb-3">
         <h2 className="font-headline text-lg font-bold text-on-surface">
           Payout Eligibility Checklist
@@ -122,6 +126,10 @@ export function PayoutRequestPage() {
   const [amount, setAmount] = useState("");
   const [methodId, setMethodId] = useState("wm-wise");
   const [submitted, setSubmitted] = useState(false);
+  // Focus targets for the gated submit (finding #5) — the button stays
+  // focusable (aria-disabled, not disabled) and moves focus to the
+  // field or checklist that explains why submission is blocked.
+  const amountRef = useRef<HTMLInputElement>(null);
   const method = withdrawalMethods.find((m) => m.id === methodId) ?? withdrawalMethods[0];
   const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable);
   const outstanding = criteria.filter((c) => !c.ok).length;
@@ -331,6 +339,8 @@ export function PayoutRequestPage() {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">$</span>
                   <input
+                    ref={amountRef}
+                    id="payout-amount"
                     type="text"
                     inputMode="decimal"
                     value={amount}
@@ -449,9 +459,28 @@ export function PayoutRequestPage() {
           </p>
           <button
             type="button"
-            disabled={!valid || outstanding > 0}
-            onClick={() => setSubmitted(true)}
-            className="rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            // aria-disabled, not disabled (finding #5): a disabled
+            // button is unreachable for keyboard/AT users, so the
+            // blocked state could never be heard or acted on. This one
+            // stays focusable and, when activated, moves focus to the
+            // exact field or checklist that blocks submission.
+            aria-disabled={!valid || outstanding > 0}
+            aria-describedby="payout-submit-hint"
+            onClick={() => {
+              if (outstanding > 0) {
+                document.getElementById("payout-eligibility")?.focus();
+              } else if (!valid) {
+                amountRef.current?.focus();
+                amountRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+              } else {
+                setSubmitted(true);
+              }
+            }}
+            className={`rounded-xl px-5 py-3 text-sm font-bold shadow-sm transition-all ${
+              !valid || outstanding > 0
+                ? "cursor-not-allowed bg-primary text-on-primary opacity-50"
+                : "bg-primary text-on-primary hover:bg-primary/90"
+            }`}
           >
             {outstanding > 0
               ? `Fix ${outstanding} unmet requirement${outstanding === 1 ? "" : "s"}`
@@ -459,7 +488,7 @@ export function PayoutRequestPage() {
                 ? "Submit Payout Request"
                 : "Enter a valid amount"}
           </button>
-          <p className="text-center text-[11px] text-on-surface-variant">
+          <p id="payout-submit-hint" className="text-center text-[11px] text-on-surface-variant">
             {outstanding > 0
               ? "The checklist above explains each unmet requirement — submit once all are met."
               : method.id === "wm-confirmo"
