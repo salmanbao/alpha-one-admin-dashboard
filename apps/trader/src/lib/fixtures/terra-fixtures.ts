@@ -1778,6 +1778,50 @@ export function dailyPnlFor(accountId: string, days = 14): TerraSeriesPoint[] {
   return out;
 }
 
+/**
+ * Daily loss-limit usage (% of the daily cap) over the last `days`
+ * days — the history behind the objectives page's drawdown meters
+ * (finding #3: the meter showed today, nothing showed the trend).
+ *
+ * Past days derive from that day's closed P&L: a losing day consumed
+ * headroom proportionally, green/flat days reset to a small baseline
+ * with deterministic wobble. Today ends exactly at the live usage the
+ * meter shows (dailyLossRemaining), so chart and meter never disagree.
+ * No Math.random — stable across renders.
+ */
+export function drawdownUsageFor(accountId: string, days = 14): TerraSeriesPoint[] {
+  const acc = terraAccounts.find((a) => a.id === accountId);
+  if (!acc) return [];
+  const limits = terraRiskLimits[accountId] ?? { daily: 1000, maxDd: 5000 };
+  const today = startOfUtcDay(Date.now());
+  const span = Math.max(2, Math.floor(days));
+  const out: TerraSeriesPoint[] = [];
+  for (let i = span - 1; i >= 0; i--) {
+    const dayStart = today - i * DAY_MS;
+    let pct: number;
+    if (i === 0) {
+      pct = limits.daily > 0 ? ((limits.daily - acc.dailyLossRemaining) / limits.daily) * 100 : 0;
+    } else {
+      const dayEnd = dayStart + DAY_MS;
+      const dayPnl = terraTrades
+        .filter(
+          (t) =>
+            t.accountId === accountId &&
+            +new Date(t.closedAt) >= dayStart &&
+            +new Date(t.closedAt) < dayEnd,
+        )
+        .reduce((s, t) => s + t.pnl, 0);
+      const lossPct = dayPnl < 0 && limits.daily > 0 ? (-dayPnl / limits.daily) * 100 : 0;
+      // Green/flat days reset the meter — keep a small deterministic
+      // baseline so quiet days aren't pinned to exactly 0.
+      const baseline = Math.abs(wobble(dayStart / DAY_MS)) * 6;
+      pct = lossPct > 0 ? lossPct : baseline;
+    }
+    out.push({ x: dayLabel(dayStart), y: Math.round(Math.min(100, Math.max(0, pct)) * 10) / 10 });
+  }
+  return out;
+}
+
 /** Marketplace challenge backing an account (matched by program name + size). */
 export function challengeForAccount(accountId: string) {
   const acc = terraAccounts.find((a) => a.id === accountId);
