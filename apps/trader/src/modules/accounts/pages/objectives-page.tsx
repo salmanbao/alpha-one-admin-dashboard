@@ -14,8 +14,9 @@
  * and consistency cap — with breach warnings for bad outcomes.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  TerraAreaChart,
   TerraBadge,
   TerraCard,
   TerraDrawdownMeter,
@@ -23,7 +24,7 @@ import {
   TerraProgress,
   formatMoney,
 } from "@/components/terra/terra-ui";
-import { objectivesFor, terraRiskLimits } from "@/lib/fixtures/terra-fixtures";
+import { drawdownUsageFor, objectivesFor, terraRiskLimits } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { ChallengeRulesDialog } from "@/components/terra/challenge-rules-dialog";
 
@@ -154,6 +155,14 @@ export function ObjectivesPage() {
     return { hasMinDays, hasConsistency, daysCurrent, daysTarget, bestDay, consCap, dailyPct, maxDdPct, consHeadroom, score };
   }, [objectives, limits, dailyUsed, ddUsed]);
 
+  // Drawdown usage history (finding #3) — 14-day trend behind the
+  // meters above; today's point matches adherence.dailyPct by construction.
+  const ddHistory = useMemo(() => drawdownUsageFor(activeAccount.id, 14), [activeAccount.id]);
+  const ddPeak = useMemo(
+    () => (ddHistory.length > 0 ? Math.max(...ddHistory.map((p) => p.y)) : 0),
+    [ddHistory],
+  );
+
   const [whatIf, setWhatIf] = useState(0);
   const [rulesOpen, setRulesOpen] = useState(false);
 
@@ -161,15 +170,25 @@ export function ObjectivesPage() {
   // plan note set by the trader, persisted per device in localStorage
   // and compared side-by-side with the official evaluation metrics.
   const [personalGoal, setPersonalGoal] = useState({ target: 0, maxDrawdown: 0, note: "" });
+  // Deferred localStorage read — first paint matches SSR (react-hooks/
+  // set-state-in-effect wants the timer). goalsHydrated gates the
+  // write-back below so the defaults never overwrite stored goals
+  // before they've been read.
+  const goalsHydrated = useRef(false);
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("terra:personalGoals");
-      if (saved) setPersonalGoal(JSON.parse(saved));
-    } catch {
-      // Storage unavailable — session-only goals.
-    }
+    const t = setTimeout(() => {
+      try {
+        const saved = localStorage.getItem("terra:personalGoals");
+        if (saved) setPersonalGoal(JSON.parse(saved));
+      } catch {
+        // Storage unavailable — session-only goals.
+      }
+      goalsHydrated.current = true;
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
   useEffect(() => {
+    if (!goalsHydrated.current) return;
     try {
       localStorage.setItem("terra:personalGoals", JSON.stringify(personalGoal));
     } catch {
@@ -267,6 +286,34 @@ export function ObjectivesPage() {
             limit={limits.maxDd}
             remaining={activeAccount.maxDdRemaining}
             description="trailing — never resets"
+          />
+        </div>
+      </TerraCard>
+
+      {/* Drawdown usage history — the trend behind the two meters
+          (finding #3: the meter showed today, nothing showed the
+          trajectory toward the limit). */}
+      <TerraCard>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-headline font-semibold text-on-surface">Drawdown usage history</h3>
+            <p className="mt-0.5 text-xs text-on-surface-variant">
+              Daily loss-limit consumption over the last 14 days — today ends at exactly what
+              the meter above shows.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <TerraBadge tone={adherence.dailyPct >= 80 ? "error" : adherence.dailyPct >= 50 ? "tertiary" : "primary"}>
+              Today: {Math.round(adherence.dailyPct)}% used · {Math.round(100 - adherence.dailyPct)}% remaining
+            </TerraBadge>
+            <TerraBadge tone="secondary">Peak: {ddPeak}%</TerraBadge>
+          </div>
+        </div>
+        <div className="mt-4">
+          <TerraAreaChart
+            data={ddHistory}
+            height={240}
+            formatValue={(v) => `${Math.round(v)}%`}
           />
         </div>
       </TerraCard>
