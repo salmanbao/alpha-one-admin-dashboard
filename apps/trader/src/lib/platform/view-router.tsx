@@ -43,13 +43,6 @@ const viewMap: Record<string, ComponentType> = {
       ),
     { loading: ViewSkeleton },
   ),
-  "trading-positions": dynamic(
-    () =>
-      import("../../modules/trading/pages/positions-page").then((m) => ({
-        default: m.PositionsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
   "closed-positions": dynamic(
     () =>
       import("../../modules/trading/pages/closed-positions-page").then((m) => ({
@@ -68,14 +61,6 @@ export const traderRoutes: RouteDefinition[] = [
     viewId: "trader-detail",
     label: "My Workspace",
     icon: LayoutGrid,
-    permission: "trader.self",
-    module: "trading",
-  },
-  {
-    path: "trading-positions",
-    viewId: "trading-positions",
-    label: "My Open Positions",
-    icon: Package,
     permission: "trader.self",
     module: "trading",
   },

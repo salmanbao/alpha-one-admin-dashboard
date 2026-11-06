@@ -1,79 +1,160 @@
 "use client";
 
-import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
-import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
-import { PageAsyncBoundary } from "@/components/platform/guards";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+/**
+ * Role Management — platform-admin
+ * Manage platform roles and permissions across super-admin and prop-admin applications.
+ */
+
+import { useState } from "react";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { Page, PageHeader, PageContent } from "@/components/platform/page";
+import { DataTable, type Column } from "@/components/platform/data-table";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { roles as allRoles } from "@/lib/platform/mock-data";
-import { UserCheck, ShieldCheck, Lock, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
+import { roles as allRoles, users as allUsers } from "@/lib/platform/mock-data";
+import { AuthUser } from "@/lib/platform/types";
+import { cn } from "@/lib/utils";
+import {
+  Shield,
+  Users,
+  Lock,
+  Globe,
+  Settings2,
+  Mail,
+  Zap,
+  CheckCircle2,
+  AlertTriangle,
+  
+} from "lucide-react";
+
+interface RoleDefinition {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  application: "super-admin" | "prop-admin";
+}
+
+const columns: Column<RoleDefinition>[] = [
+  {
+    key: "id",
+    header: "Role ID",
+    cell: (r) => <span className="font-mono text-sm">{r.id}</span>,
+    sortValue: (r) => r.id,
+  },
+  {
+    key: "name",
+    header: "Role Name",
+    cell: (r) => (
+      <span>
+        <Button size="sm" variant="outline" className="hover:underline">
+          {r.name}
+        </Button>
+      </span>
+    ),
+    sortValue: (r) => r.name,
+  },
+  {
+    key: "description",
+    header: "Description",
+    cell: (r) => <span className="text-xs text-muted-foreground">{r.description}</span>,
+    sortValue: (r) => r.description,
+  },
+  {
+    key: "application",
+    header: "Application",
+    cell: (r) => (
+      <Badge variant={r.application === "super-admin" ? "default" : "secondary"}>
+        {r.application}
+      </Badge>
+    ),
+    sortValue: (r) => r.application,
+  },
+  {
+    key: "permissions-count",
+    header: "Perms",
+    cell: (r) => (
+      <span className="text-[10px]">
+        {r.permissions.length}
+      </span>
+    ),
+    sortValue: (r) => r.permissions.length,
+  },
+  {
+    key: "actions",
+    header: "Actions",
+    cell: (r) => (
+      <div className="flex gap-1">
+        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs">
+          Edit
+        </Button>
+        <Button size="sm" variant="destructive" className="h-6 px-2 text-xs">
+          Delete
+        </Button>
+      </div>
+    ),
+  },
+];
 
 export function RoleManagementPage() {
-  // Async seam (frontend-first): content resolves via the mock layer so
-  // the loading skeleton + error/retry states are exercised.
-  const {
-    data: hydrated,
-    loading,
-    error,
-    retry,
-  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
+  const { navigate } = usePlatform();
+
   return (
     <Page>
-      <PageHeader title="Platform Role Management" description="Manage platform roles, permissions, and scope assignments." icon={UserCheck} />
+      <PageHeader
+        title="Role Management"
+        description="Manage platform roles and permissions"
+        icon={Shield}
+      />
       <PageContent>
-        <PageAsyncBoundary
-          loading={loading}
-          error={error}
-          onRetry={retry}
-          hasData={hydrated !== undefined}
-          loadingLabel="Loading roles…"
-        >
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MetricCard label="Total Roles" value={allRoles.length} icon={UserCheck} />
-          <MetricCard label="Super Admin" value={allRoles.filter((r) => r.application === "super-admin").length} icon={ShieldCheck} tone="positive" />
-          <MetricCard label="Prop Admin" value={allRoles.filter((r) => r.application === "prop-admin").length} icon={Users} />
-          <MetricCard label="Trader" value={allRoles.filter((r) => r.application === "trader").length} icon={Lock} />
+        <div className="grid gap-4 mb-6">
+          <div>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => navigate("create-role")}
+              className="flex items-center gap-2"
+            >
+              <Users className="h-4 w-4" /> New role
+            </Button>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => navigate("manage-permissions")}
+              className="flex items-center gap-2"
+            >
+              <Lock className="h-4 w-4" /> Manage permissions
+            </Button>
+          </div>
+          <Select
+            defaultValue="all"
+            onValueChange={() => {}}
+            
+          >
+            <SelectTrigger >
+              <SelectValue placeholder="Filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All applications</SelectItem>
+              <SelectItem value="super-admin">Super Admin</SelectItem>
+              <SelectItem value="prop-admin">Prop Admin</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-2">
-          {allRoles.map((r) => (
-            <Card key={r.id}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold">{r.name}</h3>
-                    <Badge variant="outline" className="text-[10px]">{r.application}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{r.description}</p>
-                </div>
-                <Badge variant="outline" className="text-[10px]">{r.permissions.length} perms</Badge>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-1">
-                  {r.permissions.slice(0, 8).map((p) => (
-                    <Badge key={p} variant="secondary" className="text-[9px] font-mono">{p}</Badge>
-                  ))}
-                  {r.permissions.length > 8 && (
-                    <Badge variant="outline" className="text-[9px]">+{r.permissions.length - 8} more</Badge>
-                  )}
-                </div>
-                {r.color && (
-                  <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <span className="h-2 w-2 rounded-full" style={{ background: r.color }} />
-                    Role color
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <div className="rounded-lg border border-amber-500/20 bg-amber-50/30 p-3 text-xs text-muted-foreground dark:bg-amber-950/10">
-          <p className="font-medium text-foreground">Role governance</p>
-          <p className="mt-1">Platform roles control access to the super-admin console. Tenant roles (prop-admin, trader) control access within individual tenants. Role changes are audited and require two-operator approval for privilege escalation.</p>
-        </div>
-        </PageAsyncBoundary>
+        <DataTable
+          columns={columns}
+          data={allRoles as RoleDefinition[]}
+          rowKey={(r) => r.id}
+          searchableText={(r) => `${r.id} ${r.name} ${r.description}`}
+          searchPlaceholder="Search roles…"
+          pageSize={10}
+          emptyTitle="No roles found"
+          emptyDescription="Create a new role to get started."
+        />
       </PageContent>
     </Page>
   );

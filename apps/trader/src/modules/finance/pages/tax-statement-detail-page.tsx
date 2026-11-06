@@ -15,6 +15,7 @@ import {
   TerraTable,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
+import { toast } from "@/hooks/use-toast";
 
 const monthly = [
   { month: "July 2025", trades: 42, pnl: 1980, fees: -64 },
@@ -39,6 +40,14 @@ export function TaxStatementDetailPage() {
             <button
               type="button"
               className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90"
+              onClick={() => {
+                // Demo: show browser print dialog instead of opening a PDF
+                toast({
+                  title: "Download PDF",
+                  description: "(demo — use your browser's Save as PDF)",
+                });
+                window.print();
+              }}
             >
               Download PDF
             </button>

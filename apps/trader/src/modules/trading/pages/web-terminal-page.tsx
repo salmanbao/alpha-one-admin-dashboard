@@ -4,7 +4,6 @@
  * Web Terminal Launch — converted from stitch_screens/web_terminal_launch
  * Launch page for the browser trading terminal with credentials shortcuts.
  */
-
 import Link from "next/link";
 import {
   TerraBadge,
@@ -13,6 +12,7 @@ import {
   TerraSectionTitle,
 } from "@/components/terra/terra-ui";
 import { useActiveAccount } from "@/lib/platform/account-context";
+import { toast } from "@/hooks/use-toast";
 
 const platforms = [
   { name: "MT5 Web Terminal", note: "Full desktop parity in your browser", status: "ready" as const },
@@ -21,8 +21,6 @@ const platforms = [
 ];
 
 export function WebTerminalPage() {
-  // Credentials are per-account — follow the active trading account so the
-  // login/server/platform shown always match the account being traded.
   const { activeAccount: acc } = useActiveAccount();
 
   return (
@@ -55,6 +53,20 @@ export function WebTerminalPage() {
                     <button
                       type="button"
                       className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary hover:bg-primary/90"
+                      onClick={() => {
+                        // Launch → button
+                        toast({
+                          title: "Opening the browser terminal…",
+                          description: "(demo — no live connection)",
+                        });
+                        // Simulate launch with a brief toast
+                        setTimeout(() => {
+                          toast({
+                            title: "Browser terminal opened",
+                            description: "(simulated — no live connection)",
+                          });
+                        }, 800);
+                      }}
                     >
                       Launch →
                     </button>
@@ -75,7 +87,11 @@ export function WebTerminalPage() {
             </div>
             <button
               type="button"
-              className="rounded-xl bg-surface-container-low px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container"
+              className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary hover:bg-primary/90"
+              onClick={() => toast({
+                title: "Download started",
+                description: "(simulated — no binary in this demo)",
+              })}
             >
               Download
             </button>
