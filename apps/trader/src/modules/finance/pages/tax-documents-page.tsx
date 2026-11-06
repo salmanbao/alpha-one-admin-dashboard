@@ -12,6 +12,7 @@ import {
   TerraPageHeader,
   TerraTable,
 } from "@/components/terra/terra-ui";
+import { toast } from "@/hooks/use-toast";
 
 const taxDocs = [
   { id: "tx-2025-q3", year: "2025", period: "Q3", generated: "2025-10-01", profit: 8420, ready: true },
@@ -49,6 +50,25 @@ export function TaxDocumentsPage() {
             </Link>,
           ])}
         />
+        <div className="mt-4">
+          <select
+            className="rounded-xl bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container"
+            onChange={(e) => {
+              const selectedYear = e.target.value;
+              toast({
+                title: "Year selected",
+                description: `Tax documents for ${selectedYear} displayed. (demo — no filter built)`,
+              });
+            }}
+          >
+            <option value="">All years</option>
+            {taxDocs.map((t) => (
+              <option key={t.id} value={t.year}>
+                {t.year}
+              </option>
+            ))}
+          </select>
+        </div>
       </TerraCard>
     </div>
   );
