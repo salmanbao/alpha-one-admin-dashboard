@@ -68,6 +68,7 @@ import {
   ShieldAlert,
   ShoppingBag,
   Store,
+  Tag,
   Target,
   TrendingUp,
   Trophy,
@@ -177,6 +178,7 @@ export const sections: NavSection[] = [
   ]},
   { id: "account", label: "Account", icon: Settings, children: [
     { href: "/account-settings", label: "Account Settings", icon: Settings, activePrefixes: ["/profile-security", "/2fa-setup", "/sessions", "/api-tokens"] },
+    { href: "/promos", label: "Promo Wallet", icon: Tag },
     { href: "/trading-credentials", label: "Trading Credentials", icon: KeyRound },
     { href: "/notification-center", label: "Notifications", icon: Bell, activePrefixes: ["/notification-preferences"] },
   ]},
