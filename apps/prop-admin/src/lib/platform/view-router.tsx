@@ -240,6 +240,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "certificate-template-designer": dynamic(() => import("@/modules/settings/pages/certificate-template-designer-page").then((m) => ({ default: m.CertificateTemplateDesignerPage })), { loading: ViewSkeleton }),
   "certificate-font-upload": dynamic(() => import("@/modules/settings/pages/certificate-font-upload-page").then((m) => ({ default: m.CertificateFontUploadPage })), { loading: ViewSkeleton }),
   "marketing-integrations": dynamic(() => import("@/modules/integrations/pages/integrations-hub-page").then((m) => ({ default: m.IntegrationsHubPage })), { loading: ViewSkeleton }),
+  // Connector Activity & Event Log (5.4).
+  "connector-activity": dynamic(() => import("@/modules/integrations/pages/connector-activity-page").then((m) => ({ default: m.ConnectorActivityPage })), { loading: ViewSkeleton }),
   // Add Connector wizard (5.3) — deep link opens the wizard over the hub.
   "connector-new": dynamic(() => import("@/modules/integrations/pages/integrations-hub-page").then((m) => ({ default: m.IntegrationsHubPage })), { loading: ViewSkeleton }),
   "marketing-banner-edit": dynamic(() => import("@/modules/settings/pages/marketing-banner-edit-page").then((m) => ({ default: m.MarketingBannerEditPage })), { loading: ViewSkeleton }),
