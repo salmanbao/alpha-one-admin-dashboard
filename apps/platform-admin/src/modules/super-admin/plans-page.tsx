@@ -59,6 +59,7 @@ import {
   BellRing,
   Lock,
   Send,
+  ArrowRightLeft,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -171,6 +172,7 @@ const usageTone = (p: number) => (p >= 100 ? "bg-destructive" : p >= 80 ? "bg-am
 /* ------------------------------------------------------------------ */
 
 export function PlansPage() {
+  const { navigate } = usePlatform();
   const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS);
   const [editing, setEditing] = useState<Plan | null>(null);
   const [creating, setCreating] = useState(false);
@@ -202,9 +204,20 @@ export function PlansPage() {
         description="Pricing tiers, feature entitlements, limits, and tenant plan assignment."
         icon={CreditCard}
         actions={
-          <Button size="sm" onClick={() => setCreating(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" /> New plan
-          </Button>
+          <div className="flex gap-2">
+            {/* Dedicated upgrade/downgrade workflow (findings #2 & #4) */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate("plan-transition")}
+              className="gap-1.5"
+            >
+              <ArrowRightLeft className="h-4 w-4" /> Plan transition
+            </Button>
+            <Button size="sm" onClick={() => setCreating(true)} className="gap-1.5">
+              <Plus className="h-4 w-4" /> New plan
+            </Button>
+          </div>
         }
       />
       <PageContent>
@@ -422,6 +435,7 @@ function traderTypeLabel(n: number) {
 
 /* Upgrade/downgrade buttons per tenant → guided migration dialog. */
 function PlanChangeButtons({ tenant, plans }: { tenant: TenantContext; plans: Plan[] }) {
+  const { navigate } = usePlatform();
   const order: PlanId[] = ["starter", "growth", "scale", "enterprise"];
   const idx = order.indexOf(tenant.plan);
   const [target, setTarget] = useState<PlanId | null>(null);
@@ -437,6 +451,16 @@ function PlanChangeButtons({ tenant, plans }: { tenant: TenantContext; plans: Pl
           <ArrowUp className="h-3 w-3" /> Upgrade
         </Button>
       ) : null}
+      {/* Full transition workflow (findings #2 & #4) — same tenant pre-seeded */}
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-7 gap-1 text-xs"
+        onClick={() => navigate("plan-transition", { tenant: tenant.id })}
+        title="Open the full plan transition workflow for this tenant"
+      >
+        <ArrowRightLeft className="h-3 w-3" /> Workflow
+      </Button>
       {target !== null && (
         <PlanMigrationDialog
           tenant={tenant}

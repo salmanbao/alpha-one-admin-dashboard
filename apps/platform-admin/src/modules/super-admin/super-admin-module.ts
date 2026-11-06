@@ -55,6 +55,7 @@ import {
   CalendarClock,
   MonitorSmartphone,
   HeartPulse,
+  ArrowRightLeft,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -122,6 +123,7 @@ const navigation: NavigationItem[] = [
 
       // ───────── Finance ─────────
       { id: "super.plans", label: "Plans & Subscriptions", href: "plans", icon: CreditCard, application: ["super-admin"], group: "Finance" },
+      { id: "super.plan-transition", label: "Plan Transition", href: "plan-transition", icon: ArrowRightLeft, application: ["super-admin"], group: "Finance" },
       { id: "super.billing", label: "Billing & Invoices", href: "platform-billing", icon: CreditCard, application: ["super-admin"], group: "Finance" },
       { id: "super.financials", label: "Financial Overview", href: "platform-financials", icon: DollarSign, application: ["super-admin"], group: "Finance" },
       { id: "super.transactions", label: "Transactions", href: "platform-transactions", icon: CreditCard, application: ["super-admin"], group: "Finance" },
@@ -198,6 +200,7 @@ const routes: RouteDefinition[] = [
   { path: "tenant-view-as", viewId: "tenant-view-as", label: "Tenant View-As", application: ["super-admin"] },
   { path: "abuse-signals", viewId: "abuse-signals", label: "Abuse Signals", application: ["super-admin"] },
   { path: "plans", viewId: "plans", label: "Plans & Subscriptions", application: ["super-admin"] },
+  { path: "plan-transition", viewId: "plan-transition", label: "Plan Transition", application: ["super-admin"] },
   { path: "platform-billing", viewId: "platform-billing", label: "Billing & Invoices", application: ["super-admin"] },
   { path: "platform-financials", viewId: "platform-financials", label: "Platform Financials", application: ["super-admin"] },
   { path: "platform-analytics", viewId: "platform-analytics", label: "Platform Analytics", application: ["super-admin"] },
