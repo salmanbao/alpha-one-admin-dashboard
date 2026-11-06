@@ -5,7 +5,7 @@
  * spend, channel performance and ROI. Depends on Trading.
  */
 
-import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown } from "lucide-react";
+import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import {
   MarketingOverviewWidget,
@@ -35,6 +35,9 @@ const navigation: NavigationItem[] = [
       { id: "marketing.audience-builder", label: "Audience Builder", href: "marketing-audience-builder", icon: Users, permission: "marketing.read", group: "Audiences & Creative" },
       { id: "marketing.template-editor", label: "Template Editor", href: "marketing-template-editor", icon: PenTool, permission: "marketing.read", group: "Audiences & Creative" },
       { id: "marketing.ad-accounts", label: "Ad Accounts", href: "marketing-ad-accounts", icon: CreditCard, permission: "marketing.read", group: "Audiences & Creative" },
+
+      // ───────── Integrations (M1 — Connector Registry) ─────────
+      { id: "marketing.integrations", label: "Integrations", href: "marketing-integrations", icon: Plug, permission: ["marketing.connect", "settings.manage"], group: "Integrations" },
     ],
   },
 ];
@@ -45,6 +48,8 @@ const routes: RouteDefinition[] = [
   { path: "marketing-email-campaigns", viewId: "marketing-email-campaigns", label: "Email Campaigns", permission: "marketing.read", module: "marketing" },
   { path: "marketing-vip-campaigns", viewId: "marketing-vip-campaigns", label: "VIP Campaigns & Coupons", permission: "marketing.read", module: "marketing" },
   { path: "marketing-ad-spend", viewId: "marketing-ad-spend", label: "Ad Spend", permission: "marketing.read", module: "marketing" },
+  // Integrations (M1 — Connector Registry)
+  { path: "marketing-integrations", viewId: "marketing-integrations", label: "Marketing Integrations", permission: ["marketing.connect", "settings.manage"], module: "marketing" },
   { path: "marketing-performance", viewId: "marketing-performance", label: "Marketing Performance", permission: "marketing.read", module: "marketing" },
   // Audiences & Creative (M11)
   { path: "marketing-audience-builder", viewId: "marketing-audience-builder", label: "Audience Builder", permission: "marketing.read", module: "marketing" },
@@ -72,6 +77,7 @@ export const marketingModule: FrontendModule = {
     permissions: [
       { id: "marketing.read", label: "View marketing" },
       { id: "marketing.configure", label: "Configure campaigns" },
+      { id: "marketing.connect", label: "Manage integrations", description: "Connect, configure and disconnect third-party platforms (falls back to settings.manage)." },
     ],
     icon: Target,
     accentColor: "#b45309",
