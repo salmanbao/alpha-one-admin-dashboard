@@ -202,6 +202,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "plan-transition": dynamic(
+    () =>
+      import("@/modules/super-admin/plan-transition-page").then((m) => ({
+        default: m.PlanTransitionPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   plans: dynamic(
     () =>
       import("@/modules/super-admin/plans-page").then((m) => ({
