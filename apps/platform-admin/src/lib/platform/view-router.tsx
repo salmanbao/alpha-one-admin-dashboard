@@ -405,6 +405,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "pending-tasks": dynamic(
+    () =>
+      import("@/modules/super-admin/pending-tasks-page").then((m) => ({
+        default: m.PendingTasksPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "platform-transactions": dynamic(
     () =>
       import("@/modules/super-admin/platform-transactions-page").then((m) => ({

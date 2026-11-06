@@ -12,6 +12,21 @@ import {
   TerraPageHeader,
   TerraSectionTitle,
 } from "@/components/terra/terra-ui";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogOverlay,
+  AlertDialogPortal,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 const sections = [
   {
@@ -73,6 +88,8 @@ const sections = [
 ];
 
 export function AccountSettingsPage() {
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
   return (
     <div className="space-y-6">
       <TerraPageHeader
@@ -112,13 +129,47 @@ export function AccountSettingsPage() {
               Permanently removes your data. Active challenges must be settled first.
             </p>
           </div>
-          <button
-            type="button"
-            className="rounded-xl bg-error px-4 py-2 text-xs font-bold text-on-error hover:bg-error/90"
-          >
-            Delete
-          </button>
+          <div className="flex items-center gap-2">
+            <TerraBadge tone="neutral">2 active sessions</TerraBadge>
+            <AlertDialogTrigger asChild>
+              <button
+                type="button"
+                className="rounded-xl bg-error px-4 py-2 text-xs font-bold text-on-error hover:bg-error/90"
+                aria-label="Delete account"
+              >
+                Delete
+              </button>
+            </AlertDialogTrigger>
+          </div>
         </div>
+
+        {/* Delete Account AlertDialog */}
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogPortal>
+            <AlertDialogOverlay />
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete account</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Permanently removes your data. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    toast({
+                      title: "Account deletion initiated",
+                      description: "Your account data will be permanently removed (demo — no actual deletion)",
+                    });
+                  }}
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialogPortal>
+        </AlertDialog>
       </TerraCard>
     </div>
   );

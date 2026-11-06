@@ -113,6 +113,7 @@ export const directItems: DirectItem[] = [
   { href: "/my-accounts", label: "My Accounts", icon: Wallet, activePrefixes: ["/account-detail"] },
   { href: "/marketplace", label: "Marketplace", icon: Store, activePrefixes: ["/challenge-detail", "/checkout", "/checkout-failure", "/checkout-validation", "/promo-error", "/purchase-completed"] },
   { href: "/objectives", label: "Objectives", icon: Target, activePrefixes: ["/rules"] },
+  { href: "/closed-positions", label: "Closed Positions", icon: Package, activePrefixes: ["/order-detail"] },
 ];
 
 export const sections: NavSection[] = [
@@ -168,6 +169,7 @@ export const sections: NavSection[] = [
   ]},
   { id: "support", label: "Support", icon: LifeBuoy, children: [
     { href: "/support", label: "Support Tickets", icon: MessageCircle, activePrefixes: ["/ticket-detail"] },
+    { href: "/announcements", label: "Announcements", icon: ScrollText, activePrefixes: ["/announcement-detail"] },
     { href: "/help-center", label: "Help Center", icon: HelpCircle },
     { href: "/learning-center", label: "Learning Center", icon: GraduationCap },
     { href: "/risk-consultation", label: "Risk Consultation", icon: CalendarCheck },

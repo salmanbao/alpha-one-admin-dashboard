@@ -131,8 +131,9 @@ const navigation: NavigationItem[] = [
       { id: "super.churn-prevention", label: "Churn Prevention", href: "churn-prevention", icon: TrendingDown, application: ["super-admin"], group: "Finance" },
 
       // ───────── Governance ─────────
-      { id: "super.platform-roles", label: "Platform Roles", href: "platform-roles", icon: Shield, application: ["super-admin"], group: "Governance" },
+      { id: "super.role-management", label: "Role Management", href: "role-management", icon: Settings2, application: ["super-admin"], group: "Governance" },
       { id: "super.staff", label: "Platform Staff", href: "platform-staff", icon: Users, application: ["super-admin"], group: "Governance" },
+      { id: "super.pending-tasks", label: "Pending Tasks", href: "pending-tasks", icon: AlertTriangle, application: ["super-admin"], group: "Operations" },
 
       // ───────── Developer (API Gateway) ─────────
       { id: "super.api-keys", label: "API Keys", href: "api-keys", icon: Key, application: ["super-admin"], group: "Developer" },
@@ -217,8 +218,10 @@ const routes: RouteDefinition[] = [
   { path: "getting-started", viewId: "getting-started", label: "Getting Started", application: ["super-admin"] },
   { path: "platform-architecture", viewId: "platform-architecture", label: "Platform Architecture", application: ["super-admin"] },
   { path: "platform-overview", viewId: "platform-overview", label: "Platform Overview", application: ["super-admin"] },
+  { path: "role-management", viewId: "role-management", label: "Role Management", application: ["super-admin"] },
   { path: "platform-roles", viewId: "platform-roles", label: "Platform Roles", application: ["super-admin"] },
   { path: "platform-staff", viewId: "platform-staff", label: "Platform Staff", application: ["super-admin"] },
+  { path: "pending-tasks", viewId: "pending-tasks", label: "Pending Tasks", application: ["super-admin"] },
   { path: "platform-transactions", viewId: "platform-transactions", label: "Platform Transactions", application: ["super-admin"] },
   { path: "system-health", viewId: "system-health", label: "System Health", application: ["super-admin"] },
   { path: "audit-log", viewId: "audit-log", label: "Audit Log", application: ["super-admin"], permission: "platform.audit.read" },

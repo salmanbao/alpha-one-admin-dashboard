@@ -6,8 +6,10 @@
  */
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { TerraCard, TerraPageHeader, formatMoney } from "@/components/terra/terra-ui";
 import { terraChallenges } from "@/lib/fixtures/terra-fixtures";
+import { toast } from "@/hooks/use-toast";
 
 const steps = [
   { title: "Payment confirmed", done: true, note: "Just now" },
@@ -17,7 +19,15 @@ const steps = [
 ];
 
 export function PurchaseCompletedPage() {
-  const ch = terraChallenges[1];
+  const router = useRouter();
+  const params = router && (router as any).query;
+
+  // Contextualize order number & challenge from router params (dummy data only).
+  const orderId = typeof params?.orderId === "string" ? params.orderId : "TT-48210";
+  const challengeKey = typeof params?.challengeId === "string" ? params.challengeId : undefined;
+  const ch = challengeKey
+    ? terraChallenges.find((c) => c.id === challengeKey) ?? terraChallenges[1]
+    : terraChallenges[1];
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
@@ -65,18 +75,25 @@ export function PurchaseCompletedPage() {
 
       <TerraCard className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
         <div>
-          <p className="text-sm font-bold text-on-surface">Order #TT-48210</p>
+          <p className="text-sm font-bold text-on-surface">Order #{orderId}</p>
           <p className="text-xs text-on-surface-variant">
             {formatMoney(ch.price)} paid • Receipt sent to your email
           </p>
         </div>
         <div className="flex gap-2">
-          <Link
-            href="/documents"
+          <button
+            type="button"
             className="rounded-xl bg-surface-container-low px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container"
+            onClick={() => {
+              toast({
+                title: "Invoice preview",
+                description: `Opening invoice for order #{orderId} (demo — no live data)`,
+              });
+              router.push(`/invoice-detail?orderId=${orderId}`);
+            }}
           >
             View Invoice
-          </Link>
+          </button>
           <Link
             href="/dashboard"
             className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary hover:bg-primary/90"
