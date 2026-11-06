@@ -90,6 +90,9 @@ import {
   toggleConnectorEventLogging,
   useConnectorVersion,
 } from "../connector-store";
+import { ConnectorDrawer } from "../connector-drawer";
+import { AddConnectorWizard } from "../add-connector-wizard";
+import { absoluteTime, relativeTime } from "../format";
 import {
   Activity,
   BookOpen,
@@ -213,27 +216,6 @@ function deserializeFilters(f: Record<string, string>): HubState {
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-function relativeTime(iso?: string): string {
-  if (!iso) return "Never";
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return "—";
-  const diff = Date.now() - t;
-  const abs = Math.abs(diff);
-  const mins = Math.round(abs / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
-}
-
-function absoluteTime(iso?: string): string {
-  if (!iso) return "Never";
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
-}
-
 const HEALTH_DOT: Record<ConnectorRecord["health"], { className: string; label: string }> = {
   ok: { className: "bg-emerald-500", label: "Healthy" },
   warn: { className: "bg-amber-500", label: "Degraded" },
@@ -297,7 +279,7 @@ function ConnectorCell({ record }: { record: ConnectorRecord }) {
 /* ------------------------------------------------------------------ */
 
 export function IntegrationsHubPage() {
-  const { user } = usePlatform();
+  const { user, router, navigate } = usePlatform();
   const userId = user?.id ?? "anon";
 
   /* Initial async load — exercises loading / error + retry states. */
@@ -312,6 +294,16 @@ export function IntegrationsHubPage() {
   const recordsVersion = useConnectorVersion();
   const records = getConnectors();
   const kpis = useMemo(() => getHubKpis(records), [records, recordsVersion]);
+
+  /* Configuration drawer (5.2) + Add Connector wizard (5.3). The
+     `connector-new` deep link opens the wizard over the hub; closing it
+     returns to the hub view. */
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(() => router.view === "connector-new");
+  const setWizard = (open: boolean) => {
+    setWizardOpen(open);
+    if (!open && router.view === "connector-new") navigate("marketing-integrations");
+  };
 
   /* Filters + view mode (restored per user) */
   const [initial] = useState<HubState>(() => loadHubState(userId));
@@ -628,14 +620,7 @@ export function IntegrationsHubPage() {
           <RowActions
             record={r}
             testing={testingId === r.id}
-            onConfigure={() =>
-              toast({
-                title: "Configuration drawer",
-                description: `${
-                  getConnectorDefinition(r.definitionId)?.name ?? r.definitionId
-                } — schema-driven drawer ships in Sprint 2.`,
-              })
-            }
+            onConfigure={() => setDrawerId(r.id)}
             onTest={() => void onTest(r)}
             onToggleLogging={() => onToggleLogging(r)}
             onDisconnect={() => {
@@ -659,13 +644,7 @@ export function IntegrationsHubPage() {
 
   const headerActions = (
     <>
-      <Button size="sm" onClick={() =>
-        toast({
-          title: "Add Connector Wizard",
-          description:
-            "The 3-step wizard (catalog → connect → verify) ships in Sprint 2 — the registry catalog is ready.",
-        })
-      }>
+      <Button size="sm" onClick={() => setWizardOpen(true)}>
         <Plus className="mr-1 h-4 w-4" /> New Connection
       </Button>
       <Button size="sm" variant="outline" onClick={() => importInputRef.current?.click()}>
@@ -778,16 +757,7 @@ export function IntegrationsHubPage() {
               title="No integrations configured yet"
               description="Connect an email, ads, analytics or community platform to start syncing events."
               action={
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    toast({
-                      title: "Add Connector Wizard",
-                      description:
-                        "The 3-step wizard ships in Sprint 2 — the registry catalog is ready.",
-                    })
-                  }
-                >
+                <Button size="sm" onClick={() => setWizardOpen(true)}>
                   <Plus className="mr-1 h-4 w-4" /> Add your first connection
                 </Button>
               }
@@ -1011,14 +981,7 @@ export function IntegrationsHubPage() {
                   columns={columns}
                   data={filtered}
                   rowKey={(r) => r.id}
-                  onRowClick={(r) =>
-                    toast({
-                      title: "Configuration drawer",
-                      description: `${
-                        getConnectorDefinition(r.definitionId)?.name ?? r.definitionId
-                      } — schema-driven drawer ships in Sprint 2.`,
-                    })
-                  }
+                  onRowClick={(r) => setDrawerId(r.id)}
                   pageSize={8}
                   emptyTitle="No connectors match these filters"
                   emptyDescription="Adjust the search, category or status filter."
@@ -1030,14 +993,7 @@ export function IntegrationsHubPage() {
                   onToggleActive={onToggleActive}
                   onToggleLogging={onToggleLogging}
                   onTest={(r) => void onTest(r)}
-                  onConfigure={(r) =>
-                    toast({
-                      title: "Configuration drawer",
-                      description: `${
-                        getConnectorDefinition(r.definitionId)?.name ?? r.definitionId
-                      } — schema-driven drawer ships in Sprint 2.`,
-                    })
-                  }
+                  onConfigure={(r) => setDrawerId(r.id)}
                   onDisconnect={(r) => {
                     setDisconnectTarget(r);
                     setConfirmText("");
@@ -1088,6 +1044,10 @@ export function IntegrationsHubPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Configuration drawer (5.2) + Add Connector wizard (5.3) */}
+      <ConnectorDrawer recordId={drawerId} onClose={() => setDrawerId(null)} />
+      <AddConnectorWizard open={wizardOpen} onOpenChange={setWizard} />
     </Page>
   );
 }
