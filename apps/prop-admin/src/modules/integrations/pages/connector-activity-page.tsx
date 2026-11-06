@@ -337,7 +337,7 @@ export function ConnectorActivityPage() {
           <MetricCard
             label="Failed"
             value={kpis.failed.toLocaleString("en-US")}
-            tone={kpis.failed > 0 ? "warning" : "default"}
+            tone={kpis.failed > 0 ? "negative" : "default"}
           />
         </div>
 
