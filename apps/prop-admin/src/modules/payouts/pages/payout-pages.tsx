@@ -356,7 +356,7 @@ export function PayoutsOverviewPage() {
 }
 
 export function PendingPayoutsPage() {
-  const { runtime, tenant, navigate } = usePlatform();
+  const { runtime, tenant, navigate, pushNotification } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   usePayoutVersion(); // review cards + table react to decisions
@@ -383,6 +383,11 @@ export function PendingPayoutsPage() {
   /** ── Batch-selection state ───────────────────────────────────────── */
   const [selectedPayouts, setSelectedPayouts] = useState<Set<string>>(new Set());
   const selectedCount = selectedPayouts.size;
+  // Batch reject target — the shared structured reject dialog (same one
+  // the single-row Reject button uses) replaces the old window.confirm,
+  // so a batch rejection records category + detail like every other
+  // reject surface (finding #7).
+  const [batchRejectTarget, setBatchRejectTarget] = useState<PayoutRejectTarget | null>(null);
 
   /** ── Toolbar actions for selected payouts ────────────────────────── */
   const handleBatchApprove = () => {
@@ -424,15 +429,55 @@ export function PendingPayoutsPage() {
   const handleBatchReject = () => {
     const payouts = pendingPayouts.filter((p) => selectedPayouts.has(p.reference));
     if (payouts.length === 0) return;
-    if (!window.confirm(`Reject ${selectedCount} selected payout(s)?`)) return;
+    // Open the structured reject dialog instead of window.confirm —
+    // the reviewer must pick a category and describe what happened
+    // (finding #7), the same as a single-row reject.
+    const totalAmt = payouts.reduce((s, p) => s + p.amount, 0);
+    const blended =
+      totalAmt > 0
+        ? Math.round(
+            payouts.reduce((s, p) => s + (p.amount * p.profitSplit) / 100, 0) / totalAmt,
+          )
+        : undefined;
+    setBatchRejectTarget({
+      reference: payouts[0].reference,
+      traderName:
+        payouts.length === 1 ? payouts[0].traderName : `${payouts.length} selected payouts`,
+      amount: totalAmt,
+      currency: payouts[0].currency,
+      count: payouts.length,
+      profitSplit: blended,
+      // Risk context — the batch is gated by its riskiest member, so
+      // the dialog shows that trader's breaches and account health.
+      risk: worstPayoutRisk(
+        tid,
+        payouts.map((p) => p.traderId),
+      ),
+      performance:
+        payouts.length === 1 ? perfByTrader.get(payouts[0].traderId) : undefined,
+    });
+  };
+
+  const confirmBatchReject = (result: PayoutRejectResult) => {
+    const payouts = pendingPayouts.filter((p) => selectedPayouts.has(p.reference));
     for (const p of payouts) {
-      applyPayoutDecision(p.reference, "rejected", { reason: "Rejected via batch processing" });
+      applyPayoutDecision(p.reference, "rejected", { reason: result.reason });
+      if (result.notifyTrader) {
+        pushNotification({
+          title: "Payout rejected",
+          message: `Your payout ${p.reference} (${formatCurrency(p.amount, p.currency)}) was rejected: ${result.reason}`,
+          severity: "critical",
+          module: "payouts",
+        });
+      }
     }
     toast({
       title: "Batch rejected",
-      description: `${selectedCount} payout(s) rejected.`,
+      description: `${payouts.length} payout(s) rejected — ${result.reason}${result.notifyTrader ? "" : " (traders not notified)"}`,
+      variant: "destructive",
     });
     setSelectedPayouts(new Set());
+    setBatchRejectTarget(null);
   };
 
   const toggleSelection = (reference: string) => {
@@ -637,6 +682,13 @@ export function PendingPayoutsPage() {
             hint={`Enable ${plural(term("payout")).toLowerCase()} requests from your ${term("challenge").toLowerCase()} settings`}
           />
         )}
+        {/* Batch reject confirmation (finding #7) — structured category +
+            required detail instead of a bare window.confirm. */}
+        <PayoutRejectDialog
+          target={batchRejectTarget}
+          onOpenChange={(o) => !o && setBatchRejectTarget(null)}
+          onConfirm={confirmBatchReject}
+        />
       </PageContent>
     </Page>
   );
