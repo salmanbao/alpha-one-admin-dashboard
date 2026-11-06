@@ -304,5 +304,7 @@ export const demoConnectorsSchema = z.array(
     health: z.enum(["ok", "warn", "fail", "idle"]),
     latencyMs: z.number().optional(),
     accountLabel: z.string().optional(),
+    syncFrequency: z.enum(["15m", "hourly", "daily"]).optional(),
+    audienceTarget: z.string().optional(),
   }),
 );
