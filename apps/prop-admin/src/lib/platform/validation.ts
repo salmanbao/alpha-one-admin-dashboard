@@ -280,3 +280,29 @@ export const demoRiskCasesSchema = z.object({
   ),
   seq: z.number().int().positive(),
 });
+
+/**
+ * connector-store (M1): the configured connector records mirrored into
+ * the demo session. Corrupt or hand-edited storage degrades to the
+ * seeded registry instead of crashing the Integrations Hub.
+ */
+export const demoConnectorsSchema = z.array(
+  z.object({
+    id: z.string().min(1),
+    definitionId: z.string().min(1),
+    status: z.enum(["connected", "degraded", "error", "disconnected"]),
+    active: z.boolean(),
+    eventLogging: z.boolean(),
+    config: z.record(z.string(), z.string()),
+    connectedAt: z.string().optional(),
+    lastSync: z.string().optional(),
+    nextSync: z.string().optional(),
+    lastError: z.string().optional(),
+    lastErrorAt: z.string().optional(),
+    events24h: z.number().nonnegative(),
+    eventsPrev24h: z.number().nonnegative(),
+    health: z.enum(["ok", "warn", "fail", "idle"]),
+    latencyMs: z.number().optional(),
+    accountLabel: z.string().optional(),
+  }),
+);
