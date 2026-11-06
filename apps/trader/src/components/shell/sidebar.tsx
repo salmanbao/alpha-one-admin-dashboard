@@ -111,7 +111,7 @@ interface DirectItem {
 export const directItems: DirectItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
   { href: "/my-accounts", label: "My Accounts", icon: Wallet, activePrefixes: ["/account-detail"] },
-  { href: "/marketplace", label: "Marketplace", icon: Store, activePrefixes: ["/challenge-detail", "/checkout", "/purchase-completed"] },
+  { href: "/marketplace", label: "Marketplace", icon: Store, activePrefixes: ["/challenge-detail", "/checkout", "/checkout-failure", "/checkout-validation", "/promo-error", "/purchase-completed"] },
   { href: "/objectives", label: "Objectives", icon: Target, activePrefixes: ["/rules"] },
 ];
 
