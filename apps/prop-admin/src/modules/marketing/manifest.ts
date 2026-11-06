@@ -50,6 +50,7 @@ const routes: RouteDefinition[] = [
   { path: "marketing-ad-spend", viewId: "marketing-ad-spend", label: "Ad Spend", permission: "marketing.read", module: "marketing" },
   // Integrations (M1 — Connector Registry)
   { path: "marketing-integrations", viewId: "marketing-integrations", label: "Marketing Integrations", permission: ["marketing.connect", "settings.manage"], module: "marketing" },
+  { path: "connector-new", viewId: "connector-new", label: "Add Connector", permission: ["marketing.connect", "settings.manage"], module: "marketing" },
   { path: "marketing-performance", viewId: "marketing-performance", label: "Marketing Performance", permission: "marketing.read", module: "marketing" },
   // Audiences & Creative (M11)
   { path: "marketing-audience-builder", viewId: "marketing-audience-builder", label: "Audience Builder", permission: "marketing.read", module: "marketing" },

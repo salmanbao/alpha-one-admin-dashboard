@@ -380,7 +380,12 @@ export function toggleConnectorEventLogging(id: string): boolean {
  */
 export function saveConnectorConfig(
   id: string,
-  patch: Partial<Pick<ConnectorRecord, "config" | "active" | "eventLogging" | "nextSync">>,
+  patch: Partial<
+    Pick<
+      ConnectorRecord,
+      "config" | "active" | "eventLogging" | "nextSync" | "syncFrequency" | "audienceTarget"
+    >
+  >,
 ): string[] {
   const rec = byId(id);
   if (!rec) return ["__missing"];
@@ -456,22 +461,78 @@ export interface TestResult {
 }
 
 /**
- * Test Connection — simulated round-trip (no network). Deterministic
- * per record: missing credentials and records in Error state fail with
- * the stored provider message; everything else succeeds.
+ * Test Connection — simulated round-trip against the *current* form
+ * values (no network). Lets the drawer and the wizard test unsaved
+ * credentials before committing them. Deterministic rules:
+ *  - missing required fields / malformed JSON → failure naming the field,
+ *  - a secret shorter than 8 chars → HTTP 401-class failure naming the
+ *    invalid field (the wizard's "invalid API key" path),
+ *  - an unchanged record already in Error state → the stored provider
+ *    message (scope / token class errors),
+ *  - otherwise → success with latency and account label.
  */
-export function testConnector(id: string): Promise<TestResult> {
-  const rec = byId(id);
-  const def = rec ? getConnectorDefinition(rec.definitionId) : undefined;
-  const latencyMs = rec ? 120 + ((rec.id.length * 37) % 380) : 250;
+export function testConnectorValues(
+  definitionId: string,
+  config: Record<string, string>,
+): Promise<TestResult> {
+  const def = getConnectorDefinition(definitionId);
+  const rec = records.find((r) => r.definitionId === definitionId);
+  const latencyMs = 120 + ((definitionId.length * 37) % 380);
 
   return new Promise<TestResult>((resolve) => {
     setTimeout(() => {
-      if (!rec || !def) {
-        resolve({ ok: false, latencyMs, message: "Connector not found." });
+      if (!def) {
+        resolve({
+          ok: false,
+          latencyMs,
+          message: "Unknown connector — it is not in the registry.",
+        });
         return;
       }
-      if (rec.status === "disconnected" || Object.keys(rec.config).length === 0) {
+      const missing = def.fields
+        .filter((f) => f.required && !(config[f.key] ?? "").trim())
+        .map((f) => f.label);
+      if (missing.length > 0) {
+        resolve({
+          ok: false,
+          latencyMs,
+          message: `Missing required credentials: ${missing.join(", ")}.`,
+        });
+        return;
+      }
+      for (const f of def.fields) {
+        if (f.json && config[f.key]) {
+          try {
+            JSON.parse(config[f.key]);
+          } catch {
+            resolve({
+              ok: false,
+              latencyMs,
+              message: `${f.label} is not valid JSON — the provider rejected it.`,
+            });
+            return;
+          }
+        }
+        if (f.secret && (config[f.key] ?? "").length < 8) {
+          resolve({
+            ok: false,
+            latencyMs,
+            message: `HTTP 401 invalid credentials — ${f.label} looks too short to be a valid key.`,
+          });
+          return;
+        }
+      }
+      const unchanged =
+        rec !== undefined && JSON.stringify(rec.config) === JSON.stringify(config);
+      if (unchanged && rec!.status === "error") {
+        resolve({
+          ok: false,
+          latencyMs,
+          message: rec!.lastError ?? `${def.name} rejected the credentials (HTTP 401).`,
+        });
+        return;
+      }
+      if (unchanged && rec!.status === "disconnected") {
         resolve({
           ok: false,
           latencyMs,
@@ -479,22 +540,31 @@ export function testConnector(id: string): Promise<TestResult> {
         });
         return;
       }
-      if (rec.status === "error") {
-        resolve({
-          ok: false,
-          latencyMs,
-          message: rec.lastError ?? `${def.name} rejected the credentials (HTTP 401).`,
-        });
-        return;
-      }
       resolve({
         ok: true,
         latencyMs,
         message: `${def.name} responded OK.`,
-        accountLabel: rec.accountLabel ?? `${def.name} workspace`,
+        accountLabel: rec?.accountLabel ?? `${def.name} workspace`,
       });
     }, 450 + (latencyMs % 300));
   });
+}
+
+/** Test a saved record using its stored credentials. */
+export function testConnector(id: string): Promise<TestResult> {
+  const rec = byId(id);
+  if (!rec) {
+    return Promise.resolve({ ok: false, latencyMs: 250, message: "Connector not found." });
+  }
+  return testConnectorValues(rec.definitionId, rec.config);
+}
+
+/** Id of the connector created this session (wizard Finish) — the
+ *  activity log (5.4) preselects it in its connector filter. */
+let lastCreatedConnectorId: string | null = null;
+
+export function getLastCreatedConnectorId(): string | null {
+  return lastCreatedConnectorId;
 }
 
 /**
@@ -504,7 +574,11 @@ export function testConnector(id: string): Promise<TestResult> {
 export function addConnector(
   definitionId: string,
   config: Record<string, string>,
-  opts?: { eventLogging?: boolean },
+  opts?: {
+    eventLogging?: boolean;
+    syncFrequency?: ConnectorRecord["syncFrequency"];
+    audienceTarget?: string;
+  },
 ): ConnectorRecord | undefined {
   const def = getConnectorDefinition(definitionId);
   if (!def) return undefined;
@@ -522,11 +596,14 @@ export function addConnector(
     eventsPrev24h: 0,
     health: "ok",
     latencyMs: 200,
+    syncFrequency: opts?.syncFrequency ?? "hourly",
+    audienceTarget: opts?.audienceTarget,
   };
   // Re-installing an existing catalog entry replaces its record.
   records = existing
     ? records.map((r) => (r.id === existing.id ? record : r))
     : [record, ...records];
+  lastCreatedConnectorId = record.id;
   audit(
     "Created connector",
     record.id,

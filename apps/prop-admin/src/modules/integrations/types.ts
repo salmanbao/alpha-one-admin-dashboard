@@ -151,6 +151,10 @@ export interface ConnectorRecord {
   latencyMs?: number;
   /** Account / workspace label returned by the provider test call. */
   accountLabel?: string;
+  /** Sync cadence chosen in the drawer: 15m | hourly | daily. */
+  syncFrequency?: "15m" | "hourly" | "daily";
+  /** Default audience sync target (ESP connectors only). */
+  audienceTarget?: string;
 }
 
 /** Row-level filter vocabulary for the hub toolbar. */
