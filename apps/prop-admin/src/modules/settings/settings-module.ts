@@ -29,6 +29,7 @@ import {
   UsersRound,
   KeyRound,
   Wrench,
+  Gauge,
   Plug,
   Share2,
   Fingerprint,
@@ -39,6 +40,7 @@ import {
   Files,
   Megaphone,
   Store,
+  Vault,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -66,6 +68,7 @@ const navigation: NavigationItem[] = [
       { id: "settings.users", label: "User Management", href: "user-management", icon: UsersRound, permission: "settings.manage", group: "Security & Access" },
       { id: "settings.groups", label: "Group Management", href: "group-management", icon: Users, permission: "settings.manage", group: "Security & Access" },
       { id: "settings.tokens", label: "API Tokens", href: "token-management", icon: KeyRound, permission: "settings.manage", group: "Security & Access" },
+      { id: "settings.credential-vault", label: "Credential Vault", href: "credential-vault", icon: Vault, permission: "settings.manage", group: "Security & Access" },
       { id: "settings.device-activities", label: "Device Activities", href: "device-activities", icon: Fingerprint, permission: "settings.manage", group: "Security & Access" },
       { id: "settings.kyc-providers", label: "KYC Providers", href: "kyc-providers", icon: ShieldCheck, permission: "settings.manage", order: 75, group: "Security & Access" },
       { id: "settings.team-members", label: "Team Members", href: "team-members", icon: Users, permission: "settings.manage", group: "Security & Access" },
@@ -85,6 +88,7 @@ const navigation: NavigationItem[] = [
       // ───────── Integrations ─────────
       { id: "settings.marketplace", label: "Marketplace", href: "marketplace", icon: Store, permission: ["settings.marketplace.manage", "settings.manage"], group: "Integrations" },
       { id: "settings.installed-apps", label: "Installed Apps", href: "installed-apps", icon: Package, permission: ["settings.marketplace.manage", "settings.manage"], group: "Integrations" },
+      { id: "settings.marketing-governance", label: "Marketing Governance", href: "marketing-governance", icon: Gauge, permission: "settings.manage", group: "Integrations" },
       { id: "settings.webhooks", label: "Webhooks & Events", href: "webhooks", icon: Webhook, permission: ["settings.webhooks.manage", "settings.manage"], group: "Integrations" },
 
       // ───────── System ─────────
@@ -107,6 +111,8 @@ const routes: RouteDefinition[] = [
   { path: "user-management", viewId: "user-management", label: "User Management", permission: "settings.manage", module: "settings" },
   { path: "group-management", viewId: "group-management", label: "Group Management", permission: "settings.manage", module: "settings" },
   { path: "token-management", viewId: "token-management", label: "Token Management", permission: "settings.manage", module: "settings" },
+  { path: "credential-vault", viewId: "credential-vault", label: "Credential Vault", permission: "settings.manage", module: "settings" },
+  { path: "marketing-governance", viewId: "marketing-governance", label: "Marketing Governance", permission: "settings.manage", module: "settings" },
   { path: "certificates-issued", viewId: "certificates-issued", label: "Issued Certificates", permission: "settings.manage", module: "settings" },
   { path: "certificate-detail", viewId: "certificate-detail", label: "Certificate Detail", permission: "settings.manage", module: "settings" },
   { path: "notifications-management", viewId: "notifications-management", label: "Notifications Management", permission: "settings.manage", module: "settings" },

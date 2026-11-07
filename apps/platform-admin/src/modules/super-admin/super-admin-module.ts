@@ -144,6 +144,7 @@ const navigation: NavigationItem[] = [
       // ───────── Integrations ─────────
       { id: "super.webhooks", label: "Webhooks", href: "webhooks", icon: Webhook, application: ["super-admin"], group: "Integrations" },
       { id: "super.integrations", label: "Integrations", href: "integrations", icon: Plug, application: ["super-admin"], group: "Integrations" },
+      { id: "super.marketplace-review", label: "Marketplace App Review", href: "marketplace-review", icon: Plug, application: ["super-admin"], group: "Integrations" },
       { id: "super.compliance-reports", label: "Compliance Reports", href: "compliance-reports", icon: FileCheck, application: ["super-admin"], group: "Integrations" },
 
       // ───────── Analytics ─────────
@@ -156,6 +157,7 @@ const navigation: NavigationItem[] = [
       { id: "super.marketing", label: "Tenant Marketing Usage", href: "marketing", icon: Megaphone, application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"], group: "Content & Marketing" },
       { id: "super.template-library", label: "Template Library", href: "template-library-admin", icon: FileCode, application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"], group: "Content & Marketing" },
       { id: "super.provider-pool", label: "Provider Pool", href: "provider-pool", icon: Network, application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"], group: "Content & Marketing" },
+      { id: "super.channel-entitlements", label: "Tenant Channel Entitlements", href: "tenant-channel-entitlements", icon: Network, application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"], group: "Content & Marketing" },
 
       // ───────── Platform Docs & Config ─────────
       { id: "super.knowledge-base", label: "Knowledge Base", href: "knowledge-base", icon: BookOpen, application: ["super-admin"], group: "Platform Docs" },

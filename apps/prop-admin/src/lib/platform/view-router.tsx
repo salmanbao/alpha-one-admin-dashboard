@@ -198,6 +198,14 @@ export const viewRegistry: Record<string, ViewComponent> = {
   // M5 — Ads & Attribution (spec §9)
   "events-manager": dynamic(() => import("@/modules/marketing/pages/events-manager-page").then((m) => ({ default: m.EventsManagerPage })), { loading: ViewSkeleton }),
   "attribution-settings": dynamic(() => import("@/modules/marketing/pages/attribution-settings-page").then((m) => ({ default: m.AttributionSettingsPage })), { loading: ViewSkeleton }),
+  // Wave 2 (P1) — marketing ops/compliance
+  "deliverability": dynamic(() => import("@/modules/marketing/pages/deliverability-page").then((m) => ({ default: m.DeliverabilityPage })), { loading: ViewSkeleton }),
+  "bounce-queue": dynamic(() => import("@/modules/marketing/pages/bounce-queue-page").then((m) => ({ default: m.BounceQueuePage })), { loading: ViewSkeleton }),
+  "campaign-approvals": dynamic(() => import("@/modules/marketing/pages/campaign-approvals-page").then((m) => ({ default: m.CampaignApprovalsPage })), { loading: ViewSkeleton }),
+  "campaign-ab": dynamic(() => import("@/modules/marketing/pages/campaign-ab-page").then((m) => ({ default: m.CampaignABPage })), { loading: ViewSkeleton }),
+  "campaign-report": dynamic(() => import("@/modules/marketing/pages/campaign-report-page").then((m) => ({ default: m.CampaignReportPage })), { loading: ViewSkeleton }),
+  "consent-receipts": dynamic(() => import("@/modules/marketing/pages/consent-receipts-page").then((m) => ({ default: m.ConsentReceiptsPage })), { loading: ViewSkeleton }),
+  "marketing-audit-log": dynamic(() => import("@/modules/marketing/pages/marketing-audit-log-page").then((m) => ({ default: m.MarketingAuditLogPage })), { loading: ViewSkeleton }),
   "marketing-vip-campaigns": dynamic(() => import("@/modules/marketing/pages/marketing-vip-campaigns-page").then((m) => ({ default: m.MarketingVipCampaignsPage })), { loading: ViewSkeleton }),
 
   /* crm */
@@ -243,6 +251,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "user-management": dynamic(() => import("@/modules/settings/pages/user-management-page").then((m) => ({ default: m.UserManagementPage })), { loading: ViewSkeleton }),
   "group-management": dynamic(() => import("@/modules/settings/pages/group-management-page").then((m) => ({ default: m.GroupManagementPage })), { loading: ViewSkeleton }),
   "token-management": dynamic(() => import("@/modules/settings/pages/token-management-page").then((m) => ({ default: m.TokenManagementPage })), { loading: ViewSkeleton }),
+  "credential-vault": dynamic(() => import("@/modules/settings/pages/credential-vault-page").then((m) => ({ default: m.CredentialVaultPage })), { loading: ViewSkeleton }),
+  "marketing-governance": dynamic(() => import("@/modules/settings/pages/marketing-governance-page").then((m) => ({ default: m.MarketingGovernancePage })), { loading: ViewSkeleton }),
   "certificates-issued": dynamic(() => import("@/modules/settings/pages/certificates-issued-page").then((m) => ({ default: m.CertificatesIssuedPage })), { loading: ViewSkeleton }),
   "certificate-detail": dynamic(() => import("@/modules/settings/pages/certificate-detail-page").then((m) => ({ default: m.CertificateDetailPage })), { loading: ViewSkeleton }),
   "notifications-management": dynamic(() => import("@/modules/settings/pages/notifications-management-page").then((m) => ({ default: m.NotificationsManagementPage })), { loading: ViewSkeleton }),
