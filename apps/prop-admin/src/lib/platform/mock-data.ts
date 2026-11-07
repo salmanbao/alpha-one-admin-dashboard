@@ -343,6 +343,8 @@ export const roles: RoleDefinition[] = [
       "marketing.surveys.manage",
       "marketing.links.manage",
       "compliance.archive.read",
+      "marketing.leads.operate",
+      "compliance.workspace.read",
       // R4-01 — gateway operations
       "marketing.gateway.operate",
       "analytics.read",
