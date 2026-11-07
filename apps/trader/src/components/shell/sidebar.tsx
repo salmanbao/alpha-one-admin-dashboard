@@ -56,6 +56,7 @@ import {
   Gift,
   MessageCircle,
   Monitor,
+  Smartphone,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
@@ -186,6 +187,7 @@ export const sections: NavSection[] = [
     { href: "/trading-credentials", label: "Trading Credentials", icon: KeyRound },
     { href: "/notification-center", label: "Inbox", icon: Bell, activePrefixes: ["/notification-preferences"] },
     { href: "/marketing-preferences", label: "Marketing Preferences", icon: Megaphone },
+    { href: "/push-channels", label: "Push & Channels", icon: Smartphone },
   ]},
 ];
 
