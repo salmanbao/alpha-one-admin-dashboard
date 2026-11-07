@@ -46,6 +46,7 @@ const navigation: NavigationItem[] = [
       // ───────── Landing & Forms (R2-01, R2-02) ─────────
       { id: "marketing.landing-pages", label: "Landing Pages", href: "landing-pages", icon: FileEdit, permission: ["marketing.pages.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
       { id: "marketing.forms", label: "Forms & Lead Capture", href: "forms", icon: ClipboardList, permission: ["marketing.forms.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
+      { id: "marketing.lead-inbox", label: "Lead Inbox & Assignment", href: "lead-inbox", icon: Activity, permission: "marketing.leads.operate", group: "Acquisition" },
       { id: "marketing.onsite", label: "On-Site Studio", href: "onsite-campaigns", icon: AppWindow, permission: ["marketing.onsite.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
       { id: "marketing.assets", label: "Asset Library", href: "asset-library", icon: Image, permission: ["marketing.assets.manage", "marketing.configure", "settings.manage"], group: "Creative" },
       { id: "marketing.surveys", label: "Surveys & NPS", href: "surveys", icon: ClipboardList, permission: ["marketing.surveys.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
@@ -111,6 +112,8 @@ const routes: RouteDefinition[] = [
   { path: "sending-domains", viewId: "sending-domains", label: "Sending Domains & Auth", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   // R4-01 — Send Queue & Gateway Health (marketing.gateway.operate)
   { path: "send-queue", viewId: "send-queue", label: "Send Queue & Gateway Health", permission: "marketing.gateway.operate", module: "marketing" },
+  // R4-02 — Lead Inbox & Assignment (marketing.leads.operate)
+  { path: "lead-inbox", viewId: "lead-inbox", label: "Lead Inbox & Assignment", permission: "marketing.leads.operate", module: "marketing" },
   // M4 — Campaign Studio & Automation Flows (spec §8)
   { path: "campaign-new", viewId: "campaign-new", label: "Campaign Composer", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   { path: "automation-flows", viewId: "automation-flows", label: "Automation Flows", permission: ["marketing.automation.manage", "settings.manage"], module: "marketing" },
@@ -176,6 +179,7 @@ export const marketingModule: FrontendModule = {
       { id: "compliance.archive.export", label: "Export message archive", description: "Export messages for regulators (R2-08)." },
       { id: "compliance.archive.purge", label: "Purge message archive", description: "Run the retention purge job; legal hold is enforced by the job (R2-08)." },
       { id: "marketing.gateway.operate", label: "Gateway operations", description: "Send queue, gateway health, dead-letter replay, kill-switch (R4-01)." },
+      { id: "marketing.leads.operate", label: "Manage leads", description: "Lead triage, assignment, conversion (R4-02)." },
     ],
     icon: Target,
     accentColor: "#b45309",
