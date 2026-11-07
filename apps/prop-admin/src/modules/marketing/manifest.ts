@@ -5,7 +5,7 @@
  * spend, channel performance and ROI. Depends on Trading.
  */
 
-import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2, HeartPulse, AlertOctagon, CheckCircle, FlaskConical, FileText, Shield, KeyRound, Gauge, ScrollText, FileEdit, ClipboardList, AppWindow, Image, Archive, Siren, Link2 } from "lucide-react";
+import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2, HeartPulse, AlertOctagon, CheckCircle, FlaskConical, FileText, Shield, KeyRound, Gauge, ScrollText, FileEdit, ClipboardList, AppWindow, Image, Archive, Siren, Link2, Languages } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import {
   MarketingOverviewWidget,
@@ -30,6 +30,8 @@ const navigation: NavigationItem[] = [
       { id: "marketing.email-campaigns", label: "Email Campaigns", href: "marketing-email-campaigns", icon: Mail, permission: "marketing.read", group: "Campaigns" },
       { id: "marketing.vip-campaigns", label: "VIP Campaigns", href: "marketing-vip-campaigns", icon: Crown, permission: "marketing.read", group: "Campaigns" },
       { id: "marketing.ad-spend", label: "Ad Spend", href: "marketing-ad-spend", icon: Megaphone, permission: "marketing.read", group: "Campaigns" },
+      // R3-03 — Campaign Localization Manager (read via marketing.read)
+      { id: "marketing.locales", label: "Localization", href: "locales-manager", icon: Languages, permission: ["marketing.locales.manage", "marketing.read"], group: "Campaigns" },
 
       // ───────── Channel Infrastructure (N1-N3, Wave 1) ─────────
       { id: "marketing.channel-providers", label: "Channel Providers & Senders", href: "channel-providers", icon: Server, permission: ["marketing.configure", "settings.manage"], group: "Channels" },
@@ -83,6 +85,8 @@ const routes: RouteDefinition[] = [
   { path: "marketing-email-campaigns", viewId: "marketing-email-campaigns", label: "Email Campaigns", permission: "marketing.read", module: "marketing" },
   { path: "marketing-vip-campaigns", viewId: "marketing-vip-campaigns", label: "VIP Campaigns & Coupons", permission: "marketing.read", module: "marketing" },
   { path: "marketing-ad-spend", viewId: "marketing-ad-spend", label: "Ad Spend", permission: "marketing.read", module: "marketing" },
+  // R3-03 — Campaign Localization Manager (mutation gate marketing.locales.manage)
+  { path: "locales-manager", viewId: "locales-manager", label: "Campaign Localization", permission: ["marketing.locales.manage", "marketing.read"], module: "marketing" },
   // M5 — Ads & Attribution (spec §9)
   { path: "events-manager", viewId: "events-manager", label: "Events Manager", permission: ["marketing.ads.manage", "settings.manage"], module: "marketing" },
   { path: "attribution-settings", viewId: "attribution-settings", label: "Attribution Settings", permission: ["marketing.ads.manage", "settings.manage"], module: "marketing" },
@@ -159,6 +163,7 @@ export const marketingModule: FrontendModule = {
       { id: "compliance.archive.export", label: "Export message archive", description: "Export messages for regulators (R2-08)." },
       { id: "marketing.surveys.manage", label: "Manage surveys", description: "Survey lifecycle, builder and responses (R2-05)." },
       { id: "marketing.links.manage", label: "Manage tracking links", description: "Governed UTM/short links (R2-06)." },
+      { id: "marketing.locales.manage", label: "Manage locale variants", description: "Locale variants and translation workflow (R3-03)." },
     ],
     icon: Target,
     accentColor: "#b45309",
