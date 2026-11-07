@@ -525,6 +525,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "marketing-api-console": dynamic(
+    () =>
+      import("@/modules/super-admin/marketing-api-console-page").then((m) => ({
+        default: m.MarketingApiConsolePage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "marketplace-review": dynamic(
     () =>
       import("@/modules/super-admin/marketplace-review-page").then((m) => ({
