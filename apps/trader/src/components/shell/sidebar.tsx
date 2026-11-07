@@ -141,7 +141,7 @@ export const sections: NavSection[] = [
     { href: "/economic-calendar", label: "Economic Calendar", icon: CalendarClock },
   ]},
   { id: "challenges", label: "Challenges", icon: ShoppingBag, children: [
-    { href: "/my-challenges", label: "My Challenges", icon: Flag },
+    { href: "/my-accounts", label: "My Accounts", icon: Wallet },
     { href: "/challenge-comparison", label: "Compare Programs", icon: GitCompare },
     { href: "/purchase-history", label: "Purchase History", icon: Receipt, activePrefixes: ["/invoice-detail"] },
   ]},
