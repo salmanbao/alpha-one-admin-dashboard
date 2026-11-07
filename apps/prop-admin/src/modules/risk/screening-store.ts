@@ -384,6 +384,42 @@ export function dispositionMatch(matchId: string, disposition: MatchDisposition,
   return true;
 }
 
+/**
+ * R2-07 uplift — case-level rescan: re-stamp this case's screening rows
+ * against each provider's *current* list version (the provenance R3-02
+ * tracks), returning how many rows changed for the action toast.
+ */
+export function rescanCase(caseId: string, actor: string): { ok: boolean; updated: number; versions: string[] } {
+  const c = getAmlCase(caseId);
+  if (!c) return { ok: false, updated: 0, versions: [] };
+  const versions: string[] = [];
+  let updated = 0;
+  const rows = c.screening.map((r) => {
+    const s = sourceForProvider(r.provider);
+    if (!s) return r;
+    if (!versions.includes(s.currentVersion)) versions.push(s.currentVersion);
+    if (r.listVersion === s.currentVersion) return r;
+    updated += 1;
+    const base = r.detail.split(" · ")[0];
+    return { ...r, listVersion: s.currentVersion, at: now(), detail: `${base} · case rescan ${s.currentVersion}` };
+  });
+  if (updated === 0 && versions.length === 0) return { ok: false, updated: 0, versions: [] };
+  updateAmlCase(caseId, { screening: rows }, {
+    action: "screening.case-rescan",
+    summary: `Case screening rescanned by ${actor} against list versions: ${versions.join(", ") || "no sources"} (${updated} row(s) updated)`,
+  });
+  recordAudit({
+    action: "Case screening rescan",
+    entity: "aml-case",
+    entityId: caseId,
+    summary: `${caseId} rescanned by ${actor} — ${updated} row(s) re-stamped against ${versions.join(", ") || "no sources"}`,
+    module: "risk",
+    severity: "info",
+  });
+  emit();
+  return { ok: true, updated, versions };
+}
+
 /** Subscribe the calling component to screening mutations. */
 export function useScreeningVersion(): number {
   const [v, setV] = useState(version);
