@@ -57,6 +57,7 @@ import {
   HeartPulse,
   ArrowRightLeft,
   Network,
+  Archive,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -158,6 +159,8 @@ const navigation: NavigationItem[] = [
       { id: "super.template-library", label: "Template Library", href: "template-library-admin", icon: FileCode, application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"], group: "Content & Marketing" },
       { id: "super.provider-pool", label: "Provider Pool", href: "provider-pool", icon: Network, application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"], group: "Content & Marketing" },
       { id: "super.channel-entitlements", label: "Tenant Channel Entitlements", href: "tenant-channel-entitlements", icon: Network, application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"], group: "Content & Marketing" },
+      { id: "super.global-consent", label: "Global Consent & Suppression", href: "global-consent-ledger", icon: Shield, application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"], group: "Content & Marketing" },
+      { id: "super.cross-tenant-archive", label: "Cross-Tenant Archive (eDiscovery)", href: "cross-tenant-archive", icon: Archive, application: ["super-admin"], permission: ["platform.archive.read", "platform.marketing.manage"], group: "Content & Marketing" },
 
       // ───────── Platform Docs & Config ─────────
       { id: "super.knowledge-base", label: "Knowledge Base", href: "knowledge-base", icon: BookOpen, application: ["super-admin"], group: "Platform Docs" },
@@ -242,6 +245,8 @@ const routes: RouteDefinition[] = [
   { path: "marketing", viewId: "marketing", label: "Tenant Marketing Usage", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
   { path: "template-library-admin", viewId: "template-library-admin", label: "Shared Templates", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
   { path: "provider-pool", viewId: "provider-pool", label: "Provider Pool", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
+  { path: "global-consent-ledger", viewId: "global-consent-ledger", label: "Global Consent & Suppression", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
+  { path: "cross-tenant-archive", viewId: "cross-tenant-archive", label: "Cross-Tenant Archive (eDiscovery)", application: ["super-admin"], permission: ["platform.archive.read", "platform.marketing.manage"] },
   { path: "churn-prevention", viewId: "churn-prevention", label: "Churn Prevention", application: ["super-admin"] },
   { path: "scheduled-reports", viewId: "scheduled-reports", label: "Scheduled Reports", application: ["super-admin"] },
   { path: "tax-currency", viewId: "tax-currency", label: "Tax & Currency", application: ["super-admin"] },
@@ -267,6 +272,8 @@ export const superAdminModule: FrontendModule = {
       { id: "platform.emergency.manage", label: "Emergency Controls", description: "Tenant halt, maintenance mode, relay pause, kill switches" },
       { id: "platform.marketing.read", label: "View Tenant Marketing Usage", description: "Cross-tenant send metering, quota meters and anomaly flags" },
       { id: "platform.marketing.manage", label: "Manage Marketing Console", description: "Quota approvals, shared template lifecycle, provider pool + quarantine" },
+      { id: "platform.archive.read", label: "Read Cross-Tenant Archive", description: "e-Discovery search across tenant sent messages (R2-11)" },
+      { id: "platform.archive.export", label: "Export Cross-Tenant Archive", description: "Sealed case bundle export (R2-11)" },
     ],
     icon: ShieldCheck,
     accentColor: "#0a0a0a",

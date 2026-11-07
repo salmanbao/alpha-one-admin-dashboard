@@ -546,6 +546,20 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "global-consent-ledger": dynamic(
+    () =>
+      import("@/modules/super-admin/global-consent-ledger-page").then((m) => ({
+        default: m.GlobalConsentLedgerPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "cross-tenant-archive": dynamic(
+    () =>
+      import("@/modules/super-admin/cross-tenant-archive-page").then((m) => ({
+        default: m.CrossTenantArchivePage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "challenge-programs": dynamic(
     () =>
       import("@/modules/super-admin/challenge-programs-page").then((m) => ({
