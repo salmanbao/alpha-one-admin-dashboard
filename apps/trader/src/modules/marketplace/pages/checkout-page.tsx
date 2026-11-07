@@ -132,6 +132,24 @@ export function CheckoutPage() {
   const [lastName, setLastName] = useState(() => draft?.lastName ?? "Allen");
   const [email, setEmail] = useState(() => draft?.email ?? "tom.allen@terra.trader");
   const [country, setCountry] = useState(() => draft?.country ?? "United States");
+
+  // SF-06: auto-apply promo from ?promo={code} deep-link (promo-wallet push).
+  // Prefills the manual entry field and applies — no new state model.
+  useEffect(() => {
+    const code = params.get("promo")?.trim().toUpperCase();
+    if (code && !promo) {
+      setPromoInput(code);
+      const found = promos[code];
+      if (found) {
+        setPromoError(null);
+        setPromo({ code, percent: found.percent });
+        toast({ title: "Promo applied", description: `${code} — ${found.label} your order.` });
+      } else {
+        setPromoError(`“${code}” isn't a valid promo code. Check for typos, or the code may have expired.`);
+        toast({ title: "Invalid promo code", description: `"${code}" is not a valid code.`, variant: "destructive" });
+      }
+    }
+  }, [params.get("promo")]);
   const {
     field: billingField,
     validateAll: validateBilling,

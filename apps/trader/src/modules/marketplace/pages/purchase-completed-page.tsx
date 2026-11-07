@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { TerraCard, TerraPageHeader, formatMoney } from "@/components/terra/terra-ui";
 import { terraChallenges } from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
@@ -20,11 +21,11 @@ const steps = [
 
 export function PurchaseCompletedPage() {
   const router = useRouter();
-  const params = router && (router as any).query;
+  const params = useSearchParams();
 
   // Contextualize order number & challenge from router params (dummy data only).
-  const orderId = typeof params?.orderId === "string" ? params.orderId : "TT-48210";
-  const challengeKey = typeof params?.challengeId === "string" ? params.challengeId : undefined;
+  const orderId = params.get("orderId") ?? "TT-48210";
+  const challengeKey = params.get("challengeId");
   const ch = challengeKey
     ? terraChallenges.find((c) => c.id === challengeKey) ?? terraChallenges[1]
     : terraChallenges[1];
