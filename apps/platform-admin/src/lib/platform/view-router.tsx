@@ -503,6 +503,20 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "template-library-admin": dynamic(
+    () =>
+      import("@/modules/super-admin/template-library-admin-page").then((m) => ({
+        default: m.TemplateLibraryAdminPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "provider-pool": dynamic(
+    () =>
+      import("@/modules/super-admin/provider-pool-page").then((m) => ({
+        default: m.ProviderPoolPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "challenge-programs": dynamic(
     () =>
       import("@/modules/super-admin/challenge-programs-page").then((m) => ({

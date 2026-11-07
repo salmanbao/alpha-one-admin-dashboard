@@ -56,6 +56,7 @@ import {
   MonitorSmartphone,
   HeartPulse,
   ArrowRightLeft,
+  Network,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -152,7 +153,9 @@ const navigation: NavigationItem[] = [
 
       // ───────── Content & Marketing ─────────
       { id: "super.content-management", label: "Content Management", href: "content-management", icon: FileText, application: ["super-admin"], group: "Content & Marketing" },
-      { id: "super.marketing", label: "Marketing", href: "marketing", icon: Megaphone, application: ["super-admin"], group: "Content & Marketing" },
+      { id: "super.marketing", label: "Tenant Marketing Usage", href: "marketing", icon: Megaphone, application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"], group: "Content & Marketing" },
+      { id: "super.template-library", label: "Template Library", href: "template-library-admin", icon: FileCode, application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"], group: "Content & Marketing" },
+      { id: "super.provider-pool", label: "Provider Pool", href: "provider-pool", icon: Network, application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"], group: "Content & Marketing" },
 
       // ───────── Platform Docs & Config ─────────
       { id: "super.knowledge-base", label: "Knowledge Base", href: "knowledge-base", icon: BookOpen, application: ["super-admin"], group: "Platform Docs" },
@@ -234,7 +237,9 @@ const routes: RouteDefinition[] = [
   { path: "notification-templates", viewId: "notification-templates", label: "Notification Templates", application: ["super-admin"] },
   { path: "backup-policies", viewId: "backup-policies", label: "Backup Policies", application: ["super-admin"] },
   { path: "content-management", viewId: "content-management", label: "Content Management", application: ["super-admin"] },
-  { path: "marketing", viewId: "marketing", label: "Marketing", application: ["super-admin"] },
+  { path: "marketing", viewId: "marketing", label: "Tenant Marketing Usage", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
+  { path: "template-library-admin", viewId: "template-library-admin", label: "Shared Templates", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
+  { path: "provider-pool", viewId: "provider-pool", label: "Provider Pool", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
   { path: "churn-prevention", viewId: "churn-prevention", label: "Churn Prevention", application: ["super-admin"] },
   { path: "scheduled-reports", viewId: "scheduled-reports", label: "Scheduled Reports", application: ["super-admin"] },
   { path: "tax-currency", viewId: "tax-currency", label: "Tax & Currency", application: ["super-admin"] },
@@ -258,6 +263,8 @@ export const superAdminModule: FrontendModule = {
       { id: "platform.audit.read", label: "Read Platform Audit", description: "Cross-tenant audit log access" },
       { id: "platform.billing.manage", label: "Manage Billing", description: "View invoices, update payment methods, manage plans" },
       { id: "platform.emergency.manage", label: "Emergency Controls", description: "Tenant halt, maintenance mode, relay pause, kill switches" },
+      { id: "platform.marketing.read", label: "View Tenant Marketing Usage", description: "Cross-tenant send metering, quota meters and anomaly flags" },
+      { id: "platform.marketing.manage", label: "Manage Marketing Console", description: "Quota approvals, shared template lifecycle, provider pool + quarantine" },
     ],
     icon: ShieldCheck,
     accentColor: "#0a0a0a",
