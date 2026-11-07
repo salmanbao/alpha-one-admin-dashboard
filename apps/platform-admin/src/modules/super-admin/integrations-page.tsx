@@ -22,7 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Plug, Search, Settings2, CheckCircle2, AlertTriangle, Clock, CreditCard, Mail, Shield, Users, Activity, RefreshCw, Zap, Link2, Unlink, Store, UserPlus } from "lucide-react";
-import { getTenants } from "@/lib/platform/mock-data";
+import { tenants as tenantList } from "@/lib/platform/mock-data";
 
 const demoIntegrations = [
   { id: "int-001", name: "Stripe", category: "payment", description: "Payment processing for subscriptions and one-time charges", status: "connected", config: { publishableKey: "pk_live_51H8x…", webhookSigning: "Enabled", currencies: "USD, EUR, GBP" }, lastSync: "2026-10-08T14:00:00Z", health: "healthy" },
@@ -53,7 +53,7 @@ export function IntegrationsPage() {
   const { navigate } = usePlatform();
   const { data: loadedData, loading, error, retry } = useAsyncMock(() => mockAsync(() => demoIntegrations, { delayMs: 300 }), []);
   const integrations = loadedData ?? [];
-  const tenants = useMemo(() => { try { return getTenants(); } catch { return []; } }, []);
+  const tenants = useMemo(() => tenantList ?? [], []);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedIntegration, setSelectedIntegration] = useState<string | null>(null);
