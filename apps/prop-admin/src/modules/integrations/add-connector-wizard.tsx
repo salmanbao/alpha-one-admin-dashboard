@@ -349,11 +349,8 @@ export function AddConnectorWizard({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (d.origin === "community") {
-                                    toast({
-                                      title: "Custom Connector Builder",
-                                      description:
-                                        "The builder (spec 5.5) ships in Sprint 4 — the registry entry is ready for it.",
-                                    });
+                                    // Deep-link to the Custom Connector Builder with the definition pre-selected.
+                                    window.location.href = `?view=connector-custom-new&def=${d.id}`;
                                   } else {
                                     pickDefinition(d);
                                   }

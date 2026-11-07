@@ -242,6 +242,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "marketing-integrations": dynamic(() => import("@/modules/integrations/pages/integrations-hub-page").then((m) => ({ default: m.IntegrationsHubPage })), { loading: ViewSkeleton }),
   // Connector Activity & Event Log (5.4).
   "connector-activity": dynamic(() => import("@/modules/integrations/pages/connector-activity-page").then((m) => ({ default: m.ConnectorActivityPage })), { loading: ViewSkeleton }),
+  // Custom Connector Builder (5.5).
+  "connector-custom-new": dynamic(() => import("@/modules/integrations/pages/custom-connector-builder-page").then((m) => ({ default: m.CustomConnectorBuilderPage })), { loading: ViewSkeleton }),
   // Add Connector wizard (5.3) — deep link opens the wizard over the hub.
   "connector-new": dynamic(() => import("@/modules/integrations/pages/integrations-hub-page").then((m) => ({ default: m.IntegrationsHubPage })), { loading: ViewSkeleton }),
   "marketing-banner-edit": dynamic(() => import("@/modules/settings/pages/marketing-banner-edit-page").then((m) => ({ default: m.MarketingBannerEditPage })), { loading: ViewSkeleton }),
