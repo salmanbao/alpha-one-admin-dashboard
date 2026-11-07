@@ -7,8 +7,6 @@
  * Trader-only views with trader.self permission.
  *
  * View mapping:
- * - trader-detail         -> My Workspace (trader-detail)
- * - trading-positions     -> My Open Positions (trading-positions)
  * - closed-positions      -> My Closed Positions (closed-positions)
  * - comms-history         -> Communication History (R3-04)
  */
@@ -38,13 +36,6 @@ const ViewSkeleton = () => (
 );
 
 const viewMap: Record<string, ComponentType> = {
-  "trader-detail": dynamic(
-    () =>
-      import("../../modules/trading/pages/trader-detail-stitch-page").then(
-        (m) => ({ default: m.TraderDetailPage }),
-      ),
-    { loading: ViewSkeleton },
-  ),
   "closed-positions": dynamic(
     () =>
       import("../../modules/trading/pages/closed-positions-page").then((m) => ({
@@ -65,14 +56,6 @@ const viewMap: Record<string, ComponentType> = {
  * The trader app's routes. Each route is permission-gated to trader.self.
  */
 export const traderRoutes: RouteDefinition[] = [
-  {
-    path: "trader-detail",
-    viewId: "trader-detail",
-    label: "My Workspace",
-    icon: LayoutGrid,
-    permission: "trader.self",
-    module: "trading",
-  },
   {
     path: "closed-positions",
     viewId: "closed-positions",
@@ -96,14 +79,6 @@ export const traderRoutes: RouteDefinition[] = [
  * The trader app's sidebar navigation entries.
  */
 export const traderNavigation: NavigationItem[] = [
-  {
-    id: "nav-my-workspace",
-    label: "My Workspace",
-    href: "/trader-detail",
-    icon: LayoutGrid,
-    permission: "trader.self",
-    application: ["trader"],
-  },
   {
     id: "nav-open-positions",
     label: "My Open Positions",
@@ -149,7 +124,18 @@ export function TraderView({ viewId }: { viewId: string }) {
     );
   }
 
-  const Page = viewMap[viewId] ?? viewMap["trader-detail"];
+  const Page = viewMap[viewId];
+
+  if (!Page) {
+    return (
+      <EmptyState
+        title="No access"
+        description="You don't have permission to view this page."
+        icon={ShieldAlert}
+      />
+    );
+  }
+
   return <Page />;
 }
 
