@@ -15,14 +15,40 @@ import * as React from "react";
 import { MsIcon } from "@/components/stitch/stitch";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { toast } from "@/hooks/use-toast";
+// R3-F02 (hand-wired; regenerating this page drops the banner below):
+// the payout detail sheet must read the AML freeze state + block reason.
+import { payoutAmlBlock } from "@/modules/payouts/payout-store";
 
 export function PayoutDetailStitchPage() {
-  const { navigate } = usePlatform();
+  const { router, navigate } = usePlatform();
+  const aml = payoutAmlBlock(router.params.id ?? "");
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
   return (
     <>
       <div className="flex flex-col w-full space-y-6 pb-28">
+        {aml && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3">
+            <MsIcon name="warning" className="text-[20px] text-rose-600 dark:text-rose-400" />
+            <div className="min-w-0 flex-1 text-sm">
+              <p className="font-semibold text-rose-700 dark:text-rose-300">
+                AML HOLD · Case {aml.caseId} — {aml.typology}
+              </p>
+              <p className="text-xs text-rose-700/80 dark:text-rose-300/80">
+                {aml.risk.toUpperCase()} risk · this payout cannot be approved, processed or paid until the case releases the freeze.
+                Release requires compliance.aml.approve on the AML case.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 transition-colors"
+              onClick={() => navigate("aml-case", { id: aml.caseId })}
+            >
+              <MsIcon name="shield" className="text-[14px]" />
+              Open AML Case
+            </button>
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-4 bg-surface-container-low px-5 py-3 rounded-xl shadow-sm">
           <div className="flex items-center gap-3 flex-wrap">
             <a className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-primary hover:bg-surface-container transition-colors" href="#" onClick={(e) => { e.preventDefault(); navigate("payouts"); }}>

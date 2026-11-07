@@ -72,6 +72,7 @@ import { cn } from "@/lib/utils";
 import {
   applyPayoutDecision,
   effectivePayoutStatus,
+  payoutAmlBlock,
   usePayoutVersion,
 } from "@/modules/payouts/payout-store";
 import {
@@ -471,6 +472,21 @@ export function EnhancedWithdrawalsPage() {
     // Commit each selected payout's decision to the payout-store so
     // every other payout surface (Pending Payouts queue, dashboard
     // widget, Payout History) reflects the new status instantly.
+    //
+    // R3-F02 — a frozen AML case blocks money-moving decisions: the store
+    // would refuse them silently, so pre-check the batch and report which
+    // trader froze it (same pattern as the single-row decision surfaces).
+    for (const p of selectedPayouts) {
+      const aml = payoutAmlBlock(p.reference);
+      if (aml) {
+        toast({
+          title: "Batch approve blocked",
+          description: `${p.traderName} is on AML hold ${aml.caseId} (${aml.typology}). Release it on the case — compliance.aml.approve — or exclude the withdrawal.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     for (const p of selectedPayouts) applyPayoutDecision(p.reference, "approved");
     toast({
       title: "Batch approved",

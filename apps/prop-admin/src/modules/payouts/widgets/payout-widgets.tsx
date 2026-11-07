@@ -7,7 +7,7 @@ import { getTenantPayouts, getTenantTraders, payoutSeries, type Payout } from "@
 import { buildPayoutRisk } from "@/lib/platform/payout-risk";
 import { MetricCard } from "@/components/platform/page";
 import { StatusBadge, payoutStatusTone, formatCurrency, formatCompact } from "@/components/platform/status";
-import { applyPayoutDecision, effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
+import { applyPayoutDecision, effectivePayoutStatus, payoutAmlBlock, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { Wallet, Banknote, Clock, CheckCircle2, DollarSign, XCircle, HelpCircle } from "lucide-react";
 import { AreaSeries, DonutSeries } from "@/components/platform/charts";
 import { Button } from "@/components/ui/button";
@@ -87,11 +87,22 @@ export function PayoutQueueWidget() {
   return (
     <>
     <ul className="space-y-2">
-      {pending.map((p) => (
+      {pending.map((p) => {
+        // R3-F02 — active AML hold freezes approve/process on this payout.
+        const aml = payoutAmlBlock(p.reference);
+        const approveTitle = aml
+          ? `AML hold ${aml.caseId} — approval blocked until released (compliance.aml.approve)`
+          : decideTitle;
+        return (
         <li key={p.id} className="flex flex-wrap items-center gap-2 rounded-md border bg-card p-2">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{p.traderName}</p>
             <p className="text-[10px] text-muted-foreground">{p.method} · {p.reference}</p>
+            {aml && (
+              <p className="truncate text-[10px] font-medium text-destructive" title={`Frozen by AML case ${aml.caseId} — ${aml.typology}`}>
+                AML hold {aml.caseId} · {aml.typology}
+              </p>
+            )}
           </div>
           <div className="text-right">
             <p className="text-sm font-semibold">{formatCurrency(p.amount, currency)}</p>
@@ -106,11 +117,17 @@ export function PayoutQueueWidget() {
           <Button
             size="sm"
             variant="default"
-            disabled={!canDecide}
-            title={decideTitle}
+            disabled={!canDecide || !!aml}
+            title={approveTitle}
             aria-label={`Approve ${p.traderName}'s payout`}
             onClick={() => {
-              applyPayoutDecision(p.reference, "approved");
+              const result = applyPayoutDecision(p.reference, "approved");
+              if (!result.ok) {
+                // Store-side enforcement (R3-F02) — never toast a success
+                // that did not happen; report the blocking case instead.
+                toast({ title: "Approval blocked by AML hold", description: `${result.caseId} — ${result.reason}`, variant: "destructive" });
+                return;
+              }
               toast({ title: "Payout approved", description: `${p.traderName} — ${formatCurrency(p.amount, currency)}` });
             }}
           >
@@ -154,7 +171,8 @@ export function PayoutQueueWidget() {
             <HelpCircle className="h-3.5 w-3.5" /> Info
           </Button>
         </li>
-      ))}
+        );
+      })}
     </ul>
     {/* Shared reject dialog — one instance for all rows in the queue */}
     <PayoutRejectDialog

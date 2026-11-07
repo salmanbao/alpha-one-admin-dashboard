@@ -7,7 +7,7 @@ import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/t
 import { getTenantPayouts, getTraderPayouts, getTraderForUser, getTenantTraders, getTenantBreaches, type Payout } from "@/lib/platform/mock-data";
 import { buildPayoutRisk, worstPayoutRisk } from "@/lib/platform/payout-risk";
 import { exportToCsv } from "@/lib/platform/export-utils";
-import { applyPayoutDecision, effectivePayoutStatus, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
+import { applyPayoutDecision, effectivePayoutStatus, payoutAmlBlock, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency } from "@/components/platform/status";
@@ -196,18 +196,28 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
     {
       key: "actions",
       header: "Actions",
-      cell: (p) =>
-        p.status === "pending" ? (
+      cell: (p) => {
+        // R3-F02 — active AML hold freezes approve/process on this payout;
+        // the store enforces it either way, but the button must say why.
+        const aml = payoutAmlBlock(p.reference);
+        const heldTitle = aml
+          ? `AML hold ${aml.caseId} — approval blocked until released (compliance.aml.approve)`
+          : decideTitle;
+        return p.status === "pending" ? (
           <div className="flex gap-1">
             <Button
               size="sm"
               variant="default"
-              disabled={!canDecide}
-              title={decideTitle}
+              disabled={!canDecide || !!aml}
+              title={heldTitle}
               onClick={() => {
                 // Mutate the shared decision store — the row leaves the
                 // pending queue everywhere (table, cards, widget).
-                applyPayoutDecision(p.reference, "approved");
+                const result = applyPayoutDecision(p.reference, "approved");
+                if (!result.ok) {
+                  toast({ title: "Approval blocked by AML hold", description: `${result.caseId} — ${result.reason}`, variant: "destructive" });
+                  return;
+                }
                 toast({ title: "Approved", description: `${p.traderName} payout approved.` });
               }}
             >
@@ -244,10 +254,14 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
              the payment processor (approved → processing everywhere). */
           <Button
             size="sm"
-            disabled={!canDecide}
-            title={decideTitle}
+            disabled={!canDecide || !!aml}
+            title={heldTitle}
             onClick={() => {
-              applyPayoutDecision(p.reference, "processing");
+              const result = applyPayoutDecision(p.reference, "processing");
+              if (!result.ok) {
+                toast({ title: "Processing blocked by AML hold", description: `${result.caseId} — ${result.reason}`, variant: "destructive" });
+                return;
+              }
               toast({
                 title: "Payout processing",
                 description: `${p.traderName}'s payout sent to the payment processor.`,
@@ -256,7 +270,8 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
           >
             Process
           </Button>
-        ) : null,
+        ) : null;
+      },
     },
   ];
 
@@ -410,6 +425,19 @@ export function PendingPayoutsPage() {
         toast({
           title: "Batch approve blocked",
           description: `Trader ${p.traderName} has ${breaches.length} open breach(es). Resolve before auto-approving.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    // R3-F02 — a frozen AML case blocks money-moving decisions; same
+    // whole-batch block pattern as the risk/breach gates above.
+    for (const p of payouts) {
+      const aml = payoutAmlBlock(p.reference);
+      if (aml) {
+        toast({
+          title: "Batch approve blocked",
+          description: `${p.traderName} is on AML hold ${aml.caseId} (${aml.typology}). Release it on the case — compliance.aml.approve — or exclude the payout.`,
           variant: "destructive",
         });
         return;

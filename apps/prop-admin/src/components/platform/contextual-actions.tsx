@@ -24,11 +24,16 @@ import {
   type PayoutRejectTarget,
   type PayoutRejectResult,
 } from "@/components/platform/payout-reject-dialog";
-import { Check, X, FileQuestion, ChevronRight, MessageCircle, AlertTriangle } from "lucide-react";
+import { Check, X, FileQuestion, ChevronRight, MessageCircle, AlertTriangle, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/components/platform/status";
 import { EntityAuditTimeline } from "@/components/platform/audit";
-import { applyPayoutDecision, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
+import {
+  applyPayoutDecision,
+  payoutAmlBlock,
+  payoutEscalated,
+  usePayoutVersion,
+} from "@/modules/payouts/payout-store";
 import { payouts, getTenantTraders } from "@/lib/platform/mock-data";
 import { buildPayoutRisk } from "@/lib/platform/payout-risk";
 import { resolveBreach } from "@/modules/risk/breach-store";
@@ -54,6 +59,12 @@ interface ContextualAction {
    */
   requires?: string;
   /**
+   * Data-driven block (R3-F02): when present the action renders disabled
+   * with this as the tooltip — e.g. the payout is frozen by an AML hold
+   * and only a compliance.aml.approve release on the case unfreezes it.
+   */
+  disabledReason?: string;
+  /**
    * Action handler. Destructive actions receive the operator's typed
    * reason (required by DestructiveActionDialog) so it can be written
    * into the audit detail.
@@ -72,6 +83,8 @@ interface ContextualActionPanelProps {
   actions: ContextualAction[];
   /** Compact mode for inline use */
   compact?: boolean;
+  /** Optional warning strip under the context label (e.g. R3-F02 AML hold) */
+  notice?: React.ReactNode;
 }
 
 export function ContextualActionPanel({
@@ -80,6 +93,7 @@ export function ContextualActionPanel({
   statusBadge,
   actions,
   compact = false,
+  notice,
 }: ContextualActionPanelProps) {
   const primary = actions.find((a) => a.isPrimary) ?? actions[0];
   const secondary = actions.filter((a) => a !== primary);
@@ -95,6 +109,7 @@ export function ContextualActionPanel({
           {statusBadge}
         </div>
         <p className="truncate text-xs text-muted-foreground">{contextDetail}</p>
+        {notice}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         {primary ? (
@@ -118,7 +133,10 @@ function ContextualActionButton({ action, isPrimary = false }: { action: Context
   // In-page action guard: the queue may be visible (payout.read) while the
   // decision itself requires payout.approve / risk.configure / …
   const allowed = !action.requires || hasPermission(user, action.requires);
-  const deniedTitle = action.requires ? `Requires ${action.requires}` : undefined;
+  // R3-F02 `disabledReason` wins over the permission tooltip — the more
+  // specific block (AML hold on this payout) is what the operator needs.
+  const deniedTitle = action.disabledReason ?? (action.requires ? `Requires ${action.requires}` : undefined);
+  const blocked = !allowed || !!action.disabledReason;
 
   if (action.destructive) {
     return (
@@ -126,7 +144,7 @@ function ContextualActionButton({ action, isPrimary = false }: { action: Context
         <Button
           variant={variant}
           size={size}
-          disabled={!allowed}
+          disabled={blocked}
           title={deniedTitle}
           className={cn(className, "text-rose-600 hover:text-rose-700")}
           onClick={() => setOpen(true)}
@@ -157,7 +175,7 @@ function ContextualActionButton({ action, isPrimary = false }: { action: Context
       variant={variant}
       size={size}
       className={className}
-      disabled={!allowed}
+      disabled={blocked}
       title={deniedTitle}
       onClick={() => action.onAction()}
     >
@@ -180,13 +198,18 @@ export function PayoutReviewActions({
   amount: number;
   currency: string;
 }) {
-  const { pushNotification, runtime } = usePlatform();
+  const { pushNotification, runtime, navigate } = usePlatform();
   const tenant = runtime.tenant;
   const currencyFmt = formatCurrency(amount, currency || runtime.tenant?.currency || "USD");
   // Escalation (PRD §4.5 multi-level approval) is a session decision —
-  // re-render the panel when it changes.
+  // re-render the panel when it changes. usePayoutVersion also subscribes
+  // to the AML store (R3-F02), so a hold release re-renders this panel.
   usePayoutVersion();
   const escalated = payoutEscalated(payoutId);
+  // R3-F02 — active AML hold on this payout's trader: Approve is blocked
+  // with the case ID in the reason; release lives on the AML case detail
+  // behind compliance.aml.approve (four-eyes).
+  const aml = payoutAmlBlock(payoutId);
   // Audit fix #3: reject collects a structured reason via the shared
   // PayoutRejectDialog instead of a reason-less confirmation.
   const [rejectTarget, setRejectTarget] = useState<PayoutRejectTarget | null>(null);
@@ -206,10 +229,17 @@ export function PayoutReviewActions({
       variant: "primary",
       isPrimary: true,
       requires: "payout.approve",
+      disabledReason: aml ? `AML hold ${aml.caseId} — ${aml.typology}` : undefined,
       onAction: () => {
         // Mutate the shared decision store — the pending queue (table,
         // dashboard widget) drops this payout everywhere, instantly.
-        applyPayoutDecision(payoutId, "approved");
+        const result = applyPayoutDecision(payoutId, "approved");
+        if (!result.ok) {
+          // Belt-and-braces (R3-F02): the button is disabled while held,
+          // but the store is the real enforcement chokepoint.
+          toast({ title: "Approval blocked by AML hold", description: `${result.caseId} — ${result.reason}`, variant: "destructive" });
+          return;
+        }
         toast({ title: "Payout approved", description: resolveTermsInString(`${traderName}'s payout of ${currencyFmt} is being processed.`, tenant) });
         pushNotification({
           title: "Payout approved",
@@ -282,10 +312,31 @@ export function PayoutReviewActions({
         contextLabel={payoutId}
         contextDetail={`${traderName} · ${currencyFmt}`}
         statusBadge={
-          escalated ? (
+          aml ? (
+            <Badge variant="outline" className="border-rose-500/50 text-rose-700 dark:text-rose-400">
+              AML hold · {aml.caseId}
+            </Badge>
+          ) : escalated ? (
             <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
               Escalated · senior sign-off
             </Badge>
+          ) : undefined
+        }
+        notice={
+          aml ? (
+            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] leading-tight text-destructive">
+              <ShieldAlert className="h-3 w-3 shrink-0" />
+              <span>
+                Frozen by AML case {aml.caseId} — {aml.typology} ({aml.risk} risk). Approve/Process blocked; rejection still allowed.
+              </span>
+              <button
+                type="button"
+                className="font-medium underline underline-offset-2"
+                onClick={() => navigate("aml-case", { id: aml.caseId })}
+              >
+                Open case
+              </button>
+            </p>
           ) : undefined
         }
         actions={actions}
