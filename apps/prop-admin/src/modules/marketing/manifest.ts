@@ -5,7 +5,7 @@
  * spend, channel performance and ROI. Depends on Trading.
  */
 
-import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch } from "lucide-react";
+import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import {
   MarketingOverviewWidget,
@@ -30,6 +30,11 @@ const navigation: NavigationItem[] = [
       { id: "marketing.email-campaigns", label: "Email Campaigns", href: "marketing-email-campaigns", icon: Mail, permission: "marketing.read", group: "Campaigns" },
       { id: "marketing.vip-campaigns", label: "VIP Campaigns", href: "marketing-vip-campaigns", icon: Crown, permission: "marketing.read", group: "Campaigns" },
       { id: "marketing.ad-spend", label: "Ad Spend", href: "marketing-ad-spend", icon: Megaphone, permission: "marketing.read", group: "Campaigns" },
+
+      // ───────── Channel Infrastructure (N1-N3, Wave 1) ─────────
+      { id: "marketing.channel-providers", label: "Channel Providers & Senders", href: "channel-providers", icon: Server, permission: ["marketing.configure", "settings.manage"], group: "Channels" },
+      { id: "marketing.whatsapp-templates", label: "WhatsApp Template Manager", href: "whatsapp-templates", icon: MessageSquareText, permission: ["marketing.configure", "settings.manage"], group: "Channels" },
+      { id: "marketing.sending-domains", label: "Sending Domains & Auth", href: "sending-domains", icon: Globe2, permission: ["marketing.configure", "settings.manage"], group: "Channels" },
 
       // ───────── Automation (M4 — Campaign Studio) ─────────
       { id: "marketing.automation-flows", label: "Flows", href: "automation-flows", icon: Workflow, permission: ["marketing.automation.manage", "settings.manage"], group: "Automation" },
@@ -64,6 +69,10 @@ const routes: RouteDefinition[] = [
   // M5 — Ads & Attribution (spec §9)
   { path: "events-manager", viewId: "events-manager", label: "Events Manager", permission: ["marketing.ads.manage", "settings.manage"], module: "marketing" },
   { path: "attribution-settings", viewId: "attribution-settings", label: "Attribution Settings", permission: ["marketing.ads.manage", "settings.manage"], module: "marketing" },
+  // N1-N3 — Channel Infrastructure (Wave 1, P0)
+  { path: "channel-providers", viewId: "channel-providers", label: "Channel Providers & Senders", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "whatsapp-templates", viewId: "whatsapp-templates", label: "WhatsApp Template Manager", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "sending-domains", viewId: "sending-domains", label: "Sending Domains & Auth", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   // M4 — Campaign Studio & Automation Flows (spec §8)
   { path: "campaign-new", viewId: "campaign-new", label: "Campaign Composer", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   { path: "automation-flows", viewId: "automation-flows", label: "Automation Flows", permission: ["marketing.automation.manage", "settings.manage"], module: "marketing" },

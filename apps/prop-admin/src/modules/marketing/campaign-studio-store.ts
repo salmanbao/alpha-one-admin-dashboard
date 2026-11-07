@@ -12,6 +12,7 @@
  */
 
 import { getSegment, type Segment } from "./segments-store";
+import { hasBlockingDomain } from "./channel-infra-store";
 
 /* ------------------------------------------------------------------ */
 /* Channels & templates                                                */
@@ -828,6 +829,7 @@ export function runChecklist(input: {
   const spamScore = 1.8 + spamWords.length * 2.4 + (caps ? 1.6 : 0);
   const links = (input.body.match(/https?:\/\/\S+/g) ?? []).length;
   const coverage = input.segment?.consentCoverage ?? 100;
+  const domainBlocked = input.channel === "email" ? hasBlockingDomain() : false;
 
   return [
     {
@@ -855,6 +857,16 @@ export function runChecklist(input: {
         ? `${coverage}% of “${input.segment.name}” is channel-ready${input.autoExclude ? ` — ${excludedCount(input.segment)} non-consented members auto-excluded.` : " — auto-exclude is OFF; non-consented members will be dropped by the gateway."}`
         : "No segment selected yet.",
       blocking: false,
+    },
+    {
+      key: "domain",
+      label: "Sending domain auth (N3)",
+      status: domainBlocked ? "fail" : "pass",
+      detail: domainBlocked
+        ? "SPF/DKIM/DMARC not fully verified for a sending domain — campaign scheduling is blocked until domains verify."
+        : input.channel === "email" ? "Sending domains verified (SPF/DKIM/DMARC)." : "Not required for this channel.",
+      blocking: domainBlocked,
+      fix: "Verify domains in Marketing → Sending Domains & Auth, then re-run preflight.",
     },
     {
       key: "quota",

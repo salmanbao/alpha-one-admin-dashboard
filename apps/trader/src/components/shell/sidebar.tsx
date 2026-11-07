@@ -52,6 +52,7 @@ import {
   LayoutGrid,
   LifeBuoy,
   Medal,
+  Megaphone,
   MessageCircle,
   Monitor,
   Package,
@@ -181,6 +182,7 @@ export const sections: NavSection[] = [
     { href: "/promos", label: "Promo Wallet", icon: Tag },
     { href: "/trading-credentials", label: "Trading Credentials", icon: KeyRound },
     { href: "/notification-center", label: "Inbox", icon: Bell, activePrefixes: ["/notification-preferences"] },
+    { href: "/marketing-preferences", label: "Marketing Preferences", icon: Megaphone },
   ]},
 ];
 
