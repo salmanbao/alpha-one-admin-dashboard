@@ -227,6 +227,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "campaign-report": dynamic(() => import("@/modules/marketing/pages/campaign-report-page").then((m) => ({ default: m.CampaignReportPage })), { loading: ViewSkeleton }),
   "consent-receipts": dynamic(() => import("@/modules/marketing/pages/consent-receipts-page").then((m) => ({ default: m.ConsentReceiptsPage })), { loading: ViewSkeleton }),
   "marketing-audit-log": dynamic(() => import("@/modules/marketing/pages/marketing-audit-log-page").then((m) => ({ default: m.MarketingAuditLogPage })), { loading: ViewSkeleton }),
+  "send-queue": dynamic(() => import("@/modules/marketing/pages/send-queue-page").then((m) => ({ default: m.SendQueuePage })), { loading: ViewSkeleton }),
   "marketing-vip-campaigns": dynamic(() => import("@/modules/marketing/pages/marketing-vip-campaigns-page").then((m) => ({ default: m.MarketingVipCampaignsPage })), { loading: ViewSkeleton }),
 
   /* crm */

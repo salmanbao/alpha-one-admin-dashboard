@@ -40,6 +40,9 @@ const navigation: NavigationItem[] = [
       { id: "marketing.whatsapp-templates", label: "WhatsApp Template Manager", href: "whatsapp-templates", icon: MessageSquareText, permission: ["marketing.configure", "settings.manage"], group: "Channels" },
       { id: "marketing.sending-domains", label: "Sending Domains & Auth", href: "sending-domains", icon: Globe2, permission: ["marketing.configure", "settings.manage"], group: "Channels" },
 
+      // R4-01 — Send Queue & Gateway Health (P0)
+      { id: "marketing.send-queue", label: "Send Queue & Gateway Health", href: "send-queue", icon: Activity, permission: "marketing.gateway.operate", group: "Channels" },
+
       // ───────── Landing & Forms (R2-01, R2-02) ─────────
       { id: "marketing.landing-pages", label: "Landing Pages", href: "landing-pages", icon: FileEdit, permission: ["marketing.pages.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
       { id: "marketing.forms", label: "Forms & Lead Capture", href: "forms", icon: ClipboardList, permission: ["marketing.forms.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
@@ -106,6 +109,8 @@ const routes: RouteDefinition[] = [
   { path: "channel-providers", viewId: "channel-providers", label: "Channel Providers & Senders", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   { path: "whatsapp-templates", viewId: "whatsapp-templates", label: "WhatsApp Template Manager", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   { path: "sending-domains", viewId: "sending-domains", label: "Sending Domains & Auth", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
+  // R4-01 — Send Queue & Gateway Health (marketing.gateway.operate)
+  { path: "send-queue", viewId: "send-queue", label: "Send Queue & Gateway Health", permission: "marketing.gateway.operate", module: "marketing" },
   // M4 — Campaign Studio & Automation Flows (spec §8)
   { path: "campaign-new", viewId: "campaign-new", label: "Campaign Composer", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   { path: "automation-flows", viewId: "automation-flows", label: "Automation Flows", permission: ["marketing.automation.manage", "settings.manage"], module: "marketing" },
@@ -164,12 +169,13 @@ export const marketingModule: FrontendModule = {
       { id: "marketing.onsite.manage", label: "Manage on-site campaigns", description: "Popups/banners/slabs (R2-03)." },
       { id: "marketing.assets.manage", label: "Manage brand assets", description: "Asset library and brand kit (R2-04)." },
       { id: "compliance.archive.read", label: "Read message archive", description: "Search sent marketing messages (R2-08)." },
-      { id: "compliance.archive.export", label: "Export message archive", description: "Export messages for regulators (R2-08)." },
-      { id: "compliance.archive.purge", label: "Purge message archive", description: "Run the retention purge job; legal hold is enforced by the job (R2-08)." },
       { id: "marketing.surveys.manage", label: "Manage surveys", description: "Survey lifecycle, builder and responses (R2-05)." },
       { id: "marketing.links.manage", label: "Manage tracking links", description: "Governed UTM/short links (R2-06)." },
       { id: "marketing.locales.manage", label: "Manage locale variants", description: "Locale variants and translation workflow (R3-03)." },
       { id: "marketing.budget.approve", label: "Approve ad budget changes", description: "Four-eyes approval of budget raises above the auto-approval threshold (R3-05)." },
+      { id: "compliance.archive.export", label: "Export message archive", description: "Export messages for regulators (R2-08)." },
+      { id: "compliance.archive.purge", label: "Purge message archive", description: "Run the retention purge job; legal hold is enforced by the job (R2-08)." },
+      { id: "marketing.gateway.operate", label: "Gateway operations", description: "Send queue, gateway health, dead-letter replay, kill-switch (R4-01)." },
     ],
     icon: Target,
     accentColor: "#b45309",
