@@ -10,9 +10,9 @@ import { TerraBadge, TerraCard, TerraPageHeader, TerraStat, formatMoney } from "
 import { useActiveAccount } from "@/lib/platform/account-context";
 
 const nextSteps = [
-  { title: "Funded account credentials", note: "Email delivered when the new account is live", done: false },
-  { title: "Profit split upgrades to 85/15", note: "Effective on your first funded trade", done: false },
-  { title: "Payout schedule", note: "First payout eligible in 14 days", done: false },
+  { title: "Funded account credentials", note: "Email delivered when the new account is live", done: false, href: "/account-provisioning" },
+  { title: "Profit split upgrades to 85/15", note: "Effective on your first funded trade", done: false, href: "/scaling-plan" },
+  { title: "Payout schedule", note: "First payout eligible in 14 days", done: false, href: "/payout-eligibility" },
 ];
 
 export function EvaluationPassedPage() {
@@ -64,8 +64,10 @@ export function EvaluationPassedPage() {
                 <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-container text-xs font-bold text-on-surface-variant">
                   {i + 1}
                 </span>
-                <div>
-                  <p className="text-sm font-bold text-on-surface">{s.title}</p>
+                <div className="flex-1">
+                  <Link href={s.href} className="text-sm font-bold text-on-surface hover:text-primary">
+                    {s.title}
+                  </Link>
                   <p className="text-xs text-on-surface-variant">{s.note}</p>
                 </div>
               </li>
