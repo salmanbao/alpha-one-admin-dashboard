@@ -510,6 +510,35 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+
+  "tenant-channel-entitlements": dynamic(
+    () =>
+      import("@/modules/super-admin/tenant-channel-entitlements-page").then((m) => ({
+        default: m.TenantChannelEntitlementsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "deliverability-incidents": dynamic(
+    () =>
+      import("@/modules/super-admin/deliverability-incidents-page").then((m) => ({
+        default: m.DeliverabilityIncidentsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "marketplace-review": dynamic(
+    () =>
+      import("@/modules/super-admin/marketplace-review-page").then((m) => ({
+        default: m.MarketplaceReviewPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "send-billing": dynamic(
+    () =>
+      import("@/modules/super-admin/send-billing-page").then((m) => ({
+        default: m.SendBillingPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "provider-pool": dynamic(
     () =>
       import("@/modules/super-admin/provider-pool-page").then((m) => ({

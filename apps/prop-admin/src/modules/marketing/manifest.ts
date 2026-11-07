@@ -5,7 +5,7 @@
  * spend, channel performance and ROI. Depends on Trading.
  */
 
-import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2 } from "lucide-react";
+import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2, HeartPulse, AlertOctagon, CheckCircle, FlaskConical, FileText, Shield, KeyRound, Gauge, ScrollText } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import {
   MarketingOverviewWidget,
@@ -40,11 +40,17 @@ const navigation: NavigationItem[] = [
       { id: "marketing.automation-flows", label: "Flows", href: "automation-flows", icon: Workflow, permission: ["marketing.automation.manage", "settings.manage"], group: "Automation" },
       { id: "marketing.automation-templates", label: "Template Library", href: "marketing-templates", icon: LayoutTemplate, permission: "marketing.read", group: "Automation" },
 
-      // ───────── Analytics (M5 adds events + attribution) ─────────
+      // ───────── Analytics & Operations (M5 + Wave 2) ─────────
       { id: "marketing.performance", label: "Performance", href: "marketing-performance", icon: TrendingUp, permission: "marketing.read", group: "Analytics" },
       { id: "marketing.dashboard", label: "Dashboard", href: "marketing-dashboard", icon: BarChart3, permission: "marketing.read", group: "Analytics" },
       { id: "marketing.events-manager", label: "Events Manager", href: "events-manager", icon: Activity, permission: ["marketing.ads.manage", "settings.manage"], group: "Analytics" },
       { id: "marketing.attribution", label: "Attribution", href: "attribution-settings", icon: GitBranch, permission: ["marketing.ads.manage", "settings.manage"], group: "Analytics" },
+      { id: "marketing.deliverability", label: "Deliverability", href: "deliverability", icon: HeartPulse, permission: ["marketing.read", "settings.manage"], group: "Analytics" },
+      { id: "marketing.bounces", label: "Bounce & Complaint Queue", href: "bounce-queue", icon: AlertOctagon, permission: ["marketing.configure", "settings.manage"], group: "Analytics" },
+      { id: "marketing.approvals", label: "Campaign Approvals", href: "campaign-approvals", icon: CheckCircle, permission: ["marketing.configure", "settings.manage"], group: "Campaigns" },
+      { id: "marketing.campaign-report", label: "Campaign Reports", href: "campaign-report", icon: FileText, permission: "marketing.read", group: "Analytics" },
+      { id: "marketing.consent-receipts", label: "Consent Receipts & DSR", href: "consent-receipts", icon: Shield, permission: ["marketing.configure", "settings.manage"], group: "Analytics" },
+      { id: "marketing.audit-log", label: "Marketing Audit Log", href: "marketing-audit-log", icon: ScrollText, permission: "marketing.read", group: "Analytics" },
 
       // ───────── Audiences & Creative (M3 + M11) ─────────
       { id: "marketing.segments", label: "Segments", href: "segments", icon: Layers, permission: ["marketing.segments.manage", "settings.manage"], group: "Audiences & Creative" },
@@ -69,6 +75,14 @@ const routes: RouteDefinition[] = [
   // M5 — Ads & Attribution (spec §9)
   { path: "events-manager", viewId: "events-manager", label: "Events Manager", permission: ["marketing.ads.manage", "settings.manage"], module: "marketing" },
   { path: "attribution-settings", viewId: "attribution-settings", label: "Attribution Settings", permission: ["marketing.ads.manage", "settings.manage"], module: "marketing" },
+  // Wave 2 (P1)
+  { path: "deliverability", viewId: "deliverability", label: "Deliverability Dashboard", permission: ["marketing.read", "settings.manage"], module: "marketing" },
+  { path: "bounce-queue", viewId: "bounce-queue", label: "Bounce & Complaint Queue", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "campaign-approvals", viewId: "campaign-approvals", label: "Campaign Approvals", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "campaign-ab", viewId: "campaign-ab", label: "A/B Test Builder & Results", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "campaign-report", viewId: "campaign-report", label: "Campaign Report / Postmortem", permission: "marketing.read", module: "marketing" },
+  { path: "consent-receipts", viewId: "consent-receipts", label: "Consent Receipts & DSR", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "marketing-audit-log", viewId: "marketing-audit-log", label: "Marketing Audit Log", permission: "marketing.read", module: "marketing" },
   // N1-N3 — Channel Infrastructure (Wave 1, P0)
   { path: "channel-providers", viewId: "channel-providers", label: "Channel Providers & Senders", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   { path: "whatsapp-templates", viewId: "whatsapp-templates", label: "WhatsApp Template Manager", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
