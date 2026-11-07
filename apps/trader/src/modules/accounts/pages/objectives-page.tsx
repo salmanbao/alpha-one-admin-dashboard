@@ -531,6 +531,44 @@ export function ObjectivesPage() {
         })}
       </div>
 
+      {/* SF-03: persistent action rail — the objectives page had zero outbound links */}
+
+      <TerraCard className="mt-4">
+        <h2 className="pb-3 font-headline text-lg font-bold text-on-surface">What's next</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Link
+            href="/order-ticket"
+            className="flex items-center gap-3 rounded-xl bg-primary/5 p-3 hover:bg-primary/10"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary">📈</span>
+            <div>
+              <p className="text-sm font-bold text-on-surface">Trade now</p>
+              <p className="text-xs text-on-surface-variant">Open the order ticket</p>
+            </div>
+          </Link>
+          <Link
+            href="/payout-eligibility"
+            className="flex items-center gap-3 rounded-xl bg-primary/5 p-3 hover:bg-primary/10"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary">💰</span>
+            <div>
+              <p className="text-sm font-bold text-on-surface">Payout readiness</p>
+              <p className="text-xs text-on-surface-variant">Check eligibility & schedule</p>
+            </div>
+          </Link>
+          <Link
+            href="/payout-request"
+            className="flex items-center gap-3 rounded-xl bg-primary/5 p-3 hover:bg-primary/10"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary">💸</span>
+            <div>
+              <p className="text-sm font-bold text-on-surface">Request payout</p>
+              <p className="text-xs text-on-surface-variant">Withdraw your profits</p>
+            </div>
+          </Link>
+        </div>
+      </TerraCard>
+
       {/* My Personal Goals (audit #1) — stretch targets beyond the official
           evaluation, persisted in localStorage, shown side-by-side with the
           challenge metrics so traders can track both */}
