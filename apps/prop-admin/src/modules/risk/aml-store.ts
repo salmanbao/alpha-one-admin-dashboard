@@ -21,7 +21,8 @@ export interface AmlAlert {
 
 export interface AmlCase extends AmlAlert {
   kyc: { status: string; docs: string[]; address: string; pep: boolean; sanctionsHit?: string };
-  screening: Array<{ provider: string; result: "clear" | "hit" | "potential"; detail: string; at: string }>;
+  /** R3-02 — `listVersion` is the provenance of the screening input used. */
+  screening: Array<{ provider: string; result: "clear" | "hit" | "potential"; detail: string; at: string; listVersion?: string }>;
   movements: Array<{ at: string; type: string; amount: number; method: string; note: string }>;
   explainability: { score: number; drivers: string[] };
   disposition?: { decision: "release" | "hold" | "block" | "escalate" | "sar_str"; rationale: string; by: string; at: string };
@@ -89,7 +90,7 @@ let ALERTS: AmlCase[] = [
   baseCase("aml1", s1, {
     typology: "Structuring / rapid deposits", amount: 9800, risk: "high", status: "open", payoutHold: true, slaDue: inDays(2),
     kyc: { status: "verified", docs: ["Passport", "Proof of address"], address: s1.trader.country, pep: false },
-    screening: [{ provider: "ComplyAdvantage", result: "potential", detail: "Name similarity (low confidence)", at: now() }],
+    screening: [{ provider: "ComplyAdvantage", result: "potential", detail: "Name similarity (low confidence)", at: now(), listVersion: "2026.10.28" }],
     movements: [
       { at: now(), type: "deposit", amount: 3200, method: "card", note: "3 deposits < 1h" },
       { at: now(), type: "deposit", amount: 3300, method: "card", note: "" },
@@ -103,7 +104,7 @@ let ALERTS: AmlCase[] = [
   baseCase("aml2", s2, {
     typology: "Sanctions/PEP screening hit", amount: 15000, risk: "critical", status: "escalated", payoutHold: true, slaDue: inDays(1), assignee: "Compliance",
     kyc: { status: "verified", docs: ["Passport"], address: s2.trader.country, pep: true, sanctionsHit: "Potential PEP association" },
-    screening: [{ provider: "World-Check", result: "hit", detail: "PEP: senior political exposure (relative)", at: now() }],
+    screening: [{ provider: "World-Check", result: "hit", detail: "PEP: senior political exposure (relative)", at: now(), listVersion: "2026.10.30" }],
     movements: [{ at: now(), type: "payout-request", amount: 15000, method: "crypto", note: "USDT payout" }],
     explainability: { score: 92, drivers: ["PEP screening hit (confirmed relative)", "High payout amount", "Crypto withdrawal method"] },
     timeline: [{ at: now(), actor: "system", action: "Escalated: sanctions/PEP hit" },
@@ -112,7 +113,7 @@ let ALERTS: AmlCase[] = [
   baseCase("aml3", s3, {
     typology: "Unusual profit velocity", amount: 4200, risk: "medium", status: "investigating", payoutHold: false, slaDue: inDays(5), assignee: "Analyst",
     kyc: { status: "verified", docs: ["ID card", "Selfie"], address: s3.trader.country, pep: false },
-    screening: [{ provider: "ComplyAdvantage", result: "clear", detail: "No matches", at: now() }],
+    screening: [{ provider: "ComplyAdvantage", result: "clear", detail: "No matches", at: now(), listVersion: "2026.10.28" }],
     movements: [{ at: now(), type: "profit", amount: 4200, method: "trading", note: "98% win rate over 2 days" }],
     explainability: { score: 41, drivers: ["Abnormal win-rate pattern", "Short account age"] },
     timeline: [{ at: now(), actor: "Analyst", action: "Investigation started; reviewing trading events correlation" }],
@@ -120,7 +121,7 @@ let ALERTS: AmlCase[] = [
   baseCase("aml4", s4, {
     typology: "Rapid deposit withdrawal", amount: 6400, risk: "low", status: "cleared", payoutHold: false, slaDue: inDays(-3),
     kyc: { status: "verified", docs: ["Passport"], address: s4.trader.country, pep: false },
-    screening: [{ provider: "OpenSanctions", result: "clear", detail: "No matches across sanctions/PEP/RCA", at: now() }],
+    screening: [{ provider: "OpenSanctions", result: "clear", detail: "No matches across sanctions/PEP/RCA", at: now(), listVersion: "2026.11.01" }],
     movements: [{ at: now(), type: "deposit", amount: 6400, method: "bank", note: "Withdrawn after KYC re-verify" }],
     explainability: { score: 18, drivers: ["Single deposit, KYC fully verified"] },
     disposition: { decision: "release", rationale: "Source of funds confirmed; screening clear on current list version.", by: "analyst", at: now() },

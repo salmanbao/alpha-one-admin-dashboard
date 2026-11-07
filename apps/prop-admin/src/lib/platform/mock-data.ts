@@ -271,6 +271,7 @@ export const roles: RoleDefinition[] = [
       "compliance.aml.manage",
       "compliance.aml.approve",
       "compliance.str.manage",
+      "compliance.screening.manage",
       "support.read",
       "support.configure",
       "ai.read",
