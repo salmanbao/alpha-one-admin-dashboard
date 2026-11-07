@@ -5,7 +5,7 @@
  * spend, channel performance and ROI. Depends on Trading.
  */
 
-import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2, HeartPulse, AlertOctagon, CheckCircle, FlaskConical, FileText, Shield, KeyRound, Gauge, ScrollText, FileEdit, ClipboardList } from "lucide-react";
+import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2, HeartPulse, AlertOctagon, CheckCircle, FlaskConical, FileText, Shield, KeyRound, Gauge, ScrollText, FileEdit, ClipboardList, AppWindow, Image, Archive, Siren } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import {
   MarketingOverviewWidget,
@@ -39,6 +39,8 @@ const navigation: NavigationItem[] = [
       // ───────── Landing & Forms (R2-01, R2-02) ─────────
       { id: "marketing.landing-pages", label: "Landing Pages", href: "landing-pages", icon: FileEdit, permission: ["marketing.pages.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
       { id: "marketing.forms", label: "Forms & Lead Capture", href: "forms", icon: ClipboardList, permission: ["marketing.forms.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
+      { id: "marketing.onsite", label: "On-Site Studio", href: "onsite-campaigns", icon: AppWindow, permission: ["marketing.onsite.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
+      { id: "marketing.assets", label: "Asset Library", href: "asset-library", icon: Image, permission: ["marketing.assets.manage", "marketing.configure", "settings.manage"], group: "Creative" },
 
       // ───────── Automation (M4 — Campaign Studio) ─────────
       { id: "marketing.automation-flows", label: "Flows", href: "automation-flows", icon: Workflow, permission: ["marketing.automation.manage", "settings.manage"], group: "Automation" },
@@ -55,6 +57,9 @@ const navigation: NavigationItem[] = [
       { id: "marketing.campaign-report", label: "Campaign Reports", href: "campaign-report", icon: FileText, permission: "marketing.read", group: "Analytics" },
       { id: "marketing.consent-receipts", label: "Consent Receipts & DSR", href: "consent-receipts", icon: Shield, permission: ["marketing.configure", "settings.manage"], group: "Analytics" },
       { id: "marketing.audit-log", label: "Marketing Audit Log", href: "marketing-audit-log", icon: ScrollText, permission: "marketing.read", group: "Analytics" },
+
+      { id: "marketing.deliverability-incidents", label: "Deliverability Incidents", href: "deliverability-incidents", icon: Siren, permission: ["marketing.read", "marketing.configure", "settings.manage"], group: "Analytics" },
+      { id: "marketing.message-archive", label: "Message Archive", href: "message-archive", icon: Archive, permission: ["compliance.archive.read", "marketing.configure", "settings.manage"], group: "Analytics" },
 
       // ───────── Audiences & Creative (M3 + M11) ─────────
       { id: "marketing.segments", label: "Segments", href: "segments", icon: Layers, permission: ["marketing.segments.manage", "settings.manage"], group: "Audiences & Creative" },
@@ -108,6 +113,12 @@ const routes: RouteDefinition[] = [
   { path: "contact-sync", viewId: "contact-sync", label: "Contact Sync", permission: ["marketing.segments.manage", "settings.manage"], module: "marketing" },
   { path: "marketing-template-editor", viewId: "marketing-template-editor", label: "Marketing Template Editor", permission: "marketing.read", module: "marketing" },
   { path: "marketing-ad-accounts", viewId: "marketing-ad-accounts", label: "Ad Accounts", permission: ["marketing.ads.manage", "settings.manage"], module: "marketing" },
+  // R2-03,04,08,09
+  { path: "onsite-campaigns", viewId: "onsite-campaigns", label: "On-Site Studio", permission: ["marketing.onsite.manage", "marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "onsite-designer", viewId: "onsite-designer", label: "On-Site Designer", permission: ["marketing.onsite.manage", "marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "asset-library", viewId: "asset-library", label: "Asset Library", permission: ["marketing.assets.manage", "marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "message-archive", viewId: "message-archive", label: "Message Archive", permission: ["compliance.archive.read", "marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "deliverability-incidents", viewId: "deliverability-incidents", label: "Deliverability Incidents", permission: ["marketing.read", "marketing.configure", "settings.manage"], module: "marketing" },
 ];
 
 const widgets: WidgetDefinition[] = [
@@ -134,6 +145,12 @@ export const marketingModule: FrontendModule = {
       { id: "marketing.segments.manage", label: "Manage segments & consent", description: "Build segments and manage consent and suppression (M3; falls back to marketing.configure)." },
       { id: "marketing.automation.manage", label: "Manage automation", description: "Author, publish and operate campaigns and flows (M4; falls back to marketing.configure)." },
       { id: "marketing.ads.manage", label: "Manage ad connections", description: "Connect ad accounts and manage conversion events (M5; falls back to marketing.configure)." },
+      { id: "marketing.pages.manage", label: "Manage landing pages", description: "Build and publish landing pages (R2-01)." },
+      { id: "marketing.forms.manage", label: "Manage forms & lead capture", description: "Build forms and capture leads (R2-02)." },
+      { id: "marketing.onsite.manage", label: "Manage on-site campaigns", description: "Popups/banners/slabs (R2-03)." },
+      { id: "marketing.assets.manage", label: "Manage brand assets", description: "Asset library and brand kit (R2-04)." },
+      { id: "compliance.archive.read", label: "Read message archive", description: "Search sent marketing messages (R2-08)." },
+      { id: "compliance.archive.export", label: "Export message archive", description: "Export messages for regulators (R2-08)." },
     ],
     icon: Target,
     accentColor: "#b45309",
