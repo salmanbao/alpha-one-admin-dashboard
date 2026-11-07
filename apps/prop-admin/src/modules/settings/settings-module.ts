@@ -56,6 +56,8 @@ const navigation: NavigationItem[] = [
     children: [
       // ───────── Branding & White-label ─────────
       { id: "settings.branding", label: "Branding", href: "settings?tab=branding", icon: Palette, permission: "settings.manage", group: "Branding & White-label" },
+      // R3-06 — Brand Governance Console (settings.brand.manage)
+      { id: "settings.brand-governance", label: "Brand Governance", href: "brand-governance", icon: Palette, permission: ["settings.brand.manage", "settings.manage"], group: "Branding & White-label" },
       { id: "settings.terminology", label: "Terminology", href: "settings?tab=terminology", icon: Type, permission: "settings.manage", group: "Branding & White-label" },
       { id: "settings.banners", label: "Banners", href: "banner-management", icon: Image, permission: "settings.manage", group: "Branding & White-label" },
       { id: "settings.mkt-integrations", label: "Marketing Integrations", href: "marketing-integrations", icon: Plug, permission: ["marketing.connect", "settings.manage"], group: "Branding & White-label" },
@@ -106,6 +108,8 @@ const navigation: NavigationItem[] = [
 const routes: RouteDefinition[] = [
   { path: "settings", viewId: "settings", label: "Settings", permission: "settings.manage", module: "settings" },
   { path: "email-templates", viewId: "email-templates", label: "Email Templates", permission: "settings.manage", module: "settings" },
+  // R3-06 — Brand Governance Console
+  { path: "brand-governance", viewId: "brand-governance", label: "Brand Governance", permission: ["settings.brand.manage", "settings.manage"], module: "settings" },
   { path: "certificate-management", viewId: "certificate-management", label: "Certificate Management", permission: "settings.manage", module: "settings" },
   { path: "banner-management", viewId: "banner-management", label: "Banner Management", permission: "settings.manage", module: "settings" },
   { path: "user-management", viewId: "user-management", label: "User Management", permission: "settings.manage", module: "settings" },
@@ -154,6 +158,7 @@ export const settingsModule: FrontendModule = {
       { id: "audit.read", label: "View audit log" },
       { id: "settings.marketplace.manage", label: "Manage marketplace apps", description: "Install, configure and remove marketplace apps (M6; falls back to settings.manage)." },
       { id: "settings.webhooks.manage", label: "Manage webhooks", description: "Manage webhook endpoints, secrets and replays (M6; falls back to settings.manage)." },
+      { id: "settings.brand.manage", label: "Manage brand governance", description: "Govern brand kit, domains, sender identities and template consumers (R3-06)." },
     ],
     icon: SettingsIcon,
     accentColor: "#404040",

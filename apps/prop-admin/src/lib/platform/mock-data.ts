@@ -281,6 +281,7 @@ export const roles: RoleDefinition[] = [
       "ai.read",
       "ai.configure",
       "settings.manage",
+      "settings.brand.manage",
       "users.manage",
       "audit.read",
       "impersonation.start",
