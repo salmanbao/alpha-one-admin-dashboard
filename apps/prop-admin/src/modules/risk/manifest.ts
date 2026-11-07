@@ -3,7 +3,7 @@
  * Includes Breaches (spec section 7 — Breaches is a sub-area of Risk).
  */
 
-import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2, DollarSign, Copy, ArrowLeftRight, MapPin, CalendarClock, Settings2, Bell, Gauge, Landmark } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2, DollarSign, Copy, ArrowLeftRight, MapPin, CalendarClock, Settings2, Bell, Gauge, Landmark, FileText } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { RiskOverviewWidget, RiskDistributionWidget, BreachTrendWidget, OpenBreachesWidget } from "./widgets/risk-widgets";
 
@@ -41,8 +41,9 @@ const navigation: NavigationItem[] = [
       { id: "risk.unprofitable", label: "Unprofitable Countries", href: "risk-unprofitable-countries", icon: Globe2, permission: "risk.read", group: "Geographic & IP Risk" },
       { id: "risk.ip-addresses", label: "Account IP Addresses", href: "account-ip-addresses", icon: MapPin, permission: "risk.read", group: "Geographic & IP Risk" },
 
-      // ───────── AML & Compliance (R2-07) ─────────
+      // ───────── AML & Compliance (R2-07 / R3-01) ─────────
       { id: "risk.aml-alerts", label: "AML Monitoring", href: "aml-alerts", icon: Landmark, permission: ["compliance.aml.read", "risk.read"], group: "AML & Compliance" },
+      { id: "risk.str-filings", label: "STR / SAR Filings", href: "str-filings", icon: FileText, permission: ["compliance.str.manage", "compliance.aml.read"], group: "AML & Compliance" },
 
       // ───────── Rules & Alerts (M14) ─────────
       { id: "risk.rules-editor", label: "Rules Editor", href: "risk-rules-editor", icon: Settings2, permission: "risk.configure", group: "Rules & Alerts" },
@@ -79,6 +80,8 @@ const routes: RouteDefinition[] = [
   // AML & Compliance (R2-07)
   { path: "aml-alerts", viewId: "aml-alerts", label: "AML Monitoring", permission: ["compliance.aml.read", "risk.read"], module: "risk" },
   { path: "aml-case", viewId: "aml-case", label: "AML Case Detail", permission: ["compliance.aml.read", "risk.read"], module: "risk" },
+  // STR / SAR Filing Register (R3-01) — read via compliance.aml.read
+  { path: "str-filings", viewId: "str-filings", label: "STR / SAR Filing Register", permission: ["compliance.str.manage", "compliance.aml.read"], module: "risk" },
   // Rules & Alerts (M14)
   { path: "risk-rules-editor", viewId: "risk-rules-editor", label: "Risk Rules Editor", permission: "risk.configure", module: "risk" },
   { path: "risk-alert-subscription", viewId: "risk-alert-subscription", label: "Alert Subscriptions", permission: "risk.read", module: "risk" },
@@ -108,6 +111,7 @@ export const riskModule: FrontendModule = {
       { id: "compliance.aml.read", label: "View AML alerts/cases" },
       { id: "compliance.aml.manage", label: "Manage AML investigations" },
       { id: "compliance.aml.approve", label: "Approve AML dispositions / release holds" },
+      { id: "compliance.str.manage", label: "Draft / edit STR-SAR filings (submit is four-eyes)" },
     ],
     icon: ShieldCheck,
     accentColor: "#b91c1c",

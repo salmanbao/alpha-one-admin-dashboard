@@ -26,6 +26,8 @@ export interface AmlCase extends AmlAlert {
   explainability: { score: number; drivers: string[] };
   disposition?: { decision: "release" | "hold" | "block" | "escalate" | "sar_str"; rationale: string; by: string; at: string };
   timeline: Array<{ at: string; actor: string; action: string }>;
+  /** R3-01 — set when a filing snapshot locks this case's narrative. */
+  filingId?: string;
 }
 
 const now = () => new Date().toISOString();
@@ -151,7 +153,7 @@ export function updateAmlCase(id:string, patch: Partial<AmlCase>, audit?: {actio
   if(c && audit){ c.timeline=[{at:now(),actor:"operator",action:audit.summary},...c.timeline];
     recordAudit({action:audit.action,entity:"aml-case",entityId:id,summary:audit.summary,module:"risk",severity:patch.status==="blocked"||patch.status==="sar_filed"? "warning":undefined});
   }
-  if (patch.payoutHold !== undefined || patch.status !== undefined) emit();
+  if (patch.payoutHold !== undefined || patch.status !== undefined || patch.filingId !== undefined) emit();
 }
 
 export function dispositionAml(id:string, decision: NonNullable<AmlCase["disposition"]>["decision"], rationale:string){
