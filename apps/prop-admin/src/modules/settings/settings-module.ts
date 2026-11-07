@@ -141,6 +141,8 @@ export const settingsModule: FrontendModule = {
       { id: "settings.manage", label: "Manage settings" },
       { id: "users.manage", label: "Manage users" },
       { id: "audit.read", label: "View audit log" },
+      { id: "settings.marketplace.manage", label: "Manage marketplace apps", description: "Install, configure and remove marketplace apps (M6; falls back to settings.manage)." },
+      { id: "settings.webhooks.manage", label: "Manage webhooks", description: "Manage webhook endpoints, secrets and replays (M6; falls back to settings.manage)." },
     ],
     icon: SettingsIcon,
     accentColor: "#404040",

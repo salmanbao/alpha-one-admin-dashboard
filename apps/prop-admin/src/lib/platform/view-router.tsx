@@ -180,6 +180,12 @@ export const viewRegistry: Record<string, ViewComponent> = {
 
   /* marketing */
   marketing: dynamic(() => import("@/modules/marketing/pages/marketing-pages").then((m) => ({ default: m.MarketingOverviewPage })), { loading: ViewSkeleton }),
+  // M4 — Campaign Studio & Automation Flows (spec §8).
+  "campaign-new": dynamic(() => import("@/modules/marketing/pages/campaign-composer-page").then((m) => ({ default: m.CampaignComposerPage })), { loading: ViewSkeleton }),
+  "automation-flows": dynamic(() => import("@/modules/marketing/pages/automation-flow-builder-page").then((m) => ({ default: m.AutomationFlowBuilderPage })), { loading: ViewSkeleton }),
+  "automation-flow-detail": dynamic(() => import("@/modules/marketing/pages/automation-flow-detail-page").then((m) => ({ default: m.AutomationFlowDetailPage })), { loading: ViewSkeleton }),
+  "marketing-calendar": dynamic(() => import("@/modules/marketing/pages/campaign-calendar-page").then((m) => ({ default: m.CampaignCalendarPage })), { loading: ViewSkeleton }),
+  "marketing-templates": dynamic(() => import("@/modules/marketing/pages/template-library-page").then((m) => ({ default: m.TemplateLibraryPage })), { loading: ViewSkeleton }),
   "marketing-campaigns": dynamic(() => import("@/modules/marketing/pages/marketing-pages").then((m) => ({ default: m.MarketingCampaignsPage })), { loading: ViewSkeleton }),
   "marketing-performance": dynamic(() => import("@/modules/marketing/pages/marketing-pages").then((m) => ({ default: m.MarketingPerformancePage })), { loading: ViewSkeleton }),
   "marketing-dashboard": dynamic(() => import("@/modules/marketing/pages/marketing-dashboard-page").then((m) => ({ default: m.MarketingDashboardPage })), { loading: ViewSkeleton }),
@@ -308,7 +314,11 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "kyc-record-detail": dynamic(() => import("@/modules/stitch/pages/kyc-record-detail").then((m) => ({ default: m.KycRecordDetailStitchPage })), { loading: ViewSkeleton }),
   "kyc-reviewer-trail": dynamic(() => import("@/modules/stitch/pages/kyc-reviewer-trail").then((m) => ({ default: m.KycReviewerTrailStitchPage })), { loading: ViewSkeleton }),
   "marketing-ad-accounts": dynamic(() => import("@/modules/stitch/pages/marketing-ad-accounts").then((m) => ({ default: m.MarketingAdAccountsStitchPage })), { loading: ViewSkeleton }),
-  "marketing-audience-builder": dynamic(() => import("@/modules/stitch/pages/marketing-audience-builder").then((m) => ({ default: m.MarketingAudienceBuilderStitchPage })), { loading: ViewSkeleton }),
+  // M3 — Audience Platform (spec §7); rebuilt from stitch mockup.
+  "marketing-audience-builder": dynamic(() => import("@/modules/marketing/pages/segment-builder-page").then((m) => ({ default: m.SegmentBuilderPage })), { loading: ViewSkeleton }),
+  "segments": dynamic(() => import("@/modules/marketing/pages/segments-page").then((m) => ({ default: m.SegmentsPage })), { loading: ViewSkeleton }),
+  "consent-center": dynamic(() => import("@/modules/marketing/pages/consent-center-page").then((m) => ({ default: m.ConsentCenterPage })), { loading: ViewSkeleton }),
+  "contact-sync": dynamic(() => import("@/modules/marketing/pages/contact-sync-page").then((m) => ({ default: m.ContactSyncPage })), { loading: ViewSkeleton }),
   "marketing-campaign-detail": dynamic(() => import("@/modules/stitch/pages/marketing-campaign-detail").then((m) => ({ default: m.MarketingCampaignDetailStitchPage })), { loading: ViewSkeleton }),
   "marketing-template-editor": dynamic(() => import("@/modules/stitch/pages/marketing-template-editor").then((m) => ({ default: m.MarketingTemplateEditorStitchPage })), { loading: ViewSkeleton }),
   "my-tasks": dynamic(() => import("@/modules/stitch/pages/my-tasks").then((m) => ({ default: m.MyTasksStitchPage })), { loading: ViewSkeleton }),
