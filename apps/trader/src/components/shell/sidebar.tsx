@@ -53,6 +53,7 @@ import {
   LifeBuoy,
   Medal,
   Megaphone,
+  Gift,
   MessageCircle,
   Monitor,
   Package,
@@ -168,6 +169,7 @@ export const sections: NavSection[] = [
     { href: "/leaderboard", label: "Leaderboard", icon: Medal },
     { href: "/competitions", label: "Competitions", icon: Trophy },
     { href: "/referrals", label: "Referrals", icon: Share2 },
+    { href: "/referral-rewards", label: "Referral Rewards", icon: Gift },
   ]},
   { id: "support", label: "Support", icon: LifeBuoy, children: [
     { href: "/support", label: "Support Tickets", icon: MessageCircle, activePrefixes: ["/ticket-detail"] },
@@ -180,6 +182,7 @@ export const sections: NavSection[] = [
   { id: "account", label: "Account", icon: Settings, children: [
     { href: "/account-settings", label: "Account Settings", icon: Settings, activePrefixes: ["/profile-security", "/2fa-setup", "/sessions", "/api-tokens"] },
     { href: "/promos", label: "Promo Wallet", icon: Tag },
+    { href: "/loyalty", label: "Loyalty & Tiers", icon: Award },
     { href: "/trading-credentials", label: "Trading Credentials", icon: KeyRound },
     { href: "/notification-center", label: "Inbox", icon: Bell, activePrefixes: ["/notification-preferences"] },
     { href: "/marketing-preferences", label: "Marketing Preferences", icon: Megaphone },
