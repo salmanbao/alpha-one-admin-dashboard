@@ -70,6 +70,8 @@ const navigation: NavigationItem[] = [
       { id: "marketing.deliverability-incidents", label: "Deliverability Incidents", href: "deliverability-incidents", icon: Siren, permission: ["marketing.read", "marketing.configure", "settings.manage"], group: "Analytics" },
       { id: "marketing.message-archive", label: "Message Archive", href: "message-archive", icon: Archive, permission: ["compliance.archive.read", "marketing.configure", "settings.manage"], group: "Analytics" },
       { id: "marketing.link-tracking", label: "Link Tracking (UTM)", href: "link-tracking", icon: Link2, permission: ["marketing.links.manage", "marketing.configure", "settings.manage"], group: "Analytics" },
+      // R4-03 — Compliance Workspace & Calendar (compliance.workspace.read)
+      { id: "compliance.workspace", label: "Compliance Workspace", href: "compliance-workspace", icon: Shield, permission: "compliance.workspace.read", group: "Analytics" },
 
       // ───────── Audiences & Creative (M3 + M11) ─────────
       { id: "marketing.segments", label: "Segments", href: "segments", icon: Layers, permission: ["marketing.segments.manage", "settings.manage"], group: "Audiences & Creative" },
@@ -105,9 +107,9 @@ const routes: RouteDefinition[] = [
   { path: "campaign-ab", viewId: "campaign-ab", label: "A/B Test Builder & Results", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   { path: "campaign-report", viewId: "campaign-report", label: "Campaign Report / Postmortem", permission: "marketing.read", module: "marketing" },
   { path: "consent-receipts", viewId: "consent-receipts", label: "Consent Receipts & DSR", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "compliance-workspace", viewId: "compliance-workspace", label: "Compliance Workspace", permission: "compliance.workspace.read", module: "marketing" },
   { path: "marketing-audit-log", viewId: "marketing-audit-log", label: "Marketing Audit Log", permission: "marketing.read", module: "marketing" },
   // N1-N3 — Channel Infrastructure (Wave 1, P0)
-  { path: "channel-providers", viewId: "channel-providers", label: "Channel Providers & Senders", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   { path: "whatsapp-templates", viewId: "whatsapp-templates", label: "WhatsApp Template Manager", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   { path: "sending-domains", viewId: "sending-domains", label: "Sending Domains & Auth", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   // R4-01 — Send Queue & Gateway Health (marketing.gateway.operate)
@@ -178,6 +180,7 @@ export const marketingModule: FrontendModule = {
       { id: "marketing.budget.approve", label: "Approve ad budget changes", description: "Four-eyes approval of budget raises above the auto-approval threshold (R3-05)." },
       { id: "compliance.archive.export", label: "Export message archive", description: "Export messages for regulators (R2-08)." },
       { id: "compliance.archive.purge", label: "Purge message archive", description: "Run the retention purge job; legal hold is enforced by the job (R2-08)." },
+      { id: "compliance.workspace.read", label: "Read compliance workspace", description: "Compliance workspace & calendar deadlines overview (R4-03)." },
       { id: "marketing.gateway.operate", label: "Gateway operations", description: "Send queue, gateway health, dead-letter replay, kill-switch (R4-01)." },
       { id: "marketing.leads.operate", label: "Manage leads", description: "Lead triage, assignment, conversion (R4-02)." },
     ],
