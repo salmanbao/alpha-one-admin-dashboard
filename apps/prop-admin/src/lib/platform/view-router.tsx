@@ -191,6 +191,9 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "marketing-dashboard": dynamic(() => import("@/modules/marketing/pages/marketing-dashboard-page").then((m) => ({ default: m.MarketingDashboardPage })), { loading: ViewSkeleton }),
   "marketing-email-campaigns": dynamic(() => import("@/modules/marketing/pages/marketing-email-campaigns-page").then((m) => ({ default: m.MarketingEmailCampaignsPage })), { loading: ViewSkeleton }),
   "marketing-ad-spend": dynamic(() => import("@/modules/marketing/pages/marketing-ad-spend-page").then((m) => ({ default: m.MarketingAdSpendPage })), { loading: ViewSkeleton }),
+  // M5 — Ads & Attribution (spec §9)
+  "events-manager": dynamic(() => import("@/modules/marketing/pages/events-manager-page").then((m) => ({ default: m.EventsManagerPage })), { loading: ViewSkeleton }),
+  "attribution-settings": dynamic(() => import("@/modules/marketing/pages/attribution-settings-page").then((m) => ({ default: m.AttributionSettingsPage })), { loading: ViewSkeleton }),
   "marketing-vip-campaigns": dynamic(() => import("@/modules/marketing/pages/marketing-vip-campaigns-page").then((m) => ({ default: m.MarketingVipCampaignsPage })), { loading: ViewSkeleton }),
 
   /* crm */
@@ -316,7 +319,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "kyc-provider-marketplace": dynamic(() => import("@/modules/stitch/pages/kyc-provider-marketplace").then((m) => ({ default: m.KycProviderMarketplaceStitchPage })), { loading: ViewSkeleton }),
   "kyc-record-detail": dynamic(() => import("@/modules/stitch/pages/kyc-record-detail").then((m) => ({ default: m.KycRecordDetailStitchPage })), { loading: ViewSkeleton }),
   "kyc-reviewer-trail": dynamic(() => import("@/modules/stitch/pages/kyc-reviewer-trail").then((m) => ({ default: m.KycReviewerTrailStitchPage })), { loading: ViewSkeleton }),
-  "marketing-ad-accounts": dynamic(() => import("@/modules/stitch/pages/marketing-ad-accounts").then((m) => ({ default: m.MarketingAdAccountsStitchPage })), { loading: ViewSkeleton }),
+  "marketing-ad-accounts": dynamic(() => import("@/modules/marketing/pages/ad-accounts-page").then((m) => ({ default: m.AdAccountsPage })), { loading: ViewSkeleton }),
   // M3 — Audience Platform (spec §7); rebuilt from stitch mockup.
   "marketing-audience-builder": dynamic(() => import("@/modules/marketing/pages/segment-builder-page").then((m) => ({ default: m.SegmentBuilderPage })), { loading: ViewSkeleton }),
   "segments": dynamic(() => import("@/modules/marketing/pages/segments-page").then((m) => ({ default: m.SegmentsPage })), { loading: ViewSkeleton }),

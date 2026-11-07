@@ -5,7 +5,7 @@
  * spend, channel performance and ROI. Depends on Trading.
  */
 
-import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight } from "lucide-react";
+import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import {
   MarketingOverviewWidget,
@@ -35,9 +35,11 @@ const navigation: NavigationItem[] = [
       { id: "marketing.automation-flows", label: "Flows", href: "automation-flows", icon: Workflow, permission: ["marketing.automation.manage", "settings.manage"], group: "Automation" },
       { id: "marketing.automation-templates", label: "Template Library", href: "marketing-templates", icon: LayoutTemplate, permission: "marketing.read", group: "Automation" },
 
-      // ───────── Analytics ─────────
+      // ───────── Analytics (M5 adds events + attribution) ─────────
       { id: "marketing.performance", label: "Performance", href: "marketing-performance", icon: TrendingUp, permission: "marketing.read", group: "Analytics" },
       { id: "marketing.dashboard", label: "Dashboard", href: "marketing-dashboard", icon: BarChart3, permission: "marketing.read", group: "Analytics" },
+      { id: "marketing.events-manager", label: "Events Manager", href: "events-manager", icon: Activity, permission: ["marketing.ads.manage", "settings.manage"], group: "Analytics" },
+      { id: "marketing.attribution", label: "Attribution", href: "attribution-settings", icon: GitBranch, permission: ["marketing.ads.manage", "settings.manage"], group: "Analytics" },
 
       // ───────── Audiences & Creative (M3 + M11) ─────────
       { id: "marketing.segments", label: "Segments", href: "segments", icon: Layers, permission: ["marketing.segments.manage", "settings.manage"], group: "Audiences & Creative" },
@@ -45,7 +47,7 @@ const navigation: NavigationItem[] = [
       { id: "marketing.consent-center", label: "Consent & Suppression", href: "consent-center", icon: ShieldCheck, permission: ["marketing.segments.manage", "settings.manage"], group: "Audiences & Creative" },
       { id: "marketing.contact-sync", label: "Contact Sync", href: "contact-sync", icon: ArrowLeftRight, permission: ["marketing.segments.manage", "settings.manage"], group: "Audiences & Creative" },
       { id: "marketing.template-editor", label: "Template Editor", href: "marketing-template-editor", icon: PenTool, permission: "marketing.read", group: "Audiences & Creative" },
-      { id: "marketing.ad-accounts", label: "Ad Accounts", href: "marketing-ad-accounts", icon: CreditCard, permission: "marketing.read", group: "Audiences & Creative" },
+      { id: "marketing.ad-accounts", label: "Ad Accounts", href: "marketing-ad-accounts", icon: CreditCard, permission: ["marketing.ads.manage", "settings.manage"], group: "Audiences & Creative" },
 
       // ───────── Integrations (M1 — Connector Registry) ─────────
       { id: "marketing.integrations", label: "Integrations", href: "marketing-integrations", icon: Plug, permission: ["marketing.connect", "settings.manage"], group: "Integrations" },
@@ -59,6 +61,9 @@ const routes: RouteDefinition[] = [
   { path: "marketing-email-campaigns", viewId: "marketing-email-campaigns", label: "Email Campaigns", permission: "marketing.read", module: "marketing" },
   { path: "marketing-vip-campaigns", viewId: "marketing-vip-campaigns", label: "VIP Campaigns & Coupons", permission: "marketing.read", module: "marketing" },
   { path: "marketing-ad-spend", viewId: "marketing-ad-spend", label: "Ad Spend", permission: "marketing.read", module: "marketing" },
+  // M5 — Ads & Attribution (spec §9)
+  { path: "events-manager", viewId: "events-manager", label: "Events Manager", permission: ["marketing.ads.manage", "settings.manage"], module: "marketing" },
+  { path: "attribution-settings", viewId: "attribution-settings", label: "Attribution Settings", permission: ["marketing.ads.manage", "settings.manage"], module: "marketing" },
   // M4 — Campaign Studio & Automation Flows (spec §8)
   { path: "campaign-new", viewId: "campaign-new", label: "Campaign Composer", permission: ["marketing.configure", "settings.manage"], module: "marketing" },
   { path: "automation-flows", viewId: "automation-flows", label: "Automation Flows", permission: ["marketing.automation.manage", "settings.manage"], module: "marketing" },
@@ -75,7 +80,7 @@ const routes: RouteDefinition[] = [
   { path: "consent-center", viewId: "consent-center", label: "Consent & Suppression", permission: ["marketing.segments.manage", "settings.manage"], module: "marketing" },
   { path: "contact-sync", viewId: "contact-sync", label: "Contact Sync", permission: ["marketing.segments.manage", "settings.manage"], module: "marketing" },
   { path: "marketing-template-editor", viewId: "marketing-template-editor", label: "Marketing Template Editor", permission: "marketing.read", module: "marketing" },
-  { path: "marketing-ad-accounts", viewId: "marketing-ad-accounts", label: "Ad Accounts", permission: "marketing.read", module: "marketing" },
+  { path: "marketing-ad-accounts", viewId: "marketing-ad-accounts", label: "Ad Accounts", permission: ["marketing.ads.manage", "settings.manage"], module: "marketing" },
 ];
 
 const widgets: WidgetDefinition[] = [
