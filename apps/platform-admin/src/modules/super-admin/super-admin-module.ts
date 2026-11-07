@@ -58,6 +58,8 @@ import {
   ArrowRightLeft,
   Network,
   Archive,
+  Receipt,
+  Code2,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -131,6 +133,8 @@ const navigation: NavigationItem[] = [
       { id: "super.transactions", label: "Transactions", href: "platform-transactions", icon: CreditCard, application: ["super-admin"], group: "Finance" },
       { id: "super.tax-currency", label: "Tax & Currency", href: "tax-currency", icon: Percent, application: ["super-admin"], group: "Finance" },
       { id: "super.churn-prevention", label: "Churn Prevention", href: "churn-prevention", icon: TrendingDown, application: ["super-admin"], group: "Finance" },
+      // N16
+      { id: "super.send-billing", label: "Send-Based Usage Billing", href: "send-billing", icon: Receipt, application: ["super-admin"], permission: ["platform.developer.manage", "platform.billing.manage"], group: "Finance" },
 
       // ───────── Governance ─────────
       { id: "super.role-management", label: "Role Management", href: "role-management", icon: Settings2, application: ["super-admin"], group: "Governance" },
@@ -141,6 +145,8 @@ const navigation: NavigationItem[] = [
       { id: "super.api-keys", label: "API Keys", href: "api-keys", icon: Key, application: ["super-admin"], group: "Developer" },
       { id: "super.rate-limits", label: "Rate Limits", href: "rate-limits", icon: Lock, application: ["super-admin"], group: "Developer" },
       { id: "super.api-analytics", label: "API Analytics", href: "api-analytics", icon: Activity, application: ["super-admin"], group: "Developer" },
+      // R2-12
+      { id: "super.marketing-api", label: "Marketing API Console", href: "marketing-api-console", icon: Code2, application: ["super-admin"], permission: ["platform.developer.manage"], group: "Developer" },
 
       // ───────── Integrations ─────────
       { id: "super.webhooks", label: "Webhooks", href: "webhooks", icon: Webhook, application: ["super-admin"], group: "Integrations" },
@@ -250,6 +256,10 @@ const routes: RouteDefinition[] = [
   { path: "churn-prevention", viewId: "churn-prevention", label: "Churn Prevention", application: ["super-admin"] },
   { path: "scheduled-reports", viewId: "scheduled-reports", label: "Scheduled Reports", application: ["super-admin"] },
   { path: "tax-currency", viewId: "tax-currency", label: "Tax & Currency", application: ["super-admin"] },
+  // R2-12, N15, N16
+  { path: "marketing-api-console", viewId: "marketing-api-console", label: "Marketing API Gateway Console", application: ["super-admin"], permission: ["platform.developer.manage"] },
+  { path: "marketplace-review", viewId: "marketplace-review", label: "Marketplace App Review", application: ["super-admin"] },
+  { path: "send-billing", viewId: "send-billing", label: "Send-Based Usage Billing", application: ["super-admin"], permission: ["platform.developer.manage", "platform.billing.manage"] },
 ];
 
 export const superAdminModule: FrontendModule = {
@@ -274,6 +284,7 @@ export const superAdminModule: FrontendModule = {
       { id: "platform.marketing.manage", label: "Manage Marketing Console", description: "Quota approvals, shared template lifecycle, provider pool + quarantine" },
       { id: "platform.archive.read", label: "Read Cross-Tenant Archive", description: "e-Discovery search across tenant sent messages (R2-11)" },
       { id: "platform.archive.export", label: "Export Cross-Tenant Archive", description: "Sealed case bundle export (R2-11)" },
+      { id: "platform.developer.manage", label: "Manage Marketing API Gateway", description: "Marketing API products, keys, scopes, playground, send-billing rollups (R2-12, N16)" },
     ],
     icon: ShieldCheck,
     accentColor: "#0a0a0a",
