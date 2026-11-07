@@ -569,6 +569,50 @@ export function WebhooksPage() {
             </div>
           </CardContent>
         </Card>
+        {/* Inbound Receivers */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold">Inbound Receivers</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Expose a URL that external services (Stripe, GitHub, Shopify, etc.) can send webhooks to.
+                </p>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => toast({ title: "Add receiver", description: "Inbound receiver configuration coming in M6." })}>
+                <Plus className="mr-1 h-3 w-3" /> Add Receiver
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border border-dashed bg-muted/20 p-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-md bg-primary/10 p-2">
+                  <Webhook className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Inbound webhook endpoint</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Configure a receiver to accept events from external platforms. Events are verified
+                    via HMAC-SHA256 signature and routed to your automation flows.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Badge variant="outline" className="text-[10px]">Stripe</Badge>
+                    <Badge variant="outline" className="text-[10px]">GitHub</Badge>
+                    <Badge variant="outline" className="text-[10px]">Shopify</Badge>
+                    <Badge variant="outline" className="text-[10px]">Custom</Badge>
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => toast({ title: "Receiver docs", description: "See M6 Webhooks 2.0 for inbound receiver setup." })}>
+                    Learn more
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
       </PageContent>
 
       {/* Create / edit dialog */}
