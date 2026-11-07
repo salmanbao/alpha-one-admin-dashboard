@@ -198,6 +198,12 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "landing-page-editor": dynamic(() => import("@/modules/marketing/pages/landing-page-editor-page").then((m) => ({ default: m.LandingPageEditorPage })), { loading: ViewSkeleton }),
   "forms": dynamic(() => import("@/modules/marketing/pages/forms-list-page").then((m) => ({ default: m.FormsListPage })), { loading: ViewSkeleton }),
   "form-editor": dynamic(() => import("@/modules/marketing/pages/form-editor-page").then((m) => ({ default: m.FormEditorPage })), { loading: ViewSkeleton }),
+  // R2-03,04,08,09
+  "onsite-campaigns": dynamic(() => import("@/modules/marketing/pages/onsite-campaigns-page").then((m) => ({ default: m.OnsiteCampaignsPage })), { loading: ViewSkeleton }),
+  "onsite-designer": dynamic(() => import("@/modules/marketing/pages/onsite-designer-page").then((m) => ({ default: m.OnsiteDesignerPage })), { loading: ViewSkeleton }),
+  "asset-library": dynamic(() => import("@/modules/marketing/pages/asset-library-page").then((m) => ({ default: m.AssetLibraryPage })), { loading: ViewSkeleton }),
+  "message-archive": dynamic(() => import("@/modules/marketing/pages/message-archive-page").then((m) => ({ default: m.MessageArchivePage })), { loading: ViewSkeleton }),
+  "deliverability-incidents": dynamic(() => import("@/modules/marketing/pages/deliverability-incidents-page").then((m) => ({ default: m.DeliverabilityIncidentsPage })), { loading: ViewSkeleton }),
   // N1-N3 — Channel Infrastructure (Wave 1)
   "channel-providers": dynamic(() => import("@/modules/marketing/pages/channel-providers-page").then((m) => ({ default: m.ChannelProvidersPage })), { loading: ViewSkeleton }),
   "whatsapp-templates": dynamic(() => import("@/modules/marketing/pages/whatsapp-templates-page").then((m) => ({ default: m.WhatsAppTemplatesPage })), { loading: ViewSkeleton }),
