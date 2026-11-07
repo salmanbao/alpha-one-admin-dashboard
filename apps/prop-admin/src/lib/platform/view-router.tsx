@@ -204,6 +204,10 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "asset-library": dynamic(() => import("@/modules/marketing/pages/asset-library-page").then((m) => ({ default: m.AssetLibraryPage })), { loading: ViewSkeleton }),
   "message-archive": dynamic(() => import("@/modules/marketing/pages/message-archive-page").then((m) => ({ default: m.MessageArchivePage })), { loading: ViewSkeleton }),
   "deliverability-incidents": dynamic(() => import("@/modules/marketing/pages/deliverability-incidents-page").then((m) => ({ default: m.DeliverabilityIncidentsPage })), { loading: ViewSkeleton }),
+  // R2-05, R2-06
+  "surveys": dynamic(() => import("@/modules/marketing/pages/surveys-list-page").then((m) => ({ default: m.SurveysListPage })), { loading: ViewSkeleton }),
+  "survey-builder": dynamic(() => import("@/modules/marketing/pages/survey-builder-page").then((m) => ({ default: m.SurveyBuilderPage })), { loading: ViewSkeleton }),
+  "link-tracking": dynamic(() => import("@/modules/marketing/pages/link-tracking-page").then((m) => ({ default: m.LinkTrackingPage })), { loading: ViewSkeleton }),
   // N1-N3 — Channel Infrastructure (Wave 1)
   "channel-providers": dynamic(() => import("@/modules/marketing/pages/channel-providers-page").then((m) => ({ default: m.ChannelProvidersPage })), { loading: ViewSkeleton }),
   "whatsapp-templates": dynamic(() => import("@/modules/marketing/pages/whatsapp-templates-page").then((m) => ({ default: m.WhatsAppTemplatesPage })), { loading: ViewSkeleton }),

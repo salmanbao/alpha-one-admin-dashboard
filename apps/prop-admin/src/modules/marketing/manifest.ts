@@ -5,7 +5,7 @@
  * spend, channel performance and ROI. Depends on Trading.
  */
 
-import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2, HeartPulse, AlertOctagon, CheckCircle, FlaskConical, FileText, Shield, KeyRound, Gauge, ScrollText, FileEdit, ClipboardList, AppWindow, Image, Archive, Siren } from "lucide-react";
+import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2, HeartPulse, AlertOctagon, CheckCircle, FlaskConical, FileText, Shield, KeyRound, Gauge, ScrollText, FileEdit, ClipboardList, AppWindow, Image, Archive, Siren, Link2 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import {
   MarketingOverviewWidget,
@@ -41,6 +41,7 @@ const navigation: NavigationItem[] = [
       { id: "marketing.forms", label: "Forms & Lead Capture", href: "forms", icon: ClipboardList, permission: ["marketing.forms.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
       { id: "marketing.onsite", label: "On-Site Studio", href: "onsite-campaigns", icon: AppWindow, permission: ["marketing.onsite.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
       { id: "marketing.assets", label: "Asset Library", href: "asset-library", icon: Image, permission: ["marketing.assets.manage", "marketing.configure", "settings.manage"], group: "Creative" },
+      { id: "marketing.surveys", label: "Surveys & NPS", href: "surveys", icon: ClipboardList, permission: ["marketing.surveys.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
 
       // ───────── Automation (M4 — Campaign Studio) ─────────
       { id: "marketing.automation-flows", label: "Flows", href: "automation-flows", icon: Workflow, permission: ["marketing.automation.manage", "settings.manage"], group: "Automation" },
@@ -60,6 +61,7 @@ const navigation: NavigationItem[] = [
 
       { id: "marketing.deliverability-incidents", label: "Deliverability Incidents", href: "deliverability-incidents", icon: Siren, permission: ["marketing.read", "marketing.configure", "settings.manage"], group: "Analytics" },
       { id: "marketing.message-archive", label: "Message Archive", href: "message-archive", icon: Archive, permission: ["compliance.archive.read", "marketing.configure", "settings.manage"], group: "Analytics" },
+      { id: "marketing.link-tracking", label: "Link Tracking (UTM)", href: "link-tracking", icon: Link2, permission: ["marketing.links.manage", "marketing.configure", "settings.manage"], group: "Analytics" },
 
       // ───────── Audiences & Creative (M3 + M11) ─────────
       { id: "marketing.segments", label: "Segments", href: "segments", icon: Layers, permission: ["marketing.segments.manage", "settings.manage"], group: "Audiences & Creative" },
@@ -119,6 +121,10 @@ const routes: RouteDefinition[] = [
   { path: "asset-library", viewId: "asset-library", label: "Asset Library", permission: ["marketing.assets.manage", "marketing.configure", "settings.manage"], module: "marketing" },
   { path: "message-archive", viewId: "message-archive", label: "Message Archive", permission: ["compliance.archive.read", "marketing.configure", "settings.manage"], module: "marketing" },
   { path: "deliverability-incidents", viewId: "deliverability-incidents", label: "Deliverability Incidents", permission: ["marketing.read", "marketing.configure", "settings.manage"], module: "marketing" },
+  // R2-05, R2-06
+  { path: "surveys", viewId: "surveys", label: "Surveys & NPS", permission: ["marketing.surveys.manage", "marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "survey-builder", viewId: "survey-builder", label: "Survey Builder & Responses", permission: ["marketing.surveys.manage", "marketing.configure", "settings.manage"], module: "marketing" },
+  { path: "link-tracking", viewId: "link-tracking", label: "Link Tracking & UTM Manager", permission: ["marketing.links.manage", "marketing.configure", "settings.manage"], module: "marketing" },
 ];
 
 const widgets: WidgetDefinition[] = [
@@ -151,6 +157,8 @@ export const marketingModule: FrontendModule = {
       { id: "marketing.assets.manage", label: "Manage brand assets", description: "Asset library and brand kit (R2-04)." },
       { id: "compliance.archive.read", label: "Read message archive", description: "Search sent marketing messages (R2-08)." },
       { id: "compliance.archive.export", label: "Export message archive", description: "Export messages for regulators (R2-08)." },
+      { id: "marketing.surveys.manage", label: "Manage surveys", description: "Survey lifecycle, builder and responses (R2-05)." },
+      { id: "marketing.links.manage", label: "Manage tracking links", description: "Governed UTM/short links (R2-06)." },
     ],
     icon: Target,
     accentColor: "#b45309",
