@@ -334,6 +334,15 @@ export const roles: RoleDefinition[] = [
       "marketing.automation.manage",
       "marketing.ads.manage",
       "marketing.locales.manage",
+      // R4-F03 — seven permission IDs were enforced in navigation gates but
+      // granted to no role; per-role delegation is now possible.
+      "marketing.pages.manage",
+      "marketing.forms.manage",
+      "marketing.onsite.manage",
+      "marketing.assets.manage",
+      "marketing.surveys.manage",
+      "marketing.links.manage",
+      "compliance.archive.read",
       "analytics.read",
       "trader.read",
     ],

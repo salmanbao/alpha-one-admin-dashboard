@@ -525,6 +525,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  // R4-F02 — orphaned: superseded by the 360-line incident center and absent
+  // from navigation. Removed so dead routes do not accumulate.
   "marketing-api-console": dynamic(
     () =>
       import("@/modules/super-admin/marketing-api-console-page").then((m) => ({
@@ -543,6 +545,14 @@ export const viewRegistry: Record<string, ViewComponent> = {
     () =>
       import("@/modules/super-admin/send-billing-page").then((m) => ({
         default: m.SendBillingPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  // R4-F02 — was unreachable: nav + route existed but no view-router registration.
+  "platform-billing": dynamic(
+    () =>
+      import("@/modules/super-admin/platform-billing-page").then((m) => ({
+        default: m.PlatformBillingPage,
       })),
     { loading: ViewSkeleton },
   ),
