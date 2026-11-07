@@ -191,6 +191,10 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "marketing-dashboard": dynamic(() => import("@/modules/marketing/pages/marketing-dashboard-page").then((m) => ({ default: m.MarketingDashboardPage })), { loading: ViewSkeleton }),
   "marketing-email-campaigns": dynamic(() => import("@/modules/marketing/pages/marketing-email-campaigns-page").then((m) => ({ default: m.MarketingEmailCampaignsPage })), { loading: ViewSkeleton }),
   "marketing-ad-spend": dynamic(() => import("@/modules/marketing/pages/marketing-ad-spend-page").then((m) => ({ default: m.MarketingAdSpendPage })), { loading: ViewSkeleton }),
+  // N1-N3 — Channel Infrastructure (Wave 1)
+  "channel-providers": dynamic(() => import("@/modules/marketing/pages/channel-providers-page").then((m) => ({ default: m.ChannelProvidersPage })), { loading: ViewSkeleton }),
+  "whatsapp-templates": dynamic(() => import("@/modules/marketing/pages/whatsapp-templates-page").then((m) => ({ default: m.WhatsAppTemplatesPage })), { loading: ViewSkeleton }),
+  "sending-domains": dynamic(() => import("@/modules/marketing/pages/sending-domains-page").then((m) => ({ default: m.SendingDomainsPage })), { loading: ViewSkeleton }),
   // M5 — Ads & Attribution (spec §9)
   "events-manager": dynamic(() => import("@/modules/marketing/pages/events-manager-page").then((m) => ({ default: m.EventsManagerPage })), { loading: ViewSkeleton }),
   "attribution-settings": dynamic(() => import("@/modules/marketing/pages/attribution-settings-page").then((m) => ({ default: m.AttributionSettingsPage })), { loading: ViewSkeleton }),
