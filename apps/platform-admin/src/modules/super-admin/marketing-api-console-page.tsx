@@ -10,9 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
+import { usePlatform } from "@/lib/platform/platform-context";
 import { recordAudit } from "@/lib/platform/console-store";
 import { AreaSeries } from "@/components/platform/charts";
-import { Code2, Key, Play, GitBranch } from "lucide-react";
+import { Code2, Key, Play, GitBranch, AlertTriangle } from "lucide-react";
+import {
+  recordRun, recordBreach, listRuns, listBreaches, useApiConsoleVersion,
+} from "./marketing-api-console-store";
 
 type Scope = "segments:read"|"segments:write"|"campaigns:read"|"campaigns:write"|"events:relay"|"consent:read"|"consent:write";
 interface ApiKey { id:string; tenant:string; name:string; scopes:Scope[]; tier:"sandbox"|"standard"|"premium"; created:string; lastUsed:string; usage30d:number[]; breaches:number; version:number }
@@ -33,6 +37,10 @@ const CHANGES = [
   {v:"2026-10-15",note:"Consent API: added `receipt.channel` field (non-breaking).",sev:"minor"},
 ];
 export function MarketingApiConsolePage(){
+  const { pushNotification } = usePlatform();
+  useApiConsoleVersion();
+  const runs = listRuns();
+  const breaches = listBreaches();
   const [keys,setKeys]=useState(SEED); const [sel,setSel]=useState(keys[0].id);
   const key = keys.find(k=>k.id===sel)||keys[0];
   const [scope,setScope]=useState<Scope>("segments:read");
@@ -50,17 +58,19 @@ export function MarketingApiConsolePage(){
   ];
   const run = ()=>{
     if(key.tier==="sandbox" && /segments/.test(body) && key.scopes.includes("segments:write")){
-      setResp(`HTTP/1.1 201 Created\n{\n  "segment_id": "seg_${Math.random().toString(36).slice(2,9)}",\n  "enrolled": 1,\n  "contact": "playground@example.com",\n  "note": "Sandbox key created segment + enrolled contact (AC-1)"\n}`);
+      const resp = `HTTP/1.1 201 Created\n{\n  "segment_id": "seg_${Math.random().toString(36).slice(2,9)}",\n  "enrolled": 1,\n  "contact": "playground@example.com",\n  "note": "Sandbox key created segment + enrolled contact (AC-1)"\n}`;
+      setResp(resp);
+      recordRun({ tenant: playTenant, keyId: key.id, keyName: key.name, tier: key.tier, request: body, status: 201, response: resp, note: "created segment + enrolled contact (AC-1)" });
       recordAudit({actor:"operator",action:"api.playground",target:key.id,detail:`Playground: created segment + enrolled contact via ${key.name}`,severity:"info"});
       toast({title:"201 Created",description:"Sandbox key created a segment and enrolled a contact (AC-1)."});
-    } else { setResp(`HTTP/1.1 403 Forbidden\n{\n  "error": "insufficient_scope",\n  "required": "${/segments/.test(body)?"segments:write":"consent:write"}",\n  "key_tier": "${key.tier}"\n}`); }
+    } else { const resp = `HTTP/1.1 403 Forbidden\n{\n  "error": "insufficient_scope",\n  "required": "${/segments/.test(body)?"segments:write":"consent:write"}",\n  "key_tier": "${key.tier}"\n}`; setResp(resp); recordRun({ tenant: playTenant, keyId: key.id, keyName: key.name, tier: key.tier, request: body, status: 403, response: resp, note: "insufficient scope / tier" }); }
   };
   return (
     <Page>
       <PageHeader title="Marketing API Gateway Console" description="Marketing-scoped API surface: products, keys, scopes (versioned), rate-limit tiers, 30-day usage, playground, breaking changes." icon={Code2} />
       <PageContent>
         <div className="grid gap-3 sm:grid-cols-4"><MetricCard label="API products" value={String(PRODUCTS.length)}/><MetricCard label="Active keys" value={String(keys.length)}/><MetricCard label="Rate-limit breaches (30d)" value={String(breachTotal)} tone={breachTotal?"negative":"positive"}/><MetricCard label="Sandbox keys" value={String(keys.filter(k=>k.tier==="sandbox").length)}/></div>
-        <Tabs defaultValue="keys"><TabsList><TabsTrigger value="keys">Keys & usage</TabsTrigger><TabsTrigger value="playground">Playground</TabsTrigger><TabsTrigger value="changes">Breaking changes</TabsTrigger></TabsList>
+        <Tabs defaultValue="keys"><TabsList><TabsTrigger value="keys">Keys & usage</TabsTrigger><TabsTrigger value="playground">Playground</TabsTrigger><TabsTrigger value="runs">Runs &amp; breaches</TabsTrigger><TabsTrigger value="changes">Breaking changes</TabsTrigger></TabsList>
           <TabsContent value="keys" className="mt-3 space-y-3">
             <Card><CardContent className="p-3 grid gap-2 sm:grid-cols-4 text-xs">{PRODUCTS.map(p=><div key={p.name} className="rounded border p-2"><p className="font-semibold">{p.name}</p><p className="text-muted-foreground">{p.desc}</p><code className="text-[10px]">{p.scopes}</code></div>)}</CardContent></Card>
             <div className="grid gap-3 lg:grid-cols-[1fr_300px]"><DataTable columns={cols} data={keys} rowKey={r=>r.id} pageSize={6}/>
@@ -68,6 +78,41 @@ export function MarketingApiConsolePage(){
           </TabsContent>
           <TabsContent value="playground" className="mt-3 space-y-3">
             <Card><CardContent className="p-3 space-y-2 text-xs"><div className="flex gap-2"><Select value={playTenant} onValueChange={setPlayTenant}><SelectTrigger className="w-48 h-8"><SelectValue/></SelectTrigger><SelectContent>{["SandboxCo","ApexFunded","TradeMax"].map(t=><SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><span className="text-muted-foreground">Key: {key.name} ({key.tier}) · POST https://api.alpha.one/v2/marketing/segments</span></div><textarea className="w-full h-40 rounded border bg-transparent p-2 font-mono text-xs" value={body} onChange={e=>setBody(e.target.value)}/><div className="flex gap-2"><Button size="sm" onClick={run}><Play className="mr-1 h-3 w-3"/>Run request</Button><span className="text-muted-foreground self-center">Ready-made requests against sandbox tenants (AC-1).</span></div>{resp&&<pre className="rounded bg-muted p-2 text-[11px] whitespace-pre-wrap">{resp}</pre>}</CardContent></Card>
+          </TabsContent>
+          <TabsContent value="runs" className="mt-3 space-y-3">
+            <Card><CardContent className="p-3 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold">Recent playground runs ({runs.length})</p>
+                <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => {
+                  recordBreach({ keyId: key.id, keyName: key.name, tenant: key.tenant, count: 1, severity: "warning" });
+                  pushNotification({ title: "Rate-limit breach", message: `${key.name} (${key.tenant}) hit the rate limit — recorded in the gateway console.`, severity: "warning", module: "marketing" });
+                  toast({ title: "Breach recorded", description: "Pushed to the tenant alert subscription (AC-2)." });
+                }}><AlertTriangle className="mr-1 h-3 w-3"/>Simulate breach</Button>
+              </div>
+              {runs.length === 0 && <p className="text-muted-foreground">No runs yet — execute a request in the Playground tab.</p>}
+              {runs.slice(0,8).map(r => (
+                <div key={r.id} className="rounded border p-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium">{r.keyName} <span className="text-muted-foreground">· {r.tenant} · {r.tier}</span></span>
+                    <StatusBadge tone={r.status === 201 ? "success" : "danger"}>{r.status}</StatusBadge>
+                  </div>
+                  <p className="mt-0.5 text-muted-foreground">{r.note} · {new Date(r.at).toLocaleString()}</p>
+                </div>
+              ))}
+            </CardContent></Card>
+            <Card><CardContent className="p-3 space-y-2 text-xs">
+              <p className="font-semibold">Rate-limit breaches ({breaches.length})</p>
+              {breaches.length === 0 && <p className="text-muted-foreground">No breaches recorded. Use "Simulate breach" or wait for real traffic.</p>}
+              {breaches.slice(0,8).map(b => (
+                <div key={b.id} className="rounded border p-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium">{b.keyName} <span className="text-muted-foreground">· {b.tenant}</span></span>
+                    <StatusBadge tone={b.severity === "critical" ? "danger" : "warning"}>{b.severity}</StatusBadge>
+                  </div>
+                  <p className="mt-0.5 text-muted-foreground">{b.count} hit(s) · {new Date(b.at).toLocaleString()}</p>
+                </div>
+              ))}
+            </CardContent></Card>
           </TabsContent>
           <TabsContent value="changes" className="mt-3">
             <Card><CardContent className="p-3 space-y-2 text-xs">{CHANGES.map(c=><div key={c.v} className="rounded border p-2 flex gap-2 items-start"><GitBranch className="h-3.5 w-3.5 mt-0.5"/><div><p className="font-mono text-[10px]">{c.v} · <StatusBadge tone={c.sev==="breaking"?"danger":"muted"}>{c.sev}</StatusBadge></p><p>{c.note}</p></div></div>)}<p className="text-muted-foreground">Feed ties to the platform changelog page.</p></CardContent></Card>
