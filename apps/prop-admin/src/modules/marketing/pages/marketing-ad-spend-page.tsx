@@ -20,8 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { Megaphone, Download, Plug, ExternalLink, AlertTriangle } from "lucide-react";
+import { Megaphone, Download, Plug, ExternalLink, AlertTriangle, DollarSign } from "lucide-react";
 import { exportToCsv } from "@/lib/platform/export-utils";
+import { listBudgets, pendingRequestFor, useBudgetVersion } from "../ad-budget-store";
 
 type Source = "auto"|"manual";
 interface SpendRow {
@@ -43,6 +44,10 @@ export function MarketingAdSpendPage() {
   const [rows, setRows] = useState(BASE);
   const [drill, setDrill] = useState<SpendRow | null>(null);
   const [resolve, setResolve] = useState<SpendRow | null>(null);
+
+  // R3-05 (AC-2): approved caps only; pending raises are flagged, never applied.
+  useBudgetVersion();
+  const budgets = listBudgets();
 
   const filtered = useMemo(() => rows.filter((r) => sourceFilter==="all" || r.source===sourceFilter), [rows, sourceFilter]);
   const totals = useMemo(() => {
@@ -97,6 +102,41 @@ export function MarketingAdSpendPage() {
           <MetricCard label="Auto-ingested share" value={`${totals.autoShare}%`} tone="info" />
           <MetricCard label="Accounts syncing" value={String(totals.syncing)} />
           <MetricCard label="Ingest lag" value="14 min" tone="positive" deltaLabel="provider data freshness" />
+        </div>
+
+        {/* R3-05 (AC-2) — only approved budgets; pending raises flagged, never applied */}
+        <div className="rounded-lg border p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="flex items-center gap-1.5 text-sm font-semibold"><DollarSign className="h-4 w-4" />Approved budgets</p>
+              <p className="text-[11px] text-muted-foreground">Only approved caps appear here (AC-2). Raises sit in the four-eyes queue and are flagged until approved — pending changes are never applied.</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => navigate("ad-budget-approvals")}>Approval queue</Button>
+          </div>
+          <div className="space-y-1.5">
+            {budgets.map(b => {
+              const pend = pendingRequestFor(b.id);
+              return (
+                <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 rounded border px-2.5 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium">{b.campaign}</p>
+                    <p className="text-[10px] text-muted-foreground">{b.provider} · <span className="font-mono">{b.adAccountId}</span> · approved by {b.approvedBy} · v{b.version}</p>
+                  </div>
+                  <div className="text-right text-xs tabular-nums">
+                    <p>${b.dailyCap}/day · ${b.monthlyCap.toLocaleString()}/mo</p>
+                    <p className="text-[10px] text-muted-foreground">approved {new Date(b.approvedAt).toLocaleDateString()}</p>
+                  </div>
+                  {pend ? (
+                    <button type="button" onClick={() => navigate("ad-budget-approvals")}
+                      className="rounded-full border border-amber-500/60 bg-amber-50 px-2.5 py-0.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-400"
+                      title={`${pend.id} — requested by ${pend.requester}, awaiting approval`}>
+                      raise pending: ${pend.currentDaily} → ${pend.requestedDaily}/day
+                    </button>
+                  ) : <StatusBadge tone="success">approved</StatusBadge>}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">

@@ -263,6 +263,7 @@ export const roles: RoleDefinition[] = [
       "marketing.automation.manage",
       "marketing.ads.manage",
       "marketing.locales.manage",
+      "marketing.budget.approve",
       "settings.marketplace.manage",
       "settings.webhooks.manage",
       "crm.read",
