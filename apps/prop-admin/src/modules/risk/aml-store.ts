@@ -152,15 +152,42 @@ export function updateAmlCase(id:string, patch: Partial<AmlCase>, audit?: {actio
   ALERTS = ALERTS.map(a=>a.id===id?{...a,...patch}:a);
   const c=getAmlCase(id);
   if(c && audit){ c.timeline=[{at:now(),actor:"operator",action:audit.summary},...c.timeline];
-    recordAudit({action:audit.action,entity:"aml-case",entityId:id,summary:audit.summary,module:"risk",severity:patch.status==="blocked"||patch.status==="sar_filed"? "warning":undefined});
+    recordAudit({action:audit.action,entity:"aml-case",entityId:id,summary:audit.summary,module:"risk",severity:patch.status==="blocked"||patch.status==="sar_filed"||patch.payoutHold!==undefined? "warning":undefined});
   }
   if (patch.payoutHold !== undefined || patch.status !== undefined || patch.filingId !== undefined) emit();
 }
 
-export function dispositionAml(id:string, decision: NonNullable<AmlCase["disposition"]>["decision"], rationale:string){
+/**
+ * R2-07 uplift — four-eyes freeze flow: an explicit hold toggle with the
+ * actor and rationale recorded (audit severity warning). Freezing requires
+ * compliance.aml.manage; releasing it is the `release` disposition behind
+ * compliance.aml.approve — different people, one audit trail.
+ */
+export function setPayoutHold(caseId: string, hold: boolean, rationale: string, actor: string): boolean {
+  const c = getAmlCase(caseId);
+  if (!c || c.payoutHold === hold) return false;
+  const patch: Partial<AmlCase> = { payoutHold: hold };
+  // A cleared/blocked case must return to an investigating state for an
+  // enforced hold (getAmlHoldCaseForTrader only trusts live statuses).
+  if (hold && (c.status === "cleared" || c.status === "blocked")) patch.status = "investigating";
+  updateAmlCase(caseId, patch, {
+    action: hold ? "aml.freeze" : "aml.unfreeze",
+    summary: `${hold ? "Froze" : "Released"} payout hold on ${c.traderName} (${caseId}) by ${actor}: ${rationale.slice(0, 80)}`,
+  });
+  return true;
+}
+
+export function dispositionAml(id:string, decision: NonNullable<AmlCase["disposition"]>["decision"], rationale:string, by = "operator"){
   const c=getAmlCase(id); if(!c) return;
-  const status: AmlStatus = decision==="release"?"cleared":decision==="block"?"blocked":decision==="sar_str"?"sar_filed":"escalated";
-  updateAmlCase(id,{status,payoutHold: decision!=="release", disposition:{decision,rationale,by:"operator",at:now()}},{action:`aml.${decision}`,summary:`AML disposition ${decision} for ${c.traderName} (${c.id}): ${rationale.slice(0,80)}`});
+  const status: AmlStatus =
+    decision === "release" ? "cleared"
+    : decision === "block" ? "blocked"
+    : decision === "sar_str" ? "sar_filed"
+    // "hold" freezes payouts without escalating — but a cleared/blocked case
+    // must return to an investigating state for the hold to be enforceable.
+    : decision === "hold" ? (c.status === "cleared" || c.status === "blocked" ? "investigating" : c.status)
+    : "escalated";
+  updateAmlCase(id,{status,payoutHold: decision!=="release", disposition:{decision,rationale,by,at:now()}},{action:`aml.${decision}`,summary:`AML disposition ${decision} for ${c.traderName} (${c.id}) by ${by}: ${rationale.slice(0,80)}`});
 }
 
 /** Subscribe the calling component to AML hold changes (R3-F02). */

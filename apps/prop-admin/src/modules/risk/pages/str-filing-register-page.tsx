@@ -73,7 +73,7 @@ function deadlineInfo(due: string) {
 }
 
 export function StrFilingRegisterPage() {
-  const { navigate, user, pushNotification } = usePlatform();
+  const { navigate, user, pushNotification, router } = usePlatform();
   // Gates: read via route permission; create/edit = compliance.str.manage;
   // submit = compliance.aml.approve four-eyes (AC-2).
   const canManage = hasPermission(user, "compliance.str.manage");
@@ -81,7 +81,9 @@ export function StrFilingRegisterPage() {
   useStrFilingVersion();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  // Arriving from an AML case ("Draft STR/SAR filing") opens the new-filing
+  // sheet prefilled with that case (R3-01 ↔ R2-07 linkage).
+  const [creating, setCreating] = useState(() => Boolean(router.params.caseId));
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // AC-3 — the deadline clock escalates overdue filings into the risk alerts
@@ -276,6 +278,7 @@ export function StrFilingRegisterPage() {
       <Sheet open={creating} onOpenChange={(o) => !o && setCreating(false)}>
         <NewFilingSheet
           canManage={canManage}
+          initialCaseId={router.params.caseId}
           onCancel={() => setCreating(false)}
           onCreated={(f) => {
             setCreating(false);
@@ -569,19 +572,24 @@ function FilingSheet({
 
 function NewFilingSheet({
   canManage,
+  initialCaseId,
   onCancel,
   onCreated,
 }: {
   canManage: boolean;
+  initialCaseId?: string;
   onCancel: () => void;
   onCreated: (f: StrFiling) => void;
 }) {
   const { user } = usePlatform();
   const cases = listAmlAlerts();
-  const [caseId, setCaseId] = useState<string>("");
+  const [caseId, setCaseId] = useState<string>(initialCaseId ?? "");
   const [type, setType] = useState<FilingType>("STR");
   const [regulator, setRegulator] = useState<string>(FILING_REGULATORS[0]);
-  const [narrative, setNarrative] = useState("");
+  const [narrative, setNarrative] = useState<string>(() => {
+    const c = initialCaseId ? getAmlCase(initialCaseId) : undefined;
+    return c ? defaultNarrativeForCase(c) : "";
+  });
   const selectedCase = caseId ? getAmlCase(caseId) : undefined;
 
   const pickCase = (id: string) => {
