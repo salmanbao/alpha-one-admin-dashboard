@@ -274,6 +274,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "token-management": dynamic(() => import("@/modules/settings/pages/token-management-page").then((m) => ({ default: m.TokenManagementPage })), { loading: ViewSkeleton }),
   "credential-vault": dynamic(() => import("@/modules/settings/pages/credential-vault-page").then((m) => ({ default: m.CredentialVaultPage })), { loading: ViewSkeleton }),
   "marketing-governance": dynamic(() => import("@/modules/settings/pages/marketing-governance-page").then((m) => ({ default: m.MarketingGovernancePage })), { loading: ViewSkeleton }),
+  "brand-governance": dynamic(() => import("@/modules/settings/pages/brand-governance-page").then((m) => ({ default: m.BrandGovernancePage })), { loading: ViewSkeleton }),
   "certificates-issued": dynamic(() => import("@/modules/settings/pages/certificates-issued-page").then((m) => ({ default: m.CertificatesIssuedPage })), { loading: ViewSkeleton }),
   "certificate-detail": dynamic(() => import("@/modules/settings/pages/certificate-detail-page").then((m) => ({ default: m.CertificateDetailPage })), { loading: ViewSkeleton }),
   "notifications-management": dynamic(() => import("@/modules/settings/pages/notifications-management-page").then((m) => ({ default: m.NotificationsManagementPage })), { loading: ViewSkeleton }),
