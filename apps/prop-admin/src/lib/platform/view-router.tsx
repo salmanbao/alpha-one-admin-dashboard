@@ -357,6 +357,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "kyc-record-detail": dynamic(() => import("@/modules/stitch/pages/kyc-record-detail").then((m) => ({ default: m.KycRecordDetailStitchPage })), { loading: ViewSkeleton }),
   "kyc-reviewer-trail": dynamic(() => import("@/modules/stitch/pages/kyc-reviewer-trail").then((m) => ({ default: m.KycReviewerTrailStitchPage })), { loading: ViewSkeleton }),
   "marketing-ad-accounts": dynamic(() => import("@/modules/marketing/pages/ad-accounts-page").then((m) => ({ default: m.AdAccountsPage })), { loading: ViewSkeleton }),
+  "lead-inbox": dynamic(() => import("@/modules/marketing/pages/lead-inbox-page").then((m) => ({ default: m.LeadInboxPage })), { loading: ViewSkeleton }),
   // M3 — Audience Platform (spec §7); rebuilt from stitch mockup.
   "marketing-audience-builder": dynamic(() => import("@/modules/marketing/pages/segment-builder-page").then((m) => ({ default: m.SegmentBuilderPage })), { loading: ViewSkeleton }),
   "segments": dynamic(() => import("@/modules/marketing/pages/segments-page").then((m) => ({ default: m.SegmentsPage })), { loading: ViewSkeleton }),
