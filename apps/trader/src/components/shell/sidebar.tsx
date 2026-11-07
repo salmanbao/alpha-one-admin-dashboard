@@ -180,7 +180,7 @@ export const sections: NavSection[] = [
     { href: "/account-settings", label: "Account Settings", icon: Settings, activePrefixes: ["/profile-security", "/2fa-setup", "/sessions", "/api-tokens"] },
     { href: "/promos", label: "Promo Wallet", icon: Tag },
     { href: "/trading-credentials", label: "Trading Credentials", icon: KeyRound },
-    { href: "/notification-center", label: "Notifications", icon: Bell, activePrefixes: ["/notification-preferences"] },
+    { href: "/notification-center", label: "Inbox", icon: Bell, activePrefixes: ["/notification-preferences"] },
   ]},
 ];
 
