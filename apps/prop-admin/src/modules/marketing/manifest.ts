@@ -5,7 +5,7 @@
  * spend, channel performance and ROI. Depends on Trading.
  */
 
-import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2, HeartPulse, AlertOctagon, CheckCircle, FlaskConical, FileText, Shield, KeyRound, Gauge, ScrollText } from "lucide-react";
+import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2, HeartPulse, AlertOctagon, CheckCircle, FlaskConical, FileText, Shield, KeyRound, Gauge, ScrollText, FileEdit, ClipboardList } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import {
   MarketingOverviewWidget,
@@ -35,6 +35,10 @@ const navigation: NavigationItem[] = [
       { id: "marketing.channel-providers", label: "Channel Providers & Senders", href: "channel-providers", icon: Server, permission: ["marketing.configure", "settings.manage"], group: "Channels" },
       { id: "marketing.whatsapp-templates", label: "WhatsApp Template Manager", href: "whatsapp-templates", icon: MessageSquareText, permission: ["marketing.configure", "settings.manage"], group: "Channels" },
       { id: "marketing.sending-domains", label: "Sending Domains & Auth", href: "sending-domains", icon: Globe2, permission: ["marketing.configure", "settings.manage"], group: "Channels" },
+
+      // ───────── Landing & Forms (R2-01, R2-02) ─────────
+      { id: "marketing.landing-pages", label: "Landing Pages", href: "landing-pages", icon: FileEdit, permission: ["marketing.pages.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
+      { id: "marketing.forms", label: "Forms & Lead Capture", href: "forms", icon: ClipboardList, permission: ["marketing.forms.manage", "marketing.configure", "settings.manage"], group: "Acquisition" },
 
       // ───────── Automation (M4 — Campaign Studio) ─────────
       { id: "marketing.automation-flows", label: "Flows", href: "automation-flows", icon: Workflow, permission: ["marketing.automation.manage", "settings.manage"], group: "Automation" },

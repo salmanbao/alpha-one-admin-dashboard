@@ -191,6 +191,11 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "marketing-dashboard": dynamic(() => import("@/modules/marketing/pages/marketing-dashboard-page").then((m) => ({ default: m.MarketingDashboardPage })), { loading: ViewSkeleton }),
   "marketing-email-campaigns": dynamic(() => import("@/modules/marketing/pages/marketing-email-campaigns-page").then((m) => ({ default: m.MarketingEmailCampaignsPage })), { loading: ViewSkeleton }),
   "marketing-ad-spend": dynamic(() => import("@/modules/marketing/pages/marketing-ad-spend-page").then((m) => ({ default: m.MarketingAdSpendPage })), { loading: ViewSkeleton }),
+  // R2-01/02 — Landing & Forms
+  "landing-pages": dynamic(() => import("@/modules/marketing/pages/landing-pages-list-page").then((m) => ({ default: m.LandingPagesListPage })), { loading: ViewSkeleton }),
+  "landing-page-editor": dynamic(() => import("@/modules/marketing/pages/landing-page-editor-page").then((m) => ({ default: m.LandingPageEditorPage })), { loading: ViewSkeleton }),
+  "forms": dynamic(() => import("@/modules/marketing/pages/forms-list-page").then((m) => ({ default: m.FormsListPage })), { loading: ViewSkeleton }),
+  "form-editor": dynamic(() => import("@/modules/marketing/pages/form-editor-page").then((m) => ({ default: m.FormEditorPage })), { loading: ViewSkeleton }),
   // N1-N3 — Channel Infrastructure (Wave 1)
   "channel-providers": dynamic(() => import("@/modules/marketing/pages/channel-providers-page").then((m) => ({ default: m.ChannelProvidersPage })), { loading: ViewSkeleton }),
   "whatsapp-templates": dynamic(() => import("@/modules/marketing/pages/whatsapp-templates-page").then((m) => ({ default: m.WhatsAppTemplatesPage })), { loading: ViewSkeleton }),
