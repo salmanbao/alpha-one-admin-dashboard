@@ -116,6 +116,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "aml-alerts": dynamic(() => import("@/modules/risk/pages/aml-alerts-page").then((m) => ({ default: m.AmlAlertsPage })), { loading: ViewSkeleton }),
   "aml-case": dynamic(() => import("@/modules/risk/pages/aml-case-detail-page").then((m) => ({ default: m.AmlCaseDetailPage })), { loading: ViewSkeleton }),
   "str-filings": dynamic(() => import("@/modules/risk/pages/str-filing-register-page").then((m) => ({ default: m.StrFilingRegisterPage })), { loading: ViewSkeleton }),
+  "screening-manager": dynamic(() => import("@/modules/risk/pages/screening-manager-page").then((m) => ({ default: m.ScreeningManagerPage })), { loading: ViewSkeleton }),
   "risk-statistics": dynamic(() => import("@/modules/risk/pages/risk-statistics-page").then((m) => ({ default: m.RiskStatisticsPage })), { loading: ViewSkeleton }),
   "trading-events": dynamic(() => import("@/modules/risk/pages/trading-events-page").then((m) => ({ default: m.TradingEventsPage })), { loading: ViewSkeleton }),
   "copy-trading-events": dynamic(() => import("@/modules/risk/pages/copy-trading-events-page").then((m) => ({ default: m.CopyTradingEventsPage })), { loading: ViewSkeleton }),
