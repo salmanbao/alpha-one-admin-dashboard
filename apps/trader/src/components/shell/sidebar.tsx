@@ -51,6 +51,7 @@ import {
   History,
   LayoutGrid,
   LifeBuoy,
+  Mail,
   Medal,
   Megaphone,
   Gift,
@@ -188,6 +189,7 @@ export const sections: NavSection[] = [
     { href: "/trading-credentials", label: "Trading Credentials", icon: KeyRound },
     { href: "/notification-center", label: "Inbox", icon: Bell, activePrefixes: ["/notification-preferences"] },
     { href: "/marketing-preferences", label: "Marketing Preferences", icon: Megaphone },
+    { href: "/comms-history", label: "Communication History", icon: Mail, activePrefixes: ["/unsubscribe"] },
     { href: "/push-channels", label: "Push & Channels", icon: Smartphone },
   ]},
 ];

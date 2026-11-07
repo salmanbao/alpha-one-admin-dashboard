@@ -4,12 +4,13 @@
  * Trader App — View Router
  *
  * Maps view ids to their page components.
- * Three trader-only views with trader.self permission.
+ * Trader-only views with trader.self permission.
  *
  * View mapping:
  * - trader-detail         -> My Workspace (trader-detail)
  * - trading-positions     -> My Open Positions (trading-positions)
  * - closed-positions      -> My Closed Positions (closed-positions)
+ * - comms-history         -> Communication History (R3-04)
  */
 
 import { hasPermission, usePlatform } from "@pfaas/platform-core";
@@ -27,6 +28,7 @@ import {
   Archive,
   CandlestickChart,
   ShieldAlert,
+  Mail,
 } from "lucide-react";
 
 const ViewSkeleton = () => (
@@ -47,6 +49,13 @@ const viewMap: Record<string, ComponentType> = {
     () =>
       import("../../modules/trading/pages/closed-positions-page").then((m) => ({
         default: m.ClosedPositionsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "comms-history": dynamic(
+    () =>
+      import("../../modules/account/pages/comms-history-page").then((m) => ({
+        default: m.CommsHistoryPage,
       })),
     { loading: ViewSkeleton },
   ),
@@ -71,6 +80,15 @@ export const traderRoutes: RouteDefinition[] = [
     icon: Archive,
     permission: "trader.self",
     module: "trading",
+  },
+  // R3-04 — trader-side mirror of the message archive (self-scoped)
+  {
+    path: "comms-history",
+    viewId: "comms-history",
+    label: "Communication History",
+    icon: Mail,
+    permission: "trader.self",
+    module: "marketing",
   },
 ];
 
@@ -99,6 +117,15 @@ export const traderNavigation: NavigationItem[] = [
     label: "My Closed Positions",
     href: "/closed-positions",
     icon: Archive,
+    permission: "trader.self",
+    application: ["trader"],
+  },
+  // R3-04 — communication history is self-scoped (trader.self reuse)
+  {
+    id: "nav-comms-history",
+    label: "Communication History",
+    href: "/comms-history",
+    icon: Mail,
     permission: "trader.self",
     application: ["trader"],
   },
