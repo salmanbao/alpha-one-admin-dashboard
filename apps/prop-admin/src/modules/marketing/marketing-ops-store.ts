@@ -4,17 +4,19 @@
  */
 
 export interface BounceEvent {
-  id: string; ts: string; email: string; campaignId?: string; reason: "hard" | "soft" | "block" | "complaint"; severity: "high"|"med"|"low"; provider: string; suppressed: boolean; resolved: boolean;
+  id: string; ts: string; email: string; campaignId?: string; reason: "hard" | "soft" | "block" | "complaint"; reasonCode?: string; severity: "high"|"med"|"low"; provider: string; suppressed: boolean; resolved: boolean; notes?: string[];
 }
 let BOUNCES: BounceEvent[] = [
-  { id:"b1", ts:new Date(Date.now()-2*3600000).toISOString(), email:"bo***@mailinator.com", campaignId:"cmp-payout", reason:"hard", severity:"high", provider:"SendGrid", suppressed:true, resolved:false },
-  { id:"b2", ts:new Date(Date.now()-5*3600000).toISOString(), email:"cl***@gmail.com", campaignId:"cmp-winback", reason:"complaint", severity:"high", provider:"SendGrid", suppressed:true, resolved:false },
-  { id:"b3", ts:new Date(Date.now()-12*3600000).toISOString(), email:"te***@yahoo.com", campaignId:"cmp-payout", reason:"soft", severity:"med", provider:"SendGrid", suppressed:false, resolved:false },
-  { id:"b4", ts:new Date(Date.now()-26*3600000).toISOString(), email:"ab***@outlook.com", reason:"block", severity:"high", provider:"Twilio", suppressed:true, resolved:false },
+  { id:"b1", ts:new Date(Date.now()-2*3600000).toISOString(), email:"bo***@mailinator.com", campaignId:"cmp-payout", reason:"hard", reasonCode:"550-user-unknown", severity:"high", provider:"SendGrid", suppressed:true, resolved:false, notes:["Auto-suppression rule: hard bounce"] },
+  { id:"b2", ts:new Date(Date.now()-5*3600000).toISOString(), email:"cl***@gmail.com", campaignId:"cmp-winback", reason:"complaint", reasonCode:"FBL-abuse", severity:"high", provider:"SendGrid", suppressed:true, resolved:false, notes:["Complaint auto-suppressed"] },
+  { id:"b3", ts:new Date(Date.now()-12*3600000).toISOString(), email:"te***@yahoo.com", campaignId:"cmp-payout", reason:"soft", reasonCode:"421-temp-fail", severity:"med", provider:"SendGrid", suppressed:false, resolved:false },
+  { id:"b4", ts:new Date(Date.now()-26*3600000).toISOString(), email:"ab***@outlook.com", reason:"block", reasonCode:"policy-reputation", severity:"high", provider:"Twilio", suppressed:true, resolved:false },
 ];
 export function listBounces(){ return BOUNCES; }
-export function suppressBounce(id:string, reason:string){ BOUNCES = BOUNCES.map(b=>b.id===id?{...b,suppressed:true,resolved:true}:b); return true; }
-export function unsuppressBounce(id:string, reason:string){ BOUNCES = BOUNCES.map(b=>b.id===id?{...b,suppressed:false}:b); return true; }
+export function suppressBounce(id:string, reason:string){ BOUNCES = BOUNCES.map(b=>b.id===id?{...b,suppressed:true,resolved:true,notes:[...(b.notes||[]),`Suppressed: ${reason}`]}:b); return true; }
+export function unsuppressBounce(id:string, reason:string){ BOUNCES = BOUNCES.map(b=>b.id===id?{...b,suppressed:false,notes:[...(b.notes||[]),`Unsuppressed: ${reason}`]}:b); return true; }
+export function bulkSuppress(ids:string[], reason:string){ ids.forEach(id=>suppressBounce(id,reason)); }
+export function bulkUnsuppress(ids:string[], reason:string){ ids.forEach(id=>unsuppressBounce(id,reason)); }
 
 export type ApprovalState = "draft"|"in_review"|"approved"|"rejected"|"scheduled";
 export interface ContentSnapshot { id:string; at:string; by:string; subject?:string; preheader?:string; body:string; segment:string; channel:string; }
@@ -51,13 +53,16 @@ export function updateABTest(id:string, patch: Partial<ABTest>){ AB = AB.map(a=>
 export function addABVariant(id:string, v: ABVariant){ AB = AB.map(a=>a.id===id && a.variants.length<4?{...a,variants:[...a.variants,v]}:a); }
 export function removeABVariant(testId:string, variantId:string){ AB = AB.map(a=>a.id===testId && a.variants.length>2?{...a,variants:a.variants.filter(v=>v.id!==variantId)}:a); }
 
-export interface DSR { id:string; contact:string; type:"export"|"erasure"|"objection"; status:"new"|"verifying"|"in_progress"|"done"|"rejected"; slaDue:string; filed:string; assignee?:string; actions:string[] }
+export interface DSR { id:string; contact:string; type:"export"|"erasure"|"objection"; status:"new"|"verifying"|"in_progress"|"done"|"rejected"; slaDue:string; filed:string; assignee?:string; actions:string[]; rejectReason?:string; evidence?:string[] }
 let DSR_LIST: DSR[] = [
-  { id:"dsr1", contact:"le***@scam.net", type:"erasure", status:"verifying", slaDue:new Date(Date.now()+18*3600000).toISOString(), filed:new Date(Date.now()-6*3600000).toISOString(), actions:["Identity verification requested"] },
-  { id:"dsr2", contact:"us***@example.com", type:"export", status:"new", slaDue:new Date(Date.now()+36*3600000).toISOString(), filed:new Date(Date.now()-2*3600000).toISOString(), actions:[] },
+  { id:"dsr1", contact:"le***@scam.net", type:"erasure", status:"verifying", slaDue:new Date(Date.now()+18*3600000).toISOString(), filed:new Date(Date.now()-6*3600000).toISOString(), actions:["Identity verification requested"], evidence:["Request via email"] },
+  { id:"dsr2", contact:"us***@example.com", type:"export", status:"new", slaDue:new Date(Date.now()+36*3600000).toISOString(), filed:new Date(Date.now()-2*3600000).toISOString(), actions:[], evidence:["Portal request"] },
 ];
 export function listDSR(){ return DSR_LIST; }
-export function advanceDSR(id:string, action:string){ DSR_LIST = DSR_LIST.map(d=>d.id===id?{...d,status:d.status==="new"?"verifying":d.status==="verifying"?"in_progress":d.status,actions:[...d.actions,action]}:d); }
+export function advanceDSR(id:string, action:string){ DSR_LIST = DSR_LIST.map(d=>d.id===id?{...d,status:d.status==="new"?"verifying":d.status==="verifying"?"in_progress":d.status==="in_progress"?"done":d.status,actions:[...d.actions,action]}:d); }
+export function verifyDSR(id:string, note:string){ DSR_LIST = DSR_LIST.map(d=>d.id===id?{...d,status:"in_progress",actions:[...d.actions,`Identity verified: ${note}`]}:d); }
+export function fulfillDSR(id:string, note:string){ DSR_LIST = DSR_LIST.map(d=>d.id===id?{...d,status:"done",actions:[...d.actions,`Fulfilled: ${note}`]}:d); }
+export function rejectDSR(id:string, reason:string){ DSR_LIST = DSR_LIST.map(d=>d.id===id?{...d,status:"rejected",rejectReason:reason,actions:[...d.actions,`Rejected: ${reason}`]}:d); }
 
 export interface VaultEntry { id:string; name:string; provider:string; kind:"api_key"|"oauth"|"cert"|"webhook_secret"; status:"active"|"rotating"|"revoked"|"scheduled"; masked:string; rotatedAt:string; nextRotation?:string; schedule:string; accessLog:Array<{ts:string;actor:string;action:string}>; boundTo:string[]; usageMap:Array<{system:string;ref:string}>; breakGlass:boolean }
 let VAULT: VaultEntry[] = [
