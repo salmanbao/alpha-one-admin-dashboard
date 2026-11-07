@@ -2,42 +2,68 @@
 
 /**
  * In-App Inbox — upgraded per M8 spec Section 12.3
+ * (View ID /inbox — the notification-center route upgraded into the
+ * In-app channel endpoint referenced across M2 and M4).
  *
- * Toolbar: Category filter chips (All, Payouts, Challenges, Trading, Marketing, Support);
- * read-state filter (All, Unread); search; Mark all read; settings gear linking to 12.2.
- * List pane (left): Messages: unread dot, sender avatar (firm logo or system), subject line,
- * snippet, category chip, relative time; selected state highlight; virtualized list.
- * Reading pane (right): Full message body, timestamp, category, action buttons per message
- * type (View payout → payout-detail, Review challenge → challenge-detail, Open promo → 12.4),
- * Mark unread, Delete (soft, 90-day retention note).
- * Empty reading pane: Selection prompt with the firm brand mark.
+ * Layout regions (Table 148):
+ * - Toolbar: category filter chips (All, Payouts, Challenges, Trading,
+ *   Marketing, Support), read-state filter (All / Unread), search,
+ *   Mark all read, settings gear linking to /notification-preferences
+ *   (spec 12.2).
+ * - List pane (left): unread dot, sender avatar, subject line, snippet,
+ *   category chip, relative time, selected-state highlight.
+ * - Reading pane (right): full message body with brand styling, timestamp,
+ *   category, per-message-type action buttons (View payout → /payouts,
+ *   Review challenge → /my-challenges, Open promo → /promos — unknown types
+ *   render without actions), Mark unread, and Delete (soft, 90-day
+ *   retention note).
+ * - Empty reading pane: selection prompt with the firm brand mark.
  *
- * Interactions:
- * - Keyboard: up/down navigates the list, Enter opens, Escape returns focus to the list.
- * - Action buttons are per-message-type; unknown types render without actions rather than broken buttons.
+ * Interactions (Table 149):
+ * - Keyboard: up/down navigates the list, Enter opens the message,
+ *   Escape returns focus to the list.
+ * - Mark all read clears every unread dot without touching the selected
+ *   message (Table 150).
  *
- * States:
- * - Empty: "You are all caught up" with a browse-challenges suggestion card.
- * - Loading: List skeletons with a neutral reading pane.
- * - Error: Message body load failure renders an error block in the reading pane with retry; the list stays usable.
+ * States (Table 149): empty inbox shows "You are all caught up" with a
+ * browse-challenges suggestion; list skeletons with a neutral reading pane
+ * while loading; a message body load failure renders a retryable error
+ * block in the reading pane while the list stays usable.
+ *
+ * Data shown: message metadata and bodies, read state, categories,
+ * deep-link actions, retention policy. All data is local dummy data.
  */
-import { useState, useMemo } from "react";
-import { cn } from "@pfaas/ui";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { Skeleton, cn } from "@pfaas/ui";
 import {
   TerraBadge,
-  TerraCard,
   TerraPageHeader,
-  TerraSectionTitle,
   type TerraTone,
 } from "@/components/terra/terra-ui";
-import { useToast } from "@/hooks/use-toast";
+import { terraTenant } from "@/lib/fixtures/terra-fixtures";
+import { toast } from "@/hooks/use-toast";
 import {
-  Shield,
-  Clock,
-  X,
-  ArrowRight,
+  Activity,
   AlertCircle,
+  ArrowRight,
+  Banknote,
+  Check,
+  CheckCheck,
+  Gift,
+  Inbox,
+  LifeBuoy,
+  Loader2,
+  Search,
+  Settings,
+  Target,
+  Trash2,
+  Trophy,
 } from "lucide-react";
+
+/* ------------------------------------------------------------------ */
+/* Model + dummy data                                                  */
+/* ------------------------------------------------------------------ */
 
 const categories = ["All", "Payouts", "Challenges", "Trading", "Marketing", "Support"] as const;
 const readFilters = ["All", "Unread"] as const;
@@ -45,130 +71,407 @@ const readFilters = ["All", "Unread"] as const;
 type Category = (typeof categories)[number];
 type ReadFilter = (typeof readFilters)[number];
 
+/** Deep-link action type — only known message types get buttons; anything
+ *  else renders without actions rather than a broken button. */
+type ActionType = "payout" | "challenge" | "promo";
+
 interface Message {
   id: string;
   subject: string;
   body: string;
   category: Category;
   sender: string;
-  avatar: string;
-  at: string; // ISO date
-  unread: boolean;
-  action?: { label: string; href: string; color: TerraTone };
+  at: string; // ISO
+  read: boolean;
+  actionType?: ActionType;
+  /** Simulated body-load failure for one message (Table 149 error row). */
+  bodyError?: boolean;
 }
+
+const actionFor: Record<
+  ActionType,
+  { label: string; href: string; className: string; icon: React.ReactNode }
+> = {
+  payout: {
+    label: "View payout",
+    href: "/payouts",
+    className: "bg-primary text-on-primary hover:bg-primary/90",
+    icon: <Banknote className="h-4 w-4" />,
+  },
+  challenge: {
+    label: "Review challenge",
+    href: "/my-challenges",
+    className: "bg-primary text-on-primary hover:bg-primary/90",
+    icon: <Target className="h-4 w-4" />,
+  },
+  promo: {
+    label: "Open promo",
+    href: "/promos",
+    className: "bg-tertiary text-on-tertiary hover:bg-tertiary/90",
+    icon: <Gift className="h-4 w-4" />,
+  },
+};
+
+const isoHoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
 
 const demoMessages: Message[] = [
   {
     id: "msg-1",
-    subject: "Challenge passed — funded account ready",
-    body: "Congratulations! You've completed all phases of your Terra Pro $100K challenge. Your funded account is ready to trade. Review your challenge details to proceed.",
-    category: "Challenges",
-    sender: "Challenge Team",
-    avatar: "🎯",
-    at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    unread: true,
-    action: { label: "Review challenge", href: "/challenge-detail", color: "primary" },
+    subject: "Payout approved — funds on the way",
+    body: "Your payout request PO-2187 for $4,850.00 has been approved and is being processed.\n\nFunds will arrive within 1–2 business days to the withdrawal method ending ••4417. No further action is needed — we'll notify you again once the transfer settles.\n\nThank you for trading with TerraTrader.",
+    category: "Payouts",
+    sender: "Payouts Team",
+    at: isoHoursAgo(2),
+    read: false,
+    actionType: "payout",
   },
   {
     id: "msg-2",
-    subject: "Payout approved — funds on the way",
-    body: "Your payout request PO-2187 for $4,850.00 has been approved and is being processed. Funds will arrive within 1–2 business days.",
-    category: "Payouts",
-    sender: "Payouts Team",
-    avatar: "💸",
-    at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    unread: true,
-    action: { label: "View payout", href: "/payout-detail", color: "success" },
+    subject: "Challenge passed — funded account ready",
+    body: "Congratulations! You've completed every phase of the Terra Pro $100K challenge.\n\nYour funded account is ready to trade with the standard 5% daily loss limit. Review your challenge details to activate it and schedule your first payout cycle.",
+    category: "Challenges",
+    sender: "Challenge Team",
+    at: isoHoursAgo(6),
+    read: false,
+    actionType: "challenge",
   },
   {
     id: "msg-3",
-    subject: "Risk alert: daily loss limit approaching",
-    body: "Your daily loss is approaching the 5% limit on your Terra Flash $25K account. Reduce position sizes or pause trading to avoid a breach.",
-    category: "Trading",
-    sender: "Risk Team",
-    avatar: "⚠️",
-    at: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-    unread: false,
-    action: { label: "Open risk dashboard", href: "/risk-dashboard", color: "error" },
+    subject: "New campaign offer: WELCOME25 — 25% off your next challenge",
+    body: "You've been selected for the WELCOME25 campaign.\n\nUse the code at checkout for 25% off any challenge fee of $25K and above. The offer is live in your Promo Wallet and valid until December 31, 2026.\n\nOpen the promo wallet to reveal your code and check eligibility.",
+    category: "Marketing",
+    sender: "Marketing Team",
+    at: isoHoursAgo(20),
+    read: false,
+    actionType: "promo",
   },
   {
     id: "msg-4",
-    subject: "New promo: WELCOME25 — 25% off your next challenge",
-    body: "Use code WELCOME25 at checkout for 25% off your next challenge purchase. Offer valid until December 31, 2026.",
-    category: "Marketing",
-    sender: "Marketing Team",
-    avatar: "🎁",
-    at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    unread: true,
-    action: { label: "Open promo", href: "/promos", color: "tertiary" },
+    subject: "Risk alert: daily loss limit approaching",
+    body: "Your daily loss is approaching the 5% limit on your Terra Flash $25K account.\n\nReduce position sizes or pause trading to avoid a breach. Breaches are permanent for the account, so act before the limit is hit.",
+    category: "Trading",
+    sender: "Risk Team",
+    at: isoHoursAgo(29),
+    read: true,
   },
   {
     id: "msg-5",
-    subject: "System maintenance scheduled",
-    body: "TerraMarkets-Live02 will be undergoing scheduled maintenance on Sunday 02:00 UTC for approximately 30 minutes. Open positions are unaffected.",
+    subject: "Scheduled maintenance — Sunday 02:00 UTC",
+    body: "TerraMarkets-Live02 will undergo scheduled maintenance on Sunday at 02:00 UTC for approximately 30 minutes.\n\nOpen positions are unaffected. The web terminal will show a maintenance banner during the window.",
     category: "Support",
     sender: "System",
-    avatar: "🛠️",
-    at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    unread: false,
+    at: isoHoursAgo(50),
+    read: true,
+    bodyError: true,
+  },
+  {
+    id: "msg-6",
+    subject: "Deposit received — $5,000 credited",
+    body: "Your deposit of $5,000.00 has been credited to wallet balance.\n\nPromo eligibility has been re-evaluated against your active offers. Any conditions you were missing may now be unlocked.",
+    category: "Payouts",
+    sender: "Payments Team",
+    at: isoHoursAgo(74),
+    read: true,
+  },
+  {
+    id: "msg-7",
+    subject: "Ticket #4412 replied — VPN verification question",
+    body: "A support agent replied to your ticket about trading over a VPN.\n\nShort answer: yes, from an allowed region, as long as the session country matches your KYC profile. Open the ticket to read the full reply.",
+    category: "Support",
+    sender: "Support Desk",
+    at: isoHoursAgo(96),
+    read: true,
+  },
+  {
+    id: "msg-8",
+    subject: "Leaderboard: you're #14 this week",
+    body: "You're ranked 14th on the weekly leaderboard with a +6.2% return.\n\nThe top 10 finish the week with a bonus promo code. Keep your risk profile steady — a single breach resets the run.",
+    category: "Marketing",
+    sender: "Community Team",
+    at: isoHoursAgo(120),
+    read: true,
   },
 ];
 
+const categoryTone: Record<Category, TerraTone> = {
+  All: "neutral",
+  Payouts: "success",
+  Challenges: "primary",
+  Trading: "tertiary",
+  Marketing: "secondary",
+  Support: "neutral",
+};
+
+const categoryIcon: Record<Category, React.ReactNode> = {
+  All: <Inbox className="h-4 w-4" />,
+  Payouts: <Banknote className="h-4 w-4" />,
+  Challenges: <Target className="h-4 w-4" />,
+  Trading: <Activity className="h-4 w-4" />,
+  Marketing: <Gift className="h-4 w-4" />,
+  Support: <LifeBuoy className="h-4 w-4" />,
+};
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60_000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return "Yesterday";
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function fullTimestamp(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
+
 export function NotificationCenterPage() {
-  const { toast } = useToast();
-  const [mode, setMode] = useState<"inbox" | "history">("inbox");
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Category>("All");
   const [readFilter, setReadFilter] = useState<ReadFilter>("All");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [readIds, setReadIds] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [readState, setReadState] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(demoMessages.map((m) => [m.id, m.read])),
+  );
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  const [recoveredIds, setRecoveredIds] = useState<string[]>([]);
+  const listRef = useRef<HTMLDivElement>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
 
-  const isUnread = (id: string) =>
-    demoMessages.find((m) => m.id === id)?.unread && !readIds.includes(id);
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 450);
+    return () => clearTimeout(t);
+  }, []);
 
-  const visible = useMemo(() => {
-    return demoMessages.filter((m) => {
-      if (filter !== "All" && m.category !== filter) return false;
-      if (readFilter === "Unread" && !isUnread(m.id)) return false;
-      if (search && !m.subject.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    });
-  }, [filter, readFilter, search]);
+  const isUnread = (m: Message) => !readState[m.id];
 
-  const unreadCount = demoMessages.filter((m) => isUnread(m.id)).length;
-  const selected = demoMessages.find((m) => m.id === selectedId) ?? null;
+  const visible = useMemo(
+    () =>
+      demoMessages.filter((m) => {
+        if (deletedIds.includes(m.id)) return false;
+        if (filter !== "All" && m.category !== filter) return false;
+        if (readFilter === "Unread" && readState[m.id]) return false;
+        if (search) {
+          const q = search.toLowerCase();
+          if (
+            !m.subject.toLowerCase().includes(q) &&
+            !m.body.toLowerCase().includes(q)
+          )
+            return false;
+        }
+        return true;
+      }),
+    [filter, readFilter, search, deletedIds, readState],
+  );
 
-  const handleMarkAllRead = () => {
-    setReadIds(demoMessages.map((m) => m.id));
-    toast({ title: "All messages marked as read" });
+  const remaining = demoMessages.filter((m) => !deletedIds.includes(m.id));
+  const unreadCount = remaining.filter(isUnread).length;
+  const selected =
+    selectedId && !deletedIds.includes(selectedId)
+      ? demoMessages.find((m) => m.id === selectedId) ?? null
+      : null;
+  const bodyFailed =
+    selected?.bodyError === true && !recoveredIds.includes(selected.id);
+
+  /* Keep the selected row visible while arrowing through the list. */
+  useEffect(() => {
+    if (!selectedId) return;
+    document
+      .getElementById(`inbox-item-${selectedId}`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [selectedId]);
+
+  const openMessage = (id: string) => {
+    setSelectedId(id);
+    setReadState((s) => (s[id] ? s : { ...s, [id]: true }));
   };
 
-  const handleMarkRead = (id: string) => {
-    setReadIds((ids) => [...ids, id]);
+  const handleMarkAllRead = () => {
+    setReadState(Object.fromEntries(demoMessages.map((m) => [m.id, true])));
+    toast({ title: "All messages marked as read" });
+    // Selection is untouched (Table 150) — no setSelectedId call here.
   };
 
   const handleMarkUnread = (id: string) => {
-    setReadIds((ids) => ids.filter((i) => i !== id));
+    setReadState((s) => ({ ...s, [id]: false }));
+    toast({ title: "Marked unread", description: "The unread dot is back in the list." });
   };
 
   const handleDelete = (id: string) => {
-    setReadIds((ids) => ids.filter((i) => i !== id));
-    toast({ title: "Message moved to soft-delete (90-day retention)" });
+    setDeletedIds((d) => [...d, id]);
+    if (selectedId === id) setSelectedId(null);
+    toast({
+      title: "Message deleted",
+      description: "Soft deleted — kept for 90 days before permanent removal.",
+    });
   };
 
-  const handleRetry = () => {
-    setError(null);
+  const handleRetryBody = () => {
+    if (!selected) return;
+    setRecoveredIds((r) => [...r, selected.id]);
+    toast({ title: "Message loaded" });
   };
 
-  const categoryTone: Record<Category, TerraTone> = {
-    All: "neutral",
-    Payouts: "success",
-    Challenges: "primary",
-    Trading: "error",
-    Marketing: "tertiary",
-    Support: "secondary",
+  /* Keyboard contract (Table 149): up/down moves, Enter opens, Escape
+   * returns focus to the list. */
+  const visibleIds = visible.map((m) => m.id);
+
+  const handleListKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Enter") return;
+    if (visibleIds.length === 0) return;
+    e.preventDefault();
+    if (e.key === "Enter") {
+      if (selectedId) {
+        paneRef.current?.focus();
+      } else {
+        openMessage(visibleIds[0]);
+      }
+      return;
+    }
+    const idx = selectedId ? visibleIds.indexOf(selectedId) : -1;
+    let next: number;
+    if (idx === -1) next = e.key === "ArrowDown" ? 0 : visibleIds.length - 1;
+    else
+      next = Math.min(
+        visibleIds.length - 1,
+        Math.max(0, idx + (e.key === "ArrowDown" ? 1 : -1)),
+      );
+    openMessage(visibleIds[next]);
   };
+
+  const handlePaneKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      listRef.current?.focus();
+    }
+  };
+
+  const clearFilters = () => {
+    setFilter("All");
+    setReadFilter("All");
+    setSearch("");
+  };
+
+  /* ---- Render ---------------------------------------------------- */
+
+  const toolbar = (
+    <div className="flex flex-wrap items-center gap-2">
+      {/* Category chips */}
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Category filter">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            aria-pressed={filter === cat}
+            onClick={() => setFilter(cat)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all",
+              filter === cat
+                ? "bg-primary text-on-primary shadow-sm"
+                : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
+            )}
+          >
+            {categoryIcon[cat]}
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Read-state filter */}
+      <div className="flex items-center gap-1.5" role="group" aria-label="Read state filter">
+        {readFilters.map((rf) => (
+          <button
+            key={rf}
+            type="button"
+            aria-pressed={readFilter === rf}
+            onClick={() => setReadFilter(rf)}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs font-bold transition-all",
+              readFilter === rf
+                ? "bg-surface-container-high text-on-surface shadow-sm"
+                : "bg-surface-container text-on-surface-variant hover:text-on-surface",
+            )}
+          >
+            {rf === "Unread" && unreadCount > 0 ? `Unread (${unreadCount})` : rf}
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative min-w-44 flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-on-surface-variant" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search messages…"
+          aria-label="Search messages"
+          className="w-full rounded-lg border border-outline-variant/50 bg-surface-container-lowest py-2 pl-8 pr-3 text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40"
+        />
+      </div>
+
+      {/* Mark all read + settings gear (links to 12.2) */}
+      <button
+        type="button"
+        onClick={handleMarkAllRead}
+        disabled={unreadCount === 0}
+        className="flex items-center gap-1.5 rounded-lg border border-outline-variant/60 bg-surface-container-lowest px-3 py-1.5 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <CheckCheck className="h-3.5 w-3.5" />
+        Mark all read
+      </button>
+      <Link
+        href="/notification-preferences"
+        aria-label="Notification preferences"
+        title="Notification preferences"
+        className="rounded-lg border border-outline-variant/60 bg-surface-container-lowest p-2 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
+      >
+        <Settings className="h-4 w-4" />
+      </Link>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <TerraPageHeader
+          title="In-App Inbox"
+          description="Campaign, lifecycle and transactional messages from your firm"
+        />
+        {toolbar}
+        <div className="flex flex-col gap-4 lg:flex-row">
+          <div className="flex-1 space-y-2" aria-hidden="true">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 rounded-xl" />
+            ))}
+          </div>
+          <div className="lg:w-[45%]" aria-hidden="true">
+            <Skeleton className="h-[420px] rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const showFullEmpty = remaining.length === 0;
 
   return (
     <div className="space-y-6">
@@ -176,259 +479,307 @@ export function NotificationCenterPage() {
         title="In-App Inbox"
         description="Campaign, lifecycle and transactional messages from your firm"
         actions={
-          <>
-            <button
-              type="button"
-              onClick={() => setMode("history")}
-              className="text-sm text-on-surface-variant hover:text-on-surface underline"
-            >
-              Communication History
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("inbox")}
-              className={cn("text-sm font-semibold", mode === "inbox" ? "text-primary" : "text-on-surface-variant")}
-            >
-              In-App Inbox
-            </button>
-            {mode === "inbox" && (
-              <>
-                {unreadCount > 0 && (
-                  <TerraBadge tone="error">{unreadCount} unread</TerraBadge>
-                )}
-                <button
-                  type="button"
-                  onClick={handleMarkAllRead}
-                  disabled={unreadCount === 0}
-                  className="rounded-xl bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Mark all read
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toast({ title: "Settings", description: "Opening notification preferences →" })}
-                  className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container transition-colors"
-                  title="Notification preferences"
-                >
-                  <Shield className="h-4 w-4" />
-                </button>
-              </>
-            )}
-          </>
+          unreadCount > 0 ? (
+            <TerraBadge tone="error" dot pulse>
+              {unreadCount} unread
+            </TerraBadge>
+          ) : (
+            <TerraBadge tone="success">
+              <Check className="h-3 w-3" /> All read
+            </TerraBadge>
+          )
         }
       />
 
-      <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-200px)] min-h-[500px]">
-        {/* Left pane: message list */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          {/* Toolbar filters */}
-          <div className="flex items-start gap-1 mb-4">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setFilter(cat)}
-                className={cn(
-                  "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all",
-                  filter === cat
-                    ? "bg-primary font-bold text-on-primary shadow-sm"
-                    : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
-                )}
-              >
-                {cat}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setReadFilter(readFilter === "All" ? "Unread" : "All")}
-              className={cn(
-                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all",
-                readFilter === "Unread"
-                  ? "bg-primary font-bold text-on-primary shadow-sm"
-                  : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
-              )}
+      {toolbar}
+
+      {showFullEmpty ? (
+        /* ---- Empty inbox: "You are all caught up" + browse-challenges
+                suggestion card (Table 149). ------------------------ */
+        <div className="space-y-4">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-outline-variant bg-surface-container-low/50 px-6 py-14 text-center">
+            <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-fixed text-on-primary-fixed-variant">
+              <Check className="h-6 w-6" />
+            </span>
+            <p className="font-headline text-xl font-bold text-on-surface">
+              You are all caught up
+            </p>
+            <p className="mt-1 max-w-sm text-sm text-on-surface-variant">
+              Every message has been read. New payout, challenge and campaign updates
+              will land here.
+            </p>
+          </div>
+
+          {/* Browse-challenges suggestion card */}
+          <div className="flex flex-col gap-3 rounded-xl border border-outline-variant/50 bg-surface-container-low p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-tertiary-container text-on-tertiary-container">
+                <Trophy className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-bold text-on-surface">
+                  Looking for your next challenge?
+                </p>
+                <p className="text-xs text-on-surface-variant">
+                  While the inbox is quiet, the marketplace is a good place to be.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/marketplace"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-on-primary transition-colors hover:bg-primary/90"
             >
-              {readFilter}
-            </button>
-            <div className="relative flex-1">
-              <input
-                type="text"
-                placeholder="Search messages…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg px-3 py-1.5 text-sm text-on-surface bg-surface-container border border-outline-variant/40 focus:outline-none focus:border-primary"
-              />
+              Browse challenges
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4 lg:flex-row">
+          {/* ------------------------------ Left pane: list */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div
+              ref={listRef}
+              role="listbox"
+              aria-label="Messages"
+              tabIndex={0}
+              onKeyDown={handleListKeyDown}
+              className="flex-1 space-y-1.5 overflow-y-auto rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              {visible.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-outline-variant p-8 text-center">
+                  <Inbox className="mb-3 h-10 w-10 text-on-surface-variant/40" />
+                  <p className="font-headline text-lg font-semibold text-on-surface">
+                    No messages match
+                  </p>
+                  <p className="mt-1 text-sm text-on-surface-variant">
+                    Try a different category, read-state or search term.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-4 rounded-lg bg-surface-container px-4 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-high"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              ) : (
+                visible.map((m) => {
+                  const unread = isUnread(m);
+                  const active = selectedId === m.id;
+                  return (
+                    <div
+                      key={m.id}
+                      id={`inbox-item-${m.id}`}
+                      role="option"
+                      aria-selected={active}
+                      onClick={() => {
+                        openMessage(m.id);
+                        listRef.current?.focus();
+                      }}
+                      className={cn(
+                        "flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-all",
+                        active
+                          ? "border-primary/40 bg-primary/10"
+                          : "border-transparent hover:bg-surface-container-low",
+                        unread && !active && "bg-surface-container-low/70",
+                      )}
+                    >
+                      {/* Unread dot + sender avatar */}
+                      <div className="flex w-5 shrink-0 flex-col items-center gap-2 pt-0.5">
+                        <span
+                          className={cn(
+                            "h-2 w-2 rounded-full",
+                            unread ? "bg-primary" : "bg-transparent",
+                          )}
+                          aria-hidden="true"
+                        />
+                        <span
+                          className={cn(
+                            "flex h-9 w-9 items-center justify-center rounded-lg",
+                            unread
+                              ? "bg-primary-fixed text-on-primary-fixed-variant"
+                              : "bg-surface-container text-on-surface-variant",
+                          )}
+                        >
+                          {categoryIcon[m.category]}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p
+                            className={cn(
+                              "truncate text-sm",
+                              unread ? "font-bold text-on-surface" : "font-semibold text-on-surface/90",
+                            )}
+                          >
+                            {m.subject}
+                          </p>
+                          <span className="shrink-0 text-[10px] text-on-surface-variant">
+                            {timeAgo(m.at)}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 line-clamp-2 text-xs text-on-surface-variant">
+                          {m.body.split("\n")[0]}
+                        </p>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <TerraBadge tone={categoryTone[m.category]} className="text-[9px]">
+                            {m.category}
+                          </TerraBadge>
+                          <span className="truncate text-[10px] text-on-surface-variant">
+                            {m.sender}
+                          </span>
+                          {unread && (
+                            <span className="ml-auto shrink-0 text-[10px] font-bold text-primary">
+                              Unread
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
-          {/* Message list */}
-          <div className="flex-1 overflow-y-auto space-y-1">
-            {visible.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                <X className="h-12 w-12 text-on-surface-variant/30 mb-4" />
-                <p className="font-headline text-lg font-semibold text-on-surface mb-2">
-                  No messages
+          {/* ------------------------------ Right pane: reading pane */}
+          <div
+            ref={paneRef}
+            tabIndex={-1}
+            onKeyDown={handlePaneKeyDown}
+            className="flex min-w-0 flex-col rounded-xl border border-outline-variant/50 bg-surface-container-lowest outline-none lg:w-[45%]"
+          >
+            {!selected ? (
+              /* Empty reading pane — firm brand mark (Table 148) */
+              <div className="flex flex-1 flex-col items-center justify-center p-10 text-center">
+                <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-fixed font-headline text-2xl font-bold text-on-primary-fixed-variant">
+                  {terraTenant.branding.initials}
+                </span>
+                <p className="mt-4 font-headline text-lg font-bold text-on-surface">
+                  {terraTenant.branding.name}
                 </p>
-                <p className="text-sm text-on-surface-variant">
-                  Try adjusting your filters or search term.
+                <p className="mt-1 text-sm text-on-surface-variant">
+                  Select a message to read it here.
+                </p>
+                <p className="mt-3 text-[11px] text-on-surface-variant/80">
+                  Keyboard: ↑ / ↓ to move · Enter to open · Esc to return to the list
                 </p>
               </div>
             ) : (
-              visible.map((m) => (
-                <div
-                  key={m.id}
-                  onClick={() => setSelectedId(m.id)}
-                  className={cn(
-                    "group cursor-pointer flex items-start gap-3 rounded-xl p-3 transition-all",
-                    selectedId === m.id ? "bg-primary/10 border border-primary/30" : "hover:bg-surface-container-low",
-                    isUnread(m.id) ? "border-l-4 border-primary" : "border-transparent",
-                  )}
-                >
-                  <div className="flex flex-col items-center gap-1.5">
-                    <span className="text-xl">{m.avatar}</span>
-                    {isUnread(m.id) && (
-                      <div className="w-1.5 h-1.5 bg-primary rounded-full" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-on-surface truncate">
-                        {m.subject}
-                      </p>
-                      <span className="text-[10px] text-on-surface-variant">
-                        {new Date(m.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <TerraBadge tone={categoryTone[m.category]} className="text-[10px]">
-                        {m.category}
+              <div className="flex-1 overflow-y-auto p-6">
+                {/* Header: category, subject, sender, timestamp, actions */}
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <TerraBadge tone={categoryTone[selected.category]}>
+                        {selected.category}
                       </TerraBadge>
-                      <span className="text-[10px] text-on-surface-variant">
-                        {m.sender}
-                      </span>
+                      {isUnread(selected) && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-primary">
+                          Unread
+                        </span>
+                      )}
                     </div>
+                    <h2 className="mt-2 font-headline text-xl font-bold text-on-surface">
+                      {selected.subject}
+                    </h2>
+                    <p className="mt-1 text-xs text-on-surface-variant">
+                      {selected.sender} · {fullTimestamp(selected.at)}
+                    </p>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
 
-        {/* Right pane: reading pane */}
-        <div className="lg:w-[45%] min-w-0 flex flex-col border-l border-outline-variant/40">
-          {selected ? (
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">
-                    {selected.category}
-                  </p>
-                  <h2 className="font-headline text-xl font-bold text-on-surface mb-1">
-                    {selected.subject}
-                  </h2>
-                  <p className="text-sm text-on-surface-variant mb-1">
-                    {selected.sender} • {new Date(selected.at).toLocaleString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                  {isUnread(selected.id) && (
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => handleMarkUnread(selected.id)}
-                      className="flex items-center gap-1 text-xs font-medium text-primary underline"
+                      className="rounded-lg border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
                     >
-                      <Clock className="h-3 w-3" /> Mark unread
+                      Mark unread
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(selected.id)}
+                      aria-label="Delete message"
+                      title="Delete message (soft, 90-day retention)"
+                      className="rounded-lg border border-outline-variant/60 p-1.5 text-error transition-colors hover:bg-error-container/30"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(selected.id)}
-                  className="rounded-lg p-2 text-error hover:bg-error-container/10"
-                  title="Delete message"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
 
-              <div className="prose prose-sm max-w-none text-on-surface">
-                {selected.body.split("\n").map((para, i) => (
-                  <p key={i} className="mb-3 text-sm leading-relaxed">
-                    {para}
-                  </p>
-                ))}
-              </div>
-
-              <div>
-                {(() => {
-                  const action = selected?.action;
-                  if (!action) return null;
-                  return (
-                    <div className="flex items-center gap-2">
+                {/* Body (or retryable load error, Table 149) */}
+                <div className="mt-5">
+                  {bodyFailed ? (
+                    <div
+                      role="alert"
+                      className="rounded-xl border border-error/40 bg-error-container/25 p-5"
+                    >
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-error" />
+                        <p className="text-sm font-bold text-on-surface">
+                          Message body failed to load
+                        </p>
+                      </div>
+                      <p className="mt-1 text-xs text-on-surface-variant">
+                        The list stays usable — retry to load this message, or pick
+                        another one.
+                      </p>
                       <button
                         type="button"
-                        onClick={() =>
-                          toast({ title: action.label, description: `Opening ${action.href} →` })
-                        }
-                        className={cn(
-                          "rounded-lg px-4 py-2 text-sm font-semibold transition-colors",
-                          action.color === "primary"
-                            ? "bg-primary text-on-primary hover:bg-primary/90"
-                            : action.color === "success"
-                              ? "bg-success text-on-success hover:bg-success/90"
-                              : action.color === "error"
-                                ? "bg-error text-on-error hover:bg-error/90"
-                                : "bg-tertiary text-on-tertiary hover:bg-tertiary/90",
-                        )}
+                        onClick={handleRetryBody}
+                        className="mt-3 flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-bold text-on-primary hover:bg-primary/90"
                       >
-                        <ArrowRight className="h-4 w-4 mr-2" /> {action.label}
+                        <Loader2 className="h-3.5 w-3.5" />
+                        Retry
                       </button>
                     </div>
-                  );
-                })()}
+                  ) : (
+                    <div className="space-y-3 rounded-xl bg-surface-container-low/60 p-5">
+                      {selected.body.split("\n").filter(Boolean).map((para, i) => (
+                        <p key={i} className="text-sm leading-relaxed text-on-surface">
+                          {para}
+                        </p>
+                      ))}
+                      <p className="border-t border-outline-variant/40 pt-3 text-xs font-semibold text-on-surface-variant">
+                        {terraTenant.branding.name} · {terraTenant.branding.tagline}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Per-message-type actions — unknown types render none */}
+                {selected.actionType && !bodyFailed && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    {(() => {
+                      const a = actionFor[selected.actionType];
+                      return (
+                        <Link
+                          href={a.href}
+                          className={cn(
+                            "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors",
+                            a.className,
+                          )}
+                        >
+                          {a.icon}
+                          {a.label}
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                <p className="mt-5 text-[11px] text-on-surface-variant">
+                  Retention: deleted messages are soft-deleted and kept for 90 days
+                  before permanent removal.
+                </p>
               </div>
-
-              <p className="text-xs text-on-surface-variant mt-4">
-                Message retention: soft-deleted messages are kept for 90 days before permanent removal.
-              </p>
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
-              <Shield className="h-16 w-16 text-on-surface-variant/20 mb-4" />
-              <p className="font-headline text-lg font-semibold text-on-surface mb-2">
-                You are all caught up
-              </p>
-              <p className="text-sm text-on-surface-variant mb-6">
-                Select a message from the list to read its contents.
-              </p>
-              <button
-                type="button"
-                onClick={() => toast({ title: "Browse challenges", description: "Opening challenge marketplace →" })}
-                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
-              >
-                Browse challenges
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Error state */}
-      {error && (
-        <TerraCard className="p-4 border-error/30 bg-error-container/5">
-          <AlertCircle className="h-4 w-4 text-error mr-2" />
-          <span className="text-sm text-error">Message load failed. </span>
-          <button
-            type="button"
-            onClick={handleRetry}
-            className="text-xs font-semibold text-primary underline ml-2"
-          >
-            Retry
-          </button>
-        </TerraCard>
       )}
     </div>
   );
