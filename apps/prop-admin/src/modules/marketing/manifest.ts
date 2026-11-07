@@ -161,6 +161,7 @@ export const marketingModule: FrontendModule = {
       { id: "marketing.assets.manage", label: "Manage brand assets", description: "Asset library and brand kit (R2-04)." },
       { id: "compliance.archive.read", label: "Read message archive", description: "Search sent marketing messages (R2-08)." },
       { id: "compliance.archive.export", label: "Export message archive", description: "Export messages for regulators (R2-08)." },
+      { id: "compliance.archive.purge", label: "Purge message archive", description: "Run the retention purge job; legal hold is enforced by the job (R2-08)." },
       { id: "marketing.surveys.manage", label: "Manage surveys", description: "Survey lifecycle, builder and responses (R2-05)." },
       { id: "marketing.links.manage", label: "Manage tracking links", description: "Governed UTM/short links (R2-06)." },
       { id: "marketing.locales.manage", label: "Manage locale variants", description: "Locale variants and translation workflow (R3-03)." },
