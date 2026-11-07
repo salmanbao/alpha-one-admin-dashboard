@@ -3,7 +3,7 @@
  * Includes Breaches (spec section 7 — Breaches is a sub-area of Risk).
  */
 
-import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2, DollarSign, Copy, ArrowLeftRight, MapPin, CalendarClock, Settings2, Bell, Gauge } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Activity, AlertTriangle, TrendingDown, BarChart3, Radar, TrendingUp, Tag, Globe2, DollarSign, Copy, ArrowLeftRight, MapPin, CalendarClock, Settings2, Bell, Gauge, Landmark } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { RiskOverviewWidget, RiskDistributionWidget, BreachTrendWidget, OpenBreachesWidget } from "./widgets/risk-widgets";
 
@@ -41,6 +41,9 @@ const navigation: NavigationItem[] = [
       { id: "risk.unprofitable", label: "Unprofitable Countries", href: "risk-unprofitable-countries", icon: Globe2, permission: "risk.read", group: "Geographic & IP Risk" },
       { id: "risk.ip-addresses", label: "Account IP Addresses", href: "account-ip-addresses", icon: MapPin, permission: "risk.read", group: "Geographic & IP Risk" },
 
+      // ───────── AML & Compliance (R2-07) ─────────
+      { id: "risk.aml-alerts", label: "AML Monitoring", href: "aml-alerts", icon: Landmark, permission: ["compliance.aml.read", "risk.read"], group: "AML & Compliance" },
+
       // ───────── Rules & Alerts (M14) ─────────
       { id: "risk.rules-editor", label: "Rules Editor", href: "risk-rules-editor", icon: Settings2, permission: "risk.configure", group: "Rules & Alerts" },
       { id: "risk.alert-subscriptions", label: "Alert Subscriptions", href: "risk-alert-subscription", icon: Bell, permission: "risk.read", group: "Rules & Alerts" },
@@ -73,6 +76,9 @@ const routes: RouteDefinition[] = [
   { path: "inverse-trading-events", viewId: "inverse-trading-events", label: "Inverse Trading Events", permission: "risk.read", module: "risk" },
   { path: "account-ip-addresses", viewId: "account-ip-addresses", label: "Account IP Addresses", permission: "risk.read", module: "risk" },
   { path: "weekend-trades", viewId: "weekend-trades", label: "Weekend Trades", permission: "risk.read", module: "risk" },
+  // AML & Compliance (R2-07)
+  { path: "aml-alerts", viewId: "aml-alerts", label: "AML Monitoring", permission: ["compliance.aml.read", "risk.read"], module: "risk" },
+  { path: "aml-case", viewId: "aml-case", label: "AML Case Detail", permission: ["compliance.aml.read", "risk.read"], module: "risk" },
   // Rules & Alerts (M14)
   { path: "risk-rules-editor", viewId: "risk-rules-editor", label: "Risk Rules Editor", permission: "risk.configure", module: "risk" },
   { path: "risk-alert-subscription", viewId: "risk-alert-subscription", label: "Alert Subscriptions", permission: "risk.read", module: "risk" },
@@ -99,6 +105,9 @@ export const riskModule: FrontendModule = {
       { id: "risk.read", label: "View risk" },
       { id: "risk.configure", label: "Configure risk rules" },
       { id: "breach.read", label: "View breaches" },
+      { id: "compliance.aml.read", label: "View AML alerts/cases" },
+      { id: "compliance.aml.manage", label: "Manage AML investigations" },
+      { id: "compliance.aml.approve", label: "Approve AML dispositions / release holds" },
     ],
     icon: ShieldCheck,
     accentColor: "#b91c1c",
