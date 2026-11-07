@@ -38,6 +38,7 @@ import {
   Scale,
   Files,
   Megaphone,
+  Store,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -82,7 +83,9 @@ const navigation: NavigationItem[] = [
       { id: "settings.cert-issued", label: "Issued Certificates", href: "certificates-issued", icon: Award, permission: "settings.manage", group: "Certificates" },
 
       // ───────── Integrations ─────────
-      { id: "settings.webhooks", label: "Webhooks & Events", href: "webhooks", icon: Webhook, permission: "settings.manage", group: "Integrations" },
+      { id: "settings.marketplace", label: "Marketplace", href: "marketplace", icon: Store, permission: ["settings.marketplace.manage", "settings.manage"], group: "Integrations" },
+      { id: "settings.installed-apps", label: "Installed Apps", href: "installed-apps", icon: Package, permission: ["settings.marketplace.manage", "settings.manage"], group: "Integrations" },
+      { id: "settings.webhooks", label: "Webhooks & Events", href: "webhooks", icon: Webhook, permission: ["settings.webhooks.manage", "settings.manage"], group: "Integrations" },
 
       // ───────── System ─────────
       { id: "settings.general", label: "General", href: "settings?tab=general", icon: SettingsIcon, permission: "settings.manage", group: "System" },
@@ -126,7 +129,9 @@ const routes: RouteDefinition[] = [
   { path: "terms-policies", viewId: "terms-policies", label: "Terms & Policies", permission: "settings.manage", module: "settings" },
   { path: "content-management", viewId: "content-management", label: "Content Management", permission: "settings.manage", module: "settings" },
   { path: "system-health", viewId: "system-health", label: "System Health", permission: "settings.manage", module: "settings" },
-  { path: "webhooks", viewId: "webhooks", label: "Webhooks & Events", permission: "settings.manage", module: "settings" },
+  { path: "marketplace", viewId: "marketplace", label: "Marketplace", permission: ["settings.marketplace.manage", "settings.manage"], module: "settings" },
+  { path: "installed-apps", viewId: "installed-apps", label: "Installed Apps", permission: ["settings.marketplace.manage", "settings.manage"], module: "settings" },
+  { path: "webhooks", viewId: "webhooks", label: "Webhooks & Events", permission: ["settings.webhooks.manage", "settings.manage"], module: "settings" },
 ];
 
 export const settingsModule: FrontendModule = {

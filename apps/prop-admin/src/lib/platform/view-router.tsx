@@ -259,6 +259,9 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "audit-user-events-enhanced": dynamic(() => import("@/modules/audit/enhanced-user-events-page").then((m) => ({ default: m.EnhancedUserEventsPage })), { loading: ViewSkeleton }),
   "kyc-providers": dynamic(() => import("@/modules/settings/pages/kyc-providers-page").then((m) => ({ default: m.KycProvidersPage })), { loading: ViewSkeleton }),
   "system-health": dynamic(() => import("@/modules/settings/pages/system-health-page").then((m) => ({ default: m.SystemHealthPage })), { loading: ViewSkeleton }),
+  // M6 — Integration Marketplace & Webhooks 2.0 (spec §10)
+  marketplace: dynamic(() => import("@/modules/settings/pages/marketplace-page").then((m) => ({ default: m.MarketplacePage })), { loading: ViewSkeleton }),
+  "installed-apps": dynamic(() => import("@/modules/settings/pages/installed-apps-page").then((m) => ({ default: m.InstalledAppsPage })), { loading: ViewSkeleton }),
   webhooks: dynamic(() => import("@/modules/settings/pages/webhooks-page").then((m) => ({ default: m.WebhooksPage })), { loading: ViewSkeleton }),
   "content-management": dynamic(() => import("@/modules/settings/pages/content-management-page").then((m) => ({ default: m.ContentManagementPage })), { loading: ViewSkeleton }),
   /* stitch — screens wired from modules/stitch/pages */

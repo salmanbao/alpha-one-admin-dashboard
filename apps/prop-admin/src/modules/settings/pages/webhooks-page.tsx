@@ -1,712 +1,251 @@
 "use client";
 
 /**
- * Webhooks & Events page (M6 Event Bus — Admin Controls).
- *
- * Tenant-level webhook subscriptions: endpoint CRUD (URL, event set,
- * signing secret), delivery logs with retry/redeliver, and test sends.
- * Complements the checkout-scoped webhook log (checkout-webhook-log).
- *
- * Layout:
- *  - PageHeader with "Add Endpoint" primary action
- *  - KPI row: Endpoints, Deliveries 24h, Success Rate, Failing
- *  - Endpoint cards: URL, subscribed event chips, success rate bar,
- *    secret (masked + reveal + rotate), Test/Pause/Edit/Delete actions
- *  - Create/Edit endpoint Dialog (URL, description, event toggle chips)
- *  - Delivery log DataTable (event, endpoint, status code, duration,
- *    timestamp) with Retry on failures + "Redeliver last" toolbar
- *
- * Terra palette — emerald/amber/rose accents, no blue/indigo.
+ * M6.3 — Webhooks 2.0 (spec §10.3, upgraded in place).
+ * Event catalog browser, endpoints with signing-secret rotation,
+ * delivery logs with retry/bulk replay, and auto-pause protection.
+ * Terra palette retained. Dummy data only.
  */
 
 import { useMemo, useState } from "react";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
-import { StatusBadge } from "@/components/platform/status";
 import { DataTable, type Column } from "@/components/platform/data-table";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { StatusBadge } from "@/components/platform/status";
+import { EmptyState } from "@/components/platform/guards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Progress } from "@/components/ui/progress";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import {
-  Webhook,
-  Plus,
-  Send,
-  RefreshCw,
-  CheckCircle2,
-  AlertTriangle,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Pencil,
-  Trash2,
-  Pause,
-  Play,
-  Terminal,
-} from "lucide-react";
+import { relativeTime, absoluteTime } from "@/modules/integrations/format";
+import { recordAudit } from "@/lib/audit";
+import { Webhook, Plus, Send, RefreshCw, KeyRound, Eye, EyeOff, Pencil, Trash2, Pause, Play, Copy, AlertTriangle, BookOpen, RotateCcw } from "lucide-react";
 
-/* ------------------------------------------------------------------ */
-/* Types & mock data                                                   */
-/* ------------------------------------------------------------------ */
+type EpStatus = "active"|"paused"|"failing"|"autopaused";
+interface Delivery { id:string; ts:string; event:string; code:number; ms:number; attempt:number; replay?:boolean }
+interface Endpoint { id:string; url:string; description:string; events:string[]; status:EpStatus; success24h:number; rotatedAt:string; secret:string; graceUntil?:string; deliveries:Delivery[]; pausedSince?:string; queued?:number; lastError?:string }
 
-type EndpointStatus = "active" | "paused" | "failing";
+const CATALOG: Array<{ domain:string; events:Array<{name:string; desc:string; schema:string; subs:number}> }> = [
+  { domain:"payouts.*", events:[
+    {name:"payout.requested",desc:"Trader requests a withdrawal.",schema:"{ id, trader_id, amount, currency, method }",subs:2},
+    {name:"payout.approved",desc:"Finance approves the payout.",schema:"{ id, approved_by, paid_at?, amount }",subs:2},
+    {name:"payout.paid",desc:"Funds sent to the trader.",schema:"{ id, provider_ref, amount, currency }",subs:1},
+  ]},
+  { domain:"kyc.*", events:[
+    {name:"kyc.submitted",desc:"Trader submits verification documents.",schema:"{ trader_id, session_id, provider }",subs:1},
+    {name:"kyc.approved",desc:"Verification passed.",schema:"{ trader_id, session_id, level }",subs:2},
+    {name:"kyc.rejected",desc:"Verification failed.",schema:"{ trader_id, reason, retryable }",subs:1},
+  ]},
+  { domain:"challenges.*", events:[
+    {name:"challenge.passed",desc:"Trader passes evaluation/verification.",schema:"{ account_id, phase, trader_id }",subs:2},
+    {name:"challenge.breached",desc:"Risk rule breach closes the challenge.",schema:"{ account_id, rule, equity, trader_id }",subs:1},
+    {name:"challenge.funded",desc:"Account promoted to funded.",schema:"{ account_id, plan, trader_id }",subs:1},
+  ]},
+  { domain:"marketing.*", events:[
+    {name:"campaign.sent",desc:"Campaign dispatched to recipients.",schema:"{ campaign_id, channel, recipients, segment_id }",subs:1},
+    {name:"segment.updated",desc:"Segment membership recomputed.",schema:"{ segment_id, size, consent_coverage }",subs:0},
+    {name:"flow.enrolled",desc:"Contact enrolled in an automation flow.",schema:"{ flow_id, contact_id, trigger }",subs:1},
+  ]},
+  { domain:"trading.*", events:[
+    {name:"trade.opened",desc:"New position opened.",schema:"{ trade_id, account_id, symbol, side, lots }",subs:1},
+    {name:"trade.closed",desc:"Position closed with P/L.",schema:"{ trade_id, pnl, close_price, duration_s }",subs:1},
+    {name:"trade.copied",desc:"Copy-trade execution replicated.",schema:"{ trade_id, master_id, follower_id, symbol }",subs:0},
+  ]},
+];
+const ALL_EVENTS = CATALOG.flatMap((d) => d.events.map((e) => e.name));
 
-interface WebhookEndpoint {
-  id: string;
-  url: string;
-  description: string;
-  events: string[];
-  status: EndpointStatus;
-  successRate: number;
-  lastDelivery: string | null;
-  secret: string;
-}
+const ago = (m:number)=>new Date(Date.now()-m*60000).toISOString();
+const mkDels = (evs:string[],ok:boolean):Delivery[] => evs.slice(0,4).flatMap((ev,i)=>[
+  {id:`d${Math.random()}`,ts:ago(12+i*25),event:ev,code:ok?200:500,ms:ok?120+i*30:8200,attempt:ok?1:3},
+  ...(ok?[]:[{id:`d${Math.random()}`,ts:ago(8+i*25),event:ev,code:502,ms:4100,attempt:4}]),
+]);
 
-interface Delivery {
-  id: string;
-  event: string;
-  endpointId: string;
-  endpointUrl: string;
-  statusCode: number;
-  durationMs: number;
-  deliveredAt: string;
-  ok: boolean;
-  attempt: number;
-}
-
-const EVENT_TYPES = [
-  "challenge.passed",
-  "challenge.failed",
-  "account.provisioned",
-  "account.breach",
-  "payout.processed",
-  "payout.failed",
-  "kyc.approved",
-  "kyc.rejected",
-  "order.executed",
-  "subscription.renewed",
-] as const;
-
-const DEMO_ENDPOINTS: WebhookEndpoint[] = [
-  {
-    id: "wh-001",
-    url: "https://api.yourfirm.com/hooks/challenges",
-    description: "Challenge lifecycle → trader CRM sync",
-    events: ["challenge.passed", "challenge.failed", "account.provisioned"],
-    status: "active",
-    successRate: 99.8,
-    lastDelivery: "2026-10-08T09:41:00Z",
-    secret: "whsec_9f2a7c41d8b34e6f",
-  },
-  {
-    id: "wh-002",
-    url: "https://api.yourfirm.com/hooks/payouts",
-    description: "Payout results → finance ledger",
-    events: ["payout.processed", "payout.failed"],
-    status: "active",
-    successRate: 100,
-    lastDelivery: "2026-10-08T08:12:00Z",
-    secret: "whsec_4b8e1d72a9c05f31",
-  },
-  {
-    id: "wh-003",
-    url: "https://hooks.slack.com/services/T0/B0/xxxx",
-    description: "Risk alerts → #risk-ops channel",
-    events: ["account.breach", "kyc.rejected"],
-    status: "active",
-    successRate: 99.1,
-    lastDelivery: "2026-10-08T07:55:00Z",
-    secret: "whsec_e5c3f8a06b2d9147",
-  },
-  {
-    id: "wh-004",
-    url: "https://legacy-crm.example.com/webhook",
-    description: "Legacy CRM — being deprecated",
-    events: ["subscription.renewed"],
-    status: "failing",
-    successRate: 41.2,
-    lastDelivery: "2026-10-07T18:03:00Z",
-    secret: "whsec_1a7d90e4c6b82f53",
-  },
-  {
-    id: "wh-005",
-    url: "https://staging.yourfirm.com/hooks/orders",
-    description: "Staging environment order mirror",
-    events: ["order.executed"],
-    status: "paused",
-    successRate: 97.5,
-    lastDelivery: "2026-10-05T11:20:00Z",
-    secret: "whsec_7c6b2f10e9a4d385",
-  },
+let EPS: Endpoint[] = [
+  {id:"ep-1",url:"https://hooks.acme.io/payouts",description:"Finance ERP",events:["payout.requested","payout.approved","payout.paid"],status:"active",success24h:99.2,rotatedAt:ago(60*24*9),secret:"whsec_live_4f2a…9bd1",deliveries:mkDels(["payout.requested","payout.paid"],true)},
+  {id:"ep-2",url:"https://api.crm.internal/webhooks",description:"Internal CRM",events:["kyc.approved","challenge.passed","campaign.sent","trade.opened"],status:"active",success24h:97.6,rotatedAt:ago(60*24*30),secret:"whsec_live_81cc…2e40",deliveries:mkDels(["kyc.approved","challenge.passed"],true)},
+  {id:"ep-3",url:"https://failing.example.com/hook",description:"Legacy sink (failing)",events:["marketing.*","flow.enrolled"],status:"autopaused",success24h:12,rotatedAt:ago(60*24*60),secret:"whsec_live_dead…beef",deliveries:mkDels(["campaign.sent","flow.enrolled"],false),pausedSince:ago(55),queued:148,lastError:"5xx beyond retry threshold (last 502)"},
 ];
 
-const DEMO_DELIVERIES: Delivery[] = [
-  { id: "dlv-501", event: "challenge.passed", endpointId: "wh-001", endpointUrl: "https://api.yourfirm.com/hooks/challenges", statusCode: 200, durationMs: 142, deliveredAt: "2026-10-08T09:41:00Z", ok: true, attempt: 1 },
-  { id: "dlv-500", event: "payout.processed", endpointId: "wh-002", endpointUrl: "https://api.yourfirm.com/hooks/payouts", statusCode: 200, durationMs: 98, deliveredAt: "2026-10-08T08:12:00Z", ok: true, attempt: 1 },
-  { id: "dlv-499", event: "account.breach", endpointId: "wh-003", endpointUrl: "https://hooks.slack.com/services/T0/B0/xxxx", statusCode: 200, durationMs: 220, deliveredAt: "2026-10-08T07:55:00Z", ok: true, attempt: 1 },
-  { id: "dlv-498", event: "subscription.renewed", endpointId: "wh-004", endpointUrl: "https://legacy-crm.example.com/webhook", statusCode: 502, durationMs: 3000, deliveredAt: "2026-10-07T18:03:00Z", ok: false, attempt: 4 },
-  { id: "dlv-497", event: "subscription.renewed", endpointId: "wh-004", endpointUrl: "https://legacy-crm.example.com/webhook", statusCode: 504, durationMs: 5000, deliveredAt: "2026-10-07T17:58:00Z", ok: false, attempt: 3 },
-  { id: "dlv-496", event: "challenge.failed", endpointId: "wh-001", endpointUrl: "https://api.yourfirm.com/hooks/challenges", statusCode: 200, durationMs: 165, deliveredAt: "2026-10-07T16:44:00Z", ok: true, attempt: 1 },
-  { id: "dlv-495", event: "order.executed", endpointId: "wh-005", endpointUrl: "https://staging.yourfirm.com/hooks/orders", statusCode: 200, durationMs: 190, deliveredAt: "2026-10-05T11:20:00Z", ok: true, attempt: 1 },
-  { id: "dlv-494", event: "kyc.rejected", endpointId: "wh-003", endpointUrl: "https://hooks.slack.com/services/T0/B0/xxxx", statusCode: 429, durationMs: 55, deliveredAt: "2026-10-05T09:31:00Z", ok: false, attempt: 2 },
-  { id: "dlv-493", event: "account.provisioned", endpointId: "wh-001", endpointUrl: "https://api.yourfirm.com/hooks/challenges", statusCode: 200, durationMs: 121, deliveredAt: "2026-10-04T20:15:00Z", ok: true, attempt: 1 },
-  { id: "dlv-492", event: "payout.failed", endpointId: "wh-002", endpointUrl: "https://api.yourfirm.com/hooks/payouts", statusCode: 200, durationMs: 87, deliveredAt: "2026-10-04T14:02:00Z", ok: true, attempt: 1 },
-];
-
-const STATUS_TONES: Record<EndpointStatus, "success" | "warning" | "danger"> = {
-  active: "success",
-  paused: "warning",
-  failing: "danger",
-};
-
-/* ------------------------------------------------------------------ */
-/* Page                                                                */
-/* ------------------------------------------------------------------ */
+const randSecret=()=>`whsec_live_${Math.random().toString(36).slice(2,10)}${Math.random().toString(36).slice(2,10)}`;
+const hostPath=(u:string)=>{ try{ const x=new URL(u); return x.host + x.pathname; }catch{return u;} };
 
 export function WebhooksPage() {
-  const [endpoints, setEndpoints] = useState<WebhookEndpoint[]>(DEMO_ENDPOINTS);
-  const [deliveries, setDeliveries] = useState<Delivery[]>(DEMO_DELIVERIES);
-  const [revealed, setRevealed] = useState<string | null>(null);
+  const [eps, setEps] = useState<Endpoint[]>(EPS);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [editEp, setEditEp] = useState<Endpoint | null>(null);
+  const [logEp, setLogEp] = useState<Endpoint | null>(null);
+  const [delEp, setDelEp] = useState<Endpoint | null>(null);
+  const [revealId, setRevealId] = useState<string | null>(null);
+  const [newSecret, setNewSecret] = useState<{ep:Endpoint; val:string}|null>(null);
+  const [form, setForm] = useState({ url:"", description:"", events:[] as string[] });
 
-  // Create/edit dialog
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formUrl, setFormUrl] = useState("");
-  const [formDesc, setFormDesc] = useState("");
-  const [formEvents, setFormEvents] = useState<string[]>([]);
-  const [formActive, setFormActive] = useState(true);
+  const commit = (next:Endpoint[]) => { EPS = next; setEps(next); };
+  const patch = (id:string, p:Partial<Endpoint>) => commit(eps.map(e=>e.id===id?{...e,...p}:e));
 
-  // Delete confirm
-  const [deleteTarget, setDeleteTarget] = useState<WebhookEndpoint | null>(null);
+  const autoPaused = eps.find(e=>e.status==="autopaused");
+  const deliveries24h = eps.reduce((s,e)=>s+e.deliveries.length*6,0);
+  const successRate = eps.length ? (eps.reduce((s,e)=>s+e.success24h,0)/eps.length) : 100;
+  const failing = eps.filter(e=>e.status==="failing"||e.status==="autopaused").length;
 
-  const stats = useMemo(() => {
-    const active = endpoints.filter((e) => e.status === "active").length;
-    const failing = endpoints.filter((e) => e.status === "failing").length;
-    // Window is anchored to the newest delivery rather than Date.now()
-    // so the fixed demo timestamps stay meaningful over time.
-    const newest = deliveries.reduce(
-      (max, d) => Math.max(max, new Date(d.deliveredAt).getTime()),
-      0,
-    );
-    const windowStart = newest - 1000 * 60 * 60 * 48;
-    const last24 = deliveries.filter(
-      (d) => new Date(d.deliveredAt).getTime() >= windowStart,
-    ).length;
-    const ok = deliveries.filter((d) => d.ok).length;
-    const successRate = deliveries.length ? (ok / deliveries.length) * 100 : 100;
-    return { active, failing, total: endpoints.length, last24, successRate };
-  }, [endpoints, deliveries]);
-
-  const openCreate = () => {
-    setEditingId(null);
-    setFormUrl("");
-    setFormDesc("");
-    setFormEvents([]);
-    setFormActive(true);
-    setDialogOpen(true);
-  };
-
-  const openEdit = (ep: WebhookEndpoint) => {
-    setEditingId(ep.id);
-    setFormUrl(ep.url);
-    setFormDesc(ep.description);
-    setFormEvents([...ep.events]);
-    setFormActive(ep.status !== "paused");
-    setDialogOpen(true);
-  };
-
-  const toggleEvent = (ev: string) => {
-    setFormEvents((prev) => (prev.includes(ev) ? prev.filter((e) => e !== ev) : [...prev, ev]));
-  };
-
-  const saveEndpoint = () => {
-    if (!formUrl.trim()) {
-      toast({ title: "URL required", description: "Enter an endpoint URL to continue.", variant: "destructive" });
-      return;
-    }
-    if (formEvents.length === 0) {
-      toast({ title: "Select at least one event", description: "Endpoints must subscribe to one or more events.", variant: "destructive" });
-      return;
-    }
-    if (editingId) {
-      setEndpoints((prev) =>
-        prev.map((e) =>
-          e.id === editingId
-            ? { ...e, url: formUrl, description: formDesc, events: formEvents, status: formActive ? (e.status === "failing" ? "failing" : "active") : "paused" }
-            : e,
-        ),
-      );
-      toast({ title: "Endpoint updated", description: `${formUrl} saved. Changes audited.` });
-    } else {
-      const id = `wh-${String(endpoints.length + 1).padStart(3, "0")}`;
-      setEndpoints((prev) => [
-        ...prev,
-        {
-          id,
-          url: formUrl,
-          description: formDesc,
-          events: formEvents,
-          status: formActive ? "active" : "paused",
-          successRate: 100,
-          lastDelivery: null,
-          secret: `whsec_${Math.random().toString(36).slice(2, 18)}`,
-        },
-      ]);
-      toast({ title: "Endpoint created", description: `Subscribed to ${formEvents.length} event(s). Send a test to verify.` });
-    }
-    setDialogOpen(false);
-  };
-
-  const testSend = (ep: WebhookEndpoint) => {
-    const ev = ep.events[0] ?? "ping";
-    const newDelivery: Delivery = {
-      id: `dlv-${502 + deliveries.length}`,
-      event: ev,
-      endpointId: ep.id,
-      endpointUrl: ep.url,
-      statusCode: ep.status === "failing" ? 502 : 200,
-      durationMs: ep.status === "failing" ? 3000 : 110 + Math.round(Math.random() * 90),
-      deliveredAt: new Date().toISOString(),
-      ok: ep.status !== "failing",
-      attempt: 1,
-    };
-    setDeliveries((prev) => [newDelivery, ...prev]);
-    toast(
-      newDelivery.ok
-        ? { title: "Test delivered", description: `${ev} → ${ep.url} responded 200 in ${newDelivery.durationMs}ms.` }
-        : { title: "Test failed", description: `${ev} → ${ep.url} responded ${newDelivery.statusCode}. Endpoint marked failing.`, variant: "destructive" },
-    );
-    if (!newDelivery.ok) {
-      setEndpoints((prev) => prev.map((e) => (e.id === ep.id ? { ...e, status: "failing" } : e)));
-    }
-  };
-
-  const rotateSecret = (ep: WebhookEndpoint) => {
-    const next = `whsec_${Math.random().toString(36).slice(2, 18)}`;
-    setEndpoints((prev) => prev.map((e) => (e.id === ep.id ? { ...e, secret: next } : e)));
-    setRevealed(ep.id);
-    toast({ title: "Signing secret rotated", description: `${ep.id}: new secret shown once. Previous secret valid for 24h.` });
-  };
-
-  const togglePause = (ep: WebhookEndpoint) => {
-    const next: EndpointStatus = ep.status === "active" ? "paused" : "active";
-    setEndpoints((prev) => prev.map((e) => (e.id === ep.id ? { ...e, status: next } : e)));
-    toast({ title: next === "active" ? "Endpoint resumed" : "Endpoint paused", description: `${ep.url} is now ${next}. Audited.` });
-  };
-
-  const confirmDelete = () => {
-    if (!deleteTarget) return;
-    setEndpoints((prev) => prev.filter((e) => e.id !== deleteTarget.id));
-    toast({ title: "Endpoint deleted", description: `${deleteTarget.url} removed. Deliveries stopped.` });
-    setDeleteTarget(null);
-  };
-
-  const retryDelivery = (d: Delivery) => {
-    const ep = endpoints.find((e) => e.id === d.endpointId);
-    const okNow = ep ? ep.status !== "failing" : true;
-    setDeliveries((prev) =>
-      prev.map((x) =>
-        x.id === d.id
-          ? { ...x, ok: okNow, statusCode: okNow ? 200 : d.statusCode, deliveredAt: new Date().toISOString(), attempt: x.attempt + 1 }
-          : x,
-      ),
-    );
-    toast(
-      okNow
-        ? { title: "Delivery retried", description: `${d.event} → 200 OK on attempt ${(d.attempt ?? 0) + 1}.` }
-        : { title: "Retry failed again", description: `${d.event} → endpoint still returning ${d.statusCode}.`, variant: "destructive" },
-    );
-  };
-
-  const retryAllFailed = () => {
-    const failing = deliveries.filter((d) => !d.ok);
-    if (failing.length === 0) {
-      toast({ title: "Nothing to retry", description: "All recent deliveries succeeded." });
-      return;
-    }
-    setDeliveries((prev) =>
-      prev.map((d) => (d.ok ? d : { ...d, ok: true, statusCode: 200, deliveredAt: new Date().toISOString(), attempt: d.attempt + 1 })),
-    );
-    toast({ title: "Bulk redelivery queued", description: `${failing.length} failed deliveries re-queued in order.` });
-  };
-
-  const deliveryColumns: Column<Delivery>[] = [
-    {
-      key: "event",
-      header: "Event",
-      cell: (row) => <code className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-mono">{row.event}</code>,
-      sortValue: (row) => row.event,
-    },
-    {
-      key: "endpoint",
-      header: "Endpoint",
-      cell: (row) => <span className="block max-w-[240px] truncate text-xs text-muted-foreground">{row.endpointUrl}</span>,
-    },
-    {
-      key: "status",
-      header: "Response",
-      cell: (row) => (
-        <StatusBadge tone={row.ok ? "success" : "danger"}>
-          {row.statusCode} {row.ok ? "OK" : "ERR"}
-        </StatusBadge>
-      ),
-      sortValue: (row) => row.statusCode,
-    },
-    {
-      key: "duration",
-      header: "Duration",
-      cell: (row) => (
-        <span className="text-sm">
-          {row.durationMs}
-          <span className="text-muted-foreground"> ms</span>
-        </span>
-      ),
-      numeric: true,
-      sortValue: (row) => row.durationMs,
-    },
-    {
-      key: "attempt",
-      header: "Attempt",
-      cell: (row) => <span className="text-sm">#{row.attempt}</span>,
-      numeric: true,
-      sortValue: (row) => row.attempt,
-    },
-    {
-      key: "delivered",
-      header: "Delivered At",
-      cell: (row) => <span className="text-xs text-muted-foreground">{new Date(row.deliveredAt).toLocaleString()}</span>,
-      sortValue: (row) => row.deliveredAt,
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      cell: (row) =>
-        !row.ok ? (
-          <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => retryDelivery(row)}>
-            <RefreshCw className="mr-1 h-3 w-3" /> Retry
-          </Button>
-        ) : (
-          <span className="text-[10px] text-muted-foreground">Delivered</span>
-        ),
-    },
+  const epCols: Column<Endpoint>[] = [
+    { key:"url", header:"Endpoint", sortValue:e=>e.url, cell:e=> <span className="font-mono text-xs" title={e.lastError}>{hostPath(e.url)}</span> },
+    { key:"status", header:"Status", cell:e=> <StatusBadge tone={e.status==="active"?"success":e.status==="failing"||e.status==="autopaused"?"danger":"muted"}>{e.status==="autopaused"?"Paused (auto)":e.status==="failing"?"Failing":e.status}</StatusBadge> },
+    { key:"evs", header:"Events subscribed", cell:e=> (
+      <Popover><PopoverTrigger asChild><button type="button" className="text-xs underline decoration-dotted">{e.events.length} events</button></PopoverTrigger>
+        <PopoverContent className="w-64 space-y-0.5 p-2">{e.events.map(x=><div key={x} className="font-mono text-[10px]">{x}</div>)}</PopoverContent></Popover>
+    )},
+    { key:"rate", header:"Success 24h", sortValue:e=>e.success24h, cell:e=> <div className="w-24"><div className="flex justify-between text-[10px]"><span className={e.success24h<90?"text-destructive":""}>{e.success24h}%</span></div><Progress value={e.success24h} className="h-1.5" /></div> },
+    { key:"rot", header:"Secret rotated", sortValue:e=>e.rotatedAt, cell:e=> <span className="text-xs">{relativeTime(e.rotatedAt)}</span> },
+    { key:"act", header:"", cell:e=> (
+      <div className="flex flex-wrap justify-end gap-1">
+        <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px]" onClick={()=>{ setEditEp(e); setForm({url:e.url,description:e.description,events:e.events}); }}><Pencil className="h-3 w-3" /></Button>
+        <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px]" onClick={()=>setNewSecret({ep:e,val:randSecret()})}><KeyRound className="mr-1 h-3 w-3" />Rotate</Button>
+        <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px]" onClick={()=>{ const paused=e.status==="paused"||e.status==="autopaused"; patch(e.id,{status:paused?"active":"paused",pausedSince:paused?undefined:new Date().toISOString(),queued:paused?undefined:e.queued}); toast({title:paused?"Endpoint resumed":"Endpoint paused",description:e.url}); }}>{(e.status==="paused"||e.status==="autopaused")?<><Play className="h-3 w-3" /></>:<><Pause className="h-3 w-3" /></>}</Button>
+        <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px]" onClick={()=>setLogEp(e)}>Logs</Button>
+        <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] text-destructive" onClick={()=>setDelEp(e)}><Trash2 className="h-3 w-3" /></Button>
+      </div>
+    )},
   ];
+
+  function saveForm(mode:"add"|"edit"){
+    if(!/^https?:\/\//.test(form.url)){ toast({title:"Invalid URL",description:"Endpoint URL must start with http(s)://"}); return; }
+    if(form.events.length===0){ toast({title:"Select events",description:"Subscribe to at least one event."}); return; }
+    if(mode==="add"){
+      commit([{id:`ep-${Date.now()}`,url:form.url,description:form.description,events:form.events,status:"active",success24h:100,rotatedAt:new Date().toISOString(),secret:randSecret(),deliveries:[]},...eps]);
+      setAddOpen(false);
+      toast({title:"Endpoint added",description:form.url});
+    } else if(editEp){
+      patch(editEp.id,{url:form.url,description:form.description,events:form.events});
+      setEditEp(null);
+      toast({title:"Endpoint updated"});
+    }
+    recordAudit({action:"webhook.save",entity:"webhook-endpoint",entityId:form.url,summary:`${mode==="add"?"Added":"Updated"} endpoint ${form.url}`,module:"settings"});
+  }
 
   return (
     <Page>
-      <PageHeader
-        title="Webhooks & Events"
-        description="Subscribe endpoints to platform events, inspect delivery logs, and manage signing secrets."
-        icon={Webhook}
-        actions={
-          <>
-            <Button variant="outline" size="sm" onClick={retryAllFailed}>
-              <RefreshCw className="mr-1 h-4 w-4" /> Redeliver Failed
-            </Button>
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="mr-1 h-4 w-4" /> Add Endpoint
-            </Button>
-          </>
-        }
-      />
+      <PageHeader title="Webhooks & Events" description="Event subscriptions with signing, delivery logs, replay and auto-pause protection." icon={Webhook}
+        actions={<div className="flex gap-2"><Button variant="outline" size="sm" onClick={()=>setCatalogOpen(true)}><BookOpen className="mr-1 h-4 w-4" />Event Catalog</Button><Button size="sm" onClick={()=>{ setForm({url:"",description:"",events:[]}); setAddOpen(true); }}><Plus className="mr-1 h-4 w-4" />Add Endpoint</Button></div>} />
       <PageContent>
-        {/* KPI row */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard label="Endpoints" value={`${stats.active}/${stats.total} active`} icon={Webhook} tone={stats.active > 0 ? "positive" : "warning"} />
-          <MetricCard label="Deliveries (48h)" value={stats.last24} icon={Send} />
-          <MetricCard label="Success Rate" value={`${stats.successRate.toFixed(1)}%`} icon={CheckCircle2} tone={stats.successRate >= 99 ? "positive" : stats.successRate >= 90 ? "warning" : "negative"} />
-          <MetricCard label="Failing Endpoints" value={stats.failing} icon={AlertTriangle} tone={stats.failing > 0 ? "negative" : "positive"} />
+        {autoPaused && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm">
+            <div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" /><div><p className="font-medium text-destructive">Endpoint auto-paused: {hostPath(autoPaused.url)}</p><p className="text-xs text-muted-foreground">Paused {autoPaused.pausedSince?relativeTime(autoPaused.pausedSince):"recently"} · {autoPaused.queued??0} queued events · {autoPaused.lastError}</p></div></div>
+            <Button size="sm" variant="outline" onClick={()=>{ patch(autoPaused.id,{status:"active",pausedSince:undefined,queued:0,deliveries:[...autoPaused.deliveries,{id:`d${Date.now()}`,ts:new Date().toISOString(),event:autoPaused.events[0]??"replay",code:200,ms:140,attempt:1,replay:true}]}); toast({title:"Endpoint resumed with replay",description:`${autoPaused.queued??0} queued events requeued.`}); }}>Resume with replay</Button>
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard label="Endpoints" value={String(eps.length)} />
+          <MetricCard label="Deliveries (24h)" value={deliveries24h.toLocaleString()} />
+          <MetricCard label="Success rate" value={`${successRate.toFixed(1)}%`} tone={successRate<95?"warning":"positive"} />
+          <MetricCard label="Failing" value={String(failing)} tone={failing>0?"negative":"positive"} />
         </div>
 
-        {/* Endpoints */}
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold">Endpoints</h2>
-              <Button size="sm" onClick={openCreate}>
-                <Plus className="mr-1 h-3 w-3" /> Add Endpoint
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {endpoints.map((ep) => {
-              const isRevealed = revealed === ep.id;
-              return (
-                <div key={ep.id} className="rounded-lg border bg-muted/20 p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <code className="truncate text-xs font-semibold font-mono">{ep.url}</code>
-                        <StatusBadge tone={STATUS_TONES[ep.status]}>{ep.status}</StatusBadge>
-                        <span className="text-[10px] text-muted-foreground">{ep.id}</span>
-                      </div>
-                      {ep.description ? (
-                        <p className="mt-0.5 text-xs text-muted-foreground">{ep.description}</p>
-                      ) : null}
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {ep.events.map((ev) => (
-                          <Badge key={ev} variant="secondary" className="text-[9px] font-mono">
-                            {ev}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <div className="text-right">
-                        <p className="text-lg font-bold leading-none">{ep.successRate}%</p>
-                        <p className="text-[10px] text-muted-foreground">success rate</p>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">
-                        {ep.lastDelivery ? `last: ${new Date(ep.lastDelivery).toLocaleString()}` : "no deliveries yet"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <Separator className="my-2" />
-
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    {/* Secret */}
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <KeyRound className="h-3 w-3 shrink-0 text-muted-foreground" />
-                      <code className="max-w-[220px] truncate rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono">
-                        {isRevealed ? ep.secret : "whsec_••••••••••••••••"}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 w-6 p-0"
-                        aria-label={isRevealed ? "Hide secret" : "Reveal secret"}
-                        onClick={() => setRevealed(isRevealed ? null : ep.id)}
-                      >
-                        {isRevealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 px-2 text-[10px]"
-                        onClick={() => rotateSecret(ep)}
-                      >
-                        Rotate
-                      </Button>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex flex-wrap gap-1">
-                      <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => testSend(ep)}>
-                        <Send className="mr-1 h-3 w-3" /> Test
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => togglePause(ep)}>
-                        {ep.status === "active" ? <Pause className="mr-1 h-3 w-3" /> : <Play className="mr-1 h-3 w-3" />}
-                        {ep.status === "active" ? "Pause" : "Enable"}
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openEdit(ep)}>
-                        <Pencil className="mr-1 h-3 w-3" /> Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-[10px] text-rose-600 hover:text-rose-700"
-                        onClick={() => setDeleteTarget(ep)}
-                      >
-                        <Trash2 className="mr-1 h-3 w-3" /> Delete
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {endpoints.length === 0 && (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-                <Webhook className="h-8 w-8 text-muted-foreground" />
-                <p className="mt-2 font-medium">No webhook endpoints</p>
-                <p className="text-sm text-muted-foreground">Add an endpoint to start receiving platform events.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Delivery log */}
-        <Card>
-          <CardHeader className="pb-2">
-            <h2 className="text-base font-semibold">Delivery Log</h2>
-          </CardHeader>
-          <CardContent className="p-0">
-            <DataTable
-              columns={deliveryColumns}
-              data={deliveries}
-              rowKey={(row) => row.id}
-              searchableText={(row) => `${row.event} ${row.endpointUrl} ${row.statusCode} ${row.ok ? "ok" : "failed"}`}
-              searchPlaceholder="Search deliveries…"
-              pageSize={6}
-              emptyTitle="No deliveries"
-              emptyDescription="Deliveries will appear here once an endpoint receives events."
-            />
-            <Separator />
-            <div className="px-4 py-3 text-xs text-muted-foreground">
-              Failed deliveries retry automatically with exponential backoff (5 attempts over 1h), then pause the endpoint.
-              Payloads are signed with HMAC-SHA256 (<code className="font-mono">X-PFAAS-Signature</code> header).
-            </div>
-          </CardContent>
-        </Card>
-        {/* Inbound Receivers */}
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold">Inbound Receivers</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Expose a URL that external services (Stripe, GitHub, Shopify, etc.) can send webhooks to.
-                </p>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => toast({ title: "Add receiver", description: "Inbound receiver configuration coming in M6." })}>
-                <Plus className="mr-1 h-3 w-3" /> Add Receiver
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border border-dashed bg-muted/20 p-4">
-              <div className="flex items-start gap-3">
-                <div className="rounded-md bg-primary/10 p-2">
-                  <Webhook className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Inbound webhook endpoint</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Configure a receiver to accept events from external platforms. Events are verified
-                    via HMAC-SHA256 signature and routed to your automation flows.
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Badge variant="outline" className="text-[10px]">Stripe</Badge>
-                    <Badge variant="outline" className="text-[10px]">GitHub</Badge>
-                    <Badge variant="outline" className="text-[10px]">Shopify</Badge>
-                    <Badge variant="outline" className="text-[10px]">Custom</Badge>
-                  </div>
-                </div>
-                <div className="shrink-0">
-                  <Button size="sm" variant="outline" onClick={() => toast({ title: "Receiver docs", description: "See M6 Webhooks 2.0 for inbound receiver setup." })}>
-                    Learn more
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+        {eps.length===0 ? <EmptyState title="No endpoints" description="Add a webhook endpoint to receive platform events." icon={Webhook} hint="See the Event Catalog for available events."
+          action={<Button size="sm" onClick={()=>setAddOpen(true)}><Plus className="mr-1 h-4 w-4" />Add Endpoint</Button>} /> :
+          <DataTable columns={epCols} data={eps} rowKey={e=>e.id} searchableText={e=>`${e.url} ${e.description} ${e.events.join(" ")}`} pageSize={8} emptyTitle="No endpoints" />}
       </PageContent>
 
-      {/* Create / edit dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Endpoint" : "Add Endpoint"}</DialogTitle>
-            <DialogDescription>
-              Events are delivered as JSON POST requests with an HMAC-SHA256 signature header.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="wh-url">Endpoint URL</Label>
-              <Input
-                id="wh-url"
-                value={formUrl}
-                onChange={(e) => setFormUrl(e.target.value)}
-                placeholder="https://api.example.com/webhooks/pfaas"
-                className="font-mono text-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="wh-desc">Description</Label>
-              <Textarea
-                id="wh-desc"
-                value={formDesc}
-                onChange={(e) => setFormDesc(e.target.value)}
-                placeholder="What this endpoint is used for."
-                rows={2}
-                className="text-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Subscribed Events ({formEvents.length} selected)</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {EVENT_TYPES.map((ev) => {
-                  const on = formEvents.includes(ev);
-                  return (
-                    <button
-                      key={ev}
-                      type="button"
-                      onClick={() => toggleEvent(ev)}
-                      aria-pressed={on}
-                      className={
-                        on
-                          ? "rounded-md bg-primary px-2 py-1 font-mono text-[10px] text-primary-foreground transition-colors"
-                          : "rounded-md border bg-muted/40 px-2 py-1 font-mono text-[10px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-                      }
-                    >
-                      {ev}
-                    </button>
-                  );
-                })}
+      {/* Event catalog */}
+      <Sheet open={catalogOpen} onOpenChange={setCatalogOpen}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+          <SheetHeader><SheetTitle>Event catalog</SheetTitle><SheetDescription>Grouped by domain — payload summaries and current subscribers.</SheetDescription></SheetHeader>
+          <div className="mt-4 space-y-4">
+            {CATALOG.map(d=>(
+              <div key={d.domain} className="rounded-lg border p-3">
+                <p className="mb-2 font-mono text-xs font-semibold">{d.domain}</p>
+                <div className="space-y-2">{d.events.map(ev=>(
+                  <div key={ev.name} className="rounded border p-2 text-xs"><div className="flex items-center justify-between"><span className="font-mono font-medium">{ev.name}</span><Badge variant="outline" className="text-[9px]">{ev.subs} subs</Badge></div><p className="text-muted-foreground">{ev.desc}</p><code className="mt-1 block text-[10px] text-muted-foreground">{ev.schema}</code></div>
+                ))}</div>
               </div>
-            </div>
-            <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
-              <div>
-                <p className="text-sm font-medium">Active</p>
-                <p className="text-xs text-muted-foreground">Deliver events immediately after saving.</p>
-              </div>
-              <Switch checked={formActive} onCheckedChange={setFormActive} aria-label="Endpoint active" />
-            </div>
+            ))}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={saveEndpoint}>
-              <Terminal className="mr-1 h-4 w-4" /> {editingId ? "Save Changes" : "Create Endpoint"}
-            </Button>
-          </DialogFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* Add/Edit dialog */}
+      <Dialog open={addOpen||!!editEp} onOpenChange={(o)=>{ if(!o){ setAddOpen(false); setEditEp(null);} }}>
+        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>{editEp?"Edit endpoint":"Add endpoint"}</DialogTitle><DialogDescription>Subscribe to events and receive signed deliveries.</DialogDescription></DialogHeader>
+          <div className="space-y-3"><div><Label className="text-xs">URL</Label><Input value={form.url} onChange={e=>setForm({...form,url:e.target.value})} placeholder="https://hooks.example.com/ingest" className="mt-1 font-mono text-xs" /></div>
+            <div><Label className="text-xs">Description</Label><Input value={form.description} onChange={e=>setForm({...form,description:e.target.value})} className="mt-1" /></div>
+            <div><Label className="text-xs">Subscribe to events</Label><div className="mt-1 max-h-40 space-y-1 overflow-auto rounded border p-2">{CATALOG.map(d=>{ const names=d.events.map(e=>e.name); const allOn=names.every(n=>form.events.includes(n)); return (
+              <div key={d.domain}><label className="flex items-center gap-2 text-xs font-semibold"><Checkbox checked={allOn} onCheckedChange={(v)=>setForm({...form,events:v?Array.from(new Set([...form.events,...names])):form.events.filter(x=>!names.includes(x))})} />{d.domain}</label>
+                <div className="ml-5">{names.map(n=><label key={n} className="flex items-center gap-2 font-mono text-[10px]"><Checkbox checked={form.events.includes(n)} onCheckedChange={(v)=>setForm({...form,events:v?[...form.events,n]:form.events.filter(x=>x!==n)})} />{n}</label>)}</div>
+              </div>
+            );})}</div></div></div>
+          <DialogFooter><Button variant="outline" onClick={()=>{ setAddOpen(false); setEditEp(null); }}>Cancel</Button><Button onClick={()=>saveForm(editEp?"edit":"add")}>{editEp?"Save":"Add endpoint"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm */}
-      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete endpoint?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently removes <code className="font-mono">{deleteTarget?.url}</code> and stops all deliveries.
-              Existing delivery logs are retained for audit.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-rose-600 text-white hover:bg-rose-700"
-              onClick={confirmDelete}
-            >
-              Delete Endpoint
-            </AlertDialogAction>
-          </AlertDialogFooter>
+      {/* Endpoint drawer (logs + secret + replay) */}
+      <Sheet open={!!logEp} onOpenChange={(o)=>!o&&setLogEp(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+          {logEp && (()=>{
+            const ep = eps.find(e=>e.id===logEp.id) ?? logEp;
+            const revealed = revealId===ep.id;
+            return (<>
+              <SheetHeader><SheetTitle>{hostPath(ep.url)}</SheetTitle><SheetDescription>{ep.description} · {ep.events.length} events subscribed</SheetDescription></SheetHeader>
+              <div className="mt-4 space-y-4">
+                {ep.graceUntil && <div className="rounded-lg border border-amber-400/60 bg-amber-50 p-2 text-xs dark:bg-amber-950/30">Secret rotated — old secret remains valid until <strong>{absoluteTime(ep.graceUntil)}</strong> (24h grace). New deliveries use the new secret now.</div>}
+
+                <div className="rounded-lg border p-3">
+                  <p className="mb-1 text-xs font-semibold">Signing secret</p>
+                  <div className="flex items-center gap-2"><code className="flex-1 rounded bg-muted px-2 py-1 text-[10px]">{revealed?ep.secret:"whsec_live_••••••••••••"}</code>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={()=>setRevealId(revealed?null:ep.id)} aria-label="Reveal">{revealed?<EyeOff className="h-3.5 w-3.5" />:<Eye className="h-3.5 w-3.5" />}</Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={()=>{ navigator.clipboard?.writeText(ep.secret); toast({title:"Secret copied"}); }}><Copy className="h-3.5 w-3.5" /></Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={()=>setNewSecret({ep,val:randSecret()})}><RotateCcw className="mr-1 h-3 w-3" />Rotate</Button></div>
+                </div>
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between"><p className="text-xs font-semibold">Delivery log</p>
+                    <div className="flex items-center gap-1"><Select defaultValue="1h" onValueChange={()=>{}}>
+                      <SelectTrigger className="h-7 w-[110px] text-[10px]"><SelectValue placeholder="Replay range" /></SelectTrigger>
+                      <SelectContent><SelectItem value="15m">Last 15 min</SelectItem><SelectItem value="1h">Last 1 hour</SelectItem><SelectItem value="6h">Last 6 hours</SelectItem><SelectItem value="24h">Last 24 hours</SelectItem></SelectContent>
+                    </Select>
+                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={()=>{ const n=Math.max(1,ep.deliveries.length); const replay:Delivery={id:`d${Date.now()}`,ts:new Date().toISOString(),event:ep.events[0]??"replay",code:200,ms:130,attempt:1,replay:true}; patch(ep.id,{deliveries:[replay,...ep.deliveries]}); toast({title:"Replay queued",description:`${n} events requeued for the selected window (respecting current subscriptions).`}); }}>Replay range</Button></div>
+                  </div>
+                  <DataTable columns={[
+                    {key:"ts",header:"Timestamp",sortValue:(d:Delivery)=>d.ts,cell:(d:Delivery)=><span className="text-[10px]">{relativeTime(d.ts)}</span>},
+                    {key:"ev",header:"Event",cell:(d:Delivery)=><span className="font-mono text-[10px]">{d.event}{d.replay?" (replay)":""}</span>},
+                    {key:"code",header:"Code",numeric:true,cell:(d:Delivery)=><StatusBadge tone={d.code<400?"success":"danger"}>{String(d.code)}</StatusBadge>},
+                    {key:"ms",header:"Duration",numeric:true,cell:(d:Delivery)=><span className="text-[10px] tabular-nums">{d.ms}ms</span>},
+                    {key:"att",header:"Attempt",numeric:true,cell:(d:Delivery)=><span className="text-[10px] tabular-nums">{d.attempt}</span>},
+                    {key:"a",header:"",cell:(d:Delivery)=> d.code>=400?<Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px]" onClick={()=>{ patch(ep.id,{deliveries:ep.deliveries.map(x=>x.id===d.id?{...x,code:200,attempt:x.attempt+1}:x)}); toast({title:"Delivery retried",description:d.event}); }}>Retry</Button>:null},
+                  ]} data={ep.deliveries} rowKey={(d:Delivery)=>d.id} pageSize={6} emptyTitle="No deliveries yet" />
+                </div>
+
+                <div className="flex justify-between">
+                  <Button variant="outline" size="sm" onClick={()=>{ patch(ep.id,{status:ep.status==="paused"||ep.status==="autopaused"?"active":"paused"}); toast({title:ep.status==="active"?"Endpoint paused":"Endpoint resumed"}); }}>{ep.status==="active"?<><Pause className="mr-1 h-3.5 w-3.5" />Pause endpoint</>:<><Play className="mr-1 h-3.5 w-3.5" />Resume endpoint</>}</Button>
+                  <Button variant="ghost" size="sm" onClick={()=>toast({title:"Test event sent",description:`Ping delivered to ${hostPath(ep.url)} (200, 94ms).`})}><Send className="mr-1 h-3.5 w-3.5" />Test send</Button>
+                </div>
+              </div>
+            </>);
+          })()}
+        </SheetContent>
+      </Sheet>
+
+      {/* Rotate secret: show once */}
+      <Dialog open={!!newSecret} onOpenChange={(o)=>!o&&setNewSecret(null)}>
+        <DialogContent><DialogHeader><DialogTitle>New signing secret</DialogTitle><DialogDescription>Copy it now — it will not be shown again. The old secret remains valid for 24 hours.</DialogDescription></DialogHeader>
+          {newSecret && <div className="space-y-2"><code className="block rounded bg-muted p-2 text-xs break-all">{newSecret.val}</code><Button variant="outline" size="sm" onClick={()=>{ navigator.clipboard?.writeText(newSecret.val); toast({title:"Copied"}); }}><Copy className="mr-1 h-3.5 w-3.5" />Copy</Button></div>}
+          <DialogFooter><Button onClick={()=>{ if(newSecret){ const grace=new Date(Date.now()+24*3600000).toISOString(); patch(newSecret.ep.id,{secret:newSecret.val,rotatedAt:new Date().toISOString(),graceUntil:grace}); recordAudit({action:"webhook.secret.rotate",entity:"webhook-endpoint",entityId:newSecret.ep.id,summary:`Rotated secret for ${hostPath(newSecret.ep.url)} (24h grace).`,severity:"warning",module:"settings"}); toast({title:"Secret rotated",description:"Old secret valid for 24 hours."}); setLogEp(eps.find(e=>e.id===newSecret.ep.id)??null);} setNewSecret(null); }}>Done</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete */}
+      <AlertDialog open={!!delEp} onOpenChange={(o)=>!o&&setDelEp(null)}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete endpoint?</AlertDialogTitle><AlertDialogDescription>{delEp?.url} will stop receiving events. This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={()=>{ if(delEp){ commit(eps.filter(e=>e.id!==delEp.id)); recordAudit({action:"webhook.delete",entity:"webhook-endpoint",entityId:delEp.id,summary:`Deleted webhook ${delEp.url}`,severity:"warning",module:"settings"}); toast({title:"Endpoint deleted"});} setDelEp(null); }}>Delete</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </Page>
