@@ -5,6 +5,7 @@ import type { Payout } from "@/lib/platform/mock-data";
 import { payouts as seedPayouts } from "@/lib/platform/mock-data";
 import { setNavBadge } from "@/lib/platform/nav-badges";
 import { recordAudit } from "@/lib/audit";
+import { getAmlCase, getAmlHoldCaseForTrader, useAmlVersion } from "@/modules/risk/aml-store";
 import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { demoPayoutsSchema } from "@/lib/platform/validation";
 
@@ -26,6 +27,47 @@ export type PayoutDecision =
   | "processing"
   | "paid"
   | "escalated";
+
+// Rehydrate decisions from a previous visit (demo persistence).
+/**
+ * R3-F02 — why a payout is frozen by AML. Payout decision surfaces (table
+ * row, review panel, queue widget, batch toolbar) render this as a blocked
+ * badge + disabled Approve with the case ID in the reason.
+ */
+export interface PayoutAmlBlock {
+  caseId: string;
+  traderId: string;
+  traderName: string;
+  typology: string;
+  risk: string;
+  slaDue: string;
+}
+
+/** The active AML hold blocking a payout, or null when it may proceed. */
+export function payoutAmlBlock(reference: string): PayoutAmlBlock | null {
+  const p = seedPayouts.find((x) => x.reference === reference);
+  const c = p ? getAmlHoldCaseForTrader(p.traderId) : undefined;
+  if (!p || !c) return null;
+  return { caseId: c.id, traderId: c.traderId, traderName: c.traderName, typology: c.typology, risk: c.risk, slaDue: c.slaDue };
+}
+
+/**
+ * R3-F02 — every decision made through `applyPayoutDecision` returns this so
+ * surfaces can report a block instead of toasting a success that did not
+ * happen. Rejections/info/escalations are never AML-blocked (they move no
+ * money); release of the hold itself requires compliance.aml.approve on the
+ * AML case detail (four-eyes, R2-07).
+ */
+export type PayoutDecisionResult =
+  | { ok: true }
+  | { ok: false; reason: string; caseId: string };
+
+/** Pending payouts a case's hold currently freezes (AML case detail shows these). */
+export function payoutsHeldByCase(caseId: string): Payout[] {
+  const c = getAmlCase(caseId);
+  if (!c || !c.payoutHold) return [];
+  return seedPayouts.filter((p) => p.traderId === c.traderId && effectivePayoutStatus(p) === "pending");
+}
 
 // Rehydrate decisions from a previous visit (demo persistence).
 const decisions = new Map<string, { status: PayoutDecision; at: string }>(
@@ -58,14 +100,33 @@ export function applyPayoutDecision(
   reference: string,
   decision: PayoutDecision,
   opts?: { reason?: string },
-) {
+): PayoutDecisionResult {
+  const p = seedPayouts.find((x) => x.reference === reference);
+  const who = p ? p.traderName : reference;
+  const amount = p ? `${p.amount} ${p.currency}` : "";
+
+  // R3-F02 enforcement chokepoint: a frozen AML case blocks every decision
+  // that would move money (approve / process / pay), whichever surface it
+  // originates from — single row, review panel, queue widget or batch.
+  if (decision === "approved" || decision === "processing" || decision === "paid") {
+    const block = payoutAmlBlock(reference);
+    if (block) {
+      const reason = `${block.caseId} — ${block.typology} (${block.risk} risk)`;
+      recordAudit({
+        action: "Payout decision blocked by AML hold",
+        entity: "payout",
+        entityId: reference,
+        summary: `${who} — ${amount} (${decision}) blocked: ${reason}`,
+        severity: "warning",
+      });
+      return { ok: false, reason, caseId: block.caseId };
+    }
+  }
+
   decisions.set(reference, { status: decision, at: new Date().toISOString() });
   // Audit chokepoint (lib/audit.ts): every decision surface — table row,
   // review card, dashboard widget, batch action — lands here, so the
   // trail is written exactly once per decision regardless of entry point.
-  const p = seedPayouts.find((x) => x.reference === reference);
-  const who = p ? p.traderName : reference;
-  const amount = p ? `${p.amount} ${p.currency}` : "";
   recordAudit({
     action:
       decision === "approved"
@@ -87,6 +148,7 @@ export function applyPayoutDecision(
     severity: decision === "rejected" || decision === "escalated" ? "warning" : "info",
   });
   emit();
+  return { ok: true };
 }
 
 export function getPayoutDecision(reference: string) {
@@ -123,6 +185,9 @@ export function payoutEscalated(reference: string): boolean {
 
 /** Subscribe the calling component to store mutations (re-renders on change). */
 export function usePayoutVersion(): number {
+  // R3-F02: an AML hold release/creation (AML store) changes which payouts
+  // are decidable, so payout surfaces subscribe to both stores here.
+  const amlV = useAmlVersion();
   const [v, setV] = useState(version);
   useEffect(() => {
     const l = () => setV(version);
@@ -131,7 +196,7 @@ export function usePayoutVersion(): number {
       listeners.delete(l);
     };
   }, []);
-  return v;
+  return v + amlV;
 }
 
 // Seed the sidebar badge at boot (this module is imported by the payouts
