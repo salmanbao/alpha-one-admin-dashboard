@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Building2, Server, Layers, Network, Cpu, Shield, Database, Globe, Zap, Activity, GitBranch, BarChart3, CheckCircle2, ExternalLink } from "lucide-react";
+import { Search, Building2, Server, Layers, Network, Cpu, Shield, Database, Globe, Zap, Activity, GitBranch, BarChart3, CheckCircle2 } from "lucide-react";
+import { usePlatform } from "@/lib/platform/platform-context";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -41,6 +42,7 @@ export function PlatformArchitecturePage() {
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const [search, setSearch] = useState("");
+  const { navigate } = usePlatform();
   const activePillars = pillars.filter((p) => p.status === "active").length;
 
   const filtered = pillars.filter((p) => {
@@ -56,8 +58,7 @@ export function PlatformArchitecturePage() {
         icon={Building2}
         actions={
           <>
-            <Button size="sm" variant="outline"><ExternalLink className="mr-1 h-4 w-4" /> Whitepaper</Button>
-            <Button size="sm" variant="outline"><Search className="mr-1 h-4 w-4" /> Inspect Manifest</Button>
+            <Button size="sm" variant="outline" onClick={() => navigate("module-catalog")}><Search className="mr-1 h-4 w-4" /> Inspect Manifest</Button>
           </>
         }
       />

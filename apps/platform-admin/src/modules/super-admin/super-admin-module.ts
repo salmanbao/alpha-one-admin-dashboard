@@ -137,7 +137,7 @@ const navigation: NavigationItem[] = [
       { id: "super.send-billing", label: "Send-Based Usage Billing", href: "send-billing", icon: Receipt, application: ["super-admin"], permission: ["platform.developer.manage", "platform.billing.manage"], group: "Finance" },
 
       // ───────── Governance ─────────
-      { id: "super.role-management", label: "Role Management", href: "role-management", icon: Settings2, application: ["super-admin"], group: "Governance" },
+      { id: "super.platform-roles", label: "Platform Roles", href: "platform-roles", icon: Settings2, application: ["super-admin"], group: "Governance" },
       { id: "super.staff", label: "Platform Staff", href: "platform-staff", icon: Users, application: ["super-admin"], group: "Governance" },
       { id: "super.pending-tasks", label: "Pending Tasks", href: "pending-tasks", icon: AlertTriangle, application: ["super-admin"], group: "Operations" },
 
@@ -232,7 +232,6 @@ const routes: RouteDefinition[] = [
   { path: "getting-started", viewId: "getting-started", label: "Getting Started", application: ["super-admin"] },
   { path: "platform-architecture", viewId: "platform-architecture", label: "Platform Architecture", application: ["super-admin"] },
   { path: "platform-overview", viewId: "platform-overview", label: "Platform Overview", application: ["super-admin"] },
-  { path: "role-management", viewId: "role-management", label: "Role Management", application: ["super-admin"] },
   { path: "platform-roles", viewId: "platform-roles", label: "Platform Roles", application: ["super-admin"] },
   { path: "platform-staff", viewId: "platform-staff", label: "Platform Staff", application: ["super-admin"] },
   { path: "pending-tasks", viewId: "pending-tasks", label: "Pending Tasks", application: ["super-admin"] },
@@ -253,6 +252,12 @@ const routes: RouteDefinition[] = [
   { path: "provider-pool", viewId: "provider-pool", label: "Provider Pool", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
   { path: "global-consent-ledger", viewId: "global-consent-ledger", label: "Global Consent & Suppression", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
   { path: "cross-tenant-archive", viewId: "cross-tenant-archive", label: "Cross-Tenant Archive (eDiscovery)", application: ["super-admin"], permission: ["platform.archive.read", "platform.marketing.manage"] },
+  // SF-28 — these three views were registered in the view-router but had no
+  // route definition, so the dashboard router never attached a permission
+  // guard and they rendered for any authenticated operator.
+  { path: "challenge-programs", viewId: "challenge-programs", label: "Challenge Programs", application: ["super-admin"], permission: "platform.modules.manage" },
+  { path: "deliverability-incidents", viewId: "deliverability-incidents", label: "Deliverability Incidents", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
+  { path: "tenant-channel-entitlements", viewId: "tenant-channel-entitlements", label: "Tenant Channel Entitlements", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
   { path: "churn-prevention", viewId: "churn-prevention", label: "Churn Prevention", application: ["super-admin"] },
   { path: "scheduled-reports", viewId: "scheduled-reports", label: "Scheduled Reports", application: ["super-admin"] },
   { path: "tax-currency", viewId: "tax-currency", label: "Tax & Currency", application: ["super-admin"] },

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { usePlatform } from "@/lib/platform/platform-context";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -41,6 +42,19 @@ export function GettingStartedPage() {
   const [completed, setCompleted] = useState(STEPS.map((s) => s.id));
   const progress = Math.round((completed.length / STEPS.length) * 100);
   const completedCount = completed.length;
+  const { navigate } = usePlatform();
+
+  // SF-28: "Resume Tour" scrolls the checklist to the first step that is
+  // not yet marked done (dead CTA — previously had no handler at all).
+  const resumeTour = () => {
+    const next = STEPS.find((s) => !completed.includes(s.id));
+    if (!next) {
+      toast({ title: "All steps complete", description: "Every onboarding step is marked done." });
+      return;
+    }
+    document.getElementById(`step-${next.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    toast({ title: "Resumed", description: `Next up: ${next.label}.` });
+  };
 
   const toggleStep = (id: string) => {
     setCompleted((prev) =>
@@ -112,7 +126,7 @@ export function GettingStartedPage() {
           {STEPS.map((step, i) => {
             const done = completed.includes(step.id);
             return (
-              <Card key={step.id} className={cn("cursor-pointer transition-hover hover:shadow-sm", !done && "border-amber-500/20 bg-amber-50/10 dark:bg-amber-950/5")}>
+              <Card key={step.id} id={`step-${step.id}`} className={cn("cursor-pointer transition-hover hover:shadow-sm", !done && "border-amber-500/20 bg-amber-50/10 dark:bg-amber-950/5")}>
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     <div className={cn(
@@ -143,10 +157,10 @@ export function GettingStartedPage() {
 
         {/* Quick actions */}
         <div className="flex flex-wrap gap-2">
-          <Button size="sm"><Play className="mr-1 h-4 w-4" /> Resume Tour</Button>
-          <Button size="sm" variant="outline" onClick={() => toast({ title: "Onboarding restarted", description: "All steps have been reset." })}>Restart Onboarding</Button>
-          <Button size="sm" variant="outline"><BookOpen className="mr-1 h-4 w-4" /> Knowledge Base</Button>
-          <Button size="sm" variant="outline"><Shield className="mr-1 h-4 w-4" /> Platform Overview</Button>
+          <Button size="sm" onClick={resumeTour}><Play className="mr-1 h-4 w-4" /> Resume Tour</Button>
+          <Button size="sm" variant="outline" onClick={() => { setCompleted([]); toast({ title: "Onboarding restarted", description: "All steps have been reset." }); }}>Restart Onboarding</Button>
+          <Button size="sm" variant="outline" onClick={() => navigate("knowledge-base")}><BookOpen className="mr-1 h-4 w-4" /> Knowledge Base</Button>
+          <Button size="sm" variant="outline" onClick={() => navigate("platform-overview")}><Shield className="mr-1 h-4 w-4" /> Platform Overview</Button>
         </div>
 
         <div className="rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground dark:bg-muted/10">
