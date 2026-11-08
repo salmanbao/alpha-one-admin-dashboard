@@ -1,11 +1,8 @@
-import { Suspense } from "react";
-import { PageSkeleton } from "@/components/shell/page-skeleton";
-import { AccountVerification1Page } from "../../modules/onboarding/pages/account-verification-1-page";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <Suspense fallback={<PageSkeleton />}>
-      <AccountVerification1Page />
-    </Suspense>
-  );
+// SF-01: retired — identity details are now one step of the unified
+// /verification wizard (the draft is restored from sessionStorage, so
+// nothing typed here is ever lost to a redirect).
+export default function AccountVerification1Redirect() {
+  redirect("/verification");
 }
