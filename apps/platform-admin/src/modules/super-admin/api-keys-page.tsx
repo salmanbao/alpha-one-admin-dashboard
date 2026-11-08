@@ -113,7 +113,7 @@ export function ApiKeysPage() {
             <Button variant="outline" size="sm" onClick={() => navigate("api-analytics")}>
               <Activity className="mr-1 h-4 w-4" /> API Analytics
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "Create key", description: "Create API key form opened. Requires tenant selection + scope config." })}>
+            <Button size="sm" onClick={() => toast({ title: "(demo) Create key", description: "Create API key form opened. Requires tenant selection + scope config." })}>
               <Plus className="mr-1 h-4 w-4" /> Create Key
             </Button>
           </>
@@ -222,7 +222,7 @@ export function ApiKeysPage() {
                             variant="ghost"
                             className="h-6 w-6"
                             aria-label="Copy key"
-                            onClick={() => toast({ title: "Copied", description: `API key for ${key.name} copied to clipboard.` })}
+                            onClick={() => toast({ title: "(demo) Copied", description: `API key for ${key.name} copied to clipboard.` })}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
@@ -262,7 +262,7 @@ export function ApiKeysPage() {
                             size="sm"
                             variant="ghost"
                             className="h-7 px-2 text-[10px]"
-                            onClick={() => toast({ title: "Rotate key", description: `Key ${key.name} rotation initiated. New secret will be generated.` })}
+                            onClick={() => toast({ title: "(demo) Rotate key", description: `Key ${key.name} rotation initiated. New secret will be generated.` })}
                           >
                             <RefreshCw className="h-3 w-3" /> Rotate
                           </Button>
@@ -271,7 +271,7 @@ export function ApiKeysPage() {
                               size="sm"
                               variant="destructive"
                               className="h-7 px-2 text-[10px]"
-                              onClick={() => toast({ title: "Revoke key", description: `Key ${key.name} revoked. Audited.` })}
+                              onClick={() => toast({ title: "(demo) Revoke key", description: `Key ${key.name} revoked. Audited.` })}
                             >
                               Revoke
                             </Button>
@@ -281,7 +281,7 @@ export function ApiKeysPage() {
                               size="sm"
                               variant="ghost"
                               className="h-7 px-2 text-[10px]"
-                              onClick={() => toast({ title: "Key already revoked", description: `Key ${key.name} was revoked. Cannot re-activate.` })}
+                              onClick={() => toast({ title: "(demo) Key already revoked", description: `Key ${key.name} was revoked. Cannot re-activate.` })}
                               disabled
                             >
                               <Lock className="h-3 w-3" />

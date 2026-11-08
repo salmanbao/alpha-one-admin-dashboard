@@ -79,7 +79,7 @@ export function ScheduledReportsPage() {
         description="Auto-delivered analytics and finance reports."
         icon={CalendarClock}
         actions={
-          <Button size="sm" onClick={() => toast({ title: "New schedule", description: "Schedule form: report type, frequency, recipients, format." })}>
+          <Button size="sm" onClick={() => toast({ title: "(demo) New schedule", description: "Schedule form: report type, frequency, recipients, format." })}>
             <Plus className="mr-1 h-4 w-4" /> New Schedule
           </Button>
         }
@@ -160,13 +160,13 @@ export function ScheduledReportsPage() {
                         <td className="px-4 py-3"><StatusBadge tone={statusTones[sch.status]}>{sch.status}</StatusBadge></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Report generated", description: `${sch.name} generated and queued for ${sch.recipients.length} recipient(s).` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Report generated", description: `${sch.name} generated and queued for ${sch.recipients.length} recipient(s).` })}>
                               <Play className="h-3 w-3" /> Run Now
                             </Button>
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: sch.status === "active" ? "Schedule paused" : "Schedule resumed", description: `${sch.name} ${sch.status === "active" ? "paused" : "resumed"}. Audited.` })}>
                               {sch.status === "active" ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Download", description: `Fetching last generated file for ${sch.name}.` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Download", description: `Fetching last generated file for ${sch.name}.` })}>
                               <Download className="h-3 w-3" />
                             </Button>
                           </div>
