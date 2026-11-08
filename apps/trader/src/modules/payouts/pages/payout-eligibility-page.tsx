@@ -23,9 +23,9 @@ import {
   scalingPlan,
   payoutSchedule,
   payoutScheduleOptions,
-  withdrawalMethods,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
+import { usePayoutMethods } from "@/lib/payouts/payout-methods-store";
 import {
   MIN_PAYOUT_DAYS,
   PayoutSummaryStrip,
@@ -40,6 +40,8 @@ function fmtDate(iso: string) {
 
 export function PayoutEligibilityPage() {
   const params = useSearchParams();
+  const methods = usePayoutMethods();
+  const primaryMethod = methods.find((m) => m.primary);
   // ?id= deep link wins (from payout detail / links), otherwise follow the
   // globally active trading account from the header switcher.
   const account = useSyncActiveAccount(params.get("id"));
@@ -449,7 +451,7 @@ export function PayoutEligibilityPage() {
               <div>
                 <p className="font-bold text-on-surface">How long does processing take?</p>
                 <p className="text-xs leading-relaxed text-on-surface-variant">
-                  {withdrawalMethods[0].name}: {withdrawalMethods[0].eta} after approval —
+                  {primaryMethod?.name}: {primaryMethod?.eta} after approval —
                   crypto methods settle faster (within 24 hours). Approved requests appear
                   in Recent payouts below.
                 </p>

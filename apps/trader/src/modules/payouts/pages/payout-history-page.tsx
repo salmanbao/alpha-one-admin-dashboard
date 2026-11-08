@@ -31,9 +31,9 @@ import {
   payoutEntitlement,
   terraAccounts,
   terraPayouts,
-  withdrawalMethods,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
+import { usePayoutMethods } from "@/lib/payouts/payout-methods-store";
 import {
   PayoutSummaryStrip,
   buildPayoutCriteria,
@@ -49,6 +49,7 @@ import { PayoutDetailContent } from "./payout-detail-page";
 function PayoutEligibilityCard({ accountId }: { accountId: string }) {
   const entitlement = payoutEntitlement(accountId);
   const acc = terraAccounts.find((a) => a.id === accountId);
+  const methods = usePayoutMethods();
   const criteria = buildPayoutCriteria(accountId, entitlement.withdrawable);
   const unmet = criteria.filter((c) => !c.ok);
   const eligible = unmet.length === 0;
@@ -84,7 +85,7 @@ function PayoutEligibilityCard({ accountId }: { accountId: string }) {
           Withdrawal methods
         </p>
         <ul className="mt-2 space-y-1.5">
-          {withdrawalMethods.map((m) => (
+          {methods.map((m) => (
             <li key={m.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
               <span className="font-semibold text-on-surface">{m.name}</span>
               {m.primary && (
