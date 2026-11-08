@@ -34,6 +34,7 @@ import {
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
 import { usePayoutMethods } from "@/lib/payouts/payout-methods-store";
+import { usePayoutRequests, type DisplayPayout } from "@/lib/payouts/payout-requests-store";
 import {
   PayoutSummaryStrip,
   buildPayoutCriteria,
@@ -145,8 +146,13 @@ export function PayoutHistoryPage() {
   // Quick-view overlay: clicking a reference opens the payout detail in
   // a dialog on top of the table — the history list is never left.
   const [quickPayoutId, setQuickPayoutId] = useState<string | null>(null);
+  const storeRequests = usePayoutRequests();
+  const allPayouts: DisplayPayout[] = [
+    ...storeRequests,
+    ...terraPayouts.map((p) => ({ ...p, rejection: p.rejection ?? null, isUserRequest: false, methodId: undefined })),
+  ];
   const quickPayout = quickPayoutId
-    ? (terraPayouts.find((p) => p.id === quickPayoutId) ?? null)
+    ? (allPayouts.find((p) => p.id === quickPayoutId) ?? null)
     : null;
   // Account scope: the active trading account (header switcher).
   const acc = useSyncActiveAccount(null);
@@ -155,7 +161,7 @@ export function PayoutHistoryPage() {
     <div className="space-y-6">
       <TerraPageHeader
         title="Payout History"
-        description={`${terraPayouts.length} payouts • ${terraPayouts.filter((p) => p.status === "paid").length} paid`}
+        description={`${allPayouts.length} payouts • ${allPayouts.filter((p) => p.status === "paid").length} paid`}
         actions={
           <TerraBadge tone="primary">
             Next payout: 4 days
@@ -169,7 +175,7 @@ export function PayoutHistoryPage() {
       <TerraCard>
         <TerraTable
           head={["Reference", "Account", "Amount", "Method", "Status", "Requested", "Processed"]}
-          rows={terraPayouts.map((p) => [
+          rows={allPayouts.map((p) => [
             <button
               key="ref"
               type="button"
@@ -177,7 +183,10 @@ export function PayoutHistoryPage() {
               onClick={() => setQuickPayoutId(p.id)}
               className="text-left font-mono text-xs font-bold text-primary hover:underline"
             >
-              {p.reference}
+              <span className="inline-flex items-center gap-1.5">
+                {p.reference}
+                {p.isUserRequest && <TerraBadge tone="primary">Your request</TerraBadge>}
+              </span>
             </button>,
             <span key="acc" className="font-mono text-xs text-on-surface-variant">#{p.accountLogin}</span>,
             <span key="amt" className="font-bold tabular-nums">{formatMoney(p.amount)}</span>,

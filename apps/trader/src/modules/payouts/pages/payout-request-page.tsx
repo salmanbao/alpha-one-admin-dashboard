@@ -37,6 +37,7 @@ import {
   type PayoutCriterion,
 } from "@/components/terra/payout-summary-strip";
 import { type PayoutMethod, usePayoutMethods } from "@/lib/payouts/payout-methods-store";
+import { addPayoutRequest, usePayoutRequests } from "@/lib/payouts/payout-requests-store";
 
 /**
  * Pre-request eligibility checklist (audit #4, HIGH): the payout gates
@@ -135,11 +136,15 @@ export function PayoutRequestPage() {
   const [methodId, setMethodId] = useState<string>(
     primaryMethod?.id ?? methods[0]?.id ?? "",
   );
-  const [submitted, setSubmitted] = useState(false);
+  const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const requests = usePayoutRequests();
+  const submittedRequest = submittedRequestId
+    ? requests.find((r) => r.id === submittedRequestId) ?? null
+    : null;
   const method =
     methods.find((m) => m.id === methodId) ?? primaryMethod ?? methods[0];
-  const feeAmount = method.feeAmount ?? 0;
+  const feeAmount = method?.feeAmount ?? 0;
   const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable);
   const outstanding = criteria.filter((c) => !c.ok).length;
 
@@ -161,7 +166,10 @@ export function PayoutRequestPage() {
     asked >= minPayout &&
     asked <= entitlement.withdrawable;
 
-  if (submitted) {
+  if (submittedRequest) {
+    const req = submittedRequest;
+    const reqMethod = methods.find((m) => m.id === req.methodId);
+    const eta = reqMethod?.eta;
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-6 text-center">
         <div className="rounded-full bg-primary-fixed p-6">
@@ -170,17 +178,20 @@ export function PayoutRequestPage() {
         <div>
           <h2 className="text-2xl font-bold text-on-surface">Payout Request Submitted</h2>
           <p className="mt-2 text-on-surface-variant">
-            Your request for {formatMoney(asked)} via {method.name} has been received.
+            Your request for {formatMoney(req.amount)} via {req.method} has been received.
           </p>
-          {method.eta !== 'immediate' && method.eta !== 'same-day' && (
+          <p className="mt-1 text-sm text-on-surface-variant">
+            Reference: <span className="font-mono font-bold">{req.reference}</span>
+          </p>
+          {eta && eta !== "immediate" && eta !== "same-day" && (
             <p className="mt-1 text-sm text-on-surface-variant">
-              Expected processing: {method.eta} business days
+              Expected processing: {eta} business days
             </p>
           )}
           <p className="mt-1 text-sm text-on-surface-variant">
-            Status: <span className="font-bold">Submitted</span> — you’ll receive a confirmation email when approved
+            Status: <span className="font-bold capitalize">{req.status}</span> — you’ll receive a confirmation email when approved
           </p>
-          {method.id === "wm-confirmo" ? (
+          {reqMethod?.id === "wm-confirmo" ? (
             <p className="mt-1 text-sm text-on-surface-variant">
               Confirmo auto-payout: funds settle on-chain within minutes of approval — 24/7.
             </p>
@@ -192,16 +203,16 @@ export function PayoutRequestPage() {
         </div>
         <div className="flex gap-3">
           <Link
-            href="/payout-history"
+            href={`/payout-history`}
             className="rounded-xl bg-primary px-6 py-3 text-sm font-bold text-on-primary hover:bg-primary/90"
           >
             View Payout History
           </Link>
           <Link
-            href="/dashboard"
+            href={`/payout-detail?id=${req.id}`}
             className="rounded-xl border border-outline-variant px-6 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-low"
           >
-            Back to Dashboard
+            View request
           </Link>
         </div>
       </div>
@@ -579,8 +590,16 @@ export function PayoutRequestPage() {
                   <button
                     type="button"
                     onClick={() => {
+                      if (!method) return;
+                      const req = addPayoutRequest({
+                        accountId: acc.id,
+                        amount: asked,
+                        methodId: method.id,
+                        methodName: method.name,
+                        feeAmount,
+                      });
                       setReviewOpen(false);
-                      setSubmitted(true);
+                      setSubmittedRequestId(req.id);
                     }}
                     className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
                   >
