@@ -334,7 +334,7 @@ export function PayoutReversalStitchPage() {
                     <td className="py-4 px-4 font-mono font-bold text-on-surface">                      <span className="hover:text-primary cursor-pointer">REV-2025-091</span></td>
                     <td className="py-4 px-4 font-mono text-primary font-bold">
                       <a className="hover:underline flex items-center gap-1" href="#" onClick={(e) => e.preventDefault()}>
-                        <span>PO-94102</span>
+                        <span>PO-…</span>
 <MsIcon name="arrow_outward" className="text-[13px]" />
                       </a>
                     </td>
@@ -609,7 +609,7 @@ export function PayoutReversalStitchPage() {
             <div className="space-y-4 text-xs">
               <div>
                 <label className="block text-tsc font-bold uppercase tracking-wider text-[10px] mb-1.5">Original Payout Reference</label>
-<input className="w-full h-10 px-3 rounded-xl bg-surface-container-low text-on-surface font-mono placeholder:text-tsc focus:outline-none focus:ring-2 focus:ring-primary shadow-sm" placeholder="e.g. PO-94102 or MT5 Account ID" type="text" />
+<input className="w-full h-10 px-3 rounded-xl bg-surface-container-low text-on-surface font-mono placeholder:text-tsc focus:outline-none focus:ring-2 focus:ring-primary shadow-sm" placeholder="e.g. PO-… or MT5 Account ID" type="text" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -669,7 +669,7 @@ export function PayoutReversalStitchPage() {
                 <h2 className="font-headline text-2xl font-bold text-on-surface tracking-tight leading-snug">                  Authorize Payout Reversal: REV-2025-091?</h2>
                 <p className="text-xs text-on-surface-variant leading-relaxed">
 
-            You are about to authorize an executive ledger clawback of <strong className="text-on-surface font-semibold">$24,500.00 USD</strong> for <strong className="text-on-surface font-semibold">Elena Althaus</strong> (PO-94102).
+            You are about to authorize an executive ledger clawback of <strong className="text-on-surface font-semibold">$24,500.00 USD</strong> for <strong className="text-on-surface font-semibold">Elena Althaus</strong> (PO-…).
           
                 </p>
               </div>
@@ -777,7 +777,7 @@ export function PayoutReversalStitchPage() {
               </div>
               <div className="relative">
 <MsIcon name="search" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-primary" />
-<input className="w-full h-11 pl-10 pr-24 rounded-lg bg-surface-container-low text-sm font-mono font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary shadow-inner cursor-default" id="payout-ref-input" readOnly type="text" defaultValue="PO-94102" />
+<input className="w-full h-11 pl-10 pr-24 rounded-lg bg-surface-container-low text-sm font-mono font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary shadow-inner cursor-default" id="payout-ref-input" readOnly type="text" defaultValue="PO-…" />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-primary-fixed text-on-primary-fixed text-[10px] font-bold font-mono">MATCHED</span>
               </div>
               <div className="p-4 rounded-xl bg-surface-container-low shadow-sm space-y-3">

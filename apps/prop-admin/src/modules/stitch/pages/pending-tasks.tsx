@@ -474,13 +474,13 @@ export function PendingTasksStitchPage() {
                       </div>
                       <p className="text-xs text-tsc mt-0.5 line-clamp-1">
                         Elena Althaus approved payout
-                        <span className="font-mono text-on-surface">#PO-94102</span>
+                        <span className="font-mono text-on-surface">#PO-…</span>
                         ($24,500.00) via JP Morgan Chase ACH for Julian Thorne.
                       </p>
                       <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-surface-container text-[10px]">
                         <span className="px-1.5 py-0.2 rounded bg-surface-container-highest text-tsc font-semibold uppercase tracking-wider">TREASURY</span>
                         <span className="text-primary font-semibold group-hover:underline flex items-center gap-0.5">
-                          Inspect Payout #PO-94102
+                          Inspect Payout #PO-…
 <MsIcon name="north_east" className="text-[11px]" />
                         </span>
                       </div>

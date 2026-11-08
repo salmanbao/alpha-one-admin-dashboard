@@ -39,7 +39,7 @@ export function PayoutDetailStitchPage() {
     ? { ...rawPayout, status: effectivePayoutStatus(rawPayout) }
     : undefined;
   const currency = payout?.currency ?? runtime.tenant?.currency ?? "USD";
-  const displayRef = payout?.reference ?? reference ?? "#PO-94102";
+  const displayRef = payout?.reference ?? reference ?? "#PO-…";
   const displayName = payout?.traderName ?? "Unknown trader";
   const displayAmount = payout ? formatCurrency(payout.amount, currency) : "—";
   const displayNet = payout
@@ -681,14 +681,14 @@ export function PayoutDetailStitchPage() {
               </div>
               <p className="text-xs text-on-surface-variant leading-relaxed">
 
-          Annotate payout record <span className="font-semibold text-on-surface">#PO-94102</span> (<span className="font-semibold text-on-surface">Elena Althaus</span> · $24,500.00 USD) for SEC Rule 17a-4 and institutional regulatory compliance.
+          Annotate payout record <span className="font-semibold text-on-surface">#PO-…</span> (<span className="font-semibold text-on-surface">Elena Althaus</span> · $24,500.00 USD) for SEC Rule 17a-4 and institutional regulatory compliance.
         
               </p>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <div className="p-3.5 rounded-xl bg-surface-container-low shadow-sm flex flex-col gap-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded bg-primary-fixed">#PO-94102</span>
+                  <span className="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded bg-primary-fixed">#PO-…</span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-on-primary-fixed-variant px-2 py-0.5 rounded-full bg-primary-fixed/60">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
                     Settled &amp; Cleared

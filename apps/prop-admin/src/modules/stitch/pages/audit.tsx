@@ -288,7 +288,7 @@ export function AuditStitchPage() {
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap">                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-surface-container-high text-on-surface">PAYOUT_DISBURSED</span></td>
                     <td className="py-3.5 px-4 whitespace-nowrap">                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-surface-container text-on-surface-variant">Payout</span></td>
-                    <td className="py-3.5 px-4 font-mono text-[11px] text-primary font-bold hover:underline whitespace-nowrap">                      PO-94102-USD</td>
+                    <td className="py-3.5 px-4 font-mono text-[11px] text-primary font-bold hover:underline whitespace-nowrap">                      PO-…-USD</td>
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-fixed text-on-primary-fixed inline-flex items-center gap-1">
                         <span className="h-1.5 w-1.5 rounded-full bg-primary"></span>

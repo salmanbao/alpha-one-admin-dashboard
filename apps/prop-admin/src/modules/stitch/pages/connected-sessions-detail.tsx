@@ -193,7 +193,7 @@ export function ConnectedSessionsDetailStitchPage() {
                   </div>
                   <div className="text-xs text-on-surface-variant flex flex-wrap items-center gap-2">
                     <span>Entity:</span>
-                    <a className="font-mono font-semibold text-primary hover:underline bg-surface-container px-2 py-0.5 rounded" href="#" onClick={(e) => e.preventDefault()}>#PO-94102</a>
+                    <a className="font-mono font-semibold text-primary hover:underline bg-surface-container px-2 py-0.5 rounded" href="#" onClick={(e) => e.preventDefault()}>#PO-…</a>
                     <span className="text-on-surface">($24,500.00 USD to Elena Althaus)</span>
                   </div>
                   <div className="flex items-center justify-between pt-1">

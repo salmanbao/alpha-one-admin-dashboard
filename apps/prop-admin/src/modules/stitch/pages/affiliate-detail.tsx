@@ -267,7 +267,7 @@ export function AffiliateDetailStitchPage() {
                               Completed
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 font-mono text-tsc">PO-94102</td>
+                          <td className="py-3.5 px-4 font-mono text-tsc">PO-…</td>
                           <td className="py-3.5 px-4 text-right">
                             <a className="inline-flex items-center gap-1 font-semibold text-primary hover:underline text-xs" href="#" onClick={(e) => e.preventDefault()}>
                               <span>Receipt</span>

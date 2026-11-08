@@ -377,7 +377,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "payout-methods-config": dynamic(() => import("@/modules/stitch/pages/payout-methods-config").then((m) => ({ default: m.PayoutMethodsConfigStitchPage })), { loading: ViewSkeleton }),
   "payout-reversal": dynamic(() => import("@/modules/stitch/pages/payout-reversal").then((m) => ({ default: m.PayoutReversalStitchPage })), { loading: ViewSkeleton }),
   "payout-schedule": dynamic(() => import("@/modules/stitch/pages/payout-schedule").then((m) => ({ default: m.PayoutScheduleStitchPage })), { loading: ViewSkeleton }),
-  "payouts-bulk-approval": dynamic(() => import("@/modules/stitch/pages/payouts-bulk-approval").then((m) => ({ default: m.PayoutsBulkApprovalStitchPage })), { loading: ViewSkeleton }),
+
   "pending-snoozed-resolved": dynamic(() => import("@/modules/stitch/pages/pending-snoozed-resolved").then((m) => ({ default: m.PendingSnoozedResolvedStitchPage })), { loading: ViewSkeleton }),
   "pending-task-detail": dynamic(() => import("@/modules/stitch/pages/pending-task-detail").then((m) => ({ default: m.PendingTaskDetailStitchPage })), { loading: ViewSkeleton }),
   "position-detail-live": dynamic(() => import("@/modules/stitch/pages/position-detail-live").then((m) => ({ default: m.PositionDetailLiveStitchPage })), { loading: ViewSkeleton }),

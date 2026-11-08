@@ -423,7 +423,7 @@ const routes: RouteDefinition[] = [
   { path: "payout-detail", viewId: "payout-detail", label: "Payout Detail" },
   { path: "payout-methods-config", viewId: "payout-methods-config", label: "Methods Config" },
   { path: "payout-reversal", viewId: "payout-reversal", label: "Payout Reversal" },
-  { path: "payouts-bulk-approval", viewId: "payouts-bulk-approval", label: "Bulk Approval" },
+
   { path: "payout-schedule", viewId: "payout-schedule", label: "Payout Schedule" },
   { path: "payouts-enhanced-withdrawals", viewId: "payouts-enhanced-withdrawals", label: "Enhanced Withdrawals" },
   { path: "payouts-history", viewId: "payouts-history", label: "Payout History" },

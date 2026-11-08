@@ -852,7 +852,7 @@ export function ChartOfAccountsStitchPage() {
                       </tr>
                       <tr className="bg-surface-container-lowest hover:bg-surface-container-low transition-colors">
                         <td className="py-2.5 px-3 whitespace-nowrap text-tsc font-mono">May 17, 18:30</td>
-                        <td className="py-2.5 px-3 whitespace-nowrap font-mono font-semibold text-tsc">PO-94102</td>
+                        <td className="py-2.5 px-3 whitespace-nowrap font-mono font-semibold text-tsc">PO-…</td>
                         <td className="py-2.5 px-3 text-on-surface max-w-[190px] truncate" title="Trader Payout Batch Disbursed">Trader Payout Batch Disbursed</td>
                         <td className="py-2.5 px-3 text-right font-mono text-tsc">—</td>
                         <td className="py-2.5 px-3 text-right font-mono font-semibold text-error">$124,500.00</td>

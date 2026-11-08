@@ -406,7 +406,7 @@ export function SupportAgentDetailStitchPage() {
                       <span className="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-primary ring-4 ring-surface-container-lowest"></span>
                       <div className="bg-surface-container-low p-4 rounded-xl space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-on-surface">Approved Payout Compliance Sign-Off #PO-94102</span>
+                          <span className="text-xs font-bold text-on-surface">Approved Payout Compliance Sign-Off #PO-…</span>
                           <span className="text-[11px] font-mono text-tsc">11:04 UTC (Today)</span>
                         </div>
                         <p className="text-xs text-on-surface-variant">Performed MLRO AML/CTF check against OFAC Sanctions database for $14,200 payout request. Cleared and broadcasted to escrow wallet.</p>

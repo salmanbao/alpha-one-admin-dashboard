@@ -21,7 +21,7 @@ const navigation: NavigationItem[] = [
       { id: "payouts.withdrawals", label: "Withdrawals", href: "payouts-enhanced-withdrawals", icon: ListChecks, permission: ["payout.read", "payout.self"], group: "Requests & Approvals" },
 
       // ───────── Payout Operations (M10/M13) ─────────
-      { id: "payouts.bulk-approval", label: "Bulk Approval", href: "payouts-bulk-approval", icon: Users, permission: "payout.approve", group: "Payout Operations" },
+      { id: "payouts.bulk-approval", label: "Bulk Approval", href: "payouts-pending", icon: Users, permission: "payout.approve", group: "Payout Operations" },
       { id: "payouts.schedule", label: "Schedule", href: "payout-schedule", icon: CalendarClock, permission: "payout.read", group: "Payout Operations" },
       { id: "payouts.methods-config", label: "Methods & Config", href: "payout-methods-config", icon: WalletCards, permission: "payout.read", group: "Payout Operations" },
       { id: "payouts.compliance", label: "Compliance", href: "payout-compliance", icon: ShieldCheck, permission: "payout.read", group: "Payout Operations" },
@@ -44,7 +44,7 @@ const routes: RouteDefinition[] = [
   // target, so it needs a guard entry rather than a not-found.
   { path: "payout-detail", viewId: "payout-detail", label: "Payout Detail", permission: ["payout.read", "payout.self"], module: "payouts" },
   // Payout Operations (M10/M13) — guarded variants of the stitch routes.
-  { path: "payouts-bulk-approval", viewId: "payouts-bulk-approval", label: "Bulk Approval", permission: "payout.approve", module: "payouts" },
+
   { path: "payout-schedule", viewId: "payout-schedule", label: "Payout Schedule", permission: "payout.read", module: "payouts" },
   { path: "payout-methods-config", viewId: "payout-methods-config", label: "Payout Methods", permission: "payout.read", module: "payouts" },
   { path: "payout-compliance", viewId: "payout-compliance", label: "Payout Compliance", permission: "payout.read", module: "payouts" },
