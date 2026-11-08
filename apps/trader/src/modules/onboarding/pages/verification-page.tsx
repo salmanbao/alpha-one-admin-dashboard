@@ -46,6 +46,7 @@ import {
 import {
   documentsComplete,
   emptyVerificationDraft,
+  fastForwardVerification,
   identityFieldLabels,
   identityFieldOrder,
   identityValidators,
@@ -84,8 +85,14 @@ export function VerificationPage() {
   // mismatch on the controlled inputs).
   const [draft, setDraft] = useState<VerificationDraft>(emptyVerificationDraft);
   useEffect(() => {
+    // R2-01 demo control: ?fast-forward=1 advances a submitted/in-review
+    // draft to its verdict immediately, so the acceptance flow can be
+    // exercised without waiting for the seeded timer.
+    if (params.get("fast-forward") === "1") {
+      fastForwardVerification();
+    }
     setDraft(readVerificationDraft());
-  }, []);
+  }, [params]);
 
   /** Single write path — state and sessionStorage move together. */
   const applyDraft = (next: VerificationDraft) => {

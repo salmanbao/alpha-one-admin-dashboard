@@ -52,49 +52,6 @@ export function getProvisioningStage(submittedAt?: string): LifecycleStage | nul
   return stages[stage] || null;
 }
 
-export function getKycStage(reviewStatus: string): LifecycleStage {
-  const stages: Record<string, LifecycleStage> = {
-    'not-started': {
-      label: "Not started",
-      tone: "tertiary",
-      badgeLabel: "0/3",
-      dot: true,
-    },
-    draft: {
-      label: "In progress",
-      tone: "primary",
-      badgeLabel: "1/3",
-      dot: true,
-    },
-    submitted: {
-      label: "Submitted",
-      tone: "tertiary",
-      badgeLabel: "2/3",
-      dot: true,
-    },
-    'in-review': {
-      label: "In review",
-      tone: "tertiary",
-      badgeLabel: "3/3",
-      dot: true,
-      pulse: true,
-    },
-    approved: {
-      label: "Approved",
-      tone: "success",
-      badgeLabel: "✓",
-      dot: true,
-    },
-    rejected: {
-      label: "Rejected",
-      tone: "error",
-      badgeLabel: "✗",
-      dot: true,
-    },
-  };
-  
-  return stages[reviewStatus] || stages['not-started'];
-}
 
 export function getPayoutStage(status: string, eta?: string): LifecycleStage {
   const stages: Record<string, LifecycleStage> = {

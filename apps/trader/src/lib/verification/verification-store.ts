@@ -225,15 +225,121 @@ function removeKey(key: string): void {
 }
 
 /** Read the saved draft (missing/partial storage degrades to defaults). */
+/**
+ * Deterministic, time-seeded review resolver (R2-01).
+ *
+ * On read, advances submitted KYC through the review lifecycle:
+ *   submitted  → in-review  after REVIEW_START_HOURS
+ *   in-review  → approved | rejected  after REVIEW_DECISION_HOURS
+ *
+ * The approved/rejected split is seeded from submittedAt (stable, no
+ * randomness). Rejections increment attempts; at maxAttempts the next
+ * verdict is forced approved (demo mercy rule).
+ *
+ * Resolved state is persisted back to sessionStorage so attempts and
+ * timestamps stay consistent across reads.
+ */
+const REVIEW_START_HOURS = 1; // submitted → in-review
+const REVIEW_DECISION_HOURS = 4; // in-review → verdict (from submittedAt)
+
+function hashSeed(input: string): number {
+  let h = 0;
+  for (let i = 0; i < input.length; i++) {
+    h = (h * 31 + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function resolveReviewStatus(draft: VerificationDraft): VerificationDraft {
+  const { reviewStatus, submittedAt, attempts, maxAttempts } = draft;
+  if (
+    reviewStatus !== "submitted" &&
+    reviewStatus !== "in-review"
+  ) {
+    return draft;
+  }
+  if (!submittedAt) return draft;
+
+  const submittedMs = new Date(submittedAt).getTime();
+  if (!Number.isFinite(submittedMs)) return draft;
+
+  const now = Date.now();
+  const elapsedHours = (now - submittedMs) / (1000 * 60 * 60);
+
+  // submitted → in-review
+  if (reviewStatus === "submitted" && elapsedHours >= REVIEW_START_HOURS) {
+    const advanced: VerificationDraft = { ...draft, reviewStatus: "in-review" };
+    if (elapsedHours < REVIEW_DECISION_HOURS) {
+      writeVerificationDraft(advanced);
+      return advanced;
+    }
+    // fall through to verdict resolution
+    return resolveVerdict({ ...advanced }, submittedAt, attempts, maxAttempts);
+  }
+
+  // in-review → verdict
+  if (reviewStatus === "in-review" && elapsedHours >= REVIEW_DECISION_HOURS) {
+    return resolveVerdict(draft, submittedAt, attempts, maxAttempts);
+  }
+
+  return draft;
+}
+
+function resolveVerdict(
+  draft: VerificationDraft,
+  submittedAt: string,
+  attempts: number,
+  maxAttempts: number,
+): VerificationDraft {
+  // Deterministic 85% approved / 15% rejected, seeded by submission time
+  const roll = hashSeed(submittedAt) % 100;
+  const wouldApprove = roll < 85;
+
+  if (wouldApprove || attempts >= maxAttempts) {
+    const resolved: VerificationDraft = {
+      ...draft,
+      reviewStatus: "approved",
+      rejectionReasons: undefined,
+    };
+    writeVerificationDraft(resolved);
+    return resolved;
+  }
+
+  // Rejection: increment attempts
+  const nextAttempts = attempts + 1;
+  const reasons = rejectionReasonPool(hashSeed(submittedAt + String(nextAttempts)));
+  const resolved: VerificationDraft = {
+    ...draft,
+    reviewStatus: "rejected",
+    attempts: nextAttempts,
+    rejectionReasons: reasons,
+  };
+  writeVerificationDraft(resolved);
+  return resolved;
+}
+
+function rejectionReasonPool(seed: number): string[] {
+  const pools = [
+    ["Document image is blurry — re-upload a clear photo with all corners visible."],
+    [
+      "Name on ID does not match the account name.",
+      "Proof of address is older than 90 days.",
+    ],
+    ["Selfie does not clearly match the ID photo — retake in good lighting."],
+  ];
+  return pools[seed % pools.length];
+}
+
 export function readVerificationDraft(): VerificationDraft {
   const raw = readJson<Partial<VerificationDraft>>(DRAFT_KEY);
   if (!raw) return emptyVerificationDraft();
-  return {
+  const draft: VerificationDraft = {
     ...emptyVerificationDraft(),
     ...raw,
     identity: { ...defaultIdentity, ...(raw.identity ?? {}) },
     documents: { ...(raw.documents ?? {}) },
   };
+  return resolveReviewStatus(draft);
 }
 
 export function writeVerificationDraft(draft: VerificationDraft): void {
@@ -242,6 +348,18 @@ export function writeVerificationDraft(draft: VerificationDraft): void {
 
 export function clearVerificationDraft(): void {
   removeKey(DRAFT_KEY);
+}
+
+/**
+ * Demo fast-forward: push submittedAt back far enough that the
+ * resolver immediately reaches a verdict on next read. Used by the
+ * ?fast-forward=1 demo control on the verification page.
+ */
+export function fastForwardVerification(): void {
+  const draft = readVerificationDraft();
+  if (draft.reviewStatus !== "submitted" && draft.reviewStatus !== "in-review") return;
+  const past = new Date(Date.now() - (REVIEW_DECISION_HOURS + 1) * 60 * 60 * 1000).toISOString();
+  writeVerificationDraft({ ...draft, submittedAt: past });
 }
 
 /** Both required documents are attached. */
