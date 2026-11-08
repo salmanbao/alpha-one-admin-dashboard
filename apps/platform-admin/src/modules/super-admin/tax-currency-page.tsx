@@ -78,7 +78,7 @@ export function TaxCurrencyPage() {
   }), [data]);
 
   const saveRate = (code: string) => {
-    toast({ title: "Exchange rate saved", description: `${code} rate updated to ${rateDraft}. Rate refresh scheduled.` });
+    toast({ title: "(demo) Exchange rate saved", description: `${code} rate updated to ${rateDraft}. Rate refresh scheduled.` });
     setEditingRate(null);
   };
 
@@ -90,10 +90,10 @@ export function TaxCurrencyPage() {
         icon={Percent}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => toast({ title: "Rates refreshed", description: "Exchange rates synced from provider. Next sync in 1h." })}>
+            <Button variant="outline" size="sm" onClick={() => toast({ title: "(demo) Rates refreshed", description: "Exchange rates synced from provider. Next sync in 1h." })}>
               <ArrowLeftRight className="mr-1 h-4 w-4" /> Refresh Rates
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "New tax rule", description: "Tax rule form: region, type, rate, applicability." })}>
+            <Button size="sm" onClick={() => toast({ title: "(demo) New tax rule", description: "Tax rule form: region, type, rate, applicability." })}>
               <Plus className="mr-1 h-4 w-4" /> Add Tax Rule
             </Button>
           </>
@@ -120,7 +120,7 @@ export function TaxCurrencyPage() {
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold">Currencies</h2>
-              <Button size="sm" variant="outline" onClick={() => toast({ title: "Add currency", description: "Currency form: code, symbol, exchange rate, precision." })}>
+              <Button size="sm" variant="outline" onClick={() => toast({ title: "(demo) Add currency", description: "Currency form: code, symbol, exchange rate, precision." })}>
                 <Plus className="mr-1 h-3 w-3" /> Add Currency
               </Button>
             </div>
@@ -179,7 +179,7 @@ export function TaxCurrencyPage() {
                         <StatusBadge tone={cur.enabled ? "success" : "warning"}>{cur.enabled ? "enabled" : "disabled"}</StatusBadge>
                       </td>
                       <td className="px-4 py-3">
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: cur.enabled ? "Currency disabled" : "Currency enabled", description: `${cur.code} ${cur.enabled ? "disabled for new charges" : "enabled"}. Audited.` })}>
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: `(demo) ${cur.enabled ? "Currency disabled" : "Currency enabled"}`, description: `${cur.code} ${cur.enabled ? "disabled for new charges" : "enabled"}. Audited.` })}>
                           {cur.enabled ? "Disable" : "Enable"}
                         </Button>
                       </td>
@@ -231,10 +231,10 @@ export function TaxCurrencyPage() {
                       <td className="px-4 py-3"><StatusBadge tone={statusTones[rule.status]}>{rule.status}</StatusBadge></td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Edit rule", description: `Editing tax rule for ${rule.region}.` })}>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Edit rule", description: `Editing tax rule for ${rule.region}.` })}>
                             Edit
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: rule.status === "active" ? "Rule disabled" : "Rule enabled", description: `${rule.region} tax rule ${rule.status === "active" ? "disabled" : "enabled"}. Audited.` })}>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: `(demo) ${rule.status === "active" ? "Rule disabled" : "Rule enabled"}`, description: `${rule.region} tax rule ${rule.status === "active" ? "disabled" : "enabled"}. Audited.` })}>
                             {rule.status === "active" ? "Disable" : "Enable"}
                           </Button>
                         </div>
