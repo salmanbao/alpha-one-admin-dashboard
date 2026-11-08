@@ -18,6 +18,7 @@ import { Activity, Clock } from "lucide-react";
 import { Button } from "@pfaas/ui";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { toast } from "@/hooks/use-toast";
+import { exportToCsv } from "@/lib/export/export-csv";
 
 export function ClosedPositionsPage() {
   const { runtime } = usePlatform();
@@ -138,10 +139,19 @@ export function ClosedPositionsPage() {
               variant="outline"
               size="sm"
               onClick={() =>
-                toast({
-                  title: "Export ready",
-                  description: `Exported ${closedPositions.length} closed positions (${scopeAll ? "all accounts" : `#${activeAccount.login}`}).`,
-                })
+                exportToCsv(
+                  closedPositions,
+                  [
+                    { header: "Symbol", value: (r) => r.symbol },
+                    { header: "Side", value: (r) => r.side },
+                    { header: "Size", value: (r) => r.size },
+                    { header: "Entry", value: (r) => r.entryPrice },
+                    { header: "Exit", value: (r) => r.exitPrice },
+                    { header: "P&L", value: (r) => r.pnl },
+                    { header: "Closed At", value: (r) => new Date(r.closedAt).toISOString() },
+                  ],
+                  "closed-positions.csv",
+                )
               }
             >
               <Clock className="h-4 w-4 mr-2" />

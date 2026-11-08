@@ -101,9 +101,12 @@ export function PayoutDetailContent({
     payout.status === "paid" ? "success" : payout.status === "rejected" ? "error" : "tertiary";
 
   const handleDownloadReceipt = () => {
+    // Real artifact: print/save the receipt (window.print is the browser's
+    // native save-to-PDF path; no fabricated email delivery).
+    window.print();
     toast({
-      title: "Receipt downloaded",
-      description: `${payout.reference} — ${formatMoney(payout.amount)} via ${payout.method} (${payout.status}).`,
+      title: "Receipt ready to save",
+      description: `${payout.reference} — ${formatMoney(payout.amount)} via ${payout.method} (${payout.status}). Use your browser's print dialog to save as PDF.`,
     });
   };
 

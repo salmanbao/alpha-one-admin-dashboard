@@ -235,7 +235,7 @@ export function PerformanceAnalyticsPage() {
   const handleExportReport = () => {
     toast({
       title: "Performance report (PDF) — export started",
-      description: `Win rate ${winRate}% • Net P&L ${formatSignedMoney(pool.reduce((s, t) => s + t.pnl, 0))} • Expectancy ${formatSignedMoney(Math.round(expectancy * 10) / 10)}/trade. Branded cover with equity curve and breakdowns — you'll also receive it by email. (Demo — no backend call.)`,
+      description: `Win rate ${winRate}% • Net P&L ${formatSignedMoney(pool.reduce((s, t) => s + t.pnl, 0))} • Expectancy ${formatSignedMoney(Math.round(expectancy * 10) / 10)}/trade. Branded cover with equity curve and breakdowns. (Demo — no backend call.)`,
     });
   };
 
