@@ -259,8 +259,8 @@ export function CertificateDetailStitchPage() {
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-tsc uppercase tracking-wider block" htmlFor="linkedPayoutSelect">Linked Institutional Payout</label>
                     <div className="relative">
-                      <select className="w-full bg-surface-container-lowest rounded-xl px-3.5 py-2.5 text-xs font-semibold text-on-surface outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all shadow-sm" id="linkedPayoutSelect" defaultValue="PO-94102">
-                        <option value="PO-94102">PO-94102 ($24,500.00 USD - Approved &amp; Settled)</option>
+                      <select className="w-full bg-surface-container-lowest rounded-xl px-3.5 py-2.5 text-xs font-semibold text-on-surface outline-none focus:ring-2 focus:ring-primary/20 appearance-none transition-all shadow-sm" id="linkedPayoutSelect" defaultValue="PO-…">
+                        <option value="PO-…">PO-… ($24,500.00 USD - Approved &amp; Settled)</option>
                         <option value="PO-93881">PO-93881 ($11,200.00 USD - Archived)</option>
                         <option value="none">None / Pre-Payout Milestone Attestation</option>
                       </select>
@@ -280,7 +280,7 @@ export function CertificateDetailStitchPage() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-tsc uppercase tracking-wider block" htmlFor="operatorReasonText">Operator Governance Justification</label>
-<textarea className="w-full bg-surface-container-lowest rounded-xl p-3 text-xs font-medium text-on-surface outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm" id="operatorReasonText" placeholder="Provide audit reasoning for updating linked records or metadata..." rows={2} defaultValue="Updated payout linkage to PO-94102 following AML Level-2 risk clearance." />
+<textarea className="w-full bg-surface-container-lowest rounded-xl p-3 text-xs font-medium text-on-surface outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm" id="operatorReasonText" placeholder="Provide audit reasoning for updating linked records or metadata..." rows={2} defaultValue="Updated payout linkage to PO-… following AML Level-2 risk clearance." />
                   </div>
                   <div className="pt-2 flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -397,7 +397,7 @@ export function CertificateDetailStitchPage() {
                   <span className="font-bold text-on-surface">Payout Linkage Updated</span>
                   <span className="text-tsc font-mono text-[11px]">Today, 14:28 UTC</span>
                 </div>
-                <p className="text-xs text-tsc">Linked payout record assigned to PO-94102 after AML approval clearance.</p>
+                <p className="text-xs text-tsc">Linked payout record assigned to PO-… after AML approval clearance.</p>
                 <span className="text-[10px] font-mono text-primary font-bold">Operator: Marcus Vance (CRO)</span>
               </div>
               <div className="p-3.5 bg-surface-container-low rounded-xl space-y-1">
@@ -589,7 +589,7 @@ export function CertificateDetailStitchPage() {
                     </p>
                     <p className="text-[11.5px] leading-relaxed pl-5 text-tsc">
                       Bound certificate to settled institutional payout
-                      <span className="font-mono text-on-surface font-semibold">#PO-94102</span>
+                      <span className="font-mono text-on-surface font-semibold">#PO-…</span>
                       ($24,500.00 USD). Note: Cleared AML-2.
                     </p>
                   </div>
@@ -756,7 +756,7 @@ export function CertificateDetailStitchPage() {
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="text-outline text-[13px] font-mono shrink-0">•</span>
-                  <p><span className="font-bold text-on-surface uppercase tracking-wide text-[10px]">Linked Payouts:</span> Payout #PO-94102 ($24,500.00 USD) will be flagged for compliance review. Settled funds will not be clawed back automatically.</p>
+                  <p><span className="font-bold text-on-surface uppercase tracking-wide text-[10px]">Linked Payouts:</span> Payout #PO-… ($24,500.00 USD) will be flagged for compliance review. Settled funds will not be clawed back automatically.</p>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="text-outline text-[13px] font-mono shrink-0">•</span>

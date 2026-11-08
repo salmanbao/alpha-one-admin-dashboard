@@ -154,7 +154,7 @@ export { PayoutComplianceStitchPage } from "./pages/payout-compliance";
 export { PayoutDetailStitchPage } from "./pages/payout-detail";
 export { PayoutMethodsConfigStitchPage } from "./pages/payout-methods-config";
 export { PayoutReversalStitchPage } from "./pages/payout-reversal";
-export { PayoutsBulkApprovalStitchPage } from "./pages/payouts-bulk-approval";
+
 export { PayoutScheduleStitchPage } from "./pages/payout-schedule";
 export { PayoutsEnhancedWithdrawalsStitchPage } from "./pages/payouts-enhanced-withdrawals";
 export { PayoutsHistoryStitchPage } from "./pages/payouts-history";

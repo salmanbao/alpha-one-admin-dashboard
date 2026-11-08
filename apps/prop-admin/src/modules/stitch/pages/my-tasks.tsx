@@ -244,7 +244,7 @@ export function MyTasksStitchPage() {
                           <span>Elena Althaus</span>
                         </span>
                         <span>•</span>
-                        <span className="font-mono">PO: #PO-94102</span>
+                        <span className="font-mono">PO: #PO-…</span>
                         <span>•</span>
                         <span className="font-mono">MT5: #MT5-882049</span>
                         <span>•</span>

@@ -417,7 +417,7 @@ export function PendingTaskDetailStitchPage() {
                     <div className="flex items-center gap-2.5 min-w-0">
 <MsIcon name="payments" className="text-tsc group-hover:text-primary transition-colors text-[18px]" />
                       <div className="min-w-0">
-                        <div className="text-xs font-bold text-on-surface group-hover:text-primary transition-colors truncate">#PO-94102 ($24,500.00)</div>
+                        <div className="text-xs font-bold text-on-surface group-hover:text-primary transition-colors truncate">#PO-… ($24,500.00)</div>
                         <div className="text-[11px] text-on-surface-variant">Treasury Disburse Queue</div>
                       </div>
                     </div>

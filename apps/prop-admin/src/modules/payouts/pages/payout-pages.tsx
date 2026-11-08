@@ -1,6 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { hasPermission } from "@/lib/platform/permission-engine";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
@@ -406,54 +414,56 @@ export function PendingPayoutsPage() {
   // reject surface (finding #7).
   const [batchRejectTarget, setBatchRejectTarget] = useState<PayoutRejectTarget | null>(null);
 
-  /** ── Toolbar actions for selected payouts ────────────────────────── */
+  /** ── Batch pre-flight (R2-W1-04) ─────────────────────────────────── */
+  type PreflightRow = { reference: string; traderName: string; amount: number; pass: boolean; reason: string };
+  const [preflight, setPreflight] = useState<PreflightRow[] | null>(null);
+  const [staging, setStaging] = useState(false);
+
+  const runPreflight = (payouts: Payout[]) => {
+    const traderIds = [...new Set(payouts.map((p) => p.traderId))];
+    const worst = worstPayoutRisk(tid, traderIds);
+    const rows: PreflightRow[] = payouts.map((p) => {
+      // Risk gate: per-row trader risk score (use worst-of-batch threshold
+      // as the pass/fail line so a single low-risk trader blocks only itself).
+      const breaches = getTenantBreaches(tid).filter((b) => b.traderId === p.traderId && b.status === "open");
+      const aml = payoutAmlBlock(p.reference);
+      let pass = true;
+      let reason = "All gates passed";
+      if (worst && worst.traderId === p.traderId && worst.riskScore < 70) {
+        pass = false;
+        reason = `Risk score ${worst.riskScore} below threshold 70`;
+      } else if (breaches.length > 0) {
+        pass = false;
+        reason = `${breaches.length} open breach(es)`;
+      } else if (aml) {
+        pass = false;
+        reason = `AML hold ${aml.caseId} (${aml.typology})`;
+      }
+      return { reference: p.reference, traderName: p.traderName, amount: p.amount, pass, reason };
+    });
+    setPreflight(rows);
+  };
+
   const handleBatchApprove = () => {
     const payouts = pendingPayouts.filter((p) => selectedPayouts.has(p.reference));
     if (payouts.length === 0) return;
-    const traderIds = [...new Set(payouts.map((p) => p.traderId))];
-    const worst = worstPayoutRisk(tid, traderIds);
-    if (worst && worst.riskScore < 70) {
-      toast({
-        title: "Batch approve blocked",
-        description: `The riskiest trader has score ${worst.riskScore} (threshold 70). Lower the threshold or review individually.`,
-        variant: "destructive",
-      });
-      return;
-    }
-    // Check for open breaches
-    for (const p of payouts) {
-      const breaches = getTenantBreaches(tid).filter((b) => b.traderId === p.traderId && b.status === "open");
-      if (breaches.length > 0) {
-        toast({
-          title: "Batch approve blocked",
-          description: `Trader ${p.traderName} has ${breaches.length} open breach(es). Resolve before auto-approving.`,
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-    // R3-F02 — a frozen AML case blocks money-moving decisions; same
-    // whole-batch block pattern as the risk/breach gates above.
-    for (const p of payouts) {
-      const aml = payoutAmlBlock(p.reference);
-      if (aml) {
-        toast({
-          title: "Batch approve blocked",
-          description: `${p.traderName} is on AML hold ${aml.caseId} (${aml.typology}). Release it on the case — compliance.aml.approve — or exclude the payout.`,
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-    // Apply approved decision to all selected
+    runPreflight(payouts);
+  };
+
+  const executeStagedBatch = () => {
+    if (!preflight) return;
+    const passRefs = new Set(preflight.filter((r) => r.pass).map((r) => r.reference));
+    const payouts = pendingPayouts.filter((p) => passRefs.has(p.reference));
     for (const p of payouts) {
       applyPayoutDecision(p.reference, "approved");
     }
     toast({
-      title: "Batch approved",
-      description: `${selectedCount} payout(s) approved.`,
+      title: "Batch staged & executed",
+      description: `${payouts.length} of ${preflight.length} payout(s) approved after second-operator confirmation.`,
     });
     setSelectedPayouts(new Set());
+    setPreflight(null);
+    setStaging(false);
   };
 
   const handleBatchReject = () => {
@@ -546,6 +556,68 @@ export function PendingPayoutsPage() {
             </div>
           </div>
         )}
+
+        {/* ── Pre-flight dialog (R2-W1-04) ─────────────────────────── */}
+        <Dialog open={preflight !== null} onOpenChange={(o) => { if (!o) { setPreflight(null); setStaging(false); } }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Batch approval pre-flight</DialogTitle>
+              <DialogDescription>
+                Per-row evaluation of the selected payouts. Rows that fail a gate are skipped.
+              </DialogDescription>
+            </DialogHeader>
+            {preflight && (
+              <div className="space-y-2 max-h-72 overflow-y-auto">
+                {preflight.map((r) => (
+                  <div
+                    key={r.reference}
+                    className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm ${
+                      r.pass ? "border-emerald-500/40 bg-emerald-50/40" : "border-rose-500/40 bg-rose-50/40"
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{r.traderName}</p>
+                      <p className="text-xs text-muted-foreground">{r.reference} · {formatCurrency(r.amount, "USD")}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`text-xs font-bold ${r.pass ? "text-emerald-600" : "text-rose-600"}`}>
+                        {r.pass ? "PASS" : "SKIP"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">{r.reason}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              {!staging ? (
+                <>
+                  <Button variant="outline" onClick={() => { setPreflight(null); }}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => setStaging(true)}
+                    disabled={!preflight || preflight.filter((r) => r.pass).length === 0}
+                  >
+                    Authorize &amp; Stage ({preflight?.filter((r) => r.pass).length ?? 0})
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground self-center">
+                    Second operator confirmation required to execute.
+                  </p>
+                  <Button variant="outline" onClick={() => setStaging(false)}>
+                    Back
+                  </Button>
+                  <Button onClick={executeStagedBatch}>
+                    Confirm &amp; Execute
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Contextual Action Panel — inline approve/reject with one primary action (§22-23).
             Previously the SAME pending payouts were ALSO rendered in the

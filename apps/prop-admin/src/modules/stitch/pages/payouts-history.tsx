@@ -226,11 +226,11 @@ export function PayoutsHistoryStitchPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-container-high/60 font-body text-on-surface">
-                <tr className="hover:bg-surface-container/60 transition-colors group" data-ref="PO-94102" data-status-row="paid">
+                <tr className="hover:bg-surface-container/60 transition-colors group" data-ref="PO-…" data-status-row="paid">
                   <td className="p-4"><input className="row-checkbox rounded accent-primary text-primary focus:ring-0 w-4 h-4 cursor-pointer" type="checkbox" /></td>
                   <td className="py-4 px-3 font-mono font-bold text-on-surface whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-primary hover:underline cursor-pointer">#PO-94102</span>
+                      <span className="text-primary hover:underline cursor-pointer">#PO-…</span>
                       <button className="opacity-0 group-hover:opacity-100 transition-opacity text-tsc hover:text-on-surface" title="Copy Reference"><MsIcon name="content_copy" className="text-[14px]" /></button>
                     </div>
                   </td>
@@ -735,7 +735,7 @@ export function PayoutsHistoryStitchPage() {
                 <div className="flex items-center gap-2.5">
                   <span className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><MsIcon name="receipt" className="text-[20px]" /></span>
                   <div>
-                    <h2 className="font-headline font-bold text-lg text-on-surface leading-none" id="receipt-id">#PO-94102</h2>
+                    <h2 className="font-headline font-bold text-lg text-on-surface leading-none" id="receipt-id">#PO-…</h2>
                     <span className="text-[11px] font-label text-tsc uppercase tracking-wider font-semibold">Treasury Settlement Receipt</span>
                   </div>
                 </div>
@@ -814,7 +814,7 @@ export function PayoutsHistoryStitchPage() {
             <h3 className="font-headline text-lg font-bold text-on-surface">Initiate Payout Clawback / Reversal</h3>
             <p className="font-body text-xs text-on-surface-variant mt-2 leading-relaxed">
 
-        You are reversing payout reference <span className="font-mono font-bold text-on-surface" id="rev-ref-target">#PO-94102</span> for <strong id="rev-trader-target">Trader</strong> (<span id="rev-amount-target">$0</span>).
+        You are reversing payout reference <span className="font-mono font-bold text-on-surface" id="rev-ref-target">#PO-…</span> for <strong id="rev-trader-target">Trader</strong> (<span id="rev-amount-target">$0</span>).
         This will trigger a ledger reversal debit and re-credit the profit pool back to the trader's trading account balance.
       
             </p>
@@ -844,7 +844,7 @@ export function PayoutsHistoryStitchPage() {
               <h4 className="font-headline font-bold text-xl text-on-surface">Initiate Clawback / Ledger Reversal?</h4>
               <p className="font-body text-xs text-on-surface-variant mt-2 leading-relaxed">
                 You are preparing to reverse payout
-                <span className="font-mono font-bold text-on-surface">#PO-94102</span>
+                <span className="font-mono font-bold text-on-surface">#PO-…</span>
                 ($19,600.00 USD). This action will:
               </p>
               <ul className="text-xs text-tsc mt-2.5 space-y-1.5 list-disc pl-4">
@@ -874,9 +874,9 @@ export function PayoutsHistoryStitchPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-[10px] font-mono font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-error-container text-on-error-container">                        {"                   TREASURY EXCEPTION // REVERSAL & CLAWBACK                 "}</span>
-                      <span className="text-xs font-mono font-bold text-tsc">#PO-94102</span>
+                      <span className="text-xs font-mono font-bold text-tsc">#PO-…</span>
                     </div>
-                    <h2 className="font-headline font-bold text-xl text-on-surface leading-tight" id="dialog-title">                      Reverse Payout Settlement #PO-94102?</h2>
+                    <h2 className="font-headline font-bold text-xl text-on-surface leading-tight" id="dialog-title">                      Reverse Payout Settlement #PO-…?</h2>
                   </div>
                 </div>
                 <button className="text-tsc hover:text-on-surface p-1.5 rounded-lg hover:bg-surface-container transition-colors" id="closeModalBtn" title="Dismiss dialog" onClick={() => setSo1(false)}><MsIcon name="close" className="text-[20px]" /></button>

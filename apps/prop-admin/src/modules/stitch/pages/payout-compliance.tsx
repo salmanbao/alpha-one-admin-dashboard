@@ -267,7 +267,7 @@ export function PayoutComplianceStitchPage() {
                 </div>
                 <p className="text-xs font-bold text-on-surface leading-snug">                  Crypto payout to wallet on secondary high-risk cluster</p>
                 <div className="text-[11px] font-mono text-on-surface-variant">
-                  <span className="font-semibold text-primary">PO-94102</span>
+                  <span className="font-semibold text-primary">PO-…</span>
                   ($24,500.00 USDT) · Elena Althaus · TRC-20 cluster linkage
                 </div>
                 <div className="flex items-center justify-between pt-1">
@@ -456,7 +456,7 @@ export function PayoutComplianceStitchPage() {
                     <div className="text-[10px] font-mono text-tertiary font-bold">Automated Surveillance</div>
                   </td>
                   <td className="py-4 px-6 whitespace-nowrap">                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-error-container text-on-error-container">                      Held / Flagged</span></td>
-                  <td className="py-4 px-6 font-mono font-bold text-primary whitespace-nowrap">                    <span className="cursor-pointer hover:underline">PO-94102</span></td>
+                  <td className="py-4 px-6 font-mono font-bold text-primary whitespace-nowrap">                    <span className="cursor-pointer hover:underline">PO-…</span></td>
                   <td className="py-4 px-6 whitespace-nowrap">
                     <div className="font-mono font-bold">$24,500.00 USDT</div>
                     <div className="text-[10px] text-on-surface-variant font-mono">TRC-20 Corridor</div>

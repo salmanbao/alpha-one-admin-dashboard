@@ -198,7 +198,7 @@ export function AffiliateCommissionPayoutStitchPage() {
                     <tr className="hover:bg-surface-container-low/70 transition-colors payout-row" data-method="Wire Transfer" data-partner="Alpha Capital Media" data-status="Approved">
                       <td className="py-3.5 px-4 font-mono font-bold text-on-surface">
                         <div className="flex items-center gap-1.5">
-                          <span>PO-94102</span>
+                          <span>PO-…</span>
                           <button className="text-tsc hover:text-primary" title="Copy Reference"><MsIcon name="content_copy" className="text-[14px]" /></button>
                         </div>
                       </td>
@@ -600,7 +600,7 @@ export function AffiliateCommissionPayoutStitchPage() {
                       <div className="font-bold text-xs text-on-surface truncate">Alpha Capital Media</div>
                       <div className="text-[10px] text-tsc flex items-center gap-1 font-mono">
 
-<span>PO-94102</span> • <span>Wire USD</span>
+<span>PO-…</span> • <span>Wire USD</span>
 
                       </div>
                     </div>
@@ -793,7 +793,7 @@ export function AffiliateCommissionPayoutStitchPage() {
             <div className="flex items-start justify-between pb-3 border-b border-surface-container-high">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-lg text-primary" id="detailRef">PO-94102</span>
+                  <span className="font-mono font-bold text-lg text-primary" id="detailRef">PO-…</span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/20 text-primary" id="detailStatusBadge">Approved</span>
                 </div>
                 <p className="text-sm font-semibold text-on-surface mt-0.5" id="detailPartner">Alpha Capital Media</p>
@@ -1015,7 +1015,7 @@ export function AffiliateCommissionPayoutStitchPage() {
                   STATUS: APPROVED (AWAITING DISBURSEMENT)
                 </span>
               </div>
-              <h2 className="text-2xl font-headline font-bold text-on-surface tracking-tight">Payout Detail — PO-94102</h2>
+              <h2 className="text-2xl font-headline font-bold text-on-surface tracking-tight">Payout Detail — PO-…</h2>
               <p className="text-xs text-tsc mt-0.5 truncate">
 
           Alpha Capital Media (<span className="text-on-surface-variant font-medium">@alphacap</span> · <span className="font-mono text-[11px]">UID-8012</span>) · Period: May 2025
