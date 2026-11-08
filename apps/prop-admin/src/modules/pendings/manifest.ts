@@ -19,14 +19,21 @@ const navigation: NavigationItem[] = [
         label: "Pending Tasks",
         href: "pending-tasks",
         icon: AlertTriangle,
-        permission: "payout.approve",
+        // Union: show hub to operators who can act on either queue (R2-04).
+        permission: ["payout.approve", "kyc.review"],
       },
     ],
   },
 ];
 
 const routes: RouteDefinition[] = [
-  { path: "pending-tasks", viewId: "pending-tasks", label: "Pending Tasks", permission: "payout.approve", module: "pendings" },
+  {
+    path: "pending-tasks",
+    viewId: "pending-tasks",
+    label: "Pending Tasks",
+    permission: ["payout.approve", "kyc.review"],
+    module: "pendings",
+  },
 ];
 
 export const pendingsModule: FrontendModule = {
@@ -40,6 +47,8 @@ export const pendingsModule: FrontendModule = {
     supportedApplications: ["prop-admin"],
     permissions: [
       { id: "pendings.read", label: "View pending tasks" },
+      { id: "payout.approve", label: "Approve payouts" },
+      { id: "kyc.review", label: "Review KYC" },
     ],
     icon: ClipboardList,
     accentColor: "#d97706",

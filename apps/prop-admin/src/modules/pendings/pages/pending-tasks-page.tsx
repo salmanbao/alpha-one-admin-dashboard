@@ -1,30 +1,18 @@
 "use client";
 
 /**
- * Pendings — Pending Tasks Dashboard
+ * Pendings — Pending Tasks Dashboard (R2-04: truth pass)
  *
  * Operational hub surfacing what needs admin attention right now.
- *
- * Includes:
- *   - Summary cards (clickable, navigate to relevant page):
- *       Pass Verification Phase 1 → challenges-passed
- *       Pass Verification Phase 2 → challenges-passed
- *       KYC Reviews              → kyc-reviews
- *       Phase Verification       → challenges-active
- *       Pending Withdrawals     → payouts-pending
- *       Affiliate Payouts       → affiliates-commissions
- *   - Forecast bar chart (Tue–Sun expected withdrawal amounts)
- *   - Recent Activity Feed (last 5 activities)
- *
- * Card tones: warning for items with count > 0, success for 0.
- *
- * Terra palette — emerald/amber/rose, no blue/indigo.
+ * Counts are wired to effective KYC/payout statuses and subscribe to
+ * store versions so decisions anywhere update the hub instantly.
  */
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { resolveTermsInString } from "@/lib/platform/terminology";
 import {
+  getTenantAffiliates,
   getTenantAiInsights,
   getTenantChallenges,
   getTenantKyc,
@@ -34,6 +22,9 @@ import {
   type KycRecord,
   type Payout,
 } from "@/lib/platform/mock-data";
+import { effectiveKycStatus, useKycVersion } from "@/modules/kyc/kyc-store";
+import { effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
+import { setNavBadge } from "@/lib/platform/nav-badges";
 import {
   Page,
   PageHeader,
@@ -82,19 +73,30 @@ export function PendingTasksPage() {
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
+  // Subscribe to decision stores so counts update instantly.
+  const kycVersion = useKycVersion();
+  const payoutVersion = usePayoutVersion();
+
   const challenges = useMemo(() => getTenantChallenges(tid), [tid]);
-  const kyc = useMemo(() => getTenantKyc(tid), [tid]);
-  const payouts = useMemo(() => getTenantPayouts(tid), [tid]);
+  const kyc = useMemo(
+    () => getTenantKyc(tid).map((r) => ({ ...r, status: effectiveKycStatus(r) })),
+    [tid, kycVersion],
+  );
+  const payouts = useMemo(
+    () => getTenantPayouts(tid).map((p) => ({ ...p, status: effectivePayoutStatus(p) })),
+    [tid, payoutVersion],
+  );
+  const affiliates = useMemo(() => getTenantAffiliates(tid), [tid]);
   const traders = useMemo(() => getTenantTraders(tid), [tid]);
   const insights = useMemo(() => getTenantAiInsights(tid), [tid]);
 
-  // Compute counts
+  // Compute counts from effective statuses / real fixtures.
   const phase1Passed = challenges.filter((c: Challenge) => c.status === "passed" && c.phase === "phase-1").length;
   const phase2Passed = challenges.filter((c: Challenge) => c.status === "passed" && c.phase === "phase-2").length;
   const kycReviews = kyc.filter((k: KycRecord) => k.status === "review" || k.status === "pending").length;
   const phaseVerifications = challenges.filter((c: Challenge) => c.status === "in-progress").length;
   const pendingWithdrawals = payouts.filter((p: Payout) => p.status === "pending").length;
-  const affiliatePayouts = 3; // not directly tracked in mock data; surfaced as a small static count
+  const affiliatePayouts = affiliates.filter((a) => a.commissionPending > 0).length;
 
   const cards: SummaryCard[] = useMemo(() => [
     {
@@ -103,7 +105,7 @@ export function PendingTasksPage() {
       count: phase1Passed,
       viewId: "challenges-passed",
       icon: CheckCircle2,
-      description: "Traders awaiting phase-1 verification",
+      description: "Traders awaiting phase-1 verification review",
     },
     {
       id: "phase-2",
@@ -111,7 +113,7 @@ export function PendingTasksPage() {
       count: phase2Passed,
       viewId: "challenges-passed",
       icon: CheckCircle2,
-      description: "Traders awaiting phase-2 verification",
+      description: "Traders awaiting phase-2 verification review",
     },
     {
       id: "kyc-reviews",
@@ -143,7 +145,7 @@ export function PendingTasksPage() {
       count: affiliatePayouts,
       viewId: "affiliates-commissions",
       icon: Users,
-      description: "Affiliate commission payouts pending",
+      description: "Affiliates with commission balance pending payout",
     },
   ], [phase1Passed, phase2Passed, kycReviews, phaseVerifications, pendingWithdrawals, affiliatePayouts]);
 
@@ -155,12 +157,17 @@ export function PendingTasksPage() {
 
   const totalPending = resolvedCards.reduce((s, c) => s + c.count, 0);
 
+  // Keep nav badge in sync with the wired pending count (R2-04).
+  useEffect(() => {
+    setNavBadge("pending-tasks", totalPending);
+  }, [totalPending]);
+
   // Resolve target-route info: human-readable labels + module ownership, so
   // cards for modules that are disabled in this tenant can be surfaced
   // honestly instead of navigating into a "module not enabled" dead end.
   const routeInfo = Object.fromEntries(resolvedCards.map((c) => [c.id, resolveRouteInfo(c.viewId)]));
 
-  // Forecast bar chart — Tue–Sun expected withdrawal amounts (mock).
+  // Forecast chart — illustrative projection (demo), not historical data.
   const forecast = useMemo(() => {
     const days = ["Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const pendingPayouts = payouts.filter((p) => p.status === "pending");
@@ -173,11 +180,10 @@ export function PendingTasksPage() {
 
   const forecastTotal = forecast.reduce((s, d) => s + d.amount, 0);
 
-  // Recent activity feed — use AI insights + augment with operationally relevant entries.
+  // Recent activity feed — derived from effective KYC/payout state + insights.
   const recentActivity = useMemo(() => {
     const items: { id: string; title: string; summary: string; time: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; tone: "info" | "warning" | "critical" | "success" }[] = [];
 
-    // Pending withdrawals as first activity
     const pending = payouts.filter((p) => p.status === "pending").slice(0, 2);
     for (const p of pending) {
       items.push({
@@ -190,7 +196,6 @@ export function PendingTasksPage() {
       });
     }
 
-    // KYC reviews
     const kycPending = kyc.filter((k) => k.status === "review" || k.status === "pending").slice(0, 2);
     for (const k of kycPending) {
       items.push({
@@ -203,7 +208,6 @@ export function PendingTasksPage() {
       });
     }
 
-    // AI insights (one or two)
     for (const ins of insights.slice(0, 2)) {
       const toneMap: Record<string, "info" | "warning" | "critical" | "success"> = {
         info: "info",
@@ -251,12 +255,12 @@ export function PendingTasksPage() {
           <div className="rounded-lg border bg-card p-4">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-medium">Forecast (this week)</p>
+              <p className="text-sm font-medium">Illustrative forecast (this week)</p>
             </div>
             <p className="mt-1 text-3xl font-bold tabular-nums">
               {formatCurrency(forecastTotal, currency)}
             </p>
-            <p className="text-xs text-muted-foreground">expected withdrawals</p>
+            <p className="text-xs text-muted-foreground">demo projection — not historical data</p>
           </div>
           <div className="rounded-lg border bg-card p-4">
             <div className="flex items-center gap-2">
@@ -270,8 +274,6 @@ export function PendingTasksPage() {
 
         {/* Summary cards grid */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {/* `cards` is mapped through `resolvedCards` (label + description
-              wrapped in resolveTermsInString) below. */}
           {resolvedCards.map((c) => {
             const isWarning = c.count > 0;
             const tone = isWarning ? "warning" : "success";
@@ -345,11 +347,10 @@ export function PendingTasksPage() {
 
         {/* Forecast + Recent Activity side-by-side */}
         <div className="grid gap-4 lg:grid-cols-2">
-          {/* Forecast bar chart */}
           <div className="rounded-lg border bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-emerald-600" />
-              <p className="text-sm font-medium">Withdrawal Forecast (Tue–Sun)</p>
+              <p className="text-sm font-medium">Withdrawal forecast (illustrative projection)</p>
             </div>
             <BarSeries
               data={forecast}
@@ -360,11 +361,10 @@ export function PendingTasksPage() {
               formatValue={(v) => formatCurrency(v, currency)}
             />
             <p className="mt-2 text-xs text-muted-foreground">
-              Expected total: {formatCurrency(forecastTotal, currency)} · based on {pendingWithdrawals} pending withdrawals.
+              Illustrative projection (demo): scaled from {pendingWithdrawals} pending withdrawal{pendingWithdrawals === 1 ? "" : "s"}. Not a historical distribution.
             </p>
           </div>
 
-          {/* Recent Activity Feed */}
           <div className="rounded-lg border bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <Activity className="h-4 w-4 text-emerald-600" />
@@ -389,7 +389,6 @@ export function PendingTasksPage() {
                       : "#4a7c59";
                   return (
                     <li key={a.id} className="relative flex gap-3">
-                      {/* timeline line */}
                       {i < recentActivity.length - 1 ? (
                         <span
                           className="absolute left-[15px] top-7 h-[calc(100%-12px)] w-px bg-border"
@@ -418,9 +417,8 @@ export function PendingTasksPage() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Summary counts update in real-time from platform data. Click any card to navigate directly to the relevant
-          operational view. The forecast is derived from pending withdrawal amounts and historical weekday
-          distribution.
+          Counts reflect KYC and payout decisions in the current session (subscribed to live stores). Click a card to open
+          the related queue. The withdrawal forecast is an illustrative demo projection, not a historical distribution.
         </p>
       </PageContent>
     </Page>
