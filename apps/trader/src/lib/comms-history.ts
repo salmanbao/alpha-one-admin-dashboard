@@ -259,7 +259,7 @@ export function optOutFromMessage(id: string): OptOutResult {
     return { ok: false, reason: "Transactional/security messages are not governed by marketing preferences." };
   }
   if (m.channel === "push") {
-    return { ok: false, reason: "Push notifications are governed in Push & Channels, not the N17 topic matrix." };
+    return { ok: false, reason: "Push notifications are governed in Push & Channels, not the preference center topic matrix." };
   }
   const prefs: PrefMatrix = loadPrefs();
   const channel = m.channel as MarketingChannel;

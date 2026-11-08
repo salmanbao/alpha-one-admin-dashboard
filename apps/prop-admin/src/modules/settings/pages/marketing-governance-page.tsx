@@ -329,7 +329,7 @@ export function MarketingGovernancePage() {
         </Card>
 
         <p className="mt-3 text-[11px] text-muted-foreground">
-          Cap values persist for the session; forecasts are projections from the current metering window (send-gateway runtime → R2-F01).
+          Cap values persist for the session; forecasts are projections from the current metering window.
         </p>
       </PageContent>
 

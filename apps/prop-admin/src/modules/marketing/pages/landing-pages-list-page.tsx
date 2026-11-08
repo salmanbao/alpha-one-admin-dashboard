@@ -31,7 +31,7 @@ export function LandingPagesListPage() {
   ];
   return (
     <Page>
-      <PageHeader title="Landing Pages & Funnels" description="Build and version conversion pages per challenge/region/promo. Blocks can target segments (M3)." icon={FileEdit}
+      <PageHeader title="Landing Pages & Funnels" description="Build and version conversion pages per challenge/region/promo. Blocks can target segments." icon={FileEdit}
         actions={<Button size="sm" onClick={()=>setOpen(true)}><Plus className="mr-1 h-4 w-4"/>New Page</Button>} />
       <PageContent>
         <div className="grid gap-3 sm:grid-cols-3"><MetricCard label="Pages" value={String(rows.length)} /><MetricCard label="Published" value={String(rows.filter(r=>r.status==="published").length)} tone="positive" /><MetricCard label="Avg conversion" value="6.1%" tone="positive" /></div>

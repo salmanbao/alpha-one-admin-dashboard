@@ -24,7 +24,7 @@ export function DeliverabilityIncidentsPage(){
   ];
   return (
     <Page>
-      <PageHeader title="Deliverability Incident Center" description="Tenant mirror of N14: platform-originated and tenant-detected incidents with playbook actions (audited, feeds N14)." icon={AlertTriangle} />
+      <PageHeader title="Deliverability Incident Center" description="Platform-originated and tenant-detected incidents with playbook actions (audited, feeds the platform incident center)." icon={AlertTriangle} />
       <PageContent>
         {openCount>0&&<Alert variant="destructive"><AlertTriangle className="h-4 w-4"/><AlertTitle>Active deliverability incident(s)</AlertTitle><AlertDescription>{openCount} open/mitigating incident(s). Playbook actions can pause affected campaigns via composer schedule API (dummy) and are recorded in N11 audit.</AlertDescription></Alert>}
         <div className="grid gap-3 sm:grid-cols-3"><MetricCard label="Open/mitigating" value={String(openCount)} tone={openCount?"negative":"positive"}/><MetricCard label="Platform-originated" value={String(rows.filter(r=>r.source==="platform").length)}/><MetricCard label="Resolved" value={String(rows.filter(r=>r.status==="resolved").length)} tone="positive"/></div>

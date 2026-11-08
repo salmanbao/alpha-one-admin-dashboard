@@ -96,7 +96,7 @@ export function MessageArchivePage(){
 
   return (
     <Page>
-      <PageHeader title="Marketing Message Archive" description="Immutable sent-message evidence (R2-F04 snapshots) over a full-text index. Legal hold survives the purge job; exports are real EML/PDF files." icon={Archive}
+      <PageHeader title="Marketing Message Archive" description="Immutable sent-message evidence (point-in-time snapshots) over a full-text index. Legal hold survives the purge job; exports are real EML/PDF files." icon={Archive}
         actions={
           <div className="flex items-center gap-2">
             <Select value={format} onValueChange={v=>setFormat(v as ExportFormat)}>

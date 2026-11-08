@@ -34,7 +34,7 @@ export function BounceQueuePage() {
   ];
   return (
     <Page>
-      <PageHeader title="Bounce & Complaint Queue" description="Reason codes, bulk actions, auto-suppression rules; syncs to consent center (N10) and informs incidents (R2-09)." icon={AlertOctagon}
+      <PageHeader title="Bounce & Complaint Queue" description="Reason codes, bulk actions, auto-suppression rules; syncs to the consent center and informs incidents." icon={AlertOctagon}
         actions={<div className="flex gap-2"><Button size="sm" variant="outline" onClick={()=>{recordAudit({action:"bounce.export",entity:"bounce-queue",entityId:"all",summary:"Exported bounce queue",module:"marketing"}); toast({title:"Exported"});}}><Download className="mr-1 h-4 w-4"/>Export</Button></div>} />
       <PageContent>
         <div className="grid gap-3 sm:grid-cols-4"><MetricCard label="Open events" value={String(rows.filter(r=>!r.resolved).length)} tone="warning" /><MetricCard label="Complaints (24h)" value={String(rows.filter(r=>r.reason==="complaint").length)} tone="negative" /><MetricCard label="Auto-suppressed" value={String(rows.filter(r=>r.suppressed).length)} /><MetricCard label="Linked campaigns" value={String(new Set(rows.map(r=>r.campaignId).filter(Boolean)).size)}/></div>
@@ -44,7 +44,7 @@ export function BounceQueuePage() {
               <Button size="sm" variant="outline" onClick={()=>{setConfirm({ids:selected,mode:"suppress"});setReason("");}}>Bulk suppress</Button>
               <Button size="sm" variant="ghost" onClick={()=>{setConfirm({ids:selected,mode:"unsuppress"});setReason("");}}>Bulk unsuppress</Button>
             </>} /></div>
-          <Card><CardContent className="p-3 text-xs space-y-2"><p className="font-semibold">Auto-suppression rules</p><ul className="list-disc pl-4 space-y-1"><li>Hard bounce → suppress immediately (on)</li><li>Complaint/FBL → suppress + notify (on)</li><li>2 soft bounces in 7d → suppress (on)</li><li>Block/reputation → review queue (on)</li></ul><p className="text-muted-foreground">Rules applied by gateway; UI reflects state (R2-F01).</p></CardContent></Card></div>
+          <Card><CardContent className="p-3 text-xs space-y-2"><p className="font-semibold">Auto-suppression rules</p><ul className="list-disc pl-4 space-y-1"><li>Hard bounce → suppress immediately (on)</li><li>Complaint/FBL → suppress + notify (on)</li><li>2 soft bounces in 7d → suppress (on)</li><li>Block/reputation → review queue (on)</li></ul><p className="text-muted-foreground">Rules applied by the gateway; this view reflects their state.</p></CardContent></Card></div>
       </PageContent>
       <AlertDialog open={!!confirm} onOpenChange={o=>!o&&setConfirm(null)}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{confirm?.mode==="suppress"?"Suppress contacts?":"Remove suppression?"}</AlertDialogTitle><AlertDialogDescription>Reason required (audited). {confirm?.mode==="suppress"?"Blocks future sends.":"Re-enables sending — ensure safe."}</AlertDialogDescription></AlertDialogHeader>

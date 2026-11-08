@@ -201,7 +201,7 @@ export function CampaignReportPage() {
     <Page>
       <PageHeader
         title="Campaign Report / Postmortem"
-        description="Full delivery funnel, M5-window revenue attribution, segment comparison, cost/ROI and PDF export."
+        description="Full delivery funnel, revenue attribution, segment comparison, cost/ROI and PDF export."
         icon={FileText}
         actions={
           <div className="flex gap-2">
@@ -351,8 +351,8 @@ export function CampaignReportPage() {
               </div>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Attribution sourced from Events Manager (M5.3); cost from Ad Spend (M5.2). Delivered/opened/clicked reflect real events once the
-              send-gateway runtime is live (R2-F01) — currently deterministic dummy data.
+              Attribution sourced from Events Manager; cost from Ad Spend. Delivered/opened/clicked reflect real events once the
+              send-gateway runtime is live — currently deterministic dummy data.
             </p>
           </CardContent>
         </Card>

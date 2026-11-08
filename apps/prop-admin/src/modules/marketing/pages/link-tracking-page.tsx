@@ -34,7 +34,7 @@ export function LinkTrackingPage(){
   function bulkCreate(){ const lines=csv.split("\n").map(l=>l.trim()).filter(Boolean); let ok=0; for(const line of lines){ const res=createLink({destination:line,source:"promo",medium:"email"}); if(res.ok) ok++; } recordAudit({action:"link.bulk",entity:"link",entityId:"bulk",summary:`Bulk-generated ${ok} links from CSV`,module:"marketing"}); toast({title:`Bulk generated ${ok} link(s)`,description:"Importable & reversible via soft-delete (AC-3)."}); setRows(listLinks()); setBulk(false); setCsv(""); }
   return (
     <Page>
-      <PageHeader title="Link Tracking & UTM Manager" description="Governed tracking links with canonical tag taxonomy, QR, expiry/password; clicks + conversions attribute under M5 windows." icon={Link2}
+      <PageHeader title="Link Tracking & UTM Manager" description="Governed tracking links with canonical tag taxonomy, QR, expiry/password; clicks + conversions attribute under attribution windows." icon={Link2}
         actions={<div className="flex gap-2"><Button size="sm" variant="outline" onClick={()=>setBulk(true)}>Bulk CSV</Button><Button size="sm" onClick={()=>setOpen(true)}><Plus className="mr-1 h-4 w-4"/>New link</Button></div>} />
       <PageContent>
         <div className="grid gap-3 sm:grid-cols-4"><MetricCard label="Tracked links" value={String(rows.length)}/><MetricCard label="Clicks" value={rows.reduce((s,r)=>s+r.clicks,0).toLocaleString()}/><MetricCard label="Conversions" value={String(rows.reduce((s,r)=>s+r.conversions,0))} tone="positive"/><MetricCard label="Expiring (7d)" value={String(rows.filter(r=>r.expiresAt&&new Date(r.expiresAt).getTime()-Date.now()<7*86400000).length)} tone="warning"/></div>

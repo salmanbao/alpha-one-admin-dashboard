@@ -43,7 +43,7 @@ export function TenantChannelEntitlementsPage() {
   function save(e:Ent){ setRows(rs=>rs.map(r=>r.tenantId===e.tenantId?e:r)); recordAudit({actor:"operator",action:"channel.entitlement",target:e.tenantId,detail:`Updated entitlements for ${e.name}.`,severity:"warning"}); toast({title:"Entitlements updated"}); setEdit(null); }
   return (
     <Page>
-      <PageHeader title="Tenant Channel Entitlements" description="Enable channels, usage vs quota, cost ceilings, anomaly flags, and approval workflow. Closes loop with N1/M7." icon={Radio} />
+      <PageHeader title="Tenant Channel Entitlements" description="Enable channels, usage vs quota, cost ceilings, anomaly flags, and approval workflow. Closes the loop with billing and messaging." icon={Radio} />
       <PageContent>
         <div className="grid gap-3 sm:grid-cols-4"><MetricCard label="Tenants" value={String(rows.length)} /><MetricCard label="Anomalies" value={String(rows.filter(r=>r.anomaly).length)} tone="warning" /><MetricCard label="Pending approvals" value={String(rows.filter(r=>r.approval==="pending").length)} tone="warning" /><MetricCard label="Delegated" value={String(rows.filter(r=>r.delegated).length)} /></div>
         <DataTable columns={cols} data={rows} rowKey={r=>r.tenantId} pageSize={10} searchableText={r=>r.name} />
