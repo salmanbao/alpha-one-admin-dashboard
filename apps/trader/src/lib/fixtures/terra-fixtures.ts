@@ -50,7 +50,7 @@ export const terraTenant: TenantContext = {
   timezone: "America/New_York",
   currency: "USD",
   enabledModules: ["trading", "risk", "payouts", "marketplace"],
-  enabledFeatures: ["challenges.two-phase", "risk.daily-drawdown"],
+  enabledFeatures: ["challenges.two-phase", "risk.daily-drawdown", "lifecycle.simulator"],
   terminology: {
     challenge: "Challenge",
     trader: "Trader",

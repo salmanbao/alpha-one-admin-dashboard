@@ -92,7 +92,7 @@ function syncBadge() {
   for (const p of seedPayouts) {
     if (effectivePayoutStatus(p) === "pending") n += 1;
   }
-  setNavBadge("payouts", n);
+  setNavBadge("payouts-pending", n);
 }
 
 /** Record a decision for a payout (keyed by its unique reference). */
