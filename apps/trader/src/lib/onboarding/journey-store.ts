@@ -103,7 +103,7 @@ function readJourneyDone(): Record<JourneyStepId, boolean> {
   // renders when nothing changed (useSyncExternalStore requirement).
   return {
     purchased: flags.purchased,
-    verified: readVerificationDraft().submitted,
+    verified: readVerificationDraft().reviewStatus === "approved",
     provisioned: flags.provisioned,
     credentialed: flags.credentialed,
     firstTrade: flags.firstTrade,

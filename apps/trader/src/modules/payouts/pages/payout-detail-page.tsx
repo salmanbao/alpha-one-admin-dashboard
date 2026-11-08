@@ -21,6 +21,7 @@ import {
 } from "@/components/terra/terra-ui";
 import { terraPayouts } from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
+import { getPayoutStage } from "@/lib/status-progression";
 
 export function PayoutDetailContent({
   id,
@@ -33,6 +34,9 @@ export function PayoutDetailContent({
   const payout = terraPayouts.find((p) => p.id === id) ?? terraPayouts[0];
 
   const rejected = payout.status === "rejected" && payout.rejection != null;
+
+  // Use the progression helper to derive the current stage and its ETA
+  const payoutStage = getPayoutStage(payout.status, payout.status === "processing" ? payout.expectedAt ? "Processing window open" : "Typically 1-3 business days" : undefined);
 
   const timeline = rejected
     ? [
@@ -69,10 +73,10 @@ export function PayoutDetailContent({
           note: "Compliance and risk checks",
         },
         {
-          label: "Processing",
+          label: payoutStage.label,
           at: payout.status === "processing" ? payout.requestedAt : null,
           done: payout.status !== "paid",
-          note: "Funds being transferred",
+          note: payoutStage.eta,
         },
         {
           label: "Paid",
