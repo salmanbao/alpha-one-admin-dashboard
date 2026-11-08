@@ -18,6 +18,7 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import { getTenantKyc, type KycRecord } from "@/lib/platform/mock-data";
 import { applyKycDecision, effectiveKycStatus, useKycVersion } from "@/modules/kyc/kyc-store";
+import { useLifecycleLog } from "@pfaas/lifecycle";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge, kycStatusTone } from "@/components/platform/status";
@@ -110,6 +111,7 @@ export function KycOverviewPage() {
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   useKycVersion(); // KPIs recompute when decisions change
+  useLifecycleLog(); // R2-W3-01 — cross-app submissions re-render this queue
   const records = getTenantKyc(tid).map((r) => ({ ...r, status: effectiveKycStatus(r) }));
   const pending = records.filter((r) => r.status === "pending").length;
   const inReview = records.filter((r) => r.status === "review").length;
@@ -138,7 +140,16 @@ export function KycOverviewPage() {
   };
 
   const recentColumns: Column<KycRecord>[] = [
-    { key: "account", header: term("account"), cell: (r) => <span className="font-medium">{r.accountName}</span>, sortValue: (r) => r.accountName ?? "" },
+    { key: "account", header: term("account"), cell: (r) => (
+      <span className="flex items-center gap-1.5">
+        <span className="font-medium">{r.accountName}</span>
+        {r.source ? (
+          <span className="rounded border border-dashed px-1 text-[9px] uppercase tracking-wide text-muted-foreground" title="Arrived via the trader app over the shared lifecycle log (demo transport)">
+            demo transport
+          </span>
+        ) : null}
+      </span>
+    ), sortValue: (r) => r.accountName ?? "" },
     { key: "documentType", header: "Document", cell: (r) => <span className="capitalize">{r.documentType}</span>, sortValue: (r) => r.documentType },
     { key: "country", header: "Country", cell: (r) => r.country, sortValue: (r) => r.country },
     {

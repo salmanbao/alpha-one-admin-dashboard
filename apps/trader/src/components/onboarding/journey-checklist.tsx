@@ -19,6 +19,7 @@ import Link from "next/link";
 import { cn } from "@pfaas/ui";
 import { Check, ChevronRight } from "lucide-react";
 import { useJourneyDone, type JourneyStepId } from "@/lib/onboarding/journey-store";
+import { useLifecycleLog } from "@pfaas/lifecycle";
 
 export interface JourneyStep {
   id: JourneyStepId;
@@ -75,6 +76,9 @@ export const journeySteps: JourneyStep[] = [
 ];
 
 export function JourneyChecklist({ className }: { className?: string }) {
+  // R2-W3-01 — one KYC/provisioning/payout event updates this checklist
+  // together with the dashboard card and provisioning page.
+  useLifecycleLog();
   const done = useJourneyDone();
   const doneCount = journeySteps.filter((s) => done[s.id]).length;
 

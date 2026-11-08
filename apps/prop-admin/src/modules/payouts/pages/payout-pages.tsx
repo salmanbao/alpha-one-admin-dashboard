@@ -16,6 +16,7 @@ import { getTenantPayouts, getTraderPayouts, getTraderForUser, getTenantTraders,
 import { buildPayoutRisk, worstPayoutRisk } from "@/lib/platform/payout-risk";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { applyPayoutDecision, effectivePayoutStatus, payoutAmlBlock, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
+import { useLifecycleLog } from "@pfaas/lifecycle";
 import { readAutoApproveRule, evaluateAutoApproval } from "@/modules/payouts/auto-approve-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -138,6 +139,9 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
   // Subscribe to in-session decisions so approve/reject from any surface
   // (review cards, dashboard widget, other tables) re-renders here.
   usePayoutVersion();
+  // R2-W3-01 — trader-app payout requests land as lifecycle events; the
+  // queue re-renders when one arrives instead of waiting for a reload.
+  useLifecycleLog();
   const pays = (trader ? getTraderPayouts(trader.id) : getTenantPayouts(tid))
     .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
     .filter(filter);
@@ -150,7 +154,16 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
   }, [tid]);
 
   const columns: Column<Payout>[] = [
-    { key: "reference", header: "Reference", cell: (p) => <span className="font-mono text-xs">{p.reference}</span>, sortValue: (p) => p.reference },
+    { key: "reference", header: "Reference", cell: (p) => (
+      <span className="flex items-center gap-1.5">
+        <span className="font-mono text-xs">{p.reference}</span>
+        {p.source ? (
+          <span className="rounded border border-dashed px-1 text-[9px] uppercase tracking-wide text-muted-foreground" title="Requested in the trader app and delivered over the shared lifecycle log (demo transport)">
+            demo transport
+          </span>
+        ) : null}
+      </span>
+    ), sortValue: (p) => p.reference },
     { key: "account", header: term("account"), cell: (p) => <span className="font-medium">{p.accountName}</span>, sortValue: (p) => p.accountName ?? "" },
     { key: "amount", header: "Amount", cell: (p) => <span className="font-semibold">{formatCurrency(p.amount, p.currency)}</span>, sortValue: (p) => p.amount },
     {

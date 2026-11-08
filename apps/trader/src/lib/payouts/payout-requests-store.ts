@@ -13,6 +13,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { emitLifecycle } from "@pfaas/lifecycle";
 import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
 import { getPayoutStage } from "@/lib/status-progression";
 import type { PayoutRejection } from "@/lib/fixtures/terra-fixtures";
@@ -140,6 +141,8 @@ export function addPayoutRequest(input: {
   methodId: string;
   methodName: string;
   feeAmount: number;
+  /** Profit split of the requesting account — carried to the intake queue. */
+  profitSplit?: number;
 }): StoredPayoutRequest {
   const acc = terraAccounts.find((a) => a.id === input.accountId);
   const now = new Date();
@@ -157,6 +160,25 @@ export function addPayoutRequest(input: {
     status: "submitted",
   };
   writeRequests([req, ...readRawRequests()]);
+  // R2-W3-01 publish point — prop-admin's payout queue and pendings hub
+  // pick this up from the shared log (demo transport, same origin).
+  emitLifecycle({
+    entity: { kind: "payout", id: req.id },
+    name: "payout.requested",
+    actor: "trader",
+    key: req.id,
+    payload: {
+      reference: req.reference,
+      amount: req.amount,
+      feeAmount: req.feeAmount,
+      accountId: req.accountId,
+      accountLogin: req.accountLogin,
+      method: req.method,
+      currency: "USD", // trader money surfaces render in USD (formatMoney default)
+      profitSplit: input.profitSplit ?? null,
+      source: "trader-app",
+    },
+  });
   return req;
 }
 

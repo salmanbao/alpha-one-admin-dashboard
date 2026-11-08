@@ -23,6 +23,7 @@ import {
   type Payout,
 } from "@/lib/platform/mock-data";
 import { effectiveKycStatus, useKycVersion } from "@/modules/kyc/kyc-store";
+import { useLifecycleLog } from "@pfaas/lifecycle";
 import { effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { setNavBadge } from "@/lib/platform/nav-badges";
 import {
@@ -76,15 +77,18 @@ export function PendingTasksPage() {
   // Subscribe to decision stores so counts update instantly.
   const kycVersion = useKycVersion();
   const payoutVersion = usePayoutVersion();
+  // R2-W3-01 — cross-app intake (trader submissions) arrives as lifecycle
+  // events; subscribing here makes the hub counts move without a reload.
+  const lifecycleVersion = useLifecycleLog().length;
 
   const challenges = useMemo(() => getTenantChallenges(tid), [tid]);
   const kyc = useMemo(
     () => getTenantKyc(tid).map((r) => ({ ...r, status: effectiveKycStatus(r) })),
-    [tid, kycVersion],
+    [tid, kycVersion, lifecycleVersion],
   );
   const payouts = useMemo(
     () => getTenantPayouts(tid).map((p) => ({ ...p, status: effectivePayoutStatus(p) })),
-    [tid, payoutVersion],
+    [tid, payoutVersion, lifecycleVersion],
   );
   const affiliates = useMemo(() => getTenantAffiliates(tid), [tid]);
   const traders = useMemo(() => getTenantTraders(tid), [tid]);
