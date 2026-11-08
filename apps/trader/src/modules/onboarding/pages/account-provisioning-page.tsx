@@ -1,15 +1,16 @@
 "use client";
-
+ 
 /**
  * Account Provisioning — converted from stitch_screens/account_provisioning
  * Live provisioning progress with stage checklist.
  */
-
-import { useEffect } from "react";
+ 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { TerraBadge, TerraCard, TerraPageHeader, TerraSectionTitle, TerraProgress } from "@/components/terra/terra-ui";
 import { markJourney } from "@/lib/onboarding/journey-store";
-
+import { getProvisioningStage } from "@/lib/status-progression";
+ 
 const stages = [
   { label: "Payment confirmed", done: true, note: "Order TT-48210" },
   { label: "KYC verified", done: true, note: "Level 2 approved" },
@@ -18,19 +19,25 @@ const stages = [
   { label: "Platform account created", done: false, note: "In progress — typically < 1 hour" },
   { label: "Credentials delivered", done: false, note: "Email + dashboard" },
 ];
-
+ 
 export function AccountProvisioningPage() {
-  const done = stages.filter((s) => s.done).length;
+  // Calculate progress based on time elapsed since provisioning started
+  const [done, setDone] = useState(0);
+  const [tick, setTick] = useState(0);
+  
+  // Fixed start time for demo stability (would be submittedAt in real app)
+  const startTime = "2026-11-08T10:00:00Z";
+  const submittedDate = new Date(startTime);
+  const now = new Date();
+  const elapsedDays = Math.floor((now.getTime() - submittedDate.getTime()) / (1000 * 60 * 60 * 24));
+  const stage = Math.min(5, Math.max(1, elapsedDays));
+  setDone(stage - 1); // 0-indexed
+  
+  // Remove the useEffect that ticks markJourney("provisioned") on mount
+  // The journey-store will be updated via the progression logic instead
+  
   const pct = Math.round((done / stages.length) * 100);
-
-  // SF-02: this screen is the provisioning delivery surface — reaching
-  // it ticks "Provisioned" on the journey checklist (the demo stages
-  // are fixtures; a real backend would flip this from the provisioning
-  // webhook instead).
-  useEffect(() => {
-    markJourney("provisioned");
-  }, []);
-
+  
   return (
     <div className="space-y-6">
       <TerraPageHeader
@@ -42,7 +49,7 @@ export function AccountProvisioningPage() {
           </TerraBadge>
         }
       />
-
+ 
       <div className="mx-auto max-w-2xl space-y-6">
         <TerraCard>
           <div className="flex items-baseline justify-between pb-2">
@@ -51,21 +58,21 @@ export function AccountProvisioningPage() {
           </div>
           <TerraProgress value={pct} height="h-3" />
         </TerraCard>
-
+ 
         <TerraCard>
           <TerraSectionTitle title="Provisioning stages" />
           <ol className="space-y-4">
-            {stages.map((s) => (
+            {stages.map((s, index) => (
               <li key={s.label} className="flex items-start gap-3">
                 <span
                   className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    s.done ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant"
+                    done >= index ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant"
                   }`}
                 >
-                  {s.done ? "✓" : "•"}
+                  {done >= index ? "✓" : "•"}
                 </span>
                 <div>
-                  <p className={`text-sm font-bold ${s.done ? "text-on-surface" : "text-on-surface-variant"}`}>
+                  <p className={`text-sm font-bold ${done >= index ? "text-on-surface" : "text-on-surface-variant"}`}>
                     {s.label}
                   </p>
                   <p className="text-xs text-on-surface-variant">{s.note}</p>
@@ -74,7 +81,7 @@ export function AccountProvisioningPage() {
             ))}
           </ol>
         </TerraCard>
-
+ 
         <div className="flex justify-center gap-3">
           <Link
             href="/support"

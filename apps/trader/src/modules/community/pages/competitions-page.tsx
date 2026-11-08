@@ -18,6 +18,7 @@ import {
   TerraSectionTitle,
 } from "@/components/terra/terra-ui";
 import { competitions } from "@/lib/fixtures/terra-fixtures";
+import { joinCompetition, leaveCompetition, useCompetitions } from "@/lib/competitions-store";
 
 type Competition = (typeof competitions)[number];
 type StatusFilter = "all" | "active" | "upcoming" | "past";
@@ -66,10 +67,10 @@ export function CompetitionsPage() {
   const active = competitions.filter((c) => c.status === "active");
   const upcoming = competitions.filter((c) => c.status === "upcoming");
   const ended = competitions.filter((c) => c.status === "ended");
-  const [joined, setJoined] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   // Enrollment management — filter the catalog by lifecycle status.
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const { joined } = useCompetitions();
 
   const visible =
     filter === "active"
@@ -83,9 +84,11 @@ export function CompetitionsPage() {
 
   const handleToggleJoin = (id: string, name: string) => {
     const nowJoined = !joined.includes(id);
-    setJoined((prev) =>
-      nowJoined ? [...prev, id] : prev.filter((x) => x !== id),
-    );
+    if (nowJoined) {
+      joinCompetition(id);
+    } else {
+      leaveCompetition(id);
+    }
     setNotice(
       nowJoined
         ? `You joined ${name} — good luck! (Demo)`
