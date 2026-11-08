@@ -83,6 +83,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { terraTenant, terraUser } from "@/lib/fixtures/terra-fixtures";
+import { useTenant } from "@pfaas/platform-core";
 
 /* ------------------------------------------------------------------ */
 /* Navigation model                                                    */
@@ -139,9 +140,9 @@ export const sections: NavSection[] = [
     { href: "/economic-calendar", label: "Economic Calendar", icon: CalendarClock },
   ]},
   { id: "challenges", label: "Challenges", icon: ShoppingBag, children: [
-    { href: "/my-accounts", label: "My Accounts", icon: Wallet },
     { href: "/challenge-comparison", label: "Compare Programs", icon: GitCompare },
     { href: "/purchase-history", label: "Purchase History", icon: Receipt, activePrefixes: ["/invoice-detail"] },
+    { href: "/my-challenges", label: "My Challenges", icon: Trophy },
   ]},
   { id: "payouts", label: "Payouts", icon: Banknote, defaultOpen: true, children: [
     { href: "/payout-history", label: "Payout History", icon: History, activePrefixes: ["/payout-detail"] },
@@ -171,7 +172,7 @@ export const sections: NavSection[] = [
   ]},
   { id: "support", label: "Support", icon: LifeBuoy, children: [
     { href: "/support", label: "Support Tickets", icon: MessageCircle, activePrefixes: ["/ticket-detail"] },
-    { href: "/announcements", label: "Announcements", icon: ScrollText, activePrefixes: ["/announcement-detail"] },
+    { href: "/announcements", label: "Announcements", icon: ScrollText },
     { href: "/help-center", label: "Help Center", icon: HelpCircle },
     { href: "/learning-center", label: "Learning Center", icon: GraduationCap },
     { href: "/risk-consultation", label: "Risk Consultation", icon: CalendarCheck },
@@ -212,6 +213,17 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { enabledFeatures } = useTenant();
+
+  const filteredSections = sections.map((section) => {
+    if (section.id === "lifecycle") {
+      const filteredChildren = section.children.filter(
+        (child) => child.href !== "/state-adaptive" || enabledFeatures.includes("lifecycle.simulator")
+      );
+      return { ...section, children: filteredChildren };
+    }
+    return section;
+  });
 
   const nav = (
     <>
@@ -287,7 +299,7 @@ export function Sidebar({
             );
           })}
 
-          {sections.map((section) => (
+          {filteredSections.map((section) => (
             <SectionItem
               key={section.id}
               section={section}

@@ -254,7 +254,7 @@ export function LeadInboxPage() {
                 {drawer?.crmContactId && (
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className="text-xs font-medium">CRM contact:</span>
-                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => navigate(`crm-contact-detail?id=${drawer.crmContactId}`)}>
+                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => navigate(`crm-contacts?id=${drawer.crmContactId}`)}>
                       {getCrmContact(drawer.crmContactId)?.email ?? drawer.crmContactId}
                     </Button>
                   </div>

@@ -518,13 +518,6 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
-  "deliverability-incidents": dynamic(
-    () =>
-      import("@/modules/super-admin/deliverability-incidents-page").then((m) => ({
-        default: m.DeliverabilityIncidentsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
   // R4-F02 — orphaned: superseded by the 360-line incident center and absent
   // from navigation. Removed so dead routes do not accumulate.
   "marketing-api-console": dynamic(

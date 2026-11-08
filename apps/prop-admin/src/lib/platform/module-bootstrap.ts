@@ -12,6 +12,7 @@ import { tradingModule } from "@/modules/trading/manifest";
 import { challengesModule } from "@/modules/challenges/manifest";
 import { riskModule } from "@/modules/risk/manifest";
 import { payoutsModule } from "@/modules/payouts/manifest";
+import { pendingsModule } from "@/modules/pendings/manifest";
 import { analyticsModule } from "@/modules/analytics/manifest";
 import { affiliatesModule } from "@/modules/affiliates/manifest";
 import { accountingModule } from "@/modules/accounting/manifest";
@@ -35,6 +36,7 @@ export function bootstrapModules() {
   moduleRegistry.register(challengesModule);
   moduleRegistry.register(riskModule);
   moduleRegistry.register(payoutsModule);
+  moduleRegistry.register(pendingsModule);  // Add pendings module
   // optional / growth modules
   moduleRegistry.register(analyticsModule);
   moduleRegistry.register(affiliatesModule);

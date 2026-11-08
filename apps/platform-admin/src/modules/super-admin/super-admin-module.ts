@@ -60,6 +60,7 @@ import {
   Archive,
   Receipt,
   Code2,
+  Target,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -76,6 +77,7 @@ const navigation: NavigationItem[] = [
       { id: "super.tenants", label: "Tenants", href: "tenants", icon: Building2, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.create-tenant", label: "Create Tenant", href: "create-tenant", icon: Plus, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.lifecycle", label: "Lifecycle", href: "tenant-lifecycle", icon: GitBranch, application: ["super-admin"], group: "Tenant Management" },
+      { id: "super.challenge-programs", label: "Challenge Programs", href: "challenge-programs", icon: Target, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.tenant-health", label: "Tenant Health", href: "tenant-health", icon: HeartPulse, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.sla-monitoring", label: "SLA Monitoring", href: "sla-monitoring", icon: ShieldCheck, application: ["super-admin"], group: "Tenant Management" },
 
@@ -256,7 +258,6 @@ const routes: RouteDefinition[] = [
   // route definition, so the dashboard router never attached a permission
   // guard and they rendered for any authenticated operator.
   { path: "challenge-programs", viewId: "challenge-programs", label: "Challenge Programs", application: ["super-admin"], permission: "platform.modules.manage" },
-  { path: "deliverability-incidents", viewId: "deliverability-incidents", label: "Deliverability Incidents", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
   { path: "tenant-channel-entitlements", viewId: "tenant-channel-entitlements", label: "Tenant Channel Entitlements", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
   { path: "churn-prevention", viewId: "churn-prevention", label: "Churn Prevention", application: ["super-admin"] },
   { path: "scheduled-reports", viewId: "scheduled-reports", label: "Scheduled Reports", application: ["super-admin"] },
