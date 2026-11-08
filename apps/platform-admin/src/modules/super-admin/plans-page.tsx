@@ -29,7 +29,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/components/platform/status";
-import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
+import { tenants as allTenantsSeed, getTenantTraders } from "@/lib/platform/mock-data";
+import { readTenants } from "@/lib/platform/tenant-store";
+const allTenants = readTenants();
 import { toast } from "@/hooks/use-toast";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { recordAudit } from "@/lib/platform/console-store";
