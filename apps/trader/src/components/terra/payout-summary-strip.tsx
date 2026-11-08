@@ -23,8 +23,8 @@ import {
   payoutSchedule,
   terraAccounts,
   terraTrades,
-  withdrawalMethods,
 } from "@/lib/fixtures/terra-fixtures";
+import { readPrimaryPayoutMethod } from "@/lib/payouts/payout-methods-store";
 
 /** Minimum single payout request — shared by every payout surface. */
 export const minPayout = 100;
@@ -101,7 +101,7 @@ export function buildPayoutCriteria(
     {
       label: "Payout method configured",
       ok: true,
-      note: withdrawalMethods[0]?.name ?? "—",
+      note: readPrimaryPayoutMethod()?.name ?? "—",
       resolve: { label: "Add a withdrawal method", href: "/withdrawal-methods" },
     },
     {

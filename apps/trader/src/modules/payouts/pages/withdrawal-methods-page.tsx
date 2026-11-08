@@ -1,9 +1,11 @@
 "use client";
 
 /**
- * Withdrawal Methods — converted from stitch_screens/withdrawal_methods
- * Configured payout methods with add / edit / remove (two-step confirm)
- * and set-as-primary actions (PRD §3.10 — frontend-only demo).
+ * Withdrawal Methods — W1-01.
+ *
+ * CRUD + set-primary now write to the shared @/lib/payouts/payout-methods-store
+ * so a method added here is selectable in /payout-request immediately and
+ * after a full reload. The fixture is only the seed on first run.
  */
 
 import { useState } from "react";
@@ -14,9 +16,14 @@ import {
   TerraPageHeader,
   TerraSectionTitle,
 } from "@/components/terra/terra-ui";
-import { withdrawalMethods } from "@/lib/fixtures/terra-fixtures";
-
-type Method = (typeof withdrawalMethods)[number];
+import {
+  addPayoutMethod,
+  editPayoutMethod,
+  removePayoutMethod,
+  setPrimaryPayoutMethod,
+  type PayoutMethod,
+  usePayoutMethods,
+} from "@/lib/payouts/payout-methods-store";
 
 const emptyForm = { name: "", detail: "", fee: "", eta: "" };
 
@@ -24,7 +31,7 @@ const inputClass =
   "w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm outline-none focus:border-primary";
 
 export function WithdrawalMethodsPage() {
-  const [methods, setMethods] = useState<Method[]>(withdrawalMethods);
+  const methods = usePayoutMethods();
   const [mode, setMode] = useState<"view" | "add" | "edit">("view");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -45,7 +52,7 @@ export function WithdrawalMethodsPage() {
     setMode("add");
   };
 
-  const startEdit = (m: Method) => {
+  const startEdit = (m: PayoutMethod) => {
     setForm({ name: m.name, detail: m.detail, fee: m.fee, eta: m.eta });
     setEditingId(m.id);
     setFormError(null);
@@ -67,51 +74,34 @@ export function WithdrawalMethodsPage() {
       return;
     }
     if (mode === "add") {
-      const method: Method = {
-        id: `wm-custom-${Date.now().toString(36)}`,
+      addPayoutMethod({
         name: form.name.trim(),
         detail: form.detail.trim(),
         fee: form.fee.trim() || "Varies",
         eta: form.eta.trim() || "1–3 business days",
-        primary: false,
-      };
-      setMethods((prev) => [method, ...prev]);
-      flash(`"${method.name}" added as a withdrawal method. (Demo)`);
+      });
+      flash(`"${form.name.trim()}" added as a withdrawal method.`);
     } else if (editingId) {
-      setMethods((prev) =>
-        prev.map((m) =>
-          m.id === editingId
-            ? {
-                ...m,
-                name: form.name.trim(),
-                detail: form.detail.trim(),
-                fee: form.fee.trim() || "Varies",
-                eta: form.eta.trim() || "1–3 business days",
-              }
-            : m,
-        ),
-      );
-      flash(`"${form.name.trim()}" updated. (Demo)`);
+      editPayoutMethod(editingId, {
+        name: form.name.trim(),
+        detail: form.detail.trim(),
+        fee: form.fee.trim() || "Varies",
+        eta: form.eta.trim() || "1–3 business days",
+      });
+      flash(`"${form.name.trim()}" updated.`);
     }
     cancelForm();
   };
 
-  const confirmRemove = (m: Method) => {
-    setMethods((prev) => {
-      const next = prev.filter((x) => x.id !== m.id);
-      // Promote the first survivor if the primary method was removed.
-      if (m.primary && next.length > 0) {
-        next[0] = { ...next[0], primary: true };
-      }
-      return next;
-    });
+  const confirmRemove = (m: PayoutMethod) => {
+    removePayoutMethod(m.id);
     setPendingRemoveId(null);
-    flash(`"${m.name}" removed. (Demo)`);
+    flash(`"${m.name}" removed.`);
   };
 
-  const setPrimary = (m: Method) => {
-    setMethods((prev) => prev.map((x) => ({ ...x, primary: x.id === m.id })));
-    flash(`"${m.name}" is now your primary payout method. (Demo)`);
+  const setPrimary = (m: PayoutMethod) => {
+    setPrimaryPayoutMethod(m.id);
+    flash(`"${m.name}" is now your primary payout method.`);
   };
 
   return (
@@ -153,7 +143,7 @@ export function WithdrawalMethodsPage() {
         <TerraCard>
           <TerraSectionTitle
             title={mode === "add" ? "Add withdrawal method" : "Edit method"}
-            description="Demo — saved to this page only, no backend call."
+            description="Persisted on this device — available everywhere payout methods are used."
           />
           <form onSubmit={handleSave} className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -308,11 +298,6 @@ export function WithdrawalMethodsPage() {
           ))}
         </div>
       )}
-
-      <p className="text-[11px] text-on-surface-variant">
-        Removing or editing methods is a demo — changes live in this page only
-        and reset on reload.
-      </p>
     </div>
   );
 }

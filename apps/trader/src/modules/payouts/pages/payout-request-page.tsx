@@ -26,7 +26,6 @@ import {
   payoutEntitlement,
   terraPayouts,
   terraRiskLimits,
-  withdrawalMethods,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
 import {
@@ -37,6 +36,7 @@ import {
   tradedDaysFor,
   type PayoutCriterion,
 } from "@/components/terra/payout-summary-strip";
+import { type PayoutMethod, usePayoutMethods } from "@/lib/payouts/payout-methods-store";
 
 /**
  * Pre-request eligibility checklist (audit #4, HIGH): the payout gates
@@ -124,13 +124,22 @@ export function PayoutRequestPage() {
   const acc = useSyncActiveAccount(params.get("id"));
   const entitlement = payoutEntitlement(acc.id);
   const [amount, setAmount] = useState("");
-  const [methodId, setMethodId] = useState("wm-wise");
-  const [submitted, setSubmitted] = useState(false);
   // Focus targets for the gated submit (finding #5) — the button stays
   // focusable (aria-disabled, not disabled) and moves focus to the
   // field or checklist that explains why submission is blocked.
   const amountRef = useRef<HTMLInputElement>(null);
-  const method = withdrawalMethods.find((m) => m.id === methodId) ?? withdrawalMethods[0];
+  const methods = usePayoutMethods();
+  const primaryMethod = methods.find((m) => m.primary);
+  // Open on the primary method (W1-01: set-primary is honored here);
+  // the trader can pick another method below.
+  const [methodId, setMethodId] = useState<string>(
+    primaryMethod?.id ?? methods[0]?.id ?? "",
+  );
+  const [submitted, setSubmitted] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const method =
+    methods.find((m) => m.id === methodId) ?? primaryMethod ?? methods[0];
+  const feeAmount = method.feeAmount ?? 0;
   const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable);
   const outstanding = criteria.filter((c) => !c.ok).length;
 
@@ -145,6 +154,7 @@ export function PayoutRequestPage() {
   const daysLeft = Math.max(0, MIN_PAYOUT_DAYS - traded);
 
   const asked = Number(amount);
+  const receive = Number.isFinite(asked) ? Math.max(0, asked - feeAmount) : 0;
   const valid =
     entitlement.eligible &&
     Number.isFinite(asked) &&
@@ -351,6 +361,13 @@ export function PayoutRequestPage() {
                       amount !== "" && !valid ? "border-error focus:border-error" : "border-outline-variant"
                     }`}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setAmount(String(entitlement.withdrawable))}
+                    className="mt-2 block rounded-xl bg-surface-container-low px-3 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container"
+                  >
+                    Withdraw max ({formatMoney(entitlement.withdrawable)})
+                  </button>
                 </div>
                 <p className="text-xs text-on-surface-variant">
                   Min {formatMoney(minPayout)} • Max {formatMoney(entitlement.withdrawable)} (
@@ -393,7 +410,7 @@ export function PayoutRequestPage() {
           <TerraCard>
             <TerraSectionTitle title="Payout methods" />
             <div className="space-y-2" role="group" aria-label="Payout methods">
-              {withdrawalMethods.map((m) => (
+              {methods.map((m) => (
                 <button
                   key={m.id}
                   type="button"
@@ -441,8 +458,13 @@ export function PayoutRequestPage() {
               <span className="text-on-surface-variant">{method.fee}</span>
             </div>
             <div className="flex justify-between border-t border-outline-variant/40 pt-2">
-              <span className="font-bold text-on-surface">Total</span>
-              <span className="font-bold text-on-surface">{valid ? formatMoney(asked) : "—"}</span>
+              <span className="font-bold text-on-surface">Total — you receive</span>
+              <span className="font-bold text-on-surface">
+                {valid ? formatMoney(receive) : "—"}
+              </span>
+              <span className="text-xs text-on-surface-variant">
+                fee {formatMoney(feeAmount)} • amount {formatMoney(asked)}
+              </span>
             </div>
           </div>
           {/* Confirmo auto-payout note (finding #7c) — replaces the manual
@@ -473,7 +495,7 @@ export function PayoutRequestPage() {
                 amountRef.current?.focus();
                 amountRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
               } else {
-                setSubmitted(true);
+                setReviewOpen(true);
               }
             }}
             className={`rounded-xl px-5 py-3 text-sm font-bold shadow-sm transition-all ${
@@ -496,6 +518,78 @@ export function PayoutRequestPage() {
                 : "Payouts are reviewed within 1 business day."}
           </p>
           </TerraCard>
+          {/* W1-01: 2-step confirmation — review amount, method, fee, total,
+              ETA before submitting; Cancel returns to the form intact. */}
+          {reviewOpen && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Review payout"
+            >
+              <div
+                className="fixed inset-0 bg-black/40"
+                onClick={() => setReviewOpen(false)}
+              />
+              <div
+                className="relative bg-surface-container rounded-xl shadow-2xl w-full max-w-md p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="font-headline text-lg font-bold text-on-surface mb-4">
+                  Review payout
+                </h2>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-on-surface-variant">Amount</span>
+                    <span className="font-bold text-on-surface">
+                      {formatMoney(asked)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-on-surface-variant">Method</span>
+                    <span className="font-semibold text-on-surface">{method.name}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-on-surface-variant">Fee</span>
+                    <span className="text-on-surface-variant">{method.fee}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-outline-variant/40 pt-2 text-sm">
+                    <span className="text-on-surface-variant">Total — you receive</span>
+                    <span className="font-bold text-on-surface">
+                      {formatMoney(receive)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm text-on-surface-variant">
+                    <span>Processing</span>
+                    <span>
+                      {method.eta === "immediate"
+                        ? "Immediate — auto-settled"
+                        : method.eta}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setReviewOpen(false)}
+                    className="rounded-xl bg-surface-container-low px-5 py-2.5 text-sm font-bold text-on-surface hover:bg-surface-container"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReviewOpen(false);
+                      setSubmitted(true);
+                    }}
+                    className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
+                  >
+                    Confirm &amp; submit
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
