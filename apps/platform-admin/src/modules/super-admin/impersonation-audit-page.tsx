@@ -101,7 +101,7 @@ export function ImpersonationAuditPage() {
           <div className="flex items-center gap-2 font-medium text-foreground">
             <Shield className="h-4 w-4" /> Impersonation Audit: All sessions logged with "impersonated by" flag
           </div>
-          <p className="mt-1">{entries.length} entries · {totalSessions} active sessions · All impersonation actions require two-operator approval for privilege escalation.</p>
+          <p className="mt-1">{entries.length} entries · {totalSessions} active sessions · Every impersonation start, renew, and end is audit-logged under a single-operator model (no second approval is enforced).</p>
         </div>
 
         <div className="space-y-3">
@@ -135,8 +135,8 @@ export function ImpersonationAuditPage() {
           <CardHeader className="pb-2"><span className="text-sm font-medium">Audit Policy</span></CardHeader>
           <CardContent className="space-y-2 text-xs">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> Two-operator approval</span>
-              <span className="font-medium">Required for privilege escalation</span>
+              <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> Single-operator start</span>
+              <span className="font-medium">Every action audit-logged</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-amber-500" /> Flagged sessions</span>
