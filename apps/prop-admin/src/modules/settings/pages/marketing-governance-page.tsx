@@ -20,7 +20,6 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { usePlatform } from "@/lib/platform/platform-context";
 import { recordAudit } from "@/lib/audit";
 import { toast } from "@/hooks/use-toast";
 import { Gauge, CalendarDays, BellRing, Grid3x3, ChevronRight } from "lucide-react";
@@ -71,7 +70,6 @@ const cellClass = (s: CellStatus) =>
 /* ------------------------------------------------------------------ */
 
 export function MarketingGovernancePage() {
-  const { navigate } = usePlatform();
 
   const [rules, setRules] = useState<Rule[]>([
     { id: "r1", scope: "All segments", channel: "email", limit: "5 / week / contact", used: 62, status: "ok" },
@@ -286,8 +284,10 @@ export function MarketingGovernancePage() {
                   <Switch checked={emailAlerts} onCheckedChange={setEmailAlerts} />
                 </label>
                 <div className="flex items-center gap-2 border-t pt-2">
-                  <Button size="sm" variant="outline" onClick={() => { if (!routeAlerts) { setRouteAlerts(true); recordAudit({ action: "cap.alert_routing", entity: "marketing", summary: "Breach alert routing enabled from governance", module: "marketing" }); } navigate("risk-alert-subscription"); }}>
-                    Open alert subscriptions
+                  {/* R2-W3-03: this used to open the stitch `risk-alert-subscription`
+                      poster — routing is toggled here and recorded in the audit log. */}
+                  <Button size="sm" variant="outline" disabled={routeAlerts} onClick={() => { if (!routeAlerts) { setRouteAlerts(true); recordAudit({ action: "cap.alert_routing", entity: "marketing", summary: "Breach alert routing enabled from governance", module: "marketing" }); } }}>
+                    {routeAlerts ? "Alert routing enabled" : "Enable breach alert routing"}
                   </Button>
                   <span className="text-[10px] text-muted-foreground">{breachCount ? `${breachCount} breach alert(s) pending` : "No active breaches"}</span>
                 </div>

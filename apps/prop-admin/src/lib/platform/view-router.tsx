@@ -13,6 +13,9 @@ import type { ComponentType } from "react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@pfaas/ui";
 import { SHOW_STITCH } from "@/lib/platform/feature-flags";
+// Product claims for the stitch gate in resolveView() — module-registry
+// imports only ./types + ./permission-engine, so no import cycle.
+import { moduleRegistry } from "@/lib/platform/module-registry";
 
 const ViewSkeleton = () => (
   <div className="flex flex-col gap-6 p-4 sm:p-6" aria-hidden="true">
@@ -305,6 +308,25 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "installed-apps": dynamic(() => import("@/modules/settings/pages/installed-apps-page").then((m) => ({ default: m.InstalledAppsPage })), { loading: ViewSkeleton }),
   webhooks: dynamic(() => import("@/modules/settings/pages/webhooks-page").then((m) => ({ default: m.WebhooksPage })), { loading: ViewSkeleton }),
   "content-management": dynamic(() => import("@/modules/settings/pages/content-management-page").then((m) => ({ default: m.ContentManagementPage })), { loading: ViewSkeleton }),
+};
+
+/**
+ * Stitch views — screens wired from `modules/stitch/pages/*`.
+ *
+ * Split out of `viewRegistry` (R2-W3-03) so "is this view a stitch
+ * reference render?" is answerable structurally: a view is stitch iff its
+ * id is a key of `stitchViews` (equivalently, its import path contains
+ * `/stitch/pages/`). The gate in `resolveView()` derives from this set —
+ * no hand-maintained deny-list (the repo's own PA-023 recommendation).
+ *
+ * IMPORTANT — do NOT derive stitch membership from the stitch module's
+ * manifest: that manifest mirrors the entire product nav (~228 ids), so
+ * it would also classify real product views that merely share an id
+ * (`overview`, `risk`, `settings`, `payouts-pending`, …) as stitch and
+ * break them with the flag off. Membership comes from the import path;
+ * product claims come from product manifests (`moduleRegistry`).
+ */
+const stitchViews: Record<string, ViewComponent> = {
   /* stitch — screens wired from modules/stitch/pages */
   "2fa-setup-dialog": dynamic(() => import("@/modules/stitch/pages/2fa-setup-dialog").then((m) => ({ default: m.Screen2faSetupDialogStitchPage })), { loading: ViewSkeleton }),
   "notification-center": dynamic(() => import("@/modules/stitch/pages/notification-center").then((m) => ({ default: m.NotificationCenterStitchPage })), { loading: ViewSkeleton }),
@@ -372,7 +394,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "overview-onboarding-tour": dynamic(() => import("@/modules/stitch/pages/overview-onboarding-tour").then((m) => ({ default: m.OverviewOnboardingTourStitchPage })), { loading: ViewSkeleton }),
   "overview-saved-views": dynamic(() => import("@/modules/stitch/pages/overview-saved-views").then((m) => ({ default: m.OverviewSavedViewsStitchPage })), { loading: ViewSkeleton }),
   "payout-compliance": dynamic(() => import("@/modules/stitch/pages/payout-compliance").then((m) => ({ default: m.PayoutComplianceStitchPage })), { loading: ViewSkeleton }),
-  "payout-detail": dynamic(() => import("@/modules/stitch/pages/payout-detail").then((m) => ({ default: m.PayoutDetailStitchPage })), { loading: ViewSkeleton }),
+  "payout-detail": dynamic(() => import("@/modules/payouts/pages/payout-detail-page").then((m) => ({ default: m.PayoutDetailPage })), { loading: ViewSkeleton }),
   "payout-methods-config": dynamic(() => import("@/modules/stitch/pages/payout-methods-config").then((m) => ({ default: m.PayoutMethodsConfigStitchPage })), { loading: ViewSkeleton }),
   "payout-reversal": dynamic(() => import("@/modules/stitch/pages/payout-reversal").then((m) => ({ default: m.PayoutReversalStitchPage })), { loading: ViewSkeleton }),
   "payout-schedule": dynamic(() => import("@/modules/stitch/pages/payout-schedule").then((m) => ({ default: m.PayoutScheduleStitchPage })), { loading: ViewSkeleton }),
@@ -401,8 +423,37 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "transaction-detail": dynamic(() => import("@/modules/stitch/pages/transaction-detail").then((m) => ({ default: m.TransactionDetailStitchPage })), { loading: ViewSkeleton }),
   "user-audit-timeline": dynamic(() => import("@/modules/stitch/pages/user-audit-timeline").then((m) => ({ default: m.UserAuditTimelineStitchPage })), { loading: ViewSkeleton }),
   "vpn-proxy-detection-dashboard": dynamic(() => import("@/modules/stitch/pages/vpn-proxy-detection-dashboard").then((m) => ({ default: m.VpnProxyDetectionDashboardStitchPage })), { loading: ViewSkeleton }),
-
 };
+
+// Merge the stitch section into the main registry (Object.assign so the
+// `viewRegistry` const binding stays valid for existing importers).
+Object.assign(viewRegistry, stitchViews);
+
+/** Structurally-derived set of stitch view ids (import path → stitchViews key). */
+const stitchViewIds = new Set(Object.keys(stitchViews));
+
+/**
+ * True when a non-stitch module's RouteDefinition claims this view id —
+ * the product manifest is the source of truth for "this id is a real
+ * product surface with module/permission guards applied", so resolveView
+ * may serve it even with SHOW_STITCH off.
+ *
+ * Only the first render pays the registry walk; results are cached.
+ */
+const claimCache = new Map<string, boolean>();
+function isProductClaimed(viewId: string): boolean {
+  const hit = claimCache.get(viewId);
+  if (hit !== undefined) return hit;
+  const claimed = moduleRegistry
+    .getAll()
+    .some(
+      (m) =>
+        m.manifest.id !== "stitch" &&
+        (m.routes ?? []).some((r) => r.viewId === viewId),
+    );
+  claimCache.set(viewId, claimed);
+  return claimed;
+}
 
 const dynamicViews = new Map<string, ViewComponent>();
 
@@ -411,64 +462,26 @@ export function registerModuleView(viewId: string, component: ViewComponent) {
 }
 
 /**
- * Stitch-only view ids, with SHOW_STITCH off (default): deep links into
- * these resolve to nothing instead of rendering an unguarded static
- * reference screen out of the registry.
+ * Gate for stitch views with SHOW_STITCH off (default): deep links into
+ * unclaimed stitch screens resolve to nothing instead of rendering an
+ * unguarded static reference screen out of the registry.
  *
- * IMPORTANT — this list must NOT be derived from the stitch module's
- * manifest: that manifest mirrors the entire product nav (~228 ids; the
- * gap analysis found 181 route strings declared by more than one module),
- * so a manifest-derived set also gates real product views that merely
- * share an id with a stitch declaration (`overview` — the default landing
- * page — `risk`, `settings`, `payouts-pending`, …). Deriving it that way
- * shipped once and broke every such view with the flag off.
- *
- * Classification of the 91 registry entries importing `@/modules/stitch/pages`:
- *   - 54 are declared as a route/nav href by a product module → always resolve;
- *   - 2 (`payout-detail`, `settings-module-detail`) are navigate() targets
- *     from product pages and own a product RouteDefinition (guards) → resolve;
- *   - the 35 below are stitched-only reference screens → gated.
- * When adding a registry entry that imports stitch pages, list it here
- * unless a product manifest claims its id.
+ * Derived (R2-W3-03 — PA-023) instead of the hand-maintained
+ * `STITCH_ONLY_VIEWS` deny-list, which drifted whenever a stitch page was
+ * added:
+ *   - membership comes from the import path (`stitchViews` keys above), NOT
+ *     from the stitch module's manifest — that manifest mirrors the entire
+ *     product nav, so deriving from it once shipped and broke real product
+ *     views that merely share an id (`overview`, `risk`, `settings`, …);
+ *   - a product RouteDefinition claim (any non-stitch module's `routes`)
+ *     overrides the gate: the id is a real product surface and the normal
+ *     module/permission guard chain in DashboardRouter applies.
+ * CI enforces the pairing (a claimed id must be demo-labeled) via
+ * `bun scripts/nav-census.ts --check`.
  */
-const STITCH_ONLY_VIEWS = new Set<string>([
-  "2fa-setup-dialog",
-  "account-linkage-graph",
-  "add-group-sheet",
-  "affiliate-comparison",
-  "affiliate-detail",
-  "affiliate-onboarding",
-  "audit-log",
-  "breach-detail",
-  "certificatesissued",
-  "change-password-dialog",
-  "connected-sessions-detail",
-  "csv-import-dialog",
-  "device-detail",
-  "enhanced-user-events",
-  "help-changelog",
-  "help-module-detail",
-  "kyc-record-detail",
-  "marketing-campaign-detail",
-  "my-tasks",
-  "notification-center",
-  "notification-detail-dialog",
-  "notification-preferences-matrix",
-  "notifications-archived",
-  "overview-onboarding-tour",
-  "overview-saved-views",
-  "pending-snoozed-resolved",
-  "pending-task-detail",
-  "position-detail-live",
-  "profile-api-tokens",
-  "reviewer-audit-trail",
-  "support-agent-detail",
-  "trader-risk-score-detail",
-  "transaction-detail",
-  "transactions",
-]);
-
 export function resolveView(viewId: string): ViewComponent | undefined {
-  if (!SHOW_STITCH && STITCH_ONLY_VIEWS.has(viewId)) return undefined;
+  if (!SHOW_STITCH && stitchViewIds.has(viewId) && !isProductClaimed(viewId)) {
+    return undefined;
+  }
   return viewRegistry[viewId] ?? dynamicViews.get(viewId);
 }

@@ -5,7 +5,7 @@
  * spend, channel performance and ROI. Depends on Trading.
  */
 
-import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, Users, PenTool, CreditCard, Crown, Plug, Rocket, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2, HeartPulse, AlertOctagon, CheckCircle, FlaskConical, FileText, Shield, KeyRound, Gauge, ScrollText, FileEdit, ClipboardList, AppWindow, Image, Archive, Siren, Link2, Languages, DollarSign } from "lucide-react";
+import { Megaphone, LayoutList, TrendingUp, Target, BarChart3, Mail, CreditCard, Crown, Plug, CalendarDays, Workflow, LayoutTemplate, Layers, ShieldCheck, ArrowLeftRight, Activity, GitBranch, Server, MessageSquareText, Globe2, HeartPulse, AlertOctagon, CheckCircle, FileText, Shield, ScrollText, FileEdit, ClipboardList, AppWindow, Image, Archive, Siren, Link2, Languages, DollarSign } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import {
   MarketingOverviewWidget,
@@ -23,8 +23,6 @@ const navigation: NavigationItem[] = [
       // ───────── Campaigns ─────────
       { id: "marketing.overview", label: "Overview", href: "marketing", icon: Megaphone, permission: "marketing.read", group: "Campaigns" },
       { id: "marketing.campaigns", label: "Campaigns", href: "marketing-campaigns", icon: LayoutList, permission: "marketing.read", group: "Campaigns" },
-      // M4.1 — Campaign Composer
-      { id: "marketing.campaign-new", label: "New Campaign", href: "campaign-new", icon: Rocket, permission: ["marketing.configure", "settings.manage"], group: "Campaigns" },
       // M4.4 — Campaign Calendar
       { id: "marketing.calendar", label: "Calendar", href: "marketing-calendar", icon: CalendarDays, permission: "marketing.read", group: "Campaigns" },
       { id: "marketing.email-campaigns", label: "Email Campaigns", href: "marketing-email-campaigns", icon: Mail, permission: "marketing.read", group: "Campaigns" },
@@ -75,10 +73,8 @@ const navigation: NavigationItem[] = [
 
       // ───────── Audiences & Creative (M3 + M11) ─────────
       { id: "marketing.segments", label: "Segments", href: "segments", icon: Layers, permission: ["marketing.segments.manage", "settings.manage"], group: "Audiences & Creative" },
-      { id: "marketing.audience-builder", label: "Segment Builder", href: "marketing-audience-builder", icon: Users, permission: ["marketing.segments.manage", "settings.manage"], group: "Audiences & Creative" },
       { id: "marketing.consent-center", label: "Consent & Suppression", href: "consent-center", icon: ShieldCheck, permission: ["marketing.segments.manage", "settings.manage"], group: "Audiences & Creative" },
       { id: "marketing.contact-sync", label: "Contact Sync", href: "contact-sync", icon: ArrowLeftRight, permission: ["marketing.segments.manage", "settings.manage"], group: "Audiences & Creative" },
-      { id: "marketing.template-editor", label: "Template Editor", href: "marketing-template-editor", icon: PenTool, permission: "marketing.read", group: "Audiences & Creative" },
       { id: "marketing.ad-accounts", label: "Ad Accounts", href: "marketing-ad-accounts", icon: CreditCard, permission: ["marketing.ads.manage", "settings.manage"], group: "Audiences & Creative" },
 
       // ───────── Integrations (M1 — Connector Registry) ─────────
@@ -131,7 +127,6 @@ const routes: RouteDefinition[] = [
   { path: "marketing-audience-builder", viewId: "marketing-audience-builder", label: "Segment Builder", permission: ["marketing.segments.manage", "settings.manage"], module: "marketing" },
   { path: "consent-center", viewId: "consent-center", label: "Consent & Suppression", permission: ["marketing.segments.manage", "settings.manage"], module: "marketing" },
   { path: "contact-sync", viewId: "contact-sync", label: "Contact Sync", permission: ["marketing.segments.manage", "settings.manage"], module: "marketing" },
-  { path: "marketing-template-editor", viewId: "marketing-template-editor", label: "Marketing Template Editor", permission: "marketing.read", module: "marketing" },
   { path: "marketing-ad-accounts", viewId: "marketing-ad-accounts", label: "Ad Accounts", permission: ["marketing.ads.manage", "settings.manage"], module: "marketing" },
   // R2-03,04,08,09
   { path: "onsite-campaigns", viewId: "onsite-campaigns", label: "On-Site Studio", permission: ["marketing.onsite.manage", "marketing.configure", "settings.manage"], module: "marketing" },

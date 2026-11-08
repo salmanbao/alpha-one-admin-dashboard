@@ -5,7 +5,7 @@
  * depends on Trading. Manages affiliates, campaigns, and commissions.
  */
 
-import { Megaphone, Users, BarChart3, DollarSign, LineChart, ListChecks, Tag, Settings2, Ticket, Link } from "lucide-react";
+import { Megaphone, Users, BarChart3, DollarSign, LineChart, ListChecks, Tag, Ticket, Link } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { AffiliateOverviewWidget, TopAffiliatesWidget, AffiliateRevenueWidget } from "./widgets/affiliate-widgets";
 
@@ -27,7 +27,6 @@ const navigation: NavigationItem[] = [
       { id: "affiliates.coupons", label: "Coupons", href: "affiliate-coupons", icon: Ticket, permission: "affiliate.read", group: "Promotion & Offers" },
       { id: "affiliates.link-tracking", label: "Link Tracking", href: "affiliate-link-tracking", icon: Link, permission: "affiliate.read", group: "Promotion & Offers" },
       { id: "affiliates.offers", label: "Offers", href: "offer-management", icon: Tag, permission: "affiliate.read", group: "Promotion & Offers" },
-      { id: "affiliates.offer-edit", label: "Edit Offer", href: "offer-edit", icon: Settings2, permission: "affiliate.configure", group: "Promotion & Offers" },
     ],
   },
 ];

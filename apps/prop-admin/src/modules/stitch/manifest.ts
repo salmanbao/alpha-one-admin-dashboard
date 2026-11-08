@@ -5,7 +5,7 @@
  * reference renders. Optional module; depends on trading.
  */
 
-import {  Monitor, BookOpen, Settings, BarChart3, Wallet, Shield, Users, Tag, Bell, MessageSquare, FileText, Link, Bot, Brain, CreditCard, ArrowLeftRight, MapPin, Clock, Target, Trophy, AlertTriangle, Command, LayoutList, Image, Building2, LogIn, FileCheck, RefreshCw, Download, Share2, MoreHorizontal, Plus, Edit2, Trash2, Check, X, Search, Filter, ChevronRight, Menu, DollarSign, History, ShoppingBag, Sun, GitBranch, Flag, Activity, Calendar, Globe, TrendingDown , Contact, Key, Lightbulb, Mail, Megaphone, Ticket, TrendingUp, Upload } from "lucide-react";
+import { Monitor, BookOpen, Settings, BarChart3, Wallet, Shield, Users, Tag, Bell, MessageSquare, FileText, Link, Bot, Brain, CreditCard, ArrowLeftRight, MapPin, Clock, Target, Trophy, AlertTriangle, Image, Building2, LogIn, FileCheck, RefreshCw, Share2, Plus, Edit2, Check, X, DollarSign, History, ShoppingBag, Sun, GitBranch, Flag, Activity, Calendar, Globe, TrendingDown, Contact, Key, Lightbulb, Mail, Megaphone, Ticket, TrendingUp, Upload } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
 const navigation: NavigationItem[] = [
@@ -419,7 +419,6 @@ const routes: RouteDefinition[] = [
   { path: "overview-saved-views", viewId: "overview-saved-views", label: "Saved Views" },
   { path: "overview", viewId: "overview", label: "Overview" },
   { path: "payout-compliance", viewId: "payout-compliance", label: "Payout Compliance" },
-  { path: "payout-detail", viewId: "payout-detail", label: "Payout Detail" },
   { path: "payout-methods-config", viewId: "payout-methods-config", label: "Methods Config" },
   { path: "payout-reversal", viewId: "payout-reversal", label: "Payout Reversal" },
 

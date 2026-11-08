@@ -5,20 +5,7 @@
  * Registered into the platform module registry at app boot.
  */
 
-import {
-  CandlestickChart,
-  LineChart,
-  Users,
-  CreditCard,
-  Activity,
-  UserPlus,
-  Archive,
-  User,
-  ShoppingCart,
-  Server,
-  RefreshCw,
-  ClipboardCheck,
-} from "lucide-react";
+import { CandlestickChart, LineChart, Users, CreditCard, Activity, Archive, ShoppingCart, Server, RefreshCw, ClipboardCheck } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 // Eager-load the evaluation store at boot so the sidebar "Evaluation
 // Queue" count badge (PRD §4.6.2 pending_evaluations) is seeded before
@@ -41,7 +28,6 @@ const navigation: NavigationItem[] = [
       { id: "trading.traders", label: "Traders", href: "trading-traders", icon: Users, permission: "trader.read" },
       { id: "trading.accounts", label: "Accounts", href: "trading-accounts", icon: CreditCard, permission: "account.read" },
       { id: "trading.positions", label: "Open Positions", href: "trading-positions", icon: Activity, permission: "account.read" },
-      { id: "trading.add-account", label: "Add Account", href: "trading-add-account", icon: UserPlus, permission: "account.write" },
       { id: "trading.closed-positions", label: "Closed Positions", href: "closed-positions", icon: Archive, permission: "account.read" },
       { id: "trading.orders", label: "Orders", href: "orders", icon: ShoppingCart, permission: "account.read" },
       { id: "trading.evaluation-queue", label: "Evaluation Queue", href: "evaluation-queue", icon: ClipboardCheck, permission: "evaluation.read" },

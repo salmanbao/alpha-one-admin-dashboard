@@ -16,32 +16,7 @@
  * agent's batched edit.
  */
 
-import {
-  Settings as SettingsIcon,
-  Palette,
-  Users,
-  Package,
-  Bell,
-  Type,
-  Mail,
-  Award,
-  Image,
-  UsersRound,
-  KeyRound,
-  Wrench,
-  Gauge,
-  Plug,
-  Share2,
-  Fingerprint,
-  ShieldCheck,
-  Webhook,
-  HeartPulse,
-  Scale,
-  Files,
-  Megaphone,
-  Store,
-  Vault,
-} from "lucide-react";
+import { Settings as SettingsIcon, Palette, Users, Award, UsersRound, KeyRound, Gauge, Share2, Fingerprint, ShieldCheck, Webhook, HeartPulse, Scale, Files, Megaphone, Store, Vault } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
 const navigation: NavigationItem[] = [
@@ -55,12 +30,8 @@ const navigation: NavigationItem[] = [
     application: ["prop-admin"],
     children: [
       // ───────── Branding & White-label ─────────
-      { id: "settings.branding", label: "Branding", href: "settings?tab=branding", icon: Palette, permission: "settings.manage", group: "Branding & White-label" },
       // R3-06 — Brand Governance Console (settings.brand.manage)
       { id: "settings.brand-governance", label: "Brand Governance", href: "brand-governance", icon: Palette, permission: ["settings.brand.manage", "settings.manage"], group: "Branding & White-label" },
-      { id: "settings.terminology", label: "Terminology", href: "settings?tab=terminology", icon: Type, permission: "settings.manage", group: "Branding & White-label" },
-      { id: "settings.banners", label: "Banners", href: "banner-management", icon: Image, permission: "settings.manage", group: "Branding & White-label" },
-      { id: "settings.mkt-integrations", label: "Marketing Integrations", href: "marketing-integrations", icon: Plug, permission: ["marketing.connect", "settings.manage"], group: "Branding & White-label" },
       { id: "settings.social-media", label: "Social Media Links", href: "social-media-links", icon: Share2, permission: "settings.manage", group: "Branding & White-label" },
 
       // ───────── Website Content (M16 CMS) ─────────
@@ -73,34 +44,22 @@ const navigation: NavigationItem[] = [
       { id: "settings.credential-vault", label: "Credential Vault", href: "credential-vault", icon: Vault, permission: "settings.manage", group: "Security & Access" },
       { id: "settings.device-activities", label: "Device Activities", href: "device-activities", icon: Fingerprint, permission: "settings.manage", group: "Security & Access" },
       { id: "settings.kyc-providers", label: "KYC Providers", href: "kyc-providers", icon: ShieldCheck, permission: "settings.manage", order: 75, group: "Security & Access" },
-      { id: "settings.team-members", label: "Team Members", href: "team-members", icon: Users, permission: "settings.manage", group: "Security & Access" },
-      { id: "settings.roles-management", label: "Roles Management", href: "roles-management", icon: ShieldCheck, permission: "settings.manage", group: "Security & Access" },
 
       // ───────── Communications ─────────
-      { id: "settings.email-templates", label: "Email Templates", href: "email-templates", icon: Mail, permission: "settings.manage", group: "Communications" },
-      { id: "settings.notifications-mgmt", label: "Notifications Mgmt", href: "notifications-management", icon: Bell, permission: "settings.manage", group: "Communications" },
       { id: "settings.announcements", label: "Announcements", href: "announcements", icon: Megaphone, permission: "settings.manage", group: "Communications" },
 
       // ───────── Certificates ─────────
       { id: "settings.certificates", label: "Certificates", href: "certificate-management", icon: Award, permission: "settings.manage", group: "Certificates" },
-      { id: "settings.cert-designer", label: "Certificate Designer", href: "certificate-template-designer", icon: Palette, permission: "settings.manage", group: "Certificates" },
-      { id: "settings.font-upload", label: "Font Upload", href: "certificate-font-upload", icon: Type, permission: "settings.manage", group: "Certificates" },
-      { id: "settings.cert-issued", label: "Issued Certificates", href: "certificates-issued", icon: Award, permission: "settings.manage", group: "Certificates" },
 
       // ───────── Integrations ─────────
       { id: "settings.marketplace", label: "Marketplace", href: "marketplace", icon: Store, permission: ["settings.marketplace.manage", "settings.manage"], group: "Integrations" },
-      { id: "settings.installed-apps", label: "Installed Apps", href: "installed-apps", icon: Package, permission: ["settings.marketplace.manage", "settings.manage"], group: "Integrations" },
       { id: "settings.marketing-governance", label: "Marketing Governance", href: "marketing-governance", icon: Gauge, permission: "settings.manage", group: "Integrations" },
       { id: "settings.webhooks", label: "Webhooks & Events", href: "webhooks", icon: Webhook, permission: ["settings.webhooks.manage", "settings.manage"], group: "Integrations" },
 
       // ───────── System ─────────
       { id: "settings.general", label: "General", href: "settings?tab=general", icon: SettingsIcon, permission: "settings.manage", group: "System" },
-      { id: "settings.modules", label: "Modules", href: "settings?tab=modules", icon: Package, permission: "settings.manage", group: "System" },
-      { id: "settings.roles", label: "Roles & Permissions", href: "settings?tab=roles", icon: Users, permission: "settings.manage", group: "System" },
-      { id: "settings.notifications", label: "Notifications Matrix", href: "settings?tab=notifications", icon: Bell, permission: "settings.manage", group: "System" },
       { id: "settings.system-health", label: "System Health", href: "system-health", icon: HeartPulse, permission: "settings.manage", group: "System" },
       { id: "settings.terms", label: "Terms & Policies", href: "terms-policies", icon: Scale, permission: "settings.manage", group: "System" },
-      { id: "settings.utilities", label: "Utilities", href: "utilities", icon: Wrench, permission: "settings.manage", group: "System" },
     ],
   },
 ];
@@ -132,10 +91,6 @@ const routes: RouteDefinition[] = [
   { path: "device-activities", viewId: "device-activities", label: "Device Activities", permission: "settings.manage", module: "settings" },
   { path: "kyc-providers", viewId: "kyc-providers", label: "KYC Providers", permission: "settings.manage", module: "settings" },
   { path: "token-detail", viewId: "token-detail", label: "Token Detail", permission: "settings.manage", module: "settings" },
-  { path: "team-members", viewId: "team-members", label: "Team Members", permission: "settings.manage", module: "settings" },
-  { path: "roles-management", viewId: "roles-management", label: "Roles Management", permission: "settings.manage", module: "settings" },
-  // "Module Detail" button on the Settings overview's Module Catalog card.
-  { path: "settings-module-detail", viewId: "settings-module-detail", label: "Module Detail", permission: "settings.manage", module: "settings" },
   { path: "terms-policies", viewId: "terms-policies", label: "Terms & Policies", permission: "settings.manage", module: "settings" },
   { path: "content-management", viewId: "content-management", label: "Content Management", permission: "settings.manage", module: "settings" },
   { path: "system-health", viewId: "system-health", label: "System Health", permission: "settings.manage", module: "settings" },

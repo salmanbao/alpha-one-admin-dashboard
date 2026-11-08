@@ -57,7 +57,6 @@ import {
 import {
   AlertTriangle,
   ArrowRight,
-  BookOpen,
   CheckCircle2,
   ChevronRight,
   Eye,
@@ -413,14 +412,8 @@ export function RiskCaseDetailPage() {
                   <dd className="text-muted-foreground">{explainSignal(riskCase.signal).action}</dd>
                 </div>
               </dl>
-              <button
-                onClick={() => navigate("risk-rules-editor")}
-                className="mt-2 flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
-              >
-                <BookOpen className="h-3 w-3" />
-                Review this rule in the Risk Rules Editor
-                <ArrowRight className="h-3 w-3" />
-              </button>
+              {/* R2-W3-03: "Review this rule in the Risk Rules Editor" was a
+                  dead-end into the stitch poster — removed. */}
             </div>
 
             {/* Evidence — review checklist gates Resolve (audit fix #5) */}

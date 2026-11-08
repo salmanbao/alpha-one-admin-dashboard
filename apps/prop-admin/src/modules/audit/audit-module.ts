@@ -13,10 +13,13 @@
  * — reachable only via direct `navigate()` calls from inside the audit
  * module's own pages. This manifest fixes that platform-level inconsistency.
  *
- * The navigable viewIds (Audit Log / User Events / Enhanced Events /
- * Change History + the Compliance & SIEM suite: SIEM Integration,
- * Compliance Reports, Data Retention, Severity Policy, User Audit
- * Timeline) become sidebar children + Command Menu entries.
+ * R2-W3-03: nav keeps the four real streams (Audit Log, Enhanced Events,
+ * Change History + `audit-user-events` reachable from global search and
+ * in-page links). The stitch-rendered Compliance & SIEM suite and the
+ * superseded "User Events" list are no longer sidebar children — the
+ * Enhanced stream is the superset (account context, risk event types,
+ * advanced filters) and the stitch screens stay reachable from the
+ * flag-gated Stitch section.
  * `audit-user-event-detail` is intentionally NOT a nav child — it is a
  * sub-page reached from the user-events list (per spec §27 Drawer vs Page).
  */
@@ -24,14 +27,8 @@
 import {
   ShieldCheck,
   History,
-  Users,
   Sparkles,
   GitBranch,
-  Activity,
-  FileText,
-  Archive,
-  AlertTriangle,
-  Clock,
 } from "lucide-react";
 import type {
   FrontendModule,
@@ -54,13 +51,6 @@ const navigation: NavigationItem[] = [
         permission: "audit.read",
       },
       {
-        id: "audit.user-events",
-        label: "User Events",
-        href: "audit-user-events",
-        icon: Users,
-        permission: "audit.read",
-      },
-      {
         id: "audit.enhanced-events",
         label: "Enhanced Events",
         href: "audit-user-events-enhanced",
@@ -73,48 +63,6 @@ const navigation: NavigationItem[] = [
         href: "audit-change-history",
         icon: GitBranch,
         permission: "audit.read",
-      },
-
-      // ───────── Compliance & SIEM (M13/M23) ─────────
-      {
-        id: "audit.siem",
-        label: "SIEM Integration",
-        href: "audit-siem",
-        icon: Activity,
-        permission: "audit.read",
-        group: "Compliance & SIEM",
-      },
-      {
-        id: "audit.compliance-report",
-        label: "Compliance Reports",
-        href: "audit-compliance-report",
-        icon: FileText,
-        permission: "audit.read",
-        group: "Compliance & SIEM",
-      },
-      {
-        id: "audit.retention",
-        label: "Data Retention",
-        href: "audit-retention",
-        icon: Archive,
-        permission: "audit.read",
-        group: "Compliance & SIEM",
-      },
-      {
-        id: "audit.severity-policy",
-        label: "Severity Policy",
-        href: "audit-severity-policy",
-        icon: AlertTriangle,
-        permission: "audit.read",
-        group: "Compliance & SIEM",
-      },
-      {
-        id: "audit.user-timeline",
-        label: "User Audit Timeline",
-        href: "user-audit-timeline",
-        icon: Clock,
-        permission: "audit.read",
-        group: "Compliance & SIEM",
       },
     ],
   },
@@ -146,42 +94,6 @@ const routes: RouteDefinition[] = [
     path: "audit-change-history",
     viewId: "audit-change-history",
     label: "Change History",
-    permission: "audit.read",
-    module: "audit",
-  },
-  // Compliance & SIEM (M13/M23)
-  {
-    path: "audit-siem",
-    viewId: "audit-siem",
-    label: "SIEM Integration",
-    permission: "audit.read",
-    module: "audit",
-  },
-  {
-    path: "audit-compliance-report",
-    viewId: "audit-compliance-report",
-    label: "Compliance Reports",
-    permission: "audit.read",
-    module: "audit",
-  },
-  {
-    path: "audit-retention",
-    viewId: "audit-retention",
-    label: "Data Retention",
-    permission: "audit.read",
-    module: "audit",
-  },
-  {
-    path: "audit-severity-policy",
-    viewId: "audit-severity-policy",
-    label: "Severity Policy",
-    permission: "audit.read",
-    module: "audit",
-  },
-  {
-    path: "user-audit-timeline",
-    viewId: "user-audit-timeline",
-    label: "User Audit Timeline",
     permission: "audit.read",
     module: "audit",
   },

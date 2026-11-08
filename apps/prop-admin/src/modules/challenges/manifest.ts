@@ -2,7 +2,7 @@
  * Challenges Module — manifest, navigation, routes, widgets, settings.
  */
 
-import { Target, Clock, Plus, Settings2, Layers, GitBranch, Edit3, Medal } from "lucide-react";
+import { Target, Settings2, Layers, GitBranch, Edit3, Medal } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { ChallengeOverviewWidget, ChallengeProgressWidget, ChallengePhasesWidget } from "./widgets/challenge-widgets";
 
@@ -20,7 +20,6 @@ const navigation: NavigationItem[] = [
       { id: "challenges.overview", label: "Overview", href: "challenges", icon: Target, permission: ["challenge.read", "challenge.self"], group: "Status" },
 
       // ───────── Management ─────────
-      { id: "challenges.wizard", label: "Create Challenge", href: "challenge-wizard", icon: Plus, permission: "challenge.create", group: "Management" },
       { id: "challenges.types", label: "Challenge Types", href: "challenge-types", icon: Layers, permission: "challenge.read", group: "Management" },
       { id: "challenges.config", label: "Configuration", href: "challenge-config", icon: Settings2, permission: "challenge.update", group: "Management" },
       { id: "challenges.phases", label: "Phase Management", href: "phase-management", icon: GitBranch, permission: "challenge.read", group: "Management" },

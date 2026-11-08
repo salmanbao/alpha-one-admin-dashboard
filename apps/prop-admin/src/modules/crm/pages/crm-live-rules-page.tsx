@@ -35,7 +35,6 @@ import {
   SlidersHorizontal,
   ShieldCheck,
   History,
-  ArrowRight,
   Save,
   RotateCcw,
   Undo2,
@@ -121,7 +120,7 @@ function stamp(): string {
 /* ------------------------------------------------------------------ */
 
 export function CrmLiveRulesPage() {
-  const { runtime, tenant, user, navigate } = usePlatform();
+  const { tenant, user } = usePlatform();
   const makeTerm = makeTermResolver(tenant);
   const accounts = useMemo(() => getTenantAccounts(tenant.id), [tenant.id]);
 
@@ -336,12 +335,9 @@ export function CrmLiveRulesPage() {
         title="Live Rule Changes"
         description={`Per-${makeTerm("account").toLowerCase()} rule control from the CRM — daily loss, drawdown, profit target and minimum days, applied live with a full change log.`}
         icon={SlidersHorizontal}
-        actions={
-          <Button variant="outline" size="sm" onClick={() => navigate("risk-rules-editor")}>
-            <ShieldCheck className="mr-1.5 h-4 w-4" /> Tenant-wide Rules Editor
-            <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-          </Button>
-        }
+        // R2-W3-03: the "Tenant-wide Rules Editor" action pointed at the
+        // stitch `risk-rules-editor` poster — removed (this page IS the
+        // live-rules surface).
       />
       <PageContent>
         {/* KPI row */}
