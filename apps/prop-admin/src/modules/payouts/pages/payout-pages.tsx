@@ -16,6 +16,7 @@ import { getTenantPayouts, getTraderPayouts, getTraderForUser, getTenantTraders,
 import { buildPayoutRisk, worstPayoutRisk } from "@/lib/platform/payout-risk";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { applyPayoutDecision, effectivePayoutStatus, payoutAmlBlock, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
+import { readAutoApproveRule, evaluateAutoApproval } from "@/modules/payouts/auto-approve-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency } from "@/components/platform/status";
