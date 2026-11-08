@@ -64,8 +64,9 @@ export const paymentFailureReasons = [
 
 export type PaymentFailureCode = (typeof paymentFailureReasons)[number]["code"];
 
-/** Promo codes accepted in this demo — checkout applies them, the
- *  /promo-error route offers them as working alternatives. */
+/** @deprecated Use {@link promoCatalog} / {@link promoCatalogByCode} from
+ *  "@/lib/promos/promo-catalog" instead. This is kept for backwards
+ *  compatibility — /promo-error and checkout now use the unified catalog. */
 export const promos: Record<string, { percent: number; label: string }> = {
   TERRA10: { percent: 10, label: "10% off" },
   FLASH25: { percent: 25, label: "25% off Flash accounts" },
