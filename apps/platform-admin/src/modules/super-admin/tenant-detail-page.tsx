@@ -938,9 +938,9 @@ function UsersTab({ tenantId }: { tenantId: string }) {
             size="sm"
             variant="ghost"
             className="h-7 gap-1 text-xs"
-            onClick={() => toast({ title: "Edit role", description: `Opening role editor for ${u.name}. (demo)` })}
+            onClick={() => toast({ title: "Role management", description: `Use the Roles & Permissions matrix to manage tenant roles. Per-user role editing is not available in this demo.` })}
           >
-            <Pencil className="h-3 w-3" /> Edit role
+            <Pencil className="h-3 w-3" /> Manage roles
           </Button>
           <Button
             size="sm"

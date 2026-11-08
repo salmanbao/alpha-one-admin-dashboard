@@ -343,6 +343,9 @@ export function PayoutsOverviewPage() {
         }
       />
       <PageContent>
+        <p className="text-xs text-muted-foreground rounded-md border border-dashed px-3 py-2 bg-muted/20">
+          Demo data: payout metrics and records shown here are illustrative.
+        </p>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
           <MetricCard label="Pending" value={pending} icon={Clock} tone="warning" />
           <MetricCard label="Paid (30d)" value={paid30d.length} icon={CheckCircle2} tone="positive" />

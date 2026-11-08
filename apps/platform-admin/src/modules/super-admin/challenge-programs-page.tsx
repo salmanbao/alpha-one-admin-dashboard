@@ -23,7 +23,6 @@ import {
   type ChallengePhaseConfig,
 } from "@/lib/platform/mock-data";
 import { Calendar, Target, AlertTriangle, CheckCircle2, Info } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
 
 interface PhaseRow extends ChallengePhaseConfig {
   challengeTypeName: string;
@@ -61,6 +60,19 @@ export function ChallengeProgramsPage() {
   const phasesWithMinDays = phases.filter((p) => p.minTradingDays > 0);
   const zeroMinDays = phases.filter((p) => p.minTradingDays === 0 && !p.isFunded);
   const fundedPhases = phases.filter((p) => p.isFunded);
+  const minDaysDistribution = useMemo(() => {
+    const daysMap = new Map<number, number>();
+    phasesWithMinDays.forEach((p) => {
+      daysMap.set(p.minTradingDays, (daysMap.get(p.minTradingDays) ?? 0) + 1);
+    });
+    return Array.from(daysMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([days, count]) => ({
+        days,
+        count,
+        pct: phasesWithMinDays.length ? Math.round((count / phasesWithMinDays.length) * 100) : 0,
+      }));
+  }, [phasesWithMinDays]);
 
   const columns: Column<PhaseRow>[] = [
     {
@@ -268,19 +280,7 @@ export function ChallengeProgramsPage() {
               </p>
             </CardHeader>
             <CardContent className="space-y-3">
-              {useMemo(() => {
-                const daysMap = new Map<number, number>();
-                phasesWithMinDays.forEach((p) => {
-                  daysMap.set(p.minTradingDays, (daysMap.get(p.minTradingDays) ?? 0) + 1);
-                });
-                return Array.from(daysMap.entries())
-                  .sort((a, b) => a[0] - b[0])
-                  .map(([days, count]) => ({
-                    days,
-                    count,
-                    pct: Math.round((count / phasesWithMinDays.length) * 100),
-                  }));
-              }, [phasesWithMinDays]).map(({ days, count, pct }) => (
+              {minDaysDistribution.map(({ days, count, pct }) => (
                 <div key={days} className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5 min-w-[100px]">
                     <Calendar className="h-4 w-4 text-teal-500" aria-hidden />

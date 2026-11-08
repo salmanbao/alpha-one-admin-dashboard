@@ -100,7 +100,7 @@ const actionFor: Record<
   },
   challenge: {
     label: "Review challenge",
-    href: "/my-challenges",
+    href: "/my-accounts",
     className: "bg-primary text-on-primary hover:bg-primary/90",
     icon: <Target className="h-4 w-4" />,
   },

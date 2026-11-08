@@ -7,7 +7,6 @@
  * Shows active, used, and expired coupon states.
  */
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Skeleton, cn } from "@pfaas/ui";
 import { Clock, Tag, History, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
@@ -132,8 +131,6 @@ export function PromoWalletPage() {
   const [activeTab, setActiveTab] = useState<"active" | "used">("active");
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [applyingId, setApplyingId] = useState<string | null>(null);
-  const [validationErrorId, setValidationErrorId] = useState<string | null>(null);
-  const [validatedOnce, setValidatedOnce] = useState<string[]>([]);
   const [couponStatuses, setCouponStatuses] = useState<Record<string, CouponStatus>>({});
 
   useEffect(() => {
@@ -193,40 +190,28 @@ export function PromoWalletPage() {
 
   /* ---- Interactions --------------------------------------------- */
 
-  const handleCopy = (code: string) => {
-    navigator.clipboard?.writeText(code).catch(() => undefined);
+  const handleCopy = async (code: string) => {
+    try {
+      await navigator.clipboard?.writeText(code);
+    } catch {
+      /* clipboard unavailable */
+    }
     toast({
       title: "Code copied",
       description: `${code} copied to clipboard.`,
     });
   };
 
-  const toggleReveal = (id: string) => {
-    setRevealed((r) => ({ ...r, [id]: !r[id] }));
-  };
-
   const handleApply = (code: string) => {
     const status = couponStatuses[code.toUpperCase()];
-    if (!status || status.status !== "active" || status.applying) return;
+    if (!status || status.status !== "active" || applyingId) return;
 
-    setValidationErrorId(null);
-    setApplyingId(code);
-
-    setTimeout(() => {
-      setApplyingId(null);
-      toast({
-        title: "Promo applied",
-        description: `${code} will be applied at marketplace checkout.`,
-      });
-      router.push(`/checkout?promo=${encodeURIComponent(code)}`);
-    }, 700);
-  };
-
-  const handleRestore = (code: string) => {
+    setApplyingId(code.toUpperCase());
     toast({
-      title: "Restore requested",
-      description: `A policy review to restore ${code} was sent to support.`,
+      title: "Promo selected",
+      description: `${code} will be applied at checkout.`,
     });
+    router.push(`/checkout?promo=${encodeURIComponent(code)}`);
   };
 
   /* ---- Render ---------------------------------------------------- */
@@ -362,15 +347,15 @@ export function PromoWalletPage() {
         <div className="space-y-4">
           {coupons.map((status) => {
             const coupon = status.catalog;
+            const code = coupon.code.toUpperCase();
             const expired = isExpired(coupon.expiry) || status.status === "expired";
             const dimmed = status.status !== "active";
-            const shown = revealed[coupon.code.toUpperCase()];
-            const applying = applyingId === coupon.code.toUpperCase();
-            const validationFailed = validationErrorId === coupon.code.toUpperCase();
+            const shown = revealed[code];
+            const applying = applyingId === code;
 
             return (
               <TerraCard
-                key={coupon.code.toUpperCase()}
+                key={code}
                 className={cn(
                   "space-y-4 transition-opacity",
                   dimmed && "opacity-70 saturate-50",
@@ -380,12 +365,12 @@ export function PromoWalletPage() {
                   {/* Left: brand banner + value + eligible items */}
                   <div className="flex min-w-0 flex-1 items-start gap-4">
                     <div
-                      className="flex h-16 w-24 shrink-0 flex-col items-center justify-center rounded-xl"
+                      className="flex h-16 w-24 shrink-0 flex-col items-center justify-center rounded-xl bg-surface-container-low"
                     >
-                      <span className="font-headline text-lg font-bold">
+                      <span className="font-headline text-lg font-bold text-on-surface">
                         {brandInitials(coupon.brand)}
                       </span>
-                      <span className="text-[9px] font-bold uppercase tracking-wider opacity-80">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant opacity-80">
                         {coupon.brand.split(" ")[0]}
                       </span>
                     </div>
@@ -424,8 +409,41 @@ export function PromoWalletPage() {
                       <p className="mt-0.5 text-xs text-on-surface-variant">
                         {coupon.conditions}
                       </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRevealed((r) => ({ ...r, [code]: !r[code] }))}
+                          className="rounded-lg border border-outline-variant/60 bg-surface-container-lowest px-2.5 py-1 font-mono text-xs font-bold text-on-surface hover:bg-surface-container-low"
+                          aria-label={shown ? `Hide code ${code}` : `Reveal code ${code}`}
+                        >
+                          {shown ? code : "••••••••"}
+                        </button>
+                        <span className="text-[11px] text-on-surface-variant">
+                          {shown ? "Tap to hide" : "Tap to reveal code"}
+                        </span>
+                      </div>
                     </div>
                   </div>
+
+                  {status.status === "active" && !expired && (
+                    <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(code)}
+                        className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold text-on-surface hover:bg-surface-container-low"
+                      >
+                        Copy code
+                      </button>
+                      <button
+                        type="button"
+                        disabled={applying}
+                        onClick={() => handleApply(code)}
+                        className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90 disabled:opacity-60"
+                      >
+                        {applying ? "Opening checkout…" : "Apply at checkout"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </TerraCard>
             );
