@@ -27,6 +27,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { updateTenant } from "@/lib/platform/tenant-store";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import {
   getTenantTraders,
@@ -1233,22 +1234,22 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuItem
-                onClick={() => toast({ title: "Plan change requested", description: "Switching to Starter plan." })}
+                onClick={() => { updateTenant(tenant.id, { plan: "starter" }); toast({ title: "Plan updated", description: "Switched to Starter plan." }); }}
               >
                 Starter — $890/mo
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => toast({ title: "Plan change requested", description: "Switching to Growth plan." })}
+                onClick={() => { updateTenant(tenant.id, { plan: "growth" }); toast({ title: "Plan updated", description: "Switched to Growth plan." }); }}
               >
                 Growth — $1,900/mo
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => toast({ title: "Plan change requested", description: "Switching to Scale plan." })}
+                onClick={() => { updateTenant(tenant.id, { plan: "scale" }); toast({ title: "Plan updated", description: "Switched to Scale plan." }); }}
               >
                 Scale — $4,900/mo
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => toast({ title: "Plan change requested", description: "An account executive will reach out for Enterprise pricing." })}
+                onClick={() => { updateTenant(tenant.id, { plan: "enterprise" }); toast({ title: "Plan updated", description: "Switched to Enterprise plan." }); }}
               >
                 Enterprise — Custom
               </DropdownMenuItem>

@@ -79,7 +79,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
+import { tenants as allTenantsSeed, getTenantTraders } from "@/lib/platform/mock-data";
+import { readTenants } from "@/lib/platform/tenant-store";
 import type { TenantContext } from "@/lib/platform/types";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import {
@@ -115,13 +116,15 @@ const tenantStatusTone = (s: string) =>
 
 export function SuperAdminOverviewPage() {
   const { setTenant, setUser, navigate } = usePlatform();
+  const allTenants = readTenants();
   // Round 4 fix: derive the trader count by summing each tenant's actual
   // trader list (was `allTenants.length * 26` — a fabricated multiplier
   // that didn't reflect any real data, especially since Alpha has 26
   // traders, Beta has 17, Gamma has 8, etc. — the fabricated "x26" was
   // never right except by accident for Alpha).
-  const totalTraders = allTenants.reduce((s, t) => s + getTenantTraders(t.id).length, 0);
-  const totalRevenue = allTenants.reduce((s, t) => s + (t.plan === "enterprise" ? 4900 : t.plan === "scale" ? 1900 : 890), 0);
+  const _tenants = readTenants();
+  const totalTraders = _tenants.reduce((s, t) => s + getTenantTraders(t.id).length, 0);
+  const totalRevenue = _tenants.reduce((s, t) => s + (t.plan === "enterprise" ? 4900 : t.plan === "scale" ? 1900 : 890), 0);
   const allModules = moduleRegistry.getAll();
   // Only tenant-facing modules belong in a per-tenant adoption metric
   const tenantFacingModules = allModules.filter((m) => m.manifest.id !== "super-admin");
@@ -300,7 +303,7 @@ export function ModuleCatalogPage() {
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {allModules.map((m) => {
             const Icon = m.manifest.icon;
-            const adopters = allTenants.filter((t) => t.enabledModules.includes(m.manifest.id)).length;
+            const adopters = readTenants().filter((t) => t.enabledModules.includes(m.manifest.id)).length;
             return (
               <Card
                 key={m.manifest.id}
