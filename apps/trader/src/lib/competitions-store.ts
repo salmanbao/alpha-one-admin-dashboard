@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { emitLifecycle } from "@pfaas/lifecycle";
 
 export interface CompetitionsState {
   joined: string[];
@@ -60,6 +61,12 @@ export function joinCompetition(competitionId: string): void {
     /* storage unavailable */
   }
   emit();
+  emitLifecycle({
+    entity: { kind: "competition", id: competitionId },
+    name: "competition.joined",
+    actor: "trader",
+    payload: { competitionId },
+  });
 }
 
 export function leaveCompetition(competitionId: string): void {
@@ -73,4 +80,10 @@ export function leaveCompetition(competitionId: string): void {
     /* storage unavailable */
   }
   emit();
+  emitLifecycle({
+    entity: { kind: "competition", id: competitionId },
+    name: "competition.left",
+    actor: "trader",
+    payload: { competitionId },
+  });
 }

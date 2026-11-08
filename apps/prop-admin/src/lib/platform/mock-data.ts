@@ -16,6 +16,9 @@ import type {
 } from "./types";
 import { getSessionAudit } from "@/lib/audit";
 import { profitMarginPct, payoutRatioPct, avgOrderValue } from "@/lib/metrics";
+// R2-W3-01 demo transport: trader-app submissions arrive as lifecycle
+// events and are merged into the two queue readers below.
+import { crossAppKycRecords, crossAppPayouts } from "./cross-app-intake";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -544,6 +547,8 @@ export interface Payout {
   createdAt: string;
   processedAt?: string;
   reference: string;
+  /** Cross-app demo transport (R2-W3-01) — renders as a "(demo transport)" chip. */
+  source?: "cross-app-intake";
 }
 
 export interface Affiliate {
@@ -633,6 +638,8 @@ export interface KycRecord {
   submittedAt: string;
   reviewedAt?: string;
   riskLevel: "low" | "medium" | "high";
+  /** Cross-app demo transport (R2-W3-01) — renders as a "(demo transport)" chip. */
+  source?: "cross-app-intake";
 }
 
 export interface SupportTicket {
@@ -1286,7 +1293,9 @@ export function getTenantBreaches(tenantId: string): Breach[] {
   return breaches.filter((b) => b.tenantId === tenantId);
 }
 export function getTenantPayouts(tenantId: string): Payout[] {
-  return payouts.filter((p) => p.tenantId === tenantId);
+  // R2-W3-01: trader-app payout requests (shared lifecycle log) join the
+  // fixture rows so every queue/KPI sees the same list.
+  return [...payouts.filter((p) => p.tenantId === tenantId), ...crossAppPayouts(tenantId)];
 }
 export function getTenantAffiliates(tenantId: string): Affiliate[] {
   return affiliates.filter((a) => a.tenantId === tenantId);
@@ -1301,7 +1310,9 @@ export function getTenantContacts(tenantId: string): CrmContact[] {
   return crmContacts.filter((c) => c.tenantId === tenantId);
 }
 export function getTenantKyc(tenantId: string): KycRecord[] {
-  return kycRecords.filter((k) => k.tenantId === tenantId);
+  // R2-W3-01: trader-app KYC submissions (shared lifecycle log) join the
+  // fixture records so the review queue, KPIs and pendings hub count them.
+  return [...kycRecords.filter((k) => k.tenantId === tenantId), ...crossAppKycRecords(tenantId)];
 }
 export function getTenantTickets(tenantId: string): SupportTicket[] {
   return supportTickets.filter((s) => s.tenantId === tenantId);

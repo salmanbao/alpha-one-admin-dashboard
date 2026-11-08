@@ -18,6 +18,7 @@ import {
 } from "@/components/terra/terra-ui";
 import { markJourney } from "@/lib/onboarding/journey-store";
 import { readProvisioningHandoff } from "@/lib/onboarding/provisioning-handoff";
+import { emitLifecycle } from "@pfaas/lifecycle";
 import { getProvisioningProgress } from "@/lib/status-progression";
 
 const stages = [
@@ -44,10 +45,31 @@ export function AccountProvisioningPage() {
   const { done, total, complete } = progress;
   const pct = Math.round((done / total) * 100);
 
-  // Mark provisioned once when complete (idempotent; effect is safe).
+  // Mark provisioned once when complete (idempotent; effect is safe), and
+  // publish the provisioning lifecycle (R2-W3-01): one event updates the
+  // dashboard stage, the journey checklist and prop-admin's queues.
   useEffect(() => {
-    if (complete) markJourney("provisioned");
-  }, [complete]);
+    if (!purchasedAt) return;
+    const handoff = readProvisioningHandoff();
+    const entityId = handoff?.orderId ?? purchasedAt;
+    emitLifecycle({
+      entity: { kind: "provisioning", id: entityId },
+      name: "provisioning.started",
+      actor: "trader",
+      key: `started:${entityId}`,
+      payload: { purchasedAt, orderId: handoff?.orderId ?? null },
+    });
+    if (complete) {
+      markJourney("provisioned");
+      emitLifecycle({
+        entity: { kind: "provisioning", id: entityId },
+        name: "provisioning.activated",
+        actor: "trader",
+        key: `activated:${entityId}`,
+        payload: { purchasedAt, stages: total },
+      });
+    }
+  }, [purchasedAt, complete, total]);
 
   return (
     <div className="space-y-6">

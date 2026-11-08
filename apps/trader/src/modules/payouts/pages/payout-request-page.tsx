@@ -597,6 +597,7 @@ export function PayoutRequestPage() {
                         methodId: method.id,
                         methodName: method.name,
                         feeAmount,
+                        profitSplit: entitlement.splitPct,
                       });
                       setReviewOpen(false);
                       setSubmittedRequestId(req.id);

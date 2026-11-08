@@ -24,7 +24,23 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { emitLifecycle, type LifecycleEventName } from "@pfaas/lifecycle";
 import { withdrawalMethods } from "@/lib/fixtures/terra-fixtures";
+
+/** R2-W3-01: methods are a lifecycle-tracked entity, not local state. */
+function publish(
+  name: LifecycleEventName,
+  method: { id: string; name?: string; primary?: boolean },
+  key?: string,
+): void {
+  emitLifecycle({
+    entity: { kind: "payout-method", id: method.id },
+    name,
+    actor: "trader",
+    key,
+    payload: { method: method.name ?? method.id, primary: method.primary ?? false },
+  });
+}
 
 const STORAGE_KEY = "pfaas:trader:payoutMethods";
 
@@ -144,29 +160,36 @@ export function addPayoutMethod(input: {
     primary: false,
   };
   writeMethods([method, ...readRawMethods()]);
+  publish("payout-method.added", method, method.id);
 }
 
 /** Replace fields on an existing method. */
 export function editPayoutMethod(id: string, patch: Partial<PayoutMethod>): void {
-  writeMethods(
-    readRawMethods().map((m) => {
-      if (m.id !== id) return m;
-      const next: PayoutMethod = { ...m, ...patch };
-      if (patch.fee !== undefined) next.feeAmount = parseFeeAmount(patch.fee);
-      return next;
-    }),
-  );
+  const updated = readRawMethods().map((m) => {
+    if (m.id !== id) return m;
+    const next: PayoutMethod = { ...m, ...patch };
+    if (patch.fee !== undefined) next.feeAmount = parseFeeAmount(patch.fee);
+    return next;
+  });
+  writeMethods(updated);
+  const target = updated.find((m) => m.id === id);
+  if (target) publish("payout-method.updated", target);
 }
 
 /** Remove a method, promoting the first survivor if it was primary. */
 export function removePayoutMethod(id: string): void {
+  const target = readRawMethods().find((m) => m.id === id);
   const next = readRawMethods().filter((m) => m.id !== id);
   writeMethods(ensureOnePrimary(next));
+  if (target) publish("payout-method.removed", target);
 }
 
 /** Set the primary method (exactly one after this). */
 export function setPrimaryPayoutMethod(id: string): void {
-  writeMethods(readRawMethods().map((m) => ({ ...m, primary: m.id === id })));
+  const updated = readRawMethods().map((m) => ({ ...m, primary: m.id === id }));
+  writeMethods(updated);
+  const target = updated.find((m) => m.id === id);
+  if (target) publish("payout-method.primary-set", target);
 }
 
 /** Reactive methods list for components. */

@@ -25,6 +25,7 @@ import {
   readVerificationDraft,
   type VerificationReviewStatus,
 } from "@/lib/verification/verification-store";
+import { useLifecycleLog } from "@pfaas/lifecycle";
 
 /** Days since a submission date ("2 days ago"). */
 function daysSince(iso: string): number {
@@ -49,6 +50,10 @@ const statusBadge = (status: VerificationReviewStatus) => {
 };
 
 export function KycStatusCard() {
+  // R2-W3-01 — the lifecycle log is the bus: every KYC transition (wizard
+  // submit, seeded reviewer verdict, prop-admin decision) emits one event,
+  // and this card re-derives from the draft the moment it lands.
+  useLifecycleLog();
   const draft = readVerificationDraft();
   const { reviewStatus, submittedAt, attempts, maxAttempts, rejectionReasons } = draft;
 

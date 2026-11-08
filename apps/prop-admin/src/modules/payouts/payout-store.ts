@@ -8,6 +8,8 @@ import { recordAudit } from "@/lib/audit";
 import { getAmlCase, getAmlHoldCaseForTrader, useAmlVersion } from "@/modules/risk/aml-store";
 import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { demoPayoutsSchema } from "@/lib/platform/validation";
+import { emitLifecycle } from "@pfaas/lifecycle";
+import { findCrossAppPayout } from "@/lib/platform/cross-app-intake";
 
 /**
  * Session-scoped payout decision store.
@@ -101,7 +103,9 @@ export function applyPayoutDecision(
   decision: PayoutDecision,
   opts?: { reason?: string },
 ): PayoutDecisionResult {
-  const p = seedPayouts.find((x) => x.reference === reference);
+  // Fixture payout, or a cross-app intake row (R2-W3-01) — the audit entry
+  // must name the real trader/amount for either source.
+  const p = seedPayouts.find((x) => x.reference === reference) ?? findCrossAppPayout(reference);
   const who = p ? p.traderName : reference;
   const amount = p ? `${p.amount} ${p.currency}` : "";
 
@@ -146,6 +150,15 @@ export function applyPayoutDecision(
       ? `${who} — ${amount} (${decision}): ${opts.reason}`
       : `${who} — ${amount} (${decision})`,
     severity: decision === "rejected" || decision === "escalated" ? "warning" : "info",
+  });
+  // R2-W3-01 publish point — every payout surface (queue, history, hub,
+  // trader app via the shared log) updates from this one emission.
+  emitLifecycle({
+    entity: { kind: "payout", id: reference },
+    name: `payout.${decision}`,
+    actor: "prop-admin",
+    key: `${reference}:${decision}`,
+    payload: { reference, trader: who, amount: p?.amount ?? null, reason: opts?.reason ?? null },
   });
   emit();
   return { ok: true };

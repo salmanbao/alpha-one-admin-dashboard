@@ -10,6 +10,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@pfaas/lifecycle": "workspace:*",
     "@pfaas/platform-core": "workspace:*",
     "@pfaas/ui": "workspace:*",
     "lucide-react": "^0.525.0",

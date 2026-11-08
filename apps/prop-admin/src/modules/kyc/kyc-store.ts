@@ -7,6 +7,8 @@ import { setNavBadge } from "@/lib/platform/nav-badges";
 import { recordAudit } from "@/lib/audit";
 import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { demoKycSchema } from "@/lib/platform/validation";
+import { emitLifecycle } from "@pfaas/lifecycle";
+import { findCrossAppKyc } from "@/lib/platform/cross-app-intake";
 
 /**
  * Session-scoped KYC decision store.
@@ -52,7 +54,9 @@ export function applyKycDecision(
 ) {
   decisions.set(recordId, { status: decision, at: new Date().toISOString() });
   // Audit chokepoint (lib/audit.ts) — see payout-store.applyPayoutDecision.
-  const r = seedKyc.find((x) => x.id === recordId);
+  // Fixture record, or a cross-app intake row (R2-W3-01) — the audit entry
+  // must name the real applicant for either source.
+  const r = seedKyc.find((x) => x.id === recordId) ?? findCrossAppKyc(recordId);
   const who = r ? r.traderName : recordId;
   recordAudit({
     action:
@@ -65,6 +69,15 @@ export function applyKycDecision(
     entityId: recordId,
     summary: opts?.reason ? `${who} — ${opts.reason}` : `${who} — ${decision}`,
     severity: decision === "rejected" ? "warning" : "info",
+  });
+  // R2-W3-01 publish point: one typed event per verdict; the trader app's
+  // status card and every queue reading this log update from it.
+  emitLifecycle({
+    entity: { kind: "kyc", id: recordId },
+    name: `kyc.${decision}`,
+    actor: "prop-admin",
+    key: `${recordId}:${decision}`,
+    payload: { trader: who, reason: opts?.reason ?? null },
   });
   emit();
 }

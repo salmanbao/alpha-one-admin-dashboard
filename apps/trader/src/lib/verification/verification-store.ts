@@ -20,6 +20,8 @@
  *   submitted → status → identity → documents → review
  */
 
+import { emitLifecycle, type LifecycleEventName } from "@pfaas/lifecycle";
+
 /** The four steps of the unified wizard, in order. */
 export type VerificationStepId = "identity" | "documents" | "review" | "status";
 
@@ -342,8 +344,65 @@ export function readVerificationDraft(): VerificationDraft {
   return resolveReviewStatus(draft);
 }
 
+/**
+ * Raw read that does NOT run the review resolver — required inside
+ * `writeVerificationDraft` (reading through the resolver from within a
+ * write would recurse: resolver → write → resolver…).
+ */
+function peekDraft(): VerificationDraft | null {
+  const raw = readJson<Partial<VerificationDraft>>(DRAFT_KEY);
+  if (!raw) return null;
+  return {
+    ...emptyVerificationDraft(),
+    ...raw,
+    identity: { ...defaultIdentity, ...(raw.identity ?? {}) },
+    documents: { ...(raw.documents ?? {}) },
+  };
+}
+
+/** reviewStatus → lifecycle event (R2-W3-01 publish point). */
+const REVIEW_EVENT: Partial<Record<VerificationReviewStatus, LifecycleEventName>> = {
+  submitted: "kyc.submitted",
+  "in-review": "kyc.reviewing",
+  approved: "kyc.approved",
+  rejected: "kyc.rejected",
+};
+
+/**
+ * Single write path for the KYC draft — also the event chokepoint
+ * (R2-W3-01): any transition of `reviewStatus` publishes one typed event
+ * to `@pfaas/lifecycle`. The status card, journey checklist and (across
+ * apps, via the shared log) prop-admin's queue all update from that one
+ * emission; nothing polls this store.
+ *
+ * The emission is idempotent on `${attempts}:${reviewStatus}`, so the
+ * time-seeded resolver re-writing the same verdict can never stack
+ * duplicate events.
+ */
 export function writeVerificationDraft(draft: VerificationDraft): void {
+  const prev = peekDraft();
   writeJson(DRAFT_KEY, draft);
+
+  const changed = !prev || prev.reviewStatus !== draft.reviewStatus;
+  if (!changed) return;
+  const eventName = REVIEW_EVENT[draft.reviewStatus];
+  if (!eventName) return;
+  emitLifecycle({
+    entity: { kind: "kyc", id: "self" },
+    name: eventName,
+    actor: "trader",
+    key: `${draft.attempts}:${draft.reviewStatus}`,
+    payload: {
+      status: draft.reviewStatus,
+      attempts: draft.attempts,
+      submittedAt: draft.submittedAt ?? null,
+      rejectionReasons: draft.rejectionReasons ?? [],
+      // Real form input carried across the demo transport so prop-admin's
+      // queue shows the applicant, not a placeholder (R2-W3-01).
+      applicant: draft.identity.fullName,
+      country: draft.identity.country,
+    },
+  });
 }
 
 export function clearVerificationDraft(): void {

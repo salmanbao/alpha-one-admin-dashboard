@@ -1,0 +1,13 @@
+{
+  "name": "@pfaas/lifecycle",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {},
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "react": "^19"
+  }
+}

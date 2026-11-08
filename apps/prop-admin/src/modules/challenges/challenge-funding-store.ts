@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { recordAudit } from "@/lib/audit";
 import { setNavBadge } from "@/lib/platform/nav-badges";
+import { emitLifecycle } from "@pfaas/lifecycle";
 
 export type ChallengeFundingStatus = "passed" | "funding-requested" | "funded";
 
@@ -41,12 +42,26 @@ export function readChallengeFunding(challengeId: string): ChallengeFunding | un
 export function markFundingRequested(challengeId: string): void {
   state = { ...state, [challengeId]: { challengeId, status: "funding-requested" } };
   recordAudit({ action: "Challenge funding requested", entity: "challenge", entityId: challengeId, summary: challengeId, severity: "info" });
+  emitLifecycle({
+    entity: { kind: "challenge", id: challengeId },
+    name: "challenge.funding-requested",
+    actor: "prop-admin",
+    key: `${challengeId}:funding-requested`,
+    payload: { challengeId },
+  });
   notify();
 }
 
 export function markFunded(challengeId: string, payoutRef?: string): void {
   state = { ...state, [challengeId]: { challengeId, status: "funded", fundedAt: new Date().toISOString(), payoutRef } };
   recordAudit({ action: "Challenge funded", entity: "challenge", entityId: challengeId, summary: `${challengeId}${payoutRef ? ` → ${payoutRef}` : ""}`, severity: "info" });
+  emitLifecycle({
+    entity: { kind: "challenge", id: challengeId },
+    name: "challenge.funded",
+    actor: "prop-admin",
+    key: `${challengeId}:funded`,
+    payload: { challengeId, payoutRef: payoutRef ?? null },
+  });
   notify();
 }
 
