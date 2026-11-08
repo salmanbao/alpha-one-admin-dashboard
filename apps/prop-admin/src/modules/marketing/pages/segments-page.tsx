@@ -13,7 +13,6 @@ import { EmptyState } from "@/components/platform/guards";
 import { StatusBadge } from "@/components/platform/status";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -52,9 +51,6 @@ export function SegmentsPage() {
   }
 
   const columns: Column<Segment>[] = [
-    { key: "sel", header: "", width: "36px", cell: (s) => (
-      <Checkbox checked={selected.includes(s.id)} onCheckedChange={(v) => setSelected((p) => v ? [...p, s.id] : p.filter((x) => x !== s.id))} aria-label={`Select ${s.name}`} />
-    )},
     { key: "name", header: "Name", sortValue: (s) => s.name, cell: (s) => (
       <button type="button" className="text-left font-medium text-primary hover:underline" onClick={() => navigate("marketing-audience-builder", { id: s.id })}>{s.name}</button>
     )},
@@ -98,14 +94,6 @@ export function SegmentsPage() {
             <SelectTrigger className="h-8 w-[140px] text-xs"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="all">All statuses</SelectItem><SelectItem value="active">Active</SelectItem><SelectItem value="stale">Stale</SelectItem></SelectContent>
           </Select>
-          {selected.length > 0 && (
-            <div className="ml-auto flex items-center gap-2 rounded-lg border bg-muted/40 px-2 py-1 text-xs">
-              <span>{selected.length} selected</span>
-              <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => { selected.forEach(recomputeSegment); toast({ title: "Recomputed", description: `${selected.length} segments refreshed.` }); setSelected([]); refresh(); }}>Recompute</Button>
-              <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => toast({ title: "Export queued", description: `${selected.length} segment exports.` })}>Export CSV</Button>
-              <Button size="sm" variant="outline" className="h-6 text-[10px] text-destructive" onClick={() => tryDelete(selected)}>Delete</Button>
-            </div>
-          )}
         </div>
 
         {all.length === 0 ? (
@@ -113,7 +101,13 @@ export function SegmentsPage() {
             action={<Button size="sm" onClick={() => navigate("marketing-audience-builder")}><Plus className="mr-1 h-4 w-4" />New Segment</Button>}
           />
         ) : (
-          <DataTable columns={columns} data={rows} rowKey={(s) => s.id} searchableText={(s) => `${s.name} ${s.owner}`} pageSize={10} emptyTitle="No segments match" emptyDescription="Adjust filters or create a new segment." />
+          <DataTable columns={columns} data={rows} rowKey={(s) => s.id} searchableText={(s) => `${s.name} ${s.owner}`} pageSize={10} emptyTitle="No segments match" emptyDescription="Adjust filters or create a new segment."
+            selectable selectedIds={selected} onSelectionChange={setSelected}
+            bulkToolbar={<>
+              <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => { selected.forEach(recomputeSegment); toast({ title: "Recomputed", description: `${selected.length} segments refreshed.` }); setSelected([]); refresh(); }}>Recompute</Button>
+              <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => toast({ title: "Export queued", description: `${selected.length} segment exports.` })}>Export CSV</Button>
+              <Button size="sm" variant="outline" className="h-6 text-[10px] text-destructive" onClick={() => tryDelete(selected)}>Delete</Button>
+            </>} />
         )}
       </PageContent>
 
