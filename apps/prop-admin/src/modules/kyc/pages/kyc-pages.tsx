@@ -39,6 +39,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PermissionGuard } from "@/components/platform/guards";
+import { hasPermission } from "@/lib/platform/permission-engine";
 import { toast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import {
@@ -471,11 +472,44 @@ function KycRecordActions({ record }: { record: KycRecord }) {
 }
 
 export function KycReviewsPage() {
-  const { runtime, tenant } = usePlatform();
+  const { runtime, tenant, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   useKycVersion(); // rows react to decisions
   const records = getTenantKyc(tid).map((r) => ({ ...r, status: effectiveKycStatus(r) }));
+
+  // SF-13: bulk decision path — selection via the DataTable API, actions
+  // gated behind the same kyc.approve permission as the per-row buttons.
+  const canApprove = hasPermission(user, "kyc.approve");
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState("");
+  const actionable = records.filter(
+    (r) => selected.includes(r.id) && (r.status === "pending" || r.status === "review"),
+  );
+
+  const runBulkApprove = () => {
+    actionable.forEach((r) => applyKycDecision(r.id, "approved"));
+    toast({
+      title: `${actionable.length} submission(s) approved`,
+      description: "Applicants notified. Bulk decision recorded in the audit log.",
+    });
+    setSelected([]);
+  };
+
+  const runBulkReject = () => {
+    if (!bulkRejectReason.trim()) return;
+    actionable.forEach((r) =>
+      applyKycDecision(r.id, "rejected", { reason: bulkRejectReason.trim() }),
+    );
+    toast({
+      title: `${actionable.length} submission(s) rejected`,
+      description: "Applicants notified and may re-submit.",
+    });
+    setBulkRejectOpen(false);
+    setBulkRejectReason("");
+    setSelected([]);
+  };
 
   const columns: Column<KycRecord>[] = [
     { key: "account", header: term("account"), cell: (r) => <span className="font-medium">{r.accountName}</span>, sortValue: (r) => r.accountName ?? "" },
@@ -540,9 +574,49 @@ export function KycReviewsPage() {
             searchPlaceholder="Search KYC records…"
             emptyTitle="No KYC records"
             emptyDescription="Submissions from traders will appear here."
+            selectable
+            selectedIds={selected}
+            onSelectionChange={setSelected}
+            bulkToolbar={
+              canApprove && actionable.length > 0 ? (
+                <>
+                  <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={runBulkApprove}>
+                    <CheckCircle2 className="mr-1 h-3 w-3" /> Approve selected ({actionable.length})
+                  </Button>
+                  <Button size="sm" variant="destructive" className="h-7 text-[11px]" onClick={() => setBulkRejectOpen(true)}>
+                    <XCircle className="mr-1 h-3 w-3" /> Reject selected
+                  </Button>
+                </>
+              ) : null
+            }
           />
         </div>
       </PageContent>
+
+      {/* SF-13 bulk reject — reason required, same §24 friction as single reject */}
+      <AlertDialog open={bulkRejectOpen} onOpenChange={setBulkRejectOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject {actionable.length} KYC submission(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A reason is required. Rejected status is applied to every selected submission
+              and the applicants will be notified. They may re-submit.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={bulkRejectReason}
+            onChange={(e) => setBulkRejectReason(e.target.value)}
+            placeholder="Reason (required)"
+            className="min-h-[72px]"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBulkRejectReason("")}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={!bulkRejectReason.trim()} onClick={runBulkReject}>
+              Reject {actionable.length} submission(s)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Page>
   );
 }

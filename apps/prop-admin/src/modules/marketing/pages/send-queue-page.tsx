@@ -97,8 +97,8 @@ export function SendQueuePage() {
   ];
 
   const deadRows = useMemo(() => rows.filter(m => m.state === "dead"), [rows]);
-  const [deadSelected, setDeadSelected] = useState<Record<string, boolean>>({});
-  const deadSelectedIds = useMemo(() => Object.keys(deadSelected).filter(id => deadSelected[id]), [deadSelected]);
+  // SF-13: selection state is a plain id array, owned by the DataTable API.
+  const [deadSelectedIds, setDeadSelectedIds] = useState<string[]>([]);
 
   const deadCols: Column<typeof deadRows[0]>[] = [
     { key: "id", header: "Message ID", cell: r => <span className="font-mono text-xs">{r.id}</span> },
@@ -209,15 +209,6 @@ export function SendQueuePage() {
           <TabsContent value="dead" className="mt-3">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs text-muted-foreground">{deadRows.length} dead-lettered messages</span>
-              <Button size="sm" variant="outline" className="h-7 text-[10px]" disabled={!canOperate || !deadSelectedIds.length}
-                onClick={() => {
-                  if (!canOperate) { toast({ title: "Permission required", description: "Requires marketing.gateway.operate", variant: "destructive" }); return; }
-                  deadLetterReplay$(deadSelectedIds, actor);
-                  setDeadSelected({});
-                  toast({ title: "Bulk replayed", description: `${deadSelectedIds.length} dead-lettered messages re-enqueued.` });
-                }}>
-                Bulk Replay selected ({deadSelectedIds.length})
-              </Button>
             </div>
             <DataTable
               columns={deadCols}
@@ -225,6 +216,20 @@ export function SendQueuePage() {
               rowKey={r => r.id}
               pageSize={8}
               searchableText={r => `${r.id} ${r.campaign} ${r.providerResponse}`}
+              selectable
+              selectedIds={deadSelectedIds}
+              onSelectionChange={setDeadSelectedIds}
+              bulkToolbar={
+                <Button size="sm" variant="outline" className="h-7 text-[10px]" disabled={!canOperate}
+                  onClick={() => {
+                    if (!canOperate) { toast({ title: "Permission required", description: "Requires marketing.gateway.operate", variant: "destructive" }); return; }
+                    deadLetterReplay$(deadSelectedIds, actor);
+                    toast({ title: "Bulk replayed", description: `${deadSelectedIds.length} dead-lettered messages re-enqueued.` });
+                    setDeadSelectedIds([]);
+                  }}>
+                  Bulk Replay
+                </Button>
+              }
             />
           </TabsContent>
 

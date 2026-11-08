@@ -17,6 +17,8 @@
 
 import { useState } from "react";
 import { useDetailOverlay } from "@/components/platform/detail-overlay";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { hasPermission } from "@/lib/platform/permission-engine";
 import { openViewInNewTab } from "@/lib/platform/view-links";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import {
@@ -262,9 +264,44 @@ export function EvaluationRowActions({ ev }: { ev: Evaluation }) {
 export function EvaluationQueuePage() {
   useEvaluationVersion(); // table + KPIs react to decisions
   const { openPanel } = useDetailOverlay();
+  const { user } = usePlatform();
   const [tab, setTab] = useState<Evaluation["status"] | "all">("pending");
 
   const evaluations = getEvaluations();
+
+  // SF-13: bulk decision path — selection via the DataTable API, gated by
+  // challenge.update (the existing ID for mutating challenge state; the
+  // per-row buttons already inherit queue access via evaluation.read).
+  const canDecide = hasPermission(user, "challenge.update");
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState("");
+  const actionable = selected
+    .map((id) => evaluations.find((e) => e.id === id))
+    .filter((e): e is Evaluation => !!e && e.status === "pending");
+
+  const runBulkApprove = () => {
+    actionable.forEach((e) => decideEvaluation(e.id, "approved"));
+    toast({
+      title: `${actionable.length} evaluation(s) approved`,
+      description: "Traders notified. Decisions recorded in the audit trail.",
+    });
+    setSelected([]);
+  };
+
+  const runBulkReject = () => {
+    if (!bulkRejectReason.trim()) return;
+    actionable.forEach((e) => decideEvaluation(e.id, "rejected", bulkRejectReason.trim()));
+    toast({
+      title: `${actionable.length} evaluation(s) rejected`,
+      description: "Traders notified and may request a re-review.",
+      variant: "destructive",
+    });
+    setBulkRejectOpen(false);
+    setBulkRejectReason("");
+    setSelected([]);
+  };
+
   const counts = {
     pending: evaluations.filter((e) => e.status === "pending").length,
     approved: evaluations.filter((e) => e.status === "approved").length,
@@ -472,6 +509,21 @@ export function EvaluationQueuePage() {
             data={rows}
             rowKey={(ev) => ev.id}
             onRowClick={(ev) => openPanel("evaluation-detail", { id: ev.id })}
+            selectable
+            selectedIds={selected}
+            onSelectionChange={setSelected}
+            bulkToolbar={
+              canDecide && actionable.length > 0 ? (
+                <>
+                  <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={runBulkApprove}>
+                    <CheckCircle2 className="mr-1 h-3 w-3" /> Approve selected ({actionable.length})
+                  </Button>
+                  <Button size="sm" variant="destructive" className="h-7 text-[11px]" onClick={() => setBulkRejectOpen(true)}>
+                    <XCircle className="mr-1 h-3 w-3" /> Reject selected
+                  </Button>
+                </>
+              ) : null
+            }
             searchableText={(ev) =>
               `${ev.traderName} ${ev.traderEmail} ${ev.accountLogin} ${ev.challengeName} ${ev.phase} ${ev.status}`
             }
@@ -505,6 +557,45 @@ export function EvaluationQueuePage() {
           flagged for compliance review.
         </p>
       </PageContent>
+
+      {/* SF-13 bulk reject — reason required, same §24 friction as single reject */}
+      <AlertDialog open={bulkRejectOpen} onOpenChange={setBulkRejectOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject {actionable.length} evaluation(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The traders will be notified and their accounts will not advance to funding. They
+              can request a re-review. This action is logged in the audit trail.
+            </AlertDialogDescription>
+            <div className="rounded-md border border-rose-500/20 bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
+              <span className="font-medium">Consequence:</span> {actionable.length} pending
+              evaluation(s) move to Rejected status.
+            </div>
+          </AlertDialogHeader>
+          <div className="space-y-1.5 text-left">
+            <Label htmlFor="bulk-reject-reason" className="text-xs text-muted-foreground">
+              Reason (required)
+            </Label>
+            <Textarea
+              id="bulk-reject-reason"
+              value={bulkRejectReason}
+              onChange={(e) => setBulkRejectReason(e.target.value)}
+              placeholder="e.g. Consistency rule breached across the batch."
+              className="min-h-[72px]"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBulkRejectReason("")}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!bulkRejectReason.trim()}
+              className="bg-rose-600 text-white hover:bg-rose-700"
+              onClick={runBulkReject}
+            >
+              Reject {actionable.length} evaluation(s)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Page>
   );
 }

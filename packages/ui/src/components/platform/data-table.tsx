@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "./guards";
 import { ArrowDown, ArrowUp, ArrowUpDown, Inbox, Search } from "lucide-react";
@@ -46,6 +47,12 @@ interface DataTableProps<T> {
   toolbar?: React.ReactNode;
   emptyTitle?: string;
   emptyDescription?: string;
+  /** SF-13: row selection — pass selectedIds + onSelectionChange to enable. */
+  selectable?: boolean;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
+  /** SF-13: sticky bulk toolbar rendered above the table when rows are selected. */
+  bulkToolbar?: React.ReactNode;
   /** Virtualized rendering for large datasets — renders only visible rows. */
   virtualized?: boolean;
   /** Number of extra rows rendered above/below the visible viewport for smooth scrolling. */
@@ -64,6 +71,10 @@ export function DataTable<T>({
   toolbar,
   emptyTitle = "No records found",
   emptyDescription = "Adjust your filters or try a different search.",
+  selectable,
+  selectedIds = [],
+  onSelectionChange,
+  bulkToolbar,
   virtualized = false,
   overscan = 5,
 }: DataTableProps<T>) {
@@ -96,6 +107,23 @@ export function DataTable<T>({
   const pageSafe = Math.min(page, totalPages);
   const paged = sorted.slice((pageSafe - 1) * pageSize, pageSafe * pageSize);
 
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const isAllSelected =
+    selectable && sorted.length > 0 && sorted.every((r) => selectedSet.has(rowKey(r)));
+
+  const toggleRow = (key: string) => {
+    if (!onSelectionChange) return;
+    onSelectionChange(
+      selectedSet.has(key) ? selectedIds.filter((id) => id !== key) : [...selectedIds, key],
+    );
+  };
+
+  const toggleAll = () => {
+    if (!onSelectionChange) return;
+    // Select across the full filtered/sorted set, not just the current page.
+    onSelectionChange(isAllSelected ? [] : sorted.map((r) => rowKey(r)));
+  };
+
   const toggleSort = (key: string) => {
     if (sortKey !== key) {
       setSortKey(key);
@@ -123,6 +151,15 @@ export function DataTable<T>({
 
   return (
     <div className="flex flex-col gap-3">
+      {bulkToolbar && selectedIds.length > 0 ? (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+          <span className="text-xs font-medium">
+            {selectedIds.length} selected
+            {selectedIds.length !== sorted.length ? ` of ${sorted.length}` : ""}
+          </span>
+          <div className="flex items-center gap-2">{bulkToolbar}</div>
+        </div>
+      ) : null}
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         {searchableText ? (
           <div className="relative w-full md:max-w-xs">
@@ -147,6 +184,15 @@ export function DataTable<T>({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
+              {selectable ? (
+                <TableHead className="w-10 px-3">
+                  <Checkbox
+                    checked={isAllSelected}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all rows"
+                  />
+                </TableHead>
+              ) : null}
               {columns.map((c) => (
                 <TableHead key={c.key} className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} h-9 px-3 text-xs uppercase tracking-wide`} style={c.width ? { width: c.width } : undefined}>
                   {c.sortValue ? (
@@ -172,6 +218,11 @@ export function DataTable<T>({
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
+                  {selectable ? (
+                    <TableCell className="w-10 px-3 py-2.5">
+                      <Skeleton className="h-4 w-4 rounded" />
+                    </TableCell>
+                  ) : null}
                   {columns.map((c) => (
                     <TableCell key={c.key} className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} px-3 py-2.5 text-sm`}>
                       <Skeleton className="h-4 w-full" />
@@ -181,7 +232,7 @@ export function DataTable<T>({
               ))
             ) : paged.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="p-0">
+                <TableCell colSpan={columns.length + (selectable ? 1 : 0)} className="p-0">
                   <EmptyState
                     title={emptyTitle}
                     description={emptyDescription}
@@ -190,19 +241,33 @@ export function DataTable<T>({
                 </TableCell>
               </TableRow>
             ) : (
-              rowsToRender.map((row) => (
-                <TableRow
-                  key={rowKey(row)}
-                  className={onRowClick ? "cursor-pointer" : ""}
-                  onClick={onRowClick ? () => onRowClick(row) : undefined}
-                >
-                  {columns.map((c) => (
-                    <TableCell key={c.key} className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} px-3 py-2.5 text-sm`}>
-                      {c.cell(row)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              rowsToRender.map((row) => {
+                const key = rowKey(row);
+                const checked = selectedSet.has(key);
+                return (
+                  <TableRow
+                    key={key}
+                    className={`${checked ? "bg-primary/5" : ""} ${onRowClick ? "cursor-pointer" : ""}`}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  >
+                    {selectable ? (
+                      <TableCell className="w-10 px-3 py-2.5">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => toggleRow(key)}
+                          aria-label="Select row"
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                        />
+                      </TableCell>
+                    ) : null}
+                    {columns.map((c) => (
+                      <TableCell key={c.key} className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} px-3 py-2.5 text-sm`}>
+                        {c.cell(row)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

@@ -36,7 +36,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -218,7 +217,7 @@ export function CopyTradingEventsPage() {
   const [search, setSearch] = useState("");
   const [symbolFilter, setSymbolFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("all");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<string[]>([]);
 
   // Add-event form state
   const [showForm, setShowForm] = useState(false);
@@ -286,23 +285,6 @@ export function CopyTradingEventsPage() {
     setDateRange("all");
   };
 
-  // Selection handlers
-  const toggleSelectAll = (checked: boolean) => {
-    if (checked) setSelected(new Set(filtered.map((e) => e.id)));
-    else setSelected(new Set());
-  };
-  const toggleSelectOne = (id: string, checked: boolean) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  };
-  const allChecked =
-    filtered.length > 0 && filtered.every((e) => selected.has(e.id));
-  const someChecked = filtered.some((e) => selected.has(e.id)) && !allChecked;
-
   const handleExport = () => {
     exportToCsv(
       filtered,
@@ -365,19 +347,6 @@ export function CopyTradingEventsPage() {
   };
 
   const columns: Column<CopyEvent>[] = [
-    {
-      key: "select",
-      header: "",
-      cell: (e) => (
-        <Checkbox
-          checked={selected.has(e.id)}
-          onCheckedChange={(checked) => toggleSelectOne(e.id, checked === true)}
-          onClick={(ev) => ev.stopPropagation()}
-          aria-label={`Select event ${e.id}`}
-        />
-      ),
-      width: "36px",
-    },
     {
       key: "position1",
       header: "Position 1",
@@ -677,11 +646,11 @@ export function CopyTradingEventsPage() {
       </div>
 
       <PageContent>
-        {selected.size > 0 ? (
+        {selected.length > 0 ? (
           <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-50 px-3 py-2 text-xs dark:bg-emerald-950/30">
             <ShieldAlert className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
             <span className="font-medium text-emerald-800 dark:text-emerald-300">
-              {selected.size} selected
+              {selected.length} selected
             </span>
             <span className="text-muted-foreground">·</span>
             <Button
@@ -691,9 +660,9 @@ export function CopyTradingEventsPage() {
               onClick={() => {
                 toast({
                   title: "Bulk action queued",
-                  description: `Marking ${selected.size} events as expired.`,
+                  description: `Marking ${selected.length} events as expired.`,
                 });
-                setSelected(new Set());
+                setSelected([]);
               }}
             >
               Expire selected
@@ -702,7 +671,7 @@ export function CopyTradingEventsPage() {
               size="sm"
               variant="ghost"
               className="h-7 gap-1 text-[11px]"
-              onClick={() => setSelected(new Set())}
+              onClick={() => setSelected([])}
             >
               Clear
             </Button>
@@ -718,23 +687,13 @@ export function CopyTradingEventsPage() {
           />
         ) : (
           <div className="rounded-lg border bg-card">
-            {/* Header checkbox strip */}
-            <div className="flex items-center gap-2 border-b bg-muted/30 px-3 py-1.5 text-[11px] text-muted-foreground">
-              <Checkbox
-                checked={allChecked ? true : someChecked ? "indeterminate" : false}
-                onCheckedChange={(v) => toggleSelectAll(v === true)}
-                aria-label="Select all events"
-              />
-              <span>
-                {selected.size > 0
-                  ? `${selected.size} of ${filtered.length} selected`
-                  : `Select all (${filtered.length})`}
-              </span>
-            </div>
             <DataTable
               columns={columns}
               data={filtered}
               rowKey={(e) => e.id}
+              selectable
+              selectedIds={selected}
+              onSelectionChange={setSelected}
               onRowClick={(e) =>
                 toast({
                   title: "Viewing copy trading event detail",
