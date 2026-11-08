@@ -33,7 +33,7 @@ const typeHref: Record<string, string> = {
   statement: "/account-statement",
   tax: "/tax-documents",
   invoice: "/invoice-detail?id=48210",
-  kyc: "/kyc-verification-status",
+  kyc: "/verification?step=status",
 };
 
 /** Document-like destinations open in a new tab (PDF/report reading). */

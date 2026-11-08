@@ -1,11 +1,8 @@
-import { Suspense } from "react";
-import { PageSkeleton } from "@/components/shell/page-skeleton";
-import { AccountVerification2Page } from "../../modules/onboarding/pages/account-verification-2-page";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <Suspense fallback={<PageSkeleton />}>
-      <AccountVerification2Page />
-    </Suspense>
-  );
+// SF-01: retired — documents and review are steps of the unified
+// /verification wizard, which no longer strands the trader on submit:
+// submitting moves the flow to the status step.
+export default function AccountVerification2Redirect() {
+  redirect("/verification");
 }

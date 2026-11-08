@@ -3,23 +3,23 @@
 /**
  * KYC Status Card — audit finding #1 (dashboard prominence).
  *
- * The rejected-KYC state and its retry flow live on the dedicated
- * /kyc-verification-status page, but a rejected trader had no reason
- * to visit it — the rejection was invisible from the dashboard.
- * This card surfaces the current verification state in the dashboard's
- * alert strip:
+ * The rejected-KYC state and its retry flow live in step 4 of the
+ * unified /verification wizard, but a rejected trader had no reason to
+ * visit it — the rejection was invisible from the dashboard. This card
+ * surfaces the current verification state in the dashboard's alert
+ * strip:
  *
  *   rejected   → prominent error card: rejection reason(s) in plain
  *                language, attempt counter, and a "Retry Verification"
- *                button straight into the status page's inline re-upload
+ *                button straight into the wizard's inline re-upload
  *                flow (the same one that gates resubmission per document)
  *   reviewing  → quiet status card with a "View status" link
  *   approved   → one-line confirmation (no action needed)
  *
- * State derives from the same fixtures the status page uses
+ * State derives from the same fixtures the wizard's status step uses
  * (kycSubmission / rejectedKycSubmission), including the same
  * ?state=rejected / ?state=approved demo preview parameter — the two
- * screens can never disagree.
+ * surfaces can never disagree.
  */
 
 import { useEffect, useState } from "react";
@@ -85,7 +85,7 @@ export function KycStatusCard() {
           </div>
         </div>
         <Link
-          href="/kyc-verification-status"
+          href={preview ? `/verification?step=status&state=${preview}` : "/verification?step=status"}
           className="shrink-0 rounded-xl bg-surface-container px-4 py-2.5 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-high"
         >
           View status →
@@ -124,13 +124,13 @@ export function KycStatusCard() {
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <Link
-          href="/kyc-verification-status"
+          href={preview ? `/verification?step=status&state=${preview}` : "/verification?step=status"}
           className="rounded-xl bg-surface-container px-4 py-2.5 text-xs font-bold text-on-surface transition-colors hover:bg-surface-container-high"
         >
           What to fix
         </Link>
         <Link
-          href="/kyc-verification-status"
+          href={preview ? `/verification?step=status&state=${preview}` : "/verification?step=status"}
           className="rounded-xl bg-error px-4 py-2.5 text-xs font-bold text-on-error transition-opacity hover:opacity-90"
         >
           Retry Verification →

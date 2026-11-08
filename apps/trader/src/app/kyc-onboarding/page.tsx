@@ -1,11 +1,8 @@
-import { Suspense } from "react";
-import { PageSkeleton } from "@/components/shell/page-skeleton";
-import { KycOnboardingPage } from "../../modules/onboarding/pages/kyc-onboarding-page";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <Suspense fallback={<PageSkeleton />}>
-      <KycOnboardingPage />
-    </Suspense>
-  );
+// SF-01: retired — /kyc-onboarding was the second competing KYC path.
+// The unified /verification wizard starts at the first incomplete step,
+// so this redirect is a no-op for a fresh trader.
+export default function KycOnboardingRedirect() {
+  redirect("/verification");
 }

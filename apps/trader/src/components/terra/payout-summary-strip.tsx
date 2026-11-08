@@ -108,7 +108,7 @@ export function buildPayoutCriteria(
       label: "KYC approved",
       ok: true,
       note: "Verified",
-      resolve: { label: "Complete identity verification", href: "/kyc-verification-status" },
+      resolve: { label: "Complete identity verification", href: "/verification" },
     },
   ];
 }

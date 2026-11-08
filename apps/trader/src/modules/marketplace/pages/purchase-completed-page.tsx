@@ -14,7 +14,7 @@ import { toast } from "@/hooks/use-toast";
 
 const steps = [
   { title: "Payment confirmed", done: true, note: "Just now" },
-  { title: "KYC verification", done: false, note: "Takes ~10 minutes", href: "/account-verification-1" },
+  { title: "KYC verification", done: false, note: "Takes ~10 minutes", href: "/verification" },
   { title: "Account provisioning", done: false, note: "Within 1 business hour", href: "/account-provisioning" },
   { title: "Credentials delivered", done: false, note: "Sent to your email", href: "/trading-credentials" },
 ];

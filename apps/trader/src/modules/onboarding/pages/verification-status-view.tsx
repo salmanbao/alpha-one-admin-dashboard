@@ -1,11 +1,15 @@
 "use client";
 
 /**
- * KYC Verification Status — converted from stitch_screens/kyc_verification_status
- * Status timeline with review stages and checklist.
+ * Verification status views — SF-01 (unified /verification wizard).
  *
- * Audit fix #1 (CRITICAL): the screen now renders every KYC outcome,
- * not just "reviewing":
+ * Converted from stitch_screens/kyc_verification_status; these are the
+ * content of the wizard's fourth step ("status"), rendered by
+ * VerificationPage. The standalone /kyc-verification-status route now
+ * redirects into the wizard, so there is exactly one status surface.
+ *
+ * Audit fix #1 (CRITICAL): every KYC outcome renders, not just
+ * "reviewing":
  *
  *   reviewing  → stage timeline + checklist (original stitch layout)
  *   rejected   → 'What to fix' reasons in plain language, per-check issue
@@ -16,32 +20,44 @@
  *                support as the secondary path — no more dead end.
  *   approved   → confirmation with what it unlocks.
  *
- * The state comes from the kycSubmission fixture; ?state=rejected
- * previews the rejection journey on demo data.
+ * `embedded` suppresses each view's own page header — inside the wizard
+ * the stepper and TerraPageHeader already name the screen. The caller
+ * (the wizard) resolves the submission from the demo fixtures;
+ * ?state=rejected / ?state=approved preview the other outcomes.
  */
 
 import Link from "next/link";
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
 import {
   TerraBadge,
   TerraCard,
   TerraPageHeader,
   TerraSectionTitle,
 } from "@/components/terra/terra-ui";
-import {
-  kycSubmission,
-  rejectedKycSubmission,
-  type KycSubmission,
-} from "@/lib/fixtures/terra-fixtures";
+import type { KycSubmission } from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
 
-const stages = [
-  { label: "Documents received", done: true, note: "Submitted 2 days ago" },
-  { label: "Automated checks", done: true, note: "ID authenticity & liveness passed" },
-  { label: "Compliance review", done: false, note: "In progress — usually under 24h" },
-  { label: "Approved", done: false, note: "Unlocks payouts" },
-];
+/** Days since a submission date ("2 days ago"). */
+function daysSince(iso: string): number {
+  const ms = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(ms / 86_400_000));
+}
+
+/** Review timeline — the first note follows the actual submit time so
+ *  a trader who just submitted does not read "2 days ago". */
+function reviewStages(submittedAt: string) {
+  const days = daysSince(submittedAt);
+  return [
+    {
+      label: "Documents received",
+      done: true,
+      note: days === 0 ? "Submitted just now" : `Submitted ${days} day${days === 1 ? "" : "s"} ago`,
+    },
+    { label: "Automated checks", done: true, note: "ID authenticity & liveness passed" },
+    { label: "Compliance review", done: false, note: "In progress — usually under 24h" },
+    { label: "Approved", done: false, note: "Unlocks payouts" },
+  ];
+}
 
 function ChecklistCard({ submission }: { submission: KycSubmission }) {
   return (
@@ -110,7 +126,7 @@ function UpdateDocumentsCard({
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
-            href="/kyc-verification-status?state=reviewing"
+            href="/verification?step=status&state=reviewing"
             className="rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-on-primary hover:bg-primary/90"
           >
             View review progress
@@ -217,26 +233,38 @@ function UpdateDocumentsCard({
   );
 }
 
-function RejectedView({ submission }: { submission: KycSubmission }) {
+function RejectedView({
+  submission,
+  embedded,
+  onResubmit,
+}: {
+  submission: KycSubmission;
+  embedded: boolean;
+  /** Wizard callback — drops the trader back onto the documents step
+   *  with the previous answers intact (SF-01 resubmission path). */
+  onResubmit: () => void;
+}) {
   const [resubmitted, setResubmitted] = useState(false);
   const attemptsUsed = submission.attempts + (resubmitted ? 1 : 0);
   const attemptsLeft = Math.max(0, submission.maxAttempts - attemptsUsed);
 
   return (
     <div className="space-y-6">
-      <TerraPageHeader
-        title="KYC Verification Status"
-        description={
-          resubmitted
-            ? "New documents received — back in review"
-            : "Your documents need one more pass"
-        }
-        actions={
-          <TerraBadge tone={resubmitted ? "tertiary" : "error"} dot pulse={resubmitted}>
-            {resubmitted ? "Reviewing" : "Rejected"}
-          </TerraBadge>
-        }
-      />
+      {!embedded && (
+        <TerraPageHeader
+          title="KYC Verification Status"
+          description={
+            resubmitted
+              ? "New documents received — back in review"
+              : "Your documents need one more pass"
+          }
+          actions={
+            <TerraBadge tone={resubmitted ? "tertiary" : "error"} dot pulse={resubmitted}>
+              {resubmitted ? "Reviewing" : "Rejected"}
+            </TerraBadge>
+          }
+        />
+      )}
 
       {/* Rejection reasons — plain language, one row per fix needed */}
       <TerraCard className="border border-error/30 bg-error-container/40">
@@ -315,12 +343,13 @@ function RejectedView({ submission }: { submission: KycSubmission }) {
 
         <div className="space-y-6">
           <TerraCard className="flex flex-col gap-2">
-            <Link
-              href="/kyc-onboarding?resubmit=1"
+            <button
+              type="button"
+              onClick={onResubmit}
               className="rounded-xl bg-surface-container-low px-5 py-3 text-center text-sm font-semibold text-on-surface hover:bg-surface-container"
             >
               Use the full resubmission form
-            </Link>
+            </button>
             <p className="text-center text-[11px] text-on-surface-variant">
               Pre-filled from your previous answers • {attemptsLeft} attempt
               {attemptsLeft === 1 ? "" : "s"} left
@@ -356,14 +385,16 @@ function RejectedView({ submission }: { submission: KycSubmission }) {
 /* Approved state                                                      */
 /* ------------------------------------------------------------------ */
 
-function ApprovedView({ submission }: { submission: KycSubmission }) {
+function ApprovedView({ submission, embedded }: { submission: KycSubmission; embedded: boolean }) {
   return (
     <div className="space-y-6">
-      <TerraPageHeader
-        title="KYC Verification Status"
-        description="Identity verified — you're all set"
-        actions={<TerraBadge tone="success" dot>Approved</TerraBadge>}
-      />
+      {!embedded && (
+        <TerraPageHeader
+          title="KYC Verification Status"
+          description="Identity verified — you're all set"
+          actions={<TerraBadge tone="success" dot>Approved</TerraBadge>}
+        />
+      )}
       <TerraCard className="border border-primary/30 bg-primary-fixed/30">
         <div className="flex items-start gap-3">
           <span className="text-2xl">✅</span>
@@ -398,42 +429,30 @@ function ApprovedView({ submission }: { submission: KycSubmission }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Page                                                                */
+/* Reviewing view                                                      */
 /* ------------------------------------------------------------------ */
 
-export function KycVerificationStatusPage() {
-  // ?state=rejected / ?state=approved previews the other KYC outcomes
-  // on demo data; the default follows the kycSubmission fixture.
-  const params = useSearchParams();
-  const preview = params.get("state");
-  const submission: KycSubmission =
-    preview === "rejected"
-      ? rejectedKycSubmission
-      : preview === "approved"
-        ? { ...kycSubmission, status: "approved" }
-        : kycSubmission;
-
-  if (submission.status === "rejected") return <RejectedView submission={submission} />;
-  if (submission.status === "approved") return <ApprovedView submission={submission} />;
-
+function ReviewingView({ submission, embedded }: { submission: KycSubmission; embedded: boolean }) {
   return (
     <div className="space-y-6">
-      <TerraPageHeader
-        title="KYC Verification Status"
-        description="Your identity verification is under review"
-        actions={<TerraBadge tone="tertiary" dot pulse>Reviewing</TerraBadge>}
-      />
+      {!embedded && (
+        <TerraPageHeader
+          title="KYC Verification Status"
+          description="Your identity verification is under review"
+          actions={<TerraBadge tone="tertiary" dot pulse>Reviewing</TerraBadge>}
+        />
+      )}
 
       {/* Demo preview links — jump between KYC outcomes on mock data */}
       <div className="flex flex-wrap items-center gap-2 text-xs text-on-surface-variant">
         <span className="font-semibold uppercase tracking-wider">Demo states:</span>
-        <Link href="/kyc-verification-status?state=reviewing" className="rounded-full bg-surface-container-low px-3 py-1 font-semibold hover:bg-surface-container">
+        <Link href="/verification?step=status&state=reviewing" className="rounded-full bg-surface-container-low px-3 py-1 font-semibold hover:bg-surface-container">
           Reviewing
         </Link>
-        <Link href="/kyc-verification-status?state=rejected" className="rounded-full bg-error-container px-3 py-1 font-semibold text-on-error-container hover:opacity-80">
+        <Link href="/verification?step=status&state=rejected" className="rounded-full bg-error-container px-3 py-1 font-semibold text-on-error-container hover:opacity-80">
           Rejected
         </Link>
-        <Link href="/kyc-verification-status?state=approved" className="rounded-full bg-primary-fixed px-3 py-1 font-semibold text-on-primary-fixed-variant hover:opacity-80">
+        <Link href="/verification?step=status&state=approved" className="rounded-full bg-primary-fixed px-3 py-1 font-semibold text-on-primary-fixed-variant hover:opacity-80">
           Approved
         </Link>
       </div>
@@ -442,14 +461,14 @@ export function KycVerificationStatusPage() {
         <TerraCard className="lg:col-span-2">
           <TerraSectionTitle title="Review progress" />
           <ol className="space-y-5">
-            {stages.map((s) => (
+            {reviewStages(submission.submittedAt).map((s) => (
               <li key={s.label} className="flex items-start gap-3">
                 <span
                   className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                     s.done ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant"
                   }`}
                 >
-                  {s.done ? "✓" : "•"}
+                  {s.done ? "\u2713" : "\u2022"}
                 </span>
                 <div>
                   <p className={`text-sm font-bold ${s.done ? "text-on-surface" : "text-on-surface-variant"}`}>
@@ -482,4 +501,28 @@ export function KycVerificationStatusPage() {
       </div>
     </div>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* Status dispatcher — step 4 of the unified /verification wizard      */
+/* ------------------------------------------------------------------ */
+
+export function VerificationStatusView({
+  submission,
+  embedded = false,
+  onResubmit,
+}: {
+  submission: KycSubmission;
+  /** Hide the view's own page header — the wizard provides it. */
+  embedded?: boolean;
+  /** Rejected state: "full resubmission form" → the wizard's documents step. */
+  onResubmit: () => void;
+}) {
+  if (submission.status === "rejected") {
+    return <RejectedView submission={submission} embedded={embedded} onResubmit={onResubmit} />;
+  }
+  if (submission.status === "approved") {
+    return <ApprovedView submission={submission} embedded={embedded} />;
+  }
+  return <ReviewingView submission={submission} embedded={embedded} />;
 }

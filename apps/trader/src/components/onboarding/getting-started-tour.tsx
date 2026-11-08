@@ -33,7 +33,7 @@ const STEPS = [
     id: "kyc",
     title: "Verify your identity (KYC)",
     body: "Upload an ID document once payouts open. Takes a few minutes; most reviews finish within 24h.",
-    href: "/kyc-onboarding",
+    href: "/verification",
     cta: "Start verification",
   },
   {

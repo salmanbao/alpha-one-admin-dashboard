@@ -1234,7 +1234,7 @@ export const recentActivity: ActivityEntry[] = [
     title: "Identity verification approved",
     detail: "Level 2 — payouts unlocked",
     at: daysAgo(3),
-    href: "/kyc-verification-status",
+    href: "/verification?step=status",
   },
   {
     id: "ac-7",
@@ -1480,7 +1480,7 @@ export const terraDocuments = [
     format: "PDF",
     size: "184 KB",
     date: daysAgo(95),
-    href: "/kyc-verification-status",
+    href: "/verification?step=status",
   },
 ];
 
@@ -2694,7 +2694,7 @@ export const accountLock: AccountLock = {
     {
       title: "Verify your identity",
       note: "Complete the one-time identity check sent to your registered email.",
-      href: "/kyc-verification-status",
+      href: "/verification",
     },
     {
       title: "Reset your password",
