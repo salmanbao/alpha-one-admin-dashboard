@@ -1,65 +1,42 @@
 "use client";
 
 /**
- * Getting Started Tour — audit #3 fix #6 (trader first-use experience).
+ * Getting Started Tour — audit #3 fix #6, reworked by SF-02.
  *
- * New traders land on an empty dashboard with no orientation. This card
- * gives them a guided first-use checklist: verify identity → pick a
- * challenge → learn the rules → request a payout. Progress is stored in
- * localStorage (frontend-first, no backend), and the whole card can be
- * dismissed and re-opened from the sidebar-less header area via the
- * "Reopen guide" pill.
+ * Was a manually-toggled four-item checklist (KYC → challenge → rules →
+ * payout) that nothing ever completed for you. It is now the
+ * dismissible dashboard card around the state-driven JourneyChecklist:
+ * Purchased → Verified → Provisioned → Credentialed → First trade —
+ * every tick read from @/lib/onboarding/journey-store (real store
+ * state, not taps).
  *
- * Uses useSyncExternalStore (React's recommended pattern for external
- * stores like localStorage) so SSR/client hydration is safe and no
- * setState-in-effect is needed.
+ * This card owns only the chrome: dismiss / "Reopen guide" pill and the
+ * progress header. The list itself is shared with purchase-completed
+ * via <JourneyChecklist /> so the two surfaces can never disagree.
+ *
+ * Dismissal persists in localStorage under the original key
+ * (terra.getting-started.v1) so an existing dismissal is honoured.
+ *
+ * Hydration: `hydrated` flips true only after mount (server + the
+ * hydration pass both render null), so SSR markup and the first client
+ * render are identical — the previous `typeof window` guard produced
+ * different output during hydration. Both stores are called
+ * unconditionally before any early return (hooks rules).
  */
 
 import { useSyncExternalStore } from "react";
-import Link from "next/link";
-import { cn } from "@pfaas/ui";
 import { TerraBadge, TerraCard } from "@/components/terra/terra-ui";
-import { Check, ChevronRight, Compass, X } from "lucide-react";
+import { Compass, X } from "lucide-react";
+import { useJourneyDone } from "@/lib/onboarding/journey-store";
+import { JourneyChecklist, journeySteps } from "./journey-checklist";
 
 const STORAGE_KEY = "terra.getting-started.v1";
 
 interface TourState {
   dismissed: boolean;
-  done: Record<string, boolean>;
 }
 
-const STEPS = [
-  {
-    id: "kyc",
-    title: "Verify your identity (KYC)",
-    body: "Upload an ID document once payouts open. Takes a few minutes; most reviews finish within 24h.",
-    href: "/verification",
-    cta: "Start verification",
-  },
-  {
-    id: "challenge",
-    title: "Pick your first challenge",
-    body: "Compare 1-step, 2-step, and instant-funding programs — profit targets, drawdown rules, and pricing side by side.",
-    href: "/marketplace",
-    cta: "Browse challenges",
-  },
-  {
-    id: "rules",
-    title: "Learn the evaluation rules",
-    body: "Daily loss limit, max drawdown, minimum trading days, and the consistency rule — know them before your first trade.",
-    href: "/rules",
-    cta: "Read the rules",
-  },
-  {
-    id: "payout",
-    title: "Set up a payout method",
-    body: "Add bank or crypto details ahead of time so your first profit split arrives without delays.",
-    href: "/withdrawal-methods",
-    cta: "Add payout method",
-  },
-] as const;
-
-const defaultState: TourState = { dismissed: false, done: {} };
+const defaultState: TourState = { dismissed: false };
 
 /* ------------------------------------------------------------------ */
 /* External store: localStorage with same-tab change notifications     */
@@ -113,17 +90,23 @@ function saveState(s: TourState) {
   notify();
 }
 
+/* Hydration flag — server and hydration pass render null together. */
+function subscribeNothing() {
+  return () => {};
+}
+
 /* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
 export function GettingStartedTour() {
+  const hydrated = useSyncExternalStore(subscribeNothing, () => true, () => false);
   const raw = useSyncExternalStore(subscribe, getRawSnapshot, getServerSnapshot);
-  const state = parseState(raw);
+  const done = useJourneyDone();
 
-  // Avoid SSR/client markup mismatch — render nothing until hydrated
-  // (server snapshot is "", which parses to defaultState with dismissed=false).
-  if (raw === "" && typeof window === "undefined") return null;
+  if (!hydrated) return null;
+
+  const state = parseState(raw);
 
   if (state.dismissed) {
     return (
@@ -138,12 +121,8 @@ export function GettingStartedTour() {
     );
   }
 
-  const doneCount = STEPS.filter((s) => state.done[s.id]).length;
-  const allDone = doneCount === STEPS.length;
-
-  const toggle = (id: string) => {
-    saveState({ ...state, done: { ...state.done, [id]: !state.done[id] } });
-  };
+  const doneCount = journeySteps.filter((s) => done[s.id]).length;
+  const allDone = doneCount === journeySteps.length;
 
   const dismiss = () => {
     saveState({ ...state, dismissed: true });
@@ -164,56 +143,15 @@ export function GettingStartedTour() {
           {allDone ? "You're all set 🎉" : "Getting started"}
         </h3>
         <TerraBadge tone={allDone ? "success" : "primary"}>
-          {doneCount}/{STEPS.length}
+          {doneCount}/{journeySteps.length}
         </TerraBadge>
       </div>
       <p className="mt-0.5 text-xs text-on-surface-variant">
         {allDone
-          ? "Everything on the checklist is done. Head to the dashboard to track your evaluation."
-          : "Four steps to your first funded payout. Check items off as you go — progress is saved on this device."}
+          ? "Every step from purchase to first trade is done. Head to the dashboard to track your evaluation."
+          : "Five steps from purchase to your first trade. Progress is read from your account state and saved on this device."}
       </p>
-      <ol className="mt-3 space-y-1.5">
-        {STEPS.map((s, i) => {
-          const done = Boolean(state.done[s.id]);
-          return (
-            <li
-              key={s.id}
-              className={cn(
-                "flex items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors",
-                done ? "border-success/30 bg-success/5" : "border-surface-container-high bg-surface-container-lowest",
-              )}
-            >
-              <button
-                type="button"
-                onClick={() => toggle(s.id)}
-                aria-pressed={done}
-                aria-label={done ? `Mark "${s.title}" as not done` : `Mark "${s.title}" as done`}
-                className={cn(
-                  "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                  done ? "border-success bg-success text-white" : "border-outline/40 hover:border-primary",
-                )}
-              >
-                {done ? <Check className="h-3 w-3" aria-hidden /> : null}
-              </button>
-              <div className="min-w-0 flex-1">
-                <p className={cn("text-sm font-semibold", done ? "text-on-surface-variant line-through" : "text-on-surface")}>
-                  {i + 1}. {s.title}
-                </p>
-                {!done ? <p className="mt-0.5 text-xs text-on-surface-variant">{s.body}</p> : null}
-              </div>
-              {!done ? (
-                <Link
-                  href={s.href}
-                  className="mt-0.5 flex shrink-0 items-center gap-0.5 rounded-lg border border-primary/30 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10"
-                >
-                  {s.cta}
-                  <ChevronRight className="h-3 w-3" aria-hidden />
-                </Link>
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
+      <JourneyChecklist className="mt-3" />
     </TerraCard>
   );
 }

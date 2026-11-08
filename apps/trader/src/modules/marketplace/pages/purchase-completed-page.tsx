@@ -2,26 +2,35 @@
 
 /**
  * Purchase Completed — converted from stitch_screens/purchase_completed
- * Success confirmation with next steps (KYC → provisioning → credentials).
+ * Success confirmation with the SF-02 journey checklist (Purchased →
+ * Verified → Provisioned → Credentialed → First trade).
+ *
+ * The old "What happens next" list hardcoded its done flags in source.
+ * It now renders the shared <JourneyChecklist />, whose ticks come from
+ * @/lib/onboarding/journey-store — this page writes "purchased" the
+ * moment the order-confirmation screen mounts, so the checklist on the
+ * dashboard agrees with the one here.
  */
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { TerraCard, TerraPageHeader, formatMoney } from "@/components/terra/terra-ui";
 import { terraChallenges } from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
-
-const steps = [
-  { title: "Payment confirmed", done: true, note: "Just now" },
-  { title: "KYC verification", done: false, note: "Takes ~10 minutes", href: "/verification" },
-  { title: "Account provisioning", done: false, note: "Within 1 business hour", href: "/account-provisioning" },
-  { title: "Credentials delivered", done: false, note: "Sent to your email", href: "/trading-credentials" },
-];
+import { markJourney } from "@/lib/onboarding/journey-store";
+import { JourneyChecklist } from "@/components/onboarding/journey-checklist";
 
 export function PurchaseCompletedPage() {
   const router = useRouter();
   const params = useSearchParams();
+
+  // SF-02: reaching the order-confirmation screen is the purchase event
+  // — the journey store ticks "Purchased" for every checklist surface.
+  useEffect(() => {
+    markJourney("purchased");
+  }, []);
 
   // Contextualize order number & challenge from router params (dummy data only).
   const orderId = params.get("orderId") ?? "TT-48210";
@@ -47,31 +56,7 @@ export function PurchaseCompletedPage() {
 
       <TerraCard>
         <h2 className="pb-4 font-headline text-lg font-bold text-on-surface">What happens next</h2>
-        <ol className="space-y-4">
-          {steps.map((s, i) => (
-            <li key={s.title} className="flex items-start gap-3">
-              <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                  s.done ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant"
-                }`}
-              >
-                {s.done ? "✓" : i + 1}
-              </span>
-              <div className="flex flex-col">
-                {s.href && !s.done ? (
-                  <Link href={s.href} className="text-sm font-bold text-primary hover:underline">
-                    {s.title}
-                  </Link>
-                ) : (
-                  <span className={`text-sm font-bold ${s.done ? "text-primary" : "text-on-surface"}`}>
-                    {s.title}
-                  </span>
-                )}
-                <span className="text-xs text-on-surface-variant">{s.note}</span>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <JourneyChecklist />
       </TerraCard>
 
       <TerraCard className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
