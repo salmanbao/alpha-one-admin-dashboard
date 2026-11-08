@@ -20,17 +20,25 @@ import { TerraCard, TerraPageHeader, formatMoney } from "@/components/terra/terr
 import { terraChallenges } from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
 import { markJourney } from "@/lib/onboarding/journey-store";
+import { readProvisioningHandoff, writeProvisioningHandoff } from "@/lib/onboarding/provisioning-handoff";
 import { JourneyChecklist } from "@/components/onboarding/journey-checklist";
 
 export function PurchaseCompletedPage() {
   const router = useRouter();
   const params = useSearchParams();
 
-  // SF-02: reaching the order-confirmation screen is the purchase event
-  // — the journey store ticks "Purchased" for every checklist surface.
+  // SF-02 / R2-03: reaching the order-confirmation screen is the purchase
+  // event — tick "Purchased" and record purchasedAt for provisioning
+  // progress (preserve first timestamp so revisits don't reset progress).
   useEffect(() => {
     markJourney("purchased");
-  }, []);
+    if (!readProvisioningHandoff()?.purchasedAt) {
+      writeProvisioningHandoff({
+        purchasedAt: new Date().toISOString(),
+        orderId: params.get("orderId") ?? undefined,
+      });
+    }
+  }, [params]);
 
   // Contextualize order number & challenge from router params (dummy data only).
   const orderId = params.get("orderId") ?? "TT-48210";

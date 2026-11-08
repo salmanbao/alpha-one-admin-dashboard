@@ -7,49 +7,58 @@ export type LifecycleStage = {
   eta?: string;
 };
 
-export function getProvisioningStage(submittedAt?: string): LifecycleStage | null {
-  if (!submittedAt) return null;
-  
-  const submittedDate = new Date(submittedAt);
-  const now = new Date();
-  const elapsedDays = Math.floor((now.getTime() - submittedDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  const stage = Math.min(5, Math.max(1, elapsedDays));
-  
-  const stages: Record<number, LifecycleStage> = {
-    1: {
-      label: "Payment confirmed",
-      tone: "primary",
-      badgeLabel: "1/5",
-      dot: true,
-    },
-    2: {
-      label: "KYC verified",
-      tone: "success",
-      badgeLabel: "2/5",
-      dot: true,
-    },
-    3: {
-      label: "Risk profile assigned",
-      tone: "primary",
-      badgeLabel: "3/5",
-      dot: true,
-    },
-    4: {
-      label: "Server space reserved",
-      tone: "warning",
-      badgeLabel: "4/5",
-      dot: true,
-    },
-    5: {
-      label: "Platform account created",
-      tone: "success",
-      badgeLabel: "5/5",
-      dot: true,
-    },
+/** Demo-viable pacing: minutes per provisioning stage (6 stages total). */
+export const PROVISIONING_MINUTES_PER_STAGE = 10;
+export const PROVISIONING_TOTAL_STAGES = 6;
+
+export type ProvisioningProgress = {
+  /** Completed stage count, 0..6 */
+  done: number;
+  total: number;
+  complete: boolean;
+  /** Current/representative stage info for badges */
+  stage: LifecycleStage | null;
+};
+
+/**
+ * Deterministic provisioning progress from a purchase timestamp.
+ * Uses minutes-per-stage pacing (demo acceleration) so the flow is
+ * exercisable without waiting real days. All 6 rows can complete.
+ */
+export function getProvisioningProgress(purchasedAt?: string): ProvisioningProgress {
+  const total = PROVISIONING_TOTAL_STAGES;
+  if (!purchasedAt) {
+    return { done: 0, total, complete: false, stage: null };
+  }
+  const started = new Date(purchasedAt).getTime();
+  if (!Number.isFinite(started)) {
+    return { done: 0, total, complete: false, stage: null };
+  }
+  const elapsedMinutes = Math.max(0, (Date.now() - started) / 60000);
+  const done = Math.min(total, Math.floor(elapsedMinutes / PROVISIONING_MINUTES_PER_STAGE) + 1);
+  const complete = done >= total;
+  const stageIndex = Math.min(5, Math.max(1, done));
+  const labels: Record<number, string> = {
+    1: "Payment confirmed",
+    2: "KYC verified",
+    3: "Risk profile assigned",
+    4: "Server space reserved",
+    5: "Platform account created",
+    6: "Credentials delivered",
   };
-  
-  return stages[stage] || null;
+  const stage: LifecycleStage = {
+    label: labels[Math.min(6, Math.max(1, done))] ?? "Provisioning",
+    tone: complete ? "success" : "primary",
+    badgeLabel: complete ? "Active" : `${Math.min(done, 5)}/5`,
+    dot: true,
+    pulse: !complete,
+  };
+  return { done, total, complete, stage };
+}
+
+/** Back-compat helper; derives from getProvisioningProgress. */
+export function getProvisioningStage(submittedAt?: string): LifecycleStage | null {
+  return getProvisioningProgress(submittedAt).stage;
 }
 
 
