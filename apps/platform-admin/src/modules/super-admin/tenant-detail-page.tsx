@@ -162,7 +162,7 @@ const tenantStatusTone = (s: string) =>
 /* ------------------------------------------------------------------ */
 
 export function TenantDetailPage() {
-  const { router, navigate, availableTenants, setTenant, pushNotification, user } = usePlatform();
+  const { router, navigate, availableTenants, setTenant, pushNotification, user, startImpersonation } = usePlatform();
   const tenantId = router.params.id;
   const provisioning = useProvisioningStore();
   const provJob = useMemo(
@@ -397,6 +397,7 @@ export function TenantDetailPage() {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => {
+                      startImpersonation({ tenantId: localTenant.id, tenantName: localTenant.name, operator: { id: user.id, name: user.name } });
                       setTenant(localTenant);
                       pushNotification({
                         title: `Impersonating ${localTenant.name}`,
