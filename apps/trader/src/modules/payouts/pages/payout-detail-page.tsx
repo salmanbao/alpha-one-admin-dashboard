@@ -22,6 +22,7 @@ import {
 import { terraPayouts } from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
 import { getPayoutStage } from "@/lib/status-progression";
+import { usePayoutRequests, type DisplayPayout } from "@/lib/payouts/payout-requests-store";
 
 export function PayoutDetailContent({
   id,
@@ -31,7 +32,17 @@ export function PayoutDetailContent({
   /** true when rendered inside the quick-view dialog (page chrome hidden). */
   embedded?: boolean;
 }) {
-  const payout = terraPayouts.find((p) => p.id === id) ?? terraPayouts[0];
+  const storeRequests = usePayoutRequests();
+  const fixturePayouts: DisplayPayout[] = terraPayouts.map((p) => ({
+    ...p,
+    rejection: p.rejection ?? null,
+    isUserRequest: false,
+    methodId: undefined,
+  }));
+  const payout =
+    (id ? storeRequests.find((p) => p.id === id) : null) ??
+    (id ? fixturePayouts.find((p) => p.id === id) : null) ??
+    fixturePayouts[0];
 
   const rejected = payout.status === "rejected" && payout.rejection != null;
 
