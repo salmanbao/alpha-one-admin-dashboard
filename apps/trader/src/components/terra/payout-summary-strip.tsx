@@ -24,7 +24,8 @@ import {
   terraAccounts,
   terraTrades,
 } from "@/lib/fixtures/terra-fixtures";
-import { readPrimaryPayoutMethod } from "@/lib/payouts/payout-methods-store";
+import { readPayoutMethods, readPrimaryPayoutMethod } from "@/lib/payouts/payout-methods-store";
+import { readVerificationDraft } from "@/lib/verification/verification-store";
 
 /** Minimum single payout request — shared by every payout surface. */
 export const minPayout = 100;
@@ -100,14 +101,17 @@ export function buildPayoutCriteria(
     },
     {
       label: "Payout method configured",
-      ok: true,
-      note: readPrimaryPayoutMethod()?.name ?? "—",
+      ok: readPayoutMethods().length > 0,
+      note: readPrimaryPayoutMethod()?.name ?? "Add a withdrawal method",
       resolve: { label: "Add a withdrawal method", href: "/withdrawal-methods" },
     },
     {
       label: "KYC approved",
-      ok: true,
-      note: "Verified",
+      ok: readVerificationDraft().reviewStatus === "approved",
+      note:
+        readVerificationDraft().reviewStatus === "approved"
+          ? "Verified"
+          : "Not yet approved — submit your identity documents",
       resolve: { label: "Complete identity verification", href: "/verification" },
     },
   ];

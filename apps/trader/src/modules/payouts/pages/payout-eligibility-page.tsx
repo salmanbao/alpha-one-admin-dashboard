@@ -29,6 +29,7 @@ import { usePayoutMethods } from "@/lib/payouts/payout-methods-store";
 import {
   MIN_PAYOUT_DAYS,
   PayoutSummaryStrip,
+  buildPayoutCriteria,
   minPayout,
   payoutWindow,
   tradedDaysFor,
@@ -52,50 +53,11 @@ export function PayoutEligibilityPage() {
   const [schedule, setSchedule] = useState(payoutSchedule.current);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
-  // Checklist reflects the real payout gates — evaluation accounts fail
-  // the funded gate; flat accounts fail the profit gate.
-  const tradedDays = tradedDaysFor(account.id);
+  // Single eligibility checklist shared with the request form and the
+  // summary strip (W1-02) — one source of truth for "what's not met".
+  const criteria = buildPayoutCriteria(account.id, entitlement.withdrawable);
+  const outstanding = criteria.filter((c) => !c.ok).length;
   const nextWindow = payoutWindow();
-  const checklist = [
-    {
-      label: "Account funded (payouts are funded-only)",
-      ok: entitlement.isFunded,
-      note: entitlement.isFunded ? "Verified" : `${account.phase} — payouts unlock after evaluation`,
-    },
-    {
-      label: "Minimum balance > $1,000",
-      ok: account.balance > 1000,
-      note: `${formatMoney(account.balance)} balance`,
-    },
-    {
-      label: "Net profit above starting balance",
-      ok: entitlement.netProfit > 0,
-      note: entitlement.netProfit > 0 ? `+${formatMoney(entitlement.netProfit)} net` : "Flat or underwater",
-    },
-    {
-      label: `Minimum trading days (${MIN_PAYOUT_DAYS} per payout cycle)`,
-      ok: tradedDays >= MIN_PAYOUT_DAYS,
-      note:
-        tradedDays >= MIN_PAYOUT_DAYS
-          ? `${tradedDays} of ${MIN_PAYOUT_DAYS} required — met`
-          : `${tradedDays} of ${MIN_PAYOUT_DAYS} required • ${MIN_PAYOUT_DAYS - tradedDays} trading day${MIN_PAYOUT_DAYS - tradedDays === 1 ? "" : "s"} remaining`,
-    },
-    {
-      label: "Profit target progress",
-      ok: account.targetProgress >= 100,
-      note: `${account.targetProgress.toFixed(1)}% of ${formatMoney(account.profitTarget)} target reached`,
-    },
-    { label: "No open risk breaches", ok: true, note: "Clear" },
-    { label: "Payout method configured", ok: true, note: "Bank Transfer (Wise)" },
-    {
-      label: `${payoutSchedule.current} window is open`,
-      ok: nextWindow.open,
-      note: nextWindow.open
-        ? "Requests are processed in this window"
-        : `Next window opens in ${nextWindow.daysToOpen} day${nextWindow.daysToOpen === 1 ? "" : "s"}`,
-    },
-  ];
-  const outstanding = checklist.filter((c) => !c.ok).length;
 
   const scalePct = Math.round(
     (scalingPlan.consecutivePayouts / scalingPlan.requiredPayouts) * 100,
@@ -156,7 +118,7 @@ export function PayoutEligibilityPage() {
           <TerraCard>
             <TerraSectionTitle title="Eligibility checklist" />
             <div className="space-y-3">
-              {checklist.map((c) => (
+              {criteria.map((c) => (
                 <div key={c.label} className="flex items-center justify-between rounded-xl bg-surface-container-low px-4 py-3">
                   <div>
                     <p className="text-sm font-semibold text-on-surface">{c.label}</p>
