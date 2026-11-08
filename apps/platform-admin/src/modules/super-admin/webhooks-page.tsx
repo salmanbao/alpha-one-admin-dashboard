@@ -125,7 +125,7 @@ export function WebhooksPage() {
             <Button variant="outline" size="sm" onClick={() => navigate("integrations")}>
               <ExternalLink className="mr-1 h-4 w-4" /> Integrations
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "Create webhook", description: "Add endpoint form: URL, events, secret, tenant." })}>
+            <Button size="sm" onClick={() => toast({ title: "(demo) Create webhook", description: "Add endpoint form: URL, events, secret, tenant." })}>
               <Plus className="mr-1 h-4 w-4" /> Add Endpoint
             </Button>
           </>
@@ -224,21 +224,21 @@ export function WebhooksPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Test sent", description: `Test event dispatched to ${wh.name}.` })}>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Test sent", description: `Test event dispatched to ${wh.name}.` })}>
                             <Play className="h-3 w-3" /> Test
                           </Button>
                           {wh.status === "active" && (
-                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Endpoint paused", description: `${wh.name} paused. Deliveries suspended.` })}>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Endpoint paused", description: `${wh.name} paused. Deliveries suspended.` })}>
                               <Pause className="h-3 w-3" />
                             </Button>
                           )}
                           {wh.status === "paused" && (
-                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Endpoint resumed", description: `${wh.name} resumed. Deliveries restarted.` })}>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Endpoint resumed", description: `${wh.name} resumed. Deliveries restarted.` })}>
                               <RefreshCw className="h-3 w-3" />
                             </Button>
                           )}
                           {wh.status === "failing" && (
-                            <Button size="sm" variant="destructive" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Retry queued", description: `Retry deliveries for ${wh.name} queued.` })}>
+                            <Button size="sm" variant="destructive" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Retry queued", description: `Retry deliveries for ${wh.name} queued.` })}>
                               <RefreshCw className="h-3 w-3" /> Retry
                             </Button>
                           )}

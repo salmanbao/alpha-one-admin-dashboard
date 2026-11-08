@@ -97,7 +97,7 @@ export function BackupPoliciesPage() {
             <Button variant="outline" size="sm" onClick={() => navigate("backups-dr")}>
               <Database className="mr-1 h-4 w-4" /> Backups & DR
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "New policy", description: "Policy form: scope, frequency, retention, encryption." })}>
+            <Button size="sm" onClick={() => toast({ title: "(demo) New policy", description: "Policy form: scope, frequency, retention, encryption." })}>
               <Plus className="mr-1 h-4 w-4" /> New Policy
             </Button>
           </>
@@ -148,7 +148,7 @@ export function BackupPoliciesPage() {
                           <Button size="sm" variant="outline" onClick={() => startEdit(pol)}>
                             <Calendar className="mr-1 h-3 w-3" /> Edit Schedule
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => toast({ title: "Backup triggered", description: `${pol.name} manual backup started.` })}>
+                          <Button size="sm" variant="ghost" onClick={() => toast({ title: "(demo) Backup triggered", description: `${pol.name} manual backup started.` })}>
                             <RefreshCw className="h-3 w-3" />
                           </Button>
                         </>
@@ -236,7 +236,7 @@ export function BackupPoliciesPage() {
                       <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: pol.status === "active" ? "Policy paused" : "Policy resumed", description: `${pol.name} ${pol.status === "active" ? "paused" : "resumed"}. Audited.` })}>
                         {pol.status === "active" ? "Pause" : "Resume"}
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Run history", description: `${pol.name}: last ${pol.keepVersions} runs, all verified.` })}>
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Run history", description: `${pol.name}: last ${pol.keepVersions} runs, all verified.` })}>
                         View Runs
                       </Button>
                     </div>

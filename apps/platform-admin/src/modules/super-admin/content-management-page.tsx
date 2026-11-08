@@ -108,10 +108,10 @@ export function ContentManagementPage() {
         icon={FileText}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => toast({ title: "SEO audit", description: "Full-site SEO audit queued. Results in Analytics." })}>
+            <Button variant="outline" size="sm" onClick={() => toast({ title: "(demo) SEO audit", description: "Full-site SEO audit queued. Results in Analytics." })}>
               <Search className="mr-1 h-4 w-4" /> SEO Audit
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "New content", description: "Content form: type, title, slug, body, SEO metadata." })}>
+            <Button size="sm" onClick={() => toast({ title: "(demo) New content", description: "Content form: type, title, slug, body, SEO metadata." })}>
               <Plus className="mr-1 h-4 w-4" /> New Content
             </Button>
           </>
@@ -205,14 +205,14 @@ export function ContentManagementPage() {
                         <td className="px-4 py-3"><StatusBadge tone={statusTones[item.status]}>{item.status}</StatusBadge></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Preview", description: `Previewing ${item.title} at ${item.slug}.` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Preview", description: `Previewing ${item.title} at ${item.slug}.` })}>
                               <Eye className="h-3 w-3" /> Preview
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Editor opened", description: `Editing ${item.title}. SEO fields included.` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Editor opened", description: `Editing ${item.title}. SEO fields included.` })}>
                               Edit
                             </Button>
                             {item.status !== "published" && (
-                              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Published", description: `${item.title} is now live. CDN purge queued.` })}>
+                              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Published", description: `${item.title} is now live. CDN purge queued.` })}>
                                 <Send className="h-3 w-3" /> Publish
                               </Button>
                             )}
@@ -272,7 +272,7 @@ export function ContentManagementPage() {
                 </div>
               ))}
               <Separator className="my-2" />
-              <Button size="sm" variant="outline" className="w-full" onClick={() => toast({ title: "Legal review", description: "Legal documents routed for counsel review. Audited." })}>
+              <Button size="sm" variant="outline" className="w-full" onClick={() => toast({ title: "(demo) Legal review", description: "Legal documents routed for counsel review. Audited." })}>
                 <RefreshCw className="mr-1 h-3 w-3" /> Request Legal Review
               </Button>
             </CardContent>

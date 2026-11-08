@@ -126,7 +126,7 @@ export function ComplianceReportsPage() {
       ...prev,
     ]);
     setGenOpen(false);
-    toast({ title: "Report generation started", description: `${typeName} for ${genPeriod} — ${genSections.length} sections. It will appear as completed once processing finishes.` });
+    toast({ title: "(demo) Report generation started", description: `${typeName} for ${genPeriod} — ${genSections.length} sections. It will appear as completed once processing finishes.` });
   };
 
   const addSchedule = () => {
@@ -146,7 +146,7 @@ export function ComplianceReportsPage() {
     setSchedOpen(false);
     setSchedName("");
     setShowSchedules(true);
-    toast({ title: "Schedule created", description: `${name} — ${schedFrequency}, ${schedDelivery}.` });
+    toast({ title: "(demo) Schedule created", description: `${name} — ${schedFrequency}, ${schedDelivery}.` });
   };
 
   const filtered = useMemo(() => {
@@ -262,12 +262,12 @@ export function ComplianceReportsPage() {
                             <Eye className="h-3 w-3" /> View
                           </Button>
                           {rpt.status === "completed" && (
-                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Download started", description: `${rpt.name} PDF download initiated.` })}>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Download started", description: `${rpt.name} PDF download initiated.` })}>
                               <Download className="h-3 w-3" /> Download
                             </Button>
                           )}
                           {rpt.status === "scheduled" && (
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Run now", description: `Triggering ${rpt.name} generation.` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Run now", description: `Triggering ${rpt.name} generation.` })}>
                               <Play className="h-3 w-3" /> Run Now
                             </Button>
                           )}
@@ -326,7 +326,7 @@ export function ComplianceReportsPage() {
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: sch.enabled ? "Schedule disabled" : "Schedule enabled", description: `${sch.name} ${sch.enabled ? "disabled" : "enabled"}.` })}>
                               {sch.enabled ? "Disable" : "Enable"}
                             </Button>
-                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Run now", description: `Triggering ${sch.name} report generation.` })}>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Run now", description: `Triggering ${sch.name} report generation.` })}>
                               <Play className="h-3 w-3" />
                             </Button>
                           </div>
@@ -391,12 +391,12 @@ export function ComplianceReportsPage() {
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setSelectedReport(null)}>Close</Button>
                 {selectedRpt.status === "completed" && (
-                  <Button onClick={() => toast({ title: "Download started", description: `${selectedRpt.name} PDF download initiated.` })}>
+                  <Button onClick={() => toast({ title: "(demo) Download started", description: `${selectedRpt.name} PDF download initiated.` })}>
                     <Download className="mr-1 h-4 w-4" /> Download PDF
                   </Button>
                 )}
                 {selectedRpt.status !== "completed" && (
-                  <Button onClick={() => toast({ title: "Regenerate", description: `Triggering regeneration of ${selectedRpt.name}.` })}>
+                  <Button onClick={() => toast({ title: "(demo) Regenerate", description: `Triggering regeneration of ${selectedRpt.name}.` })}>
                     <RefreshCw className="mr-1 h-4 w-4" /> Regenerate
                   </Button>
                 )}

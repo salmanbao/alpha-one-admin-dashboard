@@ -123,7 +123,7 @@ export function NotificationTemplatesPage() {
             <Button variant="outline" size="sm" onClick={() => navigate("notifications")}>
               <Bell className="mr-1 h-4 w-4" /> Notification Center
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "New template", description: "Template form: channel, language, subject, body." })}>
+            <Button size="sm" onClick={() => toast({ title: "(demo) New template", description: "Template form: channel, language, subject, body." })}>
               <Plus className="mr-1 h-4 w-4" /> New Template
             </Button>
           </>
@@ -268,13 +268,13 @@ export function NotificationTemplatesPage() {
                     Sent {selected.sentCount.toLocaleString()} times · Updated {new Date(selected.updatedAt).toLocaleDateString()}
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => toast({ title: "Test sent", description: `Test ${selected.channel} message dispatched to you.` })}>
+                    <Button size="sm" variant="outline" onClick={() => toast({ title: "(demo) Test sent", description: `Test ${selected.channel} message dispatched to you.` })}>
                       <Send className="mr-1 h-3 w-3" /> Test Send
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => toast({ title: "Template duplicated", description: `${selected.name} copied as draft.` })}>
+                    <Button size="sm" variant="outline" onClick={() => toast({ title: "(demo) Template duplicated", description: `${selected.name} copied as draft.` })}>
                       <Copy className="mr-1 h-3 w-3" /> Duplicate
                     </Button>
-                    <Button size="sm" onClick={() => toast({ title: "Template saved", description: `${selected.name} updated. Audited.` })}>
+                    <Button size="sm" onClick={() => toast({ title: "(demo) Template saved", description: `${selected.name} updated. Audited.` })}>
                       <Save className="mr-1 h-3 w-3" /> Save
                     </Button>
                   </div>

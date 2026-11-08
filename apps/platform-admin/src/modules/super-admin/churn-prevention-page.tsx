@@ -86,10 +86,10 @@ export function ChurnPreventionPage() {
         icon={TrendingDown}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => toast({ title: "Retention report", description: "Monthly retention report queued for delivery." })}>
+            <Button variant="outline" size="sm" onClick={() => toast({ title: "(demo) Retention report", description: "Monthly retention report queued for delivery." })}>
               <DollarSign className="mr-1 h-4 w-4" /> Retention Report
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "New rule", description: "Rule form: trigger condition → action sequence → audience." })}>
+            <Button size="sm" onClick={() => toast({ title: "(demo) New rule", description: "Rule form: trigger condition → action sequence → audience." })}>
               <Play className="mr-1 h-4 w-4" /> New Rule
             </Button>
           </>
@@ -165,10 +165,10 @@ export function ChurnPreventionPage() {
                       <td className="px-4 py-3"><StatusBadge tone={stageTones[u.stage]}>{u.stage}</StatusBadge></td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Outreach sent", description: `Retention email queued for ${u.name}. Audited.` })}>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Outreach sent", description: `Retention email queued for ${u.name}. Audited.` })}>
                             <Send className="h-3 w-3" /> Outreach
                           </Button>
-                          <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Offer applied", description: `10% × 3mo retention offer sent to ${u.name}.` })}>
+                          <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Offer applied", description: `10% × 3mo retention offer sent to ${u.name}.` })}>
                             <Gift className="h-3 w-3" /> Offer
                           </Button>
                         </div>
@@ -221,7 +221,7 @@ export function ChurnPreventionPage() {
                           <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: rule.status === "active" ? "Rule paused" : "Rule resumed", description: `${rule.name} ${rule.status === "active" ? "paused" : "resumed"}. Audited.` })}>
                             {rule.status === "active" ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule history", description: `${rule.name}: ${rule.triggered30d} triggers, ${formatCurrency(rule.saved30d, "USD")} saved.` })}>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Rule history", description: `${rule.name}: ${rule.triggered30d} triggers, ${formatCurrency(rule.saved30d, "USD")} saved.` })}>
                             <MessageSquare className="h-3 w-3" />
                           </Button>
                         </div>
