@@ -239,20 +239,16 @@ export function CheckoutPage() {
                   description: `${methodLabel} is still selected — pick another, then pay again.`,
                 });
               }}
-              // Support form with the failure context attached.
+              // Support hand-off with the failure context attached.
               onContactSupport={() => {
                 const info = paymentFailureReasons.find((r) => r.code === paymentFailed.reason)!;
-                navigate("support-contact", {
-                  topic: "payment-failed",
-                  reason: paymentFailed.reason,
-                  reasonTitle: info.title,
-                  method: methodLabel,
-                  amount: amountLabel,
-                  order: orderLabel,
-                });
+                // R2-W3-03: `support-contact` was a stitch poster — the
+                // hand-off now lands on the real support tickets surface.
+                navigate("support-tickets");
                 toast({
-                  title: "Support contact opened",
-                  description: "The form references this failed payment: " + info.title + ".",
+                  title: "Support tickets opened",
+                  description:
+                    "Reference this failed payment when you file the ticket: " + info.title + ".",
                 });
               }}
             />

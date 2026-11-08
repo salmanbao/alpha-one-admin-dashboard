@@ -11,12 +11,12 @@ export function PlatformEmptyState({
   title = "Nothing here yet",
   description = "Your dashboard is ready — a few quick steps get you started.",
   steps = [] as string[],
-  actions = [] as { label: string; href: string }[],
+  actions = [] as { label: string; href: string; onClick?: () => void }[],
 }: {
   title?: string;
   description?: string;
   steps?: string[];
-  actions?: { label: string; href: string }[];
+  actions?: { label: string; href: string; onClick?: () => void }[];
 }) {
   return (
     <div className="rounded-2xl border bg-card p-8 shadow-sm">
@@ -40,11 +40,19 @@ export function PlatformEmptyState({
         )}
         {actions.length > 0 && (
           <div className="flex flex-wrap justify-center gap-2">
-            {actions.map((a) => (
-              <Button key={a.href} asChild size="sm" className="gap-1">
-                <a href={a.href}>{a.label} <ArrowRight className="h-3 w-3" /></a>
-              </Button>
-            ))}
+            {actions.map((a) =>
+              a.onClick ? (
+                // Client-side view navigation (prop-admin has a single `/`
+                // route — a raw <a href> would leave the SPA for a 404).
+                <Button key={a.label} size="sm" className="gap-1" onClick={a.onClick}>
+                  {a.label} <ArrowRight className="h-3 w-3" />
+                </Button>
+              ) : (
+                <Button key={a.href} asChild size="sm" className="gap-1">
+                  <a href={a.href}>{a.label} <ArrowRight className="h-3 w-3" /></a>
+                </Button>
+              ),
+            )}
           </div>
         )}
       </div>

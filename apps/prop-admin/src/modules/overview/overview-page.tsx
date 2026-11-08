@@ -138,8 +138,11 @@ export function OverviewPage() {
               "Run your first KYC review to see pending cases",
             ]}
             actions={[
-              { label: "Configure modules", href: "settings-module-detail" },
-              { label: "Invite traders", href: "trading-traders" },
+              // R2-W3-03: "Configure modules" used to open the stitch
+              // `settings-module-detail` poster (a product-claimed fake) —
+              // it now lands on the real Modules tab of Settings.
+              { label: "Configure modules", href: "settings?tab=modules", onClick: () => navigate("settings", { tab: "modules" }) },
+              { label: "Invite traders", href: "trading-traders", onClick: () => navigate("trading-traders") },
             ]}
           />
         )}

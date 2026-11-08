@@ -788,14 +788,6 @@ function ModulesTab() {
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Module Catalog</span>
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs"
-              onClick={() => navigate("settings-module-detail")}
-            >
-              Module Detail
-            </Button>
             <Badge variant="secondary">{tenant.enabledModules.length} enabled</Badge>
           </div>
         </div>

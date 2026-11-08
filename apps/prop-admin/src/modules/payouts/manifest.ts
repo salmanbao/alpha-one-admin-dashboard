@@ -2,7 +2,7 @@
  * Payouts Module — manifest, navigation, routes, widgets, settings.
  */
 
-import { Wallet, Banknote, Clock, DollarSign, ListChecks, CalendarClock, WalletCards, ShieldCheck, RotateCcw, Users } from "lucide-react";
+import { Wallet, Banknote, Clock, ListChecks } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { PayoutOverviewWidget, PayoutQueueWidget, PayoutTrendWidget, PayoutMethodWidget } from "./widgets/payout-widgets";
 
@@ -19,13 +19,6 @@ const navigation: NavigationItem[] = [
       { id: "payouts.pending", label: "Pending Approval", href: "payouts-pending", icon: Clock, permission: "payout.approve", group: "Requests & Approvals" },
       // "My Withdrawals" moved to the self-service module (§6.6).
       { id: "payouts.withdrawals", label: "Withdrawals", href: "payouts-enhanced-withdrawals", icon: ListChecks, permission: ["payout.read", "payout.self"], group: "Requests & Approvals" },
-
-      // ───────── Payout Operations (M10/M13) ─────────
-      { id: "payouts.bulk-approval", label: "Bulk Approval", href: "payouts-pending", icon: Users, permission: "payout.approve", group: "Payout Operations" },
-      { id: "payouts.schedule", label: "Schedule", href: "payout-schedule", icon: CalendarClock, permission: "payout.read", group: "Payout Operations" },
-      { id: "payouts.methods-config", label: "Methods & Config", href: "payout-methods-config", icon: WalletCards, permission: "payout.read", group: "Payout Operations" },
-      { id: "payouts.compliance", label: "Compliance", href: "payout-compliance", icon: ShieldCheck, permission: "payout.read", group: "Payout Operations" },
-      { id: "payouts.reversal", label: "Reversals", href: "payout-reversal", icon: RotateCcw, permission: "payout.read", group: "Payout Operations" },
     ],
   },
 ];
@@ -39,16 +32,9 @@ const routes: RouteDefinition[] = [
   { path: "payout-request", viewId: "payout-request", label: "Payout Request", permission: ["payout.read", "payout.self"], module: "payouts" },
   { path: "payout-provider-status", viewId: "payout-provider-status", label: "Provider Status", permission: "payout.read", module: "payouts" },
   // Row drill-down target from Pending Payouts and the overview page's
-  // payout widget (PRD §4.9 detail view). The screen itself is still a
-  // stitch reference render, but the id is a live product navigation
-  // target, so it needs a guard entry rather than a not-found.
+  // payout widget (PRD §4.9 detail view) — a product surface since
+  // R2-W3-03 moved it out of modules/stitch/pages.
   { path: "payout-detail", viewId: "payout-detail", label: "Payout Detail", permission: ["payout.read", "payout.self"], module: "payouts" },
-  // Payout Operations (M10/M13) — guarded variants of the stitch routes.
-
-  { path: "payout-schedule", viewId: "payout-schedule", label: "Payout Schedule", permission: "payout.read", module: "payouts" },
-  { path: "payout-methods-config", viewId: "payout-methods-config", label: "Payout Methods", permission: "payout.read", module: "payouts" },
-  { path: "payout-compliance", viewId: "payout-compliance", label: "Payout Compliance", permission: "payout.read", module: "payouts" },
-  { path: "payout-reversal", viewId: "payout-reversal", label: "Payout Reversals", permission: "payout.read", module: "payouts" },
 ];
 
 const widgets: WidgetDefinition[] = [

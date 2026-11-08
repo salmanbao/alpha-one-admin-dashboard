@@ -13,21 +13,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'bun'
+      # bun is not preinstalled on GitHub runners, and setup-node's
+      # `cache: bun` tries to exec it — every run died at this step
+      # before reaching any gate. Install bun first instead.
+      # R2-W3-03: paths below are repo-root-relative; the GitHub repo root
+      # is this working copy (there is no `ui/` subdirectory here).
+      - uses: oven-sh/setup-bun@v2
       - name: Install
         run: bun install --frozen-lockfile
+      # R2-W3-03 poster guard — runs before the slower gates so the nav
+      # census verdict (≤150 children, 0 unguarded posters) is always
+      # visible in the run.
+      - name: Nav census (R2-W3-03 --check)
+        run: bun scripts/nav-census.ts --check
       - name: Type-check (tsc)
-        run: bun run --filter=@pfaas/prop-admin tsc --noEmit
-        working-directory: ./ui
+        run: npx tsc --noEmit -p apps/prop-admin/tsconfig.json
       - name: ESLint root config
         run: bunx eslint apps/prop-admin --config eslint.config.mjs --max-warnings 0
-        working-directory: ./ui
       - name: ESLint app config
         run: bunx eslint . --max-warnings 0
-        working-directory: ./ui/apps/prop-admin
+        working-directory: ./apps/prop-admin
       - name: Build
         run: bun run build:prop-admin
-        working-directory: ./ui
       - name: Playwright smoke test
         run: |
           cd /tmp/opencode/pw

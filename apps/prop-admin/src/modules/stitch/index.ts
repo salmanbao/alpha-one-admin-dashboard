@@ -150,7 +150,6 @@ export { OverviewOnboardingTourStitchPage } from "./pages/overview-onboarding-to
 export { OverviewSavedViewsStitchPage } from "./pages/overview-saved-views";
 export { OverviewStitchPage } from "./pages/overview";
 export { PayoutComplianceStitchPage } from "./pages/payout-compliance";
-export { PayoutDetailStitchPage } from "./pages/payout-detail";
 export { PayoutMethodsConfigStitchPage } from "./pages/payout-methods-config";
 export { PayoutReversalStitchPage } from "./pages/payout-reversal";
 
