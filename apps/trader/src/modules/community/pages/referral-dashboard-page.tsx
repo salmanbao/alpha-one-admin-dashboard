@@ -671,8 +671,8 @@ export function ReferralDashboardPage() {
     setInviteError(null);
     setInviteEmails("");
     toast({
-      title: `${parts.length} invite${parts.length > 1 ? "s" : ""} sent`,
-      description: "Each contact gets your referral link with a consent notice.",
+      title: `(demo) ${parts.length} invite${parts.length > 1 ? "s" : ""} recorded`,
+      description: "Demo only — no email is sent. Each contact would get your referral link with a consent notice.",
     });
   };
 
