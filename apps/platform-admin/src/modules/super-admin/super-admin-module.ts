@@ -79,7 +79,6 @@ const navigation: NavigationItem[] = [
       { id: "super.lifecycle", label: "Lifecycle", href: "tenant-lifecycle", icon: GitBranch, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.challenge-programs", label: "Challenge Programs", href: "challenge-programs", icon: Target, application: ["super-admin"], group: "Tenant Management", permission: "platform.modules.manage" },
       { id: "super.tenant-health", label: "Tenant Health", href: "tenant-health", icon: HeartPulse, application: ["super-admin"], group: "Tenant Management" },
-      { id: "super.sla-monitoring", label: "SLA Monitoring", href: "sla-monitoring", icon: ShieldCheck, application: ["super-admin"], group: "Tenant Management" },
 
       // ───────── Operations ─────────
       { id: "super.operations", label: "Operations Home", href: "platform-operations", icon: Activity, application: ["super-admin"], group: "Operations" },
@@ -91,8 +90,6 @@ const navigation: NavigationItem[] = [
 
       // ───────── Observability ─────────
       { id: "super.health", label: "Platform Health", href: "platform-health", icon: Server, application: ["super-admin"], group: "Observability" },
-      { id: "super.system-health", label: "System Health", href: "system-health", icon: Activity, application: ["super-admin"], group: "Observability" },
-      { id: "super.providers", label: "Provider Registry", href: "provider-registry", icon: Globe, application: ["super-admin"], group: "Observability" },
       { id: "super.queues", label: "Cross-Tenant Queues", href: "cross-tenant-queues", icon: Layers, application: ["super-admin"], group: "Observability" },
       { id: "super.platform-audit", label: "Platform Audit", href: "platform-audit", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 65, group: "Observability" },
       { id: "super.usage-metering", label: "Tenant Usage & Overage", href: "usage-metering", icon: Gauge, application: ["super-admin"], group: "Observability" },
@@ -125,7 +122,6 @@ const navigation: NavigationItem[] = [
       // `role-management` nav entry folded into Platform Roles (Governance);
       // route stays registered and is linked from the platform-roles page.
       { id: "super.view-as", label: "Tenant View-As", href: "tenant-view-as", icon: Eye, application: ["super-admin"], group: "Security" },
-      { id: "super.abuse", label: "Abuse Signals", href: "abuse-signals", icon: AlertTriangle, application: ["super-admin"], group: "Security" },
 
       // ───────── Finance ─────────
       { id: "super.plans", label: "Plans & Subscriptions", href: "plans", icon: CreditCard, application: ["super-admin"], group: "Finance" },
@@ -158,7 +154,6 @@ const navigation: NavigationItem[] = [
 
       // ───────── Analytics ─────────
       { id: "super.analytics", label: "Platform Analytics", href: "platform-analytics", icon: BarChart3, application: ["super-admin"], group: "Analytics" },
-      { id: "super.benchmarking", label: "Tenant Benchmarking", href: "tenant-benchmarking", icon: Gauge, application: ["super-admin"], group: "Analytics" },
       { id: "super.scheduled-reports", label: "Scheduled Reports", href: "scheduled-reports", icon: CalendarClock, application: ["super-admin"], group: "Analytics" },
 
       // ───────── Content & Marketing ─────────
@@ -186,7 +181,7 @@ const routes: RouteDefinition[] = [
   { path: "tenant-detail", viewId: "tenant-detail", label: "Tenant Detail", application: ["super-admin"] },
   { path: "tenant-lifecycle", viewId: "tenant-lifecycle", label: "Tenant Lifecycle", application: ["super-admin"] },
   { path: "tenant-health", viewId: "tenant-health", label: "Tenant Health", application: ["super-admin"] },
-  { path: "sla-monitoring", viewId: "sla-monitoring", label: "SLA Monitoring", application: ["super-admin"] },
+  { path: "sla-monitoring", viewId: "tenant-health", label: "SLA Monitoring", application: ["super-admin"] },
   { path: "provisioning-saga", viewId: "provisioning-saga", label: "Provisioning Saga", application: ["super-admin"] },
   { path: "usage-metering", viewId: "usage-metering", label: "Tenant Usage & Overage", application: ["super-admin"] },
   { path: "tenant-api-usage", viewId: "tenant-api-usage", label: "Tenant API Usage", application: ["super-admin"] },
@@ -197,7 +192,7 @@ const routes: RouteDefinition[] = [
   { path: "jobs-dashboard", viewId: "jobs-dashboard", label: "Jobs Dashboard", application: ["super-admin"] },
   { path: "approval-center", viewId: "approval-center", label: "Approval Center", application: ["super-admin"] },
   { path: "platform-health", viewId: "platform-health", label: "Platform Health", application: ["super-admin"] },
-  { path: "provider-registry", viewId: "provider-registry", label: "Provider Registry", application: ["super-admin"] },
+  { path: "provider-registry", viewId: "platform-health", label: "Provider Registry", application: ["super-admin"] },
   { path: "cross-tenant-queues", viewId: "cross-tenant-queues", label: "Cross-Tenant Queues", application: ["super-admin"] },
   { path: "deployments", viewId: "deployments", label: "Deployments", application: ["super-admin"] },
   { path: "backups-dr", viewId: "backups-dr", label: "Backups & DR", application: ["super-admin"] },
@@ -215,13 +210,13 @@ const routes: RouteDefinition[] = [
   { path: "operator-directory", viewId: "operator-directory", label: "Operator Directory", application: ["super-admin"] },
   { path: "role-management", viewId: "role-management", label: "Role Management", application: ["super-admin"] },
   { path: "tenant-view-as", viewId: "tenant-view-as", label: "Tenant View-As", application: ["super-admin"] },
-  { path: "abuse-signals", viewId: "abuse-signals", label: "Abuse Signals", application: ["super-admin"] },
+  { path: "abuse-signals", viewId: "platform-health", label: "Abuse Signals", application: ["super-admin"] },
   { path: "plans", viewId: "plans", label: "Plans & Subscriptions", application: ["super-admin"] },
   { path: "plan-transition", viewId: "plan-transition", label: "Plan Transition", application: ["super-admin"] },
   { path: "platform-billing", viewId: "platform-billing", label: "Billing & Invoices", application: ["super-admin"] },
   { path: "platform-financials", viewId: "platform-financials", label: "Platform Financials", application: ["super-admin"] },
   { path: "platform-analytics", viewId: "platform-analytics", label: "Platform Analytics", application: ["super-admin"] },
-  { path: "tenant-benchmarking", viewId: "tenant-benchmarking", label: "Tenant Benchmarking", application: ["super-admin"] },
+  { path: "tenant-benchmarking", viewId: "tenant-health", label: "Tenant Benchmarking", application: ["super-admin"] },
   { path: "platform-audit", viewId: "platform-audit", label: "Platform Audit Log", application: ["super-admin"], permission: "platform.audit.read" },
   { path: "knowledge-base", viewId: "knowledge-base", label: "Knowledge Base", application: ["super-admin"] },
   { path: "changelog", viewId: "changelog", label: "What's New", application: ["super-admin"] },
@@ -238,7 +233,7 @@ const routes: RouteDefinition[] = [
   { path: "platform-staff", viewId: "platform-staff", label: "Platform Staff", application: ["super-admin"] },
   { path: "pending-tasks", viewId: "pending-tasks", label: "Pending Tasks", application: ["super-admin"] },
   { path: "platform-transactions", viewId: "platform-transactions", label: "Platform Transactions", application: ["super-admin"] },
-  { path: "system-health", viewId: "system-health", label: "System Health", application: ["super-admin"] },
+  { path: "system-health", viewId: "platform-health", label: "System Health", application: ["super-admin"] },
   { path: "audit-log", viewId: "audit-log", label: "Audit Log", application: ["super-admin"], permission: "platform.audit.read" },
   { path: "api-keys", viewId: "api-keys", label: "API Keys", application: ["super-admin"] },
   { path: "rate-limits", viewId: "rate-limits", label: "Rate Limits", application: ["super-admin"] },
