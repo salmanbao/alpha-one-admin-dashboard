@@ -354,7 +354,7 @@ const MOCK_EVENTS = [
   { id: "evt-1", type: "Status Changed", desc: "Account status changed to active", actor: "Sarah Chen", role: "Admin", at: "2025-05-28 14:32 UTC" },
   { id: "evt-2", type: "Phase Upgraded", desc: "Phase 1 → Phase 2 transition recorded", actor: "System", role: "Engine", at: "2025-05-27 09:40 UTC" },
   { id: "evt-3", type: "Drawdown Alert", desc: "Daily drawdown reached 80% of limit", actor: "Risk Engine", role: "Engine", at: "2025-05-27 11:12 UTC" },
-  { id: "evt-4", type: "Payout Event", desc: "Payout PO-94102 settled & cleared", actor: "Treasury Engine", role: "Engine", at: "2025-05-26 14:25 UTC" },
+  { id: "evt-4", type: "Payout Event", desc: "Payout PO-… settled & cleared", actor: "Treasury Engine", role: "Engine", at: "2025-05-26 14:25 UTC" },
   { id: "evt-5", type: "Status Changed", desc: "Bridge reconnected after failover", actor: "Aiden Lloyd", role: "Admin", at: "2025-05-25 20:02 UTC" },
 ];
 
