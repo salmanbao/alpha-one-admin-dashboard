@@ -77,7 +77,7 @@ const navigation: NavigationItem[] = [
       { id: "super.tenants", label: "Tenants", href: "tenants", icon: Building2, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.create-tenant", label: "Create Tenant", href: "create-tenant", icon: Plus, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.lifecycle", label: "Lifecycle", href: "tenant-lifecycle", icon: GitBranch, application: ["super-admin"], group: "Tenant Management" },
-      { id: "super.challenge-programs", label: "Challenge Programs", href: "challenge-programs", icon: Target, application: ["super-admin"], group: "Tenant Management" },
+      { id: "super.challenge-programs", label: "Challenge Programs", href: "challenge-programs", icon: Target, application: ["super-admin"], group: "Tenant Management", permission: "platform.modules.manage" },
       { id: "super.tenant-health", label: "Tenant Health", href: "tenant-health", icon: HeartPulse, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.sla-monitoring", label: "SLA Monitoring", href: "sla-monitoring", icon: ShieldCheck, application: ["super-admin"], group: "Tenant Management" },
 

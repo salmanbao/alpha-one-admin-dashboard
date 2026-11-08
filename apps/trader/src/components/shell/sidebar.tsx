@@ -142,7 +142,7 @@ export const sections: NavSection[] = [
   { id: "challenges", label: "Challenges", icon: ShoppingBag, children: [
     { href: "/challenge-comparison", label: "Compare Programs", icon: GitCompare },
     { href: "/purchase-history", label: "Purchase History", icon: Receipt, activePrefixes: ["/invoice-detail"] },
-    { href: "/my-challenges", label: "My Challenges", icon: Trophy },
+    { href: "/my-accounts", label: "My Challenges", icon: Trophy },
   ]},
   { id: "payouts", label: "Payouts", icon: Banknote, defaultOpen: true, children: [
     { href: "/payout-history", label: "Payout History", icon: History, activePrefixes: ["/payout-detail"] },

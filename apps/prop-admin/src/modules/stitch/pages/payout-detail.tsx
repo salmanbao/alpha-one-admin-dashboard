@@ -17,18 +17,34 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { toast } from "@/hooks/use-toast";
 // R3-F02 (hand-wired; regenerating this page drops the banner below):
 // the payout detail sheet must read the AML freeze state + block reason.
-import { payoutAmlBlock } from "@/modules/payouts/payout-store";
+import {
+  applyPayoutDecision,
+  effectivePayoutStatus,
+  payoutAmlBlock,
+  usePayoutVersion,
+} from "@/modules/payouts/payout-store";
 import { getTenantPayouts, type Payout } from "@/lib/platform/mock-data";
 import { formatCurrency } from "@/components/platform/status";
 
 export function PayoutDetailStitchPage() {
   const { router, navigate, runtime } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
+  usePayoutVersion();
   // Look up the payout by reference from real mock-data instead of
   // hardcoded stitch poster data. The detail overlay passes { id: p.reference }
   // via router.params.id.
   const reference = router.params.id ?? "";
-  const payout = getTenantPayouts(tid).find((p) => p.reference === reference);
+  const rawPayout = getTenantPayouts(tid).find((p) => p.reference === reference);
+  const payout = rawPayout
+    ? { ...rawPayout, status: effectivePayoutStatus(rawPayout) }
+    : undefined;
+  const currency = payout?.currency ?? runtime.tenant?.currency ?? "USD";
+  const displayRef = payout?.reference ?? reference ?? "#PO-94102";
+  const displayName = payout?.traderName ?? "Unknown trader";
+  const displayAmount = payout ? formatCurrency(payout.amount, currency) : "—";
+  const displayNet = payout
+    ? formatCurrency((payout.amount * (payout.profitSplit ?? 80)) / 100, currency)
+    : "—";
   const aml = payoutAmlBlock(reference);
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
@@ -87,12 +103,12 @@ export function PayoutDetailStitchPage() {
           <div className="absolute -right-16 -top-16 w-56 h-56 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
           <div className="space-y-2">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="font-mono text-xl lg:text-2xl font-bold tracking-tight text-on-surface bg-surface-container-high px-3 py-1 rounded-lg">{payout?.reference ?? "#PO-94102"}</span>
+              <span className="font-mono text-xl lg:text-2xl font-bold tracking-tight text-on-surface bg-surface-container-high px-3 py-1 rounded-lg">{displayRef}</span>
               <button className="inline-flex items-center gap-1.5 text-xs text-primary font-semibold hover:bg-surface-container px-2.5 py-1 rounded-lg transition-colors" title="Copy Reference ID">
 <MsIcon name="content_copy" className="text-[16px]" />
                 <span>Copy Reference</span>
               </button>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-bold text-xs">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-xs ${payout?.status === "rejected" ? "bg-error-container text-on-error-container" : "bg-primary-fixed text-on-primary-fixed"}`}>
 <MsIcon name="check_circle" className="text-[14px]" />
                 {payout
                   ? payout.status === "paid"
@@ -104,21 +120,16 @@ export function PayoutDetailStitchPage() {
                     : payout.status === "rejected"
                     ? "REJECTED"
                     : "PENDING"
-                  : "SETTLED &amp; CLEARED"}
+                  : "—"}
               </span>
-              <span className="text-xs text-on-surface-variant font-medium bg-surface-container-low px-2.5 py-1 rounded-md">TxConf: 18 Blocks</span>
+              <span className="text-xs text-on-surface-variant font-medium bg-surface-container-low px-2.5 py-1 rounded-md">{payout ? `${payout.method}` : "—"}</span>
             </div>
             <div className="flex items-center gap-2 flex-wrap text-sm text-on-surface-variant">
-              <span className="font-semibold text-on-surface">{payout?.traderName ?? "Elena Althaus"}</span>
+              <span className="font-semibold text-on-surface">{displayName}</span>
               <span className="text-outline-variant">·</span>
-              <span className="font-mono text-xs">elena.althaus@fintech-traders.de</span>
+              <span className="font-mono text-xs">{payout ? `Trader ${payout.traderId}` : "—"}</span>
               <span className="text-outline-variant">·</span>
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-tertiary bg-secondary-container px-2 py-0.5 rounded">
-<MsIcon name="token" className="text-[14px]" />
-                MT5-882049 (Funded Master Tier 1)
-              </span>
-              <span className="text-outline-variant">·</span>
-              <span className="font-semibold text-on-surface">Gross: {payout?.amount?.toLocaleString() ?? "$24,500.00" + " USD"}</span>
+              <span className="font-semibold text-on-surface">Gross: {displayAmount}</span>
             </div>
           </div>
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
@@ -619,14 +630,13 @@ export function PayoutDetailStitchPage() {
         <div className="fixed bottom-0 left-72 right-0 bg-surface-container-lowest/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(46,50,48,0.08)] z-40 px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold bg-surface-container-high px-2 py-1 rounded text-on-surface">REF: #PO-94102</span>
+              <span className="font-mono text-xs font-bold bg-surface-container-high px-2 py-1 rounded text-on-surface">REF: {displayRef}</span>
               <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-              <span className="text-xs font-bold text-primary">STATUS: SETTLED &amp; CLEARED</span>
+              <span className="text-xs font-bold text-primary">STATUS: {(payout?.status ?? "—").toUpperCase()}</span>
             </div>
             <div className="h-4 w-[1px] bg-outline-variant/60 hidden sm:block"></div>
             <div className="text-xs font-mono text-on-surface font-semibold">
-              DISBURSED:
-              <span className="text-primary font-bold">$19,600.00 NET</span>
+              AMOUNT: <span className="text-primary font-bold">{displayAmount}</span>
             </div>
           </div>
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -846,30 +856,28 @@ export function PayoutDetailStitchPage() {
                     <span className="text-[11px] font-mono font-bold tracking-wider text-error uppercase">{"Treasury Exception // Ledger Clawback & Reversal"}</span>
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-error-container text-on-error-container uppercase">Critical</span>
                   </div>
-                  <h2 className="font-headline font-bold text-xl sm:text-2xl text-on-surface tracking-tight mt-0.5" id="modal-title">                    Reverse Payout #PO-94102?</h2>
+                  <h2 className="font-headline font-bold text-xl sm:text-2xl text-on-surface tracking-tight mt-0.5" id="modal-title">Reverse Payout {displayRef}?</h2>
                   <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
-
-              You are initiating a high-impact ledger reversal for settled payout <strong className="text-on-surface font-semibold">#PO-94102</strong> disbursed to <strong className="text-on-surface font-semibold">Elena Althaus</strong> (Account <span className="font-mono text-on-surface">MT5-882049</span>).
-            
+                    You are initiating a high-impact ledger reversal for payout <strong className="text-on-surface font-semibold">{displayRef}</strong> for <strong className="text-on-surface font-semibold">{displayName}</strong>.
                   </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-surface-container-low p-3.5 rounded-xl">
                 <div className="p-1">
                   <p className="text-[10px] uppercase font-bold text-tsc tracking-wider">Gross Amount</p>
-                  <p className="text-xs font-bold text-on-surface font-headline mt-0.5">$24,500.00 USD</p>
+                  <p className="text-xs font-bold text-on-surface font-headline mt-0.5">{displayAmount}</p>
                 </div>
                 <div className="p-1">
-                  <p className="text-[10px] uppercase font-bold text-tsc tracking-wider">Net Disbursed</p>
-                  <p className="text-xs font-bold text-error font-headline mt-0.5">$19,600.00 USDT</p>
+                  <p className="text-[10px] uppercase font-bold text-tsc tracking-wider">Net (est.)</p>
+                  <p className="text-xs font-bold text-error font-headline mt-0.5">{displayNet}</p>
                 </div>
                 <div className="p-1">
                   <p className="text-[10px] uppercase font-bold text-tsc tracking-wider">Method</p>
-                  <p className="text-xs font-semibold text-on-surface mt-0.5">USDT TRC-20</p>
+                  <p className="text-xs font-semibold text-on-surface mt-0.5">{payout?.method ?? "—"}</p>
                 </div>
                 <div className="p-1">
-                  <p className="text-[10px] uppercase font-bold text-tsc tracking-wider">Cleared Timestamp</p>
-                  <p className="text-xs font-mono text-on-surface mt-0.5">May 28, 14:25 UTC</p>
+                  <p className="text-[10px] uppercase font-bold text-tsc tracking-wider">Status</p>
+                  <p className="text-xs font-mono text-on-surface mt-0.5">{payout?.status ?? "—"}</p>
                 </div>
               </div>
               <div className="bg-error-container/40 p-4 rounded-xl space-y-2.5">
@@ -880,11 +888,11 @@ export function PayoutDetailStitchPage() {
                 <ul className="space-y-1.5 text-xs text-on-surface-variant leading-relaxed">
                   <li className="flex items-start gap-2">
 <MsIcon name="account_balance_wallet" className="text-error text-[15px] shrink-0 mt-0.5" />
-                    <span><strong className="text-on-surface font-semibold">Balance Restoration:</strong> Net trader disbursement ($19,600.00 USD) will be credited back to MT5-882049 ledger equity, and High-Water Mark will be recalibrated.</span>
+                    <span><strong className="text-on-surface font-semibold">Balance Restoration:</strong> Net trader disbursement ({displayNet}) will be credited back to the trader ledger and balances recalibrated (demo).</span>
                   </li>
                   <li className="flex items-start gap-2">
 <MsIcon name="receipt_long" className="text-error text-[15px] shrink-0 mt-0.5" />
-                    <span><strong className="text-on-surface font-semibold">Treasury Correction:</strong> GL Account #2100 journal voucher #REV-94102 will be recorded to reverse the firm profit allocation ($4,900.00).</span>
+                    <span><strong className="text-on-surface font-semibold">Treasury Correction:</strong> A reversal decision will be recorded for {displayRef} ({displayAmount}).</span>
                   </li>
                   <li className="flex items-start gap-2">
 <MsIcon name="link_off" className="text-tertiary text-[15px] shrink-0 mt-0.5" />
@@ -943,9 +951,32 @@ export function PayoutDetailStitchPage() {
                 <span className="font-mono text-[10px] tracking-wider uppercase font-bold text-on-surface-variant">HSM DUAL-KEY AUTH REQUIRED · SESSION #LDN-VANCE-84</span>
               </div>
               <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
-                <button className="px-4 py-2 rounded-lg bg-surface-container-highest hover:bg-surface-container text-xs font-bold text-on-surface transition-colors" type="button" onClick={() => setSo1(false)}>                  Cancel &amp; Keep Settled</button>
-                <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-error hover:bg-on-error-container text-on-error text-xs font-bold shadow-sm transition-all hover:shadow" type="button" onClick={() => { toast({ title: "Payout reversed", description: "PO-94102 clawback initiated — $24,500.00 returned to treasury pending compliance review.", variant: "destructive" }); setSo1(false); }}>
-                  <span>Confirm &amp; Reverse Payout ($24,500.00)</span>
+                <button className="px-4 py-2 rounded-lg bg-surface-container-highest hover:bg-surface-container text-xs font-bold text-on-surface transition-colors" type="button" onClick={() => setSo1(false)}>Cancel &amp; Keep Settled</button>
+                <button
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-error hover:bg-on-error-container text-on-error text-xs font-bold shadow-sm transition-all hover:shadow"
+                  type="button"
+                  onClick={() => {
+                    if (!payout?.reference) {
+                      toast({ title: "No payout selected", description: "Open a payout from the list to reverse it.", variant: "destructive" });
+                      setSo1(false);
+                      return;
+                    }
+                    const result = applyPayoutDecision(payout.reference, "rejected", {
+                      reason: "Ledger reversal / clawback (stitch detail)",
+                    });
+                    if (!result.ok) {
+                      toast({ title: "Reversal blocked", description: result.reason, variant: "destructive" });
+                    } else {
+                      toast({
+                        title: "Payout reversed",
+                        description: `${payout.reference} reversed — ${formatCurrency(payout.amount, currency)} marked rejected (clawback).`,
+                        variant: "destructive",
+                      });
+                    }
+                    setSo1(false);
+                  }}
+                >
+                  <span>Confirm &amp; Reverse Payout ({displayAmount})</span>
 <MsIcon name="warning" className="text-[15px]" />
                 </button>
               </div>

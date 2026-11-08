@@ -630,6 +630,9 @@ export function CheckoutPage() {
               {processing ? "Processing…" : `Pay ${formatMoney(total)}`}
             </button>
             <p className="text-center text-[11px] text-on-surface-variant">
+              Demo environment: payment attempts are simulated; the first two declines are scripted.
+            </p>
+            <p className="text-center text-[11px] text-on-surface-variant">
               By continuing you agree to the{" "}
               <Link href="/terms" className="text-primary hover:underline">
                 Terms &amp; Policies
