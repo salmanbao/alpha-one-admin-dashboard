@@ -279,15 +279,35 @@ function seedState(): ConsoleState {
 /* Store plumbing                                                      */
 /* ------------------------------------------------------------------ */
 
-let state: ConsoleState = seedState();
+const STORAGE_KEY = "pfaas:platform-admin:console-store";
+function loadState(): ConsoleState {
+  if (typeof window === "undefined") return seedState();
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return seedState();
+    const parsed = JSON.parse(raw) as ConsoleState;
+    if (!parsed || !Array.isArray(parsed.audit)) return seedState();
+    return parsed;
+  } catch {
+    return seedState();
+  }
+}
+let state: ConsoleState = loadState();
 // Stable server snapshot (same reference every call) — required by
 // useSyncExternalStore during SSR/hydration.
-const SERVER_STATE: ConsoleState = state;
+const SERVER_STATE: ConsoleState = seedState();
 const listeners = new Set<() => void>();
 let sweeper: ReturnType<typeof setInterval> | null = null;
 
 function emit(next: ConsoleState) {
   state = next;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      /* ignore */
+    }
+  }
   for (const l of listeners) l();
 }
 
