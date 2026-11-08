@@ -20,6 +20,7 @@ import { markJourney } from "@/lib/onboarding/journey-store";
 import { readProvisioningHandoff } from "@/lib/onboarding/provisioning-handoff";
 import { emitLifecycle } from "@pfaas/lifecycle";
 import { getProvisioningProgress } from "@/lib/status-progression";
+import { useTraderStage, stageMeta } from "@/lib/lifecycle/trader-stage";
 
 const stages = [
   { label: "Payment confirmed", note: "Order confirmed" },
@@ -36,6 +37,13 @@ const DEMO_PURCHASED_AT_FALLBACK = "2026-11-08T10:00:00Z";
 export function AccountProvisioningPage() {
   const [purchasedAt, setPurchasedAt] = useState<string | null>(null);
 
+  // R2-W3-02 — header badge derives from the same TraderStage every other
+  // surface reads (lifecycle log), so it can never disagree with the
+  // dashboard banner. "Active" still requires the actuator: the real
+  // provisioning completion (facts.provisioned || page progress complete).
+  const stageState = useTraderStage();
+  const stageLabel = stageMeta(stageState).label;
+
   useEffect(() => {
     const handoff = readProvisioningHandoff();
     setPurchasedAt(handoff?.purchasedAt ?? DEMO_PURCHASED_AT_FALLBACK);
@@ -44,6 +52,7 @@ export function AccountProvisioningPage() {
   const progress = getProvisioningProgress(purchasedAt ?? undefined);
   const { done, total, complete } = progress;
   const pct = Math.round((done / total) * 100);
+  const active = stageState.facts.provisioned || complete;
 
   // Mark provisioned once when complete (idempotent; effect is safe), and
   // publish the provisioning lifecycle (R2-W3-01): one event updates the
@@ -77,13 +86,13 @@ export function AccountProvisioningPage() {
         title="Account Provisioning"
         description="Your trading account is being created"
         actions={
-          complete ? (
+          active ? (
             <TerraBadge tone="success" dot>
               Active
             </TerraBadge>
           ) : (
             <TerraBadge tone="tertiary" dot pulse>
-              Provisioning
+              {stageLabel} · Provisioning
             </TerraBadge>
           )
         }

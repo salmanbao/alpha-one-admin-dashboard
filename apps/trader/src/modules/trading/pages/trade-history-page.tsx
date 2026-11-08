@@ -342,7 +342,6 @@ export function TradeHistoryPage() {
            ticket quick-view buttons, Home/End jump to the first/last row,
            Enter opens the focused trade (native button activation) and
            Escape closes the dialog (Radix) — audit: keyboard-only review. */
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
         <div
           role="group"
           aria-label="Trade history table — use arrow keys to move between rows, Enter to open a trade"

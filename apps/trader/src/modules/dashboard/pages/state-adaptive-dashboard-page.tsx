@@ -1,9 +1,26 @@
 "use client";
 
 /**
- * State-Adaptive Dashboard — converted from stitch_screens/state_adaptive_dashboard
- * Lifecycle simulator: switch account states (purchased → … → breached) and
- * see the dashboard banner, CTA and stats adapt.
+ * Lifecycle Simulator dev tool — R2-W3-02 (replaces the old state-adaptive
+ * dashboard mock).
+ *
+ * The old page kept a 10-state `stateConfigs` table in component state and
+ * re-rendered a fake banner from it — nothing it "switched" touched any real
+ * store, so the simulator could claim "funded live" while the dashboard said
+ * otherwise (R4: dead code deleted same commit as its replacement).
+ *
+ * This page is now a dev tool over the SAME lifecycle log every real surface
+ * reads (lib/lifecycle/trader-stage.ts):
+ *
+ *   - stage buttons call setTraderStage(), which emits the prerequisite
+ *     events — the dashboard banner, journey checklist, provisioning header
+ *     and prop-admin's cross-app intake all update from them immediately;
+ *   - the banner shown here is the shared <TraderStageBanner />, i.e. the
+ *     exact component the dashboard renders (no parallel copy);
+ *   - the event panel tails the shared log live;
+ *   - "Clear log" resets it (loudly: it also empties prop-admin intake).
+ *
+ * Gated in the sidebar by the existing `lifecycle.simulator` feature flag.
  */
 
 import { useState } from "react";
@@ -12,147 +29,40 @@ import { cn } from "@pfaas/ui";
 import {
   TerraBadge,
   TerraCard,
-  TerraProgress,
   TerraSectionTitle,
-  TerraStat,
-  formatMoney,
 } from "@/components/terra/terra-ui";
+import { lifecycleStageLabel, useLifecycleLog } from "@pfaas/lifecycle";
+import { TraderStageBanner } from "@/components/terra/trader-stage-banner";
+import {
+  TRADER_STAGES,
+  resetLifecycleLog,
+  setTraderStage,
+  stageMeta,
+  useTraderStage,
+  type TraderStage,
+} from "@/lib/lifecycle/trader-stage";
 
-type StateKey =
-  | "purchased"
-  | "kyc"
-  | "provisioning"
-  | "active_eval"
-  | "near_target"
-  | "passed"
-  | "funded_live"
-  | "payout_eligible"
-  | "payout_processing"
-  | "breached";
-
-interface StateConfig {
-  label: string;
-  icon: string;
-  title: string;
-  message: string;
-  tone: "primary" | "tertiary" | "error" | "secondary";
-  cta: { label: string; href: string };
-  progress: number;
-  progressLabel: string;
-}
-
-const stateConfigs: Record<StateKey, StateConfig> = {
-  purchased: {
-    label: "Purchased (No KYC)",
-    icon: "🛒",
-    title: "Challenge purchased!",
-    message: "Complete KYC to unlock account provisioning.",
-    tone: "primary",
-    cta: { label: "Start KYC", href: "/verification" },
-    progress: 10,
-    progressLabel: "Purchased",
-  },
-  kyc: {
-    label: "KYC Required",
-    icon: "🪪",
-    title: "Verification needed",
-    message: "Upload your ID and proof of address to continue.",
-    tone: "tertiary",
-    cta: { label: "Continue KYC", href: "/verification" },
-    progress: 25,
-    progressLabel: "KYC in progress",
-  },
-  provisioning: {
-    label: "Provisioning",
-    icon: "⚙️",
-    title: "Account being provisioned",
-    message: "Your credentials will arrive within the hour.",
-    tone: "secondary",
-    cta: { label: "View progress", href: "/account-provisioning" },
-    progress: 45,
-    progressLabel: "Provisioning",
-  },
-  active_eval: {
-    label: "Active Evaluation",
-    icon: "📈",
-    title: "Evaluation active",
-    message: "Trade within the rules and hit your profit target.",
-    tone: "primary",
-    cta: { label: "Open trading", href: "/trading-positions" },
-    progress: 30,
-    progressLabel: "30% to target",
-  },
-  near_target: {
-    label: "Near Target (82%)",
-    icon: "🎯",
-    title: "82% toward your profit target",
-    message: "$2,460 of $3,000 reached — stay disciplined.",
-    tone: "primary",
-    cta: { label: "Continue Trading", href: "/trading-positions" },
-    progress: 82,
-    progressLabel: "82% to target",
-  },
-  passed: {
-    label: "Passed Phase",
-    icon: "🏆",
-    title: "Phase complete!",
-    message: "Phase 2 unlocks after credentials are issued.",
-    tone: "primary",
-    cta: { label: "See next steps", href: "/evaluation-passed" },
-    progress: 100,
-    progressLabel: "Phase complete",
-  },
-  funded_live: {
-    label: "Funded Live",
-    icon: "💰",
-    title: "You're funded",
-    message: "Live capital with an 85/15 profit split.",
-    tone: "primary",
-    cta: { label: "Open trading", href: "/trading-positions" },
-    progress: 100,
-    progressLabel: "Funded",
-  },
-  payout_eligible: {
-    label: "Payout Eligible",
-    icon: "💸",
-    title: "Payout window open",
-    message: "Request your profit split — available now.",
-    tone: "primary",
-    cta: { label: "Request payout", href: "/payout-request" },
-    progress: 100,
-    progressLabel: "Payout eligible",
-  },
-  payout_processing: {
-    label: "Payout Processing",
-    icon: "⏳",
-    title: "Payout in progress",
-    message: "Your payout is being processed and will arrive soon.",
-    tone: "tertiary",
-    cta: { label: "Track payout", href: "/payout-history" },
-    progress: 100,
-    progressLabel: "Payout processing",
-  },
-  breached: {
-    label: "Breached",
-    icon: "⚠️",
-    title: "Account breached",
-    message: "A risk rule was exceeded — the account is closed.",
-    tone: "error",
-    cta: { label: "See options", href: "/account-breach" },
-    progress: 0,
-    progressLabel: "Breached",
-  },
+const stageButtonLabel: Record<TraderStage, string> = {
+  browsing: "Browsing",
+  purchased: "Purchased",
+  verifying: "Verifying",
+  provisioned: "Provisioned",
+  funded: "Funded",
+  "payout-ready": "Payout ready",
 };
 
-const stateKeys = Object.keys(stateConfigs) as StateKey[];
-
 export function StateAdaptiveDashboardPage() {
-  const [state, setState] = useState<StateKey>("near_target");
-  const cfg = stateConfigs[state];
+  const stageState = useTraderStage();
+  const meta = stageMeta(stageState);
+  const log = useLifecycleLog();
+  const [clearedAt, setClearedAt] = useState<string | null>(null);
+
+  // Newest first, capped so the panel can't outgrow the page.
+  const recent = [...log].reverse().slice(0, 12);
 
   return (
     <div className="space-y-6">
-      {/* State simulator bar */}
+      {/* Simulator bar — writes the shared lifecycle log */}
       <section className="-mx-4 bg-surface-container-high/80 px-4 py-3.5 shadow-sm sm:-mx-6 sm:px-6 lg:-mx-12 lg:px-12">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2.5">
@@ -161,114 +71,125 @@ export function StateAdaptiveDashboardPage() {
             </span>
             <div className="flex flex-col">
               <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                State-Adaptive Lifecycle Simulator
+                Lifecycle Simulator <span className="text-secondary">(dev)</span>
               </span>
               <span className="text-[11px] text-secondary">
-                Switch account states in real-time
+                Writes real events to the shared lifecycle log — gated by the{" "}
+                <code className="rounded bg-surface px-1">lifecycle.simulator</code> feature flag
               </span>
             </div>
           </div>
           <div className="scrollbar-none flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-            {stateKeys.map((k) => (
+            {TRADER_STAGES.map((stage) => (
               <button
-                key={k}
+                key={stage}
                 type="button"
-                onClick={() => setState(k)}
+                onClick={() => {
+                  setTraderStage(stage);
+                  setClearedAt(null);
+                }}
                 className={cn(
                   "whitespace-nowrap rounded-lg px-3 py-1.5 text-xs transition-all",
-                  state === k
-                    ? k === "breached"
-                      ? "bg-error font-bold text-on-error"
-                      : "bg-primary font-bold text-on-primary shadow-sm"
+                  stageState.stage === stage
+                    ? "bg-primary font-bold text-on-primary shadow-sm"
                     : "bg-surface font-medium text-on-surface-variant hover:bg-surface-variant",
                 )}
+                aria-pressed={stageState.stage === stage}
               >
-                {stateConfigs[k].label}
+                {stageButtonLabel[stage]}
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Dynamic banner */}
-      <TerraCard
-        className={cn(
-          "relative overflow-hidden",
-          cfg.tone === "error" && "bg-error-container/50",
-          cfg.tone === "tertiary" && "bg-tertiary-fixed/40",
-          cfg.tone === "secondary" && "bg-secondary-fixed/60",
-          cfg.tone === "primary" && "bg-gradient-to-r from-primary-fixed-dim/30 via-tertiary-fixed/30 to-secondary-container",
-        )}
-      >
-        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3.5">
-            <span
-              className={cn(
-                "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl shadow-sm",
-                cfg.tone === "error" ? "bg-error text-on-error" : "bg-primary text-on-primary",
-              )}
-            >
-              {cfg.icon}
-            </span>
-            <div>
-              <p className="font-headline text-lg font-bold text-on-surface">{cfg.title}</p>
-              <p className="text-sm text-on-surface-variant">{cfg.message}</p>
-            </div>
-          </div>
-          <Link
-            href={cfg.cta.href}
-            className={cn(
-              "group inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold shadow-sm transition-all active:scale-95",
-              cfg.tone === "error"
-                ? "bg-error text-on-error hover:bg-error/90"
-                : "bg-primary text-on-primary hover:bg-primary/90",
-            )}
-          >
-            {cfg.cta.label} →
-          </Link>
-        </div>
-      </TerraCard>
+      {/* The REAL dashboard banner component — same derivation, same copy. */}
+      <TraderStageBanner />
 
-      {/* Adapted progress + stats */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Live tail of the shared log */}
         <TerraCard className="lg:col-span-2">
-          <TerraSectionTitle title={cfg.progressLabel} />
-          <TerraProgress value={cfg.progress} height="h-3" />
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <TerraStat label="Balance" value={formatMoney(101860)} tone="positive" />
-            <TerraStat label="Equity" value={formatMoney(102140.5)} tone="positive" />
-            <TerraStat label="Daily Loss Left" value={formatMoney(1200)} />
-            <TerraStat label="Max DD Left" value={formatMoney(7850)} />
+          <div className="flex items-center justify-between">
+            <TerraSectionTitle title={`Shared lifecycle log (${log.length} events)`} />
+            <button
+              type="button"
+              onClick={() => {
+                resetLifecycleLog();
+                setClearedAt(new Date().toLocaleTimeString());
+              }}
+              className="rounded-lg border border-error/40 px-3 py-1.5 text-xs font-semibold text-error transition-colors hover:bg-error-container/40"
+            >
+              Clear shared lifecycle log (dev)
+            </button>
           </div>
+          <p className="mb-2 text-[11px] text-on-surface-variant">
+            Persisted under <code className="rounded bg-surface px-1">pfaas:demo:lifecycle-log</code>. On the
+            demo gateway (:81) this is ONE key shared by all three apps — clearing it also empties
+            prop-admin&apos;s cross-app intake.
+          </p>
+          {clearedAt ? (
+            <p className="text-xs text-on-surface-variant">Log cleared at {clearedAt}.</p>
+          ) : recent.length === 0 ? (
+            <p className="text-xs text-on-surface-variant">
+              Empty — pick a stage above, or complete a real flow (purchase, verification, payout).
+            </p>
+          ) : (
+            <ol className="space-y-1.5 text-xs">
+              {recent.map((e) => (
+                <li
+                  key={e.id}
+                  className="flex flex-wrap items-center gap-2 rounded-lg bg-surface-container-low px-3 py-1.5"
+                >
+                  <span className="font-mono text-[10px] text-on-surface-variant">{e.id.split(":")[0]}</span>
+                  <span className="font-semibold text-on-surface">{lifecycleStageLabel(e.name)}</span>
+                  <span className="text-on-surface-variant">
+                    {e.entity.kind}:{e.entity.id}
+                  </span>
+                  <TerraBadge tone={e.actor === "trader" ? "primary" : "secondary"}>{e.actor}</TerraBadge>
+                  <span className="ml-auto tabular-nums text-on-surface-variant">
+                    {new Date(e.at).toLocaleTimeString()}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
         </TerraCard>
 
+        {/* Derived stage + what it drives */}
         <TerraCard>
-          <TerraSectionTitle title="Lifecycle" />
-          <div className="space-y-1.5 text-xs">
-            {[
-              "Purchased",
-              "KYC Required",
-              "Provisioning",
-              "Active",
-              "Near Target",
-              "Passed",
-              "Funded",
-              "Payout Eligible",
-            ].map((l) => {
-              const active = cfg.label.toLowerCase().includes(l.toLowerCase().split(" ")[0]);
-              return (
-                <div
-                  key={l}
-                  className={cn(
-                    "flex items-center justify-between rounded-lg px-3 py-1.5",
-                    active ? "bg-primary-fixed font-bold text-on-primary-fixed-variant" : "text-on-surface-variant",
-                  )}
-                >
-                  <span>{l}</span>
-                  {active && <TerraBadge tone="primary">Current</TerraBadge>}
+          <TerraSectionTitle title="Derived stage" />
+          <div className="space-y-3 text-xs">
+            <div className="rounded-lg bg-primary-fixed px-3 py-2 font-bold text-on-primary-fixed-variant">
+              {meta.label} — {meta.progress}%
+            </div>
+            <p className="text-on-surface-variant">{meta.message}</p>
+            <div className="space-y-1 text-on-surface-variant">
+              <p className="font-semibold text-on-surface">Facts</p>
+              {(
+                [
+                  ["purchased", "purchase.completed"],
+                  ["kycSubmitted", "kyc.submitted / reviewing"],
+                  ["kycApproved", "kyc.approved"],
+                  ["provisioningUnderway", "provisioning.started"],
+                  ["provisioned", "provisioning.activated"],
+                  ["funded", "challenge.funded"],
+                  ["payoutRequested", "payout.requested"],
+                ] as const
+              ).map(([fact, eventName]) => (
+                <div key={fact} className="flex items-center justify-between rounded px-2 py-1">
+                  <span>{eventName}</span>
+                  <span className={stageState.facts[fact] ? "font-bold text-success" : "text-on-surface-variant/60"}>
+                    {stageState.facts[fact] ? "✓" : "—"}
+                  </span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+            <Link
+              href="/dashboard"
+              className="block rounded-lg bg-primary px-3 py-2 text-center font-bold text-on-primary hover:bg-primary/90"
+            >
+              See it on the dashboard →
+            </Link>
           </div>
         </TerraCard>
       </div>

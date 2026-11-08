@@ -40,6 +40,7 @@ import { AccountSwitcher } from "@/components/shell/account-switcher";
 import { GettingStartedTour } from "@/components/onboarding/getting-started-tour";
 import { PayoutSummaryStrip } from "@/components/terra/payout-summary-strip";
 import { KycStatusCard } from "@/components/terra/kyc-status-card";
+import { TraderStageBanner } from "@/components/terra/trader-stage-banner";
 import { ChallengeRulesDialog } from "@/components/terra/challenge-rules-dialog";
 import { OutageRecoveryBanner } from "@/components/terra/outage-recovery-banner";
 
@@ -170,6 +171,10 @@ export function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* R2-W3-02 — the single TraderStage (lifecycle log) drives this
+          banner, the journey checklist and the provisioning header. */}
+      <TraderStageBanner />
 
       {/* First-use onboarding tour (audit #3 fix #6) — dismissible
           checklist for new traders; hidden once dismissed/completed. */}

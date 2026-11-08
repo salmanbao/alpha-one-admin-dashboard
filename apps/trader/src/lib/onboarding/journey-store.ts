@@ -10,9 +10,10 @@
  *
  *   Purchased     → journey flag, written by /purchase-completed
  *                   (the order-confirmation surface)
- *   Verified      → derived from the SF-01 verification draft
- *                   (sessionStorage `submitted` — the wizard stays the
- *                   single source of KYC state, nothing to drift)
+ *   Verified      → derived from the lifecycle log's `kyc.approved`
+ *                   (emitted by the SF-01 verification store on approval —
+ *                   the wizard stays the single writer, the log the single
+ *                   reader)
  *   Provisioned   → journey flag, written by /account-provisioning
  *   Credentialed  → journey flag, written by /trading-credentials
  *   First trade   → journey flag, written by the order ticket when an
@@ -35,7 +36,7 @@
  */
 
 import { useSyncExternalStore } from "react";
-import { readVerificationDraft } from "@/lib/verification/verification-store";
+import { readLifecycleLog, useLifecycleLog } from "@pfaas/lifecycle";
 
 export type JourneyStepId =
   | "purchased"
@@ -97,13 +98,21 @@ function readFlags(): Record<WritableJourneyStep, boolean> {
   }
 }
 
-function readJourneyDone(): Record<JourneyStepId, boolean> {
+/** Non-reactive read of the checklist — exported for the stage-check script. */
+export function readJourneyDone(): Record<JourneyStepId, boolean> {
   const flags = readFlags();
+  // "Verified" comes from the lifecycle log (R2-W3-01/02): the verification
+  // store emits `kyc.approved` on the exact write that approves, so the
+  // checklist, dashboard card and provisioning page all flip together —
+  // no second derivation of the same fact.
+  const verified = readLifecycleLog().some(
+    (e) => e.entity.kind === "kyc" && e.entity.id === "self" && e.name === "kyc.approved",
+  );
   // Fixed key order → JSON.stringify is referentially stable across
   // renders when nothing changed (useSyncExternalStore requirement).
   return {
     purchased: flags.purchased,
-    verified: readVerificationDraft().reviewStatus === "approved",
+    verified,
     provisioned: flags.provisioned,
     credentialed: flags.credentialed,
     firstTrade: flags.firstTrade,
@@ -143,6 +152,9 @@ export function readJourney(): Record<JourneyStepId, boolean> {
 
 /** Reactive done-map for the checklist surfaces. */
 export function useJourneyDone(): Record<JourneyStepId, boolean> {
+  // R2-W3-02 — the log is a second source of "verified", so subscribe to it
+  // too: a KYC verdict re-renders the checklist without touching storage.
+  useLifecycleLog();
   const raw = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   return JSON.parse(raw) as Record<JourneyStepId, boolean>;
 }
