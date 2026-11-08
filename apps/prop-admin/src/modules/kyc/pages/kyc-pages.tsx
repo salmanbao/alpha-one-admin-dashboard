@@ -218,15 +218,53 @@ function KycDocumentViewer({ record, open, onOpenChange }: {
   onOpenChange: (o: boolean) => void;
 }) {
   const docLabel = record.documentType.replace("-", " ");
+  // Deterministic seeded SVG "scans" (R2-W2-01) — derived from record id
+  // so the same record always renders the same artifact.
+  const seed = record.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const initials = record.traderName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const mkSvg = (kind: "front" | "back" | "selfie") => {
+    const bg = kind === "selfie" ? "#e8e0d4" : "#f4efe6";
+    const accent = kind === "selfie" ? "#4a7c59" : "#705c30";
+    const label =
+      kind === "front"
+        ? `${docLabel.toUpperCase()} · FRONT`
+        : kind === "back"
+          ? `${docLabel.toUpperCase()} · BACK / MRZ`
+          : "SELFIE / LIVENESS";
+    const body =
+      kind === "selfie"
+        ? `<circle cx="100" cy="70" r="36" fill="${accent}" opacity="0.18"/>
+           <circle cx="100" cy="60" r="22" fill="${accent}" opacity="0.35"/>
+           <rect x="60" y="95" width="80" height="40" rx="20" fill="${accent}" opacity="0.25"/>`
+        : `<rect x="14" y="14" width="172" height="4" fill="${accent}" opacity="0.5"/>
+           <rect x="14" y="24" width="90" height="3" fill="#8a7a60" opacity="0.4"/>
+           <rect x="14" y="32" width="120" height="3" fill="#8a7a60" opacity="0.4"/>
+           <text x="100" y="78" text-anchor="middle" font-size="26" font-weight="700" fill="${accent}">${initials}</text>
+           ${kind === "back" ? `<text x="14" y="118" font-size="9" font-family="monospace" fill="#5a4a30">P&lt;${record.country.slice(0, 3).toUpperCase()}${record.traderName.replace(/[^A-Z]/g, "").slice(0, 12).padEnd(12, "<")}...</text>` : ""}`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="140" viewBox="0 0 200 140">
+      <rect width="200" height="140" fill="${bg}" rx="8"/>
+      <rect x="6" y="6" width="188" height="128" fill="none" stroke="${accent}" stroke-width="1.5" stroke-dasharray="4 3" rx="6" opacity="0.5"/>
+      ${body}
+      <text x="100" y="132" text-anchor="middle" font-size="9" font-weight="600" fill="${accent}" letter-spacing="1">${label}</text>
+      <text x="190" y="12" text-anchor="end" font-size="8" fill="#8a7a60" opacity="0.6">seed ${seed % 9999}</text>
+    </svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  };
+
   const docs = [
-    { id: "front", title: `${docLabel} (front)`, detail: `${record.country} · uploaded ${new Date(record.submittedAt).toLocaleDateString()}` },
-    { id: "back", title: `${docLabel} (back)`, detail: "MRZ / barcode region" },
-    { id: "selfie", title: "Selfie / liveness", detail: "Face match score 94%" },
+    { id: "front", title: `${docLabel} (front)`, detail: `${record.country} · uploaded ${new Date(record.submittedAt).toLocaleDateString()}`, src: mkSvg("front") },
+    { id: "back", title: `${docLabel} (back)`, detail: "MRZ / barcode region", src: mkSvg("back") },
+    { id: "selfie", title: "Selfie / liveness", detail: "Face match score 94%", src: mkSvg("selfie") },
   ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSearch className="h-4 w-4" /> Document review — {record.traderName}
@@ -237,9 +275,14 @@ function KycDocumentViewer({ record, open, onOpenChange }: {
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-3">
           {docs.map((d) => (
-            <div key={d.id} className="rounded-lg border bg-muted/30 p-3">
-              <div className="mb-2 flex h-24 items-center justify-center rounded-md border border-dashed bg-card text-xs text-muted-foreground">
-                <FileText className="h-6 w-6" />
+            <div key={d.id} className="rounded-lg border bg-muted/30 p-2 space-y-1.5">
+              <div className="overflow-hidden rounded-md border bg-card">
+                <img
+                  src={d.src}
+                  alt={d.title}
+                  className="h-32 w-full object-cover transition-transform hover:scale-105"
+                  style={{ imageRendering: "auto" }}
+                />
               </div>
               <p className="text-xs font-medium">{d.title}</p>
               <p className="text-[10px] text-muted-foreground">{d.detail}</p>
