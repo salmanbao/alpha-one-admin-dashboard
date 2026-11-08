@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver } from "@/lib/platform/terminology";
 import { getTenantAffiliates, affiliateCampaigns, type Affiliate, type AffiliateCampaign } from "@/lib/platform/mock-data";
+import { payCommission, useAffiliatePayouts } from "@/modules/affiliates/affiliate-payouts-store";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { demoAffiliateKpisSchema, type DemoAffiliateKpi } from "@/lib/platform/validation";
@@ -355,6 +356,8 @@ export function AffiliateCommissionsPage() {
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
   const aff = getTenantAffiliates(tid);
+  const paidPayouts = useAffiliatePayouts(tid);
+  const paidIds = new Set(paidPayouts.map((p) => p.affiliateId));
   const earned = aff.reduce((s, a) => s + a.commissionEarned, 0);
   const pending = aff.reduce((s, a) => s + a.commissionPending, 0);
   const totalConversions = aff.reduce((s, a) => s + a.conversions, 0);
@@ -382,6 +385,35 @@ export function AffiliateCommissionsPage() {
       header: "Status",
       cell: (a) => <StatusBadge tone={affiliateStatusTone(a.status)} className="capitalize">{a.status}</StatusBadge>,
       sortValue: (a) => a.status,
+    },
+    {
+      key: "pay",
+      header: "Action",
+      cell: (a) => {
+        const alreadyPaid = paidIds.has(a.id);
+        return alreadyPaid ? (
+          <span className="text-xs text-emerald-600 font-medium">Paid</span>
+        ) : a.commissionPending > 0 ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              payCommission({
+                affiliateId: a.id,
+                affiliateName: a.name,
+                tenantId: tid,
+                amount: a.commissionPending,
+                currency,
+              });
+              toast({ title: "Commission paid", description: `${a.name} — ${formatCurrency(a.commissionPending, currency)}` });
+            }}
+          >
+            Pay commission
+          </Button>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        );
+      },
     },
   ];
 
