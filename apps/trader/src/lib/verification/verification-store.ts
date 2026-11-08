@@ -130,6 +130,35 @@ export const identityValidators: Record<keyof VerificationIdentity, (value: stri
 /* Draft                                                               */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Review lifecycle for a verification submission.
+ *
+ *   not-started  → nothing done yet (dashboard shows "Not started")
+ *   draft        → identity/documents being worked on, not yet sent
+ *   submitted    → just handed in, awaiting first review
+ *   in-review    → actively under compliance review
+ *   approved     → KYC approved, payouts unlocked
+ *   rejected     → sent back with reasons; attempts count toward maxAttempts
+ */
+export type VerificationReviewStatus =
+  | "not-started"
+  | "draft"
+  | "submitted"
+  | "in-review"
+  | "approved"
+  | "rejected";
+
+const submittedReviewStatuses: VerificationReviewStatus[] = [
+  "submitted",
+  "in-review",
+  "approved",
+  "rejected",
+];
+
+export function isVerificationSubmitted(draft: VerificationDraft): boolean {
+  return submittedReviewStatuses.includes(draft.reviewStatus);
+}
+
 export interface VerificationDraft {
   /** Identity values as typed — restored on return to the wizard. */
   identity: VerificationIdentity;
@@ -139,9 +168,20 @@ export interface VerificationDraft {
   documents: Partial<Record<VerificationDocKey, VerificationDocFile>>;
   /** The documents step was confirmed (Continue). */
   documentsDone: boolean;
+  /**
+   * Where the submission is in the review lifecycle — the single source
+   * of truth for "where is my KYC" read by the dashboard card, payout
+   * eligibility and the status step (W1-02).
+   */
+  reviewStatus: VerificationReviewStatus;
   /** Submitted for review — lands the trader on the status step. */
   submitted: boolean;
   submittedAt?: string;
+  /** Resubmission attempts used / allowed (retry path). */
+  attempts: number;
+  maxAttempts: number;
+  /** Set when reviewStatus === "rejected" — plain-language reasons. */
+  rejectionReasons?: string[];
 }
 
 export function emptyVerificationDraft(): VerificationDraft {
@@ -150,7 +190,10 @@ export function emptyVerificationDraft(): VerificationDraft {
     identityDone: false,
     documents: {},
     documentsDone: false,
+    reviewStatus: "not-started",
     submitted: false,
+    attempts: 0,
+    maxAttempts: 3,
   };
 }
 
@@ -208,10 +251,11 @@ export function documentsComplete(draft: VerificationDraft): boolean {
 
 /**
  * The step a trader should see — completed steps are never re-rendered
- * (SF-01: "a returning user never re-sees a completed step").
+ * (SF-01: "a returning user never re-sees a completed step"). A draft
+ * that has been handed in (submitted or beyond) always opens on status.
  */
 export function stepFromDraft(draft: VerificationDraft): VerificationStepId {
-  if (draft.submitted) return "status";
+  if (isVerificationSubmitted(draft)) return "status";
   if (!draft.identityDone) return "identity";
   if (!(draft.documentsDone && documentsComplete(draft))) return "documents";
   return "review";

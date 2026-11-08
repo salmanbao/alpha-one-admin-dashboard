@@ -148,7 +148,13 @@ export function VerificationPage() {
   };
 
   const submitForReview = () => {
-    applyDraft({ ...draft, documentsDone: true, submitted: true, submittedAt: new Date().toISOString() });
+    applyDraft({
+      ...draft,
+      documentsDone: true,
+      reviewStatus: "submitted",
+      submitted: true,
+      submittedAt: new Date().toISOString(),
+    });
     setOverride(null);
     // Drop any ?state= demo preview — a fresh submission reads as
     // "reviewing", not whichever outcome was being previewed.
@@ -162,7 +168,12 @@ export function VerificationPage() {
   /** Status step → "Use the full resubmission form": keep the identity
    *  answers, drop back to documents with the previous files attached. */
   const startResubmission = () => {
-    applyDraft({ ...draft, submitted: false, documentsDone: false });
+    applyDraft({
+      ...draft,
+      submitted: false,
+      reviewStatus: "draft",
+      documentsDone: false,
+    });
     setOverride(null);
     router.replace("/verification");
   };
@@ -170,14 +181,26 @@ export function VerificationPage() {
   /* ── Status resolution (demo fixtures + preview param) ─────────── */
 
   const preview = params.get("state");
+  const baseStatus =
+    draft.reviewStatus === "approved"
+      ? "approved"
+      : draft.reviewStatus === "rejected"
+        ? "rejected"
+        : "reviewing";
   const submission: KycSubmission =
     preview === "rejected"
       ? rejectedKycSubmission
       : preview === "approved"
         ? { ...kycSubmission, status: "approved" }
-        : draft.submittedAt
-          ? { ...kycSubmission, submittedAt: draft.submittedAt }
-          : kycSubmission;
+        : {
+            ...kycSubmission,
+            status: baseStatus,
+            submittedAt: draft.submittedAt ?? kycSubmission.submittedAt,
+            attempts: draft.attempts,
+            maxAttempts: draft.maxAttempts,
+            rejectionReasons:
+              draft.reviewStatus === "rejected" ? draft.rejectionReasons : undefined,
+          };
 
   const statusTone = submission.status === "rejected" ? "error" : submission.status === "approved" ? "success" : "tertiary";
 
