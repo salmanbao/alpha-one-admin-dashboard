@@ -5,8 +5,10 @@
  * Live provisioning progress with stage checklist.
  */
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { TerraBadge, TerraCard, TerraPageHeader, TerraSectionTitle, TerraProgress } from "@/components/terra/terra-ui";
+import { markJourney } from "@/lib/onboarding/journey-store";
 
 const stages = [
   { label: "Payment confirmed", done: true, note: "Order TT-48210" },
@@ -20,6 +22,14 @@ const stages = [
 export function AccountProvisioningPage() {
   const done = stages.filter((s) => s.done).length;
   const pct = Math.round((done / stages.length) * 100);
+
+  // SF-02: this screen is the provisioning delivery surface — reaching
+  // it ticks "Provisioned" on the journey checklist (the demo stages
+  // are fixtures; a real backend would flip this from the provisioning
+  // webhook instead).
+  useEffect(() => {
+    markJourney("provisioned");
+  }, []);
 
   return (
     <div className="space-y-6">

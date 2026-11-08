@@ -10,7 +10,7 @@
  * cancelled.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@pfaas/ui";
 import {
@@ -22,6 +22,7 @@ import {
 import { marketWatch } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { useTrading } from "@/lib/trading/trading-context";
+import { markJourney } from "@/lib/onboarding/journey-store";
 
 const orderTypes = [
   "Market Execution",
@@ -83,6 +84,9 @@ export function OrderTicketPage() {
       sl: sl === "" ? null : Number(sl),
       tp: tp === "" ? null : Number(tp),
     });
+    // SF-02: an accepted order is the journey's "First trade" milestone
+    // — the dashboard/purchase checklists tick it from real store state.
+    markJourney("firstTrade");
     setSubmitted(true);
   };
 

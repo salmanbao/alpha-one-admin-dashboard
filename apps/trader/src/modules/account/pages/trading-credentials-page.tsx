@@ -6,6 +6,7 @@
  * platform download, and wired reset / web-terminal actions.
  */
 
+import { useEffect } from "react";
 import Link from "next/link";
 import {
   TerraBadge,
@@ -16,8 +17,16 @@ import {
 import { AccountCredentials } from "@/components/terra/account-credentials";
 import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
+import { markJourney } from "@/lib/onboarding/journey-store";
 
 export function TradingCredentialsPage() {
+  // SF-02: reaching the credentials screen is delivery in the demo —
+  // it ticks "Credentialed" on the journey checklist (a real backend
+  // would flip this when the delivery email lands).
+  useEffect(() => {
+    markJourney("credentialed");
+  }, []);
+
   const handleResetPassword = (login: string) => {
     toast({
       title: "Password reset requested",
