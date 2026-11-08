@@ -12,7 +12,7 @@ import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency } from "@/components/platform/status";
 import { ExplainableStateBadge } from "@/components/platform/state-explanations";
-import { DemoDataStamp } from "@/components/platform/demo-data";
+
 import { PayoutReviewActions } from "@/components/platform/contextual-actions";
 import { AttentionCenter } from "@/components/platform/attention-center";
 import { EmptyState } from "@/components/platform/guards";
@@ -338,7 +338,6 @@ export function PayoutsOverviewPage() {
         icon={Wallet}
         actions={
           <>
-            <DemoDataStamp label="Simulated queue" />
             <Button size="sm" variant="outline" onClick={handleExport}>Export</Button>
           </>
         }

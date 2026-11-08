@@ -18,10 +18,18 @@ import { toast } from "@/hooks/use-toast";
 // R3-F02 (hand-wired; regenerating this page drops the banner below):
 // the payout detail sheet must read the AML freeze state + block reason.
 import { payoutAmlBlock } from "@/modules/payouts/payout-store";
+import { getTenantPayouts, type Payout } from "@/lib/platform/mock-data";
+import { formatCurrency } from "@/components/platform/status";
 
 export function PayoutDetailStitchPage() {
-  const { router, navigate } = usePlatform();
-  const aml = payoutAmlBlock(router.params.id ?? "");
+  const { router, navigate, runtime } = usePlatform();
+  const tid = runtime.tenant?.id ?? "platform";
+  // Look up the payout by reference from real mock-data instead of
+  // hardcoded stitch poster data. The detail overlay passes { id: p.reference }
+  // via router.params.id.
+  const reference = router.params.id ?? "";
+  const payout = getTenantPayouts(tid).find((p) => p.reference === reference);
+  const aml = payoutAmlBlock(reference);
   const [so0, setSo0] = React.useState(false);
   const [so1, setSo1] = React.useState(false);
   return (
@@ -79,19 +87,29 @@ export function PayoutDetailStitchPage() {
           <div className="absolute -right-16 -top-16 w-56 h-56 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
           <div className="space-y-2">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="font-mono text-xl lg:text-2xl font-bold tracking-tight text-on-surface bg-surface-container-high px-3 py-1 rounded-lg">#PO-94102</span>
+              <span className="font-mono text-xl lg:text-2xl font-bold tracking-tight text-on-surface bg-surface-container-high px-3 py-1 rounded-lg">{payout?.reference ?? "#PO-94102"}</span>
               <button className="inline-flex items-center gap-1.5 text-xs text-primary font-semibold hover:bg-surface-container px-2.5 py-1 rounded-lg transition-colors" title="Copy Reference ID">
 <MsIcon name="content_copy" className="text-[16px]" />
                 <span>Copy Reference</span>
               </button>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-bold text-xs">
 <MsIcon name="check_circle" className="text-[14px]" />
-                SETTLED &amp; CLEARED
+                {payout
+                  ? payout.status === "paid"
+                    ? "SETTLED & CLEARED"
+                    : payout.status === "approved"
+                    ? "APPROVED"
+                    : payout.status === "processing"
+                    ? "PROCESSING"
+                    : payout.status === "rejected"
+                    ? "REJECTED"
+                    : "PENDING"
+                  : "SETTLED &amp; CLEARED"}
               </span>
               <span className="text-xs text-on-surface-variant font-medium bg-surface-container-low px-2.5 py-1 rounded-md">TxConf: 18 Blocks</span>
             </div>
             <div className="flex items-center gap-2 flex-wrap text-sm text-on-surface-variant">
-              <span className="font-semibold text-on-surface">Elena Althaus</span>
+              <span className="font-semibold text-on-surface">{payout?.traderName ?? "Elena Althaus"}</span>
               <span className="text-outline-variant">·</span>
               <span className="font-mono text-xs">elena.althaus@fintech-traders.de</span>
               <span className="text-outline-variant">·</span>
@@ -100,7 +118,7 @@ export function PayoutDetailStitchPage() {
                 MT5-882049 (Funded Master Tier 1)
               </span>
               <span className="text-outline-variant">·</span>
-              <span className="font-semibold text-on-surface">Gross: $24,500.00 USD</span>
+              <span className="font-semibold text-on-surface">Gross: {payout?.amount?.toLocaleString() ?? "$24,500.00" + " USD"}</span>
             </div>
           </div>
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
@@ -125,7 +143,7 @@ export function PayoutDetailStitchPage() {
 <MsIcon name="schedule" className="text-[16px] text-tertiary" />
             </div>
             <div>
-              <p className="font-headline font-bold text-sm text-on-surface">May 28, 2025</p>
+              <p className="font-headline font-bold text-sm text-on-surface">{payout?.createdAt ? new Date(payout.createdAt).toLocaleDateString("en-US") : "May 28, 2025"}</p>
               <p className="text-[11px] font-mono text-on-surface-variant">13:40:12 UTC</p>
             </div>
             <p className="text-[10px] text-primary font-semibold mt-2">Passed initial checks</p>
@@ -147,7 +165,7 @@ export function PayoutDetailStitchPage() {
 <MsIcon name="pie_chart" className="text-[16px] text-tertiary" />
             </div>
             <div>
-              <p className="font-headline font-bold text-sm text-primary">80% / 20%</p>
+              <p className="font-headline font-bold text-sm text-primary">{payout ? payout.profitSplit + "% / " + (100 - payout.profitSplit) + "%" : "80% / 20%"}</p>
               <p className="text-[11px] font-mono text-on-surface-variant">$19,600 / $4,900</p>
             </div>
             <p className="text-[10px] text-tsc font-semibold mt-2">Trader / Desk Ratio</p>
@@ -158,7 +176,7 @@ export function PayoutDetailStitchPage() {
 <MsIcon name="currency_exchange" className="text-[16px] text-primary" />
             </div>
             <div>
-              <p className="font-headline font-bold text-sm text-on-surface">USDT TRC-20</p>
+              <p className="font-headline font-bold text-sm text-on-surface">{payout?.method ?? "USDT TRC-20"}</p>
               <p className="text-[11px] text-on-surface-variant truncate">Tron · Hot Vault-01</p>
             </div>
             <p className="text-[10px] text-primary font-semibold mt-2">Direct Settlement</p>
@@ -180,7 +198,7 @@ export function PayoutDetailStitchPage() {
 <MsIcon name="done_all" className="text-[16px] text-primary" />
             </div>
             <div>
-              <p className="font-headline font-bold text-sm text-on-surface">May 28, 2025</p>
+              <p className="font-headline font-bold text-sm text-on-surface">{payout?.processedAt ? new Date(payout.processedAt).toLocaleDateString("en-US") : "May 28, 2025"}</p>
               <p className="text-[11px] font-mono text-on-surface-variant">14:25:08 UTC</p>
             </div>
             <p className="text-[10px] text-on-surface-variant mt-2">Block #68,912,402</p>
@@ -800,7 +818,7 @@ export function PayoutDetailStitchPage() {
                   <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
                   <span>Operator: <span className="font-semibold text-on-surface">Morgan Vance</span> (LDN-DESK-01)</span>
                 </div>
-                <span className="font-mono text-tsc">May 28, 2025 · 14:32 UTC</span>
+                <span className="font-mono text-tsc">{payout?.processedAt ? new Date(payout.processedAt).toLocaleDateString("en-US") + " · " + (payout.processedAt ? new Date(payout.processedAt).toLocaleTimeString() : "14:32 UTC") : "May 28, 2025 · 14:32 UTC"}</span>
               </div>
               <div className="flex items-center justify-end gap-3 pt-1">
                 <button className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors shadow-xs" id="cancel-note-btn" type="button" onClick={() => setSo0(false)}>                  Cancel</button>
