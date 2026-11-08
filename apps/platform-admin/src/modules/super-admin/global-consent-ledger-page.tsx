@@ -61,7 +61,7 @@ export function GlobalConsentLedgerPage(){
 
   return (
     <Page>
-      <PageHeader title="Global Consent & Suppression Ledger" description="Cross-tenant suppression for abuse prevention and regulator queries. Every row drills down to contributing-tenant receipts (N10) and delivery events." icon={Shield}
+      <PageHeader title="Global Consent & Suppression Ledger" description="Cross-tenant suppression for abuse prevention and regulator queries. Every row drills down to contributing-tenant receipts and delivery events." icon={Shield}
         actions={<Button size="sm" variant="outline" disabled={filtered.length===0} onClick={()=>{
           const res = exportSuppression(filtered, user?.name ?? "operator");
           if(!res.ok){ toast({title:"Nothing to export",variant:"destructive"}); return; }

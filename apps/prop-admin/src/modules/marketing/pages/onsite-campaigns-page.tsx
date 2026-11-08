@@ -28,7 +28,7 @@ export function OnsiteCampaignsPage(){
   ];
   return (
     <Page>
-      <PageHeader title="On-Site Studio" description="Campaign-grade popups, banners, slabs and inline units with trigger/targeting/frequency rules (M3 segments, N9 governance caps)." icon={MousePointerClick}
+      <PageHeader title="On-Site Studio" description="Campaign-grade popups, banners, slabs and inline units with trigger/targeting/frequency rules (segment targeting, governance caps)." icon={MousePointerClick}
         actions={<Button size="sm" onClick={()=>setOpen(true)}><Plus className="mr-1 h-4 w-4"/>New campaign</Button>} />
       <PageContent>
         <div className="grid gap-3 sm:grid-cols-4"><MetricCard label="Campaigns" value={String(rows.length)}/><MetricCard label="Active" value={String(rows.filter(r=>r.status==="active").length)} tone="positive"/><MetricCard label="Conversions" value={String(rows.reduce((s,r)=>s+r.conversions,0))} tone="positive"/><MetricCard label="Dismiss rate" value={`${rows.reduce((s,r)=>s+r.impressions,0)?Math.round(rows.reduce((s,r)=>s+r.dismissals,0)/rows.reduce((s,r)=>s+r.impressions,1)*100):0}%`}/></div>

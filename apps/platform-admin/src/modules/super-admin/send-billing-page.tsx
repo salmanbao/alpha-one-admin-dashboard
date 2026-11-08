@@ -321,7 +321,7 @@ export function SendBillingPage() {
           <TabsContent value="tenants" className="mt-3 space-y-3">
             <DataTable columns={tenantCols} data={rows} rowKey={(r) => r.id} pageSize={8} searchableText={(r) => `${r.tenant} ${r.tier}`} />
             <p className="text-[11px] text-muted-foreground">
-              Avg margin {avgMargin}% · rate card editable per channel (dummy). Depends on M2 send-gateway runtime for real metering (R2-F01).
+              Avg margin {avgMargin}% · rate card editable per channel (dummy). Depends on the send-gateway runtime for real metering.
             </p>
           </TabsContent>
 

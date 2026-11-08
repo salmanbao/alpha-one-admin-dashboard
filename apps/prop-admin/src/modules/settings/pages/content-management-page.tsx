@@ -508,7 +508,7 @@ export function ContentManagementPage() {
     <Page>
       <PageHeader
         title="Content Management"
-        description="Manage website pages, blog posts, and SEO metadata for the tenant site (M16 CMS)."
+        description="Manage website pages, blog posts, and SEO metadata for the tenant site (CMS)."
         icon={Files}
         actions={
           <>

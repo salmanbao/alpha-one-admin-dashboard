@@ -28,7 +28,7 @@ export function FormsListPage() {
   ];
   return (
     <Page>
-      <PageHeader title="Forms & Lead Capture" description="Collect leads into CRM, segments and flows with consent receipts (N10). Embed in landing pages (R2-01), popups (R2-03) or external sites." icon={ClipboardList}
+      <PageHeader title="Forms & Lead Capture" description="Collect leads into CRM, segments and flows with consent receipts. Embed in landing pages, popups or external sites." icon={ClipboardList}
         actions={<Button size="sm" onClick={()=>setOpen(true)}><Plus className="mr-1 h-4 w-4"/>New Form</Button>} />
       <PageContent>
         <div className="grid gap-3 sm:grid-cols-3"><MetricCard label="Forms" value={String(rows.length)} /><MetricCard label="Submissions (total)" value={rows.reduce((s,r)=>s+r.submissions,0).toLocaleString()} tone="positive" /><MetricCard label="Published" value={String(rows.filter(r=>r.status==="published").length)} /></div>

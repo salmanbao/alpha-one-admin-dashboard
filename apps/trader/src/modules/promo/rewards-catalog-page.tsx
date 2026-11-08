@@ -105,7 +105,7 @@ export function RewardsCatalogPage() {
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
       <TerraPageHeader
         title="Rewards Catalog"
-        description="Spend loyalty points (N18) and referral rewards (N19) on fee rebates, challenge discounts, merch and payout fast-tracks."
+        description="Spend loyalty points and referral rewards on fee rebates, challenge discounts, merch and payout fast-tracks."
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild>
@@ -148,7 +148,7 @@ export function RewardsCatalogPage() {
           </div>
           <div className="space-y-2">
             <div className="rounded border p-2">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pending referral payouts (N19)</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pending referral payouts</p>
               <p className="text-sm font-semibold">
                 {pending.count} reward{pending.count === 1 ? "" : "s"} · ${pending.amount}
               </p>

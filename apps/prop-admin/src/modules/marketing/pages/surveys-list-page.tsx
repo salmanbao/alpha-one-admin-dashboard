@@ -30,7 +30,7 @@ export function SurveysListPage(){
   ];
   return (
     <Page>
-      <PageHeader title="Surveys & NPS" description="Structured voice-of-customer: NPS after payout, post-challenge surveys; responses feed retention segments (M3) and flows (M4)." icon={ClipboardList}
+      <PageHeader title="Surveys & NPS" description="Structured voice-of-customer: NPS after payout, post-challenge surveys; responses feed retention segments and automation flows." icon={ClipboardList}
         actions={<Button size="sm" onClick={()=>setOpen(true)}><Plus className="mr-1 h-4 w-4"/>New survey</Button>} />
       <PageContent>
         <div className="grid gap-3 sm:grid-cols-4"><MetricCard label="Surveys" value={String(rows.length)}/><MetricCard label="Active" value={String(rows.filter(r=>r.status==="active").length)} tone="positive"/><MetricCard label="Responses" value={String(rows.reduce((s,r)=>s+r.responses,0))}/><MetricCard label="Avg NPS" value="74" tone="positive"/></div>

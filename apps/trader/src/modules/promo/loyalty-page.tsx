@@ -101,7 +101,7 @@ export function LoyaltyPage() {
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
       <TerraPageHeader
         title="Loyalty & Tiers"
-        description="Points ledger, earning rules, tier progression and the rewards catalog that spends them (R2-14)."
+        description="Points ledger, earning rules, tier progression and the rewards catalog that spends them."
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild>
