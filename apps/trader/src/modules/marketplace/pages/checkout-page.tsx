@@ -32,13 +32,18 @@ import {
   clearCheckoutDraft,
   paymentFailureReasons,
   paymentMethods,
-  promos,
   readCheckoutDraft,
   resetPayAttempts,
   writeCheckoutDraft,
   writeCheckoutFailure,
   type PaymentMethodId,
 } from "@/lib/checkout/checkout-recovery";
+import {
+  getPromoDiscount,
+  evaluatePromoEligibility,
+  promoCatalogByCode,
+  type PromoCatalogEntry,
+} from "@/lib/promos/promo-catalog";
 
 /** Optional paid extras — priced once, applied to the order total. */
 const addons = [
@@ -88,10 +93,8 @@ export function CheckoutPage() {
   const activePlatform = ch.platforms.includes(platform) ? platform : ch.platforms[0];
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [promoInput, setPromoInput] = useState("");
-  const [promo, setPromo] = useState<{ code: string; percent: number } | null>(null);
-  // Inline promo error (finding #3) — invalid/expired codes show a
-  // persistent, specific message next to the field instead of only a
-  // transient toast, and clear as soon as the user edits the code.
+  // Unified promo: read from catalog, show inline error + alternatives.
+  const [promo, setPromo] = useState<PromoCatalogEntry | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [method, setMethod] = useState<PaymentMethodId>("card");
   const [processing, setProcessing] = useState(false);
@@ -139,11 +142,18 @@ export function CheckoutPage() {
     const code = params.get("promo")?.trim().toUpperCase();
     if (code && !promo) {
       setPromoInput(code);
-      const found = promos[code];
+      const found = promoCatalogByCode[code];
       if (found) {
-        setPromoError(null);
-        setPromo({ code, percent: found.percent });
-        toast({ title: "Promo applied", description: `${code} — ${found.label} your order.` });
+        // Check eligibility for this challenge
+        const { eligible, reason } = evaluatePromoEligibility(code, ch.id);
+        if (eligible) {
+          setPromoError(null);
+          setPromo(found);
+          toast({ title: "Promo applied", description: `${code} — ${found.label} your order.` });
+        } else {
+          setPromoError(`“${code}” isn't valid for this challenge: ${reason}`);
+          toast({ title: "Promo not eligible", description: `"${code}" doesn't apply to this challenge.`, variant: "destructive" });
+        }
       } else {
         setPromoError(`“${code}” isn't a valid promo code. Check for typos, or the code may have expired.`);
         toast({ title: "Invalid promo code", description: `"${code}" is not a valid code.`, variant: "destructive" });
@@ -162,17 +172,17 @@ export function CheckoutPage() {
     .filter((a) => selectedAddons.includes(a.id))
     .reduce((s, a) => s + a.price, 0);
   const subtotal = ch.price + addonsTotal;
-  const discount = promo ? Math.round(subtotal * (promo.percent / 100) * 100) / 100 : 0;
+  const discount = promo ? Math.round(subtotal * (promo.discountValue / 100) * 100) / 100 : 0;
   const total = subtotal - discount;
 
   const applyPromo = () => {
     const code = promoInput.trim().toUpperCase();
-    const found = promos[code];
+    const found = promoCatalogByCode[code];
     if (!found) {
       setPromo(null);
       setPromoError(
         code
-          ? `“${code}” isn’t a valid promo code. Check for typos, or the code may have expired.`
+          ? `“${code}” isn't a valid promo code. Check for typos, or the code may have expired.`
           : "Enter a promo code first, then press Apply.",
       );
       toast({
@@ -182,8 +192,20 @@ export function CheckoutPage() {
       });
       return;
     }
+    // Check eligibility for this challenge
+    const { eligible, reason } = evaluatePromoEligibility(code, ch.id);
+    if (!eligible) {
+      setPromo(null);
+      setPromoError(`“${code}” isn't valid for this challenge: ${reason}`);
+      toast({
+        title: "Promo not eligible",
+        description: `"${code}" doesn't apply to this challenge.`,
+        variant: "destructive",
+      });
+      return;
+    }
     setPromoError(null);
-    setPromo({ code, percent: found.percent });
+    setPromo(found);
     toast({
       title: "Promo applied",
       description: `${code} — ${found.label} your order.`,
@@ -565,7 +587,7 @@ export function CheckoutPage() {
             )}
             {promo && (
               <p className="rounded-lg bg-primary-fixed/40 px-3 py-2 text-xs font-bold text-on-primary-fixed-variant">
-                ✓ {promo.code} applied — {promo.percent}% off
+                ✓ {promo.code} applied — {promo.discountValue}% off
               </p>
             )}
 

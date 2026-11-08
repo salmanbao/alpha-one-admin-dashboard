@@ -26,7 +26,7 @@ import {
   TerraPageHeader,
   TerraSectionTitle,
 } from "@/components/terra/terra-ui";
-import { promos } from "@/lib/checkout/checkout-recovery";
+import { promoCatalogByCode } from "@/lib/promos/promo-catalog";
 
 const rejectionReasons = [
   {
@@ -107,7 +107,7 @@ export function PromoErrorPage() {
           description="Enter the code in the Promo code box at checkout, then press Apply (or Enter)."
         />
         <div className="space-y-2">
-          {Object.entries(promos).map(([promoCode, info]) => (
+          {Object.entries(promoCatalogByCode).map(([promoCode, info]) => (
             <div
               key={promoCode}
               className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
