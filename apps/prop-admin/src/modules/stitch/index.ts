@@ -24,7 +24,6 @@ export { AccountLinkageGraphStitchPage } from "./pages/account-linkage-graph";
 export { AccountRelatedAccountsStitchPage } from "./pages/account-related-accounts";
 export { AccountVersionHistoryStitchPage } from "./pages/account-version-history";
 export { AddGroupSheetStitchPage } from "./pages/add-group-sheet";
-export { AffiliateCommissionPayoutStitchPage } from "./pages/affiliate-commission-payout";
 export { AffiliateComparisonStitchPage } from "./pages/affiliate-comparison";
 export { AffiliateCouponsStitchPage } from "./pages/affiliate-coupons";
 export { AffiliateDetailStitchPage } from "./pages/affiliate-detail";

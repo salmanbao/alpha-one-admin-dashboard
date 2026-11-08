@@ -310,7 +310,6 @@ const routes: RouteDefinition[] = [
   { path: "account-related-accounts", viewId: "account-related-accounts", label: "Related Accounts" },
   { path: "account-version-history", viewId: "account-version-history", label: "Version History" },
   { path: "add-group-sheet", viewId: "add-group-sheet", label: "Add Group" },
-  { path: "affiliate-commission-payout", viewId: "affiliate-commission-payout", label: "Commission Payout" },
   { path: "affiliate-comparison", viewId: "affiliate-comparison", label: "Comparison" },
   { path: "affiliate-detail", viewId: "affiliate-detail", label: "Affiliate Detail" },
   { path: "affiliate-link-tracking", viewId: "affiliate-link-tracking", label: "Link Tracking" },
