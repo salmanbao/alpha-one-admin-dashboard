@@ -20,6 +20,9 @@ import { useLifecycleLog } from "@pfaas/lifecycle";
 import { readAutoApproveRule, evaluateAutoApproval } from "@/modules/payouts/auto-approve-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
+import { useRowSelection, BulkActionsBar } from "@/components/platform/selection";
+import { SavedViewsBar } from "@/components/platform/saved-views-bar";
+import { useSavedViews } from "@/lib/platform/saved-views";
 import { formatCurrency } from "@/components/platform/status";
 import { ExplainableStateBadge } from "@/components/platform/state-explanations";
 
@@ -394,14 +397,54 @@ export function PayoutsOverviewPage() {
   );
 }
 
+/**
+ * Per-row approval gate (R2-W3-05) — ONE evaluation, used by both the
+ * batch pre-flight dialog and the queue's "gate clean / gated only"
+ * filter, so a row the filter calls clean is exactly a row the approve
+ * dialog will pass. Risk score → open breaches → AML hold.
+ */
+function payoutGate(tid: string, p: Payout): { pass: boolean; reason: string } {
+  const worst = worstPayoutRisk(tid, [p.traderId]);
+  if (worst && worst.traderId === p.traderId && worst.riskScore < 70) {
+    return { pass: false, reason: `Risk score ${worst.riskScore} below threshold 70` };
+  }
+  const breaches = getTenantBreaches(tid).filter(
+    (b) => b.traderId === p.traderId && b.status === "open",
+  );
+  if (breaches.length > 0) {
+    return { pass: false, reason: `${breaches.length} open breach(es)` };
+  }
+  const aml = payoutAmlBlock(p.reference);
+  if (aml) return { pass: false, reason: `AML hold ${aml.caseId} (${aml.typology})` };
+  return { pass: true, reason: "All gates passed" };
+}
+
 export function PendingPayoutsPage() {
-  const { runtime, tenant, navigate, pushNotification } = usePlatform();
+  const { runtime, tenant, navigate, pushNotification, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   usePayoutVersion(); // review cards + table react to decisions
+
+  /* ── Queue filters + saved views (R2-W3-05) ─────────────────────── */
+  const [query, setQuery] = useState("");
+  const [gate, setGate] = useState<"all" | "clean" | "gated">("all");
+  const { views, saveView, deleteView } = useSavedViews("payouts-pending", user?.id ?? "anon");
+  const applyQueueFilters = (f: Record<string, string>) => {
+    setQuery(f.q ?? "");
+    setGate(f.gate === "clean" || f.gate === "gated" ? f.gate : "all");
+  };
+
+  // Pending rows narrowed by the queue filters — the gate filter runs
+  // the same per-row evaluation the batch pre-flight uses (payoutGate).
+  const q = query.trim().toLowerCase();
   const pendingPayouts = getTenantPayouts(tid)
     .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
-    .filter((p) => p.status === "pending");
+    .filter((p) => p.status === "pending")
+    .filter((p) => {
+      if (q && !`${p.traderName} ${p.reference}`.toLowerCase().includes(q)) return false;
+      if (gate !== "all" && payoutGate(tid, p).pass === (gate === "gated")) return false;
+      return true;
+    });
   // Audit #3 fix #2 — performance context shown with each approval card.
   const perfByTrader = useMemo(() => {
     const m = new Map<string, ReturnType<typeof getTenantTraders>[number]>();
@@ -419,9 +462,14 @@ export function PendingPayoutsPage() {
     return m;
   }, [tid]);
 
-  /** ── Batch-selection state ───────────────────────────────────────── */
-  const [selectedPayouts, setSelectedPayouts] = useState<Set<string>>(new Set());
-  const selectedCount = selectedPayouts.size;
+  /** ── Batch selection (R2-W3-05) ────────────────────────────────────
+   * Shared state, not page state: `useRowSelection` owns the ids,
+   * persists them under `pfaas:selection:payouts-pending` (a reload
+   * restores the selection) and prunes ids whose payouts left the
+   * queue. The page only declares what a selection can DO. */
+  const pendingIds = pendingPayouts.map((p) => p.reference);
+  const selection = useRowSelection("payouts-pending", pendingIds);
+  const allSelected = selection.isAllSelected(pendingIds);
   // Batch reject target — the shared structured reject dialog (same one
   // the single-row Reject button uses) replaces the old window.confirm,
   // so a batch rejection records category + detail like every other
@@ -434,32 +482,25 @@ export function PendingPayoutsPage() {
   const [staging, setStaging] = useState(false);
 
   const runPreflight = (payouts: Payout[]) => {
-    const traderIds = [...new Set(payouts.map((p) => p.traderId))];
-    const worst = worstPayoutRisk(tid, traderIds);
+    // R2-W3-05: one gate (payoutGate) for pre-flight AND the queue
+    // filter. The old batch-worst shortcut only evaluated the risk
+    // score of the single riskiest trader in the batch, so a trader
+    // scoring 65 passed as long as someone riskier was selected.
     const rows: PreflightRow[] = payouts.map((p) => {
-      // Risk gate: per-row trader risk score (use worst-of-batch threshold
-      // as the pass/fail line so a single low-risk trader blocks only itself).
-      const breaches = getTenantBreaches(tid).filter((b) => b.traderId === p.traderId && b.status === "open");
-      const aml = payoutAmlBlock(p.reference);
-      let pass = true;
-      let reason = "All gates passed";
-      if (worst && worst.traderId === p.traderId && worst.riskScore < 70) {
-        pass = false;
-        reason = `Risk score ${worst.riskScore} below threshold 70`;
-      } else if (breaches.length > 0) {
-        pass = false;
-        reason = `${breaches.length} open breach(es)`;
-      } else if (aml) {
-        pass = false;
-        reason = `AML hold ${aml.caseId} (${aml.typology})`;
-      }
-      return { reference: p.reference, traderName: p.traderName, amount: p.amount, pass, reason };
+      const gate = payoutGate(tid, p);
+      return {
+        reference: p.reference,
+        traderName: p.traderName,
+        amount: p.amount,
+        pass: gate.pass,
+        reason: gate.reason,
+      };
     });
     setPreflight(rows);
   };
 
   const handleBatchApprove = () => {
-    const payouts = pendingPayouts.filter((p) => selectedPayouts.has(p.reference));
+    const payouts = pendingPayouts.filter((p) => selection.isSelected(p.reference));
     if (payouts.length === 0) return;
     runPreflight(payouts);
   };
@@ -475,13 +516,13 @@ export function PendingPayoutsPage() {
       title: "Batch staged & executed",
       description: `${payouts.length} of ${preflight.length} payout(s) approved after second-operator confirmation.`,
     });
-    setSelectedPayouts(new Set());
+    selection.clear();
     setPreflight(null);
     setStaging(false);
   };
 
   const handleBatchReject = () => {
-    const payouts = pendingPayouts.filter((p) => selectedPayouts.has(p.reference));
+    const payouts = pendingPayouts.filter((p) => selection.isSelected(p.reference));
     if (payouts.length === 0) return;
     // Open the structured reject dialog instead of window.confirm —
     // the reviewer must pick a category and describe what happened
@@ -513,7 +554,7 @@ export function PendingPayoutsPage() {
   };
 
   const confirmBatchReject = (result: PayoutRejectResult) => {
-    const payouts = pendingPayouts.filter((p) => selectedPayouts.has(p.reference));
+    const payouts = pendingPayouts.filter((p) => selection.isSelected(p.reference));
     for (const p of payouts) {
       applyPayoutDecision(p.reference, "rejected", { reason: result.reason });
       if (result.notifyTrader) {
@@ -530,46 +571,81 @@ export function PendingPayoutsPage() {
       description: `${payouts.length} payout(s) rejected — ${result.reason}${result.notifyTrader ? "" : " (traders not notified)"}`,
       variant: "destructive",
     });
-    setSelectedPayouts(new Set());
+    selection.clear();
     setBatchRejectTarget(null);
-  };
-
-  const toggleSelection = (reference: string) => {
-    setSelectedPayouts((prev) => {
-      const next = new Set(prev);
-      if (next.has(reference)) next.delete(reference);
-      else next.add(reference);
-      return next;
-    });
-  };
-
-  const isAllSelected = pendingPayouts.length > 0 && selectedCount === pendingPayouts.length;
-
-  const toggleSelectAll = () => {
-    if (isAllSelected) setSelectedPayouts(new Set());
-    else setSelectedPayouts(new Set(pendingPayouts.map((p) => p.reference)));
   };
 
   return (
     <Page>
       <PageHeader title={`Pending ${plural(term("payout"))}`} description="Awaiting approval." icon={Clock} />
       <PageContent>
-        {/* ── Batch toolbar ───────────────────────────────────────────── */}
-        {selectedCount > 0 && (
-          <div className="flex flex-col sm:flex-row gap-2 mb-4 p-3 rounded-md border bg-muted/30">
-            <div className="text-sm font-medium text-foreground">
-              {selectedCount} of {pendingPayouts.length} selected
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="default" onClick={handleBatchApprove}>
-                Approve Selected ({selectedCount})
+        {/* ── Queue filters + saved views (R2-W3-05) ──────────────────── */}
+        <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search trader or reference…"
+            aria-label="Search pending payouts"
+            className="h-9 w-full lg:w-72"
+          />
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Approval gate filter">
+            {(
+              [
+                ["all", "All pending"],
+                ["clean", "Gate clean"],
+                ["gated", "Gated only"],
+              ] as const
+            ).map(([id, label]) => (
+              <Button
+                key={id}
+                size="sm"
+                variant={gate === id ? "default" : "outline"}
+                aria-pressed={gate === id}
+                onClick={() => setGate(id)}
+                className="h-8 text-xs"
+              >
+                {label}
               </Button>
-              <Button variant="destructive" onClick={handleBatchReject}>
-                Reject Selected ({selectedCount})
-              </Button>
-            </div>
+            ))}
           </div>
-        )}
+        </div>
+        <SavedViewsBar
+          views={views}
+          currentFilters={{ q: query, gate }}
+          onApply={(v) => applyQueueFilters(v.filters)}
+          onSave={(name, filters) => {
+            saveView(name, filters);
+            toast({
+              title: "View saved",
+              description: `“${name}” persists to localStorage — it survives a reload.`,
+            });
+          }}
+          onDelete={deleteView}
+          presets={[
+            {
+              id: "all",
+              label: "All pending",
+              active: query === "" && gate === "all",
+              onPick: () => applyQueueFilters({}),
+            },
+          ]}
+          className="mb-4"
+        />
+
+        {/* ── Bulk actions (R2-W3-05) — shared bar + shared state ────── */}
+        <BulkActionsBar
+          count={selection.count}
+          total={pendingPayouts.length}
+          onClear={selection.clear}
+          className="mb-4"
+        >
+          <Button variant="default" onClick={handleBatchApprove}>
+            Approve Selected ({selection.count})
+          </Button>
+          <Button variant="destructive" onClick={handleBatchReject}>
+            Reject Selected ({selection.count})
+          </Button>
+        </BulkActionsBar>
 
         {/* ── Pre-flight dialog (R2-W1-04) ─────────────────────────── */}
         <Dialog open={preflight !== null} onOpenChange={(o) => { if (!o) { setPreflight(null); setStaging(false); } }}>
@@ -646,19 +722,19 @@ export function PendingPayoutsPage() {
             <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
               <input
                 type="checkbox"
-                checked={isAllSelected}
-                onChange={toggleSelectAll}
+                checked={allSelected}
+                onChange={() => selection.toggleAll(pendingIds)}
                 className="cursor-pointer accent-primary"
-                aria-label={isAllSelected ? "Deselect all" : "Select all"}
+                aria-label={allSelected ? "Deselect all" : "Select all"}
               />
               <span className="font-medium text-foreground">
-                {isAllSelected ? "Deselect all" : "Select all"}
+                {allSelected ? "Deselect all" : "Select all"}
               </span>
-              <span className="text-muted-foreground">({selectedCount} selected)</span>
+              <span className="text-muted-foreground">({selection.count} selected)</span>
             </div>
             {pendingPayouts.map((p) => {
               const perf = perfByTrader.get(p.traderId);
-              const isSelected = selectedPayouts.has(p.reference);
+              const isSelected = selection.isSelected(p.reference);
               return (
                 <div
                   key={p.id}
@@ -672,7 +748,7 @@ export function PendingPayoutsPage() {
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onChange={() => toggleSelection(p.reference)}
+                      onChange={() => selection.toggle(p.reference)}
                       className="cursor-pointer accent-primary"
                       aria-label={isSelected ? `Deselect ${p.traderName}` : `Select ${p.traderName}`}
                     />

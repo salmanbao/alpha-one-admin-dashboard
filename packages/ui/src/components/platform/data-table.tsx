@@ -47,7 +47,12 @@ interface DataTableProps<T> {
   toolbar?: React.ReactNode;
   emptyTitle?: string;
   emptyDescription?: string;
-  /** SF-13: row selection — pass selectedIds + onSelectionChange to enable. */
+  /**
+   * SF-13: row selection — pass selectedIds + onSelectionChange to
+   * enable. Keep the state OUT of the page: `useRowSelection` +
+   * `BulkActionsBar` (./selection, R2-W3-05) own it, persist it per
+   * surface and render the bar; the page only supplies actions.
+   */
   selectable?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;

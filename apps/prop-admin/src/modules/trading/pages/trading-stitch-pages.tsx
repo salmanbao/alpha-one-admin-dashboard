@@ -55,7 +55,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { exportToCsv } from "@/lib/platform/export-utils";
+import { exportToCsv, type ExportColumn } from "@/lib/platform/export-utils";
+import { useSavedViews } from "@/lib/platform/saved-views";
+import { useRowSelection, BulkActionsBar } from "@/components/platform/selection";
+import { SavedViewsBar } from "@/components/platform/saved-views-bar";
 import {
   applyTraderStatus,
   effectiveTraderStatus,
@@ -445,8 +448,21 @@ function statusTone(s: string): StitchTone {
 /* Traders (view-id: trading-traders)                               */
 /* ═══════════════════════════════════════════════════════════════ */
 
+/** CSV columns shared by "Export CSV" and "Export Selected" (R2-W3-05). */
+const TRADER_EXPORT_COLUMNS: ExportColumn<Trader>[] = [
+  { key: "name", header: "Name", value: (t) => t.name },
+  { key: "email", header: "Email", value: (t) => t.email },
+  { key: "country", header: "Country", value: (t) => t.country },
+  { key: "status", header: "Status", value: (t) => effectiveTraderStatus(t) },
+  { key: "challengePhase", header: "Phase", value: (t) => t.challengePhase ?? "none" },
+  { key: "trades", header: "Trades", value: (t) => t.trades },
+  { key: "winRate", header: "Win %", value: (t) => t.winRate },
+  { key: "equity", header: "Equity", value: (t) => t.equity },
+  { key: "totalPnl", header: "Total P&L", value: (t) => t.totalPnl },
+];
+
 export function TradersStitchPage() {
-  const { runtime, tenant } = usePlatform();
+  const { runtime, tenant, user } = usePlatform();
   // Row click → trader profile opens as an overlay sheet over the
   // directory (inspect-and-act without losing scroll/filters).
   const { openPanel } = useDetailOverlay();
@@ -461,7 +477,6 @@ export function TradersStitchPage() {
   const [phaseFilter, setPhaseFilter] = React.useState("all");
   const [countryFilter, setCountryFilter] = React.useState("all");
   const [query, setQuery] = React.useState("");
-  const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = React.useState(false);
   const [suspendTarget, setSuspendTarget] = React.useState<Trader | null>(null);
   const [reactivateTarget, setReactivateTarget] = React.useState<Trader | null>(null);
@@ -491,37 +506,34 @@ export function TradersStitchPage() {
   );
 
   const handleExportAll = () => {
+    exportToCsv(filtered, TRADER_EXPORT_COLUMNS, `traders-${Date.now()}.csv`);
+  };
+
+  /* ── Selection + saved views (R2-W3-05) ─────────────────────────────
+   * Selection is shared state (useRowSelection): persisted under
+   * `pfaas:selection:trading-traders`, pruned to the filtered rows, no
+   * per-page toggle code. Saved views persist the four filter controls. */
+  const filteredIds = filtered.map((t) => t.id);
+  const selection = useRowSelection("trading-traders", filteredIds);
+  const { views, saveView, deleteView } = useSavedViews("trading-traders", user?.id ?? "anon");
+  const traderFilters = { status: statusFilter, phase: phaseFilter, country: countryFilter, q: query };
+  const applyTraderFilters = (f: Record<string, string>) => {
+    setStatusFilter(f.status ?? "all");
+    setPhaseFilter(f.phase ?? "all");
+    setCountryFilter(f.country ?? "all");
+    setQuery(f.q ?? "");
+  };
+
+  const exportSelected = () => {
     exportToCsv(
-      filtered,
-      [
-        { key: "name", header: "Name", value: (t) => t.name },
-        { key: "email", header: "Email", value: (t) => t.email },
-        { key: "country", header: "Country", value: (t) => t.country },
-        { key: "status", header: "Status", value: (t) => effectiveTraderStatus(t) },
-        { key: "challengePhase", header: "Phase", value: (t) => t.challengePhase ?? "none" },
-        { key: "trades", header: "Trades", value: (t) => t.trades },
-        { key: "winRate", header: "Win %", value: (t) => t.winRate },
-        { key: "equity", header: "Equity", value: (t) => t.equity },
-        { key: "totalPnl", header: "Total P&L", value: (t) => t.totalPnl },
-      ],
-      `traders-${Date.now()}.csv`,
+      filtered.filter((t) => selection.isSelected(t.id)),
+      TRADER_EXPORT_COLUMNS,
+      `traders-selected-${Date.now()}.csv`,
     );
   };
 
   const activeCount =
     (statusFilter !== "all" ? 1 : 0) + (phaseFilter !== "all" ? 1 : 0) + (countryFilter !== "all" ? 1 : 0);
-
-  const toggleAll = () => {
-    setSelected((prev) => (prev.size === filtered.length ? new Set() : new Set(filtered.map((t) => t.id))));
-  };
-  const toggleOne = (id: string) => {
-    setSelected((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -534,9 +546,6 @@ export function TradersStitchPage() {
             <StitchButton variant="surface" icon="download" onClick={handleExportAll}>
               Export CSV
             </StitchButton>
-            <StitchButton variant="surface" icon="visibility" onClick={() => toast({ title: "Saved view", description: "Current filters saved as a view." })}>
-              Save View
-            </StitchButton>
             <StitchButton variant="surface" icon="view_column" onClick={() => toast({ title: "Column picker", description: "Choose visible columns." })}>
               Columns
             </StitchButton>
@@ -545,6 +554,22 @@ export function TradersStitchPage() {
             </StitchButton>
           </>
         }
+      />
+
+      {/* Saved views (R2-W3-05) — real persistence replaces the old
+          "Save View" button that only toasted without saving anything. */}
+      <SavedViewsBar
+        views={views}
+        currentFilters={traderFilters}
+        onApply={(v) => applyTraderFilters(v.filters)}
+        onSave={(name, filters) => {
+          saveView(name, filters);
+          toast({
+            title: "View saved",
+            description: `“${name}” persists to localStorage — it survives a reload.`,
+          });
+        }}
+        onDelete={deleteView}
       />
 
       {/* Filter bar */}
@@ -586,17 +611,12 @@ export function TradersStitchPage() {
         </span>
       </div>
 
-      {/* Bulk bar */}
-      {selected.size > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-tp-fixed/60 px-4 py-2.5 text-xs font-semibold text-tp-fixed-variant shadow-sm">
-          <span>{selected.size} selected</span>
-          <div className="flex gap-2">
-            <StitchButton variant="surface" icon="mail" onClick={() => toast({ title: "Email queued", description: `${selected.size} traders will receive your message.` })}>Email Selected</StitchButton>
-            <StitchButton variant="surface" icon="download" onClick={() => toast({ title: "Export ready", description: `${selected.size} traders exported to CSV.` })}>Export Selected</StitchButton>
-            <StitchButton variant="destructive" icon="pause_circle" onClick={() => setBulkSuspendOpen(true)}>Suspend Selected</StitchButton>
-          </div>
-        </div>
-      ) : null}
+      {/* Bulk actions (R2-W3-05) — shared bar + shared selection state */}
+      <BulkActionsBar count={selection.count} total={filtered.length} onClear={selection.clear}>
+        <StitchButton variant="surface" icon="mail" onClick={() => toast({ title: "Email queued", description: `${selection.count} traders will receive your message.` })}>Email Selected</StitchButton>
+        <StitchButton variant="surface" icon="download" onClick={exportSelected}>Export Selected</StitchButton>
+        <StitchButton variant="destructive" icon="pause_circle" onClick={() => setBulkSuspendOpen(true)}>Suspend Selected</StitchButton>
+      </BulkActionsBar>
 
       {/* Table */}
       <StitchCard className="p-0">
@@ -622,8 +642,8 @@ export function TradersStitchPage() {
                 header: (
                   <Checkbox
                     aria-label="Select all traders"
-                    checked={selected.size === filtered.length && filtered.length > 0}
-                    onCheckedChange={toggleAll}
+                    checked={selection.isAllSelected(filteredIds)}
+                    onCheckedChange={() => selection.toggleAll(filteredIds)}
                     className="border-ink-variant/40"
                     onClick={(e: React.MouseEvent) => e.stopPropagation()}
                   />
@@ -631,8 +651,8 @@ export function TradersStitchPage() {
                 cell: (t) => (
                   <Checkbox
                     aria-label={`Select ${t.name}`}
-                    checked={selected.has(t.id)}
-                    onCheckedChange={() => toggleOne(t.id)}
+                    checked={selection.isSelected(t.id)}
+                    onCheckedChange={() => selection.toggle(t.id)}
                     className="border-ink-variant/40"
                     onClick={(e: React.MouseEvent) => e.stopPropagation()}
                   />
@@ -723,13 +743,16 @@ export function TradersStitchPage() {
         open={bulkSuspendOpen}
         onOpenChange={setBulkSuspendOpen}
         icon="pause_circle"
-        title={`Suspend ${selected.size} traders?`}
+        title={`Suspend ${selection.count} traders?`}
         body="All selected traders will be suspended immediately. Open positions remain. Each action is logged in the audit trail."
         confirmLabel="Suspend Traders"
         onConfirm={() => {
-          selected.forEach((id) => applyTraderStatus(id, "suspended"));
-          toast({ title: "Traders suspended", description: `${selected.size} accounts suspended.` });
-          setSelected(new Set());
+          selection.selectedIds.forEach((id) => applyTraderStatus(id, "suspended"));
+          toast({
+            title: "Traders suspended",
+            description: `${selection.count} accounts suspended — persisted, the status survives a reload.`,
+          });
+          selection.clear();
         }}
       />
     </div>
