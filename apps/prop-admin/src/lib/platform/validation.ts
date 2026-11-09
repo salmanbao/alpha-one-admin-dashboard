@@ -308,3 +308,26 @@ export const demoConnectorsSchema = z.array(
     audienceTarget: z.string().optional(),
   }),
 );
+
+/**
+ * kyc-provider-config (R2-W3-04): the KYC providers edit sheet's saved
+ * form values per provider plus the fallback order — the Save button on
+ * the settings page used to be toast-only (it claimed a save that died
+ * with the tab). Mirrored under the demo prefix like every other store.
+ */
+export const kycEditValuesSchema = z.object({
+  apiKey: z.string(),
+  webhookUrl: z.string(),
+  sandboxMode: z.boolean(),
+  autoApproveThreshold: z.number().min(0).max(100),
+  fallbackPriority: z.enum(["primary", "fallback-1", "fallback-2", "inactive"]),
+});
+
+export type KycEditValues = z.infer<typeof kycEditValuesSchema>;
+
+export const demoKycProviderConfigSchema = z.object({
+  values: z.record(z.string(), kycEditValuesSchema),
+  fallbackOrder: z.array(z.string()),
+});
+
+export type DemoKycProviderConfig = z.infer<typeof demoKycProviderConfigSchema>;

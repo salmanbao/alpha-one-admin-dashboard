@@ -6,16 +6,38 @@ import type { TenantContext } from "@/lib/platform/types";
 
 const STORAGE_KEY = "pfaas:platform-admin:tenants";
 
+function readSeedList(list: unknown): TenantContext[] {
+  if (!Array.isArray(list)) return [];
+  return list.filter(
+    (t): t is TenantContext =>
+      !!t && typeof t === "object" && typeof (t as TenantContext).id === "string",
+  );
+}
+
+/**
+ * Seed roster + tenants registered at runtime.
+ *
+ * `registerTenant` (platform-context) persists runtime-created tenants
+ * under `pfaas:customTenants`; the store used to drop them, so any
+ * store-backed page (overview, plans, detail, go-live wizard) rendered a
+ * roster missing every operator-created firm. Merge order: seed →
+ * custom → stored-by-id, stored wins — an updated copy of a seed tenant
+ * beats the seed, an update of a custom tenant beats its creation.
+ */
 function readRaw(): TenantContext[] {
   if (typeof window === "undefined") return seedTenants.map((t) => ({ ...t }));
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return seedTenants.map((t) => ({ ...t }));
-    const parsed = JSON.parse(raw) as TenantContext[];
-    if (!Array.isArray(parsed) || parsed.length === 0) return seedTenants.map((t) => ({ ...t }));
-    // merge onto seed by id to keep new fields
-    const byId = new Map(parsed.map((t) => [t.id, t]));
-    return seedTenants.map((t) => ({ ...t, ...(byId.get(t.id) ?? {}) }));
+    const stored = readSeedList(
+      JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "null"),
+    );
+    const custom = readSeedList(
+      JSON.parse(window.localStorage.getItem("pfaas:customTenants") ?? "null"),
+    );
+    const byId = new Map<string, TenantContext>();
+    for (const t of seedTenants) byId.set(t.id, { ...t });
+    for (const t of custom) byId.set(t.id, { ...t });
+    for (const t of stored) byId.set(t.id, { ...(byId.get(t.id) ?? {}), ...t });
+    return [...byId.values()];
   } catch {
     return seedTenants.map((t) => ({ ...t }));
   }
@@ -49,8 +71,6 @@ function getSnapshot(): string {
 function getServerSnapshot(): string {
   return JSON.stringify(seedTenants);
 }
-
-let state = readRaw();
 
 export function readTenants(): TenantContext[] {
   return readRaw().map((t) => ({ ...t }));

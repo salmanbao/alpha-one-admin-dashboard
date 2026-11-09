@@ -251,6 +251,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "go-live-wizard": dynamic(
+    () =>
+      import("@/modules/super-admin/go-live-wizard-page").then((m) => ({
+        default: m.GoLiveWizardPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "tenant-lifecycle": dynamic(
     () =>
       import("@/modules/super-admin/tenant-lifecycle-page").then((m) => ({
