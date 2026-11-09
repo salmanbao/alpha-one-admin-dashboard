@@ -18,7 +18,15 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { tenants as rosterTenants, getTenantBreaches } from "@/lib/platform/mock-data";
+import { getTenantBreaches } from "@/lib/platform/mock-data";
+import { useTenants } from "@/lib/platform/tenant-store";
+import { recordAudit } from "@/lib/platform/console-store";
+import {
+  useRiskParams,
+  setRiskParams,
+  DEFAULT_RISK_PARAMS,
+  type TenantRiskParams,
+} from "@/lib/platform/risk-defaults-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { StatusBadge, formatCompact } from "@/components/platform/status";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -54,12 +62,9 @@ import {
 /* Types & deterministic fixtures                                      */
 /* ------------------------------------------------------------------ */
 
-interface TenantRiskParams {
-  dailyLoss: string;
-  maxDd: string;
-  profitTarget: string;
-  minDays: string;
-}
+// TenantRiskParams / DEFAULT_RISK_PARAMS live in risk-defaults-store —
+// the same persisted values the go-live wizard's "Risk defaults" step
+// writes (R2-W3-04).
 
 const PARAM_FIELDS: { key: keyof TenantRiskParams; label: string; unit: string; min: number; max: number; step: string }[] = [
   { key: "dailyLoss", label: "Daily loss limit", unit: "%", min: 0.1, max: 20, step: "0.5" },
@@ -68,13 +73,7 @@ const PARAM_FIELDS: { key: keyof TenantRiskParams; label: string; unit: string; 
   { key: "minDays", label: "Minimum trading days", unit: "d", min: 0, max: 60, step: "1" },
 ];
 
-/** Platform default parameters every tenant starts from. */
-const DEFAULT_PARAMS: TenantRiskParams = {
-  dailyLoss: "5",
-  maxDd: "10",
-  profitTarget: "8",
-  minDays: "3",
-};
+const DEFAULT_PARAMS = DEFAULT_RISK_PARAMS;
 
 interface EngineRule {
   id: string;
@@ -125,10 +124,15 @@ function validateRange(value: string, min: number, max: number): boolean {
 /* ------------------------------------------------------------------ */
 
 export function RiskEnginePage() {
-  const { navigate } = usePlatform();
+  const { navigate, user } = usePlatform();
+
+  // Live roster — store-backed, so tenants created by the go-live wizard
+  // show up here — and the persisted parameter overrides they share with
+  // the wizard's "Risk defaults" step (R2-W3-04).
+  const rosterTenants = useTenants();
+  const appliedParams = useRiskParams();
 
   // Gap 1 — per-tenant risk parameters (applied overrides on defaults).
-  const [appliedParams, setAppliedParams] = useState<Record<string, TenantRiskParams>>({});
   const [draftParams, setDraftParams] = useState<Record<string, TenantRiskParams>>({});
   const [selectedTenant, setSelectedTenant] = useState(rosterTenants[0]?.id ?? "");
 
@@ -200,15 +204,23 @@ export function RiskEnginePage() {
       });
       return;
     }
-    setAppliedParams((prev) => ({ ...prev, [tenant.id]: draft }));
+    setRiskParams(tenant.id, draft);
+    recordAudit({
+      actor: user?.name ?? "Console operator",
+      action: "risk.params_applied",
+      target: tenant.name,
+      tenantId: tenant.id,
+      severity: "info",
+      detail: changed.join(" · "),
+    });
     setDraftParams((prev) => {
       const next = { ...prev };
       delete next[tenant.id];
       return next;
     });
     toast({
-      title: "Risk parameters applied (demo)",
-      description: `${tenant.name} — ${changed.join(" · ")}. New evaluations use these values immediately.`,
+      title: "Risk parameters applied",
+      description: `${tenant.name} — ${changed.join(" · ")}. Saved to this tenant and used by new evaluations.`,
     });
   };
 
@@ -223,6 +235,13 @@ export function RiskEnginePage() {
 
   const toggleRule = (rule: EngineRule, enabled: boolean) => {
     setRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, enabled } : r)));
+    recordAudit({
+      actor: user?.name ?? "Console operator",
+      action: enabled ? "risk.rule_enabled" : "risk.rule_disabled",
+      target: rule.name,
+      severity: rule.critical && !enabled ? "warning" : "info",
+      detail: `${rule.scope} scope · applies from the next evaluation cycle`,
+    });
     if (!enabled && rule.critical) {
       toast({
         variant: "destructive",
@@ -248,6 +267,13 @@ export function RiskEnginePage() {
       return;
     }
     setThresholds(thresholdDraft);
+    recordAudit({
+      actor: user?.name ?? "Console operator",
+      action: "risk.thresholds_applied",
+      target: "breach thresholds",
+      severity: "info",
+      detail: `near-miss ${thresholdDraft.nearMiss}% · equity drop ${thresholdDraft.equityDrop}% · critical ${thresholdDraft.criticalDd}% · rapid ${thresholdDraft.rapid}%`,
+    });
     toast({
       title: "Breach thresholds applied (demo)",
       description: "Near-miss, equity-drop, critical and rapid-drawdown levels updated for every tenant.",

@@ -71,6 +71,12 @@ export interface TenantContext {
     | "provisioning"
     | "provisioning_failed"
     | "onboarding";
+  /**
+   * KYC provider driving verification for this tenant (e.g. "persona",
+   * "sumsub"). Set by the go-live wizard's KYC step (R2-W3-04); absent
+   * until configured.
+   */
+  kycProvider?: string;
   createdAt: string;
 }
 

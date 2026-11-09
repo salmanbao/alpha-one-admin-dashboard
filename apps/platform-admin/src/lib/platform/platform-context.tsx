@@ -345,6 +345,22 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   }, [customTenants]);
 
   const registerTenant = useCallback((t: TenantContext) => {
+    // Persist synchronously: tenant-store (and the go-live wizard, which
+    // sets progress.tenantId in the same handler) read localStorage
+    // directly and must see the tenant immediately — not after the
+    // mirror effect below flushes (R2-W3-04).
+    if (typeof window !== "undefined") {
+      try {
+        const raw = window.localStorage.getItem("pfaas:customTenants");
+        const parsed: unknown = raw ? JSON.parse(raw) : [];
+        const list = Array.isArray(parsed)
+          ? parsed.filter((x): x is TenantContext => !!x && typeof (x as TenantContext).id === "string")
+          : [];
+        if (!list.some((x) => x.id === t.id)) {
+          window.localStorage.setItem("pfaas:customTenants", JSON.stringify([...list, t]));
+        }
+      } catch { /* ignore quota errors */ }
+    }
     setCustomTenants((prev) => (prev.some((x) => x.id === t.id) ? prev : [...prev, t]));
   }, []);
 

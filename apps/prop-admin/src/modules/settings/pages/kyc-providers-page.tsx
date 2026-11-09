@@ -44,8 +44,9 @@
  *  - Auto-approve threshold (Slider 0-100, default 85)
  *  - Fallback priority (Select: Primary / Fallback #1 /
  *    Fallback #2 / Inactive)
- *  - Test Connection button (toast)
- *  - Save button (toast)
+ *  - Test Connection button (toast — labeled (demo), no real endpoint)
+ *  - Save button (persists to the `kyc-provider-config` demo store,
+ *    R2-W3-04 — reopening the sheet or reloading restores the values)
  *  - Deactivate button (destructive, AlertDialog-gated — §24 friction
  *    proportional to consequence; the consequence text explains that
  *    pending verifications will be rerouted and the audit trail
@@ -60,6 +61,8 @@ import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { makeTermResolver } from "@/lib/platform/terminology";
 import { exportToCsv, type ExportColumn } from "@/lib/platform/export-utils";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoKycProviderConfigSchema } from "@/lib/platform/validation";
 import {
   Page,
   PageHeader,
@@ -320,6 +323,36 @@ function valuesFromProvider(p: KycProvider): EditFormValues {
     autoApproveThreshold: 85,
     fallbackPriority: priorityFromProvider(p),
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Saved configuration (R2-W3-04)                                      */
+/*                                                                     */
+/* The sheet's Save button writes here and the page's fallback-order   */
+/* arrows write the order alongside it — one demo store, validated by  */
+/* demoKycProviderConfigSchema, cleared by "Reset demo session".       */
+/* ------------------------------------------------------------------ */
+
+const KYC_CONFIG_STORE = "kyc-provider-config";
+
+type KycConfigState = {
+  values: Record<string, EditFormValues>;
+  fallbackOrder: string[];
+};
+
+function readKycConfig(): KycConfigState {
+  return loadDemoState(KYC_CONFIG_STORE, demoKycProviderConfigSchema, {
+    values: {},
+    fallbackOrder: [],
+  });
+}
+
+function writeKycConfig(patch: Partial<KycConfigState>): void {
+  const cur = readKycConfig();
+  saveDemoState(KYC_CONFIG_STORE, {
+    values: { ...cur.values, ...(patch.values ?? {}) },
+    fallbackOrder: patch.fallbackOrder ?? cur.fallbackOrder,
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -683,21 +716,24 @@ function EditProviderSheet({
   const { tenant } = usePlatform();
   const term = makeTermResolver(tenant);
 
-  const [values, setValues] = useState<EditFormValues>(
-    valuesFromProvider(provider ?? KYC_PROVIDERS[0]),
+  const [values, setValues] = useState<EditFormValues>(() =>
+    provider
+      ? readKycConfig().values[provider.id] ?? valuesFromProvider(provider)
+      : valuesFromProvider(KYC_PROVIDERS[0]),
   );
   const [apiVisible, setApiVisible] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [prevProviderId, setPrevProviderId] = useState(provider?.id);
 
-  // Sync local form state when a different provider is passed in.
-  // Using React's "adjust state during render" pattern (not useEffect)
-  // per https://react.dev/learn/you-might-not-need-an-effect —
+  // Sync local form state when a different provider is passed in —
+  // saved values (if any) win over the seed so a reload restores the
+  // last save. Using React's "adjust state during render" pattern (not
+  // useEffect) per https://react.dev/learn/you-might-not-need-an-effect —
   // setState during render is allowed when guarded by a prop-change
   // condition so it doesn't cascade.
   if (provider && provider.id !== prevProviderId) {
     setPrevProviderId(provider.id);
-    setValues(valuesFromProvider(provider));
+    setValues(readKycConfig().values[provider.id] ?? valuesFromProvider(provider));
     setApiVisible(false);
     setDeactivateOpen(false);
   }
@@ -716,9 +752,14 @@ function EditProviderSheet({
     });
 
   const handleSave = () => {
+    // R2-W3-04 — a real write: the sheet reloads with these values
+    // after F5 (validated by demoKycProviderConfigSchema on load).
+    writeKycConfig({
+      values: { ...readKycConfig().values, [provider.id]: values },
+    });
     toast({
       title: "Saved",
-      description: "Provider configuration saved (demo)",
+      description: `${provider.name} configuration saved — it survives a reload and reopening the sheet.`,
     });
     onOpenChange(false);
   };
@@ -985,10 +1026,12 @@ export function KycProvidersPage() {
   // Per-row API key visibility (Set of provider ids).
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
 
-  // Fallback order — initialized from the mock data order.
-  const [fallbackOrder, setFallbackOrder] = useState<string[]>(
-    KYC_PROVIDERS.map((p) => p.id),
-  );
+  // Fallback order — persisted (R2-W3-04); falls back to the mock data
+  // order when this session hasn't reordered anything yet.
+  const [fallbackOrder, setFallbackOrder] = useState<string[]>(() => {
+    const stored = readKycConfig().fallbackOrder;
+    return stored.length > 0 ? stored : KYC_PROVIDERS.map((p) => p.id);
+  });
 
   // KPI row — derived deterministically from KYC_PROVIDERS.
   const kpis = useMemo(() => {
@@ -1069,23 +1112,21 @@ export function KycProvidersPage() {
   };
 
   const moveUp = (id: string) => {
-    setFallbackOrder((prev) => {
-      const idx = prev.indexOf(id);
-      if (idx <= 0) return prev;
-      const next = [...prev];
-      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-      return next;
-    });
+    const idx = fallbackOrder.indexOf(id);
+    if (idx <= 0) return;
+    const next = [...fallbackOrder];
+    [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+    setFallbackOrder(next);
+    writeKycConfig({ fallbackOrder: next }); // persists across reloads (R2-W3-04)
   };
 
   const moveDown = (id: string) => {
-    setFallbackOrder((prev) => {
-      const idx = prev.indexOf(id);
-      if (idx < 0 || idx >= prev.length - 1) return prev;
-      const next = [...prev];
-      [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]];
-      return next;
-    });
+    const idx = fallbackOrder.indexOf(id);
+    if (idx < 0 || idx >= fallbackOrder.length - 1) return;
+    const next = [...fallbackOrder];
+    [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]];
+    setFallbackOrder(next);
+    writeKycConfig({ fallbackOrder: next }); // persists across reloads (R2-W3-04)
   };
 
   const orderedFallback: KycProvider[] = fallbackOrder

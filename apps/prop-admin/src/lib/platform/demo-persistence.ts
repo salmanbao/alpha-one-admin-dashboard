@@ -41,6 +41,7 @@ const DEMO_STORES = [
   "affiliate-kpis",
   "auto-approve-rule",
   "connectors",
+  "kyc-provider-config",
 ] as const;
 
 /**
