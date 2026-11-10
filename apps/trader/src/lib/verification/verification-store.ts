@@ -20,7 +20,7 @@
  *   submitted → status → identity → documents → review
  */
 
-import { emitLifecycle, type LifecycleEventName } from "@pfaas/lifecycle";
+import { emitLifecycle, readLifecycleLog, type LifecycleEventName } from "@pfaas/lifecycle";
 
 /** The four steps of the unified wizard, in order. */
 export type VerificationStepId = "identity" | "documents" | "review" | "status";
@@ -332,6 +332,54 @@ function rejectionReasonPool(seed: number): string[] {
   return pools[seed % pools.length];
 }
 
+/**
+ * R3-01 — the firm's verdict wins over the local seeded reviewer.
+ *
+ * prop-admin decides the intake row it derived from this submission
+ * under `intake:<kyc.submitted event id>` (cross-app-intake.ts), never
+ * under the trader's `self` entity — so a terminal `kyc.approved` /
+ * `kyc.rejected` on that intake entity IS the operator's decision for
+ * THIS draft. Adopt it (persisted once; the time-seeded resolver then
+ * stops because the status is terminal, so the two can't fight).
+ */
+function foldAdminVerdict(draft: VerificationDraft): VerificationDraft {
+  const log = readLifecycleLog();
+  const submitted = [...log].reverse().find(
+    (e) =>
+      e.actor === "trader" &&
+      e.name === "kyc.submitted" &&
+      e.entity.kind === "kyc" &&
+      e.entity.id === "self",
+  );
+  if (!submitted) return draft;
+  const intakeId = `intake:${submitted.id}`;
+  const verdict = [...log].reverse().find(
+    (e) =>
+      e.entity.kind === "kyc" &&
+      e.entity.id === intakeId &&
+      (e.name === "kyc.approved" || e.name === "kyc.rejected"),
+  );
+  if (!verdict) return draft;
+  const want: VerificationReviewStatus = verdict.name === "kyc.approved" ? "approved" : "rejected";
+  if (draft.reviewStatus === want) return draft;
+  const reason =
+    typeof verdict.payload?.reason === "string" && verdict.payload.reason.trim()
+      ? verdict.payload.reason
+      : null;
+  const folded: VerificationDraft = {
+    ...draft,
+    reviewStatus: want,
+    rejectionReasons:
+      want === "rejected"
+        ? reason
+          ? [reason]
+          : (draft.rejectionReasons ?? ["Rejected by the reviewing officer."])
+        : undefined,
+  };
+  writeVerificationDraft(folded);
+  return folded;
+}
+
 export function readVerificationDraft(): VerificationDraft {
   const raw = readJson<Partial<VerificationDraft>>(DRAFT_KEY);
   if (!raw) return emptyVerificationDraft();
@@ -341,7 +389,7 @@ export function readVerificationDraft(): VerificationDraft {
     identity: { ...defaultIdentity, ...(raw.identity ?? {}) },
     documents: { ...(raw.documents ?? {}) },
   };
-  return resolveReviewStatus(draft);
+  return foldAdminVerdict(resolveReviewStatus(draft));
 }
 
 /**

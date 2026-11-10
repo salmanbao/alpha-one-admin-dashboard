@@ -13,7 +13,7 @@
  */
 
 import { useSyncExternalStore } from "react";
-import { emitLifecycle } from "@pfaas/lifecycle";
+import { emitLifecycle, readLifecycleLog, useLifecycleLog } from "@pfaas/lifecycle";
 import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
 import { getPayoutStage } from "@/lib/status-progression";
 import type { PayoutRejection } from "@/lib/fixtures/terra-fixtures";
@@ -116,8 +116,63 @@ function deriveExpectedAt(requestedAt: string, status: DisplayPayout["status"]):
   return new Date(ms + PROCESSING_AFTER_HOURS * 60 * 60 * 1000).toISOString();
 }
 
+/**
+ * R3-01 — the firm's decision, read from the shared lifecycle log.
+ *
+ * prop-admin's payout queue emits `payout.*` under the request's
+ * reference (R2-W3-01 publish point; intake rows carry the same
+ * reference), so the trader's own request can see the real verdict
+ * instead of guessing from elapsed time. Returns the LATEST decision
+ * event, or null when nobody has decided yet (the wall-clock fallback
+ * in `deriveStatus` then applies, as before).
+ */
+function adminDecision(
+  req: StoredPayoutRequest,
+): { status: "processing" | "paid" | "rejected"; reason: string | null; at: string } | null {
+  const decided = readLifecycleLog().filter(
+    (e) =>
+      (e.entity.kind === "payout" && (e.entity.id === req.reference || e.entity.id === req.id)) &&
+      (e.name === "payout.approved" ||
+        e.name === "payout.processing" ||
+        e.name === "payout.paid" ||
+        e.name === "payout.rejected"),
+  );
+  const latest = decided[decided.length - 1];
+  if (!latest) return null;
+  const reason = typeof latest.payload?.reason === "string" && latest.payload.reason.trim()
+    ? latest.payload.reason
+    : null;
+  // "approved" means the firm signed off — money is on its way, so the
+  // trader sees the same "processing" the wall-clock path would show.
+  const status =
+    latest.name === "payout.rejected"
+      ? "rejected"
+      : latest.name === "payout.paid"
+        ? "paid"
+        : "processing";
+  return { status, reason, at: latest.at };
+}
+
 export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
-  const status = deriveStatus(req.requestedAt);
+  // R3-01: an admin decision overrides the time-based derivation — a
+  // rejected request must stop displaying "processing → paid".
+  const admin = adminDecision(req);
+  const status: DisplayPayout["status"] = admin ? admin.status : deriveStatus(req.requestedAt);
+  const rejection: PayoutRejection | null =
+    admin && admin.status === "rejected"
+      ? {
+          at: admin.at,
+          code: "REJECTED_BY_FIRM",
+          summary:
+            admin.reason ??
+            "This request was reviewed by the firm and rejected. See the reason above or contact support for details.",
+          checks: [],
+          nextSteps: [
+            "Address the reason above, then submit a new request when you are eligible again.",
+            "Contact support if you believe this decision was made in error.",
+          ],
+        }
+      : null;
   return {
     id: req.id,
     reference: req.reference,
@@ -129,7 +184,7 @@ export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
     status,
     requestedAt: req.requestedAt,
     expectedAt: deriveExpectedAt(req.requestedAt, status),
-    rejection: null,
+    rejection,
     isUserRequest: true,
   };
 }
@@ -193,6 +248,10 @@ export function findPayoutRequestById(id: string | null): DisplayPayout | null {
 }
 
 export function usePayoutRequests(): DisplayPayout[] {
+  // R3-01: subscribe to the shared lifecycle log so a decision made in
+  // prop-admin (same-origin demo transport) re-renders every consumer
+  // live instead of waiting for the next reload.
+  useLifecycleLog();
   const raw = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   return (JSON.parse(raw) as StoredPayoutRequest[]).map(toDisplayPayout);
 }
