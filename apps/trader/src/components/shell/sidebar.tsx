@@ -145,6 +145,7 @@ export const sections: NavSection[] = [
     { href: "/my-accounts", label: "My Challenges", icon: Trophy },
   ]},
   { id: "payouts", label: "Payouts", icon: Banknote, defaultOpen: true, children: [
+    { href: "/payouts", label: "Payouts", icon: Banknote },
     { href: "/payout-history", label: "Payout History", icon: History, activePrefixes: ["/payout-detail"] },
     { href: "/payout-request", label: "Request Payout", icon: ArrowDownToLine },
     { href: "/payout-eligibility", label: "Eligibility", icon: BadgeCheck },

@@ -31,6 +31,7 @@ import { notifications, terraTenant } from "@/lib/fixtures/terra-fixtures";
 // Relative import — the @/components/platform/* alias points at the shared
 // package; local platform components are opt-in via tsconfig paths.
 import { SessionExpiryBanner } from "../platform/session-expiry-banner";
+import { useInboxLifecycleBridge } from "@/lib/inbox/inbox-lifecycle-bridge";
 
 const THEME_KEY = "terra-theme";
 
@@ -71,6 +72,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const unreadCount = notifications.filter((n) => n.unread).length;
+
+  // R3-07 — wire the inbox into the lifecycle bus so prop-admin decisions
+  // (payouts/kyc/challenge funding) land as inbox messages.
+  useInboxLifecycleBridge();
 
   // Login page renders without the shell
   if (pathname === "/login") {
