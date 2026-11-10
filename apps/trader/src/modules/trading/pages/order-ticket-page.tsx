@@ -19,9 +19,11 @@ import {
   TerraSectionTitle,
   formatMoney,
 } from "@/components/terra/terra-ui";
-import { marketWatch } from "@/lib/fixtures/terra-fixtures";
+import { marketWatch, terraRiskLimits } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { useTrading } from "@/lib/trading/trading-context";
+import { useRiskWarning } from "@/lib/trading/use-risk-warning";
+import { RiskWarningBanner } from "@/components/terra/risk-warning-banner";
 import { markJourney } from "@/lib/onboarding/journey-store";
 
 const orderTypes = [
@@ -47,6 +49,8 @@ export function OrderTicketPage() {
   // the trader always knows which account an order will land on.
   const { activeAccount } = useActiveAccount();
   const { placeOrder, orders } = useTrading();
+  // R3-05 — risk-warning state (banner + one-time inbox message).
+  const risk = useRiskWarning();
   const [symbol, setSymbol] = useState(marketWatch[0].symbol);
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [lots, setLots] = useState("0.50");
@@ -140,6 +144,17 @@ export function OrderTicketPage() {
         title="Order Ticket"
         description={`Place a new order on #${activeAccount.login} • ${activeAccount.name} — switch accounts from the header`}
       />
+
+      {/* R3-05 — threshold-driven risk warning (banner + inbox event). */}
+      {risk.warned && (
+        <RiskWarningBanner
+          account={activeAccount}
+          dailyPct={risk.dailyPct}
+          maxDdPct={risk.maxDdPct}
+          breach={risk.breach}
+          limits={risk.limits}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
