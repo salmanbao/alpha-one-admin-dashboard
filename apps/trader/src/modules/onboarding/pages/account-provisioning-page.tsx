@@ -77,6 +77,13 @@ export function AccountProvisioningPage() {
         key: `activated:${entityId}`,
         payload: { purchasedAt, stages: total },
       });
+      emitLifecycle({
+        entity: { kind: "provisioning", id: entityId },
+        name: "provisioning.credentials",
+        actor: "trader",
+        key: `credentials:${entityId}`,
+        payload: { purchasedAt, stages: total },
+      });
     }
   }, [purchasedAt, complete, total]);
 
@@ -136,19 +143,28 @@ export function AccountProvisioningPage() {
           </ol>
         </TerraCard>
 
-        <div className="flex justify-center gap-3">
+        <div className="flex flex-wrap justify-center gap-3">
           <Link
             href="/support"
             className="rounded-xl bg-surface-container-low px-5 py-3 text-sm font-semibold text-on-surface hover:bg-surface-container"
           >
             Contact support
           </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary hover:bg-primary/90"
-          >
-            Back to dashboard
-          </Link>
+          {active ? (
+            <Link
+              href="/trading-credentials"
+              className="rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary hover:bg-primary/90"
+            >
+              View your credentials →
+            </Link>
+          ) : (
+            <Link
+              href="/dashboard"
+              className="rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary hover:bg-primary/90"
+            >
+              Back to dashboard
+            </Link>
+          )}
         </div>
       </div>
     </div>
