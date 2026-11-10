@@ -54,7 +54,8 @@ export type LifecycleEntityKind =
   | "purchase"
   | "provisioning"
   | "challenge"
-  | "competition";
+  | "competition"
+  | "account";
 
 export interface EntityRef {
   kind: LifecycleEntityKind;
@@ -93,6 +94,9 @@ export const LIFECYCLE_EVENT_NAMES = [
   // Competitions
   "competition.joined",
   "competition.left",
+  // Account
+  "account.created",
+  "account.password-reset",
 ] as const;
 
 export type LifecycleEventName = (typeof LIFECYCLE_EVENT_NAMES)[number];
@@ -327,6 +331,8 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "challenge.funded": "Funded",
   "competition.joined": "Joined",
   "competition.left": "Left",
+  "account.created": "Account created",
+  "account.password-reset": "Password reset",
 };
 
 /**
@@ -349,6 +355,8 @@ const FOLLOW_UP: Partial<
   "purchase.completed": { label: "Provisioned", afterHours: 1 },
   "provisioning.started": { label: "Credentials delivered", afterHours: 0.5 },
   "provisioning.credentials": { label: "Active", afterHours: 0.5 },
+  "account.created": { label: "Verification started", afterHours: 48 },
+  "account.password-reset": { label: "Updated", afterHours: 0 },
 };
 
 export interface ProjectedStatus {
