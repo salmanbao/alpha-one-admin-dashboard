@@ -17,15 +17,20 @@
  *   4. Transition rules — effective timing, entitlement cascade, grace
  *      period, and the tenant notification template
  *   5. Tenant-facing preview — exactly what the tenant will see
- *   6. Confirm → toast + audit record (console.plan_transition_applied)
+ *   6. Confirm → writes the tenant store via `updateTenant` (R3-04:
+ *      immediate moves `plan`, next-cycle persists `scheduledPlan`) +
+ *      toast + audit record (console.plan_transition_applied)
  *
- * Plan fixtures mirror plans-page.tsx (session-scoped demo state, same
- * deterministic data); usage mirrors tenantUsage. No Math.random.
+ * The plan catalog is the persisted plan-catalog-store (shared with the
+ * plans page — this page used to hardcode its own copy); tenants read
+ * tenant-store reactively so the before/after comparison reflects a
+ * confirmed transition immediately. Usage mirrors tenantUsage. No Math.random.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { tenants as allTenants } from "@/lib/platform/mock-data";
+import { applyDueScheduledPlans, updateTenant, useTenants } from "@/lib/platform/tenant-store";
+import { type PlanId, usePlans } from "@/lib/platform/plan-catalog-store";
 import { recordAudit } from "@/lib/platform/console-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
@@ -58,86 +63,11 @@ import {
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/* Plan fixtures — mirror plans-page.tsx (deterministic, session-scoped) */
+/* Plan presentation fixtures — tier order/tone + deterministic usage.  */
+/* The catalog itself lives in lib/platform/plan-catalog-store.        */
 /* ------------------------------------------------------------------ */
 
-type PlanId = "starter" | "growth" | "scale" | "enterprise";
-
 const PLAN_ORDER: PlanId[] = ["starter", "growth", "scale", "enterprise"];
-
-interface PlanLimits {
-  traders: number;
-  apiCallsPerDay: number;
-  storageGb: number;
-  eventsPerDay: number;
-}
-
-interface Plan {
-  id: PlanId;
-  name: string;
-  tagline: string;
-  priceMonthly: number;
-  trialDays: number;
-  limits: PlanLimits;
-  features: string[];
-}
-
-const DEFAULT_PLANS: Plan[] = [
-  {
-    id: "starter",
-    name: "Starter",
-    tagline: "New prop firms validating their first challenge program.",
-    priceMonthly: 890,
-    trialDays: 14,
-    limits: { traders: 1_000, apiCallsPerDay: 100_000, storageGb: 50, eventsPerDay: 10_000 },
-    features: ["Challenges & payouts", "Risk monitoring (basic)", "Email support"],
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    tagline: "Scaling firms with active marketing and affiliate programs.",
-    priceMonthly: 1_900,
-    trialDays: 14,
-    limits: { traders: 5_000, apiCallsPerDay: 1_000_000, storageGb: 250, eventsPerDay: 100_000 },
-    features: [
-      "Everything in Starter",
-      "Affiliates & marketing",
-      "Advanced risk analytics",
-      "White-label branding",
-      "Priority support",
-    ],
-  },
-  {
-    id: "scale",
-    name: "Scale",
-    tagline: "High-volume operations with API and SIEM integrations.",
-    priceMonthly: 4_900,
-    trialDays: 30,
-    limits: { traders: 20_000, apiCallsPerDay: 5_000_000, storageGb: 1_000, eventsPerDay: 500_000 },
-    features: [
-      "Everything in Growth",
-      "Full API access",
-      "SIEM / audit exports",
-      "Custom contracts",
-      "Dedicated CSM",
-    ],
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    tagline: "Bespoke contracts, SSO, and unlimited scale.",
-    priceMonthly: 12_000,
-    trialDays: 30,
-    limits: { traders: 50_000, apiCallsPerDay: 10_000_000, storageGb: 2_000, eventsPerDay: 1_000_000 },
-    features: [
-      "Everything in Scale",
-      "SAML / OIDC SSO",
-      "Unlimited branding seats",
-      "99.9% SLA + named engineer",
-      "Custom data residency",
-    ],
-  },
-];
 
 const PLAN_TONE: Record<PlanId, string> = {
   starter: "#6b6358",
@@ -198,8 +128,30 @@ const GRACE_PERIODS = [
 export function PlanTransitionPage({ params }: { params: Record<string, string> }) {
   const { user, navigate } = usePlatform();
 
-  // Tenants on file (exclude the internal platform pseudo-tenant).
-  const tenantRows = useMemo(() => allTenants.filter((t) => t.id !== "platform"), []);
+  // Tenants on file — from the store (R3-04), so a transition confirmed
+  // here re-renders the before/after comparison immediately (the page
+  // used to read the mock-data seed once at module load).
+  const storedTenants = useTenants();
+  const tenantRows = useMemo(
+    () => storedTenants.filter((t) => t.id !== "platform"),
+    [storedTenants],
+  );
+
+  // Persisted catalog (shared with the plans page) + apply any scheduled
+  // plan transitions whose effective time has passed.
+  const plans = usePlans();
+  useEffect(() => {
+    const applied = applyDueScheduledPlans();
+    if (applied.length > 0) {
+      toast({
+        title: "Scheduled plan change applied",
+        description: applied
+          .map((t) => `${t.name} → ${plans.find((p) => p.id === t.plan)?.name ?? t.plan}`)
+          .join(", "),
+      });
+    }
+    // plans is read once on mount — a due schedule applies before edits matter.
+  }, []);
 
   // Deep-linkable selection — navigate("plan-transition", { tenant, target })
   // pre-seeds the workflow (e.g. from the plans table).
@@ -212,8 +164,8 @@ export function PlanTransitionPage({ params }: { params: Record<string, string> 
   });
 
   const tenant = tenantRows.find((t) => t.id === tenantId) ?? seededTenant;
-  const currentPlan = tenant ? DEFAULT_PLANS.find((p) => p.id === tenant.plan) : undefined;
-  const targetPlan = targetId ? DEFAULT_PLANS.find((p) => p.id === targetId) : undefined;
+  const currentPlan = tenant ? plans.find((p) => p.id === tenant.plan) : undefined;
+  const targetPlan = targetId ? plans.find((p) => p.id === targetId) : undefined;
 
   // Transition rules (section 4)
   const [effective, setEffective] = useState<"immediate" | "cycle">("cycle");
@@ -266,6 +218,8 @@ export function PlanTransitionPage({ params }: { params: Record<string, string> 
 
   const worstTargetPct = Math.max(...checks.map((c) => pct(c.used, c.target)));
   const canConfirm = !isCurrent && violations.length === 0 && acknowledged;
+  // R3-04 — a scheduled change already on file for this tenant.
+  const scheduled = tenant.scheduledPlan;
 
   /* 5 · Tenant-facing preview copy — composed from the rules above. */
   const template = NOTIFICATION_TEMPLATES.find((t) => t.id === templateId) ?? NOTIFICATION_TEMPLATES[0];
@@ -305,12 +259,26 @@ export function PlanTransitionPage({ params }: { params: Record<string, string> 
 
   const confirm = () => {
     if (!canConfirm) return;
+    // R3-04: the workflow now WRITES the tenant store — it used to toast
+    // + audit only, so the transition never happened. Immediate → plan
+    // moves now (clearing any earlier schedule); next cycle → persisted
+    // as a scheduled record the store applies when due.
+    if (effective === "immediate") {
+      updateTenant(tenant.id, { plan: targetPlan.id, scheduledPlan: undefined });
+    } else {
+      updateTenant(tenant.id, {
+        scheduledPlan: {
+          plan: targetPlan.id,
+          scheduledFor: new Date(Date.now() + daysRemaining * 86_400_000).toISOString(),
+        },
+      });
+    }
     toast({
-      title: "Plan transition applied",
+      title: effective === "immediate" ? "Plan transition applied" : "Plan transition scheduled",
       description: `${tenant.name}: ${currentPlan.name} → ${targetPlan.name} — effective ${
         effective === "immediate"
           ? `immediately (net proration ${netProration >= 0 ? "charge" : "credit"} of ${formatCurrency(Math.abs(netProration))})`
-          : "at the next billing cycle"
+          : "at the next billing cycle (saved on the tenant record)"
       }, ${graceDays}-day grace, cascade ${cascade ? "on" : "off"}; "${template.label}" queued.`,
     });
     recordAudit({
@@ -322,7 +290,7 @@ export function PlanTransitionPage({ params }: { params: Record<string, string> 
       detail: `${tenant.name}: ${currentPlan.name} → ${targetPlan.name} (effective ${
         effective === "immediate"
           ? `immediately, proration ${netProration >= 0 ? "+" : "−"}${formatCurrency(Math.abs(netProration))}`
-          : "next billing cycle"
+          : "next billing cycle — scheduled record persisted on the tenant"
       }; cascade ${cascade ? "on" : "off"}; grace ${graceDays}d; template "${template.id}"; acknowledged by ${user.name})`,
     });
     setAcknowledged(false);
@@ -419,7 +387,7 @@ export function PlanTransitionPage({ params }: { params: Record<string, string> 
               </Badge>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {DEFAULT_PLANS.map((p) => {
+              {plans.map((p) => {
                 const selected = p.id === targetId;
                 const current = p.id === currentPlan.id;
                 return (
@@ -755,6 +723,16 @@ export function PlanTransitionPage({ params }: { params: Record<string, string> 
             </div>
           </CardContent>
         </Card>
+
+        {/* R3-04 — scheduled change already on file for this tenant */}
+        {scheduled ? (
+          <div className="rounded-lg border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
+            Scheduled: {currentPlan.name} →{" "}
+            {plans.find((p) => p.id === scheduled.plan)?.name ?? scheduled.plan} on{" "}
+            {new Date(scheduled.scheduledFor).toLocaleDateString()} — applies automatically
+            when due (saved on the tenant record).
+          </div>
+        ) : null}
 
         {/* 6 · Confirm */}
         <Card>

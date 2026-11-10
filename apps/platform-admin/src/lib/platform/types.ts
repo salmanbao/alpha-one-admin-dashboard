@@ -58,6 +58,13 @@ export interface TenantContext {
   /** Plan tier */
   plan: "starter" | "growth" | "scale" | "enterprise";
   /**
+   * R3-04 — a plan change confirmed for the next billing cycle (the
+   * workflows' "Schedule transition" / "next billing cycle" choice).
+   * Persisted here instead of toasting only; `applyDueScheduledPlans`
+   * (tenant-store) moves it into `plan` once `scheduledFor` passes.
+   */
+  scheduledPlan?: { plan: TenantContext["plan"]; scheduledFor: string };
+  /**
    * Lifecycle per docs/03 §3.5 + docs/21 CON-06: provisioning saga runs
    * `provisioning → onboarding` (steps 2 and 9); terminal failure lands
    * `provisioning_failed` until an operator resumes from the console.

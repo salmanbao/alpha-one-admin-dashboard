@@ -7,11 +7,13 @@
  * platform's own pricing tiers (Starter → Enterprise), with per-plan
  * features, limits (traders, API calls, storage, events), pricing,
  * trial configuration, tenant↔plan assignment, usage-vs-limit meters,
- * and upgrade/downgrade paths. Frontend-first — plans live in component
- * state (edits are session-scoped demo mutations with toasts).
+ * and upgrade/downgrade paths. The catalog itself lives in
+ * plan-catalog-store (persisted, shared with the Plan Transition
+ * workflow); tenant rows read tenant-store reactively, so a migration
+ * confirmed here re-renders MRR, badges and meters without a reload.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,9 +31,16 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/components/platform/status";
-import { tenants as allTenantsSeed, getTenantTraders } from "@/lib/platform/mock-data";
-import { readTenants } from "@/lib/platform/tenant-store";
-const allTenants = readTenants();
+import { getTenantTraders } from "@/lib/platform/mock-data";
+import { applyDueScheduledPlans, updateTenant, useTenants } from "@/lib/platform/tenant-store";
+import {
+  DEFAULT_PLANS,
+  usePlans,
+  updatePlan,
+  type Plan,
+  type PlanId,
+  type PlanLimits,
+} from "@/lib/platform/plan-catalog-store";
 import { toast } from "@/hooks/use-toast";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { recordAudit } from "@/lib/platform/console-store";
@@ -64,86 +73,6 @@ import {
   ArrowRightLeft,
 } from "lucide-react";
 
-/* ------------------------------------------------------------------ */
-/* Plan model                                                          */
-/* ------------------------------------------------------------------ */
-
-type PlanId = TenantContext["plan"];
-
-interface PlanLimits {
-  traders: number;
-  apiCallsPerDay: number;
-  storageGb: number;
-  eventsPerDay: number;
-}
-
-interface Plan {
-  id: PlanId;
-  name: string;
-  tagline: string;
-  priceMonthly: number; // platform charges the tenant this /mo
-  trialDays: number; // 0 = no trial
-  limits: PlanLimits;
-  features: string[];
-}
-
-const DEFAULT_PLANS: Plan[] = [
-  {
-    id: "starter",
-    name: "Starter",
-    tagline: "New prop firms validating their first challenge program.",
-    priceMonthly: 890,
-    trialDays: 14,
-    limits: { traders: 1_000, apiCallsPerDay: 100_000, storageGb: 50, eventsPerDay: 10_000 },
-    features: ["Challenges & payouts", "Risk monitoring (basic)", "Email support"],
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    tagline: "Scaling firms with active marketing and affiliate programs.",
-    priceMonthly: 1_900,
-    trialDays: 14,
-    limits: { traders: 5_000, apiCallsPerDay: 1_000_000, storageGb: 250, eventsPerDay: 100_000 },
-    features: [
-      "Everything in Starter",
-      "Affiliates & marketing",
-      "Advanced risk analytics",
-      "White-label branding",
-      "Priority support",
-    ],
-  },
-  {
-    id: "scale",
-    name: "Scale",
-    tagline: "High-volume operations with API and SIEM integrations.",
-    priceMonthly: 4_900,
-    trialDays: 30,
-    limits: { traders: 20_000, apiCallsPerDay: 5_000_000, storageGb: 1_000, eventsPerDay: 500_000 },
-    features: [
-      "Everything in Growth",
-      "Full API access",
-      "SIEM / audit exports",
-      "Custom contracts",
-      "Dedicated CSM",
-    ],
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    tagline: "Bespoke contracts, SSO, and unlimited scale.",
-    priceMonthly: 12_000,
-    trialDays: 30,
-    limits: { traders: 50_000, apiCallsPerDay: 10_000_000, storageGb: 2_000, eventsPerDay: 1_000_000 },
-    features: [
-      "Everything in Scale",
-      "SAML / OIDC SSO",
-      "Unlimited branding seats",
-      "99.9% SLA + named engineer",
-      "Custom data residency",
-    ],
-  },
-];
-
 const PLAN_TONE: Record<PlanId, string> = {
   starter: "#6b6358",
   growth: "#0f766e",
@@ -175,25 +104,35 @@ const usageTone = (p: number) => (p >= 100 ? "bg-destructive" : p >= 80 ? "bg-am
 
 export function PlansPage() {
   const { navigate } = usePlatform();
-  const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS);
+  // R3-04: catalog + tenants are store-backed, so a migration confirmed
+  // from this page updates MRR/badges/meters live (no reload).
+  const plans = usePlans();
   const [editing, setEditing] = useState<Plan | null>(null);
   const [creating, setCreating] = useState(false);
 
+  // Apply any scheduled plan transitions whose effective time has passed.
+  useEffect(() => {
+    const applied = applyDueScheduledPlans();
+    if (applied.length > 0) {
+      toast({
+        title: "Scheduled plan change applied",
+        description: applied
+          .map((t) => `${t.name} → ${plans.find((p) => p.id === t.plan)?.name ?? t.plan}`)
+          .join(", "),
+      });
+    }
+    // plans is read once on mount — a due schedule applies before edits matter.
+  }, []);
+
   // Tenants on file (exclude the internal platform pseudo-tenant).
-  const tenantRows = useMemo(
-    () => allTenants.filter((t) => t.id !== "platform"),
-    [],
-  );
+  const tenantRows = useTenants().filter((t) => t.id !== "platform");
 
   const mrr = tenantRows.reduce((s, t) => s + (plans.find((p) => p.id === t.plan)?.priceMonthly ?? 0), 0);
   const trialCount = plans.filter((p) => p.trialDays > 0).length;
   const tenantsOnScalePlus = tenantRows.filter((t) => t.plan === "scale" || t.plan === "enterprise").length;
 
   const savePlan = (plan: Plan) => {
-    setPlans((prev) => {
-      const exists = prev.some((p) => p.id === plan.id);
-      return exists ? prev.map((p) => (p.id === plan.id ? plan : p)) : [...prev, plan];
-    });
+    updatePlan(plan); // R3-04: persisted catalog (was session-only useState)
     setEditing(null);
     setCreating(false);
     toast({ title: "Plan saved", description: `${plan.name} — ${formatCurrency(plan.priceMonthly)}/mo, ${plan.trialDays}-day trial.` });
@@ -313,6 +252,7 @@ export function PlansPage() {
             {tenantRows.map((t) => {
               const plan = plans.find((p) => p.id === t.plan);
               if (!plan) return null;
+              const scheduled = t.scheduledPlan;
               const usage = tenantUsage(t.id);
               const meters: Array<{ label: string; used: number; limit: number }> = [
                 { label: "Traders", used: usage.traders, limit: plan.limits.traders },
@@ -332,6 +272,12 @@ export function PlansPage() {
                       >
                         {plan.name}
                       </Badge>
+                      {scheduled ? (
+                        <Badge variant="secondary" className="text-[10px]" title={`Scheduled for ${new Date(scheduled.scheduledFor).toLocaleDateString()}`}>
+                          → {plans.find((p) => p.id === scheduled.plan)?.name ?? scheduled.plan}{" "}
+                          scheduled
+                        </Badge>
+                      ) : null}
                       <span className="text-xs text-muted-foreground">
                         {formatCurrency(plan.priceMonthly)}/mo
                         {plan.trialDays > 0 ? ` · ${plan.trialDays}-day trial` : ""}
@@ -487,7 +433,10 @@ function PlanChangeButtons({ tenant, plans }: { tenant: TenantContext; plans: Pl
  *   3. feature delta — what the tenant gains and loses, filtered of
  *      the "Everything in …" bundle lines;
  *   4. effective date — immediately (prorated) or next billing cycle.
- * Confirming toasts + records a `console.plan_migration_*` audit entry.
+ * Confirming WRITES the tenant store via `updateTenant` (R3-04 — the
+ * immediate branch moves `plan`; the cycle branch persists a
+ * `scheduledPlan` record), then toasts + records the
+ * `console.plan_migration_*` audit entry.
  */
 function PlanMigrationDialog({
   tenant,
@@ -552,12 +501,27 @@ function PlanMigrationDialog({
 
   const confirm = () => {
     if (!canMigrate || !targetPlan) return;
+    // R3-04: the guided workflow now WRITES the tenant store — it used to
+    // toast + audit only, so the migration never happened. Immediate →
+    // plan moves now (clearing any earlier schedule); next cycle → the
+    // change is persisted as a scheduled record the store applies when
+    // its effective time passes.
+    if (effective === "immediate") {
+      updateTenant(tenant.id, { plan: targetPlan.id, scheduledPlan: undefined });
+    } else {
+      updateTenant(tenant.id, {
+        scheduledPlan: {
+          plan: targetPlan.id,
+          scheduledFor: new Date(Date.now() + daysRemaining * 86_400_000).toISOString(),
+        },
+      });
+    }
     toast({
       title: effective === "immediate" ? "Migration started" : "Plan change scheduled",
       description: `${tenant.name}: ${tenant.plan} → ${targetPlan.id} ${
         effective === "immediate"
           ? `immediately — net proration ${netProration >= 0 ? "charge" : "credit"} of ${formatCurrency(Math.abs(netProration))} (${daysRemaining} days remaining)`
-          : "at the next billing cycle"
+          : "at the next billing cycle (saved on the tenant record)"
       }. Provisioning will re-evaluate entitlements automatically.`,
     });
     recordAudit({
@@ -569,7 +533,7 @@ function PlanMigrationDialog({
       detail: `${tenant.name}: ${tenant.plan} → ${targetPlan.id} (effective ${
         effective === "immediate"
           ? `immediately, proration ${netProration >= 0 ? "+" : "−"}${formatCurrency(Math.abs(netProration))}`
-          : "next billing cycle"
+          : "next billing cycle — scheduled record persisted on the tenant"
       }; acknowledged by ${user.name})`,
     });
     onOpenChange(false);

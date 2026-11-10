@@ -85,6 +85,31 @@ export function updateTenant(id: string, patch: Partial<TenantContext>): void {
   writeRaw(next);
 }
 
+/**
+ * R3-04 — apply scheduled plan transitions whose effective time has
+ * passed. `scheduledPlan` is written by the PlanMigrationDialog and the
+ * Plan Transition workflow when the operator picks "next billing cycle";
+ * the workflow pages run this on mount, so a due record moves into
+ * `plan`, the schedule clears, and subscribers re-render. Returns the
+ * tenants that were applied (empty when nothing was due).
+ */
+export function applyDueScheduledPlans(now: number = Date.now()): TenantContext[] {
+  const list = readRaw();
+  const applied: TenantContext[] = [];
+  const next = list.map((t) => {
+    const s = t.scheduledPlan;
+    if (!s) return t;
+    const dueAt = Date.parse(s.scheduledFor);
+    if (Number.isNaN(dueAt) || dueAt > now) return t;
+    const updated: TenantContext = { ...t, plan: s.plan };
+    delete updated.scheduledPlan;
+    applied.push(updated);
+    return updated;
+  });
+  if (applied.length > 0) writeRaw(next);
+  return applied;
+}
+
 export function useTenants(): TenantContext[] {
   const raw = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   return JSON.parse(raw) as TenantContext[];
