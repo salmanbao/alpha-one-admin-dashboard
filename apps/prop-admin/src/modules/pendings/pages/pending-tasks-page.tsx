@@ -37,6 +37,13 @@ import { moduleRegistry } from "@/lib/platform/module-registry";
 import { isModuleEnabledSafe } from "@/components/platform/guard-utils";
 import { cn } from "@/lib/utils";
 import {
+  useCrossAppIntake,
+  type PurchaseRecord,
+  type ProvisioningRecord,
+  type EscalationRecord,
+  type MethodChangeRecord,
+} from "@/lib/platform/cross-app-intake";
+import {
   ClipboardList,
   CheckCircle2,
   ShieldCheck,
@@ -49,6 +56,11 @@ import {
   Calendar,
   Megaphone,
   AlertTriangle,
+  Package,
+  Server,
+  ShieldAlert,
+  CreditCard,
+  RefreshCw,
 } from "lucide-react";
 
 interface SummaryCard {
@@ -77,9 +89,11 @@ export function PendingTasksPage() {
   // Subscribe to decision stores so counts update instantly.
   const kycVersion = useKycVersion();
   const payoutVersion = usePayoutVersion();
-  // R2-W3-01 — cross-app intake (trader submissions) arrives as lifecycle
-  // events; subscribing here makes the hub counts move without a reload.
+  // R2-W3-01 / R3-06 — cross-app intake (trader submissions) arrives as
+  // lifecycle events; subscribing here makes the hub counts move without a
+  // reload once any queue kind lands.
   const lifecycleVersion = useLifecycleLog().length;
+  const { purchases, provisioning, escalations, methodChanges } = useCrossAppIntake(tid);
 
   const challenges = useMemo(() => getTenantChallenges(tid), [tid]);
   const kyc = useMemo(
@@ -94,13 +108,17 @@ export function PendingTasksPage() {
   const traders = useMemo(() => getTenantTraders(tid), [tid]);
   const insights = useMemo(() => getTenantAiInsights(tid), [tid]);
 
-  // Compute counts from effective statuses / real fixtures.
+  // Compute counts from effective statuses / real fixtures / R3-06 cross-app intake.
   const phase1Passed = challenges.filter((c: Challenge) => c.status === "passed" && c.phase === "phase-1").length;
   const phase2Passed = challenges.filter((c: Challenge) => c.status === "passed" && c.phase === "phase-2").length;
   const kycReviews = kyc.filter((k: KycRecord) => k.status === "review" || k.status === "pending").length;
   const phaseVerifications = challenges.filter((c: Challenge) => c.status === "in-progress").length;
   const pendingWithdrawals = payouts.filter((p: Payout) => p.status === "pending").length;
   const affiliatePayouts = affiliates.filter((a) => a.commissionPending > 0).length;
+  const purchaseCount = purchases.filter((p: PurchaseRecord) => p.status === "pending").length;
+  const provisioningCount = provisioning.filter((p: ProvisioningRecord) => p.status !== "active").length;
+  const escalationCount = escalations.filter((e: EscalationRecord) => e.status === "open").length;
+  const methodCount = methodChanges.length;
 
   const cards: SummaryCard[] = useMemo(() => [
     {
@@ -151,7 +169,39 @@ export function PendingTasksPage() {
       icon: Users,
       description: "Affiliates with commission balance pending payout",
     },
-  ], [phase1Passed, phase2Passed, kycReviews, phaseVerifications, pendingWithdrawals, affiliatePayouts]);
+    {
+      id: "pending-purchases",
+      label: "Pending Purchases",
+      count: purchaseCount,
+      viewId: "purchase-completed",
+      icon: Package,
+      description: "Challenge purchases awaiting provisioning",
+    },
+    {
+      id: "provisioning-queues",
+      label: "Provisioning Queues",
+      count: provisioningCount,
+      viewId: "account-provisioning",
+      icon: Server,
+      description: "Accounts being provisioned or waiting on credentials",
+    },
+    {
+      id: "payout-escalations",
+      label: "Payout Escalations",
+      count: escalationCount,
+      viewId: "payout-detail",
+      icon: ShieldAlert,
+      description: "Payouts requiring a second signature",
+    },
+    {
+      id: "method-changes",
+      label: "Method Changes",
+      count: methodCount,
+      viewId: "payout-methods-config",
+      icon: CreditCard,
+      description: "Method additions/removals by traders",
+    },
+  ], [phase1Passed, phase2Passed, kycReviews, phaseVerifications, pendingWithdrawals, affiliatePayouts, purchaseCount, provisioningCount, escalationCount, methodCount]);
 
   const resolvedCards = useMemo(() => cards.map((c) => ({
     ...c,
@@ -184,7 +234,7 @@ export function PendingTasksPage() {
 
   const forecastTotal = forecast.reduce((s, d) => s + d.amount, 0);
 
-  // Recent activity feed — derived from effective KYC/payout state + insights.
+  // Recent activity feed — derived from effective KYC/payout state + new queues.
   const recentActivity = useMemo(() => {
     const items: { id: string; title: string; summary: string; time: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; tone: "info" | "warning" | "critical" | "success" }[] = [];
 
@@ -212,6 +262,65 @@ export function PendingTasksPage() {
       });
     }
 
+    const purchasesPending = purchases.slice(0, 2);
+    for (const p of purchasesPending) {
+      items.push({
+        id: `pur-${p.id}`,
+        title: `Challenge purchase from ${p.traderName}`,
+        summary:
+          p.orderId
+            ? `Order ${p.orderId} — ${formatCurrency(p.amount, p.currency)} awaiting provisioning`
+            : `${formatCurrency(p.amount, p.currency)} awaiting provisioning`,
+        time: timeAgo(new Date(p.createdAt)),
+        icon: Package,
+        tone: "info",
+      });
+    }
+
+    const provisioningPending = provisioning.filter((p) => p.status !== "active").slice(0, 2);
+    for (const p of provisioningPending) {
+      const label =
+        p.status === "in-progress"
+          ? "in progress"
+          : p.status === "credentials-delivered"
+            ? "credentials delivered"
+            : "active";
+      items.push({
+        id: `prov-${p.id}`,
+        title: `Account provisioning — ${p.traderName}`,
+        summary: `Status: ${label}${p.reason ? ` · ${p.reason}` : ""}`,
+        time: timeAgo(new Date(p.createdAt)),
+        icon: Server,
+        tone: p.status === "active" ? "success" : "info",
+      });
+    }
+
+    const escalationsPending = escalations.slice(0, 2);
+    for (const e of escalationsPending) {
+      items.push({
+        id: `esc-${e.id}`,
+        title: `Payout escalation — ${e.traderName}`,
+        summary: `${e.payoutReference} — ${formatCurrency(e.amount, e.currency)} needs a second signature${e.reason ? ` · ${e.reason}` : ""}`,
+        time: timeAgo(new Date(e.createdAt)),
+        icon: ShieldAlert,
+        tone: "critical",
+      });
+    }
+
+    const methodChangesRecent = methodChanges.slice(0, 2);
+    for (const m of methodChangesRecent) {
+      items.push({
+        id: `mnt-${m.id}`,
+        title: `Payout method change — ${m.traderName}`,
+        summary: `${m.action} ${m.method}${
+          m.action === "primary-set" ? " (primary method set)" : ""
+        }`,
+        time: timeAgo(new Date(m.createdAt)),
+        icon: CreditCard,
+        tone: "info",
+      });
+    }
+
     for (const ins of insights.slice(0, 2)) {
       const toneMap: Record<string, "info" | "warning" | "critical" | "success"> = {
         info: "info",
@@ -229,8 +338,8 @@ export function PendingTasksPage() {
       });
     }
 
-    return items.slice(0, 5);
-  }, [payouts, kyc, insights]);
+    return items.slice(0, 6);
+  }, [payouts, kyc, insights, purchases, provisioning, escalations, methodChanges]);
 
   const onCardClick = (c: SummaryCard) => {
     navigate(c.viewId);
