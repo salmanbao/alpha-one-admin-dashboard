@@ -78,6 +78,7 @@ export const LIFECYCLE_EVENT_NAMES = [
   "payout.paid",
   "payout.escalated",
   "payout.info-requested",
+  "payout.cancelled",
   // Payout methods
   "payout-method.added",
   "payout-method.updated",
@@ -319,6 +320,7 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "payout.paid": "Paid",
   "payout.escalated": "Escalated",
   "payout.info-requested": "Info requested",
+  "payout.cancelled": "Cancelled",
   "payout-method.added": "Method added",
   "payout-method.updated": "Method updated",
   "payout-method.removed": "Method removed",

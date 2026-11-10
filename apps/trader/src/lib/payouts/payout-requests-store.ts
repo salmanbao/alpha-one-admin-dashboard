@@ -247,6 +247,35 @@ export function findPayoutRequestById(id: string | null): DisplayPayout | null {
   return found ? toDisplayPayout(found) : null;
 }
 
+export function cancelPayoutRequest(id: string): boolean {
+  if (!id) return false;
+  const requests = readRawRequests();
+  const idx = requests.findIndex((r) => r.id === id);
+  if (idx === -1) return false;
+  const req = requests[idx];
+  // Only allow cancel while the request is still in "submitted" state
+  // (audit #7: pending payout can't be cancelled once past submitted)
+  if (req.status !== "submitted") return false;
+  // Emit cancelled lifecycle event
+  emitLifecycle({
+    entity: { kind: "payout", id: req.id },
+    name: "payout.cancelled",
+    actor: "trader",
+    key: `cancelled:${req.id}`,
+    payload: {
+      reference: req.reference,
+      amount: req.amount,
+      method: req.method,
+      requestedAt: req.requestedAt,
+    },
+  });
+  // Remove the cancelled request from storage
+  requests.splice(idx, 1);
+  writeRequests(requests);
+  notify();
+  return true;
+}
+
 export function usePayoutRequests(): DisplayPayout[] {
   // R3-01: subscribe to the shared lifecycle log so a decision made in
   // prop-admin (same-origin demo transport) re-renders every consumer
