@@ -37,7 +37,7 @@ import {
   type PayoutCriterion,
 } from "@/components/terra/payout-summary-strip";
 import { type PayoutMethod, usePayoutMethods } from "@/lib/payouts/payout-methods-store";
-import { addPayoutRequest, usePayoutRequests } from "@/lib/payouts/payout-requests-store";
+import { addPayoutRequest, cancelPayoutRequest, usePayoutRequests } from "@/lib/payouts/payout-requests-store";
 
 /**
  * Pre-request eligibility checklist (audit #4, HIGH): the payout gates
@@ -201,6 +201,21 @@ export function PayoutRequestPage() {
             </p>
           )}
         </div>
+          <button
+            type="button"
+            disabled={req.status !== "submitted"}
+            onClick={() => {
+              if (!cancelPayoutRequest(req.id)) return;
+              setSubmittedRequestId(null);
+            }}
+            className={`rounded-xl px-5 py-3 text-sm font-bold text-error ${
+              req.status !== "submitted"
+                ? "cursor-not-allowed opacity-50"
+                : "hover:bg-error-fixed hover:text-on-error-fixed"
+            }`}
+          >
+            Cancel request
+          </button>
         <div className="flex gap-3">
           <Link
             href={`/payout-history`}
