@@ -114,8 +114,8 @@ export function LoginPage() {
 
         <p className="text-center text-xs text-on-surface-variant">
           New to TerraTrader?{" "}
-          <Link href="/marketplace" className="font-bold text-primary hover:underline">
-            Start a challenge
+          <Link href="/signup" className="font-bold text-primary hover:underline">
+            Create account
           </Link>
         </p>
         <p className="text-center text-xs text-on-surface-variant">

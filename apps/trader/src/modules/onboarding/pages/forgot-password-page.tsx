@@ -71,6 +71,14 @@ export function ForgotPasswordPage() {
               >
                 Didn't receive it? Contact support
               </Link>
+              {/* Demo convenience: reset-password landing page (normally
+                reached via the email link) */}
+              <Link
+                href="/reset-password?token=demo-reset-token"
+                className="text-xs font-semibold text-on-surface-variant underline hover:text-primary"
+              >
+                Continue to reset password page (demo)
+              </Link>
             </div>
           </TerraCard>
         </div>
