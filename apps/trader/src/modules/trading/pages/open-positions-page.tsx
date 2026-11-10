@@ -21,9 +21,11 @@ import {
   TerraTable,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { terraAccounts, challengeTimeline } from "@/lib/fixtures/terra-fixtures";
+import { terraAccounts, challengeTimeline, terraRiskLimits } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { useTrading } from "@/lib/trading/trading-context";
+import { useRiskWarning } from "@/lib/trading/use-risk-warning";
+import { RiskWarningBanner } from "@/components/terra/risk-warning-banner";
 import { useRovingTabs } from "@/lib/a11y/roving-tabs";
 import { DetailDialog } from "@/components/terra/detail-dialog";
 import { ChallengeRulesDialog } from "@/components/terra/challenge-rules-dialog";
@@ -37,6 +39,8 @@ const loginOf = (accountId: string) =>
 export function OpenPositionsPage() {
   const { activeAccount, activeAccountId } = useActiveAccount();
   const { positions, orders, closePosition, closeAll, cancelOrder } = useTrading();
+  // R3-05 — risk-warning state (banner + one-time inbox message).
+  const risk = useRiskWarning();
   const [tab, setTab] = useState<(typeof tabs)[number]>("Positions");
   // Keyboard support for the tab strip (audit finding #3): arrow keys,
   // Home/End, roving tabindex, tab↔panel ARIA wiring.
@@ -121,6 +125,16 @@ export function OpenPositionsPage() {
           </div>
         }
       />
+      {/* R3-05 — threshold-driven risk warning (banner + inbox event). */}
+      {risk.warned && (
+        <RiskWarningBanner
+          account={activeAccount}
+          dailyPct={risk.dailyPct}
+          maxDdPct={risk.maxDdPct}
+          breach={risk.breach}
+          limits={risk.limits}
+        />
+      )}
 
       {/* Positions / Pending Orders tabs — ARIA tabs pattern (finding #3) */}
       <div

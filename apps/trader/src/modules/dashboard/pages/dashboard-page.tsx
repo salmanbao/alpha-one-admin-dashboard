@@ -9,6 +9,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@pfaas/ui";
+import { RiskWarningBanner } from "@/components/terra/risk-warning-banner";
+import { useRiskWarning } from "@/lib/trading/use-risk-warning";
 import {
   TerraBadge,
   TerraCard,
@@ -95,20 +97,20 @@ function activityTime(iso: string) {
 
 export function DashboardPage() {
   const [range, setRange] = useState<(typeof ranges)[number]>("30d");
-  const [riskAlertVisible, setRiskAlertVisible] = useState(true);
   const [platform, setPlatform] = useState<(typeof tradingPlatforms)[number]["id"]>("web");
   // Active trading account — switched via the header switcher or the
   // "Trading Account" selector below. Every acc.* value on this page
   // (target, risk buffers, balance, credentials) follows this context.
   const { activeAccount: acc } = useActiveAccount();
   const [rulesOpen, setRulesOpen] = useState(false);
-  const accPositions = terraPositions.filter((p) => p.accountId === acc.id);
-  const accUnrealized = accPositions.reduce((s, p) => s + p.pnl, 0);
-
-  // Drawdown usage for the active account — persistent meters (audit #4).
+  // R3-05 — risk-warning state (banner + one-time inbox message).
+  const risk = useRiskWarning();
+  // Persistent drawdown meters (audit #4) — green/amber/red before a breach.
   const riskLimits = terraRiskLimits[acc.id] ?? { daily: 1000, maxDd: 5000 };
   const dailyUsed = Math.max(0, riskLimits.daily - acc.dailyLossRemaining);
   const ddUsed = Math.max(0, riskLimits.maxDd - acc.maxDdRemaining);
+  const accPositions = terraPositions.filter((p) => p.accountId === acc.id);
+  const accUnrealized = accPositions.reduce((s, p) => s + p.pnl, 0);
 
   // Equity curve follows the active account AND the selected range —
   // derived from this account's real trade/payout history.
@@ -237,36 +239,16 @@ export function DashboardPage() {
             +{formatMoney(acc.profitTarget - acc.pnl)} left
           </span>
         </div>
-        {riskAlertVisible && (
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-secondary-fixed/60 p-4 shadow-sm md:col-span-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tertiary-container text-on-tertiary-container">
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 13c0 5-3.5 7.5-7.7 8.9a1.9 1.9 0 0 1-1.3 0C6.5 20.5 3 18 3 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.7 1.7 0 0 1 2.4 0C14.4 3.8 17 5 19 5a1 1 0 0 1 1 1z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-on-secondary-fixed-variant">
-                  Risk Buffer
-                </p>
-                <p className="text-sm font-bold text-on-surface">
-                  Daily loss remaining:{" "}
-                  <span className="font-mono text-tertiary">{formatMoney(acc.dailyLossRemaining)}</span>
-                  <span className="text-xs font-normal text-on-surface-variant"> (Safe threshold)</span>
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              aria-label="Dismiss alert"
-              onClick={() => setRiskAlertVisible(false)}
-              className="rounded-lg p-1.5 text-on-secondary-fixed-variant transition-colors hover:bg-surface-container"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+        {/* R3-05 — threshold-driven risk warning (banner + inbox event),
+             replacing the static Risk Buffer card. */}
+        {risk.warned && (
+          <RiskWarningBanner
+            account={acc}
+            dailyPct={risk.dailyPct}
+            maxDdPct={risk.maxDdPct}
+            breach={risk.breach}
+            limits={risk.limits}
+          />
         )}
         {/* Evaluation progress detail — trade-by-trade timeline and rule adherence (audit #5) */}
         {acc.status === "breached" && (

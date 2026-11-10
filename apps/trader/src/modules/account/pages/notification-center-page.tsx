@@ -42,6 +42,7 @@ import {
   type TerraTone,
 } from "@/components/terra/terra-ui";
 import { terraTenant } from "@/lib/fixtures/terra-fixtures";
+import { useInboxMessages } from "@/lib/inbox/inbox-store";
 import { toast } from "@/hooks/use-toast";
 import {
   Activity,
@@ -112,87 +113,6 @@ const actionFor: Record<
   },
 };
 
-const isoHoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
-
-const demoMessages: Message[] = [
-  {
-    id: "msg-1",
-    subject: "Payout approved — funds on the way",
-    body: "Your payout request PO-2187 for $4,850.00 has been approved and is being processed.\n\nFunds will arrive within 1–2 business days to the withdrawal method ending ••4417. No further action is needed — we'll notify you again once the transfer settles.\n\nThank you for trading with TerraTrader.",
-    category: "Payouts",
-    sender: "Payouts Team",
-    at: isoHoursAgo(2),
-    read: false,
-    actionType: "payout",
-  },
-  {
-    id: "msg-2",
-    subject: "Challenge passed — funded account ready",
-    body: "Congratulations! You've completed every phase of the Terra Pro $100K challenge.\n\nYour funded account is ready to trade with the standard 5% daily loss limit. Review your challenge details to activate it and schedule your first payout cycle.",
-    category: "Challenges",
-    sender: "Challenge Team",
-    at: isoHoursAgo(6),
-    read: false,
-    actionType: "challenge",
-  },
-  {
-    id: "msg-3",
-    subject: "New campaign offer: WELCOME25 — 25% off your next challenge",
-    body: "You've been selected for the WELCOME25 campaign.\n\nUse the code at checkout for 25% off any challenge fee of $25K and above. The offer is live in your Promo Wallet and valid until December 31, 2026.\n\nOpen the promo wallet to reveal your code and check eligibility.",
-    category: "Marketing",
-    sender: "Marketing Team",
-    at: isoHoursAgo(20),
-    read: false,
-    actionType: "promo",
-  },
-  {
-    id: "msg-4",
-    subject: "Risk alert: daily loss limit approaching",
-    body: "Your daily loss is approaching the 5% limit on your Terra Flash $25K account.\n\nReduce position sizes or pause trading to avoid a breach. Breaches are permanent for the account, so act before the limit is hit.",
-    category: "Trading",
-    sender: "Risk Team",
-    at: isoHoursAgo(29),
-    read: true,
-  },
-  {
-    id: "msg-5",
-    subject: "Scheduled maintenance — Sunday 02:00 UTC",
-    body: "TerraMarkets-Live02 will undergo scheduled maintenance on Sunday at 02:00 UTC for approximately 30 minutes.\n\nOpen positions are unaffected. The web terminal will show a maintenance banner during the window.",
-    category: "Support",
-    sender: "System",
-    at: isoHoursAgo(50),
-    read: true,
-    bodyError: true,
-  },
-  {
-    id: "msg-6",
-    subject: "Deposit received — $5,000 credited",
-    body: "Your deposit of $5,000.00 has been credited to wallet balance.\n\nPromo eligibility has been re-evaluated against your active offers. Any conditions you were missing may now be unlocked.",
-    category: "Payouts",
-    sender: "Payments Team",
-    at: isoHoursAgo(74),
-    read: true,
-  },
-  {
-    id: "msg-7",
-    subject: "Ticket #4412 replied — VPN verification question",
-    body: "A support agent replied to your ticket about trading over a VPN.\n\nShort answer: yes, from an allowed region, as long as the session country matches your KYC profile. Open the ticket to read the full reply.",
-    category: "Support",
-    sender: "Support Desk",
-    at: isoHoursAgo(96),
-    read: true,
-  },
-  {
-    id: "msg-8",
-    subject: "Leaderboard: you're #14 this week",
-    body: "You're ranked 14th on the weekly leaderboard with a +6.2% return.\n\nThe top 10 finish the week with a bonus promo code. Keep your risk profile steady — a single breach resets the run.",
-    category: "Marketing",
-    sender: "Community Team",
-    at: isoHoursAgo(120),
-    read: true,
-  },
-];
-
 const categoryTone: Record<Category, TerraTone> = {
   All: "neutral",
   Payouts: "success",
@@ -248,8 +168,9 @@ export function NotificationCenterPage() {
   const [readFilter, setReadFilter] = useState<ReadFilter>("All");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const messages = useInboxMessages();
   const [readState, setReadState] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(demoMessages.map((m) => [m.id, m.read])),
+    Object.fromEntries(messages.map((m) => [m.id, m.read])),
   );
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [recoveredIds, setRecoveredIds] = useState<string[]>([]);
@@ -265,7 +186,7 @@ export function NotificationCenterPage() {
 
   const visible = useMemo(
     () =>
-      demoMessages.filter((m) => {
+      messages.filter((m) => {
         if (deletedIds.includes(m.id)) return false;
         if (filter !== "All" && m.category !== filter) return false;
         if (readFilter === "Unread" && readState[m.id]) return false;
@@ -282,14 +203,13 @@ export function NotificationCenterPage() {
     [filter, readFilter, search, deletedIds, readState],
   );
 
-  const remaining = demoMessages.filter((m) => !deletedIds.includes(m.id));
+  const remaining = messages.filter((m) => !deletedIds.includes(m.id));
   const unreadCount = remaining.filter(isUnread).length;
   const selected =
     selectedId && !deletedIds.includes(selectedId)
-      ? demoMessages.find((m) => m.id === selectedId) ?? null
+      ? messages.find((m) => m.id === selectedId) ?? null
       : null;
-  const bodyFailed =
-    selected?.bodyError === true && !recoveredIds.includes(selected.id);
+  const bodyFailed = false;
 
   /* Keep the selected row visible while arrowing through the list. */
   useEffect(() => {
@@ -305,7 +225,7 @@ export function NotificationCenterPage() {
   };
 
   const handleMarkAllRead = () => {
-    setReadState(Object.fromEntries(demoMessages.map((m) => [m.id, true])));
+    setReadState(Object.fromEntries(messages.map((m) => [m.id, true])));
     toast({ title: "All messages marked as read" });
     // Selection is untouched (Table 150) — no setSelectedId call here.
   };
