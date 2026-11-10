@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
+import { demoChallengeFundingSchema } from "@/lib/platform/validation";
 import { recordAudit } from "@/lib/audit";
 import { setNavBadge } from "@/lib/platform/nav-badges";
 import { emitLifecycle } from "@pfaas/lifecycle";
@@ -20,7 +21,9 @@ const listeners = new Set<() => void>();
 let state: Record<string, ChallengeFunding> = {};
 
 try {
-  const persisted = loadDemoState(SLOT, null as any, {});
+  // R3-02: the previous `null as any` schema made safeParse throw on every
+  // load, so funded decisions silently reset on reload — real schema now.
+  const persisted = loadDemoState(SLOT, demoChallengeFundingSchema, {});
   if (persisted && typeof persisted === "object") state = persisted as any;
 } catch {
   state = {};
@@ -52,7 +55,26 @@ export function markFundingRequested(challengeId: string): void {
   notify();
 }
 
-export function markFunded(challengeId: string, payoutRef?: string): void {
+/**
+ * R3-02 — the funding chain's single publish point:
+ *
+ *   gate (confirm dialog) → markFunded → provisioning.started → trader
+ *
+ * The trader app reads `provisioning.started` off the shared lifecycle
+ * log (actor prop-admin) and renders the credentials moment, so this one
+ * call completes the firm-side half of the chain. `traderName` and
+ * `accountSize` ride the payload because the trader's fixtures are a
+ * separate world — the event must carry what the trader needs to show.
+ */
+export function markFunded(
+  challengeId: string,
+  opts?: {
+    payoutRef?: string;
+    traderName?: string;
+    accountSize?: number;
+  },
+): void {
+  const payoutRef = opts?.payoutRef;
   state = { ...state, [challengeId]: { challengeId, status: "funded", fundedAt: new Date().toISOString(), payoutRef } };
   recordAudit({ action: "Challenge funded", entity: "challenge", entityId: challengeId, summary: `${challengeId}${payoutRef ? ` → ${payoutRef}` : ""}`, severity: "info" });
   emitLifecycle({
@@ -60,7 +82,26 @@ export function markFunded(challengeId: string, payoutRef?: string): void {
     name: "challenge.funded",
     actor: "prop-admin",
     key: `${challengeId}:funded`,
-    payload: { challengeId, payoutRef: payoutRef ?? null },
+    payload: {
+      challengeId,
+      payoutRef: payoutRef ?? null,
+      traderName: opts?.traderName ?? null,
+      accountSize: opts?.accountSize ?? null,
+    },
+  });
+  // R3-02: funding starts provisioning of the trader's live account —
+  // distinct entity from the trader's own purchase provisioning
+  // (kind provisioning:<orderId>, actor trader), so the two never collide.
+  emitLifecycle({
+    entity: { kind: "provisioning", id: challengeId },
+    name: "provisioning.started",
+    actor: "prop-admin",
+    key: `started:${challengeId}`,
+    payload: {
+      challengeId,
+      traderName: opts?.traderName ?? null,
+      accountSize: opts?.accountSize ?? null,
+    },
   });
   notify();
 }

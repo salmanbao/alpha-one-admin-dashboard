@@ -887,7 +887,11 @@ function seedChallenges(): Challenge[] {
       progressPct: Math.round(((Math.sin(n) + 1) / 2) * 100),
       daysLeft: 30 - (n % 25),
       currentProfit: Math.round((Math.sin(n) + 1) * profitTarget * 0.5),
-      status: "in-progress",
+      // R3-02: a phase-2 evaluation has cleared both phases, so it is
+      // "passed" and lands in the funding queue (challenges-passed). The
+      // seed previously set every row to "in-progress", which left the
+      // Passed KPIs at 0 and the "Mark as Funded" gate unreachable.
+      status: phase === "phase-2" ? "passed" : "in-progress",
       createdAt: t.joinedAt,
     });
   }

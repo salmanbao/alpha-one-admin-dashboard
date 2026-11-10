@@ -59,6 +59,7 @@ import { cn } from "@/lib/utils";
 import { useDetailOverlay } from "@/components/platform/detail-overlay";
 import { openViewInNewTab } from "@/lib/platform/view-links";
 import { simulateChallengeRules } from "@/lib/challenges/rule-simulation";
+import { markFunded, useChallengeFundingMap } from "@/modules/challenges/challenge-funding-store";
 
 function MsIconSafe({ name = "more_vert" }: { name?: string }) {
   return <span aria-hidden className="ms-icon text-[18px] leading-none">{name}</span>;
@@ -347,6 +348,10 @@ export function PassedChallengesStitchPage() {
   const [fundTarget, setFundTarget] = React.useState<Challenge | null>(null);
   const [bulkPayoutOpen, setBulkPayoutOpen] = React.useState(false);
   const { openPanel } = useDetailOverlay();
+  // R3-02: persisted funding decisions — an already-funded challenge is
+  // gated to a "Funded" badge (no second funding run, event dedupes anyway).
+  const funding = useChallengeFundingMap();
+  const isFunded = (c: Challenge) => funding[c.id]?.status === "funded" || c.status === "funded";
 
   return (
     <div className="flex flex-col gap-6">
@@ -367,12 +372,16 @@ export function PassedChallengesStitchPage() {
             { header: "Challenge", cell: (c) => c.name },
             { header: "Account Size", cell: (c) => money(c.accountSize), numeric: true },
             { header: "Profit", cell: (c) => <span className="text-tp">{money(c.currentProfit)}</span>, numeric: true },
-            { header: "Status", cell: (c) => <StitchStateBadge state={c.status} tone="positive" /> },
+            { header: "Status", cell: (c) => <StitchStateBadge state={isFunded(c) ? "funded" : c.status} tone="positive" /> },
             {
               header: "",
               cell: (c) => (
                 <div className="flex items-center gap-1.5">
-                  <StitchButton variant="primary" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); setFundTarget(c); }}>Mark as Funded</StitchButton>
+                  {isFunded(c) ? (
+                    <StitchStateBadge state="funded" tone="positive" meaning="Funded — provisioning started" />
+                  ) : (
+                    <StitchButton variant="primary" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); setFundTarget(c); }}>Mark as Funded</StitchButton>
+                  )}
                   <button
                     type="button"
                     aria-label={`Open ${c.name} in a new tab`}
@@ -397,7 +406,19 @@ export function PassedChallengesStitchPage() {
         body="A funded account will be provisioned with the challenge's account size. The trader receives credentials by email."
         confirmLabel="Mark as Funded"
         destructive={false}
-        onConfirm={() => toast({ title: "Trader funded" })}
+        onConfirm={() => {
+          if (!fundTarget) return;
+          // R3-02: the real chain — persisted funding decision + audit +
+          // challenge.funded + provisioning.started (store publishes all).
+          markFunded(fundTarget.id, {
+            traderName: fundTarget.traderName,
+            accountSize: fundTarget.accountSize,
+          });
+          toast({
+            title: "Trader funded",
+            description: `${fundTarget.traderName} — ${formatCurrencyValue(fundTarget.accountSize, "USD")} account provisioned. Provisioning started; credentials issued to the trader.`,
+          });
+        }}
       />
       {/* Bulk payouts sheet */}
       <StitchConfirm

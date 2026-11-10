@@ -250,6 +250,17 @@ export const autoApproveRuleSchema = z.object({
 
 export type AutoApproveRule = z.infer<typeof autoApproveRuleSchema>;
 
+/** challenge-funding-store: persisted funding decisions keyed by challenge id (R3-02). */
+export const demoChallengeFundingSchema = z.record(
+  z.string(),
+  z.object({
+    challengeId: z.string(),
+    status: z.enum(["passed", "funding-requested", "funded"]),
+    fundedAt: z.string().optional(),
+    payoutRef: z.string().optional(),
+  }),
+);
+
 /** risk-case-store: per-tenant case lists + the id sequence counter. */
 export const demoRiskCasesSchema = z.object({
   byTenant: z.record(

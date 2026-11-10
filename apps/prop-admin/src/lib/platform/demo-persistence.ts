@@ -42,6 +42,7 @@ const DEMO_STORES = [
   "auto-approve-rule",
   "connectors",
   "kyc-provider-config",
+  "challenge-funding",
 ] as const;
 
 /**
