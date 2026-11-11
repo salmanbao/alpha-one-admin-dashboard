@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
+import { recordAudit } from "@/lib/platform/console-store";
 import {
   ScrollText,
   Search,
@@ -299,6 +300,44 @@ export function AuditLogPage() {
 
   const enabledRuleCount = COMPLIANCE_RULES.filter((r) => isRuleEnabled(r.id)).length;
 
+  function exportAuditCSV(events: Array<AuditEvent>) {
+    const header = "id,timestamp,actor,action,target,targetType,severity,details";
+    const rows = events.map((e) =>
+      `"${e.id}", "${e.timestamp}", "${e.actor}", "${e.action}", "${e.target ?? ""}", "${e.targetType ?? ""}", "${e.severity}", "${e.details?.replace(/"/g, '""')}"`
+    );
+    const csv = `${header}\n${rows.join("\n")}\n`;
+    try {
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Export failed", description: "CSV could not be downloaded." });
+    }
+    recordAudit({ actor: "You", action: "audit-log.export", target: "audit-log", detail: `Exported ${events.length} audit events to CSV`, severity: "info" });
+  }
+
+  function exportComplianceReport(events: Array<AuditEvent>) {
+    const header = "id,timestamp,actor,action,target,severity,details,complianceStatus";
+    const rows = events.map((e) =>
+      `"${e.id}", "${e.timestamp}", "${e.actor}", "${e.action}", "${e.target ?? ""}", "${e.severity}", "${e.details?.replace(/"/g, '""')}", "reviewed"`
+    );
+    const csv = `${header}\n${rows.join("\n")}\n`;
+    try {
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `compliance-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Report generation failed", description: "CSV could not be downloaded." });
+    }
+    recordAudit({ actor: "You", action: "audit-log.compliance-report", target: "audit-log", detail: `Generated compliance report for ${events.length} events`, severity: "info" });
+  }
+
   return (
     <Page>
       <PageHeader
@@ -311,10 +350,10 @@ export function AuditLogPage() {
             <Button variant="ghost" size="sm" onClick={() => navigate("model-audit-log")}>
               Model / change history
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => exportAuditCSV(filtered)}>
               <Download className="mr-1 h-4 w-4" /> Export
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => exportComplianceReport(filtered)}>
               <ShieldCheck className="mr-1 h-4 w-4" /> Compliance Report
             </Button>
           </>

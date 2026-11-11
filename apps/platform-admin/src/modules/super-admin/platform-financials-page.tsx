@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency, StatusBadge } from "@/components/platform/status";
 import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
+import { usePlans } from "@/lib/platform/plan-catalog-store";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { toast } from "@/hooks/use-toast";
@@ -33,6 +34,9 @@ interface PlatformInvoice {
 }
 
 export function PlatformFinancialsPage() {
+  // R4-06: plan prices come from the shared catalog (component scope —
+  // the mock loader runs outside render, so hooks can't live in it).
+  const plans = usePlans();
   // Async seam (frontend-first): the revenue roll-up is "fetched" through the
   // mock layer so the skeleton / error+retry states are exercised.
   const {
@@ -47,7 +51,7 @@ export function PlatformFinancialsPage() {
           allTenants
             .filter((t) => t.id !== "platform")
             .map((t): TenantRevenue => {
-              const planRevenue = t.plan === "enterprise" ? 4900 : t.plan === "scale" ? 1900 : 890;
+            const planRevenue = t.plan === "enterprise" ? plans.find(p => p.id === "enterprise")?.priceMonthly ?? 890 : t.plan === "scale" ? plans.find(p => p.id === "scale")?.priceMonthly ?? 890 : 890;
               const traders = getTenantTraders(t.id).length;
               const usageRevenue = Math.round(traders * 12); // $12/trader/month
               const passThrough = Math.round(traders * 35); // pass-through margin
@@ -219,19 +223,14 @@ export function PlatformFinancialsPage() {
         <Card>
           <CardHeader className="pb-2"><span className="text-sm font-medium">Plan catalog</span></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {[
-              { id: "starter", name: "Starter", price: 890, features: "Core trading, 5 accounts, basic analytics" },
-              { id: "growth", name: "Growth", price: 1900, features: "15 accounts, advanced analytics, API access" },
-              { id: "scale", name: "Scale", price: 4900, features: "50 accounts, priority support, custom integrations" },
-              { id: "enterprise", name: "Enterprise", price: null, features: "Unlimited, SLA, dedicated infra, custom pricing" },
-            ].map((p) => (
+            {plans.map((p) => (
               <div key={p.id} className="flex items-center justify-between rounded-md border p-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium capitalize">{p.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{p.features}</p>
+                  <p className="text-xs text-muted-foreground truncate">{p.tagline}</p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="font-bold tabular-nums">{p.price ? `${formatCurrency(p.price, "USD")}/mo` : "Custom"}</span>
+                  <span className="font-bold tabular-nums">{formatCurrency(p.priceMonthly, "USD")}/mo</span>
                   <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => toast({ title: "Plan details", description: `${p.name} plan configuration opened.` })}>
                     Configure
                   </Button>

@@ -8,6 +8,10 @@
  * trader, prop admin and platform admin all surface inline errors the
  * same way: validate on blur, re-validate on change once a field has
  * errored, validate everything on submit (audit U #8 / finding #1).
+ *
+ * R4-01: login validates against the session store and writes the
+ * active session on success. Unknown credentials fall through to
+ * "continue as demo".
  */
 
 import { useState } from "react";
@@ -15,6 +19,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TerraCard } from "@/components/terra/terra-ui";
 import { FormField, useFormValidation } from "@pfaas/ui/platform-form-field";
+import { verifyPassword, continueAsDemo, findAccountByEmail, writeSession } from "@/lib/session-store";
+import type { ActiveSession } from "@/lib/session-store";
 
 // Canonical field validators — one rule, one message, shared by blur,
 // change and submit so the same input always produces the same copy.
@@ -34,25 +40,61 @@ export function LoginPage() {
   const [email, setEmail] = useState("tom.allen@terra.trader");
   const [password, setPassword] = useState("••••••••");
   const [loading, setLoading] = useState(false);
+  // R4-01 AC #4 — invalid credentials surface as an inline error (role=
+  // "alert"), never a blocking alert().
+  const [loginError, setLoginError] = useState("");
   const { field, validateAll } = useFormValidation(validators);
+
+  // Session-expiry sign-out hands the return path along as `?next=`
+  // (audit B #4) — land the user back where they were rather than always
+  // on the dashboard. Same-app absolute paths only: a protocol-relative
+  // `//host` or an absolute URL is never followed.
+  function resolveRedirect(): string {
+    const returnTo = searchParams.get("next");
+    return returnTo &&
+      returnTo.startsWith("/") &&
+      !returnTo.startsWith("//") &&
+      !returnTo.startsWith("/login")
+      ? returnTo
+      : "/dashboard";
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!validateAll({ email, password })) return;
+    setLoginError("");
     setLoading(true);
-    // Session-expiry sign-out hands the return path along as `?next=`
-    // (audit B #4) — land the user back where they were rather than always
-    // on the dashboard. Same-app absolute paths only: a protocol-relative
-    // `//host` or an absolute URL is never followed.
-    const returnTo = searchParams.get("next");
-    const target =
-      returnTo &&
-      returnTo.startsWith("/") &&
-      !returnTo.startsWith("//") &&
-      !returnTo.startsWith("/login")
-        ? returnTo
-        : "/dashboard";
-    setTimeout(() => router.push(target), 600);
+
+    // Check if credentials match a registered account
+    const account = findAccountByEmail(email);
+
+    if (account && verifyPassword(password, account.password)) {
+      // Valid credentials — write active session and redirect
+      const newSession: ActiveSession = {
+        accountId: account.id,
+        email: account.email,
+        displayName: account.displayName,
+        isDemo: false,
+        loginAt: new Date().toISOString(),
+      };
+      writeSession(newSession);
+      setTimeout(() => router.push(resolveRedirect()), 600);
+    } else {
+      // Unknown credentials — inline error + "continue as demo" path.
+      setLoading(false);
+      setLoginError(
+        `We couldn't sign you in as ${email}. Check your email and password, or continue as demo.`,
+      );
+    }
+  }
+
+  // R4-01 AC #4 — the demo fallback writes the Tom Allen session
+  // (honestly labeled `isDemo`) and lands on the same target.
+  function handleContinueDemo() {
+    setLoginError("");
+    setLoading(true);
+    continueAsDemo();
+    setTimeout(() => router.push(resolveRedirect()), 400);
   }
 
   return (
@@ -102,6 +144,14 @@ export function LoginPage() {
               <input type="checkbox" defaultChecked className="accent-primary" />
               Keep me signed in for 30 days
             </label>
+            {loginError && (
+              <div
+                role="alert"
+                className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive"
+              >
+                {loginError}
+              </div>
+            )}
             <button
               type="submit"
               disabled={loading}
@@ -111,6 +161,17 @@ export function LoginPage() {
             </button>
           </form>
         </TerraCard>
+
+        {/* R4-01 AC #4 — "continue as demo" path (Tom Allen persona,
+            honestly labeled) — always available on the login screen. */}
+        <button
+          type="button"
+          onClick={handleContinueDemo}
+          disabled={loading}
+          className="w-full rounded-xl border border-border bg-surface-container-low py-3 text-sm font-bold text-on-surface transition-all hover:bg-surface-container disabled:opacity-60"
+        >
+          Continue as demo (Tom Allen, demo)
+        </button>
 
         <p className="text-center text-xs text-on-surface-variant">
           New to TerraTrader?{" "}

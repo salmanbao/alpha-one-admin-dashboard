@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useTenants } from "@/lib/platform/tenant-store";
 import { supportTickets, type SupportTicket } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent } from "@/components/ui/card";
@@ -71,13 +72,14 @@ export function SupportAssistPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const { availableTenants, navigate, user } = usePlatform();
+  const { navigate, user } = usePlatform();
+const tenants = useTenants();
   const tenantsWithTickets = useMemo(
     () =>
-      availableTenants.filter((t) =>
+      tenants.filter((t) =>
         supportTickets.some((s) => s.tenantId === t.id),
       ),
-    [availableTenants],
+    [tenants],
   );
 
   const [tenantId, setTenantId] = useState<string | null>(
@@ -89,7 +91,7 @@ export function SupportAssistPage() {
   // keyboard users can leave a selected ticket without tabbing back.
   useEscapeKey(selected !== null, () => setSelected(null));
 
-  const tenant = availableTenants.find((t) => t.id === tenantId) ?? null;
+  const tenant = tenants.find((t) => t.id === tenantId) ?? null;
   const tickets = useMemo(
     () => supportTickets.filter((s) => s.tenantId === tenantId),
     [tenantId],

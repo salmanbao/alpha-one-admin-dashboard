@@ -26,6 +26,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
+import { useTenants, updateTenant } from "@/lib/platform/tenant-store";
 import type { TenantContext } from "@/lib/platform/types";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -224,7 +225,8 @@ function SuspensionDataHandlingPanel({ tenants }: { tenants: TenantContext[] }) 
 /* ------------------------------------------------------------------ */
 
 export function TenantLifecyclePage() {
-  const { availableTenants, setTenant, navigate, pushNotification, user } = usePlatform();
+  const tenants = useTenants();
+  const { tenant: platformTenant, pushNotification, user, navigate } = usePlatform();
   const [activeFilter, setActiveFilter] = useState<LifecycleStage | "all">("all");
   const [pending, setPending] = useState<PendingAction | null>(null);
 
@@ -238,7 +240,7 @@ export function TenantLifecyclePage() {
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
 
-  const tenants = availableTenants.filter((t) => t.id !== "platform");
+  const tenantRoster = tenants.filter((t) => t.id !== "platform");
 
   /* ---- Bucket tenants into lifecycle stages ---- */
   const buckets = useMemo(() => {
@@ -249,22 +251,22 @@ export function TenantLifecyclePage() {
       suspended: [],
       terminated: [],
     };
-    for (const t of tenants) {
+    for (const t of tenantRoster) {
       const stage = (t.status as LifecycleStage) ?? "active";
       if (map[stage]) map[stage].push(t);
     }
     return map;
-  }, [tenants]);
+  }, [tenantRoster]);
 
   const filteredTenants =
-    activeFilter === "all" ? tenants : (buckets[activeFilter] ?? []);
+    activeFilter === "all" ? tenantRoster : (buckets[activeFilter] ?? []);
 
   /* ---- Distribution + bottleneck analysis (finding #2) ----
    * The stage cards show raw counts; these derive the two things the
    * pipeline previously made operators work out mentally: each stage's
    * proportional share, and operational hot spots (suspended buildup,
    * unusual terminations, stalling invitations, trial backlog). */
-  const total = tenants.length;
+  const total = tenantRoster.length;
   const distribution = useMemo(
     () =>
       STAGES.map((s) => ({ ...s, count: buckets[s.id].length })).filter(
@@ -285,7 +287,7 @@ export function TenantLifecyclePage() {
       out.push({
         stage: "suspended",
         title: `Suspended buildup — ${n("suspended")} tenant${n("suspended") === 1 ? "" : "s"} held`,
-        detail: `${pctOf(n("suspended"))}% of tenants sit in the retention window — review for reactivation or schedule a purge.`,
+        detail: `${pctOf(n("suspended"))}% of tenantRoster sit in the retention window — review for reactivation or schedule a purge.`,
       });
     }
     if (heavy(n("terminated"))) {
@@ -299,7 +301,7 @@ export function TenantLifecyclePage() {
       out.push({
         stage: "invited",
         title: `Invitations stalling — ${n("invited")} awaiting first login`,
-        detail: `${pctOf(n("invited"))}% of tenants never started — send a reminder or review onboarding friction.`,
+        detail: `${pctOf(n("invited"))}% of tenantRoster never started — send a reminder or review onboarding friction.`,
       });
     }
     if (n("trial") >= 2 && n("trial") >= n("active")) {
@@ -321,7 +323,7 @@ export function TenantLifecyclePage() {
     approver?: string,
   ) => {
     const updated: TenantContext = { ...tenant, status };
-    setTenant(updated);
+    updateTenant(tenant.id, { status });
     pushNotification({
       title: `Tenant ${verb}`,
       message: `${tenant.name} is now ${status}.`,
@@ -353,7 +355,7 @@ export function TenantLifecyclePage() {
       if (!a.actionKey.startsWith("tenant.")) continue;
       if (a.status !== "approved" && a.status !== "executed") continue;
       if (appliedApprovals.current.has(a.id)) continue;
-      const tenant = availableTenants.find((t) => t.id === a.tenantId);
+      const tenant = tenantRoster.find((t) => t.id === a.tenantId);
       if (!tenant) continue;
       appliedApprovals.current.add(a.id);
       const status: TenantContext["status"] = a.actionKey.includes("suspend")
@@ -367,7 +369,7 @@ export function TenantLifecyclePage() {
       markApprovalExecuted(a.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [consoleStore.approvals, availableTenants]);
+  }, [consoleStore.approvals, tenantRoster]);
 
   /* ---- Table columns ---- */
   const columns: Column<TenantContext>[] = [
@@ -727,7 +729,7 @@ export function TenantLifecyclePage() {
 
         {/* Suspension data handling (audit fix #7) — retention policy +
             per-tenant status of everything frozen under suspension. */}
-        <SuspensionDataHandlingPanel tenants={tenants} />
+        <SuspensionDataHandlingPanel tenants={tenantRoster} />
         </PageAsyncBoundary>
       </PageContent>
 

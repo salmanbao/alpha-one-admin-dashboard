@@ -208,7 +208,12 @@ export function useCrossAppKycRecords(tenantId: string): KycRecord[] {
 }
 
 export function crossAppPayouts(tenantId: string): Payout[] {
-  return intakeEvents(tenantId, "payout", "payout.requested").map((e) => toPayout(e, tenantId));
+  const requested = intakeEvents(tenantId, "payout", "payout.requested");
+  // R4-05: reconcile cancelled payouts by reference
+  const cancelled = new Set(
+    intakeEvents(tenantId, "payout", "payout.cancelled").map((e) => String(e.payload?.reference ?? "")),
+  );
+  return requested.filter((e) => !cancelled.has(String(e.payload?.reference ?? ""))).map((e) => toPayout(e, tenantId));
 }
 export function useCrossAppPayouts(tenantId: string): Payout[] {
   const log = useLifecycleLog();
@@ -273,7 +278,12 @@ function intakeEvents(
   name: string,
 ): LifecycleEvent[] {
   return readLifecycleLog().filter(
-    (e) => e.actor === "trader" && e.name === name && e.entity.kind === kind && inTenant(e, tenantId),
+    (e) =>
+      (e.actor === "trader" ||
+        (kind === "payout" && (name === "payout.escalated" || name === "payout.cancelled"))) &&
+      e.name === name &&
+      e.entity.kind === kind &&
+      inTenant(e, tenantId),
   );
 }
 

@@ -15,6 +15,7 @@
 import { useSyncExternalStore } from "react";
 import { emitLifecycle, readLifecycleLog, useLifecycleLog } from "@pfaas/lifecycle";
 import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
+import { pushInboxMessage } from "@/lib/inbox/inbox-store";
 import { getPayoutStage } from "@/lib/status-progression";
 import type { PayoutRejection } from "@/lib/fixtures/terra-fixtures";
 
@@ -34,8 +35,9 @@ export type StoredPayoutRequest = {
   method: string;
   feeAmount: number;
   requestedAt: string;
-  // base status is always "submitted" in storage; effective status is derived
-  status: "submitted";
+  // base status is "submitted" in storage; R4-05 may flip it to the
+  // "cancelled" tombstone; effective status is derived on read
+  status: "submitted" | "cancelled";
 };
 
 export type DisplayPayout = {
@@ -46,7 +48,7 @@ export type DisplayPayout = {
   amount: number;
   methodId?: string;
   method: string;
-  status: "submitted" | "processing" | "paid" | "rejected";
+  status: "submitted" | "processing" | "paid" | "rejected" | "cancelled";
   requestedAt: string;
   expectedAt: string;
   rejection: PayoutRejection | null;
@@ -154,6 +156,24 @@ function adminDecision(
 }
 
 export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
+  // R4-05: a cancelled tombstone always displays as cancelled — no admin
+  // decision or wall-clock derivation can revive it.
+  if (req.status === "cancelled") {
+    return {
+      id: req.id,
+      reference: req.reference,
+      account: req.accountId,
+      accountLogin: req.accountLogin,
+      amount: req.amount,
+      methodId: req.methodId,
+      method: req.method,
+      status: "cancelled",
+      requestedAt: req.requestedAt,
+      expectedAt: req.requestedAt,
+      rejection: null,
+      isUserRequest: true,
+    };
+  }
   // R3-01: an admin decision overrides the time-based derivation — a
   // rejected request must stop displaying "processing → paid".
   const admin = adminDecision(req);
@@ -256,6 +276,8 @@ export function cancelPayoutRequest(id: string): boolean {
   // Only allow cancel while the request is still in "submitted" state
   // (audit #7: pending payout can't be cancelled once past submitted)
   if (req.status !== "submitted") return false;
+  // Flip status to "cancelled" instead of removing — tombstone survives reload
+  requests[idx] = { ...req, status: "cancelled" };
   // Emit cancelled lifecycle event
   emitLifecycle({
     entity: { kind: "payout", id: req.id },
@@ -269,9 +291,19 @@ export function cancelPayoutRequest(id: string): boolean {
       requestedAt: req.requestedAt,
     },
   });
-  // Remove the cancelled request from storage
-  requests.splice(idx, 1);
   writeRequests(requests);
+  // R4-05: inbox receipt for the cancellation (survives reload via pushedMessages)
+  pushInboxMessage({
+    id: `inbox-cancelled-${req.id}`,
+    subject: "Payout cancelled — withdrawn by you",
+    body:
+      `Your payout request ${req.reference} for ${req.amount.toLocaleString("en-US", { style: "currency", currency: "USD" })} was cancelled. No funds were moved. You can submit a new request when ready.`,
+    category: "Payouts",
+    sender: "Payouts Team",
+    at: new Date().toISOString(),
+    read: false,
+    actionType: undefined,
+  });
   notify();
   return true;
 }

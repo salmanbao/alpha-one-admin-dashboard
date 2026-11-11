@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency, StatusBadge } from "@/components/platform/status";
+import { usePlans } from "@/lib/platform/plan-catalog-store";
 import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
@@ -27,6 +28,9 @@ interface BillingRecord {
 }
 
 export function PlatformBillingPage() {
+  // R4-06: plan prices come from the shared catalog (component scope —
+  // the mock loader runs outside render, so hooks can't live in it).
+  const plans = usePlans();
   const {
     data: records = [],
     loading,
@@ -43,7 +47,7 @@ export function PlatformBillingPage() {
             const status = i === 0 ? (seed % 7 === 0 ? "past due" : "pending") : (seed + i) % 9 === 0 ? "disputed" : "paid";
             const generated = new Date(Date.now() - (i + 1) * 30 * 86400000);
             const due = new Date(generated.getTime() + 14 * 86400000);
-            const amount = (t.plan === "enterprise" ? 4900 : t.plan === "scale" ? 1900 : 890) + Math.round(seed * 12 + i * 7);
+            const amount = (t.plan === "enterprise" ? plans.find(p => p.id === "enterprise")?.priceMonthly ?? 890 : t.plan === "scale" ? plans.find(p => p.id === "scale")?.priceMonthly ?? 890 : 890) + Math.round(seed * 12 + i * 7);
             out.push({
               id: `INV-${generated.getFullYear()}-${String(generated.getMonth() + 1).padStart(2, "0")}-${String(((seed + i * 37) % 900) + 100)}`,
               tenantName: t.name,

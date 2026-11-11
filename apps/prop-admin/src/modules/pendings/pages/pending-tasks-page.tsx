@@ -342,7 +342,11 @@ export function PendingTasksPage() {
   }, [payouts, kyc, insights, purchases, provisioning, escalations, methodChanges]);
 
   const onCardClick = (c: SummaryCard) => {
-    navigate(c.viewId);
+    if (c.viewId === "payout-detail") {
+      navigate("payout-detail", { id: c.id === "payout-escalations" ? escalations[0]?.payoutReference ?? "" : "" });
+    } else {
+      navigate(c.viewId);
+    }
   };
 
   return (

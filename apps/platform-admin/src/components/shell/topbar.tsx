@@ -18,6 +18,7 @@ import {
   Users as UsersIcon,
 } from "lucide-react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useTenants } from "@/lib/platform/tenant-store";
 import { resolveTermsInString } from "@/lib/platform/terminology";
 import { can } from "@/lib/platform/permission-engine";
 import { viewRegistry } from "@/lib/platform/view-router";
