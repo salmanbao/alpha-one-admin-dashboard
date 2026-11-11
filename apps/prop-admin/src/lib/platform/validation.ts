@@ -261,6 +261,20 @@ export const demoChallengeFundingSchema = z.record(
   }),
 );
 
+/** provisioning-operator-store: per-record provisioning actions (R4-10). */
+export const demoProvisioningOpsSchema = z.record(
+  z.string(),
+  z.object({
+    status: z.enum(["in-progress", "credentials-delivered", "active", "failed"]),
+    reason: z.string().optional(),
+    startedAt: z.string(),
+    credentialsDeliveredAt: z.string().optional(),
+    activatedAt: z.string().optional(),
+    failedAt: z.string().optional(),
+    failedReason: z.string().optional(),
+  }),
+);
+
 /** purchase-operator-store: per-order operator actions (R4-09). */
 export const demoPurchaseOpsSchema = z.record(
   z.string(),

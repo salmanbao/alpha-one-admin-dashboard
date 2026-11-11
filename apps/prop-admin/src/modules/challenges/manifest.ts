@@ -47,6 +47,7 @@ const routes: RouteDefinition[] = [
   { path: "checkout", viewId: "checkout", label: "Checkout", permission: ["challenge.read", "challenge.self"], module: "challenges" },
   { path: "purchase-completed", viewId: "purchase-completed", label: "Purchase Completed", permission: ["challenge.read", "challenge.self"], module: "challenges" },
   { path: "purchase-queue", viewId: "purchase-queue", label: "Purchase Queue", permission: "challenge.read", module: "challenges" },
+  { path: "provisioning-queue", viewId: "provisioning-queue", label: "Provisioning Queue", permission: "challenge.read", module: "challenges" },
 ];
 
 const widgets: WidgetDefinition[] = [
