@@ -89,6 +89,8 @@ export const LIFECYCLE_EVENT_NAMES = [
   "provisioning.started",
   "provisioning.credentials",
   "provisioning.activated",
+  "provisioning.retry",
+  "provisioning.failed",
   // Challenge funding
   "challenge.funding-requested",
   "challenge.funded",
@@ -335,6 +337,8 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "provisioning.started": "Provisioning",
   "provisioning.credentials": "Credentials delivered",
   "provisioning.activated": "Active",
+  "provisioning.retry": "Retry queued",
+  "provisioning.failed": "Failed",
   "challenge.funding-requested": "Funding requested",
   "challenge.funded": "Funded",
   "competition.joined": "Joined",

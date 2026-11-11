@@ -181,7 +181,7 @@ export function PendingTasksPage() {
       id: "provisioning-queues",
       label: "Provisioning Queues",
       count: provisioningCount,
-      viewId: "account-provisioning",
+      viewId: "provisioning-queue",
       icon: Server,
       description: "Accounts being provisioned or waiting on credentials",
     },

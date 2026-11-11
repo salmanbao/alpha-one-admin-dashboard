@@ -93,6 +93,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "challenge-types": dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then((m) => ({ default: m.ChallengeTypesStitchPage })), { loading: ViewSkeleton }),
   "challenge-marketplace-preview": dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then((m) => ({ default: m.ChallengeMarketplacePreviewStitchPage })), { loading: ViewSkeleton }),
   "challenge-comparison": dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then((m) => ({ default: m.ChallengeComparisonStitchPage })), { loading: ViewSkeleton }),
+  "provisioning-queue": dynamic(() => import("@/modules/challenges/pages/provisioning-queue-page").then((m) => ({ default: m.ProvisioningQueuePage })), { loading: ViewSkeleton }),
   "purchase-queue": dynamic(() => import("@/modules/challenges/pages/purchase-queue-page").then((m) => ({ default: m.PurchaseQueuePage })), { loading: ViewSkeleton }),
   "challenge-analytics": dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then((m) => ({ default: m.ChallengeAnalyticsStitchPage })), { loading: ViewSkeleton }),
   "phase-migration-tool": dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then((m) => ({ default: m.PhaseMigrationToolStitchPage })), { loading: ViewSkeleton }),
