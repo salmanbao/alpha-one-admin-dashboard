@@ -17,12 +17,12 @@ import { toast } from "@/hooks/use-toast";
 
 export function InvoiceDetailPage() {
   const params = useSearchParams();
-  const id = params.get("id")?.replace("ord-", "") ?? "48210";
+  const orderId = params.get("orderId") ?? params.get("id")?.replace("ord-", "") ?? "48210";
 
   return (
     <div className="space-y-6">
       <TerraPageHeader
-        title={`Invoice INV-2026-${id}`}
+        title={`Invoice INV-2026-${orderId}`}
         description="Paid • Terra Pro $100K challenge"
         actions={
           <>
@@ -52,7 +52,7 @@ export function InvoiceDetailPage() {
             <div className="flex justify-between rounded-xl bg-surface-container-low px-4 py-3">
               <div>
                 <p className="font-semibold text-on-surface">Terra Pro $100K — Two-Phase Evaluation</p>
-                <p className="text-xs text-on-surface-variant">Order #TT-{id} • 2026-10-02</p>
+                <p className="text-xs text-on-surface-variant">Order #TT-{orderId} • 2026-10-02</p>
               </div>
               <span className="font-bold tabular-nums text-on-surface">{formatMoney(549)}</span>
             </div>

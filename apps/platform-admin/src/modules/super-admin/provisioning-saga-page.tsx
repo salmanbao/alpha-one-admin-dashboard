@@ -17,6 +17,7 @@ import { useEffect, useRef } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useTenants, updateTenant } from "@/lib/platform/tenant-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -86,8 +87,9 @@ export function ProvisioningSagaPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const { router, navigate, availableTenants, setTenant, pushNotification, user } =
+  const { router, navigate, pushNotification, user } =
     usePlatform();
+  const tenants = useTenants();
   const store = useProvisioningStore();
   const job = store.jobs.find((j) => j.id === router.params.job);
 
@@ -97,14 +99,14 @@ export function ProvisioningSagaPage() {
     if (!job) return;
     const key = `${job.id}:${job.state}`;
     if (applied.current.has(key)) return;
-    const tenant = availableTenants.find((t) => t.id === job.tenantId);
+    const tenant = tenants.find((t) => t.id === job.tenantId);
     const done = job.steps.filter((s) => s.state === "completed").length;
     const runnable = job.steps.filter((s) => s.state !== "skipped").length;
     if (!tenant) return;
     applied.current.add(key);
 
     if (job.state === "completed" && tenant.status !== "onboarding") {
-      setTenant({ ...tenant, status: "onboarding" });
+      updateTenant(tenant.id, { status: "onboarding" });
       recordAudit({
         actor: job.createdBy,
         action: "tenant.provisioned",
@@ -124,7 +126,7 @@ export function ProvisioningSagaPage() {
         description: `${tenant.name} is onboarding — invite sent to the owner.`,
       });
     } else if (job.state === "blocked" && tenant.status !== "provisioning_failed") {
-      setTenant({ ...tenant, status: "provisioning_failed" });
+      updateTenant(tenant.id, { status: "provisioning_failed" });
       recordAudit({
         actor: "system",
         action: "tenant.provisioning_failed",
@@ -140,7 +142,7 @@ export function ProvisioningSagaPage() {
         module: "super-admin",
       });
     } else if (job.state === "compensated") {
-      setTenant({ ...tenant, status: "invited" });
+      updateTenant(tenant.id, { status: "invited" });
       recordAudit({
         actor: user.name,
         action: "tenant.provisioning_compensated",
@@ -150,7 +152,7 @@ export function ProvisioningSagaPage() {
         detail: `Saga ${job.id} compensated — completed steps rolled back in reverse order`,
       });
     }
-  }, [job, job?.state, availableTenants, setTenant, pushNotification, user.name]);
+  }, [job, job?.state, tenants, pushNotification, user.name]);
 
   if (!job) {
     return (
@@ -168,7 +170,7 @@ export function ProvisioningSagaPage() {
     );
   }
 
-  const tenant = availableTenants.find((t) => t.id === job.tenantId);
+  const tenant = tenants.find((t) => t.id === job.tenantId);
   const done = job.steps.filter((s) => s.state === "completed").length;
   const runnable = job.steps.filter((s) => s.state !== "skipped").length;
   const pct = Math.round(

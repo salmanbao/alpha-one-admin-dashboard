@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 import { usePlatform, PlatformContext, type PlatformContextValue } from "@/lib/platform/platform-context";
+import { useTenants } from "@/lib/platform/tenant-store";
 import { makeTermResolver } from "@/lib/platform/terminology";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import {
@@ -321,14 +322,10 @@ const WIDGET_CATEGORIES: WidgetCategory[] = [
 
 export function DashboardManagerPage() {
   const platformValue = usePlatform();
-  const { availableTenants, user, tenant } = platformValue;
+  const tenants = useTenants();
+  const { user, tenant } = platformValue;
   const term = makeTermResolver(tenant);
 
-  // Non-platform tenants only
-  const tenants = useMemo(
-    () => availableTenants.filter((t) => t.id !== platformTenant.id),
-    [availableTenants],
-  );
   // Non-super-admin roles (prop-admin + trader scopes only)
   const roles = useMemo(
     () => allRoles.filter((r) => r.application !== "super-admin"),

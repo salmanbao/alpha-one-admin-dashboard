@@ -25,6 +25,7 @@ import { useMemo, useState } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useTenants } from "@/lib/platform/tenant-store";
 import type { TenantContext } from "@/lib/platform/types";
 import { soonestLimit } from "@/lib/platform/usage-forecast";
 import { PLAN_LIMITS, USAGE } from "@/lib/platform/usage-facts";
@@ -102,14 +103,15 @@ export function UsageMeteringPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const { availableTenants, navigate } = usePlatform();
+  const { navigate } = usePlatform();
+const tenants = useTenants();
   const [query, setQuery] = useState("");
 
   /** Tenants with a usage row (onboarding tenants have no consumption yet). */
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return USAGE.map((u) => {
-      const tenant = availableTenants.find((t) => t.id === u.tenantId);
+      const tenant = tenants.find((t) => t.id === u.tenantId);
       if (!tenant) return null;
       const limits = PLAN_LIMITS[tenant.plan];
       const metrics: RowMetric[] = [
@@ -143,7 +145,7 @@ export function UsageMeteringPage() {
         r.tenant.plan.toLowerCase().includes(q)
       );
     });
-  }, [availableTenants, query]);
+  }, [tenants, query]);
 
   const rowOver = (r: (typeof rows)[number]) => r.metrics.some((m) => m.p >= 100);
   const rowNear = (r: (typeof rows)[number]) => !rowOver(r) && r.metrics.some((m) => m.p >= 80);

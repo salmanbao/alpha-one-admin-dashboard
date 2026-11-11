@@ -27,7 +27,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
-import { updateTenant } from "@/lib/platform/tenant-store";
+import { useTenants, updateTenant } from "@/lib/platform/tenant-store";
+import { usePlans, readPlans } from "@/lib/platform/plan-catalog-store";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import {
   getTenantTraders,
@@ -131,12 +132,11 @@ import {
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-const PLAN_COST: Record<TenantContext["plan"], number | string> = {
-  starter: 890,
-  growth: 1900,
-  scale: 4900,
-  enterprise: "Custom",
-};
+/** Catalog-first plan price (R4-06) — readPlans() falls back to
+ *  DEFAULT_PLANS when storage is empty, so a price is always found. */
+function getPlanPrice(plan: TenantContext["plan"]): number {
+  return readPlans().find(p => p.id === plan)?.priceMonthly ?? 0;
+}
 
 const tenantStatusTone = (s: string) =>
   s === "active"
@@ -162,7 +162,8 @@ const tenantStatusTone = (s: string) =>
 /* ------------------------------------------------------------------ */
 
 export function TenantDetailPage() {
-  const { router, navigate, availableTenants, setTenant, pushNotification, user, startImpersonation } = usePlatform();
+  const { router, navigate, pushNotification, user, startImpersonation, setTenant } = usePlatform();
+  const tenants = useTenants();
   const tenantId = router.params.id;
   const provisioning = useProvisioningStore();
   const provJob = useMemo(
@@ -171,13 +172,20 @@ export function TenantDetailPage() {
   );
 
   const foundTenant = useMemo(
-    () => availableTenants.find((t) => t.id === tenantId && t.id !== "platform"),
-    [availableTenants, tenantId],
+    () => tenants.find((t) => t.id === tenantId && t.id !== "platform"),
+    [tenants, tenantId],
   );
 
   // Local working copy so module toggles / config edits are reflected
   // immediately in this surface and also pushed to global context.
   const [localTenant, setLocalTenant] = useState<TenantContext | null>(foundTenant ?? null);
+  
+  const plans = usePlans();
+
+  const persistTenant = (t: TenantContext) => {
+    if (!t) return;
+    updateTenant(t.id, t);
+  };
 
   // Async seam (frontend-first): detail hydration resolves via the mock
   // layer (loading skeleton + error/retry) while header state stays live.
@@ -247,7 +255,7 @@ export function TenantDetailPage() {
         status === "suspended" ? "suspended" : status === "terminated" ? "terminated" : "reactivated";
       const updated: TenantContext = { ...localTenant, status };
       setLocalTenant(updated);
-      setTenant(updated);
+      updateTenant(localTenant.id, { status });
       pushNotification({
         title: `Tenant ${verb}`,
         message: `${localTenant.name} is now ${status} — two-operator approval satisfied.`,
@@ -268,7 +276,7 @@ export function TenantDetailPage() {
         description: `Approved by ${a.approver?.name ?? "second operator"} — ${localTenant.name} is now ${status}.`,
       });
     }
-  }, [consoleStore.approvals, localTenant, setTenant, pushNotification]);
+  }, [consoleStore.approvals, localTenant, pushNotification]);
 
   if (!localTenant) {
     return (
@@ -291,16 +299,13 @@ export function TenantDetailPage() {
   const pendingPayouts = tenantPayouts.filter((p) => p.status === "pending");
   const pendingKyc = tenantKyc.filter((k) => k.status === "pending" || k.status === "review");
   const activeAccounts = tenantAccounts.filter((a) => a.status === "active");
-  const monthlyRevenue =
-    typeof PLAN_COST[localTenant.plan] === "number"
-      ? (PLAN_COST[localTenant.plan] as number)
-      : 4900;
+  const monthlyRevenue = getPlanPrice(localTenant.plan);
 
   /* ---- Apply status change with toast + notification + audit ---- */
   const applyStatus = (status: TenantContext["status"], verb: string, reason: string) => {
     const updated: TenantContext = { ...localTenant, status };
     setLocalTenant(updated);
-    setTenant(updated);
+    updateTenant(localTenant.id, { status });
     pushNotification({
       title: `Tenant ${verb}`,
       message: `${localTenant.name} is now ${status}.`,
@@ -615,7 +620,7 @@ export function TenantDetailPage() {
           <AnalyticsTab tenant={localTenant} />
         </TabsContent>
         <TabsContent value="modules">
-          <ModulesTab tenant={localTenant} onChange={setLocalTenant} onPersist={setTenant} />
+          <ModulesTab tenant={localTenant} onChange={setLocalTenant} onPersist={persistTenant} />
         </TabsContent>
         <TabsContent value="users">
           <UsersTab tenantId={localTenant.id} />
@@ -632,7 +637,7 @@ export function TenantDetailPage() {
           </div>
         </TabsContent>
         <TabsContent value="configuration">
-          <ConfigurationTab tenant={localTenant} onChange={setLocalTenant} onPersist={setTenant} />
+          <ConfigurationTab tenant={localTenant} onChange={setLocalTenant} onPersist={persistTenant} />
         </TabsContent>
         <TabsContent value="risk">
           <RiskTab tenant={localTenant} breaches={tenantBreaches} accountsCount={tenantAccounts.length} />
@@ -995,8 +1000,8 @@ interface InvoiceRow {
 
 function BillingTab({ tenant }: { tenant: TenantContext }) {
   const { user } = usePlatform();
-  const cost = PLAN_COST[tenant.plan];
-  const costLabel = typeof cost === "number" ? formatCurrency(cost, tenant.currency) : "Custom";
+  const cost = getPlanPrice(tenant.plan);
+  const costLabel = formatCurrency(cost, tenant.currency);
 
   /* ── Invoicing configuration, payment methods, disputes (audit X #2)
      Session-scoped demo state — the tab remounts per tenant (key below),
@@ -1038,7 +1043,7 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
       id: `DSP-${4100 + ((seed + i * 7) % 800)}`,
       invoice: `INV-2026-${String(((seed + i) % 12) + 1).padStart(2, "0")}-${String(((seed + i * 3) % 90) + 10).padStart(3, "0")}`,
       reason: reasons[(seed + i) % reasons.length],
-      amount: typeof cost === "number" ? cost : 4900,
+      amount: cost,
       openedDays: 3 + ((seed + i * 5) % 18),
       status: "open" as const,
     }));
@@ -1121,7 +1126,7 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
 
   // Mock billing history — 6 deterministic entries
   const history: InvoiceRow[] = useMemo(() => {
-    const base = typeof cost === "number" ? cost : 4900;
+    const base = typeof cost === "number" ? cost : getPlanPrice(tenant.plan);
     const now = Date.now();
     const monthMs = 30 * 24 * 60 * 60 * 1000;
     return Array.from({ length: 6 }).map((_, i) => ({
@@ -1311,8 +1316,8 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
           <div className="flex items-center gap-2 font-medium"><AlertTriangle className="h-3.5 w-3.5" /> Dunning (failed payments)</div>
           <div className="mt-2 space-y-1.5">
             {[
-              { invoice: "INV-2026-10-043", tenant: "Beta Trading", amount: 1900, attempts: 2, daysOverdue: 7 },
-              { invoice: "INV-2026-10-040", tenant: "Gamma Futures", amount: 4900, attempts: 1, daysOverdue: 3 },
+              { invoice: "INV-2026-10-043", tenant: "Beta Trading", amount: getPlanPrice("growth"), attempts: 2, daysOverdue: 7 },
+              { invoice: "INV-2026-10-040", tenant: "Gamma Futures", amount: getPlanPrice("scale"), attempts: 1, daysOverdue: 3 },
             ].map((d) => (
               <div key={d.invoice} className="flex items-center gap-3 rounded-md border bg-white/70 p-2 dark:bg-rose-950/20">
                 <div className="min-w-0 flex-1">
@@ -1664,10 +1669,7 @@ function AnalyticsTab({ tenant }: { tenant: TenantContext }) {
   const adoptionPct =
     allModules.length > 0 ? Math.round((enabledCount / allModules.length) * 100) : 0;
 
-  const cost =
-    typeof PLAN_COST[tenant.plan] === "number"
-      ? (PLAN_COST[tenant.plan] as number)
-      : 4900;
+  const cost = getPlanPrice(tenant.plan);
 
   // Deterministic 12-month revenue trend — plan-cost anchored with a
   // tenant-seeded jitter (no Math.random: stable across reloads).

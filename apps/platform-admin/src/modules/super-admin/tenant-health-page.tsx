@@ -15,6 +15,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useTenants } from "@/lib/platform/tenant-store";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { supportTickets, breaches } from "@/lib/platform/mock-data";
@@ -80,11 +81,12 @@ export function TenantHealthPage() {
     () => mockAsync(() => true, { delayMs: 400 }),
     [],
   );
-  const { availableTenants, navigate } = usePlatform();
+  const { navigate } = usePlatform();
+const tenants = useTenants();
   const [focus, setFocus] = useState<Health | "all">("all");
 
   const rows = useMemo(() => {
-    return availableTenants
+    return tenants
       .filter((t) => t.id !== "platform") // the console's own pseudo-tenant
       .map((t) => {
         const health = healthOf(t);
@@ -110,14 +112,14 @@ export function TenantHealthPage() {
         const rank: Record<Health, number> = { critical: 0, watch: 1, healthy: 2 };
         return rank[a.health] - rank[b.health];
       });
-  }, [availableTenants, focus]);
+  }, [tenants, focus]);
 
   const allRows = useMemo(
     () =>
-      availableTenants
+      tenants
         .filter((t) => t.id !== "platform")
         .map((t) => ({ tenant: t, health: healthOf(t), forecast: tenantForecast(t) })),
-    [availableTenants],
+    [tenants],
   );
 
   const critical = allRows.filter((r) => r.health === "critical").length;
@@ -188,7 +190,7 @@ export function TenantHealthPage() {
     };
     const out: Rec[] = [];
     const nameOf = (id: string) =>
-      availableTenants.find((t) => t.id === id)?.name ?? id;
+      tenants.find((t) => t.id === id)?.name ?? id;
     const link = (ids: string[]) =>
       ids.slice(0, 3).map((id) => ({ id, name: nameOf(id) }));
 
@@ -263,7 +265,7 @@ export function TenantHealthPage() {
     }
 
     return out;
-  }, [allRows, criticalBreaches, highTickets, navigate, availableTenants]);
+  }, [allRows, criticalBreaches, highTickets, navigate, tenants]);
 
   const columns: Column<(typeof rows)[number]>[] = [
     {

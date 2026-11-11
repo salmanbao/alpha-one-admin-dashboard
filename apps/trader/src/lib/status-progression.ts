@@ -95,6 +95,11 @@ export function getPayoutStage(status: string, eta?: string): LifecycleStage {
       badgeLabel: "✗",
       dot: true,
     },
+    cancelled: {
+      label: "Cancelled",
+      tone: "neutral",
+      badgeLabel: "✕",
+    },
   };
   
   return stages[status] || stages['requested'];

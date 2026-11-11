@@ -11,6 +11,7 @@
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { usePlans } from "@/lib/platform/plan-catalog-store";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
@@ -74,7 +75,8 @@ export function PlatformOverviewPage() {
 
   // KPIs
   const totalTraders = allTenants.reduce((s, t) => s + getTenantTraders(t.id).length, 0);
-  const totalRevenue = allTenants.reduce((s, t) => s + (t.plan === "enterprise" ? 4900 : t.plan === "scale" ? 1900 : 890), 0);
+  const plans = usePlans();
+  const totalRevenue = allTenants.reduce((s, t) => s + (t.plan === "enterprise" ? plans.find(p => p.id === "enterprise")?.priceMonthly ?? 890 : t.plan === "scale" ? plans.find(p => p.id === "scale")?.priceMonthly ?? 890 : 890), 0);
   const allModules = moduleRegistry.getAll();
   const tenantFacingModules = allModules.filter((m) => m.manifest.id !== "super-admin");
   const activeTenants = allTenants.filter((t) => t.status === "active").length;

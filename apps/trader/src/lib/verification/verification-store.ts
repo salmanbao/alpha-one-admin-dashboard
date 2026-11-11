@@ -21,6 +21,7 @@
  */
 
 import { emitLifecycle, readLifecycleLog, type LifecycleEventName } from "@pfaas/lifecycle";
+import { getDefaultKycIdentity } from "@/lib/session-store";
 
 /** The four steps of the unified wizard, in order. */
 export type VerificationStepId = "identity" | "documents" | "review" | "status";
@@ -99,17 +100,12 @@ export const identityFieldLabels: Record<keyof VerificationIdentity, string> = {
 };
 
 /**
- * Demo values — the trader's details are pre-filled with dummy data so
- * the flow can be walked without typing (no network calls anywhere).
+ * R4-01: the KYC pre-fill base is session-aware — `getDefaultKycIdentity()`
+ * from the session store (signup identity for registered users, the Tom
+ * Allen demo persona only as the honest demo fallback). The old hardcoded
+ * `defaultIdentity` constant is gone so no restore path can pre-fill
+ * "Tom Allen" over a real signup.
  */
-export const defaultIdentity: VerificationIdentity = {
-  fullName: "Tom Allen",
-  dob: "1990-04-12",
-  country: "United States",
-  phone: "+1 (415) 555-0142",
-  address: "123 Market St, San Francisco",
-  postalCode: "94103",
-};
 
 export const identityValidators: Record<keyof VerificationIdentity, (value: string) => string> = {
   fullName: (v) => (!v.trim() ? "Full legal name is required." : ""),
@@ -188,7 +184,7 @@ export interface VerificationDraft {
 
 export function emptyVerificationDraft(): VerificationDraft {
   return {
-    identity: { ...defaultIdentity },
+    identity: { ...getDefaultKycIdentity() },
     identityDone: false,
     documents: {},
     documentsDone: false,
@@ -386,7 +382,7 @@ export function readVerificationDraft(): VerificationDraft {
   const draft: VerificationDraft = {
     ...emptyVerificationDraft(),
     ...raw,
-    identity: { ...defaultIdentity, ...(raw.identity ?? {}) },
+    identity: { ...getDefaultKycIdentity(), ...(raw.identity ?? {}) },
     documents: { ...(raw.documents ?? {}) },
   };
   return foldAdminVerdict(resolveReviewStatus(draft));
@@ -403,7 +399,7 @@ function peekDraft(): VerificationDraft | null {
   return {
     ...emptyVerificationDraft(),
     ...raw,
-    identity: { ...defaultIdentity, ...(raw.identity ?? {}) },
+    identity: { ...getDefaultKycIdentity(), ...(raw.identity ?? {}) },
     documents: { ...(raw.documents ?? {}) },
   };
 }

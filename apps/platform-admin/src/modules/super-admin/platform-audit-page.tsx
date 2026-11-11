@@ -18,6 +18,7 @@
 
 import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useTenants } from "@/lib/platform/tenant-store";
 import { useConsoleStore } from "@/lib/platform/console-store";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
@@ -111,14 +112,15 @@ const formatTimestamp = (iso: string): string => {
 /* ------------------------------------------------------------------ */
 
 export function PlatformAuditPage() {
-  const { navigate, availableTenants } = usePlatform();
+  const { navigate } = usePlatform();
+  const tenants = useTenants();
   const consoleStore = useConsoleStore();
   const [tenantFilter, setTenantFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
 
   const tenantName = useMemo(
-    () => makeTenantName(availableTenants),
-    [availableTenants],
+    () => makeTenantName(tenants),
+    [tenants],
   );
 
   // Seed stream loads through the mock layer (loading/error/retry states);
@@ -354,7 +356,7 @@ export function PlatformAuditPage() {
             <SelectContent>
               <SelectItem value="all">All Tenants</SelectItem>
               <SelectItem value="platform">Platform (platform-wide)</SelectItem>
-              {availableTenants
+              {tenants
                 .filter((t) => t.id !== "platform")
                 .map((t) => (
                   <SelectItem key={t.id} value={t.id}>

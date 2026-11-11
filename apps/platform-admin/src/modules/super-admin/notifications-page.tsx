@@ -91,7 +91,7 @@ const DEFAULT_ALERT_RULES: AlertRule[] = [
     icon: Inbox,
     currentValue: 18,
     higherIsWorse: true,
-    linkHref: "/cross-tenant-queues",
+    linkHref: "cross-tenant-queues",
   },
   {
     id: "apiUsage",
@@ -103,7 +103,7 @@ const DEFAULT_ALERT_RULES: AlertRule[] = [
     icon: Activity,
     currentValue: 42000,
     higherIsWorse: true,
-    linkHref: "/tenant-api-usage",
+    linkHref: "tenant-api-usage",
   },
   {
     id: "tenantHealth",
@@ -115,7 +115,7 @@ const DEFAULT_ALERT_RULES: AlertRule[] = [
     icon: Gauge,
     currentValue: 72,
     higherIsWorse: false,
-    linkHref: "/tenant-health",
+    linkHref: "tenant-health",
   },
   {
     id: "slaBreach",
@@ -127,7 +127,7 @@ const DEFAULT_ALERT_RULES: AlertRule[] = [
     icon: ShieldAlert,
     currentValue: 82,
     higherIsWorse: true,
-    linkHref: "/sla-monitoring",
+    linkHref: "sla-monitoring",
   },
 ];
 

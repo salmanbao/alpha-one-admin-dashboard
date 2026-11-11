@@ -42,7 +42,7 @@ import {
   type TerraTone,
 } from "@/components/terra/terra-ui";
 import { terraTenant } from "@/lib/fixtures/terra-fixtures";
-import { useInboxMessages } from "@/lib/inbox/inbox-store";
+import { markAllRead, markRead, markUnread, remove, useInboxMessages } from "@/lib/inbox/inbox-store";
 import { toast } from "@/hooks/use-toast";
 import {
   Activity,
@@ -169,10 +169,8 @@ export function NotificationCenterPage() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const messages = useInboxMessages();
-  const [readState, setReadState] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(messages.map((m) => [m.id, m.read])),
-  );
-  const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  // Read/delete state lives in the inbox store (R4-08) — persisted to
+  // localStorage across reloads. No component-local readState/deletedIds.
   const [recoveredIds, setRecoveredIds] = useState<string[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
@@ -182,14 +180,14 @@ export function NotificationCenterPage() {
     return () => clearTimeout(t);
   }, []);
 
-  const isUnread = (m: Message) => !readState[m.id];
+  const isUnread = (m: Message) => !m.read;
 
   const visible = useMemo(
     () =>
       messages.filter((m) => {
-        if (deletedIds.includes(m.id)) return false;
+        // The store already excludes deleted messages from its snapshot.
         if (filter !== "All" && m.category !== filter) return false;
-        if (readFilter === "Unread" && readState[m.id]) return false;
+        if (readFilter === "Unread" && m.read) return false;
         if (search) {
           const q = search.toLowerCase();
           if (
@@ -200,15 +198,13 @@ export function NotificationCenterPage() {
         }
         return true;
       }),
-    [filter, readFilter, search, deletedIds, readState],
+    [filter, readFilter, search, messages],
   );
 
-  const remaining = messages.filter((m) => !deletedIds.includes(m.id));
+  const remaining = messages;
   const unreadCount = remaining.filter(isUnread).length;
   const selected =
-    selectedId && !deletedIds.includes(selectedId)
-      ? messages.find((m) => m.id === selectedId) ?? null
-      : null;
+    selectedId ? messages.find((m) => m.id === selectedId) ?? null : null;
   const bodyFailed = false;
 
   /* Keep the selected row visible while arrowing through the list. */
@@ -221,26 +217,26 @@ export function NotificationCenterPage() {
 
   const openMessage = (id: string) => {
     setSelectedId(id);
-    setReadState((s) => (s[id] ? s : { ...s, [id]: true }));
+    markRead(id); // store no-ops when already read
   };
 
   const handleMarkAllRead = () => {
-    setReadState(Object.fromEntries(messages.map((m) => [m.id, true])));
+    markAllRead();
     toast({ title: "All messages marked as read" });
     // Selection is untouched (Table 150) — no setSelectedId call here.
   };
 
   const handleMarkUnread = (id: string) => {
-    setReadState((s) => ({ ...s, [id]: false }));
+    markUnread(id);
     toast({ title: "Marked unread", description: "The unread dot is back in the list." });
   };
 
   const handleDelete = (id: string) => {
-    setDeletedIds((d) => [...d, id]);
+    remove(id);
     if (selectedId === id) setSelectedId(null);
     toast({
       title: "Message deleted",
-      description: "Soft deleted — kept for 90 days before permanent removal.",
+      description: "Soft deleted — kept for 90 days (demo) before permanent removal.",
     });
   };
 
@@ -694,7 +690,7 @@ export function NotificationCenterPage() {
 
                 <p className="mt-5 text-[11px] text-on-surface-variant">
                   Retention: deleted messages are soft-deleted and kept for 90 days
-                  before permanent removal.
+                  (demo — no TTL enforced yet) before permanent removal.
                 </p>
               </div>
             )}

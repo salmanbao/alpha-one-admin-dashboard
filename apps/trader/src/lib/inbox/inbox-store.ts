@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 export type InboxCategory = "Payouts" | "Challenges" | "Trading" | "Marketing" | "Support";
 
@@ -104,38 +104,187 @@ export const inboxSeedMessages: InboxMessage[] = [
   },
 ];
 
-/** Messages pushed at runtime (risk warnings, payout events, …). Item 7
- *  wires `pushInboxMessage` to the lifecycle bus so the inbox becomes a
- *  projection of it; until then the risk-warning journey (item 5) pushes
- *  `risk.warning` messages directly. */
+/** Messages pushed at runtime (risk warnings, payout events, …).
+ *  Projected onto the inbox from the lifecycle bus by the bridge; risk
+ *  warnings (item 5) push their own messages directly via
+ *  pushInboxMessage(). R4-08 persists pushes so they survive reload even
+ *  when nothing re-derives them. */
 let pushedMessages: InboxMessage[] = [];
 const listeners = new Set<(messages: InboxMessage[]) => void>();
 
-function notify() {
-  const snapshot = [...inboxSeedMessages, ...pushedMessages];
-  listeners.forEach((l) => l(snapshot));
+/* ------------------------------------------------------------------ */
+/* Persistence (R4-08 / AUDIT-R4 §2.7)                                 */
+/*                                                                     */
+/* One object, one write path: read flags and soft-deletes live here,  */
+/* not in page-local state. State persists to localStorage so reloads  */
+/* keep it:                                                             */
+/*   • pushed messages (bridge + risk warnings + payout receipts)      */
+/*   • read overrides applied over seed/pushed `read` flags            */
+/*   • deleted (soft) ids — filtered out of every snapshot             */
+/* ------------------------------------------------------------------ */
+
+const STORAGE_KEY = "terra-inbox-state";
+
+interface PersistedInboxState {
+  pushed: InboxMessage[];
+  read: Record<string, boolean>;
+  deleted: string[];
 }
 
-/** Append a message once (deduped by id) and notify subscribers. */
+const readOverrides = new Map<string, boolean>();
+let deletedIds = new Set<string>();
+/** Hydration is deferred to the client: SSR and the first client render
+ *  both see defaults (no hydration mismatch), then useInboxMessages()
+ *  hydrates in its effect. Mutators hydrate first too, so a write before
+ *  the first hook mounts can never clobber persisted state. */
+let hydrated = false;
+
+function hydrate(): void {
+  if (hydrated || typeof window === "undefined") return;
+  hydrated = true;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Partial<PersistedInboxState>;
+    if (Array.isArray(parsed.pushed)) pushedMessages = parsed.pushed;
+    if (parsed.read && typeof parsed.read === "object") {
+      for (const [id, v] of Object.entries(parsed.read)) readOverrides.set(id, Boolean(v));
+    }
+    if (Array.isArray(parsed.deleted)) {
+      deletedIds = new Set(parsed.deleted.filter((x): x is string => typeof x === "string"));
+    }
+  } catch {
+    // Corrupted/unreadable state — start from defaults.
+  }
+}
+
+function persist(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const state: PersistedInboxState = {
+      pushed: pushedMessages,
+      read: Object.fromEntries(readOverrides),
+      deleted: [...deletedIds],
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Storage unavailable (private mode / quota) — in-memory only.
+  }
+}
+
+/** Effective read flag: override wins over the message's own flag. */
+function effectiveRead(id: string): boolean | undefined {
+  if (readOverrides.has(id)) return readOverrides.get(id);
+  return (
+    inboxSeedMessages.find((m) => m.id === id)?.read ??
+    pushedMessages.find((m) => m.id === id)?.read
+  );
+}
+
+/** Seed + pushes, minus deleted, with read overrides applied. */
+function snapshot(): InboxMessage[] {
+  return [...inboxSeedMessages, ...pushedMessages]
+    .filter((m) => !deletedIds.has(m.id))
+    .map((m) => {
+      const override = readOverrides.get(m.id);
+      return override === undefined ? m : { ...m, read: override };
+    });
+}
+
+function notify() {
+  const snap = snapshot();
+  listeners.forEach((l) => l(snap));
+}
+
+/** Append a message once (deduped by id) and notify subscribers.
+ *  Deleted ids never resurrect — the bridge re-projects the whole
+ *  lifecycle log on every mount, so without this guard a reload would
+ *  bring back messages the user deleted. */
 export function pushInboxMessage(message: InboxMessage): void {
+  hydrate();
+  if (deletedIds.has(message.id)) return;
   if (pushedMessages.some((m) => m.id === message.id)) return;
   pushedMessages = [...pushedMessages, message];
+  persist();
+  notify();
+}
+
+/** Mark one message read (no-op when already read). */
+export function markRead(id: string): void {
+  hydrate();
+  if (effectiveRead(id) === true) return;
+  readOverrides.set(id, true);
+  persist();
+  notify();
+}
+
+/** Mark one message unread (no-op when already unread). */
+export function markUnread(id: string): void {
+  hydrate();
+  if (effectiveRead(id) === false) return;
+  readOverrides.set(id, false);
+  persist();
+  notify();
+}
+
+/** Mark every live message read; selection untouched (Table 150). */
+export function markAllRead(): void {
+  hydrate();
+  let changed = false;
+  for (const m of [...inboxSeedMessages, ...pushedMessages]) {
+    if (deletedIds.has(m.id)) continue;
+    if (effectiveRead(m.id) === true) continue;
+    readOverrides.set(m.id, true);
+    changed = true;
+  }
+  if (!changed) return;
+  persist();
+  notify();
+}
+
+/** Soft-delete a message: filtered from every snapshot, persisted so it
+ *  stays gone across reloads. Kept until a real TTL exists (demo copy
+ *  in the notification center). */
+export function remove(id: string): void {
+  hydrate();
+  if (deletedIds.has(id)) return;
+  deletedIds.add(id);
+  persist();
   notify();
 }
 
 export function readInboxMessages(): InboxMessage[] {
-  return [...inboxSeedMessages, ...pushedMessages];
+  // Deliberately does not hydrate: SSR and the first client render must
+  // match; useInboxMessages() hydrates in its effect after mount.
+  return snapshot();
+}
+
+function getSnapshot(): string {
+  return JSON.stringify(snapshot());
+}
+
+function getServerSnapshot(): string {
+  // SSR and the hydration render both see defaults (no mismatch);
+  // persisted state lands in the mount effect below.
+  return JSON.stringify([...inboxSeedMessages]);
 }
 
 export function useInboxMessages(): InboxMessage[] {
-  // useState initializer already snapshots module state (which includes any
-  // messages pushed before mount); the effect only subscribes to live pushes.
-  const [messages, setMessages] = useState(() => readInboxMessages());
+  // Hydrate after mount — localStorage is client-only, and calling setState
+  // synchronously in an effect is banned; notify() instead re-reads the
+  // store through useSyncExternalStore's subscription. Mutators hydrate
+  // first too, so a write before any hook mounts never clobbers storage.
   useEffect(() => {
-    const unsub = subscribe(setMessages);
-    return unsub;
+    const wasHydrated = hydrated;
+    hydrate();
+    if (!wasHydrated) notify();
   }, []);
-  return messages;
+  const raw = useSyncExternalStore(
+    (onChange) => subscribe(() => onChange()),
+    getSnapshot,
+    getServerSnapshot,
+  );
+  return useMemo(() => JSON.parse(raw) as InboxMessage[], [raw]);
 }
 
 function subscribe(cb: (messages: InboxMessage[]) => void): () => void {

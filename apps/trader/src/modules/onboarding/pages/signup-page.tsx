@@ -17,6 +17,10 @@ import { useRouter } from "next/navigation";
 import { TerraCard } from "@/components/terra/terra-ui";
 import { FormField, useFormValidation } from "@pfaas/ui/platform-form-field";
 import { emitLifecycle } from "@pfaas/lifecycle";
+import {
+  registerAccount,
+  writeSession,
+} from "@/lib/session-store";
 
 const emailValidator = (v: string) => {
   if (!v.trim()) return "Email is required.";
@@ -70,6 +74,18 @@ export function SignupPage() {
         referrer: typeof document !== "undefined" ? document.referrer || null : null,
       },
     });
+
+    // R4-01: register the new account in the session store so login can validate it,
+    // and write the active session so KYC pre-fills with this identity.
+    const newAccount = registerAccount({ email, displayName, password });
+    const session = {
+      accountId: newAccount.id,
+      email: newAccount.email,
+      displayName: newAccount.displayName,
+      isDemo: false,
+      loginAt: new Date().toISOString(),
+    };
+    writeSession(session);
 
     // Small delay so the emit is visible before navigation.
     await new Promise((r) => setTimeout(r, 500));

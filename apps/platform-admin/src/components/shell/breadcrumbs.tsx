@@ -10,6 +10,7 @@
 import { useMemo, useState } from "react";
 import { ChevronRight, Home } from "lucide-react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { useTenants } from "@/lib/platform/tenant-store";
 import { resolveTermsInString } from "@/lib/platform/terminology";
 import { resolveNavigation, findNavForView } from "@/lib/platform/navigation-engine";
 import { moduleRegistry } from "@/lib/platform/module-registry";
@@ -44,7 +45,7 @@ import { Badge } from "@/components/ui/badge";
 function resolveDetail(
   view: string,
   params: Record<string, string>,
-  availableTenants: TenantContext[],
+  tenants: TenantContext[],
 ): { parent: string; label: string } | null {
   const moduleName = (id?: string) =>
     id
@@ -52,12 +53,12 @@ function resolveDetail(
       : undefined;
   switch (view) {
     case "tenant-detail": {
-      const tenant = availableTenants.find((t) => t.id === params.id);
+      const tenant = tenants.find((t) => t.id === params.id);
       return { parent: "tenants", label: tenant?.name ?? "Tenant Detail" };
     }
     case "provisioning-saga": {
       const tenant = params.tenant
-        ? availableTenants.find((t) => t.id === params.tenant)
+        ? tenants.find((t) => t.id === params.tenant)
         : undefined;
       return { parent: "tenants", label: tenant ? `Provisioning: ${tenant.name}` : "Provisioning" };
     }
@@ -96,7 +97,8 @@ function resolveDetail(
 }
 
 export function Breadcrumbs() {
-  const { router, navigate, runtime, tenant, availableTenants } = usePlatform();
+  const { router, navigate, runtime, tenant } = usePlatform();
+  const tenants = useTenants();
   const items = useMemo(() => resolveNavigation(runtime), [runtime]);
 
   const trail = useMemo(() => {
@@ -117,7 +119,7 @@ export function Breadcrumbs() {
       // Detail screens (audit: inconsistent breadcrumbs) — these views are
       // not sidebar destinations, so resolve their parent list view to show
       // a full clickable path instead of a lone generated label.
-      const detail = resolveDetail(router.view, router.params, availableTenants);
+      const detail = resolveDetail(router.view, router.params, tenants);
       if (detail) {
         const parentNav = findNavForView(items, detail.parent);
         // Mirror the nav-view trail above: section crumb (if the parent
@@ -142,7 +144,7 @@ export function Breadcrumbs() {
       }
     }
     return out;
-  }, [items, router.view, router.params, tenant, availableTenants]);
+  }, [items, router.view, router.params, tenant, tenants]);
 
   return (
     <Breadcrumb className="mb-3">

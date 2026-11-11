@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * PFaaS Platform — Dashboard View Router
  *
@@ -27,6 +28,55 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "create-role": dynamic(
+    () =>
+      import("@/modules/super-admin/create-role-page").then((m) => ({
+        default: m.CreateRolePage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "manage-permissions": dynamic(
+    () =>
+      import("@/modules/super-admin/manage-permissions-page").then((m) => ({
+        default: m.ManagePermissionsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "sla-monitoring": dynamic(
+    () =>
+      import("@/modules/super-admin/sla-monitoring-page").then((m) => ({
+        default: m.SlaMonitoringPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "provider-registry": dynamic(
+    () =>
+      import("@/modules/super-admin/provider-registry-page").then((m) => ({
+        default: m.ProviderRegistryPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "abuse-signals": dynamic(
+    () =>
+      import("@/modules/super-admin/abuse-signals-page").then((m) => ({
+        default: m.AbuseSignalsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "tenant-benchmarking": dynamic(
+    () =>
+      import("@/modules/super-admin/tenant-benchmarking-page").then((m) => ({
+        default: m.TenantBenchmarkingPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "system-health": dynamic(
+    () =>
+      import("@/modules/super-admin/system-health-page").then((m) => ({
+        default: m.SystemHealthPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   tenants: dynamic(
     () =>
       import("@/modules/super-admin/super-admin-pages").then((m) => ({
@@ -41,578 +91,4 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
-  "platform-health": dynamic(
-    () =>
-      import("@/modules/super-admin/super-admin-pages").then((m) => ({
-        default: m.PlatformHealthPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "platform-operations": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-operations-page").then((m) => ({
-        default: m.PlatformOperationsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "emergency-controls": dynamic(
-    () =>
-      import("@/modules/super-admin/emergency-controls-page").then((m) => ({
-        default: m.EmergencyControlsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "cross-tenant-queues": dynamic(
-    () =>
-      import("@/modules/super-admin/cross-tenant-queues-page").then((m) => ({
-        default: m.CrossTenantQueuesPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "provider-registry": dynamic(
-    () =>
-      import("@/modules/super-admin/provider-registry-page").then((m) => ({
-        default: m.ProviderRegistryPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "jobs-dashboard": dynamic(
-    () =>
-      import("@/modules/super-admin/jobs-dashboard-page").then((m) => ({
-        default: m.JobsDashboardPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  deployments: dynamic(
-    () =>
-      import("@/modules/super-admin/deployments-page").then((m) => ({
-        default: m.DeploymentsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "backups-dr": dynamic(
-    () =>
-      import("@/modules/super-admin/backups-dr-page").then((m) => ({
-        default: m.BackupsDrPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "approval-center": dynamic(
-    () =>
-      import("@/modules/super-admin/approval-center-page").then((m) => ({
-        default: m.ApprovalCenterPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "incident-center": dynamic(
-    () =>
-      import("@/modules/super-admin/incident-center-page").then((m) => ({
-        default: m.IncidentCenterPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "feature-flags": dynamic(
-    () =>
-      import("@/modules/super-admin/feature-flags-page").then((m) => ({
-        default: m.FeatureFlagsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "my-sessions": dynamic(
-    () =>
-      import("@/modules/super-admin/my-sessions-page").then((m) => ({
-        default: m.MySessionsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "tenant-sessions": dynamic(
-    () =>
-      import("@/modules/super-admin/tenant-sessions-page").then((m) => ({
-        default: m.TenantSessionsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "security-overview": dynamic(
-    () =>
-      import("@/modules/super-admin/security-overview-page").then((m) => ({
-        default: m.SecurityOverviewPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "platform-financials": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-financials-page").then((m) => ({
-        default: m.PlatformFinancialsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "global-defaults": dynamic(
-    () =>
-      import("@/modules/super-admin/global-defaults-page").then((m) => ({
-        default: m.GlobalDefaultsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "reference-data": dynamic(
-    () =>
-      import("@/modules/super-admin/reference-data-page").then((m) => ({
-        default: m.ReferenceDataPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "risk-engine": dynamic(
-    () =>
-      import("@/modules/super-admin/risk-engine-page").then((m) => ({
-        default: m.RiskEnginePage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "operator-directory": dynamic(
-    () =>
-      import("@/modules/super-admin/operator-directory-page").then((m) => ({
-        default: m.OperatorDirectoryPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "role-management": dynamic(
-    () =>
-      import("@/modules/super-admin/role-management-page").then((m) => ({
-        default: m.RoleManagementPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "tenant-view-as": dynamic(
-    () =>
-      import("@/modules/super-admin/tenant-view-as-page").then((m) => ({
-        default: m.TenantViewAsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "abuse-signals": dynamic(
-    () =>
-      import("@/modules/super-admin/abuse-signals-page").then((m) => ({
-        default: m.AbuseSignalsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  announcements: dynamic(
-    () =>
-      import("@/modules/super-admin/announcements-page").then((m) => ({
-        default: m.AnnouncementsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "plan-transition": dynamic(
-    () =>
-      import("@/modules/super-admin/plan-transition-page").then((m) => ({
-        default: m.PlanTransitionPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  plans: dynamic(
-    () =>
-      import("@/modules/super-admin/plans-page").then((m) => ({
-        default: m.PlansPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  notifications: dynamic(
-    () =>
-      import("@/modules/super-admin/notifications-page").then((m) => ({
-        default: m.NotificationsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "platform-analytics": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-analytics-page").then((m) => ({
-        default: m.PlatformAnalyticsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "tenant-benchmarking": dynamic(
-    () =>
-      import("@/modules/super-admin/tenant-benchmarking-page").then((m) => ({
-        default: m.TenantBenchmarkingPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "tenant-detail": dynamic(
-    () =>
-      import("@/modules/super-admin/tenant-detail-page").then((m) => ({
-        default: m.TenantDetailPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "create-tenant": dynamic(
-    () =>
-      import("@/modules/super-admin/create-tenant-page").then((m) => ({
-        default: m.CreateTenantPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "go-live-wizard": dynamic(
-    () =>
-      import("@/modules/super-admin/go-live-wizard-page").then((m) => ({
-        default: m.GoLiveWizardPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "tenant-lifecycle": dynamic(
-    () =>
-      import("@/modules/super-admin/tenant-lifecycle-page").then((m) => ({
-        default: m.TenantLifecyclePage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "tenant-health": dynamic(
-    () =>
-      import("@/modules/super-admin/tenant-health-page").then((m) => ({
-        default: m.TenantHealthPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "sla-monitoring": dynamic(
-    () =>
-      import("@/modules/super-admin/sla-monitoring-page").then((m) => ({
-        default: m.SlaMonitoringPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "provisioning-saga": dynamic(
-    () =>
-      import("@/modules/super-admin/provisioning-saga-page").then((m) => ({
-        default: m.ProvisioningSagaPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "usage-metering": dynamic(
-    () =>
-      import("@/modules/super-admin/usage-metering-page").then((m) => ({
-        default: m.UsageMeteringPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "tenant-api-usage": dynamic(
-    () =>
-      import("@/modules/super-admin/tenant-api-usage-page").then((m) => ({
-        default: m.TenantApiUsagePage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "support-assist": dynamic(
-    () =>
-      import("@/modules/super-admin/support-assist-page").then((m) => ({
-        default: m.SupportAssistPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "dashboard-manager": dynamic(
-    () =>
-      import("@/modules/super-admin/dashboard-manager-page").then((m) => ({
-        default: m.DashboardManagerPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "platform-audit": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-audit-page").then((m) => ({
-        default: m.PlatformAuditPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "knowledge-base": dynamic(
-    () =>
-      import("@/modules/super-admin/knowledge-base-page").then((m) => ({
-        default: m.KnowledgeBasePage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "changelog": dynamic(
-    () =>
-      import("@/modules/super-admin/changelog-page").then((m) => ({
-        default: m.ChangelogPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "module-detail": dynamic(
-    () =>
-      import("@/modules/super-admin/module-detail-page").then((m) => ({
-        default: m.ModuleDetailPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "module-settings": dynamic(
-    () =>
-      import("@/modules/super-admin/module-settings-page").then((m) => ({
-        default: m.ModuleSettingsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "model-audit-log": dynamic(
-    () =>
-      import("@/modules/super-admin/model-audit-log-page").then((m) => ({
-        default: m.ModelAuditLogPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "impersonation-audit": dynamic(
-    () =>
-      import("@/modules/super-admin/impersonation-audit-page").then((m) => ({
-        default: m.ImpersonationAuditPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "ai-usage-quota": dynamic(
-    () =>
-      import("@/modules/super-admin/ai-usage-quota-page").then((m) => ({
-        default: m.AiUsageQuotaPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "bridge-sync-log": dynamic(
-    () =>
-      import("@/modules/super-admin/bridge-sync-log-page").then((m) => ({
-        default: m.BridgeSyncLogPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "getting-started": dynamic(
-    () =>
-      import("@/modules/super-admin/getting-started-page").then((m) => ({
-        default: m.GettingStartedPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "platform-architecture": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-architecture-page").then((m) => ({
-        default: m.PlatformArchitecturePage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "platform-overview": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-overview-page").then((m) => ({
-        default: m.PlatformOverviewPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "platform-roles": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-roles-page").then((m) => ({
-        default: m.PlatformRolesPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "platform-staff": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-staff-page").then((m) => ({
-        default: m.PlatformStaffPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "pending-tasks": dynamic(
-    () =>
-      import("@/modules/super-admin/pending-tasks-page").then((m) => ({
-        default: m.PendingTasksPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "platform-transactions": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-transactions-page").then((m) => ({
-        default: m.PlatformTransactionsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "system-health": dynamic(
-    () =>
-      import("@/modules/super-admin/system-health-page").then((m) => ({
-        default: m.SystemHealthPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "audit-log": dynamic(
-    () =>
-      import("@/modules/super-admin/audit-log-page").then((m) => ({
-        default: m.AuditLogPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "api-keys": dynamic(
-    () =>
-      import("@/modules/super-admin/api-keys-page").then((m) => ({
-        default: m.ApiKeysPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "rate-limits": dynamic(
-    () =>
-      import("@/modules/super-admin/rate-limits-page").then((m) => ({
-        default: m.RateLimitsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "api-analytics": dynamic(
-    () =>
-      import("@/modules/super-admin/api-analytics-page").then((m) => ({
-        default: m.ApiAnalyticsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "webhooks": dynamic(
-    () =>
-      import("@/modules/super-admin/webhooks-page").then((m) => ({
-        default: m.WebhooksPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "integrations": dynamic(
-    () =>
-      import("@/modules/super-admin/integrations-page").then((m) => ({
-        default: m.IntegrationsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "compliance-reports": dynamic(
-    () =>
-      import("@/modules/super-admin/compliance-reports-page").then((m) => ({
-        default: m.ComplianceReportsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "notification-templates": dynamic(
-    () =>
-      import("@/modules/super-admin/notification-templates-page").then((m) => ({
-        default: m.NotificationTemplatesPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "backup-policies": dynamic(
-    () =>
-      import("@/modules/super-admin/backup-policies-page").then((m) => ({
-        default: m.BackupPoliciesPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "content-management": dynamic(
-    () =>
-      import("@/modules/super-admin/content-management-page").then((m) => ({
-        default: m.ContentManagementPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  marketing: dynamic(
-    () =>
-      import("@/modules/super-admin/marketing-page").then((m) => ({
-        default: m.MarketingPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "template-library-admin": dynamic(
-    () =>
-      import("@/modules/super-admin/template-library-admin-page").then((m) => ({
-        default: m.TemplateLibraryAdminPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-
-  "tenant-channel-entitlements": dynamic(
-    () =>
-      import("@/modules/super-admin/tenant-channel-entitlements-page").then((m) => ({
-        default: m.TenantChannelEntitlementsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  // R4-F02 — orphaned: superseded by the 360-line incident center and absent
-  // from navigation. Removed so dead routes do not accumulate.
-  "marketing-api-console": dynamic(
-    () =>
-      import("@/modules/super-admin/marketing-api-console-page").then((m) => ({
-        default: m.MarketingApiConsolePage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "marketplace-review": dynamic(
-    () =>
-      import("@/modules/super-admin/marketplace-review-page").then((m) => ({
-        default: m.MarketplaceReviewPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "send-billing": dynamic(
-    () =>
-      import("@/modules/super-admin/send-billing-page").then((m) => ({
-        default: m.SendBillingPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  // R4-F02 — was unreachable: nav + route existed but no view-router registration.
-  "platform-billing": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-billing-page").then((m) => ({
-        default: m.PlatformBillingPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "provider-pool": dynamic(
-    () =>
-      import("@/modules/super-admin/provider-pool-page").then((m) => ({
-        default: m.ProviderPoolPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "global-consent-ledger": dynamic(
-    () =>
-      import("@/modules/super-admin/global-consent-ledger-page").then((m) => ({
-        default: m.GlobalConsentLedgerPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "cross-tenant-archive": dynamic(
-    () =>
-      import("@/modules/super-admin/cross-tenant-archive-page").then((m) => ({
-        default: m.CrossTenantArchivePage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "challenge-programs": dynamic(
-    () =>
-      import("@/modules/super-admin/challenge-programs-page").then((m) => ({
-        default: m.ChallengeProgramsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "churn-prevention": dynamic(
-    () =>
-      import("@/modules/super-admin/churn-prevention-page").then((m) => ({
-        default: m.ChurnPreventionPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "scheduled-reports": dynamic(
-    () =>
-      import("@/modules/super-admin/scheduled-reports-page").then((m) => ({
-        default: m.ScheduledReportsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "tax-currency": dynamic(
-    () =>
-      import("@/modules/super-admin/tax-currency-page").then((m) => ({
-        default: m.TaxCurrencyPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
 };
-
-const dynamicViews = new Map<string, ViewComponent>();
-
-export function registerModuleView(viewId: string, component: ViewComponent) {
-  dynamicViews.set(viewId, component);
-}
-
-export function resolveView(viewId: string): ViewComponent | undefined {
-  return viewRegistry[viewId] ?? dynamicViews.get(viewId);
-}

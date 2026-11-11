@@ -20,6 +20,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { getCurrentIdentity, readSession } from "@/lib/session-store";
 import {
   Activity,
   AlertTriangle,
@@ -215,6 +216,8 @@ export function Sidebar({
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { enabledFeatures } = useTenant();
+  const session = readSession();
+  const identity = getCurrentIdentity();
 
   const filteredSections = sections.map((section) => {
     if (section.id === "lifecycle") {
@@ -316,13 +319,32 @@ export function Sidebar({
       {/* Footer: user + collapse */}
       <div className="flex items-center justify-between border-t border-sidebar-border px-2 py-2">
         <div className="flex min-w-0 items-center gap-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
-            {terraUser.initials}
+          <div
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground",
+              session?.isDemo ? "bg-sidebar-accent/30" : undefined,
+            )}
+          >
+            {session?.isDemo
+              ? "TA"
+              : identity?.initials ?? terraUser.initials
+            }
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="truncate text-xs font-medium text-sidebar-foreground">{terraUser.name}</p>
-              <p className="truncate text-[10px] text-sidebar-foreground/70">Pro Trader</p>
+              {session?.isDemo
+                ? (
+                  <>
+                    <p className="truncate text-xs font-medium text-sidebar-foreground">Tom Allen</p>
+                    <p className="truncate text-[10px] text-sidebar-foreground/70">Pro Trader</p>
+                  </>
+                )
+                : (
+                  <>
+                    <p className="truncate text-xs font-medium text-sidebar-foreground">{identity?.name ?? terraUser.name}</p>
+                    <p className="truncate text-[10px] text-sidebar-foreground/70">Pro Trader</p>
+                  </>
+                )}
             </div>
           )}
         </div>

@@ -16,6 +16,7 @@
 
 import { useState, useEffect } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { updateTenant } from "@/lib/platform/tenant-store";
 import {
   Dialog,
   DialogContent,
@@ -69,7 +70,7 @@ const COLOR_PRESETS = [
 ];
 
 export function OnboardingWizard() {
-  const { runtime, tenant, setTenant, availableTenants } = usePlatform();
+  const { runtime, tenant } = usePlatform();
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<WizardState>({
     step: 0,
@@ -119,7 +120,6 @@ export function OnboardingWizard() {
     const selected = Array.from(state.selectedModules);
     if (!selected.includes("settings")) selected.push("settings");
     const updated = {
-      ...tenant,
       enabledModules: selected,
       branding: {
         ...tenant.branding,
@@ -127,7 +127,7 @@ export function OnboardingWizard() {
         accentColor: COLOR_PRESETS.find((c) => c.value === state.primaryColor)?.accent ?? tenant.branding.accentColor,
       },
     };
-    setTenant(updated);
+    updateTenant(tenant.id, updated);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(`${ONBOARDED_KEY}:${tenant.id}`, "completed");
     }

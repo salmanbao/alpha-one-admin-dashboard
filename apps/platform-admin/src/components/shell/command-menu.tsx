@@ -18,6 +18,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { usePlatform, useUserSwitcher } from "@/lib/platform/platform-context";
+import { useTenants } from "@/lib/platform/tenant-store";
 import { resolveNavigation } from "@/lib/platform/navigation-engine";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import { users as allUsers } from "@/lib/platform/mock-data";

@@ -27,11 +27,13 @@ import { Sidebar } from "./sidebar";
 import { AccountSwitcher } from "./account-switcher";
 import { CommandPalette } from "./command-palette";
 import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
-import { notifications, terraTenant } from "@/lib/fixtures/terra-fixtures";
+import { terraTenant } from "@/lib/fixtures/terra-fixtures";
 // Relative import — the @/components/platform/* alias points at the shared
 // package; local platform components are opt-in via tsconfig paths.
 import { SessionExpiryBanner } from "../platform/session-expiry-banner";
 import { useInboxLifecycleBridge } from "@/lib/inbox/inbox-lifecycle-bridge";
+import { useInboxMessages } from "@/lib/inbox/inbox-store";
+import { getCurrentIdentity, removeSession } from "@/lib/session-store";
 
 const THEME_KEY = "terra-theme";
 
@@ -71,14 +73,35 @@ export function AppShell({ children }: { children: ReactNode }) {
     setDark(next);
   };
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  const unreadCount = useInboxMessages().filter((m) => !m.read).length;
 
   // R3-07 — wire the inbox into the lifecycle bus so prop-admin decisions
   // (payouts/kyc/challenge funding) land as inbox messages.
   useInboxLifecycleBridge();
 
+  // Breadcrumb tail (audit #6) — must be computed with the other hooks, not
+  // inline in JSX: the onboarding early return below would otherwise skip it
+  // and change the hook order between renders (login → dashboard crash).
+  const breadcrumbTail = useMemo(() => {
+    const p = pathname || "/";
+    if (p === "/" || p === "/dashboard") return null;
+    const first = p.split("/").filter(Boolean)[0];
+    if (!first) return null;
+    const label = first.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    return <li aria-current="page" className="font-medium text-foreground">{label}</li>;
+  }, [pathname]);
+
   // Login page renders without the shell
-  if (pathname === "/login") {
+  // Onboarding screens also render without the shell (route group)
+  const onboardingPaths = [
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
+    "/account-verification-1",
+  ];
+  
+  if (onboardingPaths.includes(pathname)) {
     return <>{children}</>;
   }
 
@@ -210,7 +233,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className="flex cursor-pointer items-center gap-2 rounded-md bg-sidebar-accent/40 p-1.5 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground">
-                  TA
+                  {getCurrentIdentity()?.initials ?? "TA"}
                 </span>
                 <svg
                   className={cn(
@@ -230,7 +253,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {profileOpen && (
                 <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-sidebar-border bg-popover p-1 shadow-terra">
                   <div className="border-b border-sidebar-border px-3 py-2 text-xs text-sidebar-foreground/70">
-                    Signed in as tom.allen@terra.trader
+                    Signed in as {getCurrentIdentity()?.email ?? "tom.allen@terra.trader"}
                   </div>
                   <Link
                     href="/account-settings"
@@ -255,7 +278,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </Link>
                   <Link
                     href="/login"
-                    onClick={() => setProfileOpen(false)}
+                    onClick={() => {
+                      // R4-01 AC #1 — sign out clears the session so the
+                      // next login re-authenticates against the store.
+                      removeSession();
+                      setProfileOpen(false);
+                    }}
                     className="block rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-[#b54848]/20"
                   >
                     Sign out
@@ -273,18 +301,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link href="/dashboard" className="hover:text-foreground hover:underline">Home</Link>
             </li>
             <li aria-hidden="true"><ChevronRight className="h-3 w-3" /></li>
-            {useMemo(() => {
-              const p = pathname || "/";
-              if (p === "/" || p === "/dashboard") return null;
-              const first = p.split("/").filter(Boolean)[0];
-              if (!first) return null;
-              const label = first.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-              return (
-                <>
-                  <li aria-current="page" className="font-medium text-foreground">{label}</li>
-                </>
-              );
-            }, [pathname])}
+            {breadcrumbTail}
           </ol>
         </nav>
 
