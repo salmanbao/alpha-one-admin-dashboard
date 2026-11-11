@@ -123,6 +123,72 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         actionType: "challenge",
       };
     }
+    case "payout-method.rejected": {
+      const methodId = String(e.payload?.method ?? e.entity.id);
+      return {
+        id: `inbox:${e.id}:method-rejected`,
+        subject: `Payout method rejected — ${methodId}`,
+        body: `Your payout method ${methodId} has been rejected.${typeof e.payload?.reason === "string" ? `\n\nReason: ${e.payload.reason}` : ""} Update your withdrawal method and retry.`,
+        category: "Payouts",
+        sender: "Payouts Team",
+        at: e.at,
+        read: false,
+        actionType: "payout-method",
+      };
+    }
+    case "payout-method.unverified": {
+      const methodId = String(e.payload?.method ?? e.entity.id);
+      return {
+        id: `inbox:${e.id}:method-unverified`,
+        subject: `Payout method unverified — ${methodId}`,
+        body: `Your payout method ${methodId} is unverified. Requests may fail until the method is verified.`,
+        category: "Payouts",
+        sender: "Payouts Team",
+        at: e.at,
+        read: false,
+        actionType: "payout-method",
+      };
+    }
+    case "payout-method.updated": {
+      if (e.payload?.verification !== "verified") return null;
+      const methodId = String(e.payload?.method ?? e.entity.id);
+      return {
+        id: `inbox:${e.id}:method-verified`,
+        subject: `Payout method verified — ${methodId}`,
+        body: `Your payout method ${methodId} has been verified and is ready to use for payouts.`,
+        category: "Payouts",
+        sender: "Payouts Team",
+        at: e.at,
+        read: false,
+        actionType: "payout-method",
+      };
+    }
+    case "provisioning.failed": {
+      const ref = String(e.payload?.orderId ?? e.entity.id);
+      return {
+        id: `inbox:${e.id}:provisioning-failed`,
+        subject: `Provisioning failed — order #${ref}`,
+        body: `Account provisioning for order #${ref} has failed.${typeof e.payload?.reason === "string" ? `\n\nReason: ${e.payload.reason}` : ""} Please contact support or retry.`,
+        category: "Support",
+        sender: "Provisioning Team",
+        at: e.at,
+        read: false,
+        actionType: "provisioning",
+      };
+    }
+    case "provisioning.retry": {
+      const ref = String(e.payload?.orderId ?? e.entity.id);
+      return {
+        id: `inbox:${e.id}:provisioning-retry`,
+        subject: `Provisioning retry — order #${ref}`,
+        body: `Provisioning for order #${ref} has been retried. You will be notified when it completes.`,
+        category: "Support",
+        sender: "Provisioning Team",
+        at: e.at,
+        read: false,
+        actionType: "provisioning",
+      };
+    }
     case "comms.message-sent":
       // R4-09 / rule R6 — prop-admin "Contact trader" lands here.
       return {

@@ -53,6 +53,8 @@ export function AccountProvisioningPage() {
   const { done, total, complete } = progress;
   const pct = Math.round((done / total) * 100);
   const active = stageState.facts.provisioned || complete;
+  const failed = stageState.facts.provisioningFailed;
+  const failedReason = stageState.facts.provisioningFailedReason;
 
   // Mark provisioned once when complete (idempotent; effect is safe), and
   // publish the provisioning lifecycle (R2-W3-01): one event updates the
@@ -91,9 +93,13 @@ export function AccountProvisioningPage() {
     <div className="space-y-6">
       <TerraPageHeader
         title="Account Provisioning"
-        description="Your trading account is being created"
+        description={failed ? "Provisioning failed — see below" : "Your trading account is being created"}
         actions={
-          active ? (
+          failed ? (
+            <TerraBadge tone="error" dot>
+              Failed
+            </TerraBadge>
+          ) : active ? (
             <TerraBadge tone="success" dot>
               Active
             </TerraBadge>
@@ -116,6 +122,25 @@ export function AccountProvisioningPage() {
             Demo: provisioning stages advance on an accelerated timeline for testing.
           </p>
         </TerraCard>
+
+        {failed && (
+          <TerraCard className="border-destructive/40 bg-destructive/10">
+            <div className="flex items-start gap-3 p-4">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-destructive text-white text-xs font-bold">
+                !
+              </span>
+              <div>
+                <p className="text-sm font-bold text-destructive">Provisioning failed</p>
+                {failedReason && (
+                  <p className="mt-1 text-sm text-destructive/80">{failedReason}</p>
+                )}
+                <p className="mt-2 text-xs text-destructive/60">
+                  Your account could not be provisioned. Please contact support or retry.
+                </p>
+              </div>
+            </div>
+          </TerraCard>
+        )}
 
         <TerraCard>
           <TerraSectionTitle title="Provisioning stages" />

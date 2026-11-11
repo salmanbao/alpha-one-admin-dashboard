@@ -45,6 +45,7 @@ export type TraderStage =
   | "purchased"
   | "verifying"
   | "provisioned"
+  | "provisioning-failed"
   | "funded"
   | "payout-ready";
 
@@ -53,6 +54,7 @@ export const TRADER_STAGES: TraderStage[] = [
   "purchased",
   "verifying",
   "provisioned",
+  "provisioning-failed",
   "funded",
   "payout-ready",
 ];
@@ -62,8 +64,9 @@ const STAGE_RANK: Record<TraderStage, number> = {
   purchased: 1,
   verifying: 2,
   provisioned: 3,
-  funded: 4,
-  "payout-ready": 5,
+  "provisioning-failed": 4,
+  funded: 5,
+  "payout-ready": 6,
 };
 
 export interface StageFacts {
@@ -72,6 +75,9 @@ export interface StageFacts {
   kycApproved: boolean;
   provisioningUnderway: boolean;
   provisioned: boolean;
+  provisioningFailed: boolean;
+  provisioningFailedReason?: string;
+  provisioningRetry: boolean;
   funded: boolean;
   payoutRequested: boolean;
 }
@@ -82,6 +88,9 @@ const EMPTY_FACTS: StageFacts = {
   kycApproved: false,
   provisioningUnderway: false,
   provisioned: false,
+  provisioningFailed: false,
+  provisioningFailedReason: undefined,
+  provisioningRetry: false,
   funded: false,
   payoutRequested: false,
 };
@@ -122,6 +131,15 @@ export function stageFactsFrom(log: LifecycleEvent[]): StageFacts {
         facts.provisioningUnderway = true;
         facts.provisioned = true;
         break;
+      case "provisioning.failed":
+        facts.provisioningUnderway = true;
+        facts.provisioningFailed = true;
+        facts.provisioningFailedReason = typeof e.payload?.reason === "string" ? e.payload.reason : undefined;
+        break;
+      case "provisioning.retry":
+        facts.provisioningUnderway = true;
+        facts.provisioningRetry = true;
+        break;
       case "challenge.funded":
         facts.funded = true;
         break;
@@ -151,6 +169,7 @@ export function deriveTraderStage(log: LifecycleEvent[]): TraderStage {
   const f = stageFactsFrom(log);
   if (f.kycApproved && (f.provisioned || f.provisioningUnderway)) return "payout-ready";
   if (f.funded) return "funded";
+  if (f.provisioningFailed) return "provisioning-failed";
   if (f.provisioned || f.provisioningUnderway) return "provisioned";
   if (f.kycSubmitted) return "verifying";
   if (f.purchased) return "purchased";
@@ -321,6 +340,18 @@ export function stageMeta(state: TraderStageState): StageMeta {
             cta: { label: "Check status", href: "/verification" },
             progress: 40,
           };
+    case "provisioning-failed":
+      return {
+        label: "Provisioning failed",
+        icon: "⚠️",
+        title: "Account provisioning failed",
+        message: facts.provisioningFailedReason
+          ? `Provisioning failed: ${facts.provisioningFailedReason}. Contact support or retry.`
+          : "Provisioning failed. Contact support or retry.",
+        tone: "error",
+        cta: { label: "Contact support", href: "/support" },
+        progress: 0,
+      };
     case "provisioned":
       return {
         label: "Provisioned",
@@ -352,6 +383,16 @@ export function stageMeta(state: TraderStageState): StageMeta {
         tone: "success",
         cta: { label: "Request payout", href: "/payout-request" },
         progress: 100,
+      };
+    default:
+      return {
+        label: "Unknown",
+        icon: "❓",
+        title: "Stage unknown",
+        message: "Could not determine account stage.",
+        tone: "tertiary",
+        cta: { label: "View dashboard", href: "/dashboard" },
+        progress: 0,
       };
   }
 }

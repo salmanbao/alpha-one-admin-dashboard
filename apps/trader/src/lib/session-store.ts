@@ -294,12 +294,25 @@ const ACCOUNT_DATA_TERRA_KEYS = [
   "terra-inbox-state",
   "terra-notification-prefs",
   "terra-sim",
+  "terra-support-tickets-v1",
+  "terra.active-account",
+  "terra:personalGoals",
+  "terra.journal-entries",
+  "terra.learning-progress",
+  "terra.getting-started.v1",
 ];
+
+/** Shared lifecycle log key — wiped so the next signup does not inherit
+ *  the previous account's cross-app event history. */
+const LIFECYCLE_LOG_KEY = "pfaas:demo:lifecycle-log";
+
+/** Error reports key — contains per-account error diagnostics. */
+const ERROR_REPORTS_KEY = "pfaas:error-reports";
 
 /** Delete the current account for real: drop its record, end the
  *  session, and clear every account-scoped storage slot (pfaas:trader:*
- *  + the terra-* data keys above). Returns false when storage failed so
- *  the caller can tell the truth either way. */
+ *  + the terra-* data keys above + the shared lifecycle log). Returns
+ *  false when storage failed so the caller can tell the truth either way. */
 export function deleteCurrentAccount(): boolean {
   try {
     const session = readSession();
@@ -312,7 +325,13 @@ export function deleteCurrentAccount(): boolean {
     const doomed: string[] = [];
     for (let i = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith("pfaas:trader:") || ACCOUNT_DATA_TERRA_KEYS.includes(key))) {
+      if (
+        key &&
+        (key.startsWith("pfaas:trader:") ||
+          key === LIFECYCLE_LOG_KEY ||
+          key === ERROR_REPORTS_KEY ||
+          ACCOUNT_DATA_TERRA_KEYS.includes(key))
+      ) {
         doomed.push(key);
       }
     }

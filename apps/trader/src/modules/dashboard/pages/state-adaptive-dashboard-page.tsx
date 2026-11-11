@@ -47,6 +47,7 @@ const stageButtonLabel: Record<TraderStage, string> = {
   purchased: "Purchased",
   verifying: "Verifying",
   provisioned: "Provisioned",
+  "provisioning-failed": "Failed",
   funded: "Funded",
   "payout-ready": "Payout ready",
 };

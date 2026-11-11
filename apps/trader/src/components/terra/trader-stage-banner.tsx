@@ -20,6 +20,7 @@ const stageStepLabel: Record<TraderStage, string> = {
   purchased: "Purchased",
   verifying: "Verify",
   provisioned: "Provision",
+  "provisioning-failed": "Failed",
   funded: "Funded",
   "payout-ready": "Payout",
 };

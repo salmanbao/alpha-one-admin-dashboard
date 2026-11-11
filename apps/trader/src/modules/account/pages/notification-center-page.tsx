@@ -74,7 +74,7 @@ type ReadFilter = (typeof readFilters)[number];
 
 /** Deep-link action type — only known message types get buttons; anything
  *  else renders without actions rather than a broken button. */
-type ActionType = "payout" | "challenge" | "promo";
+type ActionType = "payout" | "challenge" | "promo" | "payout-method" | "provisioning";
 
 interface Message {
   id: string;
@@ -110,6 +110,18 @@ const actionFor: Record<
     href: "/promos",
     className: "bg-tertiary text-on-tertiary hover:bg-tertiary/90",
     icon: <Gift className="h-4 w-4" />,
+  },
+  "payout-method": {
+    label: "View methods",
+    href: "/withdrawal-methods",
+    className: "bg-primary text-on-primary hover:bg-primary/90",
+    icon: <Banknote className="h-4 w-4" />,
+  },
+  provisioning: {
+    label: "View provisioning",
+    href: "/account-provisioning",
+    className: "bg-primary text-on-primary hover:bg-primary/90",
+    icon: <Settings className="h-4 w-4" />,
   },
 };
 
