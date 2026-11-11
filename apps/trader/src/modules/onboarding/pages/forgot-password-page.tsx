@@ -8,15 +8,23 @@
  * FormField + useFormValidation from @pfaas/ui/platform-form-field
  * for consistent blur→change→submit validation (audit #5).
  *
- * Demo flow: submitting the email shows a confirmation state with
- * the next steps (check inbox, link expires in 30 min, contact
- * support if not received).
+ * R5-H2 / rule R11: the form resolves the email against the session
+ * store — a known account issues a real reset token (the demo "email
+ * link" carries it), an unknown email gets an honest "no account"
+ * state instead of a fake "sent", and the demo persona is told to use
+ * the login-screen demo path (it has no stored credential).
  */
 
 import { useState } from "react";
 import Link from "next/link";
 import { TerraCard, TerraPageHeader } from "@/components/terra/terra-ui";
 import { FormField, useFormValidation } from "@pfaas/ui/platform-form-field";
+import {
+  DEMO_ACCOUNT,
+  createResetTicket,
+  findAccountByEmail,
+  type ResetTicket,
+} from "@/lib/session-store";
 
 const validators = {
   email: (v: string) => {
@@ -29,12 +37,85 @@ const validators = {
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [ticket, setTicket] = useState<ResetTicket | null>(null);
+  // honest terminal states (R5-H2): unknown account / demo persona
+  const [unknownEmail, setUnknownEmail] = useState(false);
+  const [isDemoPersona, setIsDemoPersona] = useState(false);
   const { field, validateAll } = useFormValidation(validators);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateAll({ email })) setSent(true);
+    if (!validateAll({ email })) return;
+    const target = email.trim().toLowerCase();
+
+    // The demo persona has no stored credential until a password change
+    // seeds it — only then is it recoverable like any other account.
+    if (!findAccountByEmail(target) && target === DEMO_ACCOUNT.email.toLowerCase()) {
+      setUnknownEmail(false);
+      setIsDemoPersona(true);
+      return;
+    }
+    const issued = createResetTicket(target);
+    if (!issued) {
+      setUnknownEmail(true);
+      setIsDemoPersona(false);
+      return;
+    }
+    setTicket(issued);
+    setUnknownEmail(false);
+    setIsDemoPersona(false);
+    setSent(true);
   };
+
+  if (unknownEmail || isDemoPersona) {
+    return (
+      <div className="space-y-6">
+        <TerraPageHeader
+          title={isDemoPersona ? "Demo Account" : "No Account Found"}
+          description={
+            isDemoPersona
+              ? "The demo persona has no recoverable password"
+              : "No registered account matches that email"
+          }
+        />
+        <div className="mx-auto max-w-md">
+          <TerraCard className="flex flex-col items-center gap-4 py-8 text-center">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-container-high text-3xl">
+              {isDemoPersona ? "🎭" : "🔍"}
+            </span>
+            <p className="text-sm text-on-surface-variant">
+              {isDemoPersona ? (
+                <>
+                  {DEMO_ACCOUNT.email} is the demo persona — it signs in
+                  through{" "}
+                  <Link href="/login" className="font-bold text-primary hover:underline">
+                    Continue as demo
+                  </Link>{" "}
+                  and has no password to reset.
+                </>
+              ) : (
+                <>
+                  We couldn't find an account registered with{" "}
+                  <span className="font-semibold text-on-surface">{email}</span>.
+                  Check the address or{" "}
+                  <Link href="/signup" className="font-bold text-primary hover:underline">
+                    create an account
+                  </Link>
+                  .
+                </>
+              )}
+            </p>
+            <Link
+              href="/login"
+              className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
+            >
+              Back to Sign In
+            </Link>
+          </TerraCard>
+        </div>
+      </div>
+    );
+  }
 
   if (sent) {
     return (
@@ -71,13 +152,13 @@ export function ForgotPasswordPage() {
               >
                 Didn't receive it? Contact support
               </Link>
-              {/* Demo convenience: reset-password landing page (normally
-                reached via the email link) */}
+              {/* Demo convenience: the "email link" carries the real
+                  token issued above (R5-H2 round-trip) */}
               <Link
-                href="/reset-password?token=demo-reset-token"
+                href={`/reset-password?token=${ticket?.token ?? "demo-reset-token"}`}
                 className="text-xs font-semibold text-on-surface-variant underline hover:text-primary"
               >
-                Continue to reset password page (demo)
+                Continue to reset password page (demo link)
               </Link>
             </div>
           </TerraCard>

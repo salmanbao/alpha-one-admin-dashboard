@@ -1,34 +1,43 @@
 "use client";
 
 /**
- * Reset Password Landing — AUDIT-R3 §6 item 8 (R3-08).
+ * Reset Password Landing — AUDIT-R3 §6 item 8 (R3-08), R5-H2 (R11).
  *
  * Journey bookend #2: users who clicked a password-reset link from
  * their email land here. The page accepts `?token=` in the query string
  * (contract with the email sender), validates the new password, and
  * emits `account.password-reset` into the lifecycle bus.
  *
- * Demo flow: token is ignored (no backend), but the page renders the
- * form and on success emits the event then navigates to /login?reset=ok.
+ * R5-H2: the token is validated against the reset ticket issued by
+ * forgot-password, and a successful reset REWRITES the credential in
+ * the session store via updateAccountPassword() — the same store login
+ * validates against, so the new password actually works afterwards.
  */
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { TerraCard, TerraPageHeader } from "@/components/terra/terra-ui";
 import { FormField, useFormValidation } from "@pfaas/ui/platform-form-field";
 import { emitLifecycle } from "@pfaas/lifecycle";
+import {
+  clearResetTicket,
+  readResetTicket,
+  updateAccountPassword,
+} from "@/lib/session-store";
 
 const passwordValidator = (v: string) =>
   !v || v.length < 6 ? "Password must be at least 6 characters." : "";
 
 export function ResetPasswordPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  // R5-H2: the token must match the outstanding, unexpired ticket.
+  const ticket = readResetTicket(token);
 
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
   const { field, validateAll } = useFormValidation({
     password: passwordValidator,
   });
@@ -36,21 +45,35 @@ export function ResetPasswordPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!validateAll({ password })) return;
+    if (!ticket) return;
 
     setLoading(true);
+    setError("");
+
+    // R5-H2: rewrite the stored credential so login accepts the new
+    // password — the round-trip the identity spine was missing.
+    const rewritten = updateAccountPassword(ticket.email, password);
+    if (!rewritten) {
+      setLoading(false);
+      setError(
+        `The account for ${ticket.email} no longer exists — request a new reset link or sign up again.`,
+      );
+      return;
+    }
 
     // Emit account.password-reset into the lifecycle bus so the inbox/
     // audit surfaces can reflect the change.
     emitLifecycle({
-      entity: { kind: "account", id: `reset-${token ?? "unknown"}` },
+      entity: { kind: "account", id: ticket.accountId },
       name: "account.password-reset",
       actor: "trader",
-      key: `reset-${token ?? Date.now().toString(36)}`,
+      key: `reset-${ticket.token}`,
       payload: {
-        token: token ?? null,
+        token: ticket.token,
         resetAt: new Date().toISOString(),
       },
     });
+    clearResetTicket();
 
     await new Promise((r) => setTimeout(r, 500));
     setLoading(false);
@@ -94,12 +117,12 @@ export function ResetPasswordPage() {
           </span>
           <h1 className="font-headline text-2xl font-bold text-on-surface">TerraTrader</h1>
           <p className="text-sm text-on-surface-variant">
-            {token ? "Enter your new password" : "Reset password link missing"}
+            {ticket ? "Enter your new password" : "Reset password link missing"}
           </p>
         </div>
 
         <TerraCard className="p-7">
-          {!token ? (
+          {!ticket ? (
             <div className="space-y-4">
               <TerraPageHeader
                 title="Invalid or expired link"
@@ -125,6 +148,14 @@ export function ResetPasswordPage() {
                 {...field("password", password, setPassword)}
                 placeholder="At least 6 characters"
               />
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive"
+                >
+                  {error}
+                </div>
+              )}
               <button
                 type="submit"
                 disabled={loading}

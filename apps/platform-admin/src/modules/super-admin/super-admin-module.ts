@@ -212,6 +212,10 @@ const routes: RouteDefinition[] = [
   { path: "tenant-sessions", viewId: "tenant-sessions", label: "Tenant Sessions", application: ["super-admin"] },
   { path: "operator-directory", viewId: "operator-directory", label: "Operator Directory", application: ["super-admin"] },
   { path: "role-management", viewId: "role-management", label: "Role Management", application: ["super-admin"] },
+  // R4-03 — role creation / permission editing are real surfaces reached
+  // from Role Management; declared so guards + R9 parity cover them.
+  { path: "create-role", viewId: "create-role", label: "Create Role", application: ["super-admin"] },
+  { path: "manage-permissions", viewId: "manage-permissions", label: "Manage Permissions", application: ["super-admin"] },
   { path: "tenant-view-as", viewId: "tenant-view-as", label: "Tenant View-As", application: ["super-admin"] },
   { path: "abuse-signals", viewId: "abuse-signals", label: "Abuse Signals", application: ["super-admin"] },
   { path: "plans", viewId: "plans", label: "Plans & Subscriptions", application: ["super-admin"] },

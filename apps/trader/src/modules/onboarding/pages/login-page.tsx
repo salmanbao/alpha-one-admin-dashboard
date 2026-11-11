@@ -19,7 +19,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TerraCard } from "@/components/terra/terra-ui";
 import { FormField, useFormValidation } from "@pfaas/ui/platform-form-field";
-import { verifyPassword, continueAsDemo, findAccountByEmail, writeSession } from "@/lib/session-store";
+import { verifyPassword, continueAsDemo, findAccountByEmail, writeSession, recordLogin } from "@/lib/session-store";
 import type { ActiveSession } from "@/lib/session-store";
 
 // Canonical field validators — one rule, one message, shared by blur,
@@ -78,10 +78,13 @@ export function LoginPage() {
         loginAt: new Date().toISOString(),
       };
       writeSession(newSession);
+      // R5 Wave 0.5 — the sessions page reads this history.
+      recordLogin(true);
       setTimeout(() => router.push(resolveRedirect()), 600);
     } else {
       // Unknown credentials — inline error + "continue as demo" path.
       setLoading(false);
+      recordLogin(false);
       setLoginError(
         `We couldn't sign you in as ${email}. Check your email and password, or continue as demo.`,
       );
@@ -94,6 +97,7 @@ export function LoginPage() {
     setLoginError("");
     setLoading(true);
     continueAsDemo();
+    recordLogin(true);
     setTimeout(() => router.push(resolveRedirect()), 400);
   }
 

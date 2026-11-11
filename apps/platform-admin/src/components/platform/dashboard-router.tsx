@@ -8,7 +8,7 @@
  */
 
 import { usePlatform } from "@/lib/platform/platform-context";
-import { viewRegistry, type ViewComponent } from "@/lib/platform/view-router";
+import { resolveView, type ViewComponent } from "@/lib/platform/view-router";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import { hasPermission } from "@/lib/platform/permission-engine";
 import { isModuleEnabledSafe, isFeatureEnabledSafe } from "@/components/platform/guard-utils";
@@ -22,7 +22,7 @@ export function DashboardRouter() {
   const view = router.view;
   const params = router.params;
 
-  const Component = viewRegistry[view];
+  const Component = resolveView(view);
 
   if (!Component) {
     return (

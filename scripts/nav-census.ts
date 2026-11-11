@@ -42,9 +42,12 @@
  *   product RouteDefinition may claim a stitch view only for a "(demo)"-labeled
  *   nav item — otherwise CI fails ("a product-claimed id resolves to a stitch
  *   component").
+ *   R9 registry↔route parity (all three apps): every declared view id has a
+ *   viewRegistry entry (the R5-H1 truncation class) and every registry entry
+ *   is declared or referenced somewhere.
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -214,11 +217,138 @@ if (routeClaims.size) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 6. Optional gate                                                    */
+/* 6. R9 — registry ↔ route parity (all three apps)                   */
+/* ------------------------------------------------------------------ */
+
+/*
+ * R5-H1 lesson: a rewrite of platform-admin's view-router dropped 73 of
+ * 83 views while tsc stayed green and this census passed — it only
+ * audited prop-admin. R9 closes that class mechanically:
+ *
+ *   forward   every declared route id (manifest path/viewId, nav href,
+ *             traderRoutes) must have a viewRegistry/viewMap entry.
+ *             This is the truncation direction — it fails on 83→10.
+ *   reverse   every registry entry must be declared OR referenced
+ *             somewhere else in the app's source (panel/detail views
+ *             like risk-case-detail are reachable without a route).
+ */
+
+function readAppSrc(app: string, rel: string): string {
+  return readFileSync(join(ROOT, "apps", app, "src", rel), "utf8");
+}
+
+function registryKeysOf(src: string): Set<string> {
+  const keys = new Set<string>();
+  const re = /^\s*"?([\w.-]+)"?:\s*dynamic\(/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src))) keys.add(m[1]);
+  return keys;
+}
+
+function addViewId(ids: Set<string>, raw: string): void {
+  // Nav hrefs may carry `?query` or a leading `/`; view ids are bare.
+  const base = raw.split("?")[0].replace(/^\//, "");
+  if (/^[a-z][a-z0-9-]*$/.test(base)) ids.add(base);
+}
+
+function declaredIdsOf(app: string): Set<string> {
+  const ids = new Set<string>();
+  if (app === "prop-admin") {
+    // Authoritative source: the same moduleRegistry the sidebar walks.
+    for (const mod of moduleRegistry.getAll()) {
+      for (const r of (mod as any).routes ?? []) if (r.viewId) addViewId(ids, r.viewId);
+    }
+    for (const l of leaves) addViewId(ids, l.href);
+  } else if (app === "platform-admin") {
+    const manifest = readAppSrc(app, "modules/super-admin/super-admin-module.ts");
+    for (const m of manifest.matchAll(/viewId:\s*"([\w.-]+)"/g)) addViewId(ids, m[1]);
+    for (const m of manifest.matchAll(/href:\s*"([^"]+)"/g)) addViewId(ids, m[1]);
+  } else {
+    // trader: viewMap ↔ traderRoutes. Trader nav hrefs are file-system
+    // routes (app/**/page.tsx), not view ids — they are not part of
+    // registry parity.
+    const router = readAppSrc(app, "lib/platform/view-router.tsx");
+    const start = router.indexOf("traderRoutes: RouteDefinition[]");
+    const end = router.indexOf("];", start);
+    if (start !== -1 && end !== -1) {
+      for (const m of router.slice(start, end).matchAll(/viewId:\s*"([\w.-]+)"/g)) {
+        addViewId(ids, m[1]);
+      }
+    }
+  }
+  return ids;
+}
+
+/** Every .ts/.tsx file of an app except its view-router, concatenated. */
+function appSourceExceptRouter(app: string): string {
+  const srcRoot = join(ROOT, "apps", app, "src");
+  const parts: string[] = [];
+  const walkDir = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, entry.name);
+      if (entry.isDirectory()) walkDir(p);
+      else if (/\.(ts|tsx)$/.test(entry.name) && entry.name !== "view-router.tsx") {
+        parts.push(readFileSync(p, "utf8"));
+      }
+    }
+  };
+  walkDir(srcRoot);
+  return parts.join("\n");
+}
+
+interface ParityResult {
+  app: string;
+  registry: number;
+  declared: number;
+  missing: string[]; // declared but not registered — the R5-H1 class
+  orphan: string[]; // registered, undeclared and unreferenced — dead weight
+}
+
+function parityOf(app: string): ParityResult {
+  const registry = registryKeysOf(readAppSrc(app, "lib/platform/view-router.tsx"));
+  const declared = declaredIdsOf(app);
+  const missing = [...declared].filter((d) => !registry.has(d)).sort();
+
+  const rest = appSourceExceptRouter(app);
+  const orphan = [...registry].filter(
+    (k) => !declared.has(k) && !rest.includes(k),
+  ).sort();
+  return { app, registry: registry.size, declared: declared.size, missing, orphan };
+}
+
+const parityApps = ["platform-admin", "prop-admin", "trader"];
+const parityResults = parityApps.map(parityOf);
+
+console.log("registry ↔ route parity (R9)");
+console.log("=".repeat(72));
+for (const r of parityResults) {
+  console.log(
+    `  ${r.app.padEnd(15)} registry ${String(r.registry).padStart(3)} · ` +
+      `declared ${String(r.declared).padStart(3)} · missing ${r.missing.length} · orphan ${r.orphan.length}`,
+  );
+  if (r.missing.length) {
+    console.log(`    MISSING (declared, no registry entry): ${r.missing.join(", ")}`);
+  }
+  if (r.orphan.length) {
+    console.log(`    ORPHAN (registered, referenced nowhere): ${r.orphan.join(", ")}`);
+  }
+}
+console.log("");
+
+/* ------------------------------------------------------------------ */
+/* 7. Optional gate                                                    */
 /* ------------------------------------------------------------------ */
 
 if (process.argv.includes("--check")) {
   const failures: string[] = [];
+  for (const r of parityResults) {
+    for (const v of r.missing) {
+      failures.push(`R9 ${r.app}: declared view "${v}" has no viewRegistry entry`);
+    }
+    for (const v of r.orphan) {
+      failures.push(`R9 ${r.app}: viewRegistry entry "${v}" is declared nowhere and referenced nowhere`);
+    }
+  }
   if (productLeaves.length > NAV_CHILDREN_MAX) {
     failures.push(`nav children ${productLeaves.length} > ${NAV_CHILDREN_MAX}`);
   }

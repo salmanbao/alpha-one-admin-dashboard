@@ -26,7 +26,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
+import { deleteCurrentAccount, useSession } from "@/lib/session-store";
 
 const sections = [
   {
@@ -89,13 +91,42 @@ const sections = [
 
 export function AccountSettingsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const router = useRouter();
+  // R5-H5: label the identity honestly (demo persona vs real account).
+  const session = useSession();
+  const isDemo = !!session?.isDemo;
+
+  // R5 Wave 0.5 — deletion actually removes the account record, ends the
+  // session and clears every account-scoped storage slot.
+  const performDelete = () => {
+    const ok = deleteCurrentAccount();
+    toast(
+      ok
+        ? {
+            title: "Account deleted",
+            description:
+              "Your account, session and local data were removed from this device — you've been signed out.",
+          }
+        : {
+            title: "Deletion incomplete",
+            description:
+              "Browser storage was unavailable, so some data may remain on this device.",
+            variant: "destructive" as const,
+          },
+    );
+    setTimeout(() => router.push("/login"), 500);
+  };
 
   return (
     <div className="space-y-6">
       <TerraPageHeader
         title="Account Settings"
         description="Manage your TerraTrader account and security"
-        actions={<TerraBadge tone="primary">Pro Trader</TerraBadge>}
+        actions={
+          <TerraBadge tone={isDemo ? "neutral" : "primary"}>
+            {isDemo ? "Demo mode" : "Pro Trader"}
+          </TerraBadge>
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -157,12 +188,7 @@ export function AccountSettingsPage() {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={() => {
-                    toast({
-                      title: "Account deletion initiated",
-                      description: "Your account data will be permanently removed (demo — no actual deletion)",
-                    });
-                  }}
+                  onClick={performDelete}
                 >
                   Delete
                 </AlertDialogAction>

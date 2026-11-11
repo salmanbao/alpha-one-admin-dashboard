@@ -59,6 +59,10 @@ import {
 } from "@/components/terra/terra-ui";
 import { toast } from "@/hooks/use-toast";
 import {
+  readNotificationPrefs,
+  writeNotificationPrefs,
+} from "@/lib/notifications/notification-prefs-store";
+import {
   Bell,
   Clock,
   Lock,
@@ -179,7 +183,16 @@ export function NotificationPreferencesPage() {
   });
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 450);
+    // R5-H3: hydrate from the persisted store when the skeleton resolves —
+    // saved choices survive a reload instead of always showing defaults.
+    const t = setTimeout(() => {
+      const saved = readNotificationPrefs();
+      if (saved) {
+        setMatrix(saved.matrix);
+        setQuiet(saved.quiet);
+      }
+      setLoading(false);
+    }, 450);
     return () => clearTimeout(t);
   }, []);
 
@@ -249,24 +262,36 @@ export function NotificationPreferencesPage() {
   }
 
   function handleSave() {
-    // Batch persist per channel; the admin side writes a
-    // preference-change audit entry. On a policy conflict the locks are
-    // re-derived below while the trader's own toggles are retained.
-    setMatrix((m) => ({ ...m })); // refresh effective matrix against policy
+    // R5-H3: batch persist the matrix + quiet hours to the notification
+    // prefs store. The toast reports what actually happened — no audit
+    // claim (the catalog has no preferences lifecycle event, R8).
+    const saved = writeNotificationPrefs({ matrix, quiet });
     setDirty(false);
     toast({
-      title: "Preferences saved",
-      description:
-        "Your channel choices were saved and a preference-change audit entry was recorded.",
+      title: saved ? "Preferences saved" : "Preferences not saved",
+      description: saved
+        ? "Your channel choices and quiet hours were saved on this device."
+        : "Browser storage is unavailable, so your changes could not be saved.",
+      ...(saved ? {} : { variant: "destructive" as const }),
     });
   }
 
   function handleReset() {
-    setMatrix(defaultMatrix());
+    const defaults = {
+      matrix: defaultMatrix(),
+      quiet: { start: "22:00", end: "08:00", tz: "America/New_York" },
+    };
+    setMatrix(defaults.matrix);
+    setQuiet(defaults.quiet);
     setDirty(false);
+    // Persist immediately so the toast stays true if the user reloads.
+    const saved = writeNotificationPrefs(defaults);
     toast({
-      title: "Reset to defaults",
-      description: "Preferences restored to your firm's policy defaults.",
+      title: saved ? "Reset to defaults" : "Reset applied (not saved)",
+      description: saved
+        ? "Preferences restored to your firm's policy defaults."
+        : "Defaults applied for this session, but browser storage is unavailable.",
+      ...(saved ? {} : { variant: "destructive" as const }),
     });
   }
 
