@@ -14,7 +14,7 @@ export interface InboxMessage {
   read: boolean;
   /** Only known action types render an action button; anything else shows
    *  the body without actions rather than a broken link. */
-  actionType?: "payout" | "challenge" | "promo";
+  actionType?: "payout" | "challenge" | "promo" | "payout-method" | "provisioning";
 }
 
 /** Seed messages for the inbox (notification-center-page renders these). */

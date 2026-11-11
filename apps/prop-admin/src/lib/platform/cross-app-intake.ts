@@ -59,20 +59,30 @@ const QUEUE_BY_EVENT: Record<string, IntakeQueueKind> = {
   "payout.escalated": "escalation",
   "payout-method.added": "method",
   "payout-method.updated": "method",
+  "payout-method.rejected": "method",
+  "payout-method.unverified": "method",
   "payout-method.removed": "method",
   "payout-method.primary-set": "method",
+  "purchase.refunded": "purchase",
+  "provisioning.retry": "provisioning",
+  "provisioning.failed": "provisioning",
 };
 
 export const INTAKE_EVENTS = [
   "kyc.submitted",
   "payout.requested",
   "purchase.completed",
+  "purchase.refunded",
   "provisioning.started",
   "provisioning.activated",
   "provisioning.credentials",
+  "provisioning.retry",
+  "provisioning.failed",
   "payout.escalated",
   "payout-method.added",
   "payout-method.updated",
+  "payout-method.rejected",
+  "payout-method.unverified",
   "payout-method.removed",
   "payout-method.primary-set",
 ] as const;
@@ -103,7 +113,7 @@ export interface PurchaseRecord {
   traderId: string;
   traderName: string;
   accountName: string;
-  status: "pending" | "awaiting-provisioning";
+  status: "pending" | "awaiting-provisioning" | "refunded";
   orderId: string;
   amount: number;
   currency: string;
@@ -121,7 +131,7 @@ export interface ProvisioningRecord {
   traderId: string;
   traderName: string;
   accountName: string;
-  status: "in-progress" | "credentials-delivered" | "active";
+  status: "in-progress" | "credentials-delivered" | "active" | "failed" | "retry";
   startedAt: string;
   credentialsDeliveredAt?: string;
   activatedAt?: string;
@@ -153,8 +163,12 @@ export interface MethodChangeRecord {
   traderId: string;
   traderName: string;
   accountName?: string;
+  /** Coarse payment-method label (crypto|paypal|skrill|bank-transfer) for display. */
   method: Payout["method"];
-  action: "added" | "updated" | "removed" | "primary-set";
+  /** The trader's actual method id (e.g. `wm-wise`, `wm-custom-...`) — used to
+   *  key verdict events so the trader's fold can match them. */
+  traderMethodId?: string;
+  action: "added" | "updated" | "removed" | "primary-set" | "rejected" | "unverified";
   createdAt: string;
   source: typeof CROSS_APP_SOURCE;
 }
@@ -225,7 +239,19 @@ export function useCrossAppPayouts(tenantId: string): Payout[] {
 /* --- New queue readers (R3-06) --- */
 
 export function crossAppPurchases(tenantId: string): PurchaseRecord[] {
-  return intakeEvents(tenantId, "purchase", "purchase.completed").map((e) => toPurchaseRecord(e, tenantId));
+  const completed = intakeEvents(tenantId, "purchase", "purchase.completed");
+  // R4-09: reconcile refunds — a purchase.refunded from prop-admin flips the row.
+  const refundedOrderIds = new Set(
+    intakeEvents(tenantId, "purchase", "purchase.refunded").map((e) =>
+      String(e.payload?.orderId ?? e.entity.id),
+    ),
+  );
+  return completed
+    .map((e) => {
+      const rec = toPurchaseRecord(e, tenantId);
+      if (refundedOrderIds.has(rec.orderId)) rec.status = "refunded";
+      return rec;
+    });
 }
 export function useCrossAppPurchases(tenantId: string): PurchaseRecord[] {
   const log = useLifecycleLog();
@@ -236,7 +262,9 @@ export function crossAppProvisioning(tenantId: string): ProvisioningRecord[] {
   // De-dupe by entity id — provisioning emits started+activated for same entity
   const raw = intakeEvents(tenantId, "provisioning", "provisioning.started")
     .concat(intakeEvents(tenantId, "provisioning", "provisioning.activated"))
-    .concat(intakeEvents(tenantId, "provisioning", "provisioning.credentials"));
+    .concat(intakeEvents(tenantId, "provisioning", "provisioning.credentials"))
+    .concat(intakeEvents(tenantId, "provisioning", "provisioning.retry"))
+    .concat(intakeEvents(tenantId, "provisioning", "provisioning.failed"));
   const byEntity = new Map<string, ProvisioningRecord>();
   for (const e of raw) {
     const rec = toProvisioningRecord(e, tenantId);
@@ -263,6 +291,8 @@ export function useCrossAppEscalations(tenantId: string): EscalationRecord[] {
 export function crossAppMethodChanges(tenantId: string): MethodChangeRecord[] {
   return intakeEvents(tenantId, "payout-method", "payout-method.added")
     .concat(intakeEvents(tenantId, "payout-method", "payout-method.updated"))
+    .concat(intakeEvents(tenantId, "payout-method", "payout-method.rejected"))
+    .concat(intakeEvents(tenantId, "payout-method", "payout-method.unverified"))
     .concat(intakeEvents(tenantId, "payout-method", "payout-method.removed"))
     .concat(intakeEvents(tenantId, "payout-method", "payout-method.primary-set"))
     .map((e) => toMethodChangeRecord(e, tenantId));
@@ -282,7 +312,12 @@ function intakeEvents(
   return readLifecycleLog().filter(
     (e) =>
       (e.actor === "trader" ||
-        (kind === "payout" && (name === "payout.escalated" || name === "payout.cancelled"))) &&
+        (kind === "payout" && (name === "payout.escalated" || name === "payout.cancelled")) ||
+        (kind === "purchase" && name === "purchase.refunded") ||
+        (kind === "provisioning" &&
+          (name === "provisioning.retry" || name === "provisioning.failed")) ||
+        (kind === "payout-method" &&
+          (name === "payout-method.rejected" || name === "payout-method.unverified"))) &&
       e.name === name &&
       e.entity.kind === kind &&
       inTenant(e, tenantId),
@@ -348,7 +383,11 @@ function toProvisioningRecord(e: LifecycleEvent, tenantId: string): Provisioning
       ? "in-progress"
       : e.name === "provisioning.credentials"
         ? "credentials-delivered"
-        : "active",
+        : e.name === "provisioning.retry"
+          ? "retry"
+          : e.name === "provisioning.failed"
+            ? "failed"
+            : "active",
     startedAt: e.at,
     credentialsDeliveredAt: typeof e.payload?.credentialsDeliveredAt === "string" ? e.payload.credentialsDeliveredAt : undefined,
     activatedAt: typeof e.payload?.activatedAt === "string" ? e.payload.activatedAt : undefined,
@@ -389,6 +428,8 @@ function toMethodChangeRecord(e: LifecycleEvent, tenantId: string): MethodChange
   const actionMap = {
     "payout-method.added": "added",
     "payout-method.updated": "updated",
+    "payout-method.rejected": "rejected",
+    "payout-method.unverified": "unverified",
     "payout-method.removed": "removed",
     "payout-method.primary-set": "primary-set",
   } as const satisfies Record<string, MethodChangeRecord["action"]>;
@@ -399,6 +440,7 @@ function toMethodChangeRecord(e: LifecycleEvent, tenantId: string): MethodChange
     traderName: applicantOf(e),
     accountName: applicantOf(e),
     method: mapMethod(e.payload?.method),
+    traderMethodId: e.entity.id,
     action: actionMap[e.name],
     createdAt: e.at,
     source: CROSS_APP_SOURCE,

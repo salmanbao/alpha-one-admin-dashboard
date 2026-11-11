@@ -6,7 +6,7 @@
  * Queues payout-method change events from the trader app (cross-app
  * intake) and surfaces a real review workflow:
  *   - Document-match checklist (method matches trader identity documents)
- *   - Verify action (emits payout-method.verified on shared bus)
+ *   - Verify action (emits payout-method.updated on shared bus)
  *   - Reject action with reason (emits payout-method.rejected with reason)
  *
  * Every action writes `recordAudit` (AC 4).
@@ -84,7 +84,7 @@ export function PayoutMethodsReviewPage() {
   const handleVerify = (record: MethodChangeRecord) => {
     setSubmitting(true);
     emitLifecycle({
-      entity: { kind: "payout-method", id: record.method ?? record.id },
+      entity: { kind: "payout-method", id: record.traderMethodId ?? record.id },
       name: "payout-method.updated",
       actor: "prop-admin",
       key: `verified:${record.id}`,
@@ -117,7 +117,7 @@ export function PayoutMethodsReviewPage() {
     }
     setSubmitting(true);
     emitLifecycle({
-      entity: { kind: "payout-method", id: record.method ?? record.id },
+      entity: { kind: "payout-method", id: record.traderMethodId ?? record.id },
       name: "payout-method.rejected",
       actor: "prop-admin",
       key: `rejected:${record.id}:${Date.now()}`,

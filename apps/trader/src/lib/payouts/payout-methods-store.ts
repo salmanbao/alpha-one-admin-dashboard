@@ -158,7 +158,7 @@ function getServerSnapshot(): string {
 
 
 
-/** Reads `payout-method.rejected` / `payout-method.unverified` verdicts
+/** Reads `payout-method.rejected` / `payout-method.unverified` / `payout-method.updated` verdicts
  * from the shared lifecycle log so operator decisions are reflected
  * immediately on every consumer of this store (rule R5). */
 function verificationOverlay(): Map<string, VerificationState> {
@@ -166,11 +166,12 @@ function verificationOverlay(): Map<string, VerificationState> {
   if (typeof window === "undefined") return map;
   try {
     const raw = window.localStorage.getItem(LIFECYCLE_LOG_KEY);
-    const log = raw ? (JSON.parse(raw) as Array<{ entity?: { kind?: string; id?: string }; name?: string }>) : [];
+    const log = raw ? (JSON.parse(raw) as Array<{ entity?: { kind?: string; id?: string }; name?: string; payload?: any }>) : [];
     for (const e of log) {
       if (!e.entity || e.entity.kind !== "payout-method" || !e.entity.id) continue;
       if (e.name === "payout-method.rejected") map.set(e.entity.id, "rejected");
       if (e.name === "payout-method.unverified") map.set(e.entity.id, "unverified");
+      if (e.name === "payout-method.updated" && e.payload?.verification === "verified") map.set(e.entity.id, "verified");
     }
   } catch {
     /* log unavailable — store works in-session only */
