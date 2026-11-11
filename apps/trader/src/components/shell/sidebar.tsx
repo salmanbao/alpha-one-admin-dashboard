@@ -335,14 +335,28 @@ export function Sidebar({
               {session?.isDemo
                 ? (
                   <>
-                    <p className="truncate text-xs font-medium text-sidebar-foreground">Tom Allen</p>
-                    <p className="truncate text-[10px] text-sidebar-foreground/70">Pro Trader</p>
+                    <p className="truncate text-xs font-medium text-sidebar-foreground">
+                      Tom Allen{" "}
+                      <span className="ml-0.5 inline-block rounded bg-sidebar-accent/60 px-1 py-px text-[8px] font-bold uppercase tracking-wider text-sidebar-foreground">
+                        Demo
+                      </span>
+                    </p>
+                    <p className="truncate text-[10px] text-sidebar-foreground/70">
+                      <Link
+                        href="/signup"
+                        className="font-semibold underline underline-offset-1 hover:text-sidebar-foreground"
+                      >
+                        Create your real account →
+                      </Link>
+                    </p>
                   </>
                 )
                 : (
                   <>
                     <p className="truncate text-xs font-medium text-sidebar-foreground">{identity?.name ?? terraUser.name}</p>
-                    <p className="truncate text-[10px] text-sidebar-foreground/70">Pro Trader</p>
+                    <p className="truncate text-[10px] text-sidebar-foreground/70">
+                      Signed in as {session?.email ?? terraUser.email}
+                    </p>
                   </>
                 )}
             </div>

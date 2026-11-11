@@ -3,8 +3,13 @@
 /**
  * Profile & Security — converted from stitch_screens/profile_security
  * Profile fields, avatar upload, password change and connected devices
- * summary. All actions are local-state demos (PRD §3.11 PATCH /profile,
- * PUT /profile/avatar).
+ * summary.
+ *
+ * R5 (Wave 0.5): the password change is no longer a fake. It verifies
+ * the current password against the session-store account and rewrites
+ * the credential via updateAccountPassword() — the same store login
+ * validates against. Profile name/email persist to the active session;
+ * phone/country/photo stay honestly labeled demo-only.
  */
 
 import { useRef, useState } from "react";
@@ -15,6 +20,16 @@ import {
   TerraPageHeader,
   TerraSectionTitle,
 } from "@/components/terra/terra-ui";
+import {
+  DEMO_ACCOUNT,
+  findAccountByEmail,
+  readAccounts,
+  updateAccountPassword,
+  useSession,
+  verifyPassword,
+  writeAccounts,
+  writeSession,
+} from "@/lib/session-store";
 
 const initialFields: { key: string; label: string; value: string }[] = [
   { key: "name", label: "Full name", value: "Tom Allen" },
@@ -24,9 +39,15 @@ const initialFields: { key: string; label: string; value: string }[] = [
 ];
 
 export function ProfileSecurityPage() {
-  const [fields, setFields] = useState<Record<string, string>>(() =>
-    Object.fromEntries(initialFields.map((f) => [f.key, f.value])),
-  );
+  const session = useSession();
+  // Local edits overlay the persisted identity (defaults → session → edits)
+  // — no setState-in-effect hydration; the store hook supplies the values.
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const fields: Record<string, string> = {
+    ...Object.fromEntries(initialFields.map((f) => [f.key, f.value])),
+    ...(session ? { name: session.displayName, email: session.email } : {}),
+    ...edits,
+  };
   const [saved, setSaved] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -35,6 +56,33 @@ export function ProfileSecurityPage() {
   const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const handleSave = () => {
+    // Name/email persist to the session + account record; phone/country
+    // have no store yet and are labeled demo-only below.
+    if (!session) {
+      toast({
+        title: "Not signed in",
+        description: "Sign in again to persist profile changes.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const accounts = readAccounts();
+    const idx = accounts.findIndex(
+      (a) => a.email.toLowerCase() === session.email.toLowerCase(),
+    );
+    if (idx !== -1) {
+      accounts[idx] = {
+        ...accounts[idx],
+        displayName: fields.name,
+        email: fields.email,
+      };
+      writeAccounts(accounts);
+    }
+    writeSession({
+      ...session,
+      displayName: fields.name,
+      email: fields.email,
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -63,10 +111,35 @@ export function ProfileSecurityPage() {
       setPwMsg({ ok: false, text: "New passwords do not match." });
       return;
     }
+
+    if (!session) {
+      setPwMsg({ ok: false, text: "No active session — sign in again to change your password." });
+      return;
+    }
+
+    let account = findAccountByEmail(session.email);
+    if (!account && session.isDemo) {
+      // The demo persona starts without a stored credential — seed it so
+      // the change is real (login resolves it through findAccountByEmail).
+      account = { ...DEMO_ACCOUNT };
+      writeAccounts([...readAccounts(), account]);
+    }
+    if (!account) {
+      setPwMsg({ ok: false, text: "This account no longer exists — sign up again." });
+      return;
+    }
+    if (!verifyPassword(pw.current, account.password)) {
+      setPwMsg({ ok: false, text: "Current password is incorrect." });
+      return;
+    }
+    if (!updateAccountPassword(session.email, pw.next)) {
+      setPwMsg({ ok: false, text: "The stored credential could not be updated — try again." });
+      return;
+    }
     setPw({ current: "", next: "", confirm: "" });
     setPwMsg({
       ok: true,
-      text: "Password updated — other sessions were signed out. (Demo)",
+      text: "Password updated — your new password is required the next time you sign in.",
     });
   };
 
@@ -133,7 +206,7 @@ export function ProfileSecurityPage() {
                 <input
                   value={fields[f.key]}
                   onChange={(e) =>
-                    setFields((s) => ({ ...s, [f.key]: e.target.value }))
+                    setEdits((s) => ({ ...s, [f.key]: e.target.value }))
                   }
                   className="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm text-on-surface outline-none focus:border-primary"
                 />
@@ -149,7 +222,7 @@ export function ProfileSecurityPage() {
               </button>
               {saved && (
                 <span className="text-xs font-bold text-primary">
-                  ✓ Profile saved (demo — not persisted)
+                  ✓ Profile saved (name & email persisted on this device; phone, country & photo are demo-only)
                 </span>
               )}
             </div>

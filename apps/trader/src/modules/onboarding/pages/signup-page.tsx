@@ -19,6 +19,7 @@ import { FormField, useFormValidation } from "@pfaas/ui/platform-form-field";
 import { emitLifecycle } from "@pfaas/lifecycle";
 import {
   registerAccount,
+  recordLogin,
   writeSession,
 } from "@/lib/session-store";
 
@@ -86,6 +87,8 @@ export function SignupPage() {
       loginAt: new Date().toISOString(),
     };
     writeSession(session);
+    // R5 Wave 0.5 — signup is a sign-in; the sessions page reads this.
+    recordLogin(true);
 
     // Small delay so the emit is visible before navigation.
     await new Promise((r) => setTimeout(r, 500));
