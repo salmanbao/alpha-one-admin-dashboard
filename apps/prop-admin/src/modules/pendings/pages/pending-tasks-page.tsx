@@ -197,9 +197,9 @@ export function PendingTasksPage() {
       id: "method-changes",
       label: "Method Changes",
       count: methodCount,
-      viewId: "payout-methods-config",
+      viewId: "payout-methods-review",
       icon: CreditCard,
-      description: "Method additions/removals by traders",
+      description: "Method additions/removals by traders — operator review required",
     },
   ], [phase1Passed, phase2Passed, kycReviews, phaseVerifications, pendingWithdrawals, affiliatePayouts, purchaseCount, provisioningCount, escalationCount, methodCount]);
 

@@ -147,6 +147,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "payouts-history": dynamic(() => import("@/modules/payouts/pages/payout-pages").then((m) => ({ default: m.PayoutHistoryPage })), { loading: ViewSkeleton }),
   "payouts-enhanced-withdrawals": dynamic(() => import("@/modules/payouts/pages/enhanced-withdrawals-page").then((m) => ({ default: m.EnhancedWithdrawalsPage })), { loading: ViewSkeleton }),
   "payout-provider-status": dynamic(() => import("@/modules/payouts/pages/payout-provider-status-page").then((m) => ({ default: m.PayoutProviderStatusPage })), { loading: ViewSkeleton }),
+  "payout-methods-review": dynamic(() => import("@/modules/payouts/pages/payout-methods-review-page").then((m) => ({ default: m.PayoutMethodsReviewPage })), { loading: ViewSkeleton }),
   "payout-eligibility": dynamic(() => import("@/modules/payouts/pages/payout-request-page").then((m) => ({ default: m.PayoutEligibilityPage })), { loading: ViewSkeleton }),
   "payout-request": dynamic(() => import("@/modules/payouts/pages/payout-request-form-page").then((m) => ({ default: m.PayoutRequestFormPage })), { loading: ViewSkeleton }),
 
