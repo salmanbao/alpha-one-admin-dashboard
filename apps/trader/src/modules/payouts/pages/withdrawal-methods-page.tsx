@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import {
   TerraBadge,
   TerraCard,
@@ -227,6 +228,30 @@ export function WithdrawalMethodsPage() {
                         Primary
                       </TerraBadge>
                     )}
+                    <Badge
+                      variant={
+                        m.verification === "verified"
+                          ? "secondary"
+                          : m.verification === "rejected"
+                            ? "destructive"
+                            : "outline"
+                      }
+                      className={`text-[10px] ${
+                        m.verification === "verified"
+                          ? "bg-secondary text-secondary-foreground"
+                          : m.verification === "rejected"
+                            ? "bg-destructive text-white"
+                            : "border-warning/30 bg-warning/10 text-warning"
+                      }`}
+                    >
+                      {m.verification === "verified"
+                        ? "Verified"
+                        : m.verification === "rejected"
+                          ? "Rejected"
+                          : m.verification === "pending"
+                            ? "Pending"
+                            : "Unverified"}
+                    </Badge>
                   </div>
                   <p className="mt-0.5 break-all text-xs text-on-surface-variant">
                     {m.detail}

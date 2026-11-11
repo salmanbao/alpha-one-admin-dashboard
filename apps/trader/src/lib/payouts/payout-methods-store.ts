@@ -21,9 +21,17 @@
  * Each method carries a numeric `feeAmount` (parsed from the human
  * readable `fee` string) so the request form can show a fee-inclusive
  * total that always sums: fee + total = amount.
+ *
+ * Each method also carries a `verification` state ("unverified" |
+ * "pending" | "verified" | "rejected") seeded as "verified" for fixture
+ * methods and "pending" for trader-added methods. Operators on
+ * prop-admin override the verdict by writing `payout-method.rejected` /
+ * `payout-method.unverified` lifecycle events (rule R5: one object,
+ * one write path — verdicts are overlaid on the stored record).
  */
 
 import { useSyncExternalStore } from "react";
+import { LIFECYCLE_LOG_KEY } from "@pfaas/lifecycle";
 import { emitLifecycle, type LifecycleEventName } from "@pfaas/lifecycle";
 import { withdrawalMethods } from "@/lib/fixtures/terra-fixtures";
 
@@ -45,6 +53,8 @@ function publish(
 const STORAGE_KEY = "pfaas:trader:payoutMethods";
 
 /** The shape every surface consumes — the numeric feeAmount is store-owned. */
+export type VerificationState = "unverified" | "pending" | "verified" | "rejected";
+
 export interface PayoutMethod {
   id: string;
   name: string;
@@ -54,6 +64,8 @@ export interface PayoutMethod {
   feeAmount: number;
   eta: string;
   primary: boolean;
+  /** Verification state — unverified / pending / verified / rejected. */
+  verification: VerificationState;
 }
 
 function parseFeeAmount(fee: string): number {
@@ -62,7 +74,12 @@ function parseFeeAmount(fee: string): number {
 }
 
 function normalize(m: (typeof withdrawalMethods)[number]): PayoutMethod {
-  return { ...m, feeAmount: parseFeeAmount(m.fee) };
+  return {
+    ...m,
+    feeAmount: parseFeeAmount(m.fee),
+    /** Seeded fixture methods are pre-verified (known good). */
+    verification: "verified",
+  };
 }
 
 /** Seed on first run only. After that localStorage is the source of truth. */
@@ -81,7 +98,17 @@ function readRawMethods(): PayoutMethod[] {
     if (!raw) return seedMethods;
     const parsed = JSON.parse(raw) as PayoutMethod[];
     if (!Array.isArray(parsed) || parsed.length === 0) return seedMethods;
-    return ensureOnePrimary(parsed.map((m) => normalize(m as any)));
+    // Overlay verification verdicts from the shared lifecycle log so
+    // operator decisions (verify / reject / unverify) take precedence.
+    const overlay = verificationOverlay();
+    return ensureOnePrimary(
+      parsed.map((m) => {
+        const normalized: PayoutMethod = normalize(m as any);
+        const verdict = overlay.get(normalized.id);
+        if (verdict) normalized.verification = verdict;
+        return normalized;
+      }),
+    );
   } catch {
     return seedMethods;
   }
@@ -129,6 +156,28 @@ function getServerSnapshot(): string {
   return JSON.stringify(seedMethods);
 }
 
+
+
+/** Reads `payout-method.rejected` / `payout-method.unverified` verdicts
+ * from the shared lifecycle log so operator decisions are reflected
+ * immediately on every consumer of this store (rule R5). */
+function verificationOverlay(): Map<string, VerificationState> {
+  const map = new Map<string, VerificationState>();
+  if (typeof window === "undefined") return map;
+  try {
+    const raw = window.localStorage.getItem(LIFECYCLE_LOG_KEY);
+    const log = raw ? (JSON.parse(raw) as Array<{ entity?: { kind?: string; id?: string }; name?: string }>) : [];
+    for (const e of log) {
+      if (!e.entity || e.entity.kind !== "payout-method" || !e.entity.id) continue;
+      if (e.name === "payout-method.rejected") map.set(e.entity.id, "rejected");
+      if (e.name === "payout-method.unverified") map.set(e.entity.id, "unverified");
+    }
+  } catch {
+    /* log unavailable — store works in-session only */
+  }
+  return map;
+}
+
 /* ------------------------------------------------------------------ */
 /* Public API                                                          */
 /* ------------------------------------------------------------------ */
@@ -142,6 +191,7 @@ export function readPayoutMethods(): PayoutMethod[] {
 export function readPrimaryPayoutMethod(): PayoutMethod | undefined {
   return readRawMethods().find((m) => m.primary);
 }
+
 
 /** Add a new method (non-primary by default). */
 export function addPayoutMethod(input: {
@@ -158,6 +208,7 @@ export function addPayoutMethod(input: {
     feeAmount: parseFeeAmount(input.fee),
     eta: input.eta,
     primary: false,
+    verification: "pending",
   };
   writeMethods([method, ...readRawMethods()]);
   publish("payout-method.added", method, method.id);

@@ -147,6 +147,9 @@ export function PayoutRequestPage() {
   const feeAmount = method?.feeAmount ?? 0;
   const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable);
   const outstanding = criteria.filter((c) => !c.ok).length;
+  // R4-11: block submission on rejected method, warn on unverified
+  const methodRejected = method?.verification === "rejected";
+  const methodUnverified = method?.verification === "unverified";
 
   // Performance & risk context (audit #1, HIGH) — the metrics that can
   // still put a payout at risk, shown alongside the request form.
@@ -505,6 +508,17 @@ export function PayoutRequestPage() {
             Your challenge fee is refunded with this payout — the first withdrawal on a funded
             account includes the original evaluation price.
           </p>
+          {/* R4-11 gate: blocked on rejected, warned on unverified */}
+          {methodRejected && (
+            <p id="method-rejected-hint" className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs font-semibold text-destructive">
+              This payout method has been rejected — payouts cannot be submitted with a rejected method.
+            </p>
+          )}
+          {methodUnverified && !methodRejected && (
+            <p id="method-unverified-hint" className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs font-medium text-warning">
+              This payout method is unverified — payout requests may fail. Consider verifying the method first.
+            </p>
+          )}
           <button
             type="button"
             // aria-disabled, not disabled (finding #5): a disabled
@@ -512,9 +526,13 @@ export function PayoutRequestPage() {
             // blocked state could never be heard or acted on. This one
             // stays focusable and, when activated, moves focus to the
             // exact field or checklist that blocks submission.
-            aria-disabled={!valid || outstanding > 0}
+            aria-disabled={!valid || outstanding > 0 || methodRejected}
             aria-describedby="payout-submit-hint"
             onClick={() => {
+              if (methodRejected) {
+                document.getElementById("method-rejected-hint")?.focus?.();
+                return;
+              }
               if (outstanding > 0) {
                 document.getElementById("payout-eligibility")?.focus();
               } else if (!valid) {
@@ -525,16 +543,18 @@ export function PayoutRequestPage() {
               }
             }}
             className={`rounded-xl px-5 py-3 text-sm font-bold shadow-sm transition-all ${
-              !valid || outstanding > 0
+              (!valid || outstanding > 0 || methodRejected)
                 ? "cursor-not-allowed bg-primary text-on-primary opacity-50"
                 : "bg-primary text-on-primary hover:bg-primary/90"
             }`}
           >
             {outstanding > 0
               ? `Fix ${outstanding} unmet requirement${outstanding === 1 ? "" : "s"}`
-              : valid
+              : valid && !methodRejected
                 ? "Submit Payout Request"
-                : "Enter a valid amount"}
+                : methodRejected
+                  ? "Method Rejected — Cannot Submit"
+                  : "Enter a valid amount"}
           </button>
           <p id="payout-submit-hint" className="text-center text-[11px] text-on-surface-variant">
             {outstanding > 0

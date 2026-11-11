@@ -82,6 +82,8 @@ export const LIFECYCLE_EVENT_NAMES = [
   // Payout methods
   "payout-method.added",
   "payout-method.updated",
+  "payout-method.rejected",
+  "payout-method.unverified",
   "payout-method.removed",
   "payout-method.primary-set",
   // Purchase / provisioning
@@ -331,6 +333,8 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "payout.cancelled": "Cancelled",
   "payout-method.added": "Method added",
   "payout-method.updated": "Method updated",
+  "payout-method.rejected": "Method rejected",
+  "payout-method.unverified": "Method unverified",
   "payout-method.removed": "Method removed",
   "payout-method.primary-set": "Primary method set",
   "purchase.completed": "Purchased",

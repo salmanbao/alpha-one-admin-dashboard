@@ -29,6 +29,7 @@ const routes: RouteDefinition[] = [
   { path: "payouts-history", viewId: "payouts-history", label: "Payout History", permission: ["payout.read", "payout.self"], module: "payouts" },
   { path: "payouts-enhanced-withdrawals", viewId: "payouts-enhanced-withdrawals", label: "Enhanced Withdrawals", permission: ["payout.read", "payout.self"], module: "payouts" },
   { path: "payout-eligibility", viewId: "payout-eligibility", label: "Payout Eligibility", permission: ["payout.read", "payout.self"], module: "payouts" },
+  { path: "payout-methods-review", viewId: "payout-methods-review", label: "Payout Methods Review", permission: "payout.approve", module: "payouts" },
   { path: "payout-request", viewId: "payout-request", label: "Payout Request", permission: ["payout.read", "payout.self"], module: "payouts" },
   { path: "payout-provider-status", viewId: "payout-provider-status", label: "Provider Status", permission: "payout.read", module: "payouts" },
   // Row drill-down target from Pending Payouts and the overview page's
