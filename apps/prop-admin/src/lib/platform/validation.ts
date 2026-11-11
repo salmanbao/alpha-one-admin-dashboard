@@ -261,6 +261,45 @@ export const demoChallengeFundingSchema = z.record(
   }),
 );
 
+/** purchase-operator-store: per-order operator actions (R4-09). */
+export const demoPurchaseOpsSchema = z.record(
+  z.string(),
+  z.object({
+    assignment: z
+      .object({
+        productId: z.string(),
+        productName: z.string(),
+        assignedAt: z.string(),
+        assignedBy: z.string(),
+      })
+      .optional(),
+    refund: z
+      .object({
+        amount: z.number(),
+        currency: z.string(),
+        reason: z.string(),
+        issuedAt: z.string(),
+        issuedBy: z.string(),
+      })
+      .optional(),
+    contacts: z
+      .array(
+        z.object({
+          at: z.string(),
+          subject: z.string(),
+          by: z.string(),
+        }),
+      )
+      .optional(),
+    provisioning: z
+      .object({
+        triggeredAt: z.string(),
+        triggeredBy: z.string(),
+      })
+      .optional(),
+  }),
+);
+
 /** risk-case-store: per-tenant case lists + the id sequence counter. */
 export const demoRiskCasesSchema = z.object({
   byTenant: z.record(

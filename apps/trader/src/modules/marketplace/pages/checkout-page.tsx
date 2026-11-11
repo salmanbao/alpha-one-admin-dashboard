@@ -23,6 +23,8 @@ import {
 } from "@/components/terra/terra-ui";
 import { toast } from "@/hooks/use-toast";
 import { terraChallenges } from "@/lib/fixtures/terra-fixtures";
+import { recordPurchase } from "@/lib/purchases-store";
+import { readSession } from "@/lib/session-store";
 import { FormField, useFormValidation } from "@pfaas/ui/platform-form-field";
 import {
   billingFieldLabels,
@@ -257,7 +259,22 @@ export function CheckoutPage() {
         router.push("/checkout-failure");
       } else {
         resetPayAttempts();
-        router.push("/purchase-completed");
+        // R4-09: persist the order BEFORE the confirmation screen — this
+        // is the payment moment, so the purchases store, the operator
+        // queue and the invoice all start from this record.
+        const orderId = String(Date.now()).slice(-6);
+        recordPurchase({
+          orderId,
+          program: `${ch.name} $${Math.round(ch.accountSize / 1000)}K`,
+          challengeId: ch.id,
+          amount: total,
+          currency: "USD",
+          method: paymentMethods.find((m) => m.id === method)?.label ?? "Card",
+          applicantName: readSession()?.displayName ?? null,
+        });
+        router.push(
+          `/purchase-completed?orderId=${orderId}&challengeId=${ch.id}`,
+        );
       }
     }, 700);
   }

@@ -108,6 +108,8 @@ export interface PurchaseRecord {
   amount: number;
   currency: string;
   challengeType?: string;
+  /** Payment method label as the trader checkout recorded it (R4-09). */
+  method?: string;
   createdAt: string;
   source: typeof CROSS_APP_SOURCE;
 }
@@ -327,6 +329,7 @@ function toPurchaseRecord(e: LifecycleEvent, tenantId: string): PurchaseRecord {
     amount: numberOr(e.payload?.amount, 0),
     currency: typeof e.payload?.currency === "string" ? e.payload.currency : "USD",
     challengeType: e.payload?.challengeType != null ? String(e.payload.challengeType) : mapChallengeType(e.payload?.challengeTypeId),
+    method: typeof e.payload?.method === "string" ? e.payload.method : undefined,
     createdAt: e.at,
     source: CROSS_APP_SOURCE,
   };

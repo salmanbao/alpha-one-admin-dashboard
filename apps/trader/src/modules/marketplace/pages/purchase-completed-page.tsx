@@ -21,6 +21,7 @@ import { terraChallenges } from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
 import { markJourney } from "@/lib/onboarding/journey-store";
 import { readProvisioningHandoff, writeProvisioningHandoff } from "@/lib/onboarding/provisioning-handoff";
+import { readPurchase } from "@/lib/purchases-store";
 import { emitLifecycle } from "@pfaas/lifecycle";
 import { JourneyChecklist } from "@/components/onboarding/journey-checklist";
 
@@ -31,6 +32,7 @@ export function PurchaseCompletedPage() {
   // Contextualize order number & challenge from router params (dummy data only).
   const orderId = params.get("orderId") ?? "TT-48210";
   const challengeKey = params.get("challengeId");
+  const purchase = readPurchase(orderId);
   const ch = challengeKey
     ? terraChallenges.find((c) => c.id === challengeKey) ?? terraChallenges[1]
     : terraChallenges[1];
@@ -52,7 +54,19 @@ export function PurchaseCompletedPage() {
       name: "purchase.completed",
       actor: "trader",
       key: orderId,
-      payload: { orderId, purchasedAt, challengeId: challengeKey ?? null },
+      payload: {
+        orderId,
+        purchasedAt,
+        challengeId: challengeKey ?? null,
+        // R4-09: the operator queue shows what was actually bought —
+        // from the store record checkout wrote, with the confirmation
+        // screen's challenge as fallback for direct deep-links.
+        amount: purchase?.amount ?? ch.price,
+        currency: purchase?.currency ?? "USD",
+        method: purchase?.method ?? null,
+        challengeType: purchase?.program ?? `${ch.name}`,
+        applicant: purchase?.applicantName ?? null,
+      },
     });
   }, [params, challengeKey]);
 
