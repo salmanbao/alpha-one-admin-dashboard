@@ -110,6 +110,33 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         read: false,
         actionType: "payout",
       };
+    case "purchase.refunded": {
+      const ref = String(e.payload?.orderId ?? e.entity.id);
+      return {
+        id: `inbox:${e.id}:purchase-refunded`,
+        subject: `Refund issued — order #${ref}`,
+        body: `Your order #${ref} for ${money(e.payload?.amount)} has been refunded to your original payment method.${typeof e.payload?.reason === "string" ? `\n\nReason: ${e.payload.reason}` : ""}`,
+        category: "Challenges",
+        sender: "Billing Team",
+        at: e.at,
+        read: false,
+        actionType: "challenge",
+      };
+    }
+    case "comms.message-sent":
+      // R4-09 / rule R6 — prop-admin "Contact trader" lands here.
+      return {
+        id: `inbox:${e.id}:comms`,
+        subject: String(e.payload?.subject ?? "Message from your firm"),
+        body: String(e.payload?.body ?? ""),
+        category: "Support",
+        sender:
+          typeof e.payload?.sender === "string"
+            ? e.payload.sender
+            : "Support Team",
+        at: e.at,
+        read: false,
+      };
     default:
       return null;
   }

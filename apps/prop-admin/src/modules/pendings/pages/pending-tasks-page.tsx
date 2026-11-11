@@ -173,9 +173,9 @@ export function PendingTasksPage() {
       id: "pending-purchases",
       label: "Pending Purchases",
       count: purchaseCount,
-      viewId: "purchase-completed",
+      viewId: "purchase-queue",
       icon: Package,
-      description: "Challenge purchases awaiting provisioning",
+      description: "Challenge purchases awaiting operator provisioning",
     },
     {
       id: "provisioning-queues",

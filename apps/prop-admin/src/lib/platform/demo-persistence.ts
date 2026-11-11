@@ -43,6 +43,7 @@ const DEMO_STORES = [
   "connectors",
   "kyc-provider-config",
   "challenge-funding",
+  "purchase-ops",
 ] as const;
 
 /**

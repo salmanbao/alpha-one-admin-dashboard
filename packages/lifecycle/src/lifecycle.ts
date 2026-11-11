@@ -98,6 +98,12 @@ export const LIFECYCLE_EVENT_NAMES = [
   // Account
   "account.created",
   "account.password-reset",
+  // Purchases (R4-09) — consumer: trader purchase-history refund overlay
+  // + inbox bridge ("Refund issued")
+  "purchase.refunded",
+  // Operator → trader message (R4-09, rule R6) — consumer: trader
+  // inbox-lifecycle-bridge, which projects it as an inbox message
+  "comms.message-sent",
 ] as const;
 
 export type LifecycleEventName = (typeof LIFECYCLE_EVENT_NAMES)[number];
@@ -335,6 +341,8 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "competition.left": "Left",
   "account.created": "Account created",
   "account.password-reset": "Password reset",
+  "purchase.refunded": "Refunded",
+  "comms.message-sent": "Message sent",
 };
 
 /**
