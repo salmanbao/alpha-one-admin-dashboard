@@ -39,11 +39,13 @@ const DEMO_STORES = [
   "tickets",
   "evaluations",
   "affiliate-kpis",
+  "affiliate-payouts",
   "auto-approve-rule",
   "connectors",
   "kyc-provider-config",
   "challenge-funding",
   "purchase-ops",
+  "provisioning-ops",
 ] as const;
 
 /**
@@ -82,6 +84,9 @@ export function resetDemoState(): void {
   try {
     for (const s of DEMO_STORES) window.localStorage.removeItem(PREFIX + s);
     window.localStorage.removeItem("pfaas:auditSession");
+    // Legacy slot written before provisioning-operator-store declared its
+    // bare id (the layer above already prefixes) — clear the orphan once.
+    window.localStorage.removeItem("pfaas:demo:pfaas:demo:provisioning-ops");
   } catch {
     /* ignore */
   }

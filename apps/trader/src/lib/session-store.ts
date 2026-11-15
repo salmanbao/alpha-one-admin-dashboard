@@ -295,6 +295,7 @@ const ACCOUNT_DATA_TERRA_KEYS = [
   "terra-notification-prefs",
   "terra-sim",
   "terra-support-tickets-v1",
+  "terra-support-closed-v1",
   "terra.active-account",
   "terra:personalGoals",
   "terra.journal-entries",

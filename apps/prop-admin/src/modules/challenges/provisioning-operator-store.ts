@@ -22,7 +22,10 @@ import { demoProvisioningOpsSchema } from "@/lib/platform/validation";
 import { recordAudit } from "@/lib/audit";
 import type { PurchaseRecord } from "@/lib/platform/cross-app-intake";
 
-const SLOT = "pfaas:demo:provisioning-ops";
+// Bare demo-store id — loadDemoState/saveDemoState prepend "pfaas:demo:",
+// so declaring the prefix here wrote/read a double-prefixed slot that
+// resetDemoState() never cleared.
+const SLOT = "provisioning-ops";
 const listeners = new Set<() => void>();
 let state: Record<string, ProvisioningOps> = {};
 
