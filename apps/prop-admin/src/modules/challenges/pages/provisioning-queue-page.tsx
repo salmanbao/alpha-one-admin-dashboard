@@ -217,49 +217,65 @@ export function ProvisioningQueuePage() {
 
                     {/* Action buttons */}
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {record.status === "failed" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            setDialog({ kind: "retry", record })
-                          }
-                        >
-                          <Clock className="mr-1 h-3 w-3" />
-                          Retry stage
-                        </Button>
-                      )}
-                      {record.status !== "failed" &&
-                        record.status !== "credentials-delivered" && record.status !== "active" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setDialog({ kind: "deliver", record })}
-                          >
-                            <Key className="mr-1 h-3 w-3" />
-                            Deliver credentials
-                          </Button>
-                        )}
-                      {(record.status === "credentials-delivered" || record.status === "active") && record.status !== "failed" && record.status !== "in-progress" ? (
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={() => handleActivate(record)}
-                        >
-                          <CheckCircle2 className="mr-1 h-3 w-3" />
-                          Mark activated
-                        </Button>
-                      ) : null}
-                      {record.status !== "failed" ? (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setDialog({ kind: "fail", record })}
-                        >
-                          <AlertTriangle className="mr-1 h-3 w-3" />
-                          Fail
-                        </Button>
-                      ) : null}
+                      {(() => {
+                        const status = record.status;
+                        const showRetry = status === "failed";
+                        const showDeliver =
+                          status === "in-progress" || status === "retry";
+                        const showActivate = status === "credentials-delivered";
+                        const showFail =
+                          status !== "failed" && status !== "retry";
+                        return (
+                          <>
+                            {showRetry && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  setDialog({ kind: "retry", record })
+                                }
+                              >
+                                <Clock className="mr-1 h-3 w-3" />
+                                Retry stage
+                              </Button>
+                            )}
+                            {showDeliver && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  setDialog({ kind: "deliver", record })
+                                }
+                              >
+                                <Key className="mr-1 h-3 w-3" />
+                                Deliver credentials
+                              </Button>
+                            )}
+                            {showActivate && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => handleActivate(record)}
+                              >
+                                <CheckCircle2 className="mr-1 h-3 w-3" />
+                                Mark activated
+                              </Button>
+                            )}
+                            {showFail && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() =>
+                                  setDialog({ kind: "fail", record })
+                                }
+                              >
+                                <AlertTriangle className="mr-1 h-3 w-3" />
+                                Fail
+                              </Button>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </CardContent>
                 </Card>

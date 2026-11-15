@@ -265,7 +265,7 @@ export const demoChallengeFundingSchema = z.record(
 export const demoProvisioningOpsSchema = z.record(
   z.string(),
   z.object({
-    status: z.enum(["in-progress", "credentials-delivered", "active", "failed"]),
+    status: z.enum(["in-progress", "credentials-delivered", "active", "failed", "retry"]),
     reason: z.string().optional(),
     startedAt: z.string(),
     credentialsDeliveredAt: z.string().optional(),

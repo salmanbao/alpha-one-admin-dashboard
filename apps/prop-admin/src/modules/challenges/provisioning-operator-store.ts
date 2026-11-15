@@ -16,7 +16,7 @@
  */
 
 import { useSyncExternalStore } from "react";
-import { emitLifecycle } from "@pfaas/lifecycle";
+import { emitLifecycle, type LifecycleActor } from "@pfaas/lifecycle";
 import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { demoProvisioningOpsSchema } from "@/lib/platform/validation";
 import { recordAudit } from "@/lib/audit";
@@ -43,7 +43,7 @@ function notify(): void {
 }
 
 export interface ProvisioningOps {
-  status: "in-progress" | "credentials-delivered" | "active" | "failed";
+  status: "in-progress" | "credentials-delivered" | "active" | "failed" | "retry";
   reason?: string;
   startedAt: string;
   credentialsDeliveredAt?: string;
@@ -70,7 +70,7 @@ export function retryStage(rec: PurchaseRecord, reason?: string): void {
   const ops = state[rec.orderId] || { status: "in-progress", startedAt: rec.createdAt };
   setOps(rec.orderId, {
     ...ops,
-    status: "in-progress",
+    status: "retry",
     reason,
     failedAt: now,
     failedReason: reason,
@@ -93,14 +93,13 @@ export function retryStage(rec: PurchaseRecord, reason?: string): void {
 }
 
 /** Deliver credentials to the trader (emits `provisioning.credentials`). */
-export function deliverCredentials(rec: PurchaseRecord, actor?: string): void {
+export function deliverCredentials(rec: PurchaseRecord, actor?: LifecycleActor): void {
   const now = new Date().toISOString();
   const ops = state[rec.orderId] || { status: "in-progress", startedAt: rec.createdAt };
   setOps(rec.orderId, {
     ...ops,
     status: "credentials-delivered",
     credentialsDeliveredAt: now,
-    actor: actor ?? "operator",
   });
   recordAudit({
     action: "Credentials delivered",
@@ -120,14 +119,13 @@ export function deliverCredentials(rec: PurchaseRecord, actor?: string): void {
 }
 
 /** Mark the account as activated (emits `provisioning.activated`). */
-export function markActivated(rec: PurchaseRecord, actor?: string): void {
+export function markActivated(rec: PurchaseRecord, actor?: LifecycleActor): void {
   const now = new Date().toISOString();
   const ops = state[rec.orderId] || { status: "credentials-delivered", startedAt: rec.createdAt };
   setOps(rec.orderId, {
     ...ops,
     status: "active",
     activatedAt: now,
-    actor: actor ?? "operator",
   });
   recordAudit({
     action: "Account activated",
@@ -147,7 +145,7 @@ export function markActivated(rec: PurchaseRecord, actor?: string): void {
 }
 
 /** Mark provisioning as failed with a reason. */
-export function failWithReason(rec: PurchaseRecord, reason: string, actor?: string): void {
+export function failWithReason(rec: PurchaseRecord, reason: string, actor?: LifecycleActor): void {
   const now = new Date().toISOString();
   const ops = state[rec.orderId] || { status: "in-progress", startedAt: rec.createdAt };
   setOps(rec.orderId, {
@@ -156,14 +154,13 @@ export function failWithReason(rec: PurchaseRecord, reason: string, actor?: stri
     reason,
     failedAt: now,
     failedReason: reason,
-    actor: actor ?? "operator",
   });
   recordAudit({
     action: "Provisioning failed",
     entity: "purchase",
     entityId: rec.orderId,
     summary: `#${rec.orderId} failed: ${reason}`,
-    severity: "error",
+    severity: "critical",
   });
   emitLifecycle({
     entity: { kind: "provisioning", id: rec.orderId },
