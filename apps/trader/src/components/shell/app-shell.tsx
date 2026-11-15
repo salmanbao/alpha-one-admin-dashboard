@@ -32,6 +32,7 @@ import { terraTenant } from "@/lib/fixtures/terra-fixtures";
 // package; local platform components are opt-in via tsconfig paths.
 import { SessionExpiryBanner } from "../platform/session-expiry-banner";
 import { useInboxLifecycleBridge } from "@/lib/inbox/inbox-lifecycle-bridge";
+import { useCompetitionNotices } from "@/lib/inbox/competition-notices";
 import { useInboxMessages } from "@/lib/inbox/inbox-store";
 import { getCurrentIdentity, removeSession } from "@/lib/session-store";
 
@@ -78,6 +79,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   // R3-07 — wire the inbox into the lifecycle bus so prop-admin decisions
   // (payouts/kyc/challenge funding) land as inbox messages.
   useInboxLifecycleBridge();
+
+  // R6 — competition joins/claims + milestone notices (starts-in-24h,
+  // final day, results/claim-window reminders) into the same inbox.
+  useCompetitionNotices();
 
   // Breadcrumb tail (audit #6) — must be computed with the other hooks, not
   // inline in JSX: the onboarding early return below would otherwise skip it

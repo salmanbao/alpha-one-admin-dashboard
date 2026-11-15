@@ -99,6 +99,7 @@ export const LIFECYCLE_EVENT_NAMES = [
   // Competitions
   "competition.joined",
   "competition.left",
+  "competition.prize-claimed",
   // Account
   "account.created",
   "account.password-reset",
@@ -347,6 +348,7 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "challenge.funded": "Funded",
   "competition.joined": "Joined",
   "competition.left": "Left",
+  "competition.prize-claimed": "Prize claimed",
   "account.created": "Account created",
   "account.password-reset": "Password reset",
   "purchase.refunded": "Refunded",

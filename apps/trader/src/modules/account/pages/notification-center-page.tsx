@@ -66,7 +66,15 @@ import {
 /* Model + dummy data                                                  */
 /* ------------------------------------------------------------------ */
 
-const categories = ["All", "Payouts", "Challenges", "Trading", "Marketing", "Support"] as const;
+const categories = [
+  "All",
+  "Payouts",
+  "Challenges",
+  "Trading",
+  "Marketing",
+  "Support",
+  "Competitions",
+] as const;
 const readFilters = ["All", "Unread"] as const;
 
 type Category = (typeof categories)[number];
@@ -74,7 +82,13 @@ type ReadFilter = (typeof readFilters)[number];
 
 /** Deep-link action type — only known message types get buttons; anything
  *  else renders without actions rather than a broken button. */
-type ActionType = "payout" | "challenge" | "promo" | "payout-method" | "provisioning";
+type ActionType =
+  | "payout"
+  | "challenge"
+  | "promo"
+  | "payout-method"
+  | "provisioning"
+  | "competition";
 
 interface Message {
   id: string;
@@ -85,6 +99,8 @@ interface Message {
   at: string; // ISO
   read: boolean;
   actionType?: ActionType;
+  /** Per-message deep link — overrides the action type's default href. */
+  actionHref?: string;
   /** Simulated body-load failure for one message (Table 149 error row). */
   bodyError?: boolean;
 }
@@ -123,6 +139,12 @@ const actionFor: Record<
     className: "bg-primary text-on-primary hover:bg-primary/90",
     icon: <Settings className="h-4 w-4" />,
   },
+  competition: {
+    label: "View competition",
+    href: "/competitions",
+    className: "bg-primary text-on-primary hover:bg-primary/90",
+    icon: <Trophy className="h-4 w-4" />,
+  },
 };
 
 const categoryTone: Record<Category, TerraTone> = {
@@ -132,6 +154,7 @@ const categoryTone: Record<Category, TerraTone> = {
   Trading: "tertiary",
   Marketing: "secondary",
   Support: "neutral",
+  Competitions: "tertiary",
 };
 
 const categoryIcon: Record<Category, React.ReactNode> = {
@@ -141,6 +164,7 @@ const categoryIcon: Record<Category, React.ReactNode> = {
   Trading: <Activity className="h-4 w-4" />,
   Marketing: <Gift className="h-4 w-4" />,
   Support: <LifeBuoy className="h-4 w-4" />,
+  Competitions: <Trophy className="h-4 w-4" />,
 };
 
 /* ------------------------------------------------------------------ */
@@ -685,7 +709,7 @@ export function NotificationCenterPage() {
                       const a = actionFor[selected.actionType];
                       return (
                         <Link
-                          href={a.href}
+                          href={selected.actionHref ?? a.href}
                           className={cn(
                             "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors",
                             a.className,

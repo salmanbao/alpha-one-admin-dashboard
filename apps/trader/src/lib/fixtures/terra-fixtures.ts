@@ -1556,50 +1556,337 @@ export const leaderboard: LeaderboardEntry[] = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Competitions                                                        */
+/* Competitions (v2 — prop-firm competition hub)                       */
 /* ------------------------------------------------------------------ */
 
-export const competitions = [
+export type PrizeKind = "cash" | "funded-account" | "physical" | "promo-credit";
+
+export interface PrizeTier {
+  /** Inclusive rank range — 1..1 for a single place, 4..10 for a band. */
+  rankFrom: number;
+  rankTo: number;
+  kind: PrizeKind;
+  /** Display label — "iPhone 17 Pro" | "$2,500 cash" | "$100K evaluation". */
+  label: string;
+  /** Display value in USD when the prize has one. */
+  valueUsd?: number;
+  /** Extra context — "1-phase evaluation, 5% daily cap". */
+  detail?: string;
+}
+
+export interface CompetitionRules {
+  metric: "gain-percent" | "absolute-profit" | "risk-adjusted";
+  minTrades: number;
+  maxDailyDrawdownPct?: number;
+  consistencyRule?: string;
+}
+
+export interface Competition {
+  id: string;
+  name: string;
+  tagline: string;
+  status: "active" | "upcoming" | "ended";
+  startsAt: string;
+  endsAt: string;
+  /** Join deadline — after this, registration is honestly closed. */
+  registrationClosesAt?: string;
+  /** "Limited to N participants" cap (undefined = uncapped). */
+  participantCap?: number;
+  participants: number;
+  entryRequirement: { label: string; accountTypes: string[]; requiresKyc: boolean };
+  /** Banner copy — leads with the tangible prize when there is one. */
+  prizeHeadline: string;
+  prizes: PrizeTier[];
+  rules: CompetitionRules;
+  /** Featured competitions render in the hero banner carousel. */
+  featured?: boolean;
+  theme: "aurora" | "ember" | "abyss";
+  faq: { q: string; a: string }[];
+  /** Demo trader's final placement once ended (in-the-money when it
+   *  falls inside a prize tier — drives the prize-claim flow). */
+  placement?: number;
+}
+
+/** Days after `endsAt` that a prize claim stays open (fixture contract). */
+export const CLAIM_WINDOW_DAYS = 14;
+
+/** ISO end of the claim window for a competition. */
+export function claimWindowEndsAt(c: Competition): string {
+  return new Date(new Date(c.endsAt).getTime() + CLAIM_WINDOW_DAYS * 86_400_000).toISOString();
+}
+
+/** Prize tier covering a placement, or undefined when out of the money. */
+export function prizeTierFor(c: Competition, rank: number): PrizeTier | undefined {
+  return c.prizes.find((t) => rank >= t.rankFrom && rank <= t.rankTo);
+}
+
+/**
+ * Deterministic demo standing derived from the id, so the number is
+ * stable across renders (no Math.random()).
+ */
+export function competitionStandingFor(c: { id: string; participants: number }): number {
+  return 1 + ([...c.id].reduce((s, ch) => s + ch.charCodeAt(0), 0) % Math.max(1, c.participants));
+}
+
+/** Deterministic gap to the next rank in percentage points (null when leading). */
+export function competitionGapFor(c: { id: string }, rank: number): number | null {
+  if (rank <= 1) return null;
+  const hash = [...c.id].reduce((s, ch) => s + ch.charCodeAt(0), 0);
+  return (((hash + rank * 7) % 75) + 5) / 10;
+}
+
+/** Deterministic demo gain for the standing row (percentage points). */
+export function competitionGainPctFor(c: { id: string }): number {
+  const hash = [...c.id].reduce((s, ch) => s + ch.charCodeAt(0), 0);
+  return ((hash % 150) + 30) / 10;
+}
+
+export const competitions: Competition[] = [
   {
     id: "cmp-oct",
     name: "October Growth Sprint",
-    prize: "$10,000 prize pool",
-    entry: "Free for funded traders",
+    tagline: "Highest net gain wins — steady hands beat lucky shots.",
+    status: "active",
     startsAt: daysAgo(9),
     endsAt: daysFromNow(21),
+    registrationClosesAt: daysFromNow(14),
+    participantCap: 5000,
     participants: 1284,
-    status: "active" as const,
+    entryRequirement: {
+      label: "Free for funded traders",
+      accountTypes: ["Funded", "Evaluation"],
+      requiresKyc: true,
+    },
+    prizeHeadline: "$10,000 cash + an iPhone 17 Pro",
+    prizes: [
+      { rankFrom: 1, rankTo: 1, kind: "physical", label: "iPhone 17 Pro", valueUsd: 1199, detail: "512GB — shipped worldwide" },
+      { rankFrom: 2, rankTo: 2, kind: "cash", label: "$3,000 cash", valueUsd: 3000, detail: "Paid to your Promo Wallet" },
+      { rankFrom: 3, rankTo: 3, kind: "funded-account", label: "$100K evaluation", valueUsd: 999, detail: "1-phase, 5% daily cap" },
+      { rankFrom: 4, rankTo: 10, kind: "cash", label: "$250 cash", valueUsd: 250, detail: "Each finisher in the band" },
+      { rankFrom: 11, rankTo: 25, kind: "promo-credit", label: "$50 promo credit", valueUsd: 50, detail: "Usable on any challenge fee" },
+    ],
+    rules: {
+      metric: "gain-percent",
+      minTrades: 10,
+      maxDailyDrawdownPct: 5,
+      consistencyRule: "No single day may exceed 40% of total profit.",
+    },
+    featured: true,
+    theme: "aurora",
+    faq: [
+      { q: "Who can enter?", a: "Funded and evaluation traders with an approved KYC profile. Entry is free — one account per trader." },
+      { q: "How is rank decided?", a: "Highest net gain (%) across the window, subject to the 5% daily drawdown cap. You need at least 10 closed trades to place." },
+      { q: "When are prizes paid?", a: "Cash prizes land in your Promo Wallet within 5 business days of settlement. Physical prizes ship within 30 days after you claim them." },
+      { q: "Can I join late?", a: "Yes — registration stays open until the deadline on the banner (Demo)." },
+    ],
   },
   {
     id: "cmp-scaling",
     name: "Q4 Scaling Masters",
-    prize: "$8,000 prize pool",
-    entry: "Free for funded traders",
+    tagline: "Scale positions without breaching the daily cap.",
+    status: "active",
     startsAt: daysAgo(3),
     endsAt: daysFromNow(11),
+    registrationClosesAt: daysFromNow(5),
+    participantCap: 1000,
     participants: 643,
-    status: "active" as const,
+    entryRequirement: {
+      label: "Free for funded traders",
+      accountTypes: ["Funded"],
+      requiresKyc: true,
+    },
+    prizeHeadline: "$8,000 prize pool + a $50K funded seat",
+    prizes: [
+      { rankFrom: 1, rankTo: 1, kind: "cash", label: "$4,000 cash", valueUsd: 4000, detail: "Paid to your Promo Wallet" },
+      { rankFrom: 2, rankTo: 2, kind: "cash", label: "$2,000 cash", valueUsd: 2000, detail: "Paid to your Promo Wallet" },
+      { rankFrom: 3, rankTo: 3, kind: "funded-account", label: "$50K evaluation", valueUsd: 499, detail: "1-phase, 5% daily cap" },
+      { rankFrom: 4, rankTo: 10, kind: "promo-credit", label: "$100 promo credit", valueUsd: 100, detail: "Each finisher in the band" },
+    ],
+    rules: {
+      metric: "absolute-profit",
+      minTrades: 8,
+      maxDailyDrawdownPct: 5,
+      consistencyRule: "Scaling steps reset if a daily cap is touched.",
+    },
+    theme: "ember",
+    faq: [
+      { q: "Who can enter?", a: "Traders on an active funded account. Evaluation accounts may watch but not place." },
+      { q: "How is rank decided?", a: "Absolute profit in USD across the window. Lowest drawdown breaks ties." },
+      { q: "When are prizes paid?", a: "Within 5 business days of settlement — cash to your Promo Wallet, the funded seat as an evaluation invite." },
+    ],
+  },
+  {
+    id: "cmp-live",
+    name: "Live Trading Showdown",
+    tagline: "Two sessions. One leaderboard. Real prizes.",
+    status: "active",
+    startsAt: daysAgo(2),
+    endsAt: daysFromNow(4),
+    registrationClosesAt: daysFromNow(1),
+    participantCap: 500,
+    participants: 486,
+    entryRequirement: {
+      label: "Free for funded traders — capped at 500",
+      accountTypes: ["Funded", "Evaluation"],
+      requiresKyc: true,
+    },
+    prizeHeadline: "$6,000 cash + an iPhone 17 Pro",
+    prizes: [
+      { rankFrom: 1, rankTo: 1, kind: "physical", label: "iPhone 17 Pro", valueUsd: 1199, detail: "512GB — shipped worldwide" },
+      { rankFrom: 2, rankTo: 2, kind: "cash", label: "$2,000 cash", valueUsd: 2000, detail: "Paid to your Promo Wallet" },
+      { rankFrom: 3, rankTo: 3, kind: "funded-account", label: "$25K evaluation", valueUsd: 249, detail: "1-phase, 5% daily cap" },
+      { rankFrom: 4, rankTo: 10, kind: "cash", label: "$200 cash", valueUsd: 200, detail: "Each finisher in the band" },
+    ],
+    rules: {
+      metric: "risk-adjusted",
+      minTrades: 6,
+      maxDailyDrawdownPct: 4,
+      consistencyRule: "Positions opened in the final hour count at 50%.",
+    },
+    featured: true,
+    theme: "abyss",
+    faq: [
+      { q: "Who can enter?", a: "Any trader with an approved KYC profile — entry closes when the 500-participant cap fills." },
+      { q: "How is rank decided?", a: "Risk-adjusted return: gain divided by maximum drawdown. Six closed trades minimum." },
+      { q: "What happens if the cap fills?", a: "Registration closes immediately and the waitlist opens — first-come, first-served (Demo)." },
+    ],
   },
   {
     id: "cmp-nov",
     name: "November Momentum League",
-    prize: "$15,000 prize pool",
-    entry: "Free for funded traders",
+    tagline: "A month-long climb with the biggest pool of the quarter.",
+    status: "upcoming",
     startsAt: daysFromNow(9),
     endsAt: daysFromNow(39),
+    registrationClosesAt: daysFromNow(9),
+    participantCap: 5000,
     participants: 212,
-    status: "upcoming" as const,
+    entryRequirement: {
+      label: "Free for funded traders",
+      accountTypes: ["Funded", "Evaluation"],
+      requiresKyc: true,
+    },
+    prizeHeadline: "$15,000 prize pool + a $100K evaluation",
+    prizes: [
+      { rankFrom: 1, rankTo: 1, kind: "cash", label: "$7,500 cash", valueUsd: 7500, detail: "Paid to your Promo Wallet" },
+      { rankFrom: 2, rankTo: 2, kind: "cash", label: "$3,000 cash", valueUsd: 3000, detail: "Paid to your Promo Wallet" },
+      { rankFrom: 3, rankTo: 3, kind: "funded-account", label: "$100K evaluation", valueUsd: 999, detail: "1-phase, 5% daily cap" },
+      { rankFrom: 4, rankTo: 10, kind: "cash", label: "$300 cash", valueUsd: 300, detail: "Each finisher in the band" },
+      { rankFrom: 11, rankTo: 25, kind: "promo-credit", label: "$50 promo credit", valueUsd: 50, detail: "Usable on any challenge fee" },
+    ],
+    rules: {
+      metric: "gain-percent",
+      minTrades: 12,
+      maxDailyDrawdownPct: 5,
+      consistencyRule: "No single day may exceed 35% of total profit.",
+    },
+    theme: "aurora",
+    faq: [
+      { q: "Who can enter?", a: "Funded and evaluation traders with an approved KYC profile. Registration closes when the league starts." },
+      { q: "How is rank decided?", a: "Highest net gain (%) over the full month, 12 closed trades minimum, 5% daily drawdown cap." },
+      { q: "When are prizes paid?", a: "Within 5 business days of the final settlement — cash to your Promo Wallet, the evaluation as an invite." },
+      { q: "Is there an entry fee?", a: "No — entry is free for every eligible account (Demo)." },
+    ],
   },
   {
     id: "cmp-sep",
     name: "September Consistency Cup",
-    prize: "$5,000 prize pool",
-    entry: "Completed",
-    startsAt: daysAgo(38),
-    endsAt: daysAgo(8),
+    tagline: "Steady compounding beat the sprinters.",
+    status: "ended",
+    startsAt: daysAgo(36),
+    endsAt: daysAgo(6),
+    participantCap: 1000,
     participants: 972,
-    status: "ended" as const,
-    placement: 14,
+    entryRequirement: {
+      label: "Closed — results settled",
+      accountTypes: ["Funded", "Evaluation"],
+      requiresKyc: true,
+    },
+    prizeHeadline: "$5,000 cash + a gadget bundle",
+    prizes: [
+      { rankFrom: 1, rankTo: 1, kind: "cash", label: "$2,500 cash", valueUsd: 2500, detail: "Paid to your Promo Wallet" },
+      { rankFrom: 2, rankTo: 2, kind: "physical", label: "iPhone 17", valueUsd: 849, detail: "Ships within 30 days of your claim" },
+      { rankFrom: 3, rankTo: 3, kind: "cash", label: "$500 cash", valueUsd: 500, detail: "Paid to your Promo Wallet" },
+      { rankFrom: 4, rankTo: 10, kind: "promo-credit", label: "$100 promo credit", valueUsd: 100, detail: "Each finisher in the band" },
+    ],
+    rules: {
+      metric: "gain-percent",
+      minTrades: 10,
+      maxDailyDrawdownPct: 5,
+      consistencyRule: "No single day may exceed 40% of total profit.",
+    },
+    theme: "abyss",
+    placement: 2,
+    faq: [
+      { q: "How did the demo user place?", a: "The demo trader finished #2 of 972 — inside the physical-prize tier (Demo standings)." },
+      { q: "How long is the claim window?", a: "14 days from settlement. After that the window closes honestly — no hidden buttons." },
+      { q: "When do results become final?", a: "Results settle 6 days after the final candle and are shown on the results page (Demo)." },
+    ],
+  },
+];
+
+/** Seeded demo leaderboards for ACTIVE competitions (top 10 + filler). */
+export interface CompetitionLeaderRow {
+  rank: number;
+  /** Masked demo handle. */
+  trader: string;
+  /** Flag emoji. */
+  country: string;
+  gainPct: number;
+  trades: number;
+}
+
+export const competitionLeaderboards: Record<string, CompetitionLeaderRow[]> = {
+  "cmp-oct": [
+    { rank: 1, trader: "m****k", country: "🇸🇬", gainPct: 17.9, trades: 64 },
+    { rank: 2, trader: "j****s", country: "🇪🇸", gainPct: 16.2, trades: 51 },
+    { rank: 3, trader: "a****h", country: "🇦🇪", gainPct: 14.8, trades: 73 },
+    { rank: 4, trader: "l****a", country: "🇧🇷", gainPct: 13.1, trades: 44 },
+    { rank: 5, trader: "s****n", country: "🇸🇪", gainPct: 12.4, trades: 39 },
+    { rank: 6, trader: "d****z", country: "🇲🇽", gainPct: 11.6, trades: 58 },
+    { rank: 7, trader: "k****t", country: "🇩🇪", gainPct: 10.9, trades: 35 },
+    { rank: 8, trader: "r****o", country: "🇮🇹", gainPct: 9.8, trades: 47 },
+    { rank: 9, trader: "p****v", country: "🇵🇱", gainPct: 9.1, trades: 62 },
+    { rank: 10, trader: "n****y", country: "🇺🇦", gainPct: 8.7, trades: 41 },
+  ],
+  "cmp-scaling": [
+    { rank: 1, trader: "c****d", country: "🇬🇧", gainPct: 15.4, trades: 88 },
+    { rank: 2, trader: "t****r", country: "🇺🇸", gainPct: 14.1, trades: 76 },
+    { rank: 3, trader: "b****m", country: "🇨🇦", gainPct: 12.8, trades: 69 },
+    { rank: 4, trader: "e****i", country: "🇫🇷", gainPct: 11.9, trades: 54 },
+    { rank: 5, trader: "g****p", country: "🇵🇹", gainPct: 10.7, trades: 63 },
+    { rank: 6, trader: "h****w", country: "🇦🇺", gainPct: 9.9, trades: 47 },
+    { rank: 7, trader: "f****q", country: "🇳🇱", gainPct: 9.2, trades: 55 },
+    { rank: 8, trader: "v****b", country: "🇮🇳", gainPct: 8.6, trades: 71 },
+    { rank: 9, trader: "y****c", country: "🇰🇷", gainPct: 8.1, trades: 43 },
+    { rank: 10, trader: "z****e", country: "🇯🇵", gainPct: 7.7, trades: 59 },
+  ],
+  "cmp-live": [
+    { rank: 1, trader: "o****l", country: "🇦🇪", gainPct: 12.6, trades: 37 },
+    { rank: 2, trader: "i****u", country: "🇧🇷", gainPct: 11.8, trades: 42 },
+    { rank: 3, trader: "w****a", country: "🇺🇸", gainPct: 10.9, trades: 33 },
+    { rank: 4, trader: "q****f", country: "🇬🇧", gainPct: 10.2, trades: 45 },
+    { rank: 5, trader: "x****j", country: "🇩🇪", gainPct: 9.6, trades: 31 },
+    { rank: 6, trader: "u****g", country: "🇪🇸", gainPct: 8.9, trades: 38 },
+    { rank: 7, trader: "n****d", country: "🇮🇹", gainPct: 8.3, trades: 29 },
+    { rank: 8, trader: "s****h", country: "🇵🇱", gainPct: 7.8, trades: 40 },
+    { rank: 9, trader: "a****v", country: "🇨🇦", gainPct: 7.2, trades: 34 },
+    { rank: 10, trader: "r****s", country: "🇸🇪", gainPct: 6.9, trades: 36 },
+  ],
+};
+
+/** Past-edition winners for the winners gallery. */
+export const competitionWinners: {
+  competitionId: string;
+  podium: { rank: number; trader: string; prize: string; me?: boolean }[];
+}[] = [
+  {
+    competitionId: "cmp-sep",
+    podium: [
+      { rank: 1, trader: "j****s", prize: "$2,500 cash" },
+      { rank: 2, trader: "t****n (you)", prize: "iPhone 17", me: true },
+      { rank: 3, trader: "a****a", prize: "$500 cash" },
+    ],
   },
 ];
 

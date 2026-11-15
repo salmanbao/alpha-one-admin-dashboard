@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
-export type InboxCategory = "Payouts" | "Challenges" | "Trading" | "Marketing" | "Support";
+export type InboxCategory =
+  | "Payouts"
+  | "Challenges"
+  | "Trading"
+  | "Marketing"
+  | "Support"
+  | "Competitions";
 
 export interface InboxMessage {
   id: string;
@@ -14,7 +20,16 @@ export interface InboxMessage {
   read: boolean;
   /** Only known action types render an action button; anything else shows
    *  the body without actions rather than a broken link. */
-  actionType?: "payout" | "challenge" | "promo" | "payout-method" | "provisioning";
+  actionType?:
+    | "payout"
+    | "challenge"
+    | "promo"
+    | "payout-method"
+    | "provisioning"
+    | "competition";
+  /** Per-message deep link (e.g. a specific competition) — falls back to
+   *  the action type's default href when absent. */
+  actionHref?: string;
 }
 
 /** Seed messages for the inbox (notification-center-page renders these). */
@@ -101,6 +116,30 @@ export const inboxSeedMessages: InboxMessage[] = [
     sender: "Community Team",
     at: new Date(Date.now() - 120 * 3_600_000).toISOString(),
     read: true,
+  },
+  {
+    id: "msg-9",
+    subject: "October Growth Sprint ends soon — you're in the money",
+    body:
+      "The October Growth Sprint closes in 3 days. You're currently inside the prize band with +4.8% (Demo standings).\n\nFinal results settle after the last candle — prizes are paid within 5 business days of settlement. Physical prizes must be claimed within 14 days.",
+    category: "Competitions",
+    sender: "Competitions Team",
+    at: new Date(Date.now() - 30 * 3_600_000).toISOString(),
+    read: false,
+    actionType: "competition",
+    actionHref: "/competitions/cmp-oct",
+  },
+  {
+    id: "msg-10",
+    subject: "September Consistency Cup — your prize is waiting",
+    body:
+      "You finished #2 of 972 in the September Consistency Cup and won an iPhone 17 (Demo standings).\n\nThe claim window is open for 14 days from settlement. Submit your shipping address to claim it before the window closes.",
+    category: "Competitions",
+    sender: "Competitions Team",
+    at: new Date(Date.now() - 4 * 3_600_000).toISOString(),
+    read: false,
+    actionType: "competition",
+    actionHref: "/competitions/cmp-sep",
   },
 ];
 

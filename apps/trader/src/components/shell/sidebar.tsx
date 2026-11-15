@@ -168,7 +168,7 @@ export const sections: NavSection[] = [
   ]},
   { id: "community", label: "Community", icon: Users, children: [
     { href: "/leaderboard", label: "Leaderboard", icon: Medal },
-    { href: "/competitions", label: "Competitions", icon: Trophy },
+    { href: "/competitions", label: "Competitions", icon: Trophy, activePrefixes: ["/competitions"] },
     { href: "/referrals", label: "Referrals", icon: Share2 },
     { href: "/referral-rewards", label: "Referral Rewards", icon: Gift },
   ]},
