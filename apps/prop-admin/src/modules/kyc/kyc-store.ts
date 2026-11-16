@@ -86,6 +86,46 @@ export function getKycDecision(recordId: string) {
   return decisions.get(recordId);
 }
 
+/** Re-initiate a KYC review (operator restarts the verification flow). */
+export function reinitiateKyc(recordId: string, who: string) {
+  decisions.set(recordId, { status: "info-requested", at: new Date().toISOString() });
+  recordAudit({
+    action: "Re-initiated KYC",
+    entity: "kyc",
+    entityId: recordId,
+    summary: `${who} — KYC review restarted`,
+    severity: "info",
+  });
+  emitLifecycle({
+    entity: { kind: "kyc", id: recordId },
+    name: "kyc.reviewing",
+    actor: "prop-admin",
+    key: `${recordId}:reinitiated`,
+    payload: { trader: who },
+  });
+  emit();
+}
+
+/** Operator requests KYC submission from the trader. */
+export function requestKyc(recordId: string, who: string) {
+  decisions.set(recordId, { status: "info-requested", at: new Date().toISOString() });
+  recordAudit({
+    action: "Requested KYC submission",
+    entity: "kyc",
+    entityId: recordId,
+    summary: `${who} — KYC requested`,
+    severity: "info",
+  });
+  emitLifecycle({
+    entity: { kind: "kyc", id: recordId },
+    name: "kyc.document-requested",
+    actor: "prop-admin",
+    key: `${recordId}:requested`,
+    payload: { trader: who },
+  });
+  emit();
+}
+
 /**
  * Effective status of a KYC record, honoring session decisions.
  * "info-requested" moves the record into the review state (the applicant

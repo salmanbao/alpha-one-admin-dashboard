@@ -6,11 +6,11 @@ import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { recordAudit } from "@/lib/audit";
 import { emitLifecycle } from "@pfaas/lifecycle";
 
-export type UserStatus = "active" | "suspended" | "invited";
+export type UserStatus = "active" | "suspended" | "invited" | "breached";
 
 const userStatusSchema = z.record(
   z.string(),
-  z.object({ status: z.enum(["active", "suspended", "invited"]), at: z.string() }),
+  z.object({ status: z.enum(["active", "suspended", "invited", "breached"]), at: z.string() }),
 );
 
 const SLOT = "user-management";
@@ -31,11 +31,11 @@ function emit() {
 export function applyUserStatus(userId: string, status: UserStatus, name?: string) {
   overrides.set(userId, { status, at: new Date().toISOString() });
   recordAudit({
-    action: status === "suspended" ? "Suspended user" : status === "active" ? "Reactivated user" : "Invited user",
+    action: status === "suspended" ? "Suspended user" : status === "active" ? "Reactivated user" : status === "invited" ? "Invited user" : `User status → ${status}`,
     entity: "trader",
     entityId: userId,
     summary: `${name ?? userId} — status ${status}`,
-    severity: status === "suspended" ? "warning" : "info",
+    severity: status === "suspended" || status === "breached" ? "warning" : "info",
   });
   emitLifecycle({
     entity: { kind: "trader", id: userId },

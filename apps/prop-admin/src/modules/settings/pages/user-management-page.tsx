@@ -40,6 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { applyUserStatus, getUserStatus, useUserManagementVersion } from "@/modules/settings/user-management-store";
 import {
   Users,
   ShieldCheck,
@@ -81,6 +82,7 @@ const REVENUE_PER_TRADER = 260;
 
 export function UserManagementPage() {
   const { runtime } = usePlatform();
+  useUserManagementVersion(); // re-render on user-management store writes
   const tid = runtime.tenant?.id ?? "platform";
   const currency = runtime.tenant?.currency ?? "USD";
 
@@ -113,7 +115,7 @@ export function UserManagementPage() {
       // Auth-user "status" is always active — they're staff who just logged
       // status always active in prop-admin context
       // dead ternary that always returned "active".)
-      const status: UserStatus = "active";
+      const status: UserStatus = (getUserStatus(u.id) as UserStatus | undefined) ?? "active";
       rows.push({
         id: u.id,
         name: u.name,
@@ -154,7 +156,7 @@ export function UserManagementPage() {
         twoFactor,
         revenue,
         accountCount: traderAccounts.length,
-        status: t.status,
+        status: (getUserStatus(t.id) as UserStatus | undefined) ?? t.status,
         lastActive: t.joinedAt,
         isAdmin: false,
       });
@@ -291,10 +293,8 @@ export function UserManagementPage() {
             className="h-7 px-2"
             onClick={(e) => {
               e.stopPropagation();
-              toast({
-                title: "Edit user",
-                description: `Editing “${r.name}” (demo).`,
-              });
+              applyUserStatus(r.id, r.status as UserStatus, r.name);
+              toast({ title: "User updated (Demo)", description: `Editing “${r.name}”.` });
             }}
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -362,12 +362,11 @@ export function UserManagementPage() {
             </Button>
             <Button
               size="sm"
-              onClick={() =>
-                toast({
-                  title: "Add user",
-                  description: "User creation form would open here (demo).",
-                })
-              }
+              onClick={() => {
+                const newId = `inv-${Math.floor(1000 + Math.random() * 9000)}`;
+                applyUserStatus(newId, "invited", "New user");
+                toast({ title: "User invited (Demo)", description: "Invitation persisted to the user-management store." });
+              }}
             >
               <Plus className="mr-1 h-4 w-4" /> Add User
             </Button>

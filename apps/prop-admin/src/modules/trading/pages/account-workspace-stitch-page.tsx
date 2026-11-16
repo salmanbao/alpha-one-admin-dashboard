@@ -50,6 +50,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { extendAccount, reenableAccount, blockAccount, manualFailAccount } from "@/modules/trading/account-state-store";
 
 function MsIconSafe({ name = "more_vert" }: { name?: string }) {
   return <span aria-hidden className="ms-icon text-[18px] leading-none">{name}</span>;
@@ -129,8 +130,8 @@ export function AccountWorkspaceStitchPage() {
             <StitchButton variant="surface" icon="sticky_note_2" onClick={() => setNoteOpen(true)}>Add Note</StitchButton>
             <StitchButton variant="surface" icon="sync" onClick={() => setSyncOpen(true)}>Sync Account</StitchButton>
             {/* PRD §4.18 /accounts/:id/extend + /enable */}
-            <StitchButton variant="surface" icon="schedule" onClick={() => toast({ title: "Time limit extended", description: `${account.login} deadline pushed +7 days (POST /accounts/:id/extend).` })}>Extend Time</StitchButton>
-            <StitchButton variant="surface" icon="toggle_on" onClick={() => toast({ title: "Account re-enabled", description: `${account.login} trading access restored (POST /accounts/:id/enable).` })}>Re-enable</StitchButton>
+            <StitchButton variant="surface" icon="schedule" onClick={() => { extendAccount(account.id, account.login); toast({ title: "Time limit extended (Demo)", description: `${account.login} deadline pushed +7 days (POST /accounts/:id/extend).` }); }}>Extend Time</StitchButton>
+            <StitchButton variant="surface" icon="toggle_on" onClick={() => { reenableAccount(account.id, account.login); toast({ title: "Account re-enabled (Demo)", description: `${account.login} trading access restored (POST /accounts/:id/enable).` }); }}>Re-enable</StitchButton>
             <StitchButton variant="destructive" icon="block" onClick={() => setBlockOpen(true)}>Block</StitchButton>
           </>
         }
@@ -183,7 +184,7 @@ export function AccountWorkspaceStitchPage() {
         title={`Block ${account.login}?`}
         body="The account will be immediately blocked and the trader will lose all trading access. This action is logged in the audit trail."
         confirmLabel="Block account"
-        onConfirm={() => toast({ title: "Account blocked", description: account.login })}
+        onConfirm={() => { blockAccount(account.id, account.login); toast({ title: "Account blocked (Demo)", description: account.login }); }}
       />
       <ResetAccountConfirm open={resetOpen} onOpenChange={setResetOpen} login={account.login} />
       <StitchConfirm
@@ -192,7 +193,7 @@ export function AccountWorkspaceStitchPage() {
         body="A manual override records a failed evaluation outcome for this account immediately. The trader is notified and the decision is written to the audit trail with your reason."
         confirmLabel="Record manual fail"
         requireReason
-        onConfirm={(reason) => toast({ title: "Manual fail recorded", description: `${account.login} marked as failed by operator override — ${reason}`, variant: "destructive" })}
+        onConfirm={(reason) => { manualFailAccount(account.id, account.login, reason); toast({ title: "Manual fail recorded (Demo)", description: `${account.login} marked as failed by operator override — ${reason}`, variant: "destructive" }); }}
       />
     </div>
   );

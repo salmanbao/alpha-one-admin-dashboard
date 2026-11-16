@@ -18,6 +18,14 @@ import { StatusBadge } from "@/components/platform/status";
 import { getTenantKyc, getTenantTraders, hashStr } from "@/lib/platform/mock-data";
 import { FileText, Clock, AlertTriangle, CheckCircle2, Plus, Send } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import {
+  mergeDocRequests,
+  createDocRequest,
+  remindDocRequest,
+  approveDocRequest,
+  rejectDocRequest,
+  useDocRequestVersion,
+} from "@/modules/kyc/kyc-doc-requests-store";
 
 interface DocRequest {
   id: string;
@@ -62,8 +70,12 @@ const statusTone = (s: DocRequest["status"]) =>
 export function KycDocumentRequestsPage() {
   const { runtime, navigate } = usePlatform();
   const tid = runtime.tenant?.id ?? "platform";
-  const requests = buildRequests(tid);
+  useDocRequestVersion(); // re-render on doc-request store writes
+  const requests = mergeDocRequests(buildRequests(tid));
   const [showForm, setShowForm] = useState(false);
+  const [formTrader, setFormTrader] = useState("");
+  const [formDocType, setFormDocType] = useState(docTypes[0]);
+  const [formReason, setFormReason] = useState("Compliance review");
 
   const pending = requests.filter((r) => r.status === "pending").length;
   const overdue = requests.filter((r) => r.deadline === "Overdue").length;
@@ -81,11 +93,11 @@ export function KycDocumentRequestsPage() {
       key: "actions", header: "Actions",
       cell: (r) => (
         <div className="flex gap-1">
-          {r.status === "pending" && <Button size="sm" variant="ghost" className="text-xs" onClick={() => toast({ title: "Reminder sent", description: `Reminder sent to ${r.traderName}.` })}><Send className="h-3 w-3" /></Button>}
+          {r.status === "pending" && <Button size="sm" variant="ghost" className="text-xs" onClick={() => { remindDocRequest(r); toast({ title: "Reminder sent (Demo)", description: `Reminder sent to ${r.traderName}.` }); }}><Send className="h-3 w-3" /></Button>}
           {r.status === "submitted" && (
             <>
-              <Button size="sm" variant="ghost" className="text-xs text-emerald-700" onClick={() => toast({ title: "Approved", description: `${r.documentType} approved for ${r.traderName}.` })}>Approve</Button>
-              <Button size="sm" variant="ghost" className="text-xs text-rose-700" onClick={() => toast({ title: "Rejected", description: `${r.documentType} rejected for ${r.traderName}.`, variant: "destructive" })}>Reject</Button>
+              <Button size="sm" variant="ghost" className="text-xs text-emerald-700" onClick={() => { approveDocRequest(r); toast({ title: "Approved (Demo)", description: `${r.documentType} approved for ${r.traderName}.` }); }}>Approve</Button>
+              <Button size="sm" variant="ghost" className="text-xs text-rose-700" onClick={() => { rejectDocRequest(r); toast({ title: "Rejected (Demo)", description: `${r.documentType} rejected for ${r.traderName}.`, variant: "destructive" }); }}>Reject</Button>
             </>
           )}
         </div>
@@ -98,6 +110,37 @@ export function KycDocumentRequestsPage() {
       <PageHeader title="Document Requests" description="Request additional verification documents from traders." icon={FileText}
         actions={<Button size="sm" onClick={() => setShowForm(!showForm)}><Plus className="mr-1 h-4 w-4" /> Request document</Button>} />
       <PageContent>
+        {showForm && (
+          <div className="mb-4 rounded-lg border bg-muted/20 p-3">
+            <p className="mb-2 text-sm font-medium">Request a document from a trader (Demo)</p>
+            <div className="flex flex-wrap items-end gap-2">
+              <select className="h-8 rounded-md border bg-background px-2 text-xs" value={formTrader} onChange={(e) => setFormTrader(e.target.value)}>
+                <option value="">Select trader…</option>
+                {getTenantTraders(tid).map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <select className="h-8 rounded-md border bg-background px-2 text-xs" value={formDocType} onChange={(e) => setFormDocType(e.target.value)}>
+                {docTypes.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <select className="h-8 rounded-md border bg-background px-2 text-xs" value={formReason} onChange={(e) => setFormReason(e.target.value)}>
+                {["Address mismatch", "ID expired", "Compliance review", "High-value payout verification"].map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <Button size="sm" disabled={!formTrader} onClick={() => {
+                const trader = getTenantTraders(tid).find((t) => t.id === formTrader);
+                if (!trader) return;
+                createDocRequest({ traderId: trader.id, traderName: trader.name, documentType: formDocType, reason: formReason, deadline: "in 3d" });
+                toast({ title: "Document requested (Demo)", description: `${formDocType} requested from ${trader.name}.` });
+                setShowForm(false);
+                setFormTrader("");
+              }}>Send request</Button>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Total Requests" value={requests.length} icon={FileText} />
           <MetricCard label="Pending" value={pending} icon={Clock} tone={pending > 0 ? "warning" : "positive"} />

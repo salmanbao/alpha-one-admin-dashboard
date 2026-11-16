@@ -48,6 +48,9 @@ const DEMO_STORES = [
   "provisioning-ops",
   "competitions-ops",
   "user-management",
+  "kyc-doc-requests",
+  "account-state",
+  "trader-profile",
 ] as const;
 
 /**

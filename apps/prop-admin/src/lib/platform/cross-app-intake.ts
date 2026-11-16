@@ -61,6 +61,7 @@ const QUEUE_BY_EVENT: Record<string, IntakeQueueKind | undefined> = {
   "payout.requested": "payout",
   "purchase.completed": "purchase",
   "provisioning.started": "provisioning",
+  "provisioning.dispatched": "provisioning",
   "provisioning.activated": "provisioning",
   "provisioning.credentials": "provisioning",
   "payout.escalated": "escalation",
@@ -81,6 +82,7 @@ export const INTAKE_EVENTS = [
   "purchase.completed",
   "purchase.refunded",
   "provisioning.started",
+  "provisioning.dispatched",
   "provisioning.activated",
   "provisioning.credentials",
   "provisioning.retry",
@@ -286,6 +288,7 @@ export function useCrossAppPurchases(tenantId: string): PurchaseRecord[] {
 export function crossAppProvisioning(tenantId: string): ProvisioningRecord[] {
   // De-dupe by entity id — provisioning emits started+activated for same entity
   const raw = intakeEvents(tenantId, "provisioning", "provisioning.started")
+    .concat(intakeEvents(tenantId, "provisioning", "provisioning.dispatched"))
     .concat(intakeEvents(tenantId, "provisioning", "provisioning.activated"))
     .concat(intakeEvents(tenantId, "provisioning", "provisioning.credentials"))
     .concat(intakeEvents(tenantId, "provisioning", "provisioning.retry"))
@@ -440,7 +443,7 @@ function toProvisioningRecord(e: LifecycleEvent, tenantId: string): Provisioning
     traderId: `trader-${e.entity.id}`,
     traderName: applicantOf(e),
     accountName: applicantOf(e),
-    status: e.name === "provisioning.started"
+    status: e.name === "provisioning.started" || e.name === "provisioning.dispatched"
       ? "in-progress"
       : e.name === "provisioning.credentials"
         ? "credentials-delivered"

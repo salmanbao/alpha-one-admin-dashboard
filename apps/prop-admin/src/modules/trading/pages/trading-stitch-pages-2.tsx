@@ -21,6 +21,8 @@
 
 import * as React from "react";
 import { formatCurrencyValue, formatCompactCurrencyValue } from "@pfaas/platform-core";
+import { emitLifecycle } from "@pfaas/lifecycle";
+import { recordAudit } from "@/lib/audit";
 import { usePlatform } from "@/lib/platform/platform-context";
 import {
   getTenantAccounts,
@@ -253,7 +255,18 @@ export function AddAccountStitchPage() {
             Next
           </StitchButton>
         ) : (
-          <StitchButton variant="primary" icon="rocket_launch" onClick={() => { toast({ title: "Account created", description: "Provisioning dispatched to bridge." }); navigate("trading-accounts"); }}>Create Account</StitchButton>
+          <StitchButton variant="primary" icon="rocket_launch" onClick={() => {
+            const now = Date.now();
+            emitLifecycle({
+              entity: { kind: "provisioning", id: `wizard-${now}` },
+              name: "provisioning.dispatched",
+              actor: "prop-admin",
+              key: `wizard-${now}`,
+              payload: { accountName: "New account", source: "add-account-wizard" },
+            });
+            recordAudit({ action: "Dispatched account provisioning", entity: "provisioning", entityId: `wizard-${now}`, summary: "Add-account wizard — provisioning dispatched", severity: "info" });
+            toast({ title: "Account created (Demo)", description: "Provisioning dispatched to bridge." }); navigate("trading-accounts");
+          }}>Create Account</StitchButton>
         )}
       </div>
 

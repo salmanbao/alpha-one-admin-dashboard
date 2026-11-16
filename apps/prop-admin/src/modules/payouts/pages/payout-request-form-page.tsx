@@ -18,6 +18,8 @@ import { formatCurrency } from "@/components/platform/status";
 import { Wallet, CheckCircle2, ArrowRight, Info, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { emitLifecycle } from "@pfaas/lifecycle";
+import { recordAudit } from "@/lib/audit";
 
 export function PayoutRequestFormPage() {
   const { runtime, user, navigate, router } = usePlatform();
@@ -128,7 +130,36 @@ export function PayoutRequestFormPage() {
               <p className="text-xs text-muted-foreground">Via {method} · after review and approval</p>
             </div>
             <Button onClick={() => {
-              toast({ title: "Payout requested", description: `Request for ${formatCurrency(quote.netPayout, currency)} via ${method} submitted. You'll be notified when it's approved.` });
+              const now = Date.now();
+              const reference = `PO-M${now.toString(36).toUpperCase().slice(-6)}`;
+              // R7 I9 — operator-initiated manual payout: write into the
+              // same intake queue as a trader-originated request, so it flows
+              // through the approval queue + AML chokepoint.
+              emitLifecycle({
+                entity: { kind: "payout", id: `manual-${now}` },
+                name: "payout.requested",
+                actor: "prop-admin",
+                key: `manual-${now}`,
+                payload: {
+                  reference,
+                  amount: quote.netPayout,
+                  feeAmount: quote.processingFee,
+                  accountId: account?.id ?? "",
+                  accountLogin: account?.login ?? "",
+                  method,
+                  currency,
+                  profitSplit: quote.traderSplitPct,
+                  source: "manual-operator",
+                },
+              });
+              recordAudit({
+                action: "Created manual payout request",
+                entity: "payout",
+                entityId: reference,
+                summary: `${trader?.name ?? "preview"} — ${formatCurrency(quote.netPayout, currency)} via ${method}`,
+                severity: "info",
+              });
+              toast({ title: "Payout requested (Demo)", description: `Request for ${formatCurrency(quote.netPayout, currency)} via ${method} submitted. You'll be notified when it's approved.` });
               navigate("payouts-history");
             }}>
               <Wallet className="mr-1 h-4 w-4" /> Request payout <ArrowRight className="ml-1 h-3 w-3" />

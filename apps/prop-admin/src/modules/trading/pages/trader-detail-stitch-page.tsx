@@ -36,6 +36,8 @@ import {
 import { buildOrders } from "@/modules/trading/pages/orders-page";
 import { TraderCoachingTab } from "@/modules/trading/pages/trader-coaching-tab";
 import { effectivePayoutStatus, usePayoutVersion } from "@/modules/payouts/payout-store";
+import { reinitiateKyc, requestKyc, applyKycDecision } from "@/modules/kyc/kyc-store";
+import { saveTraderProfile, savePayoutSchedule } from "@/modules/trading/trader-profile-store";
 import {
   applyTraderStatus,
   effectiveTraderStatus,
@@ -382,8 +384,8 @@ export function TraderDetailStitchPage() {
             description={kyc ? "Identity verification state for this trader" : "No verification submitted yet"}
             right={
               <div className="flex gap-2">
-                <StitchButton variant="surface" onClick={() => toast({ title: "KYC re-initiated" })}>Re-initiate</StitchButton>
-                <StitchButton variant="surface" onClick={() => toast({ title: "KYC marked verified", description: "Payout eligibility unlocked." })}>Mark Verified</StitchButton>
+                <StitchButton variant="surface" onClick={() => { if (kyc) reinitiateKyc(kyc.id, trader.name); toast({ title: "KYC re-initiated (Demo)" }); }}>Re-initiate</StitchButton>
+                <StitchButton variant="surface" onClick={() => { if (kyc) applyKycDecision(kyc.id, "approved"); toast({ title: "KYC marked verified (Demo)", description: "Payout eligibility unlocked." }); }}>Mark Verified</StitchButton>
                 <StitchButton variant="destructive" onClick={() => setKycRejectOpen(true)}>Reject</StitchButton>
               </div>
             }
@@ -401,7 +403,7 @@ export function TraderDetailStitchPage() {
             <div className="rounded-xl border border-dashed border-outline-variant p-6 text-center">
               <p className="text-sm font-semibold text-ink">No KYC record yet</p>
               <p className="mt-1 text-xs text-ink-variant">When the trader submits identity documents, verification state will appear here.</p>
-              <div className="mt-3"><StitchButton variant="primary" onClick={() => toast({ title: "KYC request sent to trader" })}>Request KYC</StitchButton></div>
+              <div className="mt-3"><StitchButton variant="primary" onClick={() => { requestKyc(`kyc-${trader.id}`, trader.name); toast({ title: "KYC request sent to trader (Demo)" }); }}>Request KYC</StitchButton></div>
             </div>
           )}
         </StitchCard>
@@ -549,7 +551,7 @@ export function TraderDetailStitchPage() {
         }}
       />
       <EditTraderSheet open={editOpen} onOpenChange={setEditOpen} trader={trader} />
-      <PayoutScheduleSheet open={payoutScheduleOpen} onOpenChange={setPayoutScheduleOpen} />
+      <PayoutScheduleSheet open={payoutScheduleOpen} onOpenChange={setPayoutScheduleOpen} trader={trader} />
       <ResyncSheet open={resyncOpen} onOpenChange={setResyncOpen} />
       <StitchConfirm
         open={suspendOpen}
@@ -560,7 +562,7 @@ export function TraderDetailStitchPage() {
         confirmLabel="Suspend Trader"
         onConfirm={() => {
           applyTraderStatus(trader.id, "suspended");
-          toast({ title: "Trader suspended", description: `${trader.name} can no longer trade.` });
+          toast({ title: "Trader suspended (Demo)", description: `${trader.name} can no longer trade.` });
         }}
       />
       {/* PRD §4.8.2 Reactivate — restore a suspended/breached trader. */}
@@ -574,7 +576,7 @@ export function TraderDetailStitchPage() {
         destructive={false}
         onConfirm={() => {
           applyTraderStatus(trader.id, "active");
-          toast({ title: "Trader reactivated", description: `${trader.name} can trade again.` });
+          toast({ title: "Trader reactivated (Demo)", description: `${trader.name} can trade again.` });
         }}
       />
       <StitchConfirm
@@ -583,7 +585,7 @@ export function TraderDetailStitchPage() {
         icon="gpp_bad"
         title="Reject KYC?"
         confirmLabel="Reject"
-        onConfirm={() => toast({ title: "KYC rejected", description: "Trader notified with re-submission instructions." })}
+        onConfirm={() => { if (kyc) applyKycDecision(kyc.id, "rejected"); toast({ title: "KYC rejected (Demo)", description: "Trader notified with re-submission instructions." }); }}
         body="The trader will be emailed with re-submission instructions. The rejection is logged."
       >
         <Field label="Rejection Reason">
@@ -680,37 +682,42 @@ function AddNoteSheet({ open, onOpenChange, targetName, onAdd }: {
 }
 
 function EditTraderSheet({ open, onOpenChange, trader }: { open: boolean; onOpenChange: (o: boolean) => void; trader: Trader }) {
+  const [name, setName] = React.useState(trader.name);
+  const [email, setEmail] = React.useState(trader.email);
+  const [country, setCountry] = React.useState(trader.country);
+  const [tags, setTags] = React.useState("");
   return (
     <StitchSheet
       open={open} onOpenChange={onOpenChange} icon="edit" title={`Edit ${trader.name}`}
       footer={<>
         <StitchButton variant="surface" onClick={() => onOpenChange(false)}>Cancel</StitchButton>
-        <StitchButton variant="primary" onClick={() => { onOpenChange(false); toast({ title: "Trader updated" }); }}>Save</StitchButton>
+        <StitchButton variant="primary" onClick={() => { saveTraderProfile(trader.id, { name, email, country, tags }, trader.name); onOpenChange(false); toast({ title: "Trader updated (Demo)" }); }}>Save</StitchButton>
       </>}
     >
       <div className="space-y-3">
-        <Field label="Full Name"><Input className="stitch-input" defaultValue={trader.name} /></Field>
-        <Field label="Email"><Input className="stitch-input" defaultValue={trader.email} /></Field>
-        <Field label="Country"><Input className="stitch-input" defaultValue={trader.country} /></Field>
+        <Field label="Full Name"><Input className="stitch-input" value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Email"><Input className="stitch-input" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+        <Field label="Country"><Input className="stitch-input" value={country} onChange={(e) => setCountry(e.target.value)} /></Field>
         <Field label="Phone (optional)"><Input className="stitch-input" placeholder="+1 …" /></Field>
-        <Field label="Tags"><Input className="stitch-input" placeholder="vip, high-volume, affiliate…" /></Field>
+        <Field label="Tags"><Input className="stitch-input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="vip, high-volume, affiliate…" /></Field>
       </div>
     </StitchSheet>
   );
 }
 
-function PayoutScheduleSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+function PayoutScheduleSheet({ open, onOpenChange, trader }: { open: boolean; onOpenChange: (o: boolean) => void; trader: Trader }) {
+  const [schedule, setSchedule] = React.useState("Weekly");
   return (
     <StitchSheet
       open={open} onOpenChange={onOpenChange} icon="payments" title="Edit Payout Schedule"
       footer={<>
         <StitchButton variant="surface" onClick={() => onOpenChange(false)}>Cancel</StitchButton>
-        <StitchButton variant="primary" onClick={() => { onOpenChange(false); toast({ title: "Payout schedule saved" }); }}>Save</StitchButton>
+        <StitchButton variant="primary" onClick={() => { savePayoutSchedule(trader.id, schedule, trader.name); onOpenChange(false); toast({ title: "Payout schedule saved (Demo)" }); }}>Save</StitchButton>
       </>}
     >
       <div className="space-y-3">
         <Field label="Frequency">
-          <select className="h-9 w-full rounded-lg bg-sfc-lowest px-3 text-xs text-ink shadow-sm outline-none focus:ring-1 focus:ring-tp">
+          <select className="h-9 w-full rounded-lg bg-sfc-lowest px-3 text-xs text-ink shadow-sm outline-none focus:ring-1 focus:ring-tp" value={schedule} onChange={(e) => setSchedule(e.target.value)}>
             <option>Weekly</option><option>Bi-Weekly</option><option>Monthly</option><option>Quarterly</option>
           </select>
         </Field>
