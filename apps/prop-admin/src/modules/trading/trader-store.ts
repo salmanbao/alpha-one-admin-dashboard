@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { traders as seedTraders, type Trader } from "@/lib/platform/mock-data";
 import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { demoTradersSchema } from "@/lib/platform/validation";
+import { recordAudit } from "@/lib/audit";
+import { emitLifecycle } from "@pfaas/lifecycle";
 
 /**
  * Session-scoped trader status store (PRD §4.8.1 / §4.17).
@@ -33,6 +35,22 @@ function emit() {
 /** Record a status change for a trader (session-scoped, mock only). */
 export function applyTraderStatus(traderId: string, status: Trader["status"]) {
   overrides.set(traderId, status);
+  const trader = seedTraders.find((t) => t.id === traderId);
+  const who = trader ? trader.name : traderId;
+  recordAudit({
+    action: status === "suspended" ? "Suspended trader" : status === "active" ? "Reactivated trader" : `Trader status → ${status}`,
+    entity: "trader",
+    entityId: traderId,
+    summary: `${who} — status changed to ${status}`,
+    severity: status === "suspended" ? "warning" : "info",
+  });
+  emitLifecycle({
+    entity: { kind: "trader", id: traderId },
+    name: status === "suspended" ? "trader.suspended" : "trader.reactivated",
+    actor: "prop-admin",
+    key: `${traderId}:${status}`,
+    payload: { trader: who, status },
+  });
   emit();
 }
 

@@ -57,7 +57,8 @@ export type LifecycleEntityKind =
   | "competition"
   | "account"
   | "trade"
-  | "compliance";
+  | "compliance"
+  | "trader";
 
 export interface EntityRef {
   kind: LifecycleEntityKind;
@@ -112,6 +113,9 @@ export const LIFECYCLE_EVENT_NAMES = [
   // Account
   "account.created",
   "account.password-reset",
+  // Trader status (R7 I9) — consumer: trader inbox-lifecycle-bridge
+  "trader.suspended",
+  "trader.reactivated",
   // Purchases (R4-09) — consumer: trader purchase-history refund overlay
   // + inbox bridge ("Refund issued")
   "purchase.refunded",
@@ -373,6 +377,8 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "competition.finished": "Results declared",
   "account.created": "Account created",
   "account.password-reset": "Password reset",
+  "trader.suspended": "Trader suspended",
+  "trader.reactivated": "Trader reactivated",
   "purchase.refunded": "Refunded",
   "comms.message-sent": "Message sent",
   "trade.opened": "Position opened",
@@ -404,6 +410,8 @@ const FOLLOW_UP: Partial<
   "provisioning.credentials": { label: "Active", afterHours: 0.5 },
   "account.created": { label: "Verification started", afterHours: 48 },
   "account.password-reset": { label: "Updated", afterHours: 0 },
+  "trader.suspended": { label: "Suspended", afterHours: 0 },
+  "trader.reactivated": { label: "Reactivated", afterHours: 0 },
 };
 
 export interface ProjectedStatus {

@@ -47,6 +47,7 @@ const DEMO_STORES = [
   "purchase-ops",
   "provisioning-ops",
   "competitions-ops",
+  "user-management",
 ] as const;
 
 /**
