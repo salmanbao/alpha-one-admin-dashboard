@@ -32,9 +32,9 @@ import {
 } from "@/components/terra/terra-ui";
 import {
   competitionGainPctFor,
-  competitions,
   prizeTierFor,
 } from "@/lib/fixtures/terra-fixtures";
+import { useCatalogCompetitions } from "@/lib/competitions-catalog";
 import {
   claimFor,
   isJoined,
@@ -60,6 +60,9 @@ const themeSurface = {
 } as const;
 
 export function CompetitionDetailPage({ id }: { id: string }) {
+  // R7 I3 — catalog = fixtures + operator-published competitions; hook
+  // runs before the not-found early return below.
+  const competitions = useCatalogCompetitions();
   const competition = competitions.find((c) => c.id === id);
   const { entries } = useCompetitions();
   const [confirmOpen, setConfirmOpen] = useState(false);

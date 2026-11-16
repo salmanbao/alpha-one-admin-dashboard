@@ -12,9 +12,9 @@ import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { TerraBadge, TerraCard } from "@/components/terra/terra-ui";
 import {
-  competitions,
-  competitionWinners,
-} from "@/lib/fixtures/terra-fixtures";
+  useCatalogCompetitions,
+  useCatalogWinners,
+} from "@/lib/competitions-catalog";
 
 const rankStyle = [
   "border-warning/60 text-warning",
@@ -23,6 +23,10 @@ const rankStyle = [
 ];
 
 export function WinnersGallery() {
+  // R7 I3 — fixture podiums + operator "Results declared" announcements
+  // from prop-admin, over the same catalog that feeds the hub.
+  const competitions = useCatalogCompetitions();
+  const competitionWinners = useCatalogWinners();
   if (competitionWinners.length === 0) return null;
 
   return (

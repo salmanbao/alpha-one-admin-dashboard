@@ -15,6 +15,8 @@
  *   provisioning.*     → an account-provisioning record (started / active)
  *   payout.escalated   → a payout escalation record (second signature)
  *   payout-method.*    → a payout-method change record (added/updated/…")
+ *   competition.joined → a competition join record (participant list on
+ *                        the operator's competition detail, R7 I3)
  *
  * The intake is **derived from the persisted log**, not stored twice, so it
  * survives reload exactly as the log does and can never disagree with it.
@@ -45,11 +47,16 @@ export const CROSS_APP_SOURCE = "cross-app-intake";
  * Queue kinds a consumer opts into. Dispatch the full intake through
  * `crossAppIntakeRecords` so callers can union only what they care about
  * instead of subscribing to every event separately.
+ *
+ * Typed with `| undefined` on purpose: not every lifecycle event maps to
+ * a queue (competition.joined/prize-claimed, trade.*, comms.* …), and
+ * pretending otherwise once made the dispatcher coerce them into payout
+ * rows. Unmapped events are skipped explicitly.
  */
 export type IntakeQueueKind = "kyc" | "payout" | "purchase" | "provisioning" | "escalation" | "method";
 
-/** Which queue a given intake event maps to. */
-const QUEUE_BY_EVENT: Record<string, IntakeQueueKind> = {
+/** Which queue a given intake event maps to (`undefined` = not queued). */
+const QUEUE_BY_EVENT: Record<string, IntakeQueueKind | undefined> = {
   "kyc.submitted": "kyc",
   "payout.requested": "payout",
   "purchase.completed": "purchase",
@@ -88,7 +95,7 @@ export const INTAKE_EVENTS = [
 ] as const;
 type IntakeEventName = (typeof INTAKE_EVENTS)[number];
 
-function queueKindFor(name: string): IntakeQueueKind {
+function queueKindFor(name: string): IntakeQueueKind | undefined {
   return QUEUE_BY_EVENT[name];
 }
 
@@ -173,6 +180,21 @@ export interface MethodChangeRecord {
   source: typeof CROSS_APP_SOURCE;
 }
 
+/**
+ * Trader-app competition joins (R7 I3) — the participant list on the
+ * operator's competition detail ("Joined via trader app"). Derived from
+ * the shared log exactly like the other queues.
+ */
+export interface CompetitionJoinRecord {
+  id: string; // intake:<event id>
+  tenantId: string;
+  competitionId: string;
+  competitionName: string;
+  traderName: string;
+  joinedAt: string;
+  source: typeof CROSS_APP_SOURCE;
+}
+
 /* ------------------------------------------------------------------ */
 /* Dispatch: the full intake in one place                              */
 /* ------------------------------------------------------------------ */
@@ -180,11 +202,16 @@ export interface MethodChangeRecord {
 /**
  * Pending items landed in the prop-admin hub from the trader app across
  * every queue kind (R3-06). Union of the kind-specific readers below.
+ * Events without a queue mapping (competition, trade, comms lifecycle
+ * noise) are skipped — they have their own dedicated readers.
  */
 export function crossAppIntakeRecords(tenantId: string): IntakeRecord[] {
   return readLifecycleLog()
     .filter((e) => e.actor === "trader" && inTenant(e, tenantId))
-    .map((e) => ({ kind: queueKindFor(e.name), record: toRecord(e, tenantId) }));
+    .flatMap((e) => {
+      const kind = queueKindFor(e.name);
+      return kind ? [{ kind, record: toRecord(e, kind, tenantId) }] : [];
+    });
 }
 
 type IntakeRecord = {
@@ -192,8 +219,8 @@ type IntakeRecord = {
   record: PurchaseRecord | ProvisioningRecord | EscalationRecord | MethodChangeRecord | KycRecord | Payout;
 };
 
-function toRecord(e: LifecycleEvent, tenantId: string): IntakeRecord["record"] {
-  switch (queueKindFor(e.name)) {
+function toRecord(e: LifecycleEvent, kind: IntakeQueueKind, tenantId: string): IntakeRecord["record"] {
+  switch (kind) {
     case "kyc":
       return toKycRecord(e, tenantId);
     case "purchase":
@@ -205,8 +232,6 @@ function toRecord(e: LifecycleEvent, tenantId: string): IntakeRecord["record"] {
     case "method":
       return toMethodChangeRecord(e, tenantId);
     case "payout":
-      return toPayout(e, tenantId);
-    default:
       return toPayout(e, tenantId);
   }
 }
@@ -302,14 +327,50 @@ export function useCrossAppMethodChanges(tenantId: string): MethodChangeRecord[]
   return useMemo(() => crossAppMethodChanges(tenantId), [log, tenantId]);
 }
 
+/** Trader-app joins per competition (R7 I3) — participant list reader.
+ *
+ * `events` is optional so the reactive hook can pass the `useLifecycleLog`
+ * snapshot: during hydration that snapshot is the server's `[]`, and
+ * reading localStorage directly would render differently from the server
+ * HTML (hydration mismatch). Default = current persisted log.
+ *
+ * A join whose trader later emitted `competition.left` for the same
+ * competition is dropped — the list is the current roster, not history. */
+export function crossAppCompetitionJoins(
+  tenantId: string,
+  events: LifecycleEvent[] = readLifecycleLog(),
+): CompetitionJoinRecord[] {
+  const leaves = events.filter(
+    (e) => e.actor === "trader" && e.name === "competition.left" && inTenant(e, tenantId),
+  );
+  return intakeEvents(tenantId, "competition", "competition.joined", events)
+    .map((e) => toCompetitionJoin(e, tenantId))
+    .filter(
+      (j) =>
+        !leaves.some((l) => {
+          if (String(l.payload?.competitionId ?? l.entity.id) !== j.competitionId) return false;
+          if (Date.parse(l.at) < Date.parse(j.joinedAt)) return false;
+          const name = l.payload?.traderName;
+          // Unnamed leaves (legacy events) can't be attributed — treat
+          // them as matching any trader for that competition.
+          return typeof name !== "string" || name === j.traderName;
+        }),
+    );
+}
+export function useCrossAppCompetitionJoins(tenantId: string): CompetitionJoinRecord[] {
+  const log = useLifecycleLog();
+  return useMemo(() => crossAppCompetitionJoins(tenantId, log), [log, tenantId]);
+}
+
 /* --- helpers shared by all mappers --- */
 
 function intakeEvents(
   tenantId: string,
   kind: LifecycleEntityKind,
   name: string,
+  events: LifecycleEvent[] = readLifecycleLog(),
 ): LifecycleEvent[] {
-  return readLifecycleLog().filter(
+  return events.filter(
     (e) =>
       (e.actor === "trader" ||
         (kind === "payout" && (name === "payout.escalated" || name === "payout.cancelled")) ||
@@ -443,6 +504,21 @@ function toMethodChangeRecord(e: LifecycleEvent, tenantId: string): MethodChange
     traderMethodId: e.entity.id,
     action: actionMap[e.name],
     createdAt: e.at,
+    source: CROSS_APP_SOURCE,
+  };
+}
+
+/* --- competition join mapper (R7 I3) --- */
+
+function toCompetitionJoin(e: LifecycleEvent, tenantId: string): CompetitionJoinRecord {
+  const rawName = e.payload?.traderName;
+  return {
+    id: intakeEntityId(e),
+    tenantId,
+    competitionId: String(e.payload?.competitionId ?? e.entity.id),
+    competitionName: typeof e.payload?.name === "string" && e.payload.name ? e.payload.name : "Competition",
+    traderName: typeof rawName === "string" && rawName.trim() ? rawName.trim() : "Demo trader",
+    joinedAt: e.at,
     source: CROSS_APP_SOURCE,
   };
 }

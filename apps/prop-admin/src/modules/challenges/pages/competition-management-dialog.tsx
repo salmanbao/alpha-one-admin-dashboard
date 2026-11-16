@@ -7,15 +7,18 @@
  * schedule, or enroll. These dialogs back the management surface on
  * `competitions-page.tsx`:
  *
- * - CompetitionEditorDialog — create / edit a competition: name, window
- *   (ISO dates), prize pool, three-place payout split, and a one-rule-
- *   per-line rules editor. Templates (Profit Sprint / Consistency Cup /
- *   Low-Risk League) prefill dates, pool, split, and rules.
+ * - CompetitionEditorDialog — create / edit a competition: name,
+ *   tagline, window (ISO dates), prize pool, participant cap, podium
+ *   split, prize tiers (incl. physical), and a one-rule-per-line rules
+ *   editor. Templates (Profit Sprint / Consistency Cup / Low-Risk
+ *   League) prefill dates, pool, split, and rules.
  * - CompetitionEnrollmentDialog — approve / reject pending entrants and
  *   enroll traders directly (upcoming competitions only).
  *
- * Frontend-only: mutations are applied to local page state via callbacks
- * and confirmed with toasts. Backend enforcement would be independent.
+ * Edits a draft; the page saves it through `lib/competitions-operator-
+ * store.ts` (R7 I3), which persists it and emits the lifecycle events the
+ * trader catalog/inbox consume. The `Competition` model lives in that
+ * store — this dialog only edits a draft of it.
  */
 
 import { useMemo, useState } from "react";
@@ -40,41 +43,60 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
-import { Check, X, UserPlus, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Check, X, UserPlus, ShieldAlert, ShieldCheck, Plus } from "lucide-react";
+import {
+  derivePrizeTiers,
+  type Competition,
+  type OperatorPrizeTier,
+} from "@/lib/competitions-operator-store";
 
 /* ------------------------------------------------------------------ */
-/* Shared model                                                        */
+/* Prize tier rows (string state — inputs)                             */
 /* ------------------------------------------------------------------ */
 
-export interface CompetitionEntrant {
-  id: string;
-  trader: string;
-  status: "pending" | "approved" | "rejected";
+interface TierRow {
+  rankFrom: string;
+  rankTo: string;
+  kind: OperatorPrizeTier["kind"];
+  label: string;
+  valueUsd: string;
 }
 
-export interface Competition {
-  id: string;
-  name: string;
-  status: "upcoming" | "active" | "completed";
-  templateId: string;
-  participants: number;
-  prizePool: number;
-  payoutPlaces: number;
-  /** Payout split across the podium, in percent (must sum to 100). */
-  split: { first: number; second: number; third: number };
-  /** ISO dates (yyyy-mm-dd) — editable in the editor dialog. */
-  startDate: string;
-  endDate: string;
-  /** One rule per line. */
-  rules: string[];
-  registrationOpen: boolean;
-  paused: boolean;
-  winnersAnnounced: boolean;
-  prizesDistributed: boolean;
-  entrants: CompetitionEntrant[];
-  leaderboard: { rank: number; trader: string; score: number; prizeAmount: number }[];
-  winners: { place: string; trader: string; prizeAmount: number }[];
+function rowsFromTiers(tiers: OperatorPrizeTier[]): TierRow[] {
+  return tiers.map((t) => ({
+    rankFrom: String(t.rankFrom),
+    rankTo: String(t.rankTo),
+    kind: t.kind,
+    label: t.label,
+    valueUsd: t.valueUsd != null ? String(t.valueUsd) : "",
+  }));
+}
+
+function tiersFromRows(rows: TierRow[]): OperatorPrizeTier[] {
+  return rows.map((r) => {
+    const tier: OperatorPrizeTier = {
+      rankFrom: Number(r.rankFrom),
+      rankTo: Number(r.rankTo),
+      kind: r.kind,
+      label: r.label.trim(),
+    };
+    const v = Number(r.valueUsd);
+    if (r.valueUsd.trim() && Number.isFinite(v)) tier.valueUsd = v;
+    return tier;
+  });
+}
+
+/** "" = valid; otherwise the first bad row's message. */
+function tierRowsError(rows: TierRow[]): string | undefined {
+  for (const r of rows) {
+    const from = Number(r.rankFrom);
+    const to = Number(r.rankTo);
+    if (!r.label.trim()) return "Every prize tier needs a label.";
+    if (!Number.isInteger(from) || from < 1) return "Tier ranks must be whole numbers starting at 1.";
+    if (!Number.isInteger(to) || to < from) return "A tier's last rank must be at or after its first rank.";
+    if (r.valueUsd.trim() && !Number.isFinite(Number(r.valueUsd))) return "Prize values must be numbers (or empty).";
+  }
+  return undefined;
 }
 
 export interface CompetitionTemplate {
@@ -182,12 +204,15 @@ const isoDate = (offsetDays: number) => {
 export function competitionDraftFromTemplate(tpl: CompetitionTemplate): Omit<Competition, "id"> {
   return {
     name: tpl.id === "blank" ? "" : tpl.label,
+    tagline: tpl.id === "blank" ? "" : tpl.description,
     status: "upcoming",
     templateId: tpl.id,
     participants: 0,
     prizePool: tpl.prizePool,
     payoutPlaces: tpl.payoutPlaces,
     split: { ...tpl.split },
+    // Tiers derive from the pool/split until an operator edits them.
+    prizeTiers: undefined,
     startDate: isoDate(7),
     endDate: isoDate(7 + tpl.days),
     rules: [...tpl.rules],
@@ -221,18 +246,31 @@ interface EditorProps {
 export function CompetitionEditorDialog({ open, onOpenChange, initial, nextId, onSave }: EditorProps) {
   const [templateId, setTemplateId] = useState(initial?.templateId ?? "blank");
   const [name, setName] = useState(initial?.name ?? "");
+  const [tagline, setTagline] = useState(initial?.tagline ?? "");
   const [startDate, setStartDate] = useState(initial?.startDate ?? isoDate(7));
   const [endDate, setEndDate] = useState(initial?.endDate ?? isoDate(37));
   const [pool, setPool] = useState(initial ? String(initial.prizePool) : "");
   const [places, setPlaces] = useState(initial ? String(initial.payoutPlaces) : "10");
+  const [cap, setCap] = useState(initial?.participantCap != null ? String(initial.participantCap) : "");
   const [first, setFirst] = useState(initial?.split.first ?? 50);
   const [second, setSecond] = useState(initial?.split.second ?? 30);
   const [third, setThird] = useState(initial?.split.third ?? 20);
   const [rulesText, setRulesText] = useState((initial?.rules ?? []).join("\n"));
+  // Prize tiers: rows are strings (inputs). `tiersDirty` false = derive
+  // live from the pool/split/places below; true = operator-authored rows.
+  const [tiers, setTiers] = useState<TierRow[]>(() => rowsFromTiers(initial?.prizeTiers ?? []));
+  const [tiersDirty, setTiersDirty] = useState(Boolean(initial?.prizeTiers?.length));
 
   const splitSum = first + second + third;
   const poolNum = Number(pool);
   const placesNum = Number(places);
+  // Live-derived rows when the operator hasn't authored their own tiers.
+  const liveTiers: OperatorPrizeTier[] = derivePrizeTiers({
+    prizePool: Number.isFinite(poolNum) && poolNum >= 0 ? poolNum : 0,
+    split: { first, second, third },
+    payoutPlaces: Number.isInteger(placesNum) && placesNum >= 3 ? placesNum : 10,
+  });
+  const displayTiers: TierRow[] = tiersDirty ? tiers : rowsFromTiers(liveTiers);
   const errors = {
     name: name.trim() ? undefined : "Name is required.",
     pool: !pool.trim()
@@ -244,8 +282,13 @@ export function CompetitionEditorDialog({ open, onOpenChange, initial, nextId, o
       Number.isInteger(placesNum) && placesNum >= 3 && placesNum <= 100
         ? undefined
         : "Must be between 3 and 100.",
+    cap:
+      !cap.trim() || (Number.isInteger(Number(cap)) && Number(cap) >= 1)
+        ? undefined
+        : "Enter a whole number ≥ 1, or leave it empty (uncapped).",
     split: splitSum === 100 ? undefined : `Split must total 100% (currently ${splitSum}%).`,
     dates: startDate < endDate ? undefined : "End date must be after the start date.",
+    tiers: tierRowsError(displayTiers),
   };
   const valid = !Object.values(errors).some(Boolean);
 
@@ -255,6 +298,7 @@ export function CompetitionEditorDialog({ open, onOpenChange, initial, nextId, o
     if (!tpl || initial) return; // edit mode keeps existing values
     if (tpl.id !== "blank") {
       setName(tpl.label);
+      setTagline(tpl.description);
       setPool(String(tpl.prizePool));
       setPlaces(String(tpl.payoutPlaces));
       setFirst(tpl.split.first);
@@ -262,20 +306,50 @@ export function CompetitionEditorDialog({ open, onOpenChange, initial, nextId, o
       setThird(tpl.split.third);
       setRulesText(tpl.rules.join("\n"));
       setEndDate(isoDate(7 + tpl.days));
+      // New template → tiers follow its pool/split again.
+      setTiersDirty(false);
     }
   };
+
+  /* Prize tier row edits — materialize the derived rows on first touch. */
+  const editTier = (index: number, patch: Partial<TierRow>) => {
+    const base = tiersDirty ? tiers : displayTiers;
+    setTiers(base.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+    setTiersDirty(true);
+  };
+
+  const addTier = () => {
+    const base = tiersDirty ? tiers : displayTiers;
+    const lastTo = base.length ? Number(base[base.length - 1].rankTo) || 0 : 0;
+    setTiers([
+      ...base,
+      { rankFrom: String(lastTo + 1), rankTo: String(lastTo + 1), kind: "cash", label: "", valueUsd: "" },
+    ]);
+    setTiersDirty(true);
+  };
+
+  const removeTier = (index: number) => {
+    const base = tiersDirty ? tiers : displayTiers;
+    setTiers(base.filter((_, i) => i !== index));
+    setTiersDirty(true);
+  };
+
+  const resetTiers = () => setTiersDirty(false);
 
   const save = () => {
     if (!valid) return;
     onSave({
       id: initial?.id ?? nextId,
       name: name.trim(),
+      tagline: tagline.trim(),
       status: initial?.status ?? "upcoming",
       templateId,
       participants: initial?.participants ?? 0,
+      participantCap: cap.trim() ? Number(cap) : undefined,
       prizePool: poolNum,
       payoutPlaces: placesNum,
       split: { first, second, third },
+      prizeTiers: tiersDirty ? tiersFromRows(displayTiers) : undefined,
       startDate,
       endDate,
       rules: rulesText.split("\n").map((r) => r.trim()).filter(Boolean),
@@ -332,6 +406,18 @@ export function CompetitionEditorDialog({ open, onOpenChange, initial, nextId, o
             {errors.name && <p className="text-[11px] text-destructive">{errors.name}</p>}
           </div>
 
+          {/* Tagline (trader catalog card copy) */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold" htmlFor="comp-tagline">Tagline</Label>
+            <Input
+              id="comp-tagline"
+              value={tagline}
+              onChange={(e) => setTagline(e.target.value)}
+              placeholder="e.g. Highest net gain wins — steady hands beat lucky shots."
+            />
+            <p className="text-[10px] text-muted-foreground">Shown on the trader's competition card (Demo).</p>
+          </div>
+
           {/* Window */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -346,7 +432,7 @@ export function CompetitionEditorDialog({ open, onOpenChange, initial, nextId, o
           {errors.dates && <p className="text-[11px] text-destructive">{errors.dates}</p>}
 
           {/* Prizes */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold" htmlFor="comp-pool">Prize pool (USD)</Label>
               <Input id="comp-pool" type="number" min={0} value={pool} onChange={(e) => setPool(e.target.value)} placeholder="10000" />
@@ -356,6 +442,11 @@ export function CompetitionEditorDialog({ open, onOpenChange, initial, nextId, o
               <Label className="text-xs font-semibold" htmlFor="comp-places">Paid places</Label>
               <Input id="comp-places" type="number" min={3} max={100} value={places} onChange={(e) => setPlaces(e.target.value)} />
               {errors.places && <p className="text-[11px] text-destructive">{errors.places}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold" htmlFor="comp-cap">Participant cap</Label>
+              <Input id="comp-cap" type="number" min={1} value={cap} onChange={(e) => setCap(e.target.value)} placeholder="Uncapped" />
+              {errors.cap && <p className="text-[11px] text-destructive">{errors.cap}</p>}
             </div>
           </div>
 
@@ -377,6 +468,91 @@ export function CompetitionEditorDialog({ open, onOpenChange, initial, nextId, o
               </div>
             </div>
             {errors.split && <p className="text-[11px] text-destructive">{errors.split}</p>}
+          </div>
+
+          {/* Prize tiers — what the trader's prize table shows */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs font-semibold">Prize tiers</Label>
+              <div className="flex items-center gap-1">
+                <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={resetTiers} title="Regenerate the tiers from the pool and podium split">
+                  Reset from split
+                </Button>
+                <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={addTier}>
+                  <Plus className="mr-1 h-3 w-3" /> Add tier
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-[54px_54px_112px_1fr_84px_28px] gap-2 text-[10px] uppercase tracking-wide text-muted-foreground" aria-hidden="true">
+              <span>From</span>
+              <span>To</span>
+              <span>Kind</span>
+              <span>Label</span>
+              <span>USD</span>
+              <span />
+            </div>
+            <div className="space-y-1.5">
+              {displayTiers.map((row, i) => (
+                <div key={i} className="grid grid-cols-[54px_54px_112px_1fr_84px_28px] items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    aria-label={`Tier ${i + 1} first rank`}
+                    value={row.rankFrom}
+                    onChange={(e) => editTier(i, { rankFrom: e.target.value })}
+                  />
+                  <Input
+                    type="number"
+                    min={1}
+                    aria-label={`Tier ${i + 1} last rank`}
+                    value={row.rankTo}
+                    onChange={(e) => editTier(i, { rankTo: e.target.value })}
+                  />
+                  <Select
+                    value={row.kind}
+                    onValueChange={(v) => editTier(i, { kind: v as OperatorPrizeTier["kind"] })}
+                  >
+                    <SelectTrigger className="h-8" aria-label={`Tier ${i + 1} kind`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="funded-account">Funded acct</SelectItem>
+                      <SelectItem value="physical">Physical</SelectItem>
+                      <SelectItem value="promo-credit">Promo credit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    aria-label={`Tier ${i + 1} label`}
+                    value={row.label}
+                    onChange={(e) => editTier(i, { label: e.target.value })}
+                    placeholder="e.g. iPhone 17 Pro"
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    aria-label={`Tier ${i + 1} value (USD)`}
+                    value={row.valueUsd}
+                    onChange={(e) => editTier(i, { valueUsd: e.target.value })}
+                    placeholder="—"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-7 px-0"
+                    aria-label={`Remove tier ${i + 1}`}
+                    onClick={() => removeTier(i)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            {errors.tiers && <p className="text-[11px] text-destructive">{errors.tiers}</p>}
+            <p className="text-[10px] text-muted-foreground">
+              Tiers follow the podium split until you edit a row — a physical prize on rank 1 leads the trader's banner (Demo).
+            </p>
           </div>
 
           {/* Rules */}

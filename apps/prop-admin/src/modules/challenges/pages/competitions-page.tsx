@@ -13,6 +13,12 @@
  * registration, start, pause, end early, announce, distribute prizes),
  * and enrollment approval — all gated by challenge.create /
  * challenge.update.
+ *
+ * R7 I3: every action writes through `lib/competitions-operator-store`
+ * (persisted under `pfaas:demo:competitions-ops` + `recordAudit` +
+ * lifecycle emission), so nothing here is toast-only anymore — the
+ * trader catalog/inbox consume the events, and trader-app joins come
+ * back through `cross-app-intake` into the participant list below.
  */
 
 import { useState } from "react";
@@ -26,111 +32,25 @@ import { Trophy, Users, DollarSign, Calendar, Plus, Medal, Award, Crown, Pencil,
 import { toast } from "@/hooks/use-toast";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { hasPermission } from "@/lib/platform/permission-engine";
+import { useCrossAppCompetitionJoins } from "@/lib/platform/cross-app-intake";
+import {
+  announceCompetitionWinners,
+  closeCompetitionRegistration,
+  decideCompetitionEnrollment,
+  distributeCompetitionPrizes,
+  endCompetitionEarly,
+  enrollCompetitionTrader,
+  reopenCompetitionRegistration,
+  saveOperatorCompetition,
+  startCompetition as startCompetitionOp,
+  toggleCompetitionPause,
+  useOperatorCompetitions,
+  type Competition,
+} from "@/lib/competitions-operator-store";
 import {
   CompetitionEditorDialog,
   CompetitionEnrollmentDialog,
-  type Competition,
 } from "./competition-management-dialog";
-
-const seedCompetitions: Competition[] = [
-  {
-    id: "COMP-001",
-    name: "Alpha Trading Challenge Q3",
-    status: "active",
-    templateId: "profit-sprint",
-    participants: 142,
-    prizePool: 25000,
-    payoutPlaces: 10,
-    split: { first: 50, second: 30, third: 20 },
-    startDate: "2026-10-26",
-    endDate: "2026-11-09",
-    rules: [
-      "Trade any challenge account",
-      "Highest profit % wins",
-      "Minimum 10 trades required",
-      "No copy trading between participants",
-      "Max drawdown rules apply",
-    ],
-    registrationOpen: false,
-    paused: false,
-    winnersAnnounced: false,
-    prizesDistributed: false,
-    entrants: [
-      { id: "e-1", trader: "Liam Smith", status: "approved" },
-      { id: "e-2", trader: "Emma Wilson", status: "approved" },
-      { id: "e-3", trader: "Noah Davis", status: "approved" },
-      { id: "e-4", trader: "Olivia Brown", status: "pending" },
-    ],
-    leaderboard: [
-      { rank: 1, trader: "Liam Smith", score: 18.5, prizeAmount: 12500 },
-      { rank: 2, trader: "Emma Wilson", score: 16.2, prizeAmount: 7500 },
-      { rank: 3, trader: "Noah Davis", score: 14.8, prizeAmount: 5000 },
-      { rank: 4, trader: "Olivia Brown", score: 12.1, prizeAmount: 0 },
-      { rank: 5, trader: "James Taylor", score: 11.3, prizeAmount: 0 },
-    ],
-    winners: [],
-  },
-  {
-    id: "COMP-002",
-    name: "Summer Sizzle Trading Cup",
-    status: "completed",
-    templateId: "consistency-cup",
-    participants: 89,
-    prizePool: 10000,
-    payoutPlaces: 5,
-    split: { first: 50, second: 30, third: 20 },
-    startDate: "2026-10-01",
-    endDate: "2026-10-15",
-    rules: [
-      "Open to all funded traders",
-      "Highest cumulative profit",
-      "Minimum 20 trades",
-    ],
-    registrationOpen: false,
-    paused: false,
-    winnersAnnounced: false,
-    prizesDistributed: false,
-    entrants: [
-      { id: "e-5", trader: "Sophia Miller", status: "approved" },
-      { id: "e-6", trader: "Mason Anderson", status: "approved" },
-      { id: "e-7", trader: "Ava Thomas", status: "approved" },
-    ],
-    leaderboard: [],
-    winners: [
-      { place: "1st", trader: "Sophia Miller", prizeAmount: 5000 },
-      { place: "2nd", trader: "Mason Anderson", prizeAmount: 3000 },
-      { place: "3rd", trader: "Ava Thomas", prizeAmount: 2000 },
-    ],
-  },
-  {
-    id: "COMP-003",
-    name: "Q4 Funded Trader Showdown",
-    status: "upcoming",
-    templateId: "consistency-cup",
-    participants: 0,
-    prizePool: 50000,
-    payoutPlaces: 20,
-    split: { first: 45, second: 30, third: 25 },
-    startDate: "2026-11-12",
-    endDate: "2026-12-12",
-    rules: [
-      "Open to all active traders",
-      "Highest risk-adjusted return (Sharpe)",
-      "Minimum 30 trades",
-      "Max 2 accounts per trader",
-    ],
-    registrationOpen: true,
-    paused: false,
-    winnersAnnounced: false,
-    prizesDistributed: false,
-    entrants: [
-      { id: "e-8", trader: "James Taylor", status: "pending" },
-      { id: "e-9", trader: "Mia Rodriguez", status: "pending" },
-    ],
-    leaderboard: [],
-    winners: [],
-  },
-];
 
 const statusTone = (s: Competition["status"]) =>
   s === "active" ? "success" : s === "upcoming" ? "info" : "muted";
@@ -152,22 +72,21 @@ function prizeLine(c: Competition): string {
   return `${formatCurrencyValue(c.prizePool, "USD")} prize pool · Top ${c.payoutPlaces} win cash`;
 }
 
-/** Podium payout for a place, from the configured split. */
-function podiumAmount(c: Competition, place: 1 | 2 | 3): number {
-  const pct = place === 1 ? c.split.first : place === 2 ? c.split.second : c.split.third;
-  return Math.round((c.prizePool * pct) / 100);
-}
-
 export function CompetitionsPage() {
-  const { user } = usePlatform();
+  const { user, tenant } = usePlatform();
   // In-page guards — creating/running competitions is a management
   // decision (challenge.create / challenge.update), not implied by the
   // challenge.read route permission that shows this list.
   const canCreate = hasPermission(user, "challenge.create");
   const canManage = hasPermission(user, "challenge.update");
+  const tid = tenant?.id ?? "platform";
 
-  const [list, setList] = useState<Competition[]>(seedCompetitions);
-  const [selectedId, setSelectedId] = useState<string>(seedCompetitions[0].id);
+  // R7 I3 — the operator store is the single write path (persisted +
+  // audited + lifecycle events); joins come back from the trader app
+  // through the cross-app intake (derived from the shared event log).
+  const list = useOperatorCompetitions();
+  const joins = useCrossAppCompetitionJoins(tid);
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Competition | undefined>(undefined);
   const [enrollmentFor, setEnrollmentFor] = useState<Competition | null>(null);
@@ -176,12 +95,15 @@ export function CompetitionsPage() {
   // management view with status filtering).
   const [statusFilter, setStatusFilter] = useState<Competition["status"] | "all">("all");
 
-  const selected = list.find((c) => c.id === selectedId) ?? null;
+  const selected =
+    (selectedId ? list.find((c) => c.id === selectedId) : undefined) ?? list[0] ?? null;
   const visibleList =
     statusFilter === "all" ? list : list.filter((c) => c.status === statusFilter);
-
-  const update = (id: string, fn: (c: Competition) => Competition) =>
-    setList((prev) => prev.map((c) => (c.id === id ? fn(c) : c)));
+  // Participant list — trader-app joins for the selected competition
+  // (computed in render; the hook subscription is the `joins` read).
+  const joinsForSelected = selected
+    ? joins.filter((j) => j.competitionId === selected.id)
+    : [];
 
   const nextId = () => {
     const max = list.reduce((m, c) => {
@@ -203,36 +125,36 @@ export function CompetitionsPage() {
 
   const saveCompetition = (comp: Competition) => {
     const exists = list.some((c) => c.id === comp.id);
-    setList((prev) => (exists ? prev.map((c) => (c.id === comp.id ? comp : c)) : [...prev, comp]));
+    saveOperatorCompetition(comp);
     setSelectedId(comp.id);
     toast({
-      title: exists ? "Competition updated" : "Competition created",
-      description: `${comp.name} — ${prizeLine(comp)}`,
+      title: exists ? "Competition updated (Demo)" : "Competition created (Demo)",
+      description: `${comp.name} — ${prizeLine(comp)}. Saved to the demo store; the trader catalog updates from the shared event log.`,
     });
   };
 
   /* ---------------- Lifecycle actions (challenge.update) ---------------- */
 
   const closeRegistration = (c: Competition) => {
-    update(c.id, (x) => ({ ...x, registrationOpen: false }));
-    toast({ title: "Registration closed", description: `${c.name} — no new entrants can join.` });
+    closeCompetitionRegistration(c.id);
+    toast({ title: "Registration closed (Demo)", description: `${c.name} — no new entrants can join.` });
   };
 
   const reopenRegistration = (c: Competition) => {
-    update(c.id, (x) => ({ ...x, registrationOpen: true }));
-    toast({ title: "Registration reopened", description: `${c.name} — entrants can join again.` });
+    reopenCompetitionRegistration(c.id);
+    toast({ title: "Registration reopened (Demo)", description: `${c.name} — entrants can join again.` });
   };
 
   const startCompetition = (c: Competition) => {
-    update(c.id, (x) => ({ ...x, status: "active", registrationOpen: false }));
-    toast({ title: "Competition started", description: `${c.name} is live — the leaderboard is now tracking.` });
+    startCompetitionOp(c.id);
+    toast({ title: "Competition started (Demo)", description: `${c.name} is live — the leaderboard is now tracking.` });
   };
 
   const togglePause = (c: Competition) => {
     const pausing = !c.paused;
-    update(c.id, (x) => ({ ...x, paused: pausing }));
+    toggleCompetitionPause(c.id);
     toast({
-      title: pausing ? "Competition paused" : "Competition resumed",
+      title: pausing ? "Competition paused (Demo)" : "Competition resumed (Demo)",
       description: pausing
         ? `${c.name} — scoring is frozen until you resume.`
         : `${c.name} — scoring is live again.`,
@@ -240,34 +162,30 @@ export function CompetitionsPage() {
   };
 
   const endEarly = (c: Competition) => {
-    // Finalize from current standings: podium gets the configured split.
-    const winners = c.leaderboard.slice(0, 3).map((e, i) => ({
-      place: i === 0 ? "1st" : i === 1 ? "2nd" : "3rd",
-      trader: e.trader,
-      prizeAmount: podiumAmount(c, (i + 1) as 1 | 2 | 3),
-    }));
-    update(c.id, (x) => ({ ...x, status: "completed", paused: false, winners }));
+    // Store finalizes from current standings (podium at the split) and
+    // publishes `competition.finished` to the trader winners gallery.
+    endCompetitionEarly(c.id);
     toast({
-      title: "Competition ended early",
-      description: winners.length
+      title: "Competition ended early (Demo)",
+      description: c.leaderboard.length
         ? `${c.name} — winners finalized from current standings.`
         : `${c.name} ended with no qualified standings.`,
     });
   };
 
   const announceWinners = (c: Competition) => {
-    update(c.id, (x) => ({ ...x, winnersAnnounced: true }));
+    announceCompetitionWinners(c.id);
     toast({
-      title: "Winners announced",
+      title: "Winners announced (Demo)",
       description: c.winners.map((w) => `${w.place} ${w.trader}`).join(" · ") || "No winners to announce.",
     });
   };
 
   const distributePrizes = (c: Competition) => {
     const total = c.winners.reduce((s, w) => s + w.prizeAmount, 0);
-    update(c.id, (x) => ({ ...x, prizesDistributed: true }));
+    distributeCompetitionPrizes(c.id);
     toast({
-      title: "Prizes distributed",
+      title: "Prizes distributed (Demo)",
       description: `${formatCurrencyValue(total, "USD")} paid out to ${c.winners.length} winner${c.winners.length === 1 ? "" : "s"} of ${c.name}.`,
     });
   };
@@ -275,24 +193,16 @@ export function CompetitionsPage() {
   /* ---------------- Enrollment ---------------- */
 
   const decideEnrollment = (compId: string, entrantId: string, decision: "approved" | "rejected") => {
-    update(compId, (x) => ({
-      ...x,
-      entrants: x.entrants.map((e) => (e.id === entrantId ? { ...e, status: decision } : e)),
-      participants: decision === "approved" ? x.participants + 1 : x.participants,
-    }));
+    decideCompetitionEnrollment(compId, entrantId, decision);
     toast({
-      title: decision === "approved" ? "Entrant approved" : "Entrant rejected",
+      title: decision === "approved" ? "Entrant approved (Demo)" : "Entrant rejected (Demo)",
       description: `Enrollment decision recorded for ${list.find((c) => c.id === compId)?.name ?? "competition"}.`,
     });
   };
 
   const enrollTrader = (compId: string, trader: string) => {
-    update(compId, (x) => ({
-      ...x,
-      participants: x.participants + 1,
-      entrants: [...x.entrants, { id: `e-${Date.now()}`, trader, status: "approved" as const }],
-    }));
-    toast({ title: "Trader enrolled", description: `${trader} is now on the roster.` });
+    enrollCompetitionTrader(compId, trader);
+    toast({ title: "Trader enrolled (Demo)", description: `${trader} is now on the roster.` });
   };
 
   const manageHint = (perm: boolean) =>
@@ -519,6 +429,31 @@ export function CompetitionsPage() {
                   <div className="text-center"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Participants</p><p className="text-sm font-bold tabular-nums">{selected.participants}</p></div>
                   <div className="text-center"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Prize pool</p><p className="text-sm font-bold tabular-nums">{formatCurrencyValue(selected.prizePool, "USD")}</p></div>
                   <div className="text-center"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Duration</p><p className="text-sm font-bold">{formatWindow(selected)}</p></div>
+                </div>
+
+                {/* Participant list — trader-app joins via cross-app intake (R7 I3) */}
+                <div className="border-t pt-2">
+                  <p className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <UserPlus className="h-3 w-3" /> Joined via trader app (demo transport)
+                  </p>
+                  {joinsForSelected.length === 0 ? (
+                    <p className="rounded-md border border-dashed p-3 text-[11px] text-muted-foreground">
+                      No trader-app joins yet for this competition.
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      {joinsForSelected.map((j) => (
+                        <div key={j.id} className="flex items-center gap-2 rounded-md border p-2 text-xs">
+                          <UserPlus className="h-3 w-3 text-muted-foreground" />
+                          <span className="font-medium">{j.traderName}</span>
+                          <span className="flex-1 text-[10px] text-muted-foreground">
+                            joined {new Date(j.joinedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                          </span>
+                          <Badge variant="outline" className="text-[10px]">{j.source}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

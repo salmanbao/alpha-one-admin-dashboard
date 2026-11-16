@@ -2,9 +2,10 @@ import { useSyncExternalStore } from "react";
 import { emitLifecycle } from "@pfaas/lifecycle";
 import {
   claimWindowEndsAt,
-  competitions,
   prizeTierFor,
 } from "@/lib/fixtures/terra-fixtures";
+import { catalogCompetitions } from "@/lib/competitions-catalog";
+import { readSession } from "@/lib/session-store";
 
 /**
  * Competitions store v2 — enrollment + prize claims (R6 competitions hub).
@@ -136,9 +137,10 @@ export type JoinResult = { ok: true } | { ok: false; reason: string };
 /**
  * Join a competition. Refuses honestly (never a silent success) when the
  * competition is unknown, ended, past its registration deadline, or full.
+ * Validates against the catalog (fixtures + operator-published rows).
  */
 export function joinCompetition(competitionId: string): JoinResult {
-  const c = competitions.find((x) => x.id === competitionId);
+  const c = catalogCompetitions().find((x) => x.id === competitionId);
   if (!c) return { ok: false, reason: "That competition no longer exists." };
   if (isJoined(competitionId)) return { ok: true };
 
@@ -169,7 +171,12 @@ export function joinCompetition(competitionId: string): JoinResult {
     entity: { kind: "competition", id: competitionId },
     name: "competition.joined",
     actor: "trader",
-    payload: { competitionId, name: c.name },
+    // traderName feeds the operator's participant list (cross-app intake).
+    payload: {
+      competitionId,
+      name: c.name,
+      traderName: readSession()?.displayName ?? "Demo trader",
+    },
   });
   return { ok: true };
 }
@@ -187,7 +194,12 @@ export function leaveCompetition(competitionId: string): void {
     entity: { kind: "competition", id: competitionId },
     name: "competition.left",
     actor: "trader",
-    payload: { competitionId },
+    // traderName lets the operator's participant list drop this join
+    // (cross-app intake pairs left↔joined per trader, R7 I3).
+    payload: {
+      competitionId,
+      traderName: readSession()?.displayName ?? "Demo trader",
+    },
   });
 }
 
@@ -202,7 +214,7 @@ export function claimPrize(
   competitionId: string,
   shipping: PrizeClaimShipping,
 ): ClaimResult {
-  const c = competitions.find((x) => x.id === competitionId);
+  const c = catalogCompetitions().find((x) => x.id === competitionId);
   if (!c) return { ok: false, reason: "That competition no longer exists." };
   if (c.status !== "ended") {
     return { ok: false, reason: "Prizes can only be claimed after a competition ends." };

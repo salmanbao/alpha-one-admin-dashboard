@@ -1,18 +1,24 @@
 "use client";
 
 /**
- * Competition notifications → inbox projection (R6).
+ * Competition notifications → inbox projection (R6, extended R7 I3).
  *
  * Two sources, one write path (`pushInboxMessage`, deduped by id):
  *
  *   lifecycle   competition.joined / competition.prize-claimed events
  *               emitted by competitions-store — projected to messages
  *               with deterministic ids (`inbox:<event-id>:…`).
- *   scheduled   deterministic milestone notices derived from the fixture
- *               calendar on every mount: a competition starting within
- *               24h, an active competition on its final day, and an
- *               ended competition whose results settled within the last
- *               7 days (claim-window reminder).
+ *               Plus operator events from prop-admin's competitions
+ *               store (R7 I3): competition.created → "Registration
+ *               open: …", competition.updated with change
+ *               "registration-opened" → the same, competition.finished
+ *               → "Results declared: …" (podium summary).
+ *   scheduled   deterministic milestone notices derived from the
+ *               competitions catalog (fixtures + operator rows) on every
+ *               mount: a competition starting within 24h, an active
+ *               competition on its final day, and an ended competition
+ *               whose results settled within the last 7 days
+ *               (claim-window reminder).
  *
  * Reads the competitions store; the store never imports this module, so
  * there is no store ↔ notices cycle. Ids are deterministic, so a notice
@@ -22,16 +28,19 @@
 
 import { useEffect } from "react";
 import { useLifecycleLog, type LifecycleEvent } from "@pfaas/lifecycle";
-import {
-  claimWindowEndsAt,
-  competitions,
-  prizeTierFor,
-} from "@/lib/fixtures/terra-fixtures";
+import { claimWindowEndsAt, prizeTierFor } from "@/lib/fixtures/terra-fixtures";
+import { catalogCompetitions } from "@/lib/competitions-catalog";
 import { claimFor, useCompetitions } from "@/lib/competitions-store";
 import { pushInboxMessage, type InboxMessage } from "./inbox-store";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
+
+/** Defensive read of a field on the event's projected competition. */
+function projectedField(e: LifecycleEvent, field: string): unknown {
+  const c = e.payload?.competition;
+  return c && typeof c === "object" ? (c as Record<string, unknown>)[field] : undefined;
+}
 
 function mapEvent(e: LifecycleEvent): InboxMessage | null {
   const id = String(e.payload?.competitionId ?? e.entity.id);
@@ -66,17 +75,81 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         actionHref: `/competitions/${id}`,
       };
     }
+    case "competition.created": {
+      // An operator create only announces entry when registration is open.
+      if (e.payload?.registrationOpen === false) return null;
+      return {
+        id: `inbox:${e.id}:created`,
+        subject: `Registration open: ${name}`,
+        body: registrationBody(name, e, "Registration for"),
+        category: "Competitions",
+        sender: "Competitions Team",
+        at: e.at,
+        read: false,
+        actionType: "competition",
+        actionHref: `/competitions/${id}`,
+      };
+    }
+    case "competition.updated": {
+      if (e.payload?.change !== "registration-opened") return null;
+      return {
+        id: `inbox:${e.id}:reg-open`,
+        subject: `Registration open: ${name}`,
+        body: registrationBody(name, e, "Registration reopened for"),
+        category: "Competitions",
+        sender: "Competitions Team",
+        at: e.at,
+        read: false,
+        actionType: "competition",
+        actionHref: `/competitions/${id}`,
+      };
+    }
+    case "competition.finished": {
+      const podium = Array.isArray(e.payload?.podium) ? (e.payload.podium as unknown[]) : [];
+      const summary = podium
+        .flatMap((p) => {
+          if (!p || typeof p !== "object") return [];
+          const o = p as Record<string, unknown>;
+          return typeof o.rank === "number" && typeof o.trader === "string"
+            ? [`#${o.rank} ${o.trader}`]
+            : [];
+        })
+        .slice(0, 3)
+        .join(" · ");
+      return {
+        id: `inbox:${e.id}:finished`,
+        subject: `Results declared: ${name}`,
+        body: summary
+          ? `Final standings for ${name}: ${summary} (Demo). Cash prizes settle within 5 business days — the claim window runs 14 days from settlement.`
+          : `Results for ${name} are declared — no qualified standings this time (Demo).`,
+        category: "Competitions",
+        sender: "Competitions Team",
+        at: e.at,
+        read: false,
+        actionType: "competition",
+        actionHref: `/competitions/${id}`,
+      };
+    }
     default:
       return null;
   }
 }
 
-/** Deterministic milestone notices from the fixture calendar. */
+/** Shared copy for create/reopen registration notices (cap + headline). */
+function registrationBody(name: string, e: LifecycleEvent, lead: string): string {
+  const cap = projectedField(e, "participantCap");
+  const headline = projectedField(e, "prizeHeadline");
+  const capText = typeof cap === "number" ? ` — capped at ${cap} participants` : "";
+  const headlineText = typeof headline === "string" && headline ? ` (${headline})` : "";
+  return `${lead} ${name}${capText}${headlineText}. Entry is free for eligible funded traders (Demo).`;
+}
+
+/** Deterministic milestone notices from the competitions catalog. */
 function scheduledNotices(): InboxMessage[] {
   const now = Date.now();
   const out: InboxMessage[] = [];
 
-  for (const c of competitions) {
+  for (const c of catalogCompetitions()) {
     const startsIn = new Date(c.startsAt).getTime() - now;
     const endsIn = new Date(c.endsAt).getTime() - now;
     const sinceEnd = now - new Date(c.endsAt).getTime();

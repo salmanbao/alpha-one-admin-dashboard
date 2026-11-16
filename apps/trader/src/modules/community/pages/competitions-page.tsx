@@ -30,10 +30,10 @@ import {
 import {
   competitionGapFor,
   competitionStandingFor,
-  competitions,
   prizeTierFor,
   type Competition,
 } from "@/lib/fixtures/terra-fixtures";
+import { useCatalogCompetitions } from "@/lib/competitions-catalog";
 import {
   claimFor,
   joinCompetition,
@@ -84,6 +84,9 @@ export function CompetitionsPage() {
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [claimOpen, setClaimOpen] = useState<string | null>(null);
   const { entries, claims } = useCompetitions();
+  // R7 I3 — fixtures + competitions the operator published from
+  // prop-admin (derived from the shared lifecycle log).
+  const competitions = useCatalogCompetitions();
 
   const active = competitions.filter((c) => c.status === "active");
   const upcoming = competitions.filter((c) => c.status === "upcoming");

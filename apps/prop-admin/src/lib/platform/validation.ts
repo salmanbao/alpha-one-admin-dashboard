@@ -395,3 +395,65 @@ export const demoKycProviderConfigSchema = z.object({
 });
 
 export type DemoKycProviderConfig = z.infer<typeof demoKycProviderConfigSchema>;
+
+/**
+ * competitions-operator-store (R7 I3): the operator's full competition
+ * list (CRUD + prize tiers + entrants/winners). One bad field degrades
+ * the whole array to the seeded list (house behavior) instead of
+ * half-loading a broken roster.
+ */
+export const demoCompetitionsOpsSchema = z.array(
+  z.object({
+    id: z.string().min(1),
+    name: z.string(),
+    tagline: z.string(),
+    status: z.enum(["upcoming", "active", "completed"]),
+    templateId: z.string(),
+    participants: z.number().int().nonnegative(),
+    participantCap: z.number().int().positive().optional(),
+    prizePool: z.number().nonnegative(),
+    payoutPlaces: z.number().int().min(3).max(100),
+    split: z.object({ first: z.number(), second: z.number(), third: z.number() }),
+    prizeTiers: z
+      .array(
+        z.object({
+          rankFrom: z.number().int().min(1),
+          rankTo: z.number().int().min(1),
+          kind: z.enum(["cash", "funded-account", "physical", "promo-credit"]),
+          label: z.string().min(1),
+          valueUsd: z.number().optional(),
+          detail: z.string().optional(),
+        }),
+      )
+      .optional(),
+    startDate: z.string(),
+    endDate: z.string(),
+    rules: z.array(z.string()),
+    registrationOpen: z.boolean(),
+    paused: z.boolean(),
+    winnersAnnounced: z.boolean(),
+    prizesDistributed: z.boolean(),
+    entrants: z.array(
+      z.object({
+        id: z.string().min(1),
+        trader: z.string(),
+        status: z.enum(["pending", "approved", "rejected"]),
+      }),
+    ),
+    leaderboard: z.array(
+      z.object({
+        rank: z.number(),
+        trader: z.string(),
+        score: z.number(),
+        prizeAmount: z.number(),
+      }),
+    ),
+    winners: z.array(
+      z.object({
+        place: z.string(),
+        trader: z.string(),
+        prizeAmount: z.number(),
+      }),
+    ),
+  }),
+);

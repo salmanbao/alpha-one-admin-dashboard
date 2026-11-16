@@ -102,6 +102,13 @@ export const LIFECYCLE_EVENT_NAMES = [
   "competition.joined",
   "competition.left",
   "competition.prize-claimed",
+  // Operator competition management (R7 I3) — consumers: trader
+  // competitions-catalog (operator event → catalog projection) +
+  // competition-notices ("Registration open: …" / "Results declared");
+  // emitted by prop-admin lib/competitions-operator-store
+  "competition.created",
+  "competition.updated",
+  "competition.finished",
   // Account
   "account.created",
   "account.password-reset",
@@ -361,6 +368,9 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "competition.joined": "Joined",
   "competition.left": "Left",
   "competition.prize-claimed": "Prize claimed",
+  "competition.created": "Published",
+  "competition.updated": "Updated",
+  "competition.finished": "Results declared",
   "account.created": "Account created",
   "account.password-reset": "Password reset",
   "purchase.refunded": "Refunded",
