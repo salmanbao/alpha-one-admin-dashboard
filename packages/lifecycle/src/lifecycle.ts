@@ -56,7 +56,8 @@ export type LifecycleEntityKind =
   | "challenge"
   | "competition"
   | "account"
-  | "trade";
+  | "trade"
+  | "compliance";
 
 export interface EntityRef {
   kind: LifecycleEntityKind;
@@ -115,6 +116,11 @@ export const LIFECYCLE_EVENT_NAMES = [
   "trade.opened",
   "trade.closed",
   "trade.modified",
+  // Compliance (R7 I2) — consumers: trader inbox-lifecycle-bridge receipts
+  // ("Rule violation" / "Buffer running low"); emitted by
+  // lib/compliance/compliance-store when a computed rule breaks
+  "compliance.violation",
+  "compliance.buffer-warning",
 ] as const;
 
 export type LifecycleEventName = (typeof LIFECYCLE_EVENT_NAMES)[number];
@@ -362,6 +368,8 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "trade.opened": "Position opened",
   "trade.closed": "Position closed",
   "trade.modified": "Position modified",
+  "compliance.violation": "Rule violated",
+  "compliance.buffer-warning": "Buffer warning",
 };
 
 /**

@@ -14,6 +14,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { applyThemeMode } from "@/lib/platform/theme-engine";
 import { AccountProvider } from "@/lib/platform/account-context";
 import { TradingProvider } from "@/lib/trading/trading-context";
+import { ComplianceEngine } from "@/lib/compliance/compliance-engine";
 import { terraTenant, terraUser } from "@/lib/fixtures/terra-fixtures";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -37,7 +38,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
           TradingProvider holds the mock live session (positions/orders)
           on top of the fixture data. */}
       <AccountProvider>
-        <TradingProvider>{children}</TradingProvider>
+        <TradingProvider>
+          {/* R7 I2 — re-evaluates compliance rules whenever the trading
+              store changes; new breaks persist to pfaas:trader:compliance
+              and emit compliance.* events the inbox bridge consumes. */}
+          <ComplianceEngine />
+          {children}
+        </TradingProvider>
       </AccountProvider>
       <Toaster />
     </PlatformProvider>

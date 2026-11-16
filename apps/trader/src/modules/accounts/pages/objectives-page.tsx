@@ -25,10 +25,31 @@ import {
   TerraProgress,
   formatMoney,
 } from "@/components/terra/terra-ui";
-import { drawdownUsageFor, objectivesFor, terraRiskLimits } from "@/lib/fixtures/terra-fixtures";
+import { drawdownUsageFor, objectivesFor } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { useTrading } from "@/lib/trading/trading-context";
 import { ChallengeRulesDialog } from "@/components/terra/challenge-rules-dialog";
+// R7 I2 — objectives read the compliance store: the same limits, usage
+// and drawdown model the Risk Dashboard widgets render.
+import {
+  DRAWDOWN_TYPE_LABEL,
+  useComplianceSnapshot,
+} from "@/lib/compliance/compliance-store";
+import { ObjectiveGauge } from "@/components/compliance/buffer-gauge";
+
+/** Caps (less is better) render their gauges inverted — red at the limit. */
+const INVERTED_OBJECTIVES = new Set(["obj-daily-dd", "obj-max-dd", "obj-consistency"]);
+const GAUGE_LABEL: Record<string, string> = {
+  "obj-daily-dd": "daily loss",
+  "obj-max-dd": "max drawdown",
+  "obj-consistency": "consistency",
+  "obj-profit": "profit",
+  "obj-min-days": "trading days",
+  "obj-scaling-gain": "scaling",
+  "obj-scaling-payouts": "payouts",
+};
+const gaugeFormat = (unit: string, n: number) =>
+  unit === "USD" ? formatMoney(n) : unit === "%" ? `${Math.round(n)}%` : `${n}${unit === "days" ? " days" : ""}`;
 
 /* ------------------------------------------------------------------ */
 /* Rule adherence panel (audit #3 fix #3)                              */
@@ -124,14 +145,18 @@ export function ObjectivesPage() {
   // scaling objectives instead of a Phase 1 profit target.
   const { activeAccount } = useActiveAccount();
   // R7 I1 — objectives (incl. trading days) read the persistent store.
-  const { closedTrades } = useTrading();
-  const objectives = objectivesFor(activeAccount.id, closedTrades);
+  const { closedTrades, realizedByAccount } = useTrading();
+  // R7 I2 — one compliance standing feeds the meters, gauges and the
+  // Risk Dashboard: limits, usage and drawdown model all from the store.
+  const snapshot = useComplianceSnapshot(activeAccount.id);
+  const realized = realizedByAccount[activeAccount.id] ?? 0;
+  const objectives = objectivesFor(activeAccount.id, closedTrades, realized);
   const completed = objectives.filter((o) => o.status === "complete").length;
   // Persistent drawdown meters (audit #6) — daily + total risk usage for
   // the selected account, always visible above the objectives list.
-  const limits = terraRiskLimits[activeAccount.id] ?? { daily: 1000, maxDd: 5000 };
-  const dailyUsed = Math.max(0, limits.daily - activeAccount.dailyLossRemaining);
-  const ddUsed = Math.max(0, limits.maxDd - activeAccount.maxDdRemaining);
+  const limits = snapshot?.limits ?? { daily: 1000, maxDd: 5000 };
+  const dailyUsed = snapshot?.daily.used ?? Math.max(0, limits.daily - activeAccount.dailyLossRemaining);
+  const ddUsed = snapshot?.total.used ?? Math.max(0, limits.maxDd - activeAccount.maxDdRemaining);
 
   // Rule adherence metrics (audit #3 fix #3) — min days, consistency,
   // and a composite score computed from the same objective data.
@@ -281,15 +306,19 @@ export function ObjectivesPage() {
             label="Daily loss limit"
             used={dailyUsed}
             limit={limits.daily}
-            remaining={activeAccount.dailyLossRemaining}
-            description="resets at 5pm ET"
+            remaining={snapshot ? snapshot.daily.remaining : activeAccount.dailyLossRemaining}
+            description={snapshot ? snapshot.daily.resetNote : "resets at 00:00 UTC"}
           />
           <TerraDrawdownMeter
             label="Maximum drawdown"
             used={ddUsed}
             limit={limits.maxDd}
-            remaining={activeAccount.maxDdRemaining}
-            description="trailing — never resets"
+            remaining={snapshot ? snapshot.total.buffer : activeAccount.maxDdRemaining}
+            description={
+              snapshot
+                ? `${DRAWDOWN_TYPE_LABEL[snapshot.config.drawdownType]} — never resets`
+                : "trailing — never resets"
+            }
           />
         </div>
       </TerraCard>
@@ -370,9 +399,9 @@ export function ObjectivesPage() {
           ) : null}
           <RuleRow
             title="Daily loss proximity"
-            tooltip="How much of today's loss allowance is consumed. Resets at 5pm ET. Touching the limit ends the account immediately."
+            tooltip="How much of today's loss allowance is consumed. Resets at 00:00 UTC. Touching the limit ends the account immediately."
             value={`${Math.round(adherence.dailyPct)}% used`}
-            caption={`${formatMoney(activeAccount.dailyLossRemaining)} remaining today.`}
+            caption={`${formatMoney(snapshot ? snapshot.daily.remaining : activeAccount.dailyLossRemaining)} remaining today.`}
             meterPct={adherence.dailyPct}
             meterTone={adherence.dailyPct >= 80 ? "danger" : adherence.dailyPct >= 50 ? "warning" : "success"}
             warn={ddWarn}
@@ -494,6 +523,8 @@ export function ObjectivesPage() {
               : obj.target > 0
                 ? Math.min(100, (obj.current / obj.target) * 100)
                 : 0;
+          const inverted = INVERTED_OBJECTIVES.has(obj.id);
+          const fmt = (n: number) => gaugeFormat(obj.unit, n);
           return (
             <TerraCard key={obj.id} className="flex flex-col gap-4">
               <div className="flex items-start justify-between gap-3">
@@ -508,26 +539,42 @@ export function ObjectivesPage() {
                 )}
               </div>
               {obj.target > 0 && (
-                <>
-                  <div className="flex items-baseline justify-between">
-                    <span className="font-headline text-2xl font-bold tabular-nums text-on-surface">
-                      {obj.unit === "USD"
-                        ? formatMoney(obj.current)
-                        : `${obj.current}${obj.unit === "%" ? "%" : ""}`}
-                    </span>
-                    <span className="text-xs text-on-surface-variant">
-                      of{" "}
-                      {obj.unit === "USD"
-                        ? formatMoney(obj.target)
-                        : `${obj.target}${obj.unit === "%" ? "%" : ""}`}
-                    </span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-headline text-2xl font-bold tabular-nums text-on-surface">
+                        {obj.unit === "USD"
+                          ? formatMoney(obj.current)
+                          : `${obj.current}${obj.unit === "%" ? "%" : ""}`}
+                      </span>
+                      <span className="text-xs text-on-surface-variant">
+                        of{" "}
+                        {obj.unit === "USD"
+                          ? formatMoney(obj.target)
+                          : `${obj.target}${obj.unit === "%" ? "%" : ""}`}
+                      </span>
+                    </div>
+                    <TerraProgress value={pct} height="h-3" />
                   </div>
-                  <TerraProgress value={pct} height="h-3" />
-                </>
+                  {/* R7 I2 — live gauge from the compliance store; caps
+                      (daily loss / drawdown / consistency) color-run
+                      inverted so red means "at the limit". */}
+                  <ObjectiveGauge
+                    label={GAUGE_LABEL[obj.id] ?? "progress"}
+                    value={obj.current}
+                    target={obj.target}
+                    unit={obj.unit}
+                    inverted={inverted}
+                    formatValue={fmt}
+                    size={112}
+                  />
+                </div>
               )}
               {obj.target === 0 && (
                 <div className="rounded-xl bg-primary-fixed/50 px-3 py-2 text-xs font-semibold text-on-primary-fixed-variant">
-                  ✓ No violations recorded
+                  {snapshot && snapshot.violations.length > 0
+                    ? `⚠ ${snapshot.violations.length} rule violation${snapshot.violations.length === 1 ? "" : "s"} recorded — see the Risk Dashboard`
+                    : "✓ No violations recorded"}
                 </div>
               )}
             </TerraCard>

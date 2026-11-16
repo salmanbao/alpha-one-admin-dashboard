@@ -153,29 +153,32 @@ export function AccountSettingsPage() {
 
       <TerraCard>
         <TerraSectionTitle title="Danger zone" />
-        <div className="flex items-center justify-between rounded-xl border border-error/30 bg-error-container/40 px-4 py-3">
-          <div>
-            <p className="text-sm font-bold text-on-error-container">Delete account</p>
-            <p className="text-xs text-on-error-container/80">
-              Permanently removes your data. Active challenges must be settled first.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <TerraBadge tone="neutral">2 active sessions</TerraBadge>
-            <AlertDialogTrigger asChild>
-              <button
-                type="button"
-                className="rounded-xl bg-error px-4 py-2 text-xs font-bold text-on-error hover:bg-error/90"
-                aria-label="Delete account"
-              >
-                Delete
-              </button>
-            </AlertDialogTrigger>
-          </div>
-        </div>
-
-        {/* Delete Account AlertDialog */}
+        {/* Radix requires AlertDialogTrigger INSIDE AlertDialog — the
+            trigger used to render above this dialog, which crashed the
+            whole page ("DialogTrigger must be used within Dialog"). */}
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <div className="flex items-center justify-between rounded-xl border border-error/30 bg-error-container/40 px-4 py-3">
+            <div>
+              <p className="text-sm font-bold text-on-error-container">Delete account</p>
+              <p className="text-xs text-on-error-container/80">
+                Permanently removes your data. Active challenges must be settled first.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <TerraBadge tone="neutral">2 active sessions</TerraBadge>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  className="rounded-xl bg-error px-4 py-2 text-xs font-bold text-on-error hover:bg-error/90"
+                  aria-label="Delete account"
+                >
+                  Delete
+                </button>
+              </AlertDialogTrigger>
+            </div>
+          </div>
+
+          {/* Delete Account AlertDialog */}
           <AlertDialogPortal>
             <AlertDialogOverlay />
             <AlertDialogContent>

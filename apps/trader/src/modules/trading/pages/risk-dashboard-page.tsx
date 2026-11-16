@@ -1,12 +1,19 @@
 "use client";
 
 /**
- * Risk Dashboard — converted from stitch_screens/risk_dashboard
- * Account health meters, breach history and live risk gauges.
+ * Risk Dashboard — compliance & payout-readiness rebuild (R7 I2).
  *
- * P1 upgrades: gauges follow the live session (TradingContext positions
- * feed margin), and the daily-loss panel shows the time until the
- * 00:00 UTC reset plus the equity level at which the limit breaches.
+ * TradesViz/FTMO-class widgets, every figure computed from the
+ * compliance + trading stores (no fixture arrays):
+ *   • drawdown buffer gauge (distance to floor, color-shifted)
+ *   • daily-loss tracker with the 00:00 UTC reset countdown
+ *   • profit-target progress, consistency score, trading-days counter
+ *   • payout-readiness indicator (all green → "Payout eligible")
+ *   • violation list with detection timestamps (computed by
+ *     lib/compliance/compliance-engine, persisted under
+ *     pfaas:trader:compliance, surfaced to the inbox by the bridge)
+ *   • equity-vs-drawdown-floor chart (floor shaped by the stored
+ *     drawdown model — change it in Compliance settings and re-renders)
  */
 
 import Link from "next/link";
@@ -15,21 +22,27 @@ import {
   TerraBadge,
   TerraCard,
   TerraPageHeader,
+  TerraProgress,
   TerraSectionTitle,
   TerraStat,
-  TerraProgress,
-  TerraTable,
+  TerraDrawdownMeter,
   formatMoney,
 } from "@/components/terra/terra-ui";
-import {
-  detectTerraPatterns,
-  traderBreachesFallback,
-  terraRiskLimits,
-} from "@/lib/fixtures/terra-fixtures";
+import { detectTerraPatterns } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { useTrading } from "@/lib/trading/trading-context";
-
-const breaches = traderBreachesFallback;
+import { useComplianceSnapshot } from "@/lib/compliance/compliance-store";
+import {
+  BufferGauge,
+} from "@/components/compliance/buffer-gauge";
+import {
+  ComplianceSettingsCard,
+  ConsistencyScore,
+  EquityFloorChart,
+  PayoutReadiness,
+  TradingDaysCounter,
+  ViolationList,
+} from "@/components/compliance/compliance-widgets";
 
 /** Milliseconds until the next 00:00 UTC daily-loss reset. */
 function msUntilUtcMidnight() {
@@ -47,50 +60,34 @@ const fmtCountdown = (ms: number) => {
 };
 
 export function RiskDashboardPage() {
-  // Risk gauges follow the active trading account (header switcher).
+  // Compliance follows the active trading account (header switcher).
   const { activeAccount: acc } = useActiveAccount();
-  const { positions, closedTrades } = useTrading();
-  // Program limits come from the shared fixture so this page, the
-  // objectives page and the rules page can never disagree.
-  const limits = terraRiskLimits[acc.id] ?? { daily: 1000, maxDd: 5000 };
-  const dailyUsedPct = Math.max(
-    0,
-    Math.round(((limits.daily - acc.dailyLossRemaining) / limits.daily) * 100),
+  const { positions, closedTrades, realizedByAccount } = useTrading();
+  const snapshot = useComplianceSnapshot(acc.id);
+  const trading = useMemo(
+    () => ({ positions, closedTrades, realizedByAccount }),
+    [positions, closedTrades, realizedByAccount],
   );
-  const ddUsedPct = Math.max(
-    0,
-    Math.round(((limits.maxDd - acc.maxDdRemaining) / limits.maxDd) * 1000) / 10,
-  );
-  // Live exposure — open positions from the session, not the fixtures.
-  const accPositions = positions.filter((p) => p.accountId === acc.id);
-  // Mock margin model: $1,000 margin per standard lot.
-  const marginUsed = accPositions.reduce((s, p) => s + p.lots * 1000, 0);
-  const openLots = accPositions.reduce((s, p) => s + p.lots, 0);
-  // Daily-loss breach level: equity at which the remaining allowance runs out.
-  const breachLevel = acc.equity - acc.dailyLossRemaining;
-  const cushionPct =
-    acc.equity > 0
-      ? Math.round((acc.dailyLossRemaining / acc.equity) * 1000) / 10
-      : 0;
 
-  // Live countdown to the 00:00 UTC reset (tick every second).
-  const [untilReset, setUntilReset] = useState(() => msUntilUtcMidnight());
+  // Live countdown to the 00:00 UTC reset (tick every second). Starts as
+  // null until mounted — the SSR text and first client render must match
+  // (a `Date.now()`-derived string in the initial render hydrates wrong
+  // whenever the second ticks over between server and client).
+  const [untilReset, setUntilReset] = useState<number | null>(null);
   useEffect(() => {
+    setUntilReset(msUntilUtcMidnight());
     const t = setInterval(() => setUntilReset(msUntilUtcMidnight()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const riskScore =
-    dailyUsedPct >= 70 || ddUsedPct >= 70
-      ? { grade: "C", sub: "Elevated risk", tone: "negative" as const }
-      : dailyUsedPct >= 50 || ddUsedPct >= 50
-        ? { grade: "B", sub: "Moderate risk", tone: undefined }
-        : { grade: "A", sub: "Low risk", tone: "positive" as const };
-  const limitsHealthy = acc.status !== "breached" && dailyUsedPct < 70 && ddUsedPct < 70;
+  // Exposure — open positions from the trading store, not fixtures.
+  const accPositions = positions.filter((p) => p.accountId === acc.id);
+  // Mock margin model: $1,000 margin per standard lot.
+  const marginUsed = accPositions.reduce((s, p) => s + p.lots * 1000, 0);
+  const openLots = accPositions.reduce((s, p) => s + p.lots, 0);
 
-  // Pattern detections (audit B #1) — the same derivation the Pattern
-  // Monitor screen uses, so the two surfaces can never disagree.
-  // R7 I1 — scans the persistent trading store (seed + this session).
+  // Pattern detections — the same derivation the Pattern Monitor screen
+  // uses, so the two surfaces can never disagree.
   const patterns = useMemo(() => detectTerraPatterns(closedTrades), [closedTrades]);
   const patternCounts = useMemo(
     () => ({
@@ -101,106 +98,158 @@ export function RiskDashboardPage() {
     [patterns],
   );
 
+  if (!snapshot) {
+    return (
+      <div className="space-y-6">
+        <TerraPageHeader title="Risk Dashboard" description={`${acc.name} • Login #${acc.login}`} />
+        <TerraCard>
+          <p className="text-sm text-on-surface-variant">Loading compliance standing…</p>
+        </TerraCard>
+      </div>
+    );
+  }
+
+  const dailyPct = snapshot.daily.usedPct;
+  const ddPct = snapshot.total.usedPct;
+  const breachLevel = snapshot.equityToday - snapshot.daily.remaining;
+  const cushionPct =
+    snapshot.equityToday > 0
+      ? Math.round((snapshot.daily.remaining / snapshot.equityToday) * 1000) / 10
+      : 0;
+  const violations = snapshot.violations;
+
+  const riskScore =
+    dailyPct >= 70 || ddPct >= 70
+      ? { grade: "C", sub: "Elevated risk", tone: "negative" as const }
+      : dailyPct >= 50 || ddPct >= 50
+        ? { grade: "B", sub: "Moderate risk", tone: undefined }
+        : { grade: "A", sub: "Low risk", tone: "positive" as const };
+  const limitsHealthy =
+    acc.status !== "breached" &&
+    violations.length === 0 &&
+    dailyPct < 70 &&
+    ddPct < 70 &&
+    snapshot.total.bufferPct >= 20;
+
   return (
     <div className="space-y-6">
       <TerraPageHeader
         title="Risk Dashboard"
-        description={`${acc.name} • Login #${acc.login}`}
+        description={`${acc.name} • Login #${acc.login} • compliance & payout readiness`}
         actions={
           <TerraBadge tone={limitsHealthy ? "primary" : "error"} dot pulse={limitsHealthy}>
-            {limitsHealthy ? "All limits healthy" : "Limits need attention"}
+            {limitsHealthy
+              ? "All limits healthy"
+              : violations.length > 0
+                ? `${violations.length} rule violation${violations.length === 1 ? "" : "s"}`
+                : "Limits need attention"}
           </TerraBadge>
         }
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Gauges */}
+        {/* Gauges + chart + violations */}
         <div className="space-y-6 lg:col-span-2">
           <TerraCard>
             <TerraSectionTitle
               title="Drawdown protection"
-              description={`Daily allowance resets at 00:00 UTC — ${fmtCountdown(untilReset)} remaining.`}
+              description={
+                untilReset === null
+                  ? "Daily allowance resets at 00:00 UTC."
+                  : `Daily allowance resets at 00:00 UTC — ${fmtCountdown(untilReset)} remaining.`
+              }
             />
             <div className="space-y-5">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-semibold text-on-surface">Daily loss allowance</span>
-                  <span className="tabular-nums text-on-surface-variant">
-                    {formatMoney(acc.dailyLossRemaining)} remaining
-                  </span>
-                </div>
-                <TerraProgress value={dailyUsedPct} height="h-3" />
-                <div className="flex justify-between text-[11px] text-on-surface-variant">
-                  <span>{dailyUsedPct}% used</span>
-                  <span>Limit {formatMoney(limits.daily)}</span>
-                </div>
-                <p className="rounded-xl bg-secondary-fixed/60 p-3 text-xs text-on-secondary-fixed-variant">
-                  Breach level: equity {formatMoney(breachLevel)} — if account equity falls to
-                  that level the daily loss limit is hit. Current cushion{" "}
-                  {formatMoney(acc.dailyLossRemaining)} ({cushionPct}% of equity).
-                </p>
+              <BufferGauge snapshot={snapshot} />
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <TerraDrawdownMeter
+                  label="Daily loss limit"
+                  used={snapshot.daily.used}
+                  limit={snapshot.daily.limit}
+                  remaining={snapshot.daily.remaining}
+                  description={snapshot.daily.resetNote}
+                />
+                <TerraDrawdownMeter
+                  label="Maximum drawdown"
+                  used={snapshot.total.used}
+                  limit={snapshot.total.limit}
+                  remaining={snapshot.total.buffer}
+                  description={snapshot.config.drawdownType.replace(/-/g, " ")}
+                />
               </div>
+              <p className="rounded-xl bg-secondary-fixed/60 p-3 text-xs text-on-secondary-fixed-variant">
+                Breach level: equity {formatMoney(breachLevel)} — if account equity falls to that
+                level the daily loss limit is hit. Current cushion{" "}
+                {formatMoney(snapshot.daily.remaining)} ({cushionPct}% of equity).
+              </p>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-semibold text-on-surface">Maximum drawdown</span>
-                  <span className="tabular-nums text-on-surface-variant">
-                    {formatMoney(acc.maxDdRemaining)} remaining
-                  </span>
+                  <span className="font-semibold text-on-surface">{snapshot.profit.name}</span>
+                  <span className="tabular-nums text-primary">{snapshot.profit.pct}%</span>
                 </div>
-                <TerraProgress value={ddUsedPct} height="h-3" />
+                <TerraProgress value={snapshot.profit.pct} height="h-3" />
                 <div className="flex justify-between text-[11px] text-on-surface-variant">
-                  <span>{ddUsedPct}% used</span>
-                  <span>Limit {formatMoney(limits.maxDd)}</span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-semibold text-on-surface">Profit target progress</span>
-                  <span className="tabular-nums text-primary">
-                    {acc.targetProgress}%
+                  <span>
+                    {formatMoney(snapshot.profit.current)} of {formatMoney(snapshot.profit.target)}
                   </span>
+                  <span>target {snapshot.config.profitTargetPct}% of start</span>
                 </div>
-                <TerraProgress value={acc.targetProgress} height="h-3" />
               </div>
             </div>
           </TerraCard>
 
+          {/* Equity vs drawdown floor — the floor follows the stored model */}
           <TerraCard>
-            <TerraSectionTitle title="Risk breaches" description="Recent limit events on your accounts" />
-            {breaches.length > 0 ? (
-              <TerraTable
-                head={["Type", "Severity", "Description", "Status"]}
-                rows={breaches.map((b) => [
-                  <span key="t" className="font-semibold">{b.type}</span>,
-                  <TerraBadge
-                    key="s"
-                    tone={b.severity === "high" ? "error" : b.severity === "medium" ? "tertiary" : "neutral"}
-                  >
-                    {b.severity}
-                  </TerraBadge>,
-                  <span key="d" className="text-on-surface-variant">{b.description}</span>,
-                  <TerraBadge key="st" tone={b.status === "resolved" ? "success" : "secondary"}>
-                    {b.status}
-                  </TerraBadge>,
-                ])}
-              />
-            ) : (
-              <p className="text-sm text-on-surface-variant">No breaches recorded.</p>
-            )}
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="font-headline font-semibold text-on-surface">
+                  Equity vs drawdown floor
+                </h3>
+                <p className="mt-0.5 text-xs text-on-surface-variant">
+                  Last 14 days — the floor line is the level that breaches the total drawdown
+                  rule.
+                </p>
+              </div>
+              <TerraBadge tone={snapshot.total.bufferPct < 20 ? "error" : "secondary"}>
+                Buffer {Math.round(snapshot.total.bufferPct)}%
+              </TerraBadge>
+            </div>
+            <EquityFloorChart snapshot={snapshot} trading={trading} days={14} />
+          </TerraCard>
+
+          {/* Violations — computed by the compliance engine, persisted */}
+          <TerraCard>
+            <TerraSectionTitle
+              title="Rule violations"
+              description="Computed from your trading store the moment a rule breaks — each one also arrives in your inbox."
+            />
+            <ViolationList snapshot={snapshot} />
           </TerraCard>
         </div>
 
         {/* Side summary */}
         <div className="space-y-6">
+          <ComplianceSettingsCard snapshot={snapshot} />
+
+          <TerraCard>
+            <TerraSectionTitle title="Rule standing" description="Live from the same stores as Objectives." />
+            <div className="space-y-5">
+              <ConsistencyScore snapshot={snapshot} />
+              <TradingDaysCounter snapshot={snapshot} />
+              <PayoutReadiness snapshot={snapshot} />
+            </div>
+          </TerraCard>
+
           <TerraCard>
             <TerraSectionTitle title="Exposure" description={`${accPositions.length} open positions (live)`} />
             <div className="grid grid-cols-2 gap-4">
               <TerraStat label="Margin Used" value={formatMoney(marginUsed)} />
-              <TerraStat label="Margin Free" value={formatMoney(Math.max(0, acc.equity - marginUsed))} tone="positive" />
+              <TerraStat label="Margin Free" value={formatMoney(Math.max(0, snapshot.equityToday - marginUsed))} tone="positive" />
               <TerraStat label="Open Lots" value={openLots.toFixed(1)} />
               <TerraStat label="Risk Score" value={riskScore.grade} tone={riskScore.tone} sub={riskScore.sub} />
             </div>
           </TerraCard>
+
           <TerraCard>
             <TerraSectionTitle
               title="Pattern monitoring"
@@ -224,10 +273,9 @@ export function RiskDashboardPage() {
               Review detections &amp; how to avoid them
             </Link>
           </TerraCard>
+
           <TerraCard className="bg-primary-fixed/40">
-            <h3 className="font-headline font-bold text-on-primary-fixed-variant">
-              Risk tips
-            </h3>
+            <h3 className="font-headline font-bold text-on-primary-fixed-variant">Risk tips</h3>
             <ul className="mt-2 space-y-1.5 text-xs text-on-surface-variant">
               <li>• Keep daily risk under 2% per trade.</li>
               <li>• Move stops to breakeven after +1R.</li>

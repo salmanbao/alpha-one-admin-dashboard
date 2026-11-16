@@ -19,6 +19,7 @@ import {
 import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { toast } from "@/hooks/use-toast";
+import { ComplianceSummaryStrip } from "@/components/compliance/compliance-summary-strip";
 
 function StatusChip({ status }: { status: string }) {
   if (status === "active")
@@ -162,6 +163,11 @@ export function MyAccountsPage() {
                 Max DD: <strong className="text-on-surface">{formatMoney(acc.maxDdRemaining)} rem</strong>
               </span>
             </div>
+
+            {/* R7 I2 — compliance standing per account card: buffer,
+                daily usage, violations and payout readiness, all read
+                from the compliance + trading stores. */}
+            <ComplianceSummaryStrip account={acc} />
 
             {/* Footer actions */}
             <div className="flex items-center justify-between gap-3 border-t border-outline-variant/40 pt-4">

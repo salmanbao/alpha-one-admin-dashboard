@@ -17,13 +17,16 @@
  *   trade.opened      → "Position opened" / "Order placed" (R7 I1)
  *   trade.closed      → "Position closed — realized $X"
  *   trade.modified    → "Stop/limit updated" / breakeven / partial / cancel
+ *   compliance.violation      → "Rule violated" (R7 I2)
+ *   compliance.buffer-warning → "Buffer running low"
  *
  * Prop-admin publishes the first seven into the shared
  * `pfaas:demo:lifecycle-log` under the demo gateway; this bridge reads
- * that same log and converts them into inbox messages. The trade.* events
- * are the trader's OWN writes (lib/trading/trading-store) — they land as
- * receipts and are the named consumer for those emissions. Risk warnings
- * (item 5) push their own messages directly via pushInboxMessage().
+ * that same log and converts them into inbox messages. The trade.* and
+ * compliance.* events are the trader's OWN writes (lib/trading,
+ * lib/compliance) — they land as receipts and are the named consumer for
+ * those emissions. Risk warnings (item 5) push their own messages
+ * directly via pushInboxMessage().
  */
 
 import { useEffect } from "react";
@@ -264,6 +267,32 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         read: false,
       };
     }
+    case "compliance.violation":
+      // R7 I2 — computed rule break from lib/compliance/compliance-store.
+      return {
+        id: `inbox:${e.id}:compliance-violation`,
+        subject: "Rule violated",
+        body: `${String(e.payload?.detail ?? "A trading rule was breached.")}\n\nOpen the Risk Dashboard for the full standing.`,
+        category: "Trading",
+        sender: "Risk Team",
+        at: e.at,
+        read: false,
+        actionType: "challenge",
+        actionHref: "/risk-dashboard",
+      };
+    case "compliance.buffer-warning":
+      // Final 20% of a buffer — the same threshold the gauge turns red.
+      return {
+        id: `inbox:${e.id}:compliance-buffer-warning`,
+        subject: "Buffer running low",
+        body: `Your ${String(e.payload?.metric ?? "allowance")} is ${Math.round(Number(e.payload?.usedPct ?? 0))}% used — only ${money(e.payload?.remaining)} left of the ${money(e.payload?.limit)} allowance on account #${String(e.payload?.login ?? "")}.`,
+        category: "Trading",
+        sender: "Risk Team",
+        at: e.at,
+        read: false,
+        actionType: "challenge",
+        actionHref: "/risk-dashboard",
+      };
     default:
       return null;
   }
@@ -273,10 +302,10 @@ export function useInboxLifecycleBridge(): void {
   const events = useLifecycleLog();
   useEffect(() => {
     for (const e of events) {
-      // Trade receipts (actor "trader") are this app's own writes — they
-      // map below. Everything else in the inbox comes from prop-admin.
-      const ownTrade = e.name.startsWith("trade.");
-      if (e.actor !== "prop-admin" && !ownTrade) continue;
+      // Trade + compliance receipts (actor "trader") are this app's own
+      // writes — they map below. Everything else comes from prop-admin.
+      const own = e.name.startsWith("trade.") || e.name.startsWith("compliance.");
+      if (e.actor !== "prop-admin" && !own) continue;
       const msg = mapEvent(e);
       if (!msg) continue;
       pushInboxMessage(msg);

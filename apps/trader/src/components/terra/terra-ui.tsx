@@ -293,10 +293,17 @@ export function TerraAreaChart({
   data,
   height = 220,
   formatValue,
+  overlay,
 }: {
   data: { x: string; y: number }[];
   height?: number;
   formatValue?: (v: number) => string;
+  /**
+   * Optional second series drawn as a dashed line with its own label
+   * (R7 I2: the compliance drawdown floor over the equity curve).
+   * Indexed against the main series — pass the same length.
+   */
+  overlay?: { data: { x: string; y: number }[]; label: string; color?: string };
 }) {
   // Interactive hover / focus tooltip (audit finding #5 — trader charts
   // had no hover affordance while the admin dashboards' recharts did).
@@ -314,8 +321,10 @@ export function TerraAreaChart({
   const padB = 30;
 
   const values = data.map((d) => d.y);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const overlayValues =
+    overlay && overlay.data.length > 0 ? overlay.data.map((d) => d.y) : [];
+  const min = Math.min(...values, ...overlayValues);
+  const max = Math.max(...values, ...overlayValues);
   const span = max - min || 1;
   const lo = min - span * 0.1;
   const hi = max + span * 0.1;
@@ -434,6 +443,34 @@ export function TerraAreaChart({
       <path d={line} fill="none" stroke="#4a7c59" strokeWidth="3" strokeLinecap="round" />
       <circle cx={lastX} cy={lastY} fill="#4a7c59" r="5" />
       <circle className="animate-pulse" cx={lastX} cy={lastY} fill="#4a7c59" opacity="0.25" r="10" />
+      {/* Overlay series (R7 I2) — dashed floor line, distinct color + label */}
+      {overlay && overlay.data.length > 1 ? (
+        <g pointerEvents="none">
+          <path
+            d={overlay.data.reduce<string>((acc, d, i) => {
+              const cmd = i === 0 ? "M" : "C";
+              const prev = overlay.data[i - 1];
+              if (i === 0) return `M ${sx(0)} ${sy(d.y)}`;
+              const mx = (sx(i - 1) + sx(i)) / 2;
+              return `${acc} ${cmd} ${mx} ${sy(prev.y)}, ${mx} ${sy(d.y)}, ${sx(i)} ${sy(d.y)}`;
+            }, "")}
+            fill="none"
+            stroke={overlay.color ?? "#c2410c"}
+            strokeWidth="2"
+            strokeDasharray="6 4"
+            strokeLinecap="round"
+          />
+          <text
+            x={W - padR}
+            y={Math.max(padT + 8, sy(overlayValues[overlayValues.length - 1]) - 6)}
+            textAnchor="end"
+            className="fill-current text-[9px] font-semibold"
+            style={{ color: overlay.color ?? "#c2410c" }}
+          >
+            {overlay.label}
+          </text>
+        </g>
+      ) : null}
       {/* Hover / focus crosshair + point marker (audit finding #5) */}
       {hoverIdx !== null && (
         <g pointerEvents="none">

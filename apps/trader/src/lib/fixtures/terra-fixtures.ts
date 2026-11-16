@@ -2152,10 +2152,16 @@ export interface TerraObjective {
  * have no profit target — they track scaling progression and payout
  * health instead. Every number derives from the account record, its
  * program limits and its actual trade history.
+ *
+ * R7 I2: `realized` is the trading store's session realized P&L for this
+ * account — profit adds it, daily-loss and max-drawdown usage grow with
+ * this session's losing closes, so the compliance dashboard, objectives
+ * gauges and payout screens all read the same live standing.
  */
 export function objectivesFor(
   accountId: string,
   allTrades: TerraTrade[] = terraTrades,
+  realized = 0,
 ): TerraObjective[] {
   const acc = terraAccounts.find((a) => a.id === accountId);
   if (!acc) return [];
@@ -2168,8 +2174,9 @@ export function objectivesFor(
     (p) => p.account === accountId && p.status === "paid",
   );
   // Total profit generated over the account's life (payouts don't erase
-  // it — they move it off the balance).
-  const grossProfit = acc.pnl + paidPayouts.reduce((s, p) => s + p.amount, 0);
+  // it — they move it off the balance) + this session's realized P&L.
+  const grossProfit =
+    acc.pnl + realized + paidPayouts.reduce((s, p) => s + p.amount, 0);
   const dayTotals = new Map<string, number>();
   for (const t of trades) {
     const k = t.closedAt.slice(0, 10);
@@ -2180,17 +2187,26 @@ export function objectivesFor(
       ? Math.round((Math.max(...dayTotals.values()) / grossProfit) * 100)
       : 0;
 
-  const dailyUsed = Math.max(0, limits.daily - acc.dailyLossRemaining);
-  const ddUsed = Math.max(0, limits.maxDd - acc.maxDdRemaining);
+  // Session grounding (R7 I2): today's losing closes consume today's
+  // allowance on top of the fixture baseline (the fixtures have no
+  // closes dated today, so nothing double-counts); a net session loss
+  // consumes the total drawdown (gains never refund used drawdown).
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todaySessionPnl = trades
+    .filter((t) => t.closedAt.slice(0, 10) === todayKey)
+    .reduce((s, t) => s + t.pnl, 0);
+  const dailyUsed =
+    Math.max(0, limits.daily - acc.dailyLossRemaining) + Math.max(0, -todaySessionPnl);
+  const ddUsed = Math.max(0, limits.maxDd - acc.maxDdRemaining) + Math.max(0, -realized);
 
   const dailyObjective: TerraObjective = {
     id: "obj-daily-dd",
     name: "Daily Loss Limit",
-    current: dailyUsed,
+    current: Math.min(limits.daily, dailyUsed),
     target: limits.daily,
     unit: "USD",
     status: "on-track",
-    description: `Max loss in a single day. ${usd(acc.dailyLossRemaining)} remaining today.`,
+    description: `Max loss in a single day. ${usd(Math.max(0, limits.daily - dailyUsed))} remaining today.`,
   };
   const consistencyObjective: TerraObjective = {
     id: "obj-consistency",
@@ -2248,10 +2264,10 @@ export function objectivesFor(
     {
       id: "obj-profit",
       name: "Profit Target",
-      current: acc.pnl,
+      current: acc.pnl + realized,
       target: acc.profitTarget,
       unit: "USD",
-      status: acc.pnl >= acc.profitTarget ? "complete" : "on-track",
+      status: acc.pnl + realized >= acc.profitTarget ? "complete" : "on-track",
       description: `Reach ${targetPct}% profit without breaching risk limits.`,
     },
     dailyObjective,
