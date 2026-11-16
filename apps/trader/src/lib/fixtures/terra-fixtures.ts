@@ -2007,11 +2007,23 @@ const usd = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
  * floating). Small deterministic wobble mimics intraday equity drift
  * when no trades close. This is what makes the 7d/30d/90d toggles and
  * the account switcher agree with the balances shown next to them.
+ *
+ * R7 I1: `trades` / `positions` / `realized` default to the fixtures so
+ * existing callers behave identically; trading screens pass the live
+ * store (lib/trading/trading-store) so a close taken this session shows
+ * up — today's point is balance + floating + realized, and past points
+ * subtract this session's closes exactly like the fixture history.
  */
-export function equityCurveFor(accountId: string, days: number): TerraSeriesPoint[] {
+export function equityCurveFor(
+  accountId: string,
+  days: number,
+  trades: TerraTrade[] = terraTrades,
+  positions: TerraPosition[] = terraPositions,
+  realized = 0,
+): TerraSeriesPoint[] {
   const acc = terraAccounts.find((a) => a.id === accountId);
   if (!acc) return [];
-  const floating = terraPositions
+  const floating = positions
     .filter((p) => p.accountId === accountId)
     .reduce((s, p) => s + p.pnl, 0);
   const today = startOfUtcDay(Date.now());
@@ -2021,10 +2033,10 @@ export function equityCurveFor(accountId: string, days: number): TerraSeriesPoin
     const dayStart = today - i * DAY_MS;
     let y: number;
     if (i === 0) {
-      y = acc.balance + floating; // today: balance + unrealized P&L
+      y = acc.balance + floating + realized; // today: balance + unrealized + session realized
     } else {
       const dayEnd = dayStart + DAY_MS;
-      const closedAfter = terraTrades
+      const closedAfter = trades
         .filter((t) => t.accountId === accountId && +new Date(t.closedAt) >= dayEnd)
         .reduce((s, t) => s + t.pnl, 0);
       const paidAfter = terraPayouts
@@ -2037,6 +2049,7 @@ export function equityCurveFor(accountId: string, days: number): TerraSeriesPoin
         acc.balance -
         closedAfter +
         paidAfter +
+        realized +
         wobble(dayStart / DAY_MS) * acc.balance * 0.0007;
     }
     out.push({ x: dayLabel(dayStart), y: Math.round(y * 100) / 100 });
@@ -2044,15 +2057,20 @@ export function equityCurveFor(accountId: string, days: number): TerraSeriesPoin
   return out;
 }
 
-/** Net P&L closed on each of the last `days` days (0 on non-trading days). */
-export function dailyPnlFor(accountId: string, days = 14): TerraSeriesPoint[] {
+/** Net P&L closed on each of the last `days` days (0 on non-trading days).
+ *  R7 I1: pass the trading store's closed trades to include this session. */
+export function dailyPnlFor(
+  accountId: string,
+  days = 14,
+  trades: TerraTrade[] = terraTrades,
+): TerraSeriesPoint[] {
   const today = startOfUtcDay(Date.now());
   const span = Math.max(1, Math.floor(days));
   const out: TerraSeriesPoint[] = [];
   for (let i = span - 1; i >= 0; i--) {
     const dayStart = today - i * DAY_MS;
     const dayEnd = dayStart + DAY_MS;
-    const y = terraTrades
+    const y = trades
       .filter(
         (t) =>
           t.accountId === accountId &&
@@ -2135,11 +2153,17 @@ export interface TerraObjective {
  * health instead. Every number derives from the account record, its
  * program limits and its actual trade history.
  */
-export function objectivesFor(accountId: string): TerraObjective[] {
+export function objectivesFor(
+  accountId: string,
+  allTrades: TerraTrade[] = terraTrades,
+): TerraObjective[] {
   const acc = terraAccounts.find((a) => a.id === accountId);
   if (!acc) return [];
   const limits = terraRiskLimits[accountId] ?? { daily: 1000, maxDd: 5000 };
-  const trades = terraTrades.filter((t) => t.accountId === accountId);
+  // R7 I1: pass the trading store's closed trades (trading-days / best-day
+  // derive from them) so Objectives, the dashboard and payout eligibility
+  // count the same days from the same history.
+  const trades = allTrades.filter((t) => t.accountId === accountId);
   const paidPayouts = terraPayouts.filter(
     (p) => p.account === accountId && p.status === "paid",
   );
@@ -2788,15 +2812,17 @@ function enteredDuringMarketClosed(iso: string): boolean {
  *                second account rather than closing the first).
  *  - `weekend` — entry placed while the market is closed (weekend).
  *
- * Pure and derived: the same fixtures always produce the same events.
+ * Pure and derived: the same inputs always produce the same events.
+ * R7 I1: pass the trading store's closed trades to scan this session's
+ * closes too (defaults to the fixtures for existing callers).
  */
-export function detectTerraPatterns(): TerraPatternEvent[] {
+export function detectTerraPatterns(trades: TerraTrade[] = terraTrades): TerraPatternEvent[] {
   const out: TerraPatternEvent[] = [];
 
-  for (let a = 0; a < terraTrades.length; a++) {
-    for (let b = a + 1; b < terraTrades.length; b++) {
-      const first = terraTrades[a];
-      const second = terraTrades[b];
+  for (let a = 0; a < trades.length; a++) {
+    for (let b = a + 1; b < trades.length; b++) {
+      const first = trades[a];
+      const second = trades[b];
       if (first.accountId === second.accountId || first.symbol !== second.symbol) continue;
       const delta = Math.abs(
         +new Date(first.openedAt) - +new Date(second.openedAt),
@@ -2817,7 +2843,7 @@ export function detectTerraPatterns(): TerraPatternEvent[] {
     }
   }
 
-  for (const trade of terraTrades) {
+  for (const trade of trades) {
     if (!enteredDuringMarketClosed(trade.openedAt)) continue;
     out.push({
       id: `pat-wk-${trade.ticket}`,

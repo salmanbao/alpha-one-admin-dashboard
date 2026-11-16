@@ -14,11 +14,16 @@
  *   kyc.approved      → "KYC approved — your account is verified for payouts"
  *   kyc.rejected      → "KYC rejected — update documents and retry"
  *   challenge.funded  → "Challenge funded — account ready to trade"
+ *   trade.opened      → "Position opened" / "Order placed" (R7 I1)
+ *   trade.closed      → "Position closed — realized $X"
+ *   trade.modified    → "Stop/limit updated" / breakeven / partial / cancel
  *
- * Prop-admin publishes these events into the shared `pfaas:demo:lifecycle-log`
- * under the demo gateway; this bridge reads that same log and converts the
- * trader-actor-relevant events into inbox messages. Risk warnings (item 5)
- * push their own messages directly via pushInboxMessage().
+ * Prop-admin publishes the first seven into the shared
+ * `pfaas:demo:lifecycle-log` under the demo gateway; this bridge reads
+ * that same log and converts them into inbox messages. The trade.* events
+ * are the trader's OWN writes (lib/trading/trading-store) — they land as
+ * receipts and are the named consumer for those emissions. Risk warnings
+ * (item 5) push their own messages directly via pushInboxMessage().
  */
 
 import { useEffect } from "react";
@@ -203,6 +208,62 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         at: e.at,
         read: false,
       };
+    case "trade.opened": {
+      // R7 I1 — receipts for the trader's own trading-store writes.
+      const lots = typeof e.payload?.lots === "number" ? e.payload.lots : 0;
+      const symbol = String(e.payload?.symbol ?? "");
+      const pending = e.payload?.mode === "pending-order";
+      return {
+        id: `inbox:${e.id}:trade-opened`,
+        subject: pending ? "Order placed" : "Position opened",
+        body: pending
+          ? `${String(e.payload?.orderType ?? "Order")} ${lots.toFixed(2)} ${symbol} @ ${e.payload?.price} · ticket #${e.payload?.ticket}`
+          : `${e.payload?.side === "long" ? "Bought" : "Sold"} ${lots.toFixed(2)} lots ${symbol} @ ${e.payload?.entry} · ticket #${e.payload?.ticket}`,
+        category: "Trading",
+        sender: "Terra Markets",
+        at: e.at,
+        read: false,
+      };
+    }
+    case "trade.closed":
+      return {
+        id: `inbox:${e.id}:trade-closed`,
+        subject: "Position closed",
+        body: `${String(e.payload?.symbol ?? "")} ${String(e.payload?.side ?? "")} ${typeof e.payload?.lots === "number" ? e.payload.lots.toFixed(2) : ""} lots closed @ ${e.payload?.exit} · realized ${money(e.payload?.pnl)} (ticket #${e.payload?.ticket})`,
+        category: "Trading",
+        sender: "Terra Markets",
+        at: e.at,
+        read: false,
+      };
+    case "trade.modified": {
+      const action = String(e.payload?.action ?? "");
+      const symbol = String(e.payload?.symbol ?? "");
+      const subject =
+        action === "breakeven"
+          ? "Stop moved to breakeven"
+          : action === "partial-close"
+            ? "Position partially closed"
+            : action === "order-cancelled"
+              ? "Order cancelled"
+              : "Stop/limit updated";
+      const body =
+        action === "breakeven"
+          ? `${symbol} stop loss moved to entry ${e.payload?.sl}.`
+          : action === "partial-close"
+            ? `${String(e.payload?.closedLots ?? "")} lots of ${symbol} closed · realized ${money(e.payload?.pnl)}.`
+            : action === "order-cancelled"
+              ? `${String(e.payload?.orderType ?? "Order")} ${symbol} @ ${e.payload?.price} was cancelled.`
+              : `${symbol} SL ${e.payload?.sl ?? "—"} • TP ${e.payload?.tp ?? "—"}.`;
+      return {
+        id: `inbox:${e.id}:trade-modified`,
+        subject,
+        body,
+        category: "Trading",
+        sender: "Terra Markets",
+        at: e.at,
+        read: false,
+      };
+    }
     default:
       return null;
   }
@@ -212,7 +273,10 @@ export function useInboxLifecycleBridge(): void {
   const events = useLifecycleLog();
   useEffect(() => {
     for (const e of events) {
-      if (e.actor !== "prop-admin") continue;
+      // Trade receipts (actor "trader") are this app's own writes — they
+      // map below. Everything else in the inbox comes from prop-admin.
+      const ownTrade = e.name.startsWith("trade.");
+      if (e.actor !== "prop-admin" && !ownTrade) continue;
       const msg = mapEvent(e);
       if (!msg) continue;
       pushInboxMessage(msg);

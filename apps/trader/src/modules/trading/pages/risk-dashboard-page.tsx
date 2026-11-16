@@ -49,7 +49,7 @@ const fmtCountdown = (ms: number) => {
 export function RiskDashboardPage() {
   // Risk gauges follow the active trading account (header switcher).
   const { activeAccount: acc } = useActiveAccount();
-  const { positions } = useTrading();
+  const { positions, closedTrades } = useTrading();
   // Program limits come from the shared fixture so this page, the
   // objectives page and the rules page can never disagree.
   const limits = terraRiskLimits[acc.id] ?? { daily: 1000, maxDd: 5000 };
@@ -90,7 +90,8 @@ export function RiskDashboardPage() {
 
   // Pattern detections (audit B #1) — the same derivation the Pattern
   // Monitor screen uses, so the two surfaces can never disagree.
-  const patterns = useMemo(() => detectTerraPatterns(), []);
+  // R7 I1 — scans the persistent trading store (seed + this session).
+  const patterns = useMemo(() => detectTerraPatterns(closedTrades), [closedTrades]);
   const patternCounts = useMemo(
     () => ({
       copy: patterns.filter((p) => p.kind === "copy").length,

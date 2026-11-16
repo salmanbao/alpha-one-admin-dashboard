@@ -55,7 +55,8 @@ export type LifecycleEntityKind =
   | "provisioning"
   | "challenge"
   | "competition"
-  | "account";
+  | "account"
+  | "trade";
 
 export interface EntityRef {
   kind: LifecycleEntityKind;
@@ -109,6 +110,11 @@ export const LIFECYCLE_EVENT_NAMES = [
   // Operator → trader message (R4-09, rule R6) — consumer: trader
   // inbox-lifecycle-bridge, which projects it as an inbox message
   "comms.message-sent",
+  // Trades (R7 I1) — consumers: trader inbox-lifecycle-bridge receipts
+  // ("Position opened/closed/modified"); emitted by lib/trading/trading-store
+  "trade.opened",
+  "trade.closed",
+  "trade.modified",
 ] as const;
 
 export type LifecycleEventName = (typeof LIFECYCLE_EVENT_NAMES)[number];
@@ -353,6 +359,9 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "account.password-reset": "Password reset",
   "purchase.refunded": "Refunded",
   "comms.message-sent": "Message sent",
+  "trade.opened": "Position opened",
+  "trade.closed": "Position closed",
+  "trade.modified": "Position modified",
 };
 
 /**

@@ -33,11 +33,11 @@ import {
   terraBenchmarkMetrics,
   terraCohorts,
   terraIndustryStandards,
-  terraTrades,
   type TerraBenchmark,
   type TerraBenchmarkMetric,
   type TerraBenchmarkMetricKey,
 } from "@/lib/fixtures/terra-fixtures";
+import { useTrading } from "@/lib/trading/trading-context";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { toast } from "@/hooks/use-toast";
 import { useRovingTabs } from "@/lib/a11y/roving-tabs";
@@ -58,21 +58,26 @@ export function PerformanceAnalyticsPage() {
   // figure in that panel re-reads this selection.
   const [cohortKey, setCohortKey] = useState("funded-all");
   const cohort = terraCohorts.find((c) => c.key === cohortKey) ?? terraCohorts[0];
+  // R7 I1 — KPIs + curve read the persistent trading store so a close
+  // taken this session recalculates every figure below.
+  const { closedTrades, positions, realizedByAccount } = useTrading();
   const pool = scopeAll
-    ? terraTrades
-    : terraTrades.filter((t) => t.accountId === activeAccountId);
+    ? closedTrades
+    : closedTrades.filter((t) => t.accountId === activeAccountId);
 
   // Equity curve follows the same scope as the KPI cards — the active
   // account's own curve, or the combined equity of every account.
   const curve = scopeAll
     ? terraAccounts.reduce<{ x: string; y: number }[]>((accs, a) => {
-        equityCurveFor(a.id, 30).forEach((p, i) => {
-          accs[i] ??= { x: p.x, y: 0 };
-          accs[i].y += p.y;
-        });
+        equityCurveFor(a.id, 30, closedTrades, positions, realizedByAccount[a.id] ?? 0).forEach(
+          (p, i) => {
+            accs[i] ??= { x: p.x, y: 0 };
+            accs[i].y += p.y;
+          },
+        );
         return accs;
       }, [])
-    : equityCurveFor(activeAccountId, 30);
+    : equityCurveFor(activeAccountId, 30, closedTrades, positions, realizedByAccount[activeAccountId] ?? 0);
 
   const winTrades = pool.filter((t) => t.pnl > 0);
   const lossTrades = pool.filter((t) => t.pnl < 0);

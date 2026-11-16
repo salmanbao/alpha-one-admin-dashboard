@@ -25,6 +25,7 @@ import {
   payoutScheduleOptions,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
+import { useTrading } from "@/lib/trading/trading-context";
 import { usePayoutMethods } from "@/lib/payouts/payout-methods-store";
 import {
   MIN_PAYOUT_DAYS,
@@ -46,6 +47,8 @@ export function PayoutEligibilityPage() {
   // ?id= deep link wins (from payout detail / links), otherwise follow the
   // globally active trading account from the header switcher.
   const account = useSyncActiveAccount(params.get("id"));
+  // R7 I1 — trading-day counts read the persistent trading store.
+  const { closedTrades } = useTrading();
   const entitlement = payoutEntitlement(account.id);
   // The fixture note ("Bi-weekly • Available in 4 days") is the source
   // of truth for the status row — never a hardcoded guess.
@@ -55,7 +58,7 @@ export function PayoutEligibilityPage() {
 
   // Single eligibility checklist shared with the request form and the
   // summary strip (W1-02) — one source of truth for "what's not met".
-  const criteria = buildPayoutCriteria(account.id, entitlement.withdrawable);
+  const criteria = buildPayoutCriteria(account.id, entitlement.withdrawable, closedTrades);
   const outstanding = criteria.filter((c) => !c.ok).length;
   const nextWindow = payoutWindow();
 
@@ -292,7 +295,7 @@ export function PayoutEligibilityPage() {
                 <dd className="text-right font-bold text-on-surface">{formatMoney(minPayout)}</dd>
                 <dt className="text-on-surface-variant">Min. trading days</dt>
                 <dd className="text-right font-bold text-on-surface">
-                  {MIN_PAYOUT_DAYS} per cycle ({tradedDaysFor(account.id)} done)
+                  {MIN_PAYOUT_DAYS} per cycle ({tradedDaysFor(account.id, closedTrades)} done)
                 </dd>
                 <dt className="text-on-surface-variant">Window</dt>
                 <dd className="text-right font-bold text-on-surface">
@@ -406,7 +409,7 @@ export function PayoutEligibilityPage() {
                 <p className="text-xs leading-relaxed text-on-surface-variant">
                   The minimum spread results across the cycle so payouts reflect a
                   consistent edge rather than a single outlier trade. You&apos;ve traded{" "}
-                  {tradedDaysFor(account.id)} of {MIN_PAYOUT_DAYS} required days this
+                  {tradedDaysFor(account.id, closedTrades)} of {MIN_PAYOUT_DAYS} required days this
                   cycle — see the objectives page for live progress.
                 </p>
               </div>

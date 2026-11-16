@@ -48,10 +48,10 @@ import {
 import {
   detectTerraPatterns,
   terraAccounts,
-  terraTrades,
   type TerraPatternEvent,
   type TerraPatternKind,
 } from "@/lib/fixtures/terra-fixtures";
+import { useTrading } from "@/lib/trading/trading-context";
 import {
   ArrowLeftRight,
   CalendarClock,
@@ -192,31 +192,35 @@ export function TradingPatternsPage() {
   const [outcome, setOutcome] = useState<OutcomeKey>("all");
   const [heatMetric, setHeatMetric] = useState<"trades" | "pnl">("trades");
 
-  const events = useMemo(() => detectTerraPatterns(), []);
+  // R7 I1 — scans + tables read the persistent trading store (fixture
+  // seed + this session's closes), so detections include new trades.
+  const { closedTrades } = useTrading();
+
+  const events = useMemo(() => detectTerraPatterns(closedTrades), [closedTrades]);
 
   /* ── Filter plumbing ── */
   const symbols = useMemo(
-    () => [...new Set(terraTrades.map((t) => t.symbol))].sort(),
-    [],
+    () => [...new Set(closedTrades.map((t) => t.symbol))].sort(),
+    [closedTrades],
   );
 
-  // Anchor: the newest closed trade in the fixtures — never Date.now(),
+  // Anchor: the newest closed trade in the history — never Date.now(),
   // so "last 7 days" means the same window on every render.
   const anchor = useMemo(
-    () => Math.max(...terraTrades.map((t) => +new Date(t.closedAt))),
-    [],
+    () => Math.max(...closedTrades.map((t) => +new Date(t.closedAt))),
+    [closedTrades],
   );
 
   const filteredTrades = useMemo(() => {
     const cutoff = period === "all" ? -Infinity : anchor - Number(period) * 86_400_000;
-    return terraTrades.filter((t) => {
+    return closedTrades.filter((t) => {
       if (+new Date(t.closedAt) < cutoff) return false;
       if (symbol !== "all" && t.symbol !== symbol) return false;
       if (outcome === "wins" && t.pnl <= 0) return false;
       if (outcome === "losses" && t.pnl >= 0) return false;
       return true;
     });
-  }, [anchor, period, symbol, outcome]);
+  }, [anchor, period, symbol, outcome, closedTrades]);
 
   const filteredTickets = useMemo(
     () => new Set(filteredTrades.map((t) => t.ticket)),
@@ -391,7 +395,7 @@ export function TradingPatternsPage() {
 
           <div className="flex items-center gap-2 pb-0.5">
             <span className="text-xs tabular-nums text-on-surface-variant">
-              {filteredTrades.length} of {terraTrades.length} trades
+              {filteredTrades.length} of {closedTrades.length} trades
             </span>
             {hasFilters && (
               <button
@@ -407,7 +411,7 @@ export function TradingPatternsPage() {
         </div>
         <p className="pt-3 text-xs text-on-surface-variant">
           Windows anchor to your most recent closed trade
-          ({fmtWhen(terraTrades.reduce((a, b) => (+new Date(a.closedAt) > +new Date(b.closedAt) ? a : b)).closedAt)}),
+          ({fmtWhen(closedTrades.reduce((a, b) => (+new Date(a.closedAt) > +new Date(b.closedAt) ? a : b)).closedAt)}),
           so the same history always falls in the same bucket.
         </p>
       </TerraCard>

@@ -28,6 +28,7 @@ import {
   terraRiskLimits,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
+import { useTrading } from "@/lib/trading/trading-context";
 import {
   MIN_PAYOUT_DAYS,
   PayoutSummaryStrip,
@@ -145,7 +146,9 @@ export function PayoutRequestPage() {
   const method =
     methods.find((m) => m.id === methodId) ?? primaryMethod ?? methods[0];
   const feeAmount = method?.feeAmount ?? 0;
-  const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable);
+  // R7 I1 — day counts read the persistent trading store.
+  const { closedTrades } = useTrading();
+  const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable, closedTrades);
   const outstanding = criteria.filter((c) => !c.ok).length;
   // R4-11: block submission on rejected method, warn on unverified
   const methodRejected = method?.verification === "rejected";
@@ -158,7 +161,7 @@ export function PayoutRequestPage() {
   const ddUsed = Math.max(0, limits.maxDd - acc.maxDdRemaining);
   const dailyPct = limits.daily > 0 ? (dailyUsed / limits.daily) * 100 : 0;
   const ddPct = limits.maxDd > 0 ? (ddUsed / limits.maxDd) * 100 : 0;
-  const traded = tradedDaysFor(acc.id);
+  const traded = tradedDaysFor(acc.id, closedTrades);
   const daysLeft = Math.max(0, MIN_PAYOUT_DAYS - traded);
 
   const asked = Number(amount);

@@ -13,9 +13,10 @@
  *   3. Minimum trading days progress this payout cycle
  *   4. Outstanding (unmet) requirements count
  *
- * Data comes from the same fixtures the full eligibility page uses
- * (terraTrades, payoutSchedule) so the summary and the checklist can
- * never disagree.
+ * Data comes from the same history the full eligibility page uses —
+ * R7 I1: the persistent trading store (fixture seed + this session's
+ * closes), threaded through `tradedDaysFor` / `buildPayoutCriteria`, so
+ * the summary and the checklist can never disagree.
  */
 
 import { formatMoney } from "@/components/terra/terra-ui";
@@ -23,7 +24,9 @@ import {
   payoutSchedule,
   terraAccounts,
   terraTrades,
+  type TerraTrade,
 } from "@/lib/fixtures/terra-fixtures";
+import { useTrading } from "@/lib/trading/trading-context";
 import { readPayoutMethods, readPrimaryPayoutMethod } from "@/lib/payouts/payout-methods-store";
 import { readVerificationDraft } from "@/lib/verification/verification-store";
 
@@ -33,10 +36,14 @@ export const minPayout = 100;
 /** Minimum trading days per payout cycle — single source for both screens. */
 export const MIN_PAYOUT_DAYS = 5;
 
-/** Distinct trading days (by calendar date) an account has traded. */
-export function tradedDaysFor(accountId: string) {
+/**
+ * Distinct trading days (by calendar date) an account has traded.
+ * R7 I1: pass the store's closed trades so session trades count too
+ * (defaults to the fixtures for callers without the store handy).
+ */
+export function tradedDaysFor(accountId: string, trades: TerraTrade[] = terraTrades) {
   return new Set(
-    terraTrades.filter((t) => t.accountId === accountId).map((t) => t.openedAt.slice(0, 10)),
+    trades.filter((t) => t.accountId === accountId).map((t) => t.openedAt.slice(0, 10)),
   ).size;
 }
 
@@ -67,9 +74,10 @@ export type PayoutCriterion = {
 export function buildPayoutCriteria(
   accountId: string,
   withdrawable: number,
+  trades: TerraTrade[] = terraTrades,
 ): PayoutCriterion[] {
   const acc = terraAccounts.find((a) => a.id === accountId);
-  const traded = tradedDaysFor(accountId);
+  const traded = tradedDaysFor(accountId, trades);
   const daysLeft = Math.max(0, MIN_PAYOUT_DAYS - traded);
   return [
     {
@@ -133,7 +141,10 @@ export function PayoutSummaryStrip({
   balance,
   outstanding,
 }: PayoutSummaryStripProps) {
-  const traded = tradedDaysFor(accountId);
+  // R7 I1 — subscribes to the trading store so the day count re-renders
+  // when a session trade opens.
+  const { closedTrades } = useTrading();
+  const traded = tradedDaysFor(accountId, closedTrades);
   const daysMet = traded >= MIN_PAYOUT_DAYS;
   const { open: windowOpen, daysToOpen, opensAt, closesAt } = payoutWindow();
 

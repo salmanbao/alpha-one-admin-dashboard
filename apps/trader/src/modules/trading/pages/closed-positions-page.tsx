@@ -17,8 +17,47 @@ import { EmptyState } from "@pfaas/ui";
 import { Activity, Clock } from "lucide-react";
 import { Button } from "@pfaas/ui";
 import { useActiveAccount } from "@/lib/platform/account-context";
-import { toast } from "@/hooks/use-toast";
+import { useTrading } from "@/lib/trading/trading-context";
 import { exportToCsv } from "@/lib/export/export-csv";
+import { terraAccounts, type TerraTrade } from "@/lib/fixtures/terra-fixtures";
+
+/** Hold time as a human duration ("2 days 4 hours" / "3 hours 12 min"). */
+function holdDuration(openedAt: string, closedAt: string): string {
+  const ms = Math.max(0, +new Date(closedAt) - +new Date(openedAt));
+  const days = Math.floor(ms / 86_400_000);
+  const hours = Math.floor((ms % 86_400_000) / 3_600_000);
+  if (days > 0) {
+    return `${days} day${days === 1 ? "" : "s"} ${hours} hour${hours === 1 ? "" : "s"}`;
+  }
+  const mins = Math.floor((ms % 3_600_000) / 60_000);
+  if (hours > 0) {
+    return `${hours} hour${hours === 1 ? "" : "s"} ${mins} min${mins === 1 ? "" : "s"}`;
+  }
+  return `${mins} min${mins === 1 ? "" : "s"}`;
+}
+
+/** Trading store trade → the row shape this table renders (R7 I1). */
+function toClosedRow(t: TerraTrade) {
+  const size = Math.round(t.lots * 100_000);
+  const balance = terraAccounts.find((a) => a.id === t.accountId)?.balance;
+  const marginUsed = Math.round((t.entry * size) / 100);
+  return {
+    id: t.id,
+    accountId: t.accountId,
+    symbol: t.symbol,
+    side: t.side,
+    size,
+    entryPrice: t.entry,
+    exitPrice: t.exit,
+    pnl: t.pnl,
+    pnlPercent: balance ? (t.pnl / balance) * 100 : 0,
+    marginUsed,
+    openedAt: t.openedAt,
+    closedAt: t.closedAt,
+    duration: holdDuration(t.openedAt, t.closedAt),
+    status: "closed" as const,
+  };
+}
 
 export function ClosedPositionsPage() {
   const { runtime } = usePlatform();
@@ -28,81 +67,16 @@ export function ClosedPositionsPage() {
   const { activeAccount, activeAccountId } = useActiveAccount();
   const [scopeAll, setScopeAll] = useState(false);
 
-  const allClosedPositions = useMemo(() => {
-    return [
-      {
-        id: "closed-1",
-        accountId: "acc-100030",
-        symbol: "EURUSD",
-        side: "long",
-        size: 100000,
-        entryPrice: 1.08,
-        exitPrice: 1.085,
-        pnl: 500,
-        pnlPercent: 0.46,
-        marginUsed: 1000,
-        openedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-        closedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
-        duration: "2 days 4 hours",
-        status: "closed",
-      },
-      {
-        id: "closed-2",
-        accountId: "acc-100030",
-        symbol: "GBPUSD",
-        side: "short",
-        size: 100000,
-        entryPrice: 1.27,
-        exitPrice: 1.26,
-        pnl: 1000,
-        pnlPercent: 0.79,
-        marginUsed: 800,
-        openedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-        closedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000),
-        duration: "3 days 6 hours",
-        status: "closed",
-      },
-      {
-        id: "closed-3",
-        accountId: "acc-098412",
-        symbol: "USDJPY",
-        side: "long",
-        size: 100000,
-        entryPrice: 149.5,
-        exitPrice: 148.75,
-        pnl: -750,
-        pnlPercent: -0.5,
-        marginUsed: 1200,
-        openedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
-        closedAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000),
-        duration: "2 days 12 hours",
-        status: "closed",
-      },
-      {
-        id: "closed-4",
-        accountId: "acc-092841",
-        symbol: "XAUUSD",
-        side: "short",
-        size: 100000,
-        entryPrice: 2412.5,
-        exitPrice: 2406.1,
-        pnl: 320,
-        pnlPercent: 0.26,
-        marginUsed: 900,
-        openedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
-        closedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-        duration: "1 day 8 hours",
-        status: "closed",
-      },
-    ];
-  }, []);
+  // R7 I1 — the persistent trading store: fixture seed on first run plus
+  // every close taken in this browser (no hand-written rows).
+  const { closedTrades } = useTrading();
 
   const closedPositions = useMemo(
     () =>
-      scopeAll
-        ? allClosedPositions
-        : allClosedPositions.filter((p) => p.accountId === activeAccountId),
-    [scopeAll, activeAccountId, allClosedPositions],
+      closedTrades
+        .filter((t) => scopeAll || t.accountId === activeAccountId)
+        .map(toClosedRow),
+    [scopeAll, activeAccountId, closedTrades],
   );
 
   return (
@@ -240,6 +214,11 @@ export function ClosedPositionsPage() {
             icon={Activity}
           />
         )}
+
+        {/* R7 I1 — honest provenance for the seeded history (local only). */}
+        <p className="text-center text-xs text-muted-foreground">
+          Demo trades seeded on first run · closes are saved in this browser (Demo)
+        </p>
       </PageContent>
     </Page>
   );

@@ -16,7 +16,7 @@ import {
   TerraTable,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { terraTrades } from "@/lib/fixtures/terra-fixtures";
+import { useTrading } from "@/lib/trading/trading-context";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { toast } from "@/hooks/use-toast";
 import { DetailDialog } from "@/components/terra/detail-dialog";
@@ -43,9 +43,12 @@ export function TradeHistoryPage() {
 
   // Quick-view overlay: clicking a ticket opens the trade detail in a
   // dialog on top of the table — sort, filters, scroll and page are kept.
+  // History reads the persistent trading store (R7 I1): fixture seed on
+  // first run plus every close taken in this browser.
+  const { closedTrades } = useTrading();
   const [quickTradeId, setQuickTradeId] = useState<string | null>(null);
   const quickTrade = quickTradeId
-    ? (terraTrades.find((t) => t.id === quickTradeId) ?? null)
+    ? (closedTrades.find((t) => t.id === quickTradeId) ?? null)
     : null;
 
   // Account scope — follows the header switcher; "All accounts" shows the
@@ -55,9 +58,9 @@ export function TradeHistoryPage() {
   const pool = useMemo(
     () =>
       scopeAll
-        ? terraTrades
-        : terraTrades.filter((t) => t.accountId === activeAccountId),
-    [scopeAll, activeAccountId],
+        ? closedTrades
+        : closedTrades.filter((t) => t.accountId === activeAccountId),
+    [scopeAll, activeAccountId, closedTrades],
   );
 
   const symbols = useMemo(
@@ -327,7 +330,7 @@ export function TradeHistoryPage() {
           </button>
         )}
         <span className="ml-auto text-xs font-semibold text-on-surface-variant">
-          {sorted.length} of {terraTrades.length} trades
+          {sorted.length} of {closedTrades.length} trades
           <span className="hidden font-normal sm:inline"> • ↑/↓ move • Enter open • Esc close</span>
         </span>
       </div>
@@ -436,6 +439,12 @@ export function TradeHistoryPage() {
         </TerraCard>
         </div>
       )}
+
+      {/* R7 I1 — honest provenance: the seeded history is demo data and
+          every close you take is stored in this browser (local only). */}
+      <p className="mt-4 text-center text-xs text-on-surface-variant">
+        Demo trades seeded on first run · closes are saved in this browser (Demo)
+      </p>
 
       {/* Quick-view overlay — inspect a trade without leaving the table */}
       <DetailDialog

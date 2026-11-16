@@ -15,7 +15,7 @@ import {
   TerraTable,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { terraTrades } from "@/lib/fixtures/terra-fixtures";
+import { useTrading } from "@/lib/trading/trading-context";
 
 const timeline = [
   { step: "Open", time: "08:12", note: "Entry filled at 1.08500", tone: "primary" as const },
@@ -27,7 +27,10 @@ const timeline = [
 
 export function TradeReplayPage() {
   const params = useSearchParams();
-  const trade = terraTrades.find((t) => t.id === params.get("id")) ?? terraTrades[1];
+  // R7 I1 — resolves against the persistent trading store (seed + closes).
+  const { closedTrades } = useTrading();
+  const trade =
+    closedTrades.find((t) => t.id === params.get("id")) ?? closedTrades[1] ?? closedTrades[0];
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 

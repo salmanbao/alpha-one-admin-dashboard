@@ -20,7 +20,8 @@ import {
   TerraStat,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { terraTrades, type TerraTrade } from "@/lib/fixtures/terra-fixtures";
+import { type TerraTrade } from "@/lib/fixtures/terra-fixtures";
+import { useTrading } from "@/lib/trading/trading-context";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { DetailDialog } from "@/components/terra/detail-dialog";
 
@@ -66,13 +67,16 @@ export function TradingCalendarPage() {
   const month = view.getMonth();
 
   // Trades in the viewed month, scoped like the other trader screens.
+  // R7 I1 — reads the persistent trading store (seed + this session's
+  // closes), so a close taken today heats up today's cell.
+  const { closedTrades } = useTrading();
   const monthTrades = useMemo(() => {
     const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
     const pool = scopeAll
-      ? terraTrades
-      : terraTrades.filter((t) => t.accountId === activeAccountId);
+      ? closedTrades
+      : closedTrades.filter((t) => t.accountId === activeAccountId);
     return pool.filter((t) => isoDay(t).startsWith(prefix));
-  }, [year, month, scopeAll, activeAccountId]);
+  }, [year, month, scopeAll, activeAccountId, closedTrades]);
 
   // Day → closed P&L and trade list (single pass).
   const byDay = useMemo(() => {

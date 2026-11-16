@@ -30,12 +30,11 @@ import {
   recentActivity,
   scalingPlan,
   terraAccounts,
-  terraPositions,
   terraRiskLimits,
-  terraTrades,
   type ActivityEntry,
 } from "@/lib/fixtures/terra-fixtures";
 import { payoutEntitlement } from "@/lib/fixtures/terra-fixtures";
+import { useTrading } from "@/lib/trading/trading-context";
 import { buildPayoutCriteria } from "@/components/terra/payout-summary-strip";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { AccountSwitcher } from "@/components/shell/account-switcher";
@@ -109,16 +108,25 @@ export function DashboardPage() {
   const riskLimits = terraRiskLimits[acc.id] ?? { daily: 1000, maxDd: 5000 };
   const dailyUsed = Math.max(0, riskLimits.daily - acc.dailyLossRemaining);
   const ddUsed = Math.max(0, riskLimits.maxDd - acc.maxDdRemaining);
-  const accPositions = terraPositions.filter((p) => p.accountId === acc.id);
+  // R7 I1 — open positions, closed trades and session realized P&L come
+  // from the persistent trading store, so the dashboard follows closes.
+  const { positions, closedTrades, realizedByAccount } = useTrading();
+  const accPositions = positions.filter((p) => p.accountId === acc.id);
   const accUnrealized = accPositions.reduce((s, p) => s + p.pnl, 0);
 
   // Equity curve follows the active account AND the selected range —
   // derived from this account's real trade/payout history.
   const rangeDays = range === "7d" ? 7 : range === "90d" ? 90 : 30;
-  const curve = equityCurveFor(acc.id, rangeDays);
+  const curve = equityCurveFor(
+    acc.id,
+    rangeDays,
+    closedTrades,
+    positions,
+    realizedByAccount[acc.id] ?? 0,
+  );
 
   // Quick stats derived from this account's closed trades (not hardcoded).
-  const accTrades = terraTrades.filter((t) => t.accountId === acc.id);
+  const accTrades = closedTrades.filter((t) => t.accountId === acc.id);
   const wins = accTrades.filter((t) => t.pnl > 0).length;
   const winRate = accTrades.length ? Math.round((wins / accTrades.length) * 100) : 0;
   // Minimum trading days counter (audit D #2) — distinct days with a
@@ -136,7 +144,7 @@ export function DashboardPage() {
 
   // Payout eligibility for the active account — displayed prominently before request (audit #1 HIGH)
   const entitlement = payoutEntitlement(acc.id);
-  const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable);
+  const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable, closedTrades);
   const outstanding = criteria.filter((c) => !c.ok).length;
 
   return (

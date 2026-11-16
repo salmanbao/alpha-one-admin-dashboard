@@ -27,6 +27,7 @@ import {
 } from "@/components/terra/terra-ui";
 import { drawdownUsageFor, objectivesFor, terraRiskLimits } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
+import { useTrading } from "@/lib/trading/trading-context";
 import { ChallengeRulesDialog } from "@/components/terra/challenge-rules-dialog";
 
 /* ------------------------------------------------------------------ */
@@ -122,7 +123,9 @@ export function ObjectivesPage() {
   // account's targets they are reviewing. Funded accounts get payout /
   // scaling objectives instead of a Phase 1 profit target.
   const { activeAccount } = useActiveAccount();
-  const objectives = objectivesFor(activeAccount.id);
+  // R7 I1 — objectives (incl. trading days) read the persistent store.
+  const { closedTrades } = useTrading();
+  const objectives = objectivesFor(activeAccount.id, closedTrades);
   const completed = objectives.filter((o) => o.status === "complete").length;
   // Persistent drawdown meters (audit #6) — daily + total risk usage for
   // the selected account, always visible above the objectives list.

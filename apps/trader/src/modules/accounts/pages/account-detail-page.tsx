@@ -31,9 +31,8 @@ import {
   dailyPnlFor,
   equityCurveFor,
   objectivesFor,
-  terraPositions,
-  terraTrades,
 } from "@/lib/fixtures/terra-fixtures";
+import { useTrading } from "@/lib/trading/trading-context";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
 import { useRovingTabs } from "@/lib/a11y/roving-tabs";
 import { toast } from "@/hooks/use-toast";
@@ -49,12 +48,21 @@ export function AccountDetailPage() {
   // active account from the header switcher (URL and switcher stay in sync).
   const params = useSearchParams();
   const acc = useSyncActiveAccount(params.get("id"));
-  const accountPositions = terraPositions.filter((p) => p.accountId === acc.id);
-  const accountTrades = terraTrades.filter((t) => t.accountId === acc.id);
+  // R7 I1 — positions/trades/charts read the persistent trading store so
+  // this account's history and equity follow closes taken this session.
+  const { positions, closedTrades, realizedByAccount } = useTrading();
+  const accountPositions = positions.filter((p) => p.accountId === acc.id);
+  const accountTrades = closedTrades.filter((t) => t.accountId === acc.id);
   // Charts and objectives follow the account in view (never the $100K fixture).
-  const objectives = objectivesFor(acc.id).slice(0, 4);
-  const equityCurve = equityCurveFor(acc.id, 30);
-  const dailyPnl = dailyPnlFor(acc.id);
+  const objectives = objectivesFor(acc.id, closedTrades).slice(0, 4);
+  const equityCurve = equityCurveFor(
+    acc.id,
+    30,
+    closedTrades,
+    positions,
+    realizedByAccount[acc.id] ?? 0,
+  );
+  const dailyPnl = dailyPnlFor(acc.id, 14, closedTrades);
   const tl = challengeTimeline;
   const daysRemaining = Math.max(0, tl.maxCalendarDays - tl.elapsedDays);
   const timeUsedPct = Math.round((tl.elapsedDays / tl.maxCalendarDays) * 100);

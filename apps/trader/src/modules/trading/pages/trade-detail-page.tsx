@@ -21,7 +21,7 @@ import {
   formatMoney,
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
-import { terraTrades } from "@/lib/fixtures/terra-fixtures";
+import { useTrading } from "@/lib/trading/trading-context";
 
 export function TradeDetailContent({
   id,
@@ -31,8 +31,11 @@ export function TradeDetailContent({
   /** true when rendered inside the quick-view dialog (page chrome hidden). */
   embedded?: boolean;
 }) {
+  // R7 I1 — reads the persistent trading store, so a close taken this
+  // session resolves here (fixture seed first-run + session closes).
+  const { closedTrades } = useTrading();
   const trade =
-    terraTrades.find((t) => t.id === id) ?? terraTrades[0];
+    closedTrades.find((t) => t.id === id) ?? closedTrades[0];
   const fmt = (d: string) =>
     new Date(d).toLocaleString("en-US", {
       month: "short",

@@ -33,6 +33,7 @@ import {
   terraPayouts,
 } from "@/lib/fixtures/terra-fixtures";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
+import { useTrading } from "@/lib/trading/trading-context";
 import { usePayoutMethods } from "@/lib/payouts/payout-methods-store";
 import { usePayoutRequests, type DisplayPayout } from "@/lib/payouts/payout-requests-store";
 import {
@@ -51,7 +52,9 @@ function PayoutEligibilityCard({ accountId }: { accountId: string }) {
   const entitlement = payoutEntitlement(accountId);
   const acc = terraAccounts.find((a) => a.id === accountId);
   const methods = usePayoutMethods();
-  const criteria = buildPayoutCriteria(accountId, entitlement.withdrawable);
+  // R7 I1 — day counts read the persistent trading store.
+  const { closedTrades } = useTrading();
+  const criteria = buildPayoutCriteria(accountId, entitlement.withdrawable, closedTrades);
   const unmet = criteria.filter((c) => !c.ok);
   const eligible = unmet.length === 0;
 
