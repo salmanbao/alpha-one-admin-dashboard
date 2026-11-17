@@ -8,6 +8,7 @@ import type { NextConfig } from "next";
 // at ../../packages/ui/src/components.
 export default {
   output: "standalone",
+  basePath: "/prop-admin",
   transpilePackages: ["@pfaas/ui"],
   reactStrictMode: true,
 } satisfies NextConfig;

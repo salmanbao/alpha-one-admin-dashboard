@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "platform-admin": {
+      "root": "apps/platform-admin",
+      "framework": "nextjs"
+    },
+    "prop-admin": {
+      "root": "apps/prop-admin",
+      "framework": "nextjs"
+    },
+    "trader": {
+      "root": "apps/trader",
+      "framework": "nextjs"
+    }
+  },
+  "rewrites": [
+    { "source": "/prop-admin/:path*", "destination": { "service": "prop-admin" } },
+    { "source": "/platform-admin/:path*", "destination": { "service": "platform-admin" } },
+    { "source": "/:path*", "destination": { "service": "trader" } }
+  ]
+}
