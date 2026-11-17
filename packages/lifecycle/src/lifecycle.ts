@@ -82,6 +82,11 @@ export const LIFECYCLE_EVENT_NAMES = [
   "payout.escalated",
   "payout.info-requested",
   "payout.cancelled",
+  // Payout automation (R7 I4) — consumers: prop-admin payouts rules store
+  // (evaluator run rows) + trader inbox bridge receipt ("approved
+  // automatically under rule X — review window 24h (Demo)"); emitted by
+  // prop-admin modules/payouts/payout-rules-store after applyPayoutDecision
+  "payout.auto-decided",
   // Payout methods
   "payout-method.added",
   "payout-method.updated",
@@ -365,6 +370,7 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "payout.escalated": "Escalated",
   "payout.info-requested": "Info requested",
   "payout.cancelled": "Cancelled",
+  "payout.auto-decided": "Auto-decided",
   "payout-method.added": "Method added",
   "payout-method.updated": "Method updated",
   "payout-method.rejected": "Method rejected",
@@ -421,6 +427,9 @@ const FOLLOW_UP: Partial<
   "payout.processing": { label: "Paid", afterHours: 46 },
   "payout.escalated": { label: "Second signature", afterHours: 8 },
   "payout.info-requested": { label: "Re-review after documents", afterHours: 24 },
+  // Automated decision — the operator review window (matches the trader
+  // inbox receipt copy: "review window 24h (Demo)").
+  "payout.auto-decided": { label: "Review window ends", afterHours: 24 },
   "challenge.funding-requested": { label: "Funded", afterHours: 4 },
   "purchase.completed": { label: "Provisioned", afterHours: 1 },
   "provisioning.started": { label: "Credentials delivered", afterHours: 0.5 },

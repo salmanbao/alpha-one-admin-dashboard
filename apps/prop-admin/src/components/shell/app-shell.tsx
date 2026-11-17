@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { usePayoutRulesEvaluator } from "@/modules/payouts/payout-rules-store";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { Breadcrumbs, MobileNav } from "./breadcrumbs";
@@ -25,7 +26,11 @@ import { DemoDataBanner } from "@/components/platform/demo-data";
 import { SessionExpiryBanner } from "../platform/session-expiry-banner";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { setSearchOpen } = usePlatform();
+  const { setSearchOpen, runtime } = usePlatform();
+  // R7 I4 — payout rules engine: evaluates every incoming payout.requested
+  // (cross-app intake) on the shared lifecycle log, whichever view the
+  // operator is on; outcomes are stamped once and logged as runs.
+  usePayoutRulesEvaluator(runtime.tenant?.id ?? "platform");
   // PRD L5494 impersonation service — while a session is active the shell
   // shows a persistent banner; only Exit (impersonation_ended) closes it.
   const impersonation = useImpersonation();

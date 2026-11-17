@@ -36,6 +36,9 @@ const routes: RouteDefinition[] = [
   // payout widget (PRD §4.9 detail view) — a product surface since
   // R2-W3-03 moved it out of modules/stitch/pages.
   { path: "payout-detail", viewId: "payout-detail", label: "Payout Detail", permission: ["payout.read", "payout.self"], module: "payouts" },
+  // R7 I4 — payout automation rules engine (CRUD + last 20 evaluator
+  // runs). Linked from Pending Payouts → "Manage rules".
+  { path: "payout-rules", viewId: "payout-rules", label: "Payout Automation Rules", permission: "payout.approve", module: "payouts" },
 ];
 
 const widgets: WidgetDefinition[] = [

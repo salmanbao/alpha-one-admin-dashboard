@@ -40,7 +40,8 @@ const DEMO_STORES = [
   "evaluations",
   "affiliate-kpis",
   "affiliate-payouts",
-  "auto-approve-rule",
+  // R7 I4 — payout rules engine (replaces the single auto-approve rule).
+  "payout-rules",
   "connectors",
   "kyc-provider-config",
   "challenge-funding",

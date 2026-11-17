@@ -11,6 +11,10 @@
  *   payout.rejected   → "Payout rejected — revised request"
  *   payout.paid       → "Payout paid — settled"
  *   payout.escalated  → "Payout escalated — second signature required"
+ *   payout.auto-decided → "Payout approved automatically under rule X —
+ *                        review window 24h (Demo)" (R7 I4; the generic
+ *                        approved/rejected/escalated receipts above are
+ *                        suppressed when the payload says automated)
  *   kyc.approved      → "KYC approved — your account is verified for payouts"
  *   kyc.rejected      → "KYC rejected — update documents and retry"
  *   challenge.funded  → "Challenge funded — account ready to trade"
@@ -41,7 +45,50 @@ function money(amount: unknown): string {
 function mapEvent(e: LifecycleEvent): InboxMessage | null {
   const ref = String(e.payload?.reference ?? e.id);
   switch (e.name as LifecycleEventName) {
+    case "payout.auto-decided": {
+      // R7 I4 — receipt for an automated decision. One message per
+      // auto-decision: the generic approved/rejected/escalated receipts
+      // return null below when `payload.automated` is set.
+      const ruleName = String(e.payload?.ruleName ?? "a payout rule");
+      const action = String(e.payload?.action ?? "auto-approve");
+      if (action === "auto-reject") {
+        return {
+          id: `inbox:${e.id}:payout-auto-decided`,
+          subject: `Payout rejected automatically under rule ${ruleName} — review window 24h (Demo)`,
+          body: `Your payout request ${ref} for ${money(e.payload?.amount)} did not meet the automation rules and was rejected automatically. An operator reviews every automated decision within 24h (Demo).`,
+          category: "Payouts",
+          sender: "Payouts Team",
+          at: e.at,
+          read: false,
+          actionType: "payout",
+        };
+      }
+      if (action === "escalate") {
+        return {
+          id: `inbox:${e.id}:payout-auto-decided`,
+          subject: `Payout escalated automatically under rule ${ruleName} — second signature (Demo)`,
+          body: `Your payout request ${ref} for ${money(e.payload?.amount)} was routed for a second operator signature under "${ruleName}". No action needed — review window 24h (Demo).`,
+          category: "Payouts",
+          sender: "Payouts Team",
+          at: e.at,
+          read: false,
+          actionType: "payout",
+        };
+      }
+      return {
+        id: `inbox:${e.id}:payout-auto-decided`,
+        subject: `Payout approved automatically under rule ${ruleName} — review window 24h (Demo)`,
+        body: `Your payout request ${ref} for ${money(e.payload?.amount)} matched "${ruleName}" and was approved automatically. Review window 24h — an operator can still reverse it before processing (Demo).`,
+        category: "Payouts",
+        sender: "Payouts Team",
+        at: e.at,
+        read: false,
+        actionType: "payout",
+      };
+    }
     case "payout.approved":
+      // Automated decisions ship the payout.auto-decided receipt instead.
+      if (e.payload?.automated) return null;
       return {
         id: `inbox:${e.id}:payout-approved`,
         subject: "Payout approved — funds on the way",
@@ -53,6 +100,7 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         actionType: "payout",
       };
     case "payout.rejected":
+      if (e.payload?.automated) return null;
       return {
         id: `inbox:${e.id}:payout-rejected`,
         subject: "Payout rejected — revised request",
@@ -75,6 +123,7 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         actionType: "payout",
       };
     case "payout.escalated":
+      if (e.payload?.automated) return null;
       return {
         id: `inbox:${e.id}:payout-escalated`,
         subject: "Payout escalated — second signature required",

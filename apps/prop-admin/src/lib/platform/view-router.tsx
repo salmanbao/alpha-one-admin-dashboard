@@ -400,6 +400,8 @@ const stitchViews: Record<string, ViewComponent> = {
   "overview-saved-views": dynamic(() => import("@/modules/stitch/pages/overview-saved-views").then((m) => ({ default: m.OverviewSavedViewsStitchPage })), { loading: ViewSkeleton }),
   "payout-compliance": dynamic(() => import("@/modules/stitch/pages/payout-compliance").then((m) => ({ default: m.PayoutComplianceStitchPage })), { loading: ViewSkeleton }),
   "payout-detail": dynamic(() => import("@/modules/payouts/pages/payout-detail-page").then((m) => ({ default: m.PayoutDetailPage })), { loading: ViewSkeleton }),
+  // R7 I4 — payout automation rules engine (route declared in modules/payouts/manifest.ts).
+  "payout-rules": dynamic(() => import("@/modules/payouts/pages/payout-rules-page").then((m) => ({ default: m.PayoutRulesPage })), { loading: ViewSkeleton }),
   "payout-methods-config": dynamic(() => import("@/modules/stitch/pages/payout-methods-config").then((m) => ({ default: m.PayoutMethodsConfigStitchPage })), { loading: ViewSkeleton }),
   "payout-reversal": dynamic(() => import("@/modules/stitch/pages/payout-reversal").then((m) => ({ default: m.PayoutReversalStitchPage })), { loading: ViewSkeleton }),
   "payout-schedule": dynamic(() => import("@/modules/stitch/pages/payout-schedule").then((m) => ({ default: m.PayoutScheduleStitchPage })), { loading: ViewSkeleton }),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,13 @@ import { buildPayoutRisk, worstPayoutRisk } from "@/lib/platform/payout-risk";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { applyPayoutDecision, effectivePayoutStatus, payoutAmlBlock, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
 import { useLifecycleLog } from "@pfaas/lifecycle";
-import { readAutoApproveRule, evaluateAutoApproval, useAutoApproveRule, updateAutoApproveRule } from "@/modules/payouts/auto-approve-store";
+import {
+  buildPayoutRuleContext,
+  firstMatchingRule,
+  payoutAutomationStamp,
+  readPayoutRules,
+  usePayoutRules,
+} from "@/modules/payouts/payout-rules-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { useRowSelection, BulkActionsBar } from "@/components/platform/selection";
@@ -34,7 +40,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { useDetailOverlay } from "@/components/platform/detail-overlay";
 import { openViewInNewTab } from "@/lib/platform/view-links";
 import { toast } from "@/hooks/use-toast";
@@ -180,16 +185,25 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
     {
       key: "status",
       header: "Status",
-      cell: (p) => (
-        <div className="flex flex-wrap items-center gap-1">
-          <ExplainableStateBadge status={p.status} entityType="payout" />
-          {payoutEscalated(p.reference) ? (
-            <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-700 dark:text-amber-400">
-              Escalated
-            </Badge>
-          ) : null}
-        </div>
-      ),
+      cell: (p) => {
+        // R7 I4 — surface the automation stamp so an operator can see
+        // which rule decided (or escalated) this row.
+        const auto = payoutAutomationStamp(p.reference);
+        return (
+          <div className="flex flex-wrap items-center gap-1">
+            <ExplainableStateBadge status={p.status} entityType="payout" />
+            {payoutEscalated(p.reference) ? (
+              <Badge variant="outline" className="border-amber-500/40 text-[10px] text-amber-700 dark:text-amber-400">
+                Escalated{auto?.ruleName ? ` · ${auto.ruleName}` : ""}
+              </Badge>
+            ) : auto ? (
+              <Badge variant="outline" className="border-emerald-500/40 text-[10px] text-emerald-700 dark:text-emerald-400">
+                Auto · {auto.ruleName}
+              </Badge>
+            ) : null}
+          </div>
+        );
+      },
       sortValue: (p) => p.status,
     },
     { key: "created", header: "Requested", cell: (p) => <span className="text-xs text-muted-foreground">{new Date(p.createdAt).toLocaleDateString("en-US")}</span>, sortValue: (p) => p.createdAt },
@@ -397,175 +411,82 @@ export function PayoutsOverviewPage() {
 }
 
 /**
- * R3-03 — the evaluation context for one pending payout, shared by the
- * queue gate and the auto-approve rule so both see identical numbers.
- */
-function payoutRuleContext(tid: string, p: Payout): {
-  riskScore: number;
-  openBreaches: number;
-  amlBlocked: boolean;
-} {
-  const worst = worstPayoutRisk(tid, [p.traderId]);
-  const openBreaches = getTenantBreaches(tid).filter(
-    (b) => b.traderId === p.traderId && b.status === "open",
-  ).length;
-  return {
-    // No risk profile → doesn't gate (preserves R2-W3-05: only a
-    // resolvable trader's score could block).
-    riskScore: worst && worst.traderId === p.traderId ? worst.riskScore : Number.POSITIVE_INFINITY,
-    openBreaches,
-    amlBlocked: !!payoutAmlBlock(p.reference),
-  };
-}
-
-/**
  * Per-row approval gate (R2-W3-05) — ONE evaluation, used by both the
  * batch pre-flight dialog and the queue's "gate clean / gated only"
  * filter, so a row the filter calls clean is exactly a row the approve
  * dialog will pass.
  *
- * R3-03: the gate IS the auto-approve engine — it routes through
- * `evaluateAutoApproval` with `enabled` forced on (the gate answers "does
- * this row clear the rule?", independent of whether approvals execute
- * automatically) and the persisted rule's threshold instead of a hardcoded
- * 70, so the queue and the rule can never disagree again.
+ * R7 I4: the gate IS the payout rules engine — a row is "clean" when an
+ * enabled rule would auto-approve it (first match by priority, AML veto
+ * first). Queue filter, batch pre-flight and the app-shell evaluator can
+ * therefore never disagree about what is safe to approve unattended.
  */
 function payoutGate(tid: string, p: Payout): { pass: boolean; reason: string } {
-  const rule = readAutoApproveRule();
-  const ctx = payoutRuleContext(tid, p);
-  const verdict = evaluateAutoApproval(p, { ...rule, enabled: true }, ctx);
-  if (verdict.auto) return { pass: true, reason: "All gates passed" };
-  if (ctx.amlBlocked) {
-    // The engine only sees a boolean — restore the case detail here.
+  const ctx = buildPayoutRuleContext(tid, p);
+  if (!ctx.amlCleared) {
     const aml = payoutAmlBlock(p.reference);
     if (aml) return { pass: false, reason: `AML hold ${aml.caseId} (${aml.typology})` };
     return { pass: false, reason: "AML hold" };
   }
-  if (verdict.reason.startsWith("risk ")) {
-    return { pass: false, reason: `Risk score ${ctx.riskScore} below threshold ${rule.threshold}` };
-  }
-  return { pass: false, reason: verdict.reason };
+  const rule = firstMatchingRule(readPayoutRules().rules, ctx);
+  if (!rule) return { pass: false, reason: "No enabled rule matches — manual review" };
+  if (rule.action === "auto-approve") return { pass: true, reason: `Clears "${rule.name}"` };
+  return { pass: false, reason: `"${rule.name}" would ${rule.action}` };
 }
 
 /**
- * R3-03 — auto-approve settings card (the store's first and only UI)
- * plus the dry-run panel the R2 plan promised: every pending payout
- * evaluated through `evaluateAutoApproval` so the operator sees exactly
- * what the rule would approve before enabling it. Rule changes persist
- * to localStorage via the store.
+ * R7 I4 — the rules engine's presence on the queue: how many rules are
+ * live, what would auto-approve right now, and how many requests the
+ * engine has already decided this session. Every figure reads from the
+ * persisted `payout-rules` store (no toast-only claims); the button
+ * opens the rules page (CRUD + last 20 evaluator runs).
  */
-function AutoApproveSettingsCard({ tid, pending }: { tid: string; pending: Payout[] }) {
-  const rule = useAutoApproveRule();
-  const [thresholdText, setThresholdText] = useState(String(rule.threshold));
-
-  const commitThreshold = () => {
-    const n = Math.round(Number(thresholdText));
-    const safe = Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : rule.threshold;
-    setThresholdText(String(safe));
-    if (safe !== rule.threshold) updateAutoApproveRule({ threshold: safe });
-  };
-
-  // Dry-run evaluates as-if enabled, so a disabled rule still previews.
-  const verdicts = pending.map((p) => ({
-    p,
-    verdict: evaluateAutoApproval(p, { ...rule, enabled: true }, payoutRuleContext(tid, p)),
-  }));
-  const matches = verdicts.filter((v) => v.verdict.auto).length;
+function AutomationSummaryCard({
+  tid,
+  pending,
+  onManage,
+}: {
+  tid: string;
+  pending: Payout[];
+  onManage: () => void;
+}) {
+  const { rules, stamps } = usePayoutRules();
+  const enabled = rules.filter((r) => r.enabled);
+  const matches = pending.filter((p) => {
+    const ctx = buildPayoutRuleContext(tid, p);
+    return ctx.amlCleared && firstMatchingRule(rules, ctx)?.action === "auto-approve";
+  }).length;
+  const autoDecided = Object.values(stamps).filter((s) => s.automated).length;
 
   return (
     <div className="mb-4 rounded-lg border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium">Auto-approve rule</p>
+          <p className="text-sm font-medium">Payout automation</p>
           <p className="text-xs text-muted-foreground">
-            Pending payouts that clear the rule are approved automatically when this queue
-            loads (audit trail + lifecycle event per payout). The rule persists to localStorage.
+            Incoming payout requests are decided by the first matching enabled rule
+            (auto-approve / auto-reject / escalate). Every decision is audit-logged and
+            the trader receives an inbox receipt (Demo).
           </p>
         </div>
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <Switch
-            checked={rule.enabled}
-            onCheckedChange={(checked) => updateAutoApproveRule({ enabled: checked })}
-            aria-label="Enable auto-approve"
-          />
-          <span className={rule.enabled ? "font-medium text-emerald-600" : "text-muted-foreground"}>
-            {rule.enabled ? "Enabled" : "Disabled"}
-          </span>
-        </label>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3">
-        <div className="space-y-1">
-          <label htmlFor="auto-approve-threshold" className="text-xs font-medium">
-            Risk score threshold
-          </label>
-          <Input
-            id="auto-approve-threshold"
-            type="number"
-            min={0}
-            max={100}
-            value={thresholdText}
-            onChange={(e) => setThresholdText(e.target.value)}
-            onBlur={commitThreshold}
-            onKeyDown={(e) => { if (e.key === "Enter") commitThreshold(); }}
-            className="h-8 w-20"
-            aria-describedby="auto-approve-threshold-hint"
-          />
-          <p id="auto-approve-threshold-hint" className="text-[11px] text-muted-foreground">
-            Scores ≥ threshold auto-approve (higher = lower risk).
-          </p>
-        </div>
-        <label className="flex cursor-pointer items-center gap-2 pb-1 text-sm">
-          <Switch
-            checked={rule.excludeOpenBreaches}
-            onCheckedChange={(checked) => updateAutoApproveRule({ excludeOpenBreaches: checked })}
-            aria-label="Exclude traders with open breaches"
-          />
-          Exclude traders with open breaches
-        </label>
-      </div>
-
-      {/* ── Dry run (R2 plan, never built until now) ──────────────────── */}
-      <div className="mt-4 space-y-2 border-t pt-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            Dry run — current queue
-          </p>
-          <Badge variant={rule.enabled ? "default" : "secondary"}>
-            {rule.enabled ? "Live" : "Preview"}: {matches} of {pending.length} pending would
-            auto-approve
+        <div className="flex items-center gap-2">
+          <Badge variant={enabled.length ? "default" : "secondary"}>
+            {enabled.length} of {rules.length} rules enabled
           </Badge>
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={onManage}>
+            Manage rules
+          </Button>
         </div>
-        {pending.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No pending payouts to evaluate.</p>
-        ) : (
-          <div className="max-h-48 space-y-1 overflow-y-auto">
-            {verdicts.map(({ p, verdict }) => (
-              <div
-                key={p.reference}
-                className={cn(
-                  "flex items-center justify-between gap-3 rounded-md border px-3 py-1.5 text-xs",
-                  verdict.auto
-                    ? "border-emerald-500/40 bg-emerald-50/40"
-                    : "border-muted bg-muted/20",
-                )}
-              >
-                <span className="min-w-0 truncate">
-                  <span className="font-medium">{p.traderName}</span>{" "}
-                  <span className="text-muted-foreground">
-                    · {p.reference} · {formatCurrency(p.amount, p.currency)}
-                  </span>
-                </span>
-                <span className="flex shrink-0 items-center gap-3">
-                  <span className={verdict.auto ? "font-bold text-emerald-600" : "text-muted-foreground"}>
-                    {verdict.auto ? "AUTO" : "HOLD"}
-                  </span>
-                  <span className="text-muted-foreground">{verdict.reason}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+        <span>
+          <span className="font-medium text-foreground">{matches}</span> of {pending.length}{" "}
+          pending rows would auto-approve right now
+        </span>
+        <span>
+          <span className="font-medium text-foreground">{autoDecided}</span> request(s)
+          auto-decided this session
+        </span>
       </div>
     </div>
   );
@@ -600,35 +521,10 @@ export function PendingPayoutsPage() {
     return true;
   });
 
-  /* ── Auto-approve (R3-03) — the queue reads the rule ────────────────
-   * When the rule is enabled, every pending row that clears
-   * evaluateAutoApproval is approved through the normal decision
-   * chokepoint (audit + payout.approved lifecycle event → surfaces like
-   * the trader's payout history update). Guarded by the same permission
-   * the Approve buttons use, so auto-approve never out-runs the role.
-   * allPendingKey pins the pending set — the effect re-runs only when
-   * the set changes (e.g. a new trader request lands), not every render. */
-  const autoRule = useAutoApproveRule();
-  const canAutoApprove = hasPermission(user, "payout.approve");
-  const allPendingKey = allPending.map((p) => p.reference).join("|");
-  useEffect(() => {
-    if (!autoRule.enabled || !canAutoApprove) return;
-    const approved: string[] = [];
-    for (const p of allPending) {
-      const verdict = evaluateAutoApproval(p, autoRule, payoutRuleContext(tid, p));
-      if (verdict.auto && applyPayoutDecision(p.reference, "approved").ok) {
-        approved.push(p.reference);
-      }
-    }
-    if (approved.length > 0) {
-      toast({
-        title: "Auto-approved by rule",
-        description: `${approved.length} payout(s) cleared the rule (risk ≥ ${autoRule.threshold}${autoRule.excludeOpenBreaches ? ", no open breaches" : ""}) — ${approved.slice(0, 3).join(", ")}${approved.length > 3 ? ` +${approved.length - 3} more` : ""}.`,
-      });
-    }
-    // Deps: allPending is pinned by allPendingKey (string) so the effect
-    // runs when the pending set changes, not on every render.
-  }, [autoRule, canAutoApprove, tid, allPendingKey]);
+  /* R7 I4 — the queue-load auto-approve effect is gone: decisions now
+   * happen in usePayoutRulesEvaluator (mounted in the app shell) on every
+   * incoming payout.requested, so they fire on any view, exactly once per
+   * request (stamp), and land in the evaluator run log on the rules page. */
   // Audit #3 fix #2 — performance context shown with each approval card.
   const perfByTrader = useMemo(() => {
     const m = new Map<string, ReturnType<typeof getTenantTraders>[number]>();
@@ -764,7 +660,11 @@ export function PendingPayoutsPage() {
       <PageHeader title={`Pending ${plural(term("payout"))}`} description="Awaiting approval." icon={Clock} />
       <PageContent>
         {/* ── Auto-approve rule + dry run (R3-03) ────────────────────── */}
-        <AutoApproveSettingsCard tid={tid} pending={allPending} />
+        <AutomationSummaryCard
+          tid={tid}
+          pending={allPending}
+          onManage={() => navigate("payout-rules")}
+        />
 
         {/* ── Queue filters + saved views (R2-W3-05) ──────────────────── */}
         <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center">

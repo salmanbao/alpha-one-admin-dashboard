@@ -101,7 +101,10 @@ function syncBadge() {
 export function applyPayoutDecision(
   reference: string,
   decision: PayoutDecision,
-  opts?: { reason?: string },
+  // R7 I4 — `automated` marks a rules-engine decision: the lifecycle
+  // payload carries it so consumers (trader inbox bridge) can suppress the
+  // generic receipt in favour of the `payout.auto-decided` one.
+  opts?: { reason?: string; automated?: boolean; ruleId?: string },
 ): PayoutDecisionResult {
   // Fixture payout, or a cross-app intake row (R2-W3-01) — the audit entry
   // must name the real trader/amount for either source.
@@ -158,7 +161,13 @@ export function applyPayoutDecision(
     name: `payout.${decision}`,
     actor: "prop-admin",
     key: `${reference}:${decision}`,
-    payload: { reference, trader: who, amount: p?.amount ?? null, reason: opts?.reason ?? null },
+    payload: {
+      reference,
+      trader: who,
+      amount: p?.amount ?? null,
+      reason: opts?.reason ?? null,
+      ...(opts?.automated ? { automated: true, ruleId: opts.ruleId ?? null } : {}),
+    },
   });
   emit();
   return { ok: true };
