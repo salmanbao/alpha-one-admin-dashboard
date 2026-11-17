@@ -255,6 +255,7 @@ export function StrFilingRegisterPage() {
             emptyDescription="Adjust the status filter, or draft a filing from an AML case."
           />
         </div>
+        <p className="text-[10px] text-muted-foreground">Filing decisions persist locally (Demo) — they survive a reload but live only in this browser.</p>
       </PageContent>
 
       {/* Filing sheet */}

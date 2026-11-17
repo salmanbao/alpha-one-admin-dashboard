@@ -1,8 +1,10 @@
 /**
  * M3 — Audience Platform store (spec §7).
- * Dummy data only — no network calls. Module memory so mutations
- * are visible across screens in one session.
+ * Dummy data only — no network calls. R7 I10: mutations persist to
+ * `pfaas:demo:segments` (migrate-on-read from the fixtures below).
  */
+import { z } from "zod";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 /* Condition vocabulary (7.1) */
 export type SegmentOperator = "is"|"is_not"|"in"|"between"|"gt"|"lt"|"within_days";
@@ -99,13 +101,14 @@ export const SEGMENT_TEMPLATES: SegmentTemplate[] = [
 export interface SegmentUsage { kind:"campaign"|"flow"; id:string; name:string; status:"active"|"draft"|"paused" }
 export interface Segment { id:string; name:string; description:string; owner:string; size:number; computedAt:string; status:"active"|"stale"; consentCoverage:number; usedBy:SegmentUsage[]; conditions:SegmentGroup }
 const hoursAgo=(h:number)=>new Date(Date.now()-h*3_600_000).toISOString();
-let SEGMENTS: Segment[] = [
+const SEED_SEGMENTS: Segment[] = [
   { id:"seg-funded", name:"Funded traders", description:"Active funded-account holders across all sizes.", owner:"S. Malik", size:1284, computedAt:hoursAgo(2), status:"active", consentCoverage:92, usedBy:[{kind:"campaign",id:"cmp-payout",name:"Payout celebration",status:"active"},{kind:"flow",id:"flow-upsell",name:"Scaling plan upsell",status:"active"}], conditions:SEGMENT_TEMPLATES[0].conditions },
   { id:"seg-dormant", name:"Dormant 60 days", description:"Traders with no login in the last 60 days.", owner:"A. Khan", size:763, computedAt:hoursAgo(27), status:"stale", consentCoverage:71, usedBy:[{kind:"campaign",id:"cmp-winback",name:"Win-back wave 2",status:"draft"}], conditions:SEGMENT_TEMPLATES[1].conditions },
   { id:"seg-kyc-pending", name:"KYC pending", description:"Signed up but not yet verified.", owner:"S. Malik", size:342, computedAt:hoursAgo(1), status:"active", consentCoverage:97, usedBy:[{kind:"flow",id:"flow-kyc",name:"Welcome & KYC nudge",status:"active"}], conditions:SEGMENT_TEMPLATES[3].conditions },
   { id:"seg-vip", name:"VIP withdrawals", description:"High-LTV funded traders with payout activity.", owner:"R. Idris", size:96, computedAt:hoursAgo(5), status:"active", consentCoverage:88, usedBy:[], conditions:SEGMENT_TEMPLATES[4].conditions },
   { id:"seg-risk", name:"High risk score", description:"Risk score above 70 — promo suppression guard.", owner:"Risk Bot", size:218, computedAt:hoursAgo(70), status:"stale", consentCoverage:64, usedBy:[{kind:"flow",id:"flow-risk",name:"Risk-aware nurture",status:"paused"}], conditions:SEGMENT_TEMPLATES[2].conditions },
 ];
+let SEGMENTS: Segment[] = SEED_SEGMENTS;
 export function listSegments(){ return SEGMENTS; }
 export function getSegment(id:string){ return SEGMENTS.find(s=>s.id===id); }
 export function isDuplicateSegmentName(name:string, excludeId?:string){ const n=name.trim().toLowerCase(); return SEGMENTS.some(s=>s.id!==excludeId && s.name.trim().toLowerCase()===n); }
@@ -116,11 +119,12 @@ export function saveSegment(input:{id?:string;name:string;description:string;con
   const est=estimateSegment(input.conditions); const existing=input.id?SEGMENTS.find(s=>s.id===input.id):undefined;
   const segment: Segment = { id:existing?.id??`seg-${Math.random().toString(36).slice(2,9)}`, name, description:input.description.trim(), owner:existing?.owner??"You", size:est.size, computedAt:new Date().toISOString(), status:"active", consentCoverage:est.consentCoverage, usedBy:existing?.usedBy??[], conditions:input.conditions };
   if(existing) SEGMENTS=SEGMENTS.map(s=>s.id===existing.id?segment:s); else SEGMENTS=[segment,...SEGMENTS];
+  persist();
   return {ok:true,segment};
 }
-export function deleteSegment(id:string){ const seg=SEGMENTS.find(s=>s.id===id); if(!seg) return {ok:false as const, blockedBy:[] as SegmentUsage[]}; const blockers=seg.usedBy.filter(u=>u.status==="active"); if(blockers.length>0) return {ok:false as const, blockedBy:blockers}; SEGMENTS=SEGMENTS.filter(s=>s.id!==id); return {ok:true as const, blockedBy:[] as SegmentUsage[]}; }
-export function recomputeSegment(id:string){ const seg=SEGMENTS.find(s=>s.id===id); if(!seg) return undefined; const est=estimateSegment(seg.conditions); const u:Segment={...seg,size:est.size,consentCoverage:est.consentCoverage,computedAt:new Date().toISOString(),status:"active"}; SEGMENTS=SEGMENTS.map(s=>s.id===id?u:s); return u; }
-export function duplicateSegment(id:string){ const seg=SEGMENTS.find(s=>s.id===id); if(!seg) return undefined; let name=`${seg.name} (copy)`; let i=2; while(isDuplicateSegmentName(name)) name=`${seg.name} (copy ${i++})`; const copy:Segment={...seg,id:`seg-${Math.random().toString(36).slice(2,9)}`,name,owner:"You",usedBy:[],computedAt:new Date().toISOString()}; SEGMENTS=[copy,...SEGMENTS]; return copy; }
+export function deleteSegment(id:string){ const seg=SEGMENTS.find(s=>s.id===id); if(!seg) return {ok:false as const, blockedBy:[] as SegmentUsage[]}; const blockers=seg.usedBy.filter(u=>u.status==="active"); if(blockers.length>0) return {ok:false as const, blockedBy:blockers}; SEGMENTS=SEGMENTS.filter(s=>s.id!==id); return {ok:true as const, blockedBy:[] as SegmentUsage[]}; persist(); }
+export function recomputeSegment(id:string){ const seg=SEGMENTS.find(s=>s.id===id); if(!seg) return undefined; const est=estimateSegment(seg.conditions); const u:Segment={...seg,size:est.size,consentCoverage:est.consentCoverage,computedAt:new Date().toISOString(),status:"active"}; SEGMENTS=SEGMENTS.map(s=>s.id===id?u:s); return u; persist(); }
+export function duplicateSegment(id:string){ const seg=SEGMENTS.find(s=>s.id===id); if(!seg) return undefined; let name=`${seg.name} (copy)`; let i=2; while(isDuplicateSegmentName(name)) name=`${seg.name} (copy ${i++})`; const copy:Segment={...seg,id:`seg-${Math.random().toString(36).slice(2,9)}`,name,owner:"You",usedBy:[],computedAt:new Date().toISOString()}; SEGMENTS=[copy,...SEGMENTS]; return copy; persist(); }
 
 /* Consent & suppression */
 export type ConsentChannel = "email"|"sms"|"whatsapp"|"push"|"in-app";
@@ -131,7 +135,7 @@ export type SuppressionReason = "hard_bounce"|"complaint"|"manual"|"legal";
 export const SUPPRESSION_REASON_LABEL: Record<SuppressionReason,string> = { hard_bounce:"Hard bounce", complaint:"Complaint", manual:"Manual", legal:"Legal" };
 export interface SuppressionEntry { id:string; contact:string; reason:SuppressionReason; addedBy:string; date:string; source:string; note?:string }
 const iso=(d:number)=>new Date(Date.now()-d*86_400_000).toISOString();
-let CONSENT: ConsentRecord[] = [
+const SEED_CONSENT: ConsentRecord[] = [
   {id:"cr-1",contact:"an***@mail.com",channel:"email",status:"granted",source:"form",origin:"Website signup footer",timestamp:iso(14),evidence:"ev_9f21a"},
   {id:"cr-2",contact:"an***@mail.com",channel:"push",status:"granted",source:"api",origin:"Browser prompt grant",timestamp:iso(14),evidence:"ev_9f21b"},
   {id:"cr-3",contact:"rk***@proton.me",channel:"email",status:"withdrawn",source:"form",origin:"Unsubscribe link footer",timestamp:iso(3),evidence:"ev_71cc0"},
@@ -143,17 +147,19 @@ let CONSENT: ConsentRecord[] = [
   {id:"cr-9",contact:"+1 •••• 5510",channel:"sms",status:"withdrawn",source:"api",origin:"STOP keyword reply",timestamp:iso(2),evidence:"ev_4ad95"},
   {id:"cr-10",contact:"jf***@gmail.com",channel:"in-app",status:"granted",source:"api",origin:"Product onboarding",timestamp:iso(30),evidence:"ev_6f0aa"},
 ];
-let SUPPRESSION: SuppressionEntry[] = [
+let CONSENT: ConsentRecord[] = SEED_CONSENT;
+const SEED_SUPPRESSION: SuppressionEntry[] = [
   {id:"sup-1",contact:"bo***@mailinator.com",reason:"hard_bounce",addedBy:"System",date:iso(4),source:"Send bounces feed"},
   {id:"sup-2",contact:"cl***@gmail.com",reason:"complaint",addedBy:"System",date:iso(16),source:"Provider complaint feed"},
   {id:"sup-3",contact:"le***@scam.net",reason:"legal",addedBy:"R. Idris",date:iso(25),source:"GDPR erasure request",note:"Article 17 request — must never be re-mailable."},
   {id:"sup-4",contact:"+62 •••• 8841",reason:"manual",addedBy:"S. Malik",date:iso(7),source:"Support escalation",note:"Abusive replies to campaigns."},
 ];
+let SUPPRESSION: SuppressionEntry[] = SEED_SUPPRESSION;
 export function listConsent(){ return CONSENT; }
 export function listSuppression(){ return SUPPRESSION; }
-export function addConsent(r:Omit<ConsentRecord,"id"|"timestamp">){ const rec:ConsentRecord={...r,id:`cr-${Math.random().toString(36).slice(2,9)}`,timestamp:new Date().toISOString()}; CONSENT=[rec,...CONSENT]; return rec; }
-export function addSuppression(e:Omit<SuppressionEntry,"id"|"date">){ const rec:SuppressionEntry={...e,id:`sup-${Math.random().toString(36).slice(2,9)}`,date:new Date().toISOString()}; SUPPRESSION=[rec,...SUPPRESSION]; return rec; }
-export function removeSuppression(id:string){ const b=SUPPRESSION.length; SUPPRESSION=SUPPRESSION.filter(s=>s.id!==id); return SUPPRESSION.length<b; }
+export function addConsent(r:Omit<ConsentRecord,"id"|"timestamp">){ const rec:ConsentRecord={...r,id:`cr-${Math.random().toString(36).slice(2,9)}`,timestamp:new Date().toISOString()}; CONSENT=[rec,...CONSENT]; return rec; persist(); }
+export function addSuppression(e:Omit<SuppressionEntry,"id"|"date">){ const rec:SuppressionEntry={...e,id:`sup-${Math.random().toString(36).slice(2,9)}`,date:new Date().toISOString()}; SUPPRESSION=[rec,...SUPPRESSION]; return rec; persist(); }
+export function removeSuppression(id:string){ const b=SUPPRESSION.length; SUPPRESSION=SUPPRESSION.filter(s=>s.id!==id); return SUPPRESSION.length<b; persist(); }
 export function consentStats(){ const granted=CONSENT.filter(c=>c.status==="granted").length; const coverage=CONSENT.length?Math.round((granted/CONSENT.length)*100):0; const now=Date.now(); const w=now-30*86_400_000; return { coverage, withdrawals30d: CONSENT.filter(c=>c.status==="withdrawn"&&new Date(c.timestamp).getTime()>w).length, suppressions30d: SUPPRESSION.filter(s=>new Date(s.date).getTime()>w).length, pendingScans:2 }; }
 
 /* Contact sync (7.4) */
@@ -162,14 +168,15 @@ export type SyncStatus = "ok"|"error"|"paused"|"syncing";
 export interface SyncDestination { id:string; name:string; kind:"esp"|"crm"; iconKey:string; direction:SyncDirection; lastSync:string; synced:number; failed:number; mappedFields:number; status:SyncStatus; progress?:number; error?:string }
 export interface SyncMappingRow { id:string; platformField:string; localField:string; type:"string"|"email"|"number"|"date"|"bool"; pii:boolean }
 export interface SyncErrorRow { id:string; contact:string; destinationId:string; reason:string; firstSeen:string; attempts:number }
-let DESTINATIONS: SyncDestination[] = [
+const SEED_DESTINATIONS: SyncDestination[] = [
   {id:"ds-klaviyo",name:"Klaviyo",kind:"esp",iconKey:"klaviyo",direction:"two-way",lastSync:hoursAgo(1),synced:4120,failed:3,mappedFields:9,status:"ok"},
   {id:"ds-listmonk",name:"Listmonk (self-hosted)",kind:"esp",iconKey:"listmonk",direction:"push",lastSync:hoursAgo(4),synced:1860,failed:0,mappedFields:7,status:"ok"},
   {id:"ds-mailchimp",name:"Mailchimp",kind:"esp",iconKey:"mailchimp",direction:"two-way",lastSync:hoursAgo(26),synced:2310,failed:12,mappedFields:8,status:"error",error:"429 rate limited — retry window opens in 18 min."},
   {id:"ds-hubspot",name:"HubSpot CRM",kind:"crm",iconKey:"hubspot",direction:"pull",lastSync:hoursAgo(2),synced:940,failed:1,mappedFields:11,status:"ok"},
   {id:"ds-crm-internal",name:"Internal CRM",kind:"crm",iconKey:"crm",direction:"two-way",lastSync:hoursAgo(0.5),synced:5233,failed:0,mappedFields:12,status:"ok"},
 ];
-const MAPPINGS: Record<string,SyncMappingRow[]> = {
+let DESTINATIONS: SyncDestination[] = SEED_DESTINATIONS;
+const SEED_MAPPINGS: Record<string,SyncMappingRow[]> = {
   "ds-klaviyo":[
     {id:"map-1",platformField:"email",localField:"contact.email",type:"email",pii:true},
     {id:"map-2",platformField:"first_name",localField:"profile.firstName",type:"string",pii:true},
@@ -182,20 +189,56 @@ const MAPPINGS: Record<string,SyncMappingRow[]> = {
     {id:"map-8",platformField:"stage",localField:"crm.stage",type:"string",pii:false},
   ],
 };
-let ERRORS: SyncErrorRow[] = [
+let MAPPINGS: Record<string,SyncMappingRow[]> = { ...SEED_MAPPINGS };
+const SEED_ERRORS: SyncErrorRow[] = [
   {id:"err-1",contact:"bo***@mailinator.com",destinationId:"ds-klaviyo",reason:"Invalid email — 550 mailbox unavailable",firstSeen:hoursAgo(5),attempts:3},
   {id:"err-2",contact:"ps***@gmail.com",destinationId:"ds-mailchimp",reason:"Rate limited (429)",firstSeen:hoursAgo(25),attempts:5},
   {id:"err-3",contact:"+62 •••• 8841",destinationId:"ds-mailchimp",reason:"Missing required field: country",firstSeen:hoursAgo(24),attempts:2},
 ];
+let ERRORS: SyncErrorRow[] = SEED_ERRORS;
 export function listSyncDestinations(){ return DESTINATIONS; }
 export function listSyncMappings(id:string){ return MAPPINGS[id] ?? []; }
-export function saveSyncMappings(id:string, rows:SyncMappingRow[]){ MAPPINGS[id]=rows; }
+export function saveSyncMappings(id:string, rows:SyncMappingRow[]){ MAPPINGS[id]=rows; persist(); }
 export function listSyncErrors(){ return ERRORS; }
-export function startSync(id:string){ const d=DESTINATIONS.find(x=>x.id===id); if(!d) return undefined; const u:SyncDestination={...d,status:"syncing",progress:8,error:undefined}; DESTINATIONS=DESTINATIONS.map(x=>x.id===id?u:x); return u; }
-export function completeSync(id:string){ const d=DESTINATIONS.find(x=>x.id===id); if(!d) return undefined; const u:SyncDestination={...d,status:"ok",progress:100,lastSync:new Date().toISOString(),synced:d.synced+140,failed:0}; DESTINATIONS=DESTINATIONS.map(x=>x.id===id?u:x); return u; }
-export function toggleDestinationPause(id:string){ const d=DESTINATIONS.find(x=>x.id===id); if(!d) return undefined; const u:SyncDestination={...d,status:d.status==="paused"?"ok":"paused"}; DESTINATIONS=DESTINATIONS.map(x=>x.id===id?u:x); return u; }
-export function retrySyncError(id:string){ const row=ERRORS.find(e=>e.id===id); if(!row) return false; ERRORS=ERRORS.filter(e=>e.id!==id); DESTINATIONS=DESTINATIONS.map(d=>d.id===row.destinationId?{...d,synced:d.synced+1,failed:Math.max(0,d.failed-1)}:d); return true; }
-export function skipSyncError(id:string){ const b=ERRORS.length; ERRORS=ERRORS.filter(e=>e.id!==id); return ERRORS.length<b; }
+export function startSync(id:string){ const d=DESTINATIONS.find(x=>x.id===id); if(!d) return undefined; const u:SyncDestination={...d,status:"syncing",progress:8,error:undefined}; DESTINATIONS=DESTINATIONS.map(x=>x.id===id?u:x); return u; persist(); }
+export function completeSync(id:string){ const d=DESTINATIONS.find(x=>x.id===id); if(!d) return undefined; const u:SyncDestination={...d,status:"ok",progress:100,lastSync:new Date().toISOString(),synced:d.synced+140,failed:0}; DESTINATIONS=DESTINATIONS.map(x=>x.id===id?u:x); return u; persist(); }
+export function toggleDestinationPause(id:string){ const d=DESTINATIONS.find(x=>x.id===id); if(!d) return undefined; const u:SyncDestination={...d,status:d.status==="paused"?"ok":"paused"}; DESTINATIONS=DESTINATIONS.map(x=>x.id===id?u:x); return u; persist(); }
+export function retrySyncError(id:string){ const row=ERRORS.find(e=>e.id===id); if(!row) return false; ERRORS=ERRORS.filter(e=>e.id!==id); DESTINATIONS=DESTINATIONS.map(d=>d.id===row.destinationId?{...d,synced:d.synced+1,failed:Math.max(0,d.failed-1)}:d); return true; persist(); }
+export function skipSyncError(id:string){ const b=ERRORS.length; ERRORS=ERRORS.filter(e=>e.id!==id); return ERRORS.length<b; persist(); }
 
 /* Composer helper */
 export function excludedByConsent(segment:Segment){ return Math.max(0, Math.round((segment.size*(100-segment.consentCoverage))/100)); }
+
+/*
+ * R7 I10 — segment edits, consent/suppression writes and sync
+ * decisions are operator state that used to reset on reload. Rehydrate
+ * all six collections from `pfaas:demo:segments` (migrate-on-read:
+ * fixtures are the fallback); every mutator re-serializes via
+ * `persist()` (this store has no emit()).
+ */
+const SLOT = "segments";
+const segmentsSchema = z.object({
+  segments: z.array(z.any()), consent: z.array(z.any()), suppression: z.array(z.any()),
+  destinations: z.array(z.any()), mappings: z.any(), errors: z.array(z.any()),
+}) as unknown as z.ZodType<{
+  segments: Segment[]; consent: ConsentRecord[]; suppression: SuppressionEntry[];
+  destinations: SyncDestination[]; mappings: Record<string,SyncMappingRow[]>; errors: SyncErrorRow[];
+}>;
+
+const segHydrated = loadDemoState(SLOT, segmentsSchema, {
+  segments: SEED_SEGMENTS, consent: SEED_CONSENT, suppression: SEED_SUPPRESSION,
+  destinations: SEED_DESTINATIONS, mappings: SEED_MAPPINGS, errors: SEED_ERRORS,
+});
+SEGMENTS = segHydrated.segments;
+CONSENT = segHydrated.consent;
+SUPPRESSION = segHydrated.suppression;
+DESTINATIONS = segHydrated.destinations;
+MAPPINGS = segHydrated.mappings;
+ERRORS = segHydrated.errors;
+
+function persist(): void {
+  saveDemoState(SLOT, {
+    segments: SEGMENTS, consent: CONSENT, suppression: SUPPRESSION,
+    destinations: DESTINATIONS, mappings: MAPPINGS, errors: ERRORS,
+  });
+}

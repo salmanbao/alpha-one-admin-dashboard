@@ -12,8 +12,10 @@
  */
 
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { listProviders } from "./channel-infra-store";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 /* ------------------------------------------------------------------ */
 /* Model                                                              */
@@ -71,7 +73,7 @@ function trace(...entries: { event: string; detail?: string; offsetMs: number }[
 /* Seed Queue                                                         */
 /* ------------------------------------------------------------------ */
 
-let QUEUES: SendMessage[] = [
+const SEED_QUEUES: SendMessage[] = [
   {
     id: "msg-001", campaign: "Q4-Sale-Blast", tenant: "tenant-alpha", channel: "email",
     state: "queued", attempts: 1, maxAttempts: 5, providerId: "prov-sendgrid",
@@ -136,7 +138,26 @@ let QUEUES: SendMessage[] = [
   },
 ];
 
-let KILL_SWITCH = false;
+/**
+ * R7 I10 — queue state (retry/dead-letter decisions) and the kill switch
+ * are operator state that used to reset on reload. Rehydrate from
+ * `pfaas:demo:send-queue` (migrate-on-read: fixtures are the fallback)
+ * and re-serialize through `emit()` on every mutation.
+ */
+const SLOT = "send-queue";
+const queueSchema = z
+  .object({ queues: z.array(z.any()), killSwitch: z.boolean() }) as unknown as z.ZodType<{ queues: SendMessage[]; killSwitch: boolean }>;
+
+const queueHydrated = loadDemoState(SLOT, queueSchema, {
+  queues: SEED_QUEUES,
+  killSwitch: false,
+});
+let QUEUES: SendMessage[] = queueHydrated.queues;
+let KILL_SWITCH = queueHydrated.killSwitch;
+
+function persist(): void {
+  saveDemoState(SLOT, { queues: QUEUES, killSwitch: KILL_SWITCH });
+}
 
 /* ------------------------------------------------------------------ */
 /* Reads                                                              */
@@ -256,7 +277,7 @@ export function haltCampaign(campaign: string, actor: string) {
 
 const listeners = new Set<() => void>();
 let version = 0;
-function emit() { version += 1; listeners.forEach(l => l()); }
+function emit() { version += 1; persist(); listeners.forEach(l => l()); }
 
 // Mutations above mutate QUEUES directly; emits wired via the $ wrappers below.
 

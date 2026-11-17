@@ -11,8 +11,10 @@
  *  - calendar scheduling reads `listCampaigns()` (this file)
  */
 
+import { z } from "zod";
 import { getSegment, type Segment } from "./segments-store";
 import { hasBlockingDomain } from "./channel-infra-store";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 /* ------------------------------------------------------------------ */
 /* Channels & templates                                                */
@@ -188,7 +190,7 @@ export interface StudioCampaign {
   createdBy: string;
 }
 
-let CAMPAIGNS: StudioCampaign[] = [
+const SEED_CAMPAIGNS: StudioCampaign[] = [
   {
     id: "cmp-welcome", name: "Welcome series — wave 3", channel: "email", segmentId: "seg-kyc-pending",
     segmentName: "KYC pending", status: "sent", sentAt: daysAgo(3), audienceSize: 342,
@@ -242,6 +244,7 @@ let CAMPAIGNS: StudioCampaign[] = [
     abEnabled: false, createdBy: "R. Idris",
   },
 ];
+let CAMPAIGNS: StudioCampaign[] = SEED_CAMPAIGNS;
 
 /** Local YYYY-MM-DD offset from today (calendar-safe). */
 export function dayOffset(days: number): string {
@@ -276,6 +279,7 @@ export function createCampaign(input: Partial<StudioCampaign> & { name: string }
     createdBy: "You",
   };
   CAMPAIGNS = [campaign, ...CAMPAIGNS];
+  persist();
   return campaign;
 }
 
@@ -284,6 +288,7 @@ export function updateCampaign(id: string, patch: Partial<StudioCampaign>): Stud
   if (!c) return undefined;
   const next = { ...c, ...patch };
   CAMPAIGNS = CAMPAIGNS.map((x) => (x.id === id ? next : x));
+  persist();
   return next;
 }
 
@@ -609,7 +614,29 @@ function seedMembers(n: number): FlowMember[] {
   }));
 }
 
-let FLOWS: Flow[] = [seedWelcomeFlow(), seedKycFlow(), seedRiskFlow()];
+const SEED_FLOWS: Flow[] = [seedWelcomeFlow(), seedKycFlow(), seedRiskFlow()];
+let FLOWS: Flow[] = SEED_FLOWS;
+
+/*
+ * R7 I10 — campaign scheduling/status and flow edits are operator state
+ * that used to reset on reload. Rehydrate from `pfaas:demo:campaign-studio`
+ * (migrate-on-read: fixtures are the fallback); every mutator
+ * re-serializes via `persist()` (this store has no emit()).
+ */
+const SLOT = "campaign-studio";
+const studioSchema = z.object({
+  campaigns: z.array(z.any()), flows: z.array(z.any()),
+}) as unknown as z.ZodType<{ campaigns: StudioCampaign[]; flows: Flow[] }>;
+
+const studioHydrated = loadDemoState(SLOT, studioSchema, {
+  campaigns: SEED_CAMPAIGNS, flows: SEED_FLOWS,
+});
+CAMPAIGNS = studioHydrated.campaigns;
+FLOWS = studioHydrated.flows;
+
+function persist(): void {
+  saveDemoState(SLOT, { campaigns: CAMPAIGNS, flows: FLOWS });
+}
 
 export function listFlows(): Flow[] {
   return FLOWS;
@@ -641,6 +668,7 @@ export function createFlow(name: string, triggerType?: FlowNodeType): Flow {
     updatedAt: new Date().toISOString(),
   };
   FLOWS = [flow, ...FLOWS];
+  persist();
   return flow;
 }
 
@@ -649,6 +677,7 @@ export function saveFlow(id: string, patch: Partial<Flow>): Flow | undefined {
   if (!f) return undefined;
   const next = { ...f, ...patch, updatedAt: new Date().toISOString() };
   FLOWS = FLOWS.map((x) => (x.id === id ? next : x));
+  persist();
   return next;
 }
 
@@ -674,12 +703,14 @@ export function duplicateFlow(id: string): Flow | undefined {
   const map = new Map(f.nodes.map((n, i) => [n.id, copy.nodes[i].id]));
   copy.edges = f.edges.map((e) => ({ id: e.id, from: map.get(e.from) ?? e.from, to: map.get(e.to) ?? e.to }));
   FLOWS = [copy, ...FLOWS];
+  persist();
   return copy;
 }
 
 export function deleteFlow(id: string): boolean {
   const before = FLOWS.length;
   FLOWS = FLOWS.filter((f) => f.id !== id);
+  persist();
   return FLOWS.length < before;
 }
 

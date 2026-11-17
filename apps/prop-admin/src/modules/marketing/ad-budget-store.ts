@@ -21,7 +21,9 @@
  * (recordAudit → lib/audit), which the Marketing Audit Log screen reads.
  */
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 /* ------------------------------------------------------------------ */
 /* Model                                                               */
@@ -83,13 +85,13 @@ const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString
 /* Seed — approved caps + the request history                          */
 /* ------------------------------------------------------------------ */
 
-let CAPS: BudgetCap[] = [
+const SEED_CAPS: BudgetCap[] = [
   { id: "cap-1", adAccountId: "act_9182", provider: "Meta Ads", campaign: "Scale-Up Oct", dailyCap: 400, monthlyCap: 8000, currency: "USD", approvedAt: hoursAgo(24 * 18), approvedBy: "Sarah Chen", version: 2 },
   { id: "cap-2", adAccountId: "882-110-4421", provider: "Google Ads", campaign: "Search — Funding", dailyCap: 600, monthlyCap: 12000, currency: "USD", approvedAt: hoursAgo(24 * 25), approvedBy: "Sarah Chen", version: 1 },
   { id: "cap-3", adAccountId: "adv_7710", provider: "TikTok Ads", campaign: "TikTok Challenge Push", dailyCap: 150, monthlyCap: 4000, currency: "USD", approvedAt: hoursAgo(24 * 9), approvedBy: "Priya Raman", version: 1 },
 ];
 
-let REQUESTS: BudgetRequest[] = [
+const SEED_REQUESTS: BudgetRequest[] = [
   {
     // Above threshold → pending with SLA clock.
     id: "br-1001", capId: "cap-3", adAccountId: "adv_7710", provider: "TikTok Ads", campaign: "TikTok Challenge Push",
@@ -138,6 +140,29 @@ let REQUESTS: BudgetRequest[] = [
     resolution: "Rejected by reviewer: budget freeze outside the approved envelope.",
   },
 ];
+
+/**
+ * R7 I10 — budget caps, approval decisions and the id sequence are
+ * operator state that used to reset on reload. Rehydrate from
+ * `pfaas:demo:ad-budget` (migrate-on-read: fixtures are the fallback)
+ * and re-serialize through `emit()` on every mutation.
+ */
+const SLOT = "ad-budget";
+const budgetSchema = z
+  .object({ caps: z.array(z.any()), requests: z.array(z.any()), seq: z.number() }) as unknown as z.ZodType<{ caps: BudgetCap[]; requests: BudgetRequest[]; seq: number }>;
+
+const hydrated = loadDemoState(SLOT, budgetSchema, {
+  caps: SEED_CAPS,
+  requests: SEED_REQUESTS,
+  seq: 1005,
+});
+let CAPS: BudgetCap[] = hydrated.caps;
+let REQUESTS: BudgetRequest[] = hydrated.requests;
+let seq = hydrated.seq;
+
+function persist(): void {
+  saveDemoState(SLOT, { caps: CAPS, requests: REQUESTS, seq });
+}
 
 /* ------------------------------------------------------------------ */
 /* Reads                                                               */
@@ -198,8 +223,6 @@ export interface SubmitResult {
   autoApproved: boolean;
   error?: string;
 }
-
-let seq = 1005;
 
 /**
  * Submit a budget-change request. Below the threshold it auto-applies
@@ -357,6 +380,7 @@ const listeners = new Set<() => void>();
 let version = 0;
 function emit() {
   version += 1;
+  persist();
   listeners.forEach(l => l());
 }
 

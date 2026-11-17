@@ -7,8 +7,10 @@
  * consults before approve/process/pay — actually fires in the demo.
  */
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { traders, payouts, type Trader, type Payout } from "@/lib/platform/mock-data";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 export type AmlStatus = "open" | "investigating" | "escalated" | "sar_filed" | "cleared" | "blocked";
 export type RiskLevel = "low" | "medium" | "high" | "critical";
@@ -86,7 +88,18 @@ function baseCase(id: string, s: SeedSlot, p: {
 
 const s1 = slot(0), s2 = slot(1), s3 = slot(2), s4 = slot(3);
 
-let ALERTS: AmlCase[] = [
+/**
+ * R7 I10 — operator decisions on these cases used to die with the tab
+ * (session-only store). Cases now rehydrate from `pfaas:demo:aml-cases`
+ * on module load (migrate-on-read: seeded fixtures are the fallback) and
+ * every mutation re-serializes the array through `persist()`.
+ */
+const SLOT = "aml-cases";
+/** Payload shape is validated by JSON parse + array check (R10 persistence
+ *  only — the case schema itself is documented on `AmlCase`). */
+const amlSchema: z.ZodType<AmlCase[]> = z.array(z.any()) as unknown as z.ZodType<AmlCase[]>;
+
+const SEED_ALERTS: AmlCase[] = [
   baseCase("aml1", s1, {
     typology: "Structuring / rapid deposits", amount: 9800, risk: "high", status: "open", payoutHold: true, slaDue: inDays(2),
     kyc: { status: "verified", docs: ["Passport", "Proof of address"], address: s1.trader.country, pep: false },
@@ -129,6 +142,14 @@ let ALERTS: AmlCase[] = [
   }),
 ];
 
+/** Migrate-on-read: persisted operator decisions win over the fixtures. */
+let ALERTS: AmlCase[] = loadDemoState(SLOT, amlSchema, SEED_ALERTS);
+
+/** R10 — re-serialize the case array after every mutation. */
+function persist(): void {
+  saveDemoState(SLOT, ALERTS);
+}
+
 /* R3-F02 — store subscription: payout surfaces re-render when a hold is
  * created or released (mirrors the payout-store version pattern). */
 const listeners = new Set<() => void>();
@@ -154,6 +175,7 @@ export function updateAmlCase(id:string, patch: Partial<AmlCase>, audit?: {actio
   if(c && audit){ c.timeline=[{at:now(),actor:"operator",action:audit.summary},...c.timeline];
     recordAudit({action:audit.action,entity:"aml-case",entityId:id,summary:audit.summary,module:"risk",severity:patch.status==="blocked"||patch.status==="sar_filed"||patch.payoutHold!==undefined? "warning":undefined});
   }
+  persist();
   if (patch.payoutHold !== undefined || patch.status !== undefined || patch.filingId !== undefined) emit();
 }
 

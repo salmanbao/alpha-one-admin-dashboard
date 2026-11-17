@@ -11,9 +11,11 @@
  */
 
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { listForms, listSubmissions, type FormSubmission } from "./forms-store";
 import { crmContacts, type CrmContact } from "@/lib/platform/mock-data";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 /* ------------------------------------------------------------------ */
 /* Model                                                              */
@@ -132,7 +134,20 @@ function buildLeadsFromForms(): Lead[] {
   return leads;
 }
 
-let LEADS: Lead[] = buildLeadsFromForms();
+/**
+ * R7 I10 — lead assignment/status decisions are operator state that used
+ * to reset on reload. Rehydrate from `pfaas:demo:lead-inbox`
+ * (migrate-on-read: the form-derived fixture is the fallback) and
+ * re-serialize after every mutation via `persist()` (the mutators do not
+ * all route through `emit()`).
+ */
+const SLOT = "lead-inbox";
+const leadsSchema = z.array(z.any()) as unknown as z.ZodType<Lead[]>;
+let LEADS: Lead[] = loadDemoState(SLOT, leadsSchema, buildLeadsFromForms());
+
+function persist(): void {
+  saveDemoState(SLOT, LEADS);
+}
 
 /* ------------------------------------------------------------------ */
 /* Reads                                                              */
@@ -186,6 +201,7 @@ export function assignLead(leadId: string, ownerId: string, actor: string): Lead
     history: [...lead.history, { at: new Date().toISOString(), actor, action: "assigned", detail: `Assigned to ${operator.name}` }],
   };
   LEADS = LEADS.map(l => l.id === leadId ? next : l);
+  persist();
   recordAudit({ action: "lead.assign", entity: "lead", entityId: leadId, summary: `Lead ${leadId} assigned to ${operator.name} by ${actor}`, module: "marketing", actor });
   return next;
 }
@@ -211,6 +227,7 @@ export function bulkAssign(leadIds: string[], ownerId: string, actor: string): s
     recordAudit({ action: "lead.assign", entity: "lead", entityId: id, summary: `Lead ${id} assigned to ${operator.name} by ${actor}`, module: "marketing", actor });
     assigned.push(id);
   }
+  persist();
   return assigned;
 }
 
@@ -227,6 +244,7 @@ export function setLeadStatus(leadId: string, status: LeadStatus, actor: string,
     history: [...lead.history, { at: new Date().toISOString(), actor, action: "status", detail }],
   };
   LEADS = LEADS.map(l => l.id === leadId ? next : l);
+  persist();
   recordAudit({ action: `lead.${status}`, entity: "lead", entityId: leadId, summary: `Lead ${leadId} ${detail} by ${actor}`, module: "marketing", actor });
   return next;
 }

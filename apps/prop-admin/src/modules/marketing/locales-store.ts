@@ -17,7 +17,9 @@
  *       report locale breakdown (localeBreakdown() counts fallbacks).
  */
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { listLandingPages } from "./landing-pages-store";
 import { listOnsite } from "./onsite-store";
 import { listStudioTemplates } from "./campaign-studio-store";
@@ -58,7 +60,7 @@ export interface Translation {
 const now = () => new Date().toISOString();
 const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
 
-let LOCALES: Locale[] = [
+const SEED_LOCALES: Locale[] = [
   { code: "en", label: "English", native: "English", rtl: false, fallback: "en" },
   { code: "ar", label: "Arabic", native: "العربية", rtl: true, fallback: "en" },
   { code: "he", label: "Hebrew", native: "עברית", rtl: true, fallback: "en" },
@@ -157,7 +159,7 @@ function tr(assetId: string, locale: LocaleCode, patch: Partial<Translation>): T
   return { assetId, locale, status: "missing", text: "", updatedAt: now(), ...patch };
 }
 
-let TRANSLATIONS: Translation[] = [
+const SEED_TRANSLATIONS: Translation[] = [
   // Arabic — machine drafts (the RTL locales that the variant editor previews)
   tr("t:tpl-welcome-kyc", "ar", { status: "machine-draft", text: "مرحبًا {{first_name}} — أكمل {{step_name}} لفتح {{reward}} من {{firm_name}}", translator: "DeepL (MT)", updatedAt: daysAgo(4) }),
   tr("lp:lp1", "ar", { status: "machine-draft", text: "تحدّي 100 ألف مع {{firm_name}} — تداول وتوسّع", translator: "DeepL (MT)", updatedAt: daysAgo(3) }),
@@ -174,6 +176,28 @@ let TRANSLATIONS: Translation[] = [
   tr("lp:lp1", "es", { status: "machine-draft", text: "Reto de 100K con {{firm_name}} — opera y escala", translator: "DeepL (MT)", updatedAt: daysAgo(8) }),
   tr("t:tpl-welcome-kyc", "fr", { status: "machine-draft", text: "Bonjour {{first_name}} — complétez {{step_name}} pour débloquer {{reward}}", translator: "DeepL (MT)", updatedAt: daysAgo(5) }),
 ];
+
+/**
+ * R7 I10 — locale fallback chains and saved/approved variants are
+ * operator state that used to reset on reload. Rehydrate from
+ * `pfaas:demo:locales` (migrate-on-read: fixtures are the fallback) and
+ * re-serialize through `emit()` on every mutation. `ASSETS` stays a
+ * derived snapshot of the live marketing stores (rebuilt at load).
+ */
+const SLOT = "locales";
+const localesSchema = z
+  .object({ locales: z.array(z.any()), translations: z.array(z.any()) }) as unknown as z.ZodType<{ locales: Locale[]; translations: Translation[] }>;
+
+const localesHydrated = loadDemoState(SLOT, localesSchema, {
+  locales: SEED_LOCALES,
+  translations: SEED_TRANSLATIONS,
+});
+let LOCALES: Locale[] = localesHydrated.locales;
+let TRANSLATIONS: Translation[] = localesHydrated.translations;
+
+function persist(): void {
+  saveDemoState(SLOT, { locales: LOCALES, translations: TRANSLATIONS });
+}
 
 export function getTranslation(assetId: string, locale: LocaleCode): Translation | undefined {
   return TRANSLATIONS.find((t) => t.assetId === assetId && t.locale === locale);
@@ -489,6 +513,7 @@ const listeners = new Set<() => void>();
 let version = 0;
 function emit() {
   version += 1;
+  persist();
   listeners.forEach((l) => l());
 }
 

@@ -18,7 +18,9 @@
  *    packs the whole result set as an mbox bundle or a multi-page PDF.
  */
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 export interface ArchivedMessage {
   id:string; channel:"email"|"sms"|"whatsapp"|"push"; campaign?:string; flow?:string; template?:string;
@@ -33,7 +35,7 @@ export interface ArchivedMessage {
 const now=()=>new Date().toISOString();
 const hoursAgo=(h:number)=>new Date(Date.now()-h*3600000).toISOString();
 
-let MSGS: ArchivedMessage[] = Array.from({length:40}, (_,i)=>({
+const SEED_MSGS: ArchivedMessage[] = Array.from({length:40}, (_,i)=>({
   id:`msg-${1000+i}`, channel:(["email","sms","whatsapp","push"] as const)[i%4], campaign:i%3===0?"Q4 Scale Blitz":i%3===1?"Flash SMS":"Win-back", template:"Payout celebration",
   to:`user${i}@example.com`, segment:i%2?"High value EU":"Dormant 60d", consentState:i%5===0?"opted-out-at-send? (blocked pre-send)":"opted-in", status:(["sent","delivered","bounced","delivered"] as const)[i%4],
   subject:i%4===0?"Your payout update":undefined, sentAt:hoursAgo(i), snapshotId:`snp-${1000+i}`, legalHold:i===2||i===17,
@@ -43,6 +45,20 @@ let MSGS: ArchivedMessage[] = Array.from({length:40}, (_,i)=>({
   deliveryTimeline:[{at:hoursAgo(i+1),event:"queued"},{at:hoursAgo(i),event:"sent"},{at:hoursAgo(i),event: i%4===2?"bounced":"delivered"}],
   consentReceiptId:i%5?"rcpt-"+i:undefined, linkWrap:[`https://t.alpha/lnk${i}`],
 }));
+
+/**
+ * R7 I10 — legal-hold toggles and retention purges are operator state
+ * that used to reset on reload. Rehydrate from `pfaas:demo:message-archive`
+ * (migrate-on-read: the fixture array is the fallback) and re-serialize
+ * through `emit()`; the full-text index is rebuilt from the payload.
+ */
+const SLOT = "message-archive";
+const archiveSchema = z.array(z.any()) as unknown as z.ZodType<ArchivedMessage[]>;
+let MSGS: ArchivedMessage[] = loadDemoState(SLOT, archiveSchema, SEED_MSGS);
+
+function persist(): void {
+  saveDemoState(SLOT, MSGS);
+}
 
 /* ------------------------------------------------------------------ */
 /* Full-text index                                                     */
@@ -437,6 +453,7 @@ const listeners = new Set<() => void>();
 let version = 0;
 function emit(){
   version += 1;
+  persist();
   listeners.forEach(l=>l());
 }
 

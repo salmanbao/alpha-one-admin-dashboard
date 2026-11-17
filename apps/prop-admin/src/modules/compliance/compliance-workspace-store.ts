@@ -19,7 +19,9 @@
  */
 
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -150,12 +152,29 @@ function archiveDeadlines(): Deadline[] {
 /* Central aggregates                                                   */
 /* ------------------------------------------------------------------ */
 
-const ALL_DEADLINES: Deadline[] = [
-  ...filingDeadlines(),
-  ...screeningDeadlines(),
-  ...consentDeadlines(),
-  ...archiveDeadlines(),
-];
+/**
+ * R7 I10 — deadline escalation is an operator decision that used to vanish
+ * on reload. Rehydrate from `pfaas:demo:compliance-workspace`
+ * (migrate-on-read: the aggregated fixtures are the fallback) and
+ * re-serialize after every escalation.
+ */
+const SLOT = "compliance-workspace";
+const deadlinesSchema = z.array(z.any()) as unknown as z.ZodType<Deadline[]>;
+
+const ALL_DEADLINES: Deadline[] = loadDemoState(
+  SLOT,
+  deadlinesSchema,
+  [
+    ...filingDeadlines(),
+    ...screeningDeadlines(),
+    ...consentDeadlines(),
+    ...archiveDeadlines(),
+  ],
+);
+
+function persist(): void {
+  saveDemoState(SLOT, ALL_DEADLINES);
+}
 
 const obligations: Obligation[] = [
   {
@@ -321,7 +340,10 @@ export function escalateOverdue(): EscalationResult {
     }
   }
 
-  if (newlyEscalated.length) emitDeadlines();
+  if (newlyEscalated.length) {
+    persist();
+    emitDeadlines();
+  }
   return { newlyEscalated, alreadyEscalated };
 }
 

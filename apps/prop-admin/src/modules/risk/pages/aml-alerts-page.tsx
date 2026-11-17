@@ -33,6 +33,7 @@ export function AmlAlertsPage(){
           <MetricCard label="Cleared (sample)" value={String(rows.filter(r=>r.status==="cleared").length)} tone="positive" />
         </div>
         <DataTable columns={cols} data={rows} rowKey={r=>r.id} pageSize={10} searchableText={r=>`${r.id} ${r.traderName} ${r.email} ${r.typology}`} />
+        <p className="text-[10px] text-muted-foreground">Case decisions persist locally (Demo) — they survive a reload but live only in this browser.</p>
       </PageContent>
     </Page>
   );

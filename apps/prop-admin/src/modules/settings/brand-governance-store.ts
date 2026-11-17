@@ -13,7 +13,9 @@
  *    entry (changedBy/changedAt/change summary) and is N11-audit-logged.
  */
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 /* ------------------------------------------------------------------ */
 /* Model                                                               */
@@ -112,7 +114,7 @@ const seedRules: GovernanceRules = {
   legalNameRequired: true,
 };
 
-let PROFILE: BrandProfile = {
+const SEED_PROFILE: BrandProfile = {
   id: "brand-alphaone",
   name: "AlphaOne",
   version: 4,
@@ -142,6 +144,20 @@ let PROFILE: BrandProfile = {
     { version: 2, changedBy: "Sarah Chen", changedAt: new Date(Date.now() - 40 * 86_400_000).toISOString(), summary: "Initial brand kit", tokens: { ...seedTokens, primaryColor: "#7c3aed" }, rules: { ...seedRules, darkLogoRequired: false } },
   ],
 };
+
+/**
+ * R7 I10 — the governed brand profile is operator state that used to reset
+ * on reload. Rehydrate from `pfaas:demo:brand-governance`
+ * (migrate-on-read: `SEED_PROFILE` is the fallback) and re-serialize on
+ * every profile mutation through `emit()`.
+ */
+const SLOT = "brand-governance";
+const profileSchema = z.any() as unknown as z.ZodType<BrandProfile>;
+let PROFILE: BrandProfile = loadDemoState(SLOT, profileSchema, SEED_PROFILE);
+
+function persist(): void {
+  saveDemoState(SLOT, PROFILE);
+}
 
 /* ------------------------------------------------------------------ */
 /* Reads                                                               */
@@ -240,7 +256,7 @@ export function addSender(s: Omit<SenderIdentity, "id">): SenderIdentity {
 
 const listeners = new Set<() => void>();
 let version = 0;
-function emit() { version += 1; listeners.forEach(l => l()); }
+function emit() { version += 1; persist(); listeners.forEach(l => l()); }
 
 export function useBrandVersion(): number {
   const [v, setV] = useState(version);

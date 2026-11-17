@@ -15,7 +15,9 @@
  *  • submitForm — validation → rules → CRM contact + consent receipt +
  *                 submission record + audit (R3-F05: store-backed, no toast)
  */
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { crmContacts } from "@/lib/platform/mock-data";
 import { addConsent } from "./segments-store";
 
@@ -58,7 +60,7 @@ export interface FormSubmission {
 
 const now = () => new Date().toISOString();
 
-let FORMS: FormDef[] = [
+const SEED_FORMS: FormDef[] = [
   {
     id: "f1", name: "Challenge Interest", status: "published", embedTarget: "Landing: 100K Promo (R2-01)",
     submissions: 842, lastSubmission: now(), conversion: 6.7,
@@ -85,11 +87,13 @@ let FORMS: FormDef[] = [
     rules: [],
   },
 ];
+let FORMS: FormDef[] = SEED_FORMS;
 
 export function listForms(): FormDef[] { return FORMS; }
 export function getForm(id: string): FormDef | undefined { return FORMS.find(f => f.id === id); }
 export function saveForm(f: Partial<FormDef> & { id: string }) {
   FORMS = FORMS.map(x => x.id === f.id ? { ...x, ...f } : x);
+  persist();
 }
 export function createForm(name: string): FormDef {
   const rec: FormDef = {
@@ -103,6 +107,7 @@ export function createForm(name: string): FormDef {
     rules: [],
   };
   FORMS = [rec, ...FORMS];
+  persist();
   return rec;
 }
 
@@ -115,6 +120,7 @@ export function addRule(formId: string, rule: Omit<FormRule, "id">): FormRule | 
   if (!form) return null;
   const rec: FormRule = { ...rule, id: `r-${Date.now()}` };
   FORMS = FORMS.map(f => f.id === formId ? { ...f, rules: [...f.rules, rec] } : f);
+  persist();
   recordAudit({
     action: "form.rule.add",
     entity: "form",
@@ -129,6 +135,7 @@ export function removeRule(formId: string, ruleId: string): boolean {
   const form = getForm(formId);
   if (!form || !form.rules.some(r => r.id === ruleId)) return false;
   FORMS = FORMS.map(f => f.id === formId ? { ...f, rules: f.rules.filter(r => r.id !== ruleId) } : f);
+  persist();
   recordAudit({
     action: "form.rule.remove",
     entity: "form",
@@ -292,6 +299,7 @@ export function submitForm(
     summary: `${form.name}: submission ${submission.id}${crmContactId ? ` → CRM ${crmContactId}` : ""}${consentReceiptId ? ` → consent ${consentReceiptId} (${consentGiven ? "granted" : "withdrawn"})` : ""}`,
     module: "marketing",
   });
+  persist();
   return { ok: true, errors: [], submission, crmContactId, consentReceiptId };
 }
 
@@ -321,4 +329,25 @@ function upsertCrmContact(c: {
     notes: c.notes,
   });
   return id;
+}
+
+/*
+ * R7 I10 — form definitions, rules and submissions are operator state
+ * that used to reset on reload. Rehydrate both collections from
+ * `pfaas:demo:forms` (migrate-on-read: fixtures are the fallback);
+ * every mutator re-serializes via `persist()` (no emit() in this store).
+ * The CRM-contact write-through stays on mock-data (shared cross-module
+ * seed, out of I10 scope).
+ */
+const SLOT = "forms";
+const formsSchema = z.object({
+  forms: z.array(z.any()), submissions: z.array(z.any()),
+}) as unknown as z.ZodType<{ forms: FormDef[]; submissions: FormSubmission[] }>;
+
+const formsHydrated = loadDemoState(SLOT, formsSchema, { forms: SEED_FORMS, submissions: [] });
+FORMS = formsHydrated.forms;
+SUBMISSIONS = formsHydrated.submissions;
+
+function persist(): void {
+  saveDemoState(SLOT, { forms: FORMS, submissions: SUBMISSIONS });
 }

@@ -9,8 +9,10 @@
  * filings into the risk alerts queue (AC-3).
  */
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { getAmlCase, updateAmlCase, type AmlCase } from "./aml-store";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 export type FilingType = "SAR" | "STR" | "voluntary";
 export type FilingStatus = "draft" | "submitted" | "acknowledged" | "rfi" | "closed";
@@ -117,7 +119,7 @@ function seedEvidence(caseId: string): FilingEvidenceSnapshot {
   return snapshotEvidence(c);
 }
 
-let FILINGS: StrFiling[] = [
+const SEED_FILINGS: StrFiling[] = [
   {
     id: "FIL-2026-001", caseId: "aml2", type: "SAR", regulator: "FinCEN (US FIU)",
     status: "submitted", createdAt: daysAgo(6), submittedAt: daysAgo(3),
@@ -165,6 +167,20 @@ let FILINGS: StrFiling[] = [
   },
 ];
 
+/**
+ * R7 I10 — filing register decisions (status, narrative, escalations)
+ * are operator state that used to reset on reload. Rehydrate from
+ * `pfaas:demo:str-filings` (migrate-on-read) and re-serialize through
+ * `emit()` on every mutation.
+ */
+const SLOT = "str-filings";
+const filingsSchema = z.array(z.any()) as unknown as z.ZodType<StrFiling[]>;
+let FILINGS: StrFiling[] = loadDemoState(SLOT, filingsSchema, SEED_FILINGS);
+
+function persist(): void {
+  saveDemoState(SLOT, FILINGS);
+}
+
 function defaultNarrativePlaceholder(caseId: string): string {
   const c = getAmlCase(caseId);
   return c ? defaultNarrativeForCase(c) : `TYPOLOGY: (case ${caseId} unavailable)`;
@@ -175,6 +191,7 @@ const listeners = new Set<() => void>();
 let version = 0;
 function emit() {
   version += 1;
+  persist();
   listeners.forEach((l) => l());
 }
 

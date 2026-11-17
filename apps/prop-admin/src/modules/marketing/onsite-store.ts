@@ -18,7 +18,9 @@
  *  • recordImpression / recordDismissal — frequency state per session
  */
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 export type OnsiteType = "popup" | "banner" | "slab" | "inline";
 export type OnsiteStatus = "draft" | "active" | "paused" | "archived";
@@ -45,10 +47,37 @@ export interface ConversionRecord {
 const now = () => new Date().toISOString();
 const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
 
-let ITEMS: OnsiteCampaign[] = [
+const SEED_ITEMS: OnsiteCampaign[] = [
   { id: "os1", name: "KYC Nudge Popup", type: "popup", template: "KYC nudge", status: "active", trigger: { kind: "exit_intent" }, audience: { segment: "KYC-verified, not deposited", loggedIn: true }, frequency: { mode: "every_n_days", n: 3 }, impressions: 8420, clicks: 611, dismissals: 420, conversions: 188, updatedAt: now(), blocks: [{ id: "b1", type: "hero", label: "Headline" }, { id: "b2", type: "form", label: "Form embed (R2-02)" }] },
   { id: "os2", name: "Deposit Boost Slab", type: "slab", template: "deposit boost", status: "draft", trigger: { kind: "page_view", value: "/dashboard" }, audience: { segment: "Funded active" }, frequency: { mode: "suppress_after_conversion" }, impressions: 0, clicks: 0, dismissals: 0, conversions: 0, updatedAt: now(), blocks: [{ id: "b1", type: "countdown", label: "Countdown" }] },
 ];
+
+const SEED_CONVERSIONS: ConversionRecord[] = [
+  { id: "cnv-1", unitId: "os1", session: "sess-8f21", page: "/register", value: 0, currency: "USD", at: daysAgo(2) },
+  { id: "cnv-2", unitId: "os1", session: "sess-11ac", page: "/kyc", value: 0, currency: "USD", at: daysAgo(1) },
+];
+
+/**
+ * R7 I10 — unit edits, conversions and counters are operator state that
+ * used to reset on reload. Rehydrate from `pfaas:demo:onsite`
+ * (migrate-on-read: fixtures are the fallback) and re-serialize through
+ * `emit()` on every mutation. Per-session frequency state stays in-memory
+ * (it is visitor behaviour, not an operator decision).
+ */
+const SLOT = "onsite";
+const onsiteSchema = z
+  .object({ items: z.array(z.any()), conversions: z.array(z.any()) }) as unknown as z.ZodType<{ items: OnsiteCampaign[]; conversions: ConversionRecord[] }>;
+
+const onsiteHydrated = loadDemoState(SLOT, onsiteSchema, {
+  items: SEED_ITEMS,
+  conversions: SEED_CONVERSIONS,
+});
+let ITEMS: OnsiteCampaign[] = onsiteHydrated.items;
+let CONVERSIONS: ConversionRecord[] = onsiteHydrated.conversions;
+
+function persist(): void {
+  saveDemoState(SLOT, { items: ITEMS, conversions: CONVERSIONS });
+}
 
 export function listOnsite(): OnsiteCampaign[] { return ITEMS; }
 export function getOnsite(id: string): OnsiteCampaign | undefined { return ITEMS.find(i => i.id === id); }
@@ -171,11 +200,6 @@ export function evaluateOnsite(c: OnsiteCampaign, ctx: OnsiteContext): Evaluatio
 /* Conversion attribution + impression state (R2-03 uplift)            */
 /* ------------------------------------------------------------------ */
 
-let CONVERSIONS: ConversionRecord[] = [
-  { id: "cnv-1", unitId: "os1", session: "sess-8f21", page: "/register", value: 0, currency: "USD", at: daysAgo(2) },
-  { id: "cnv-2", unitId: "os1", session: "sess-11ac", page: "/kyc", value: 0, currency: "USD", at: daysAgo(1) },
-];
-
 /** Per-unit impression/dismiss state per session (drives the engine). */
 const sessionState = new Map<string, { impressions: number; dismissed: boolean; lastAt?: string; converted: boolean }>();
 const stateKey = (unitId: string, session: string) => `${unitId}:${session}`;
@@ -252,6 +276,7 @@ const listeners = new Set<() => void>();
 let version = 0;
 function emit() {
   version += 1;
+  persist();
   listeners.forEach(l => l());
 }
 

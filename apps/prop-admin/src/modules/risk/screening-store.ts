@@ -11,8 +11,10 @@
  * AC-3  queue dispositions update the linked case screening result.
  */
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { listAmlAlerts, getAmlCase, updateAmlCase } from "./aml-store";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 
 export type ScreeningListKind = "sanctions" | "PEP" | "RCA" | "adverse-media";
 export type RescanSchedule = "on-sync" | "on-case-open" | "nightly-batch";
@@ -78,7 +80,7 @@ const NEXT_SYNC: Record<RescanSchedule, string> = {
   "on-case-open": "on case open",
 };
 
-let SOURCES: ScreeningSource[] = [
+const SEED_SOURCES: ScreeningSource[] = [
   {
     id: "src-comply", provider: "ComplyAdvantage", lists: ["sanctions", "PEP", "adverse-media"],
     currentVersion: "2026.10.28", lastSync: daysAgo(1), nextSync: NEXT_SYNC["nightly-batch"],
@@ -114,6 +116,31 @@ let SOURCES: ScreeningSource[] = [
   },
 ];
 
+/**
+ * R7 I10 — screening inputs and the match-review queue are operator
+ * state: they used to reset on reload. Rehydrate from
+ * `pfaas:demo:screening` (migrate-on-read, fixtures are the fallback)
+ * and re-serialize on every mutation through `emit()`.
+ *
+ * SOURCES hydrates before the SEED_MATCHES literal below because
+ * seedMatch() reads it for list-version provenance (module-init order).
+ */
+const SLOT = "screening";
+const screeningSchema = z
+  .object({ sources: z.array(z.any()), matches: z.array(z.any()) }) as unknown as z.ZodType<{
+  sources: ScreeningSource[];
+  matches: ScreeningMatch[];
+}>;
+const sourcesOnlySchema = z
+  .object({ sources: z.array(z.any()) }) as unknown as z.ZodType<{ sources: ScreeningSource[] }>;
+
+let SOURCES: ScreeningSource[] = loadDemoState(SLOT, sourcesOnlySchema, { sources: SEED_SOURCES }).sources;
+let MATCHES: ScreeningMatch[] = [];
+
+function persist(): void {
+  saveDemoState(SLOT, { sources: SOURCES, matches: MATCHES });
+}
+
 function providerOf(source: ScreeningSource): string {
   return source.provider.replace(" (self-hosted)", "");
 }
@@ -142,7 +169,7 @@ function seedMatch(
   };
 }
 
-let MATCHES: ScreeningMatch[] = [
+const SEED_MATCHES: ScreeningMatch[] = [
   seedMatch("MTCH-001", "aml1", "ComplyAdvantage", "sanctions", "potential", 84, "Name similarity (low confidence)", daysAgo(5)),
   seedMatch("MTCH-002", "aml2", "World-Check", "PEP", "hit", 97, "PEP: senior political exposure (relative)", daysAgo(5)),
   seedMatch("MTCH-003", "aml1", "World-Check", "RCA", "potential", 86, "Shared address with a delisted entity (RCA)", daysAgo(4)),
@@ -150,12 +177,14 @@ let MATCHES: ScreeningMatch[] = [
   seedMatch("MTCH-005", "aml4", "ComplyAdvantage", "adverse-media", "potential", 79, "Local news mention (unverified)", daysAgo(9), "false-positive", "analyst"),
   seedMatch("MTCH-006", "aml2", "OpenSanctions (self-hosted)", "sanctions", "potential", 90, "Sanctions entity partial match (transliteration)", daysAgo(2)),
 ];
+MATCHES = loadDemoState(SLOT, screeningSchema, { sources: SEED_SOURCES, matches: SEED_MATCHES }).matches;
 
 /* Store subscription (mirrors payout/AML store patterns). */
 const listeners = new Set<() => void>();
 let version = 0;
 function emit() {
   version += 1;
+  persist();
   listeners.forEach((l) => l());
 }
 

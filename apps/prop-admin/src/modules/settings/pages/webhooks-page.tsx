@@ -8,6 +8,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { z } from "zod";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge } from "@/components/platform/status";
@@ -28,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { relativeTime, absoluteTime } from "@/modules/integrations/format";
 import { recordAudit } from "@/lib/audit";
+import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { Webhook, Plus, Send, RefreshCw, KeyRound, Eye, EyeOff, Pencil, Trash2, Pause, Play, Copy, AlertTriangle, BookOpen, RotateCcw } from "lucide-react";
 
 type EpStatus = "active"|"paused"|"failing"|"autopaused";
@@ -69,11 +71,21 @@ const mkDels = (evs:string[],ok:boolean):Delivery[] => evs.slice(0,4).flatMap((e
   ...(ok?[]:[{id:`d${Math.random()}`,ts:ago(8+i*25),event:ev,code:502,ms:4100,attempt:4}]),
 ]);
 
-let EPS: Endpoint[] = [
+/**
+ * R7 I10 — endpoint CRUD (add/edit/delete/pause/rotate/replay) is
+ * operator state that used to reset on reload. Rehydrate from
+ * `pfaas:demo:webhooks` (migrate-on-read: fixtures are the fallback);
+ * every mutation goes through `commit()` which re-serializes.
+ */
+const WEBHOOKS_SLOT = "webhooks";
+const webhooksSchema = z.array(z.any()) as unknown as z.ZodType<Endpoint[]>;
+const SEED_EPS: Endpoint[] = [
   {id:"ep-1",url:"https://hooks.acme.io/payouts",description:"Finance ERP",events:["payout.requested","payout.approved","payout.paid"],status:"active",success24h:99.2,rotatedAt:ago(60*24*9),secret:"whsec_live_4f2a…9bd1",deliveries:mkDels(["payout.requested","payout.paid"],true)},
   {id:"ep-2",url:"https://api.crm.internal/webhooks",description:"Internal CRM",events:["kyc.approved","challenge.passed","campaign.sent","trade.opened"],status:"active",success24h:97.6,rotatedAt:ago(60*24*30),secret:"whsec_live_81cc…2e40",deliveries:mkDels(["kyc.approved","challenge.passed"],true)},
   {id:"ep-3",url:"https://failing.example.com/hook",description:"Legacy sink (failing)",events:["marketing.*","flow.enrolled"],status:"autopaused",success24h:12,rotatedAt:ago(60*24*60),secret:"whsec_live_dead…beef",deliveries:mkDels(["campaign.sent","flow.enrolled"],false),pausedSince:ago(55),queued:148,lastError:"5xx beyond retry threshold (last 502)"},
 ];
+
+let EPS: Endpoint[] = loadDemoState(WEBHOOKS_SLOT, webhooksSchema, SEED_EPS);
 
 const randSecret=()=>`whsec_live_${Math.random().toString(36).slice(2,10)}${Math.random().toString(36).slice(2,10)}`;
 const hostPath=(u:string)=>{ try{ const x=new URL(u); return x.host + x.pathname; }catch{return u;} };
@@ -89,7 +101,7 @@ export function WebhooksPage() {
   const [newSecret, setNewSecret] = useState<{ep:Endpoint; val:string}|null>(null);
   const [form, setForm] = useState({ url:"", description:"", events:[] as string[] });
 
-  const commit = (next:Endpoint[]) => { EPS = next; setEps(next); };
+  const commit = (next:Endpoint[]) => { EPS = next; saveDemoState(WEBHOOKS_SLOT, next); setEps(next); };
   const patch = (id:string, p:Partial<Endpoint>) => commit(eps.map(e=>e.id===id?{...e,...p}:e));
 
   const autoPaused = eps.find(e=>e.status==="autopaused");
