@@ -57,6 +57,7 @@ import {
   Loader2,
   Search,
   Settings,
+  ShieldAlert,
   Target,
   Trash2,
   Trophy,
@@ -88,7 +89,8 @@ type ActionType =
   | "promo"
   | "payout-method"
   | "provisioning"
-  | "competition";
+  | "competition"
+  | "risk";
 
 interface Message {
   id: string;
@@ -138,6 +140,12 @@ const actionFor: Record<
     href: "/account-provisioning",
     className: "bg-primary text-on-primary hover:bg-primary/90",
     icon: <Settings className="h-4 w-4" />,
+  },
+  risk: {
+    label: "View risk dashboard",
+    href: "/risk-dashboard",
+    className: "bg-primary text-on-primary hover:bg-primary/90",
+    icon: <ShieldAlert className="h-4 w-4" />,
   },
   competition: {
     label: "View competition",

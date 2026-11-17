@@ -19,6 +19,7 @@
  */
 
 import Link from "next/link";
+import { useLifecycleLog } from "@pfaas/lifecycle";
 import {
   TerraBadge,
   TerraCard,
@@ -40,8 +41,17 @@ export function AccountBreachPage() {
   const breachedPct = Math.round((breach.breachedBy / breach.limit) * 100);
   const coaching = breachCoaching[breach.rule];
 
+  const lifecycleEvents = useLifecycleLog();
+  const engineBreach = lifecycleEvents.find(
+    (e) => e.name === "risk.alert.raised" && e.payload?.severity === "hard-breach",
+  );
   return (
     <div className="space-y-6">
+      {engineBreach && (
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-400">
+          <strong>Rule-triggered breach (Demo):</strong> {String(engineBreach.payload?.ruleName ?? "Risk rule")} — {String(engineBreach.payload?.detail ?? "")}. Cited rule: {String(engineBreach.payload?.ruleId ?? "")}.
+        </div>
+      )}
       <TerraPageHeader
         title="Evaluation Failed"
         description={`${breach.challenge} • Account #${breach.login} • ${breach.phase}`}

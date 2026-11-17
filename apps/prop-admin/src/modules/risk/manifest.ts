@@ -68,6 +68,9 @@ const routes: RouteDefinition[] = [
   { path: "risk-coupon-vs-payouts", viewId: "risk-coupon-vs-payouts", label: "Coupon vs Payouts", permission: "risk.read", module: "risk" },
   { path: "risk-account-label-analysis", viewId: "risk-account-label-analysis", label: "Account Label Analysis", permission: "risk.read", module: "risk" },
   { path: "risk-addon-revenue", viewId: "risk-addon-revenue", label: "Addon Revenue", permission: "risk.read", module: "risk" },
+  // R7 I5 — risk rule engine (store-backed; route + in-page links only,
+  // no nav child — NAV_CHILDREN_MAX 150/150).
+  { path: "risk-rule-engine", viewId: "risk-rule-engine", label: "Risk Rule Engine", permission: "risk.read", module: "risk" },
   { path: "copy-trading-events", viewId: "copy-trading-events", label: "Copy Trading Events", permission: "risk.read", module: "risk" },
   { path: "copy-trading-analysis", viewId: "copy-trading-analysis", label: "Copy Trading Analysis", permission: "risk.read", module: "risk" },
   { path: "inverse-trading-events", viewId: "inverse-trading-events", label: "Inverse Trading Events", permission: "risk.read", module: "risk" },

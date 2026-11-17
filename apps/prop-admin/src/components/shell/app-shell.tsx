@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { usePayoutRulesEvaluator } from "@/modules/payouts/payout-rules-store";
+import { useRiskRulesEvaluator } from "@/lib/risk-rules-store";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { Breadcrumbs, MobileNav } from "./breadcrumbs";
@@ -31,6 +32,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // (cross-app intake) on the shared lifecycle log, whichever view the
   // operator is on; outcomes are stamped once and logged as runs.
   usePayoutRulesEvaluator(runtime.tenant?.id ?? "platform");
+  // R7 I5 — risk rule engine: reacts to every trade.closed on the shared log.
+  useRiskRulesEvaluator(runtime.tenant?.id ?? "platform");
   // PRD L5494 impersonation service — while a session is active the shell
   // shows a persistent banner; only Exit (impersonation_ended) closes it.
   const impersonation = useImpersonation();

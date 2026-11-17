@@ -30,6 +30,7 @@ import {
 } from "@/components/terra/terra-ui";
 import { detectTerraPatterns } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
+import { useLifecycleLog } from "@pfaas/lifecycle";
 import { useTrading } from "@/lib/trading/trading-context";
 import { useComplianceSnapshot } from "@/lib/compliance/compliance-store";
 import {
@@ -64,6 +65,10 @@ export function RiskDashboardPage() {
   const { activeAccount: acc } = useActiveAccount();
   const { positions, closedTrades, realizedByAccount } = useTrading();
   const snapshot = useComplianceSnapshot(acc.id);
+  const lifecycleEvents = useLifecycleLog();
+  const operatorWarnings = lifecycleEvents.filter(
+    (e) => e.name === "risk.alert.raised" && (e.entity?.id === acc.id || e.payload?.accountId === acc.id),
+  );
   const trading = useMemo(
     () => ({ positions, closedTrades, realizedByAccount }),
     [positions, closedTrades, realizedByAccount],
@@ -291,6 +296,24 @@ export function RiskDashboardPage() {
           </TerraCard>
         </div>
       </div>
+
+      {/* R7 I5 — operator warnings panel fed by risk.alert.raised events. */}
+      <TerraCard>
+        <TerraSectionTitle title="Operator warnings" />
+        {operatorWarnings.length === 0 ? (
+          <p className="text-sm text-on-surface-variant">No operator warnings for this account. (Demo)</p>
+        ) : (
+          <ul className="space-y-2">
+            {operatorWarnings.map((w) => (
+              <li key={w.id} className="rounded-xl border border-outline-variant/40 bg-surface-container px-3 py-2 text-sm">
+                <div className="font-medium">{String(w.payload?.ruleName ?? "Risk rule")}</div>
+                <div className="text-xs text-on-surface-variant">{String(w.payload?.detail ?? "")}</div>
+                <div className="text-[10px] text-on-surface-variant">{new Date(w.at).toLocaleString()}</div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </TerraCard>
     </div>
   );
 }

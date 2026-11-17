@@ -26,7 +26,8 @@ export interface InboxMessage {
     | "promo"
     | "payout-method"
     | "provisioning"
-    | "competition";
+    | "competition"
+    | "risk";
   /** Per-message deep link (e.g. a specific competition) — falls back to
    *  the action type's default href when absent. */
   actionHref?: string;

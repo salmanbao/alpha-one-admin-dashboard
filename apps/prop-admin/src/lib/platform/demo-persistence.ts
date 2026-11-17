@@ -42,6 +42,8 @@ const DEMO_STORES = [
   "affiliate-payouts",
   // R7 I4 — payout rules engine (replaces the single auto-approve rule).
   "payout-rules",
+  // R7 I5 — risk rule engine (rules + alert queue + account state).
+  "risk-rules",
   "connectors",
   "kyc-provider-config",
   "challenge-funding",

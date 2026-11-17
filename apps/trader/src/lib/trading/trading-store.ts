@@ -32,6 +32,8 @@ import {
   terraOrders,
   terraPositions,
   terraTrades,
+  terraRiskLimits,
+  terraAccounts,
   type TerraOrder,
   type TerraPosition,
   type TerraTrade,
@@ -331,6 +333,8 @@ export function closePosition(id: string, fraction = 1): void {
       actor: "trader",
       payload: {
         accountId: pos.accountId,
+        accountLogin: terraAccounts.find((a) => a.id === pos.accountId)?.login,
+        accountName: terraAccounts.find((a) => a.id === pos.accountId)?.name,
         symbol: trade.symbol,
         side: trade.side,
         lots: trade.lots,
@@ -338,6 +342,12 @@ export function closePosition(id: string, fraction = 1): void {
         exit: trade.exit,
         pnl: trade.pnl,
         ticket,
+        closedAt: trade.closedAt,
+        accountLimits: terraRiskLimits[pos.accountId],
+        accountBaseline: {
+          dailyLossUsed: (terraRiskLimits[pos.accountId]?.daily ?? 0) - (terraAccounts.find((a) => a.id === pos.accountId)?.dailyLossRemaining ?? 0),
+          maxDdUsed: (terraRiskLimits[pos.accountId]?.maxDd ?? 0) - (terraAccounts.find((a) => a.id === pos.accountId)?.maxDdRemaining ?? 0),
+        },
       },
     });
     toast({
@@ -487,6 +497,8 @@ export function closeAll(accountId?: string): void {
       actor: "trader",
       payload: {
         accountId: trade.accountId,
+        accountLogin: terraAccounts.find((a) => a.id === trade.accountId)?.login,
+        accountName: terraAccounts.find((a) => a.id === trade.accountId)?.name,
         symbol: trade.symbol,
         side: trade.side,
         lots: trade.lots,
@@ -494,7 +506,13 @@ export function closeAll(accountId?: string): void {
         exit: trade.exit,
         pnl: trade.pnl,
         ticket: trade.ticket,
+        closedAt: trade.closedAt,
         batch: trades.length > 1,
+        accountLimits: terraRiskLimits[trade.accountId],
+        accountBaseline: {
+          dailyLossUsed: (terraRiskLimits[trade.accountId]?.daily ?? 0) - (terraAccounts.find((a) => a.id === trade.accountId)?.dailyLossRemaining ?? 0),
+          maxDdUsed: (terraRiskLimits[trade.accountId]?.maxDd ?? 0) - (terraAccounts.find((a) => a.id === trade.accountId)?.maxDdRemaining ?? 0),
+        },
       },
     });
   }

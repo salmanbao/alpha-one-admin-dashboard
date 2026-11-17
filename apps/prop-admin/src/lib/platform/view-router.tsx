@@ -140,6 +140,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "risk-coupon-vs-payouts": dynamic(() => import("@/modules/risk/pages/risk-coupon-vs-payouts-page").then((m) => ({ default: m.RiskCouponVsPayoutsPage })), { loading: ViewSkeleton }),
   "risk-account-label-analysis": dynamic(() => import("@/modules/risk/pages/risk-account-label-analysis-page").then((m) => ({ default: m.RiskAccountLabelAnalysisPage })), { loading: ViewSkeleton }),
   "risk-addon-revenue": dynamic(() => import("@/modules/risk/pages/risk-addon-revenue-page").then((m) => ({ default: m.RiskAddonRevenuePage })), { loading: ViewSkeleton }),
+  "risk-rule-engine": dynamic(() => import("@/modules/risk/pages/risk-rule-engine-page").then((m) => ({ default: m.RiskRuleEnginePage })), { loading: ViewSkeleton }),
 
   /* payouts */
   payouts: dynamic(() => import("@/modules/payouts/pages/payout-pages").then((m) => ({ default: m.PayoutsOverviewPage })), { loading: ViewSkeleton }),

@@ -342,6 +342,24 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         actionType: "challenge",
         actionHref: "/risk-dashboard",
       };
+    case "risk.alert.raised": {
+      const pct = Number(e.payload?.pct);
+      const metric = String(e.payload?.metric ?? "risk");
+      const ruleName = String(e.payload?.ruleName ?? "Risk rule");
+      const detail = typeof e.payload?.detail === "string" ? e.payload.detail : "";
+      const subjectPct = Number.isFinite(pct) ? `${pct}%` : "";
+      return {
+        id: `inbox:${e.id}:risk-alert`,
+        subject: `Risk alert — ${ruleName}${subjectPct ? ` (${subjectPct})` : ""}`,
+        body: `Warning: you used ${subjectPct || "part"} of your ${metric} limit (Demo). ${detail} Rule: ${ruleName}.`,
+        category: "Trading",
+        sender: "Risk Team",
+        at: e.at,
+        read: false,
+        actionType: "risk",
+        actionHref: "/risk-dashboard",
+      };
+    }
     default:
       return null;
   }

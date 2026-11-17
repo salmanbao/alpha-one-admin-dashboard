@@ -145,6 +145,11 @@ export const LIFECYCLE_EVENT_NAMES = [
   // lib/compliance/compliance-store when a computed rule breaks
   "compliance.violation",
   "compliance.buffer-warning",
+  // Risk rule engine (R7 I5) — consumer: trader inbox-lifecycle-bridge
+  // ("Warning: you used N% of your daily loss limit (Demo)") + trader
+  // risk-dashboard "operator warnings" panel + my-accounts account flag
+  // + account-breach wiring; emitted by prop-admin lib/risk-rules-store
+  "risk.alert.raised",
 ] as const;
 
 export type LifecycleEventName = (typeof LIFECYCLE_EVENT_NAMES)[number];
@@ -407,6 +412,7 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "trade.modified": "Position modified",
   "compliance.violation": "Rule violated",
   "compliance.buffer-warning": "Buffer warning",
+  "risk.alert.raised": "Risk alert raised",
 };
 
 /**

@@ -17,6 +17,7 @@ import {
   formatSignedMoney,
 } from "@/components/terra/terra-ui";
 import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
+import { useLifecycleLog } from "@pfaas/lifecycle";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { toast } from "@/hooks/use-toast";
 import { ComplianceSummaryStrip } from "@/components/compliance/compliance-summary-strip";
@@ -38,6 +39,12 @@ export function MyAccountsPage() {
   // The globally active account (header switcher) — used to highlight the
   // current card and to power the per-card "Set active" action.
   const { activeAccountId, setActiveAccountId } = useActiveAccount();
+  const lifecycleEvents = useLifecycleLog();
+  const flaggedAccounts = new Set(
+    lifecycleEvents
+      .filter((e) => e.name === "risk.alert.raised")
+      .map((e) => String(e.payload?.accountId ?? e.entity?.id ?? "")),
+  );
 
   if (terraAccounts.length === 0) {
     return (
@@ -153,6 +160,11 @@ export function MyAccountsPage() {
             </div>
 
             {/* Risk status box */}
+            {flaggedAccounts.has(acc.id) && (
+              <div className="mb-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+                Flagged by risk rule (Demo) — see Risk Dashboard
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-container px-3 py-2.5 text-xs text-on-surface-variant">
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
