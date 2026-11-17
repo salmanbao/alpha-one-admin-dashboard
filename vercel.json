@@ -15,8 +15,10 @@
     }
   },
   "rewrites": [
-    { "source": "^/prop-admin(/.*)?$", "destination": { "service": "prop-admin" } },
-    { "source": "^/platform-admin(/.*)?$", "destination": { "service": "platform-admin" } },
+    { "source": "/prop-admin/:path*", "destination": { "service": "prop-admin" } },
+    { "source": "/prop-admin", "destination": { "service": "prop-admin" } },
+    { "source": "/platform-admin/:path*", "destination": { "service": "platform-admin" } },
+    { "source": "/platform-admin", "destination": { "service": "platform-admin" } },
     { "source": "/(.*)", "destination": { "service": "trader" } }
   ]
 }
