@@ -61,6 +61,7 @@ import {
   ShieldAlert,
   CreditCard,
   RefreshCw,
+  Pause,
 } from "lucide-react";
 
 interface SummaryCard {
@@ -93,7 +94,7 @@ export function PendingTasksPage() {
   // lifecycle events; subscribing here makes the hub counts move without a
   // reload once any queue kind lands.
   const lifecycleVersion = useLifecycleLog().length;
-  const { purchases, provisioning, escalations, methodChanges } = useCrossAppIntake(tid);
+  const { purchases, provisioning, escalations, methodChanges, pauses } = useCrossAppIntake(tid);
 
   const challenges = useMemo(() => getTenantChallenges(tid), [tid]);
   const kyc = useMemo(
@@ -119,6 +120,8 @@ export function PendingTasksPage() {
   const provisioningCount = provisioning.filter((p: ProvisioningRecord) => p.status !== "active").length;
   const escalationCount = escalations.filter((e: EscalationRecord) => e.status === "open").length;
   const methodCount = methodChanges.length;
+  // R9 W5 UC-T9 — trader pause requests awaiting an operator decision.
+  const pauseCount = pauses.filter((p) => p.status === "pending").length;
 
   const cards: SummaryCard[] = useMemo(() => [
     {
@@ -201,7 +204,15 @@ export function PendingTasksPage() {
       icon: CreditCard,
       description: "Method additions/removals by traders — operator review required",
     },
-  ], [phase1Passed, phase2Passed, kycReviews, phaseVerifications, pendingWithdrawals, affiliatePayouts, purchaseCount, provisioningCount, escalationCount, methodCount]);
+    {
+      id: "account-pauses",
+      label: "Account Pause Requests",
+      count: pauseCount,
+      viewId: "account-pauses",
+      icon: Pause,
+      description: "Trader vacation-mode requests — approve to freeze day counters",
+    },
+  ], [phase1Passed, phase2Passed, kycReviews, phaseVerifications, pendingWithdrawals, affiliatePayouts, purchaseCount, provisioningCount, escalationCount, methodCount, pauseCount]);
 
   const resolvedCards = useMemo(() => cards.map((c) => ({
     ...c,

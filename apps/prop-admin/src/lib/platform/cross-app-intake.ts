@@ -53,7 +53,7 @@ export const CROSS_APP_SOURCE = "cross-app-intake";
  * pretending otherwise once made the dispatcher coerce them into payout
  * rows. Unmapped events are skipped explicitly.
  */
-export type IntakeQueueKind = "kyc" | "payout" | "purchase" | "provisioning" | "escalation" | "method";
+export type IntakeQueueKind = "kyc" | "payout" | "purchase" | "provisioning" | "escalation" | "method" | "pause";
 
 /** Which queue a given intake event maps to (`undefined` = not queued). */
 const QUEUE_BY_EVENT: Record<string, IntakeQueueKind | undefined> = {
@@ -74,6 +74,8 @@ const QUEUE_BY_EVENT: Record<string, IntakeQueueKind | undefined> = {
   "purchase.refunded": "purchase",
   "provisioning.retry": "provisioning",
   "provisioning.failed": "provisioning",
+  // R9 W5 UC-T9 — trader pause requests queue for operator approve/reject.
+  "account.pause-requested": "pause",
 };
 
 export const INTAKE_EVENTS = [
@@ -94,6 +96,7 @@ export const INTAKE_EVENTS = [
   "payout-method.unverified",
   "payout-method.removed",
   "payout-method.primary-set",
+  "account.pause-requested",
 ] as const;
 type IntakeEventName = (typeof INTAKE_EVENTS)[number];
 
@@ -197,6 +200,31 @@ export interface CompetitionJoinRecord {
   source: typeof CROSS_APP_SOURCE;
 }
 
+/**
+ * R9 W5 UC-T9 — trader account-pause requests. One row per account (the
+ * latest request), with the operator's verdict applied from
+ * `account.pause-approved` / `account.pause-rejected` on the same log.
+ */
+export interface PauseRecord {
+  id: string; // intake:<event id>
+  tenantId: string;
+  traderId: string;
+  traderName: string;
+  accountId: string;
+  accountLogin?: string;
+  accountName?: string;
+  /** Requested length in days (trader policy caps at 14). */
+  days: number;
+  /** When the pause would end (request time + days). */
+  until: string;
+  status: "pending" | "approved" | "rejected";
+  decidedAt?: string;
+  /** Operator's rejection reason, verbatim. */
+  reason?: string;
+  createdAt: string;
+  source: typeof CROSS_APP_SOURCE;
+}
+
 /* ------------------------------------------------------------------ */
 /* Dispatch: the full intake in one place                              */
 /* ------------------------------------------------------------------ */
@@ -218,7 +246,7 @@ export function crossAppIntakeRecords(tenantId: string): IntakeRecord[] {
 
 type IntakeRecord = {
   kind: IntakeQueueKind;
-  record: PurchaseRecord | ProvisioningRecord | EscalationRecord | MethodChangeRecord | KycRecord | Payout;
+  record: PurchaseRecord | ProvisioningRecord | EscalationRecord | MethodChangeRecord | KycRecord | Payout | PauseRecord;
 };
 
 function toRecord(e: LifecycleEvent, kind: IntakeQueueKind, tenantId: string): IntakeRecord["record"] {
@@ -235,6 +263,8 @@ function toRecord(e: LifecycleEvent, kind: IntakeQueueKind, tenantId: string): I
       return toMethodChangeRecord(e, tenantId);
     case "payout":
       return toPayout(e, tenantId);
+    case "pause":
+      return toPauseRecord(e, tenantId);
   }
 }
 
@@ -328,6 +358,43 @@ export function crossAppMethodChanges(tenantId: string): MethodChangeRecord[] {
 export function useCrossAppMethodChanges(tenantId: string): MethodChangeRecord[] {
   const log = useLifecycleLog();
   return useMemo(() => crossAppMethodChanges(tenantId), [log, tenantId]);
+}
+
+/**
+ * R9 W5 UC-T9 — pause requests per account (latest request wins), with
+ * the operator verdict applied from the same log. A verdict older than a
+ * record's request is ignored so a re-request never shows a stale decision.
+ */
+export function crossAppPauses(tenantId: string): PauseRecord[] {
+  const events = readLifecycleLog();
+  const byAccount = new Map<string, PauseRecord>();
+  for (const e of intakeEvents(tenantId, "account", "account.pause-requested", events)) {
+    const rec = toPauseRecord(e, tenantId);
+    const prev = byAccount.get(rec.accountId);
+    if (!prev || Date.parse(rec.createdAt) > Date.parse(prev.createdAt)) {
+      byAccount.set(rec.accountId, rec);
+    }
+  }
+  for (const rec of byAccount.values()) {
+    const verdict = events
+      .filter(
+        (v) =>
+          (v.name === "account.pause-approved" || v.name === "account.pause-rejected") &&
+          v.entity.id === rec.accountId &&
+          Date.parse(v.at) >= Date.parse(rec.createdAt),
+      )
+      .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+      .pop();
+    if (!verdict) continue;
+    rec.status = verdict.name === "account.pause-approved" ? "approved" : "rejected";
+    rec.decidedAt = verdict.at;
+    rec.reason = typeof verdict.payload?.reason === "string" ? verdict.payload.reason : undefined;
+  }
+  return Array.from(byAccount.values());
+}
+export function useCrossAppPauses(tenantId: string): PauseRecord[] {
+  const log = useLifecycleLog();
+  return useMemo(() => crossAppPauses(tenantId), [log, tenantId]);
 }
 
 /** Trader-app joins per competition (R7 I3) — participant list reader.
@@ -511,6 +578,27 @@ function toMethodChangeRecord(e: LifecycleEvent, tenantId: string): MethodChange
   };
 }
 
+/* --- account pause mapper (R9 W5 UC-T9) --- */
+
+function toPauseRecord(e: LifecycleEvent, tenantId: string): PauseRecord {
+  return {
+    id: intakeEntityId(e),
+    tenantId,
+    traderId: `trader-${e.entity.id}`,
+    traderName: applicantOf(e),
+    accountId: e.entity.id,
+    accountLogin:
+      typeof e.payload?.accountLogin === "string" ? e.payload.accountLogin : undefined,
+    accountName:
+      typeof e.payload?.accountName === "string" ? e.payload.accountName : undefined,
+    days: numberOr(e.payload?.days, 1),
+    until: typeof e.payload?.until === "string" ? e.payload.until : e.at,
+    status: "pending",
+    createdAt: e.at,
+    source: CROSS_APP_SOURCE,
+  };
+}
+
 /* --- competition join mapper (R7 I3) --- */
 
 function toCompetitionJoin(e: LifecycleEvent, tenantId: string): CompetitionJoinRecord {
@@ -608,6 +696,8 @@ export function useCrossAppIntake(tenantId: string): {
   provisioning: ProvisioningRecord[];
   escalations: EscalationRecord[];
   methodChanges: MethodChangeRecord[];
+  /** R9 W5 UC-T9 — trader account-pause requests (latest per account). */
+  pauses: PauseRecord[];
   logVersion: number;
 } {
   const log = useLifecycleLog();
@@ -619,6 +709,7 @@ export function useCrossAppIntake(tenantId: string): {
       provisioning: crossAppProvisioning(tenantId),
       escalations: crossAppEscalations(tenantId),
       methodChanges: crossAppMethodChanges(tenantId),
+      pauses: crossAppPauses(tenantId),
       logVersion: log.length,
     }),
     [log, tenantId],

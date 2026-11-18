@@ -69,6 +69,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "bridge-sync-log": dynamic(() => import("@/modules/trading/pages/trading-stitch-pages-2").then((m) => ({ default: m.BridgeSyncLogStitchPage })), { loading: ViewSkeleton }),
   "server-catalog": dynamic(() => import("@/modules/trading/pages/trading-stitch-pages-2").then((m) => ({ default: m.ServerCatalogStitchPage })), { loading: ViewSkeleton }),
   "bulk-account-operations": dynamic(() => import("@/modules/trading/pages/trading-stitch-pages-2").then((m) => ({ default: m.BulkAccountOperationsStitchPage })), { loading: ViewSkeleton }),
+  // R9 W5 UC-T9 — pause queue (route-only; reached from Pending Tasks).
+  "account-pauses": dynamic(() => import("@/modules/trading/pages/account-pauses-page").then((m) => ({ default: m.AccountPausesPage })), { loading: ViewSkeleton }),
   "account-broker-details": dynamic(() => import("@/modules/trading/pages/account-broker-details-page").then((m) => ({ default: m.AccountBrokerDetailsPage })), { loading: ViewSkeleton }),
   "account-kyc-statuses": dynamic(() => import("@/modules/trading/pages/account-kyc-statuses-page").then((m) => ({ default: m.AccountKycStatusesPage })), { loading: ViewSkeleton }),
   "account-related-accounts": dynamic(() => import("@/modules/trading/pages/account-related-accounts-page").then((m) => ({ default: m.AccountRelatedAccountsPage })), { loading: ViewSkeleton }),

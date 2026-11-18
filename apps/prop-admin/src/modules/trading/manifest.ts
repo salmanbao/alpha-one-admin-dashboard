@@ -65,6 +65,9 @@ const routes: RouteDefinition[] = [
   { path: "bulk-account-operations", viewId: "bulk-account-operations", label: "Bulk Account Operations", permission: "account.write", module: "trading" },
   { path: "server-catalog", viewId: "server-catalog", label: "Trading Server Catalog", permission: "account.read", module: "trading" },
   { path: "bridge-sync-log", viewId: "bridge-sync-log", label: "Bridge Sync Log", permission: "account.read", module: "trading" },
+  // R9 W5 UC-T9 — route-only (NAV_CHILDREN_MAX is at cap): reached from
+  // the Pending Tasks card, not the sidebar.
+  { path: "account-pauses", viewId: "account-pauses", label: "Account Pause Requests", permission: "account.write", module: "trading" },
 ];
 
 const widgets: WidgetDefinition[] = [
