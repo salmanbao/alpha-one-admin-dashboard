@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ShieldAlert, AlertTriangle, Eye, DollarSign, Plus,
-  ExternalLink, MoreVertical,
+  ExternalLink, MoreVertical, Network,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getTenantTraders } from "@/lib/platform/mock-data";
@@ -277,7 +277,16 @@ export function RiskCasesPage() {
 
   return (
     <Page>
-      <PageHeader title="Risk Cases" description="Operational risk investigation queue. Investigate, decide, and act on risk signals." icon={ShieldAlert} />
+      <PageHeader
+        title="Risk Cases"
+        description="Operational risk investigation queue. Investigate, decide, and act on risk signals."
+        icon={ShieldAlert}
+        actions={
+          <Button size="sm" variant="outline" onClick={() => navigate("correlation-clusters")}>
+            <Network className="mr-1 h-3 w-3" /> Correlation Clusters
+          </Button>
+        }
+      />
       <PageContent>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
           <MetricCard label="Open" value={open} icon={AlertTriangle} tone={open > 0 ? "negative" : "positive"} />
