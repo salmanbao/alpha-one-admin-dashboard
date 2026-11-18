@@ -324,6 +324,60 @@ export function expiringSoon(state: RewardsState, days = 30): LedgerEntry[] {
   return state.ledger.filter((l) => l.pts > 0 && new Date(l.expiresAt).getTime() <= horizon && new Date(l.expiresAt).getTime() > Date.now());
 }
 
+/* ------------------------------------------------------------------ */
+/* R9 W5 UC-T8 — breach-aware retry discount (policy, Demo)            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Discount % issued per confirmed breach type. Policy constant — a demo
+ * program rule, not live pricing; surfaces label it (Demo).
+ * `expiry` ships with the table for expiry-policy breaches (UC-T8); no
+ * expiry evaluator emits yet, so nothing issues it today.
+ */
+export const RETRY_DISCOUNT_PCT: Record<string, number> = {
+  "daily-loss": 20,
+  "max-drawdown": 15,
+  expiry: 10,
+};
+
+const RETRY_DISCOUNT_REASON: Record<string, string> = {
+  "daily-loss": "daily-loss breach",
+  "max-drawdown": "max-drawdown breach",
+  expiry: "account-expiry breach",
+};
+
+/**
+ * Issue the retry discount for a confirmed breach: a granted redemption
+ * carrying an ALPHA- code, persisted to the rewards wallet (R10 — the
+ * wallet survives reload). Deduped per breach type — one live code per
+ * type; reversed/expired codes don't block a fresh grant. Returns the
+ * redemption, or null when the type has no policy entry or a code is
+ * already live. Named consumer of the caller's `promo.retry-discount-issued`
+ * event is the trader inbox bridge ("Your retry discount is ready").
+ */
+export function issueRetryDiscount(breachType: string): Redemption | null {
+  const pct = RETRY_DISCOUNT_PCT[breachType];
+  if (pct == null) return null;
+  const state = loadRewards();
+  const itemId = `retry-${breachType}`;
+  const live = state.redemptions.find(
+    (r) => r.itemId === itemId && r.status !== "reversed" && r.status !== "expired",
+  );
+  if (live) return null;
+  const redemption: Redemption = {
+    id: `rd-${Date.now()}`,
+    itemId,
+    title: `${pct}% retry discount — ${RETRY_DISCOUNT_REASON[breachType] ?? breachType} (Demo)`,
+    cost: 0,
+    status: "granted",
+    code: `ALPHA-${pct}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+    at: new Date().toISOString(),
+    slaHours: 0,
+  };
+  saveRewards({ ...state, redemptions: [redemption, ...state.redemptions] });
+  return redemption;
+}
+
 export const CATEGORY_LABEL: Record<RewardCategory, string> = {
   fee_rebate: "Fee rebate",
   challenge_discount: "Challenge discount",

@@ -52,6 +52,7 @@ import {
 } from "@/lib/fixtures/terra-fixtures";
 import { buildPayoutCriteria } from "@/components/terra/payout-summary-strip";
 import { useTrading } from "@/lib/trading/trading-context";
+import { issueRetryDiscount, RETRY_DISCOUNT_PCT } from "@/modules/promo/rewards-store";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -656,6 +657,30 @@ export function runComplianceEvaluation(trading: ComplianceTrading): void {
         detail: v.detail,
       },
     });
+
+    // R9 W5 UC-T8 — a confirmed breach issues the policy retry discount
+    // into the rewards wallet (persisted) and publishes it for the inbox
+    // bridge, whose receipt is "Your retry discount is ready". One grant
+    // per breach type — issueRetryDiscount dedupes against the wallet.
+    if (RETRY_DISCOUNT_PCT[v.type] != null) {
+      const grant = issueRetryDiscount(v.type);
+      if (grant) {
+        const login = terraAccounts.find((a) => a.id === v.accountId)?.login ?? "";
+        emitLifecycle({
+          entity: { kind: "compliance", id: v.id },
+          name: "promo.retry-discount-issued",
+          actor: "trader",
+          key: `retry:${v.id}`,
+          payload: {
+            accountId: v.accountId,
+            login,
+            breachType: v.type,
+            discountPct: RETRY_DISCOUNT_PCT[v.type],
+            code: grant.code,
+          },
+        });
+      }
+    }
   }
 
   // Final-20% buffer warnings (80–99% used) — one per account/day/metric,

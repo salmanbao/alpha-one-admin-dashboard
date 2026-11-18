@@ -347,6 +347,25 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         actionType: "challenge",
         actionHref: "/risk-dashboard",
       };
+    case "promo.retry-discount-issued": {
+      // R9 W5 UC-T8 — own write (the compliance evaluator issued the
+      // rewards-store grant); receipt tells the trader it's in the wallet.
+      const pct = Number(e.payload?.discountPct ?? 0);
+      const code = String(e.payload?.code ?? "");
+      const login = String(e.payload?.login ?? "");
+      const breach = String(e.payload?.breachType ?? "breach").replace(/-/g, " ");
+      return {
+        id: `inbox:${e.id}:retry-discount`,
+        subject: "Your retry discount is ready",
+        body: `A ${pct}% retry discount (${code}) was added to your promo wallet after the ${breach} on account #${login}.\n\nApply it at the next challenge checkout — one live code per breach type (Demo policy).`,
+        category: "Challenges",
+        sender: "Rewards",
+        at: e.at,
+        read: false,
+        actionType: "promo",
+        actionHref: "/rewards",
+      };
+    }
     case "compliance.buffer-warning":
       // Final 20% of a buffer — the same threshold the gauge turns red.
       return {
@@ -582,6 +601,9 @@ export function useInboxLifecycleBridge(): void {
       const own =
         e.name.startsWith("trade.") ||
         e.name.startsWith("compliance.") ||
+        // R9 W5 — the retry-discount grant is this app's own write
+        // (compliance evaluator → rewards wallet).
+        e.name === "promo.retry-discount-issued" ||
         (e.name.startsWith("appeal.") && e.actor === "trader") ||
         // R9 W2 — trader-store fee flip (purchase.fee-refunded) is an own
         // write; payout.fraud-* verdicts arrive from prop-admin.

@@ -248,7 +248,7 @@ export function RewardsCatalogPage() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-medium">
-                    {r.title} <span className="text-muted-foreground">· {r.cost.toLocaleString()} pts</span>
+                    {r.title} <span className="text-muted-foreground">· {r.cost > 0 ? `${r.cost.toLocaleString()} pts` : "free — issued after breach"}</span>
                   </p>
                   <p className="text-[11px] text-muted-foreground">
                     <History className="mr-1 inline h-3 w-3" />
