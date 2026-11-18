@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePlatform } from "@/lib/platform/platform-context";
+import { usePlatform, useRouter } from "@/lib/platform/platform-context";
 import { makeTermResolver, plural, resolveTermsInString } from "@/lib/platform/terminology";
 import { getTenantTickets, getTraderForUser, hashStr } from "@/lib/platform/mock-data";
 import { resolveTicket, escalateTicket, appendTicketReply, effectiveTicketStatus, effectiveTicketMessages, useTicketVersion } from "@/modules/support/support-store";
+import { escalateTicketToAppeal, useAppeals } from "@/lib/appeals-store";
+import { useRiskAlerts } from "@/lib/risk-rules-store";
 import type { SupportTicket } from "@/lib/platform/mock-data";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
@@ -46,6 +48,14 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -339,8 +349,70 @@ export function SupportTicketsPage() {
   const [reply, setReply] = useState("");
   const [notesOpen, setNotesOpen] = useState(false);
 
+  // R9 W1 UC-O9 — "escalate to appeal". The table and drawer both show an
+  // "In appeals queue" badge for tickets whose escalation already landed
+  // in the appeals queue (derived from the shared lifecycle log, so it
+  // survives a reload).
+  const { navigate } = useRouter();
+  const appeals = useAppeals();
+  const escalatedIds = useMemo(
+    () =>
+      new Set(
+        appeals
+          .filter((a) => a.id.startsWith("escal-"))
+          .map((a) => a.id.slice("escal-".length)),
+      ),
+    [appeals],
+  );
+  const [escalating, setEscalating] = useState<SupportTicket | null>(null);
+  const [breachLink, setBreachLink] = useState("");
+  // Open hard-breach alerts the escalation can attach as disputed evidence.
+  const openBreaches = useRiskAlerts().filter(
+    (a) => a.severity === "hard-breach" && a.status === "open",
+  );
+
+  function confirmEscalate(): void {
+    if (!escalating) return;
+    const appeal = escalateTicketToAppeal({
+      ticketId: escalating.id,
+      subject: escalating.subject,
+      body: `Raised ${relativeTime(escalating.createdAt)} by ${escalating.traderName} (priority ${escalating.priority}).`,
+      traderId: escalating.traderName || escalating.id,
+      breachAlertId: breachLink || undefined,
+    });
+    // Ticket-side effect: Tier-2 in-progress state (persisted, shows in
+    // the drawer badge + table instead of a toast-only result).
+    escalateTicket(escalating.id);
+    toast({
+      title: "Escalated to appeal",
+      description: `${escalating.id} → ${appeal.id}. Evidence packet is in the Appeals Queue (Demo).`,
+    });
+    setEscalating(null);
+    setBreachLink("");
+  }
+
   const columns: Column<SupportTicket>[] = [
-    { key: "subject", header: "Subject", cell: (t) => <span className="font-medium text-foreground">{t.subject}</span> },
+    {
+      key: "subject",
+      header: "Subject",
+      cell: (t) => (
+        <span className="flex items-center gap-2 font-medium text-foreground">
+          {t.subject}
+          {escalatedIds.has(t.id) && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate("appeals-queue");
+              }}
+              className="inline-flex items-center rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:underline"
+            >
+              In appeals queue →
+            </button>
+          )}
+        </span>
+      ),
+    },
     { key: "traderName", header: term("account"), cell: (t) => <span className="text-muted-foreground">{t.accountName}</span> },
     { key: "category", header: "Category", cell: (t) => <span className="capitalize text-muted-foreground">{t.category}</span>, sortValue: (t) => t.category },
     { key: "priority", header: "Priority", cell: (t) => <StatusBadge tone={ticketPriorityTone(t.priority)}>{t.priority}</StatusBadge>, sortValue: (t) => t.priority },
@@ -405,9 +477,20 @@ export function SupportTicketsPage() {
                       <span className="font-mono">#{selectedTicket.id}</span> · Opened {relativeTime(selectedTicket.createdAt)}
                     </SheetDescription>
                   </div>
-                  <StatusBadge tone={ticketStatusTone(effectiveTicketStatus(selectedTicket))} className="shrink-0">
-                    {effectiveTicketStatus(selectedTicket)}
-                  </StatusBadge>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {escalatedIds.has(selectedTicket.id) && (
+                      <button
+                        type="button"
+                        onClick={() => navigate("appeals-queue")}
+                        className="inline-flex items-center rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:underline"
+                      >
+                        In appeals queue →
+                      </button>
+                    )}
+                    <StatusBadge tone={ticketStatusTone(effectiveTicketStatus(selectedTicket))}>
+                      {effectiveTicketStatus(selectedTicket)}
+                    </StatusBadge>
+                  </div>
                 </div>
               </SheetHeader>
 
@@ -560,17 +643,15 @@ export function SupportTicketsPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    // Escalate moves the ticket to the in-progress (Tier 2)
-                    // state — visible in the drawer badge and the table.
-                    escalateTicket(selectedTicket.id);
-                    toast({
-                      title: "Escalated",
-                      description: `Ticket ${selectedTicket.id} moved to Tier 2 queue.`,
-                      variant: "default",
-                    });
+                    // R9 W1 UC-O9 — opens the escalation dialog: the ticket
+                    // becomes a breach-dispute appeal (optional linked
+                    // breach joins the evidence packet), audited on both
+                    // sides, AND moves to the Tier-2 queue.
+                    setBreachLink("");
+                    setEscalating(selectedTicket);
                   }}
                 >
-                  <AlertCircle className="h-3 w-3" /> Escalate
+                  <AlertCircle className="h-3 w-3" /> Escalate to appeal
                 </Button>
                 <Button
                   variant="default"
@@ -594,6 +675,60 @@ export function SupportTicketsPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* R9 W1 UC-O9 — escalate a ticket into a breach-dispute appeal.
+          Optionally link the open breach it disputes; the evidence
+          packet (rule, threshold vs observed) joins the appeal. Audited
+          on both sides (Demo). */}
+      <Dialog open={!!escalating} onOpenChange={(o) => { if (!o) setEscalating(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Escalate to appeal — {escalating?.id}</DialogTitle>
+            <DialogDescription>
+              Opens a breach-dispute appeal carrying this ticket&apos;s subject and details as the
+              initial notes, moves the ticket to the Tier-2 queue, and notifies the trader&apos;s
+              inbox. Audited on both sides (Demo).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md bg-muted/40 p-3 text-sm">
+              <div className="font-medium">{escalating?.subject}</div>
+              <div className="text-xs text-muted-foreground">
+                trader {escalating?.traderName} · priority {escalating?.priority} · raised{" "}
+                {escalating ? relativeTime(escalating.createdAt) : ""}
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium" htmlFor="escalation-breach">
+                Linked breach (optional)
+              </label>
+              <select
+                id="escalation-breach"
+                className="mt-1 w-full rounded border bg-background p-2 text-sm"
+                value={breachLink}
+                onChange={(e) => setBreachLink(e.target.value)}
+              >
+                <option value="">No linked breach — dispute without rule evidence</option>
+                {openBreaches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.ruleName} — {b.accountLogin ?? b.accountId} (threshold {b.threshold} · observed {b.value})
+                  </option>
+                ))}
+              </select>
+              {openBreaches.length === 0 && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  No open hard-breach alerts right now — the appeal can still be opened on the
+                  ticket&apos;s context alone.
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEscalating(null)}>Cancel</Button>
+            <Button onClick={confirmEscalate}>Escalate to appeal</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Page>
   );
 }

@@ -44,6 +44,10 @@ const DEMO_STORES = [
   "payout-rules",
   // R7 I5 — risk rule engine (rules + alert queue + account state).
   "risk-rules",
+  // R9 W1 — rule versioning (version history + per-account pins).
+  "rules-versions",
+  // R9 W1 — appeals queue (escalations + decided verdict snapshots).
+  "appeals",
   "connectors",
   "kyc-provider-config",
   "challenge-funding",

@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, ShieldAlert } from "lucide-react";
+import { RuleVersionsPanel } from "@/modules/risk/widgets/rule-versions-panel";
 
 const METRICS: RiskMetric[] = ["daily-loss", "total-drawdown", "consistency", "weekend-hold", "news-trading"];
 const SEVERITIES: RiskSeverity[] = ["warn", "soft-breach", "hard-breach"];
@@ -154,6 +155,9 @@ export function RiskRuleEnginePage() {
 
         <h2 className="text-lg font-semibold">Risk-signal queue (alerts)</h2>
         <DataTable<RiskAlert> columns={alertCols} data={alerts} rowKey={(a) => a.id} emptyTitle="No alerts raised yet." />
+
+        {/* R9 W1 A1 — versioned publish + grandfathered accounts (UC-O2). */}
+        <RuleVersionsPanel rules={rules} />
 
         <p className="text-xs text-muted-foreground">
           (Demo) Alerts are raised by the engine on each <code>trade.closed</code> intake. Hard-breach alerts open a RiskCase in the existing breach flow with the rule cited.

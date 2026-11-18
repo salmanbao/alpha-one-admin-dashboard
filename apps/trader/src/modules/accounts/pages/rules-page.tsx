@@ -14,6 +14,7 @@ import {
   TerraPageHeader,
   TerraTable,
 } from "@/components/terra/terra-ui";
+import { RuleVersionCard } from "@/components/rules/rule-version-card";
 import { accountRules } from "@/lib/fixtures/terra-fixtures";
 import { useActiveAccount } from "@/lib/platform/account-context";
 
@@ -54,6 +55,20 @@ export function RulesPage() {
           rows={parameters}
         />
       </TerraCard>
+
+      {/* R9 W1 — which published rule version this account runs (UC-T2). */}
+      <RuleVersionCard />
+
+      <p className="text-xs text-on-surface-variant">
+        Disagree with a rule application?{" "}
+        <a
+          href="/outage-claim"
+          className="font-bold text-primary underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          File an outage claim or breach dispute
+        </a>{" "}
+        and the firm&apos;s evidence is reviewed against your closed trades.
+      </p>
     </div>
   );
 }

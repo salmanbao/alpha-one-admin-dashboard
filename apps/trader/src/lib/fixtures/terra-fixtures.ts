@@ -13,12 +13,14 @@ import type { AuthUser, TenantContext } from "@pfaas/platform-core";
 /* ------------------------------------------------------------------ */
 
 const now = new Date();
-const daysAgo = (n: number) => {
+// R9 W1 — exported for the outage-claim form defaults (§1 rule 5: dates
+// only ever come from these helpers, never hand-written strings).
+export const daysAgo = (n: number) => {
   const d = new Date(now);
   d.setDate(d.getDate() - n);
   return d.toISOString();
 };
-const daysFromNow = (n: number) => daysAgo(-n);
+export const daysFromNow = (n: number) => daysAgo(-n);
 const hoursAgo = (n: number) => {
   const d = new Date(now);
   d.setHours(d.getHours() - n);

@@ -99,6 +99,13 @@ export interface ComplianceConfig {
   minTradingDays: number;
   /** Cap on best-day share of total profit. */
   consistencyPct: number;
+  /**
+   * R9 W1 — the published rule version this config is enforced against.
+   * Written by lib/rules/rules-store when it hydrates the account's pin;
+   * shown on the risk dashboard so a trader can see which rules version
+   * their numbers are computed from.
+   */
+  ruleVersionId?: string;
 }
 
 export type ViolationType = "daily-loss" | "max-drawdown" | "consistency";
@@ -289,10 +296,24 @@ export function setDrawdownType(accountId: string, type: DrawdownType): void {
   });
 }
 
+/**
+ * R9 W1 — record which published rule version this account's compliance
+ * config is enforced against. Written by lib/rules/rules-store (the pin's
+ * named consumer); silent no-op when unchanged so the projection can call
+ * it on every lifecycle-log update without looping.
+ */
+export function setRuleVersionForAccount(accountId: string, ruleVersionId: string): void {
+  const cfg = state.accounts[accountId];
+  if (!cfg || cfg.ruleVersionId === ruleVersionId) return;
+  commit({
+    ...state,
+    accounts: { ...state.accounts, [accountId]: { ...cfg, ruleVersionId } },
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Derivations — everything below reads stores, never fixture arrays   */
 /* ------------------------------------------------------------------ */
-
 export function configFor(
   accountId: string,
   s: ComplianceState = state,

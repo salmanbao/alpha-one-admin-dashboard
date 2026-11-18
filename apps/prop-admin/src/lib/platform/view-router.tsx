@@ -141,6 +141,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "risk-account-label-analysis": dynamic(() => import("@/modules/risk/pages/risk-account-label-analysis-page").then((m) => ({ default: m.RiskAccountLabelAnalysisPage })), { loading: ViewSkeleton }),
   "risk-addon-revenue": dynamic(() => import("@/modules/risk/pages/risk-addon-revenue-page").then((m) => ({ default: m.RiskAddonRevenuePage })), { loading: ViewSkeleton }),
   "risk-rule-engine": dynamic(() => import("@/modules/risk/pages/risk-rule-engine-page").then((m) => ({ default: m.RiskRuleEnginePage })), { loading: ViewSkeleton }),
+  "appeals-queue": dynamic(() => import("@/modules/risk/pages/appeals-queue-page").then((m) => ({ default: m.AppealsQueuePage })), { loading: ViewSkeleton }),
 
   /* payouts */
   payouts: dynamic(() => import("@/modules/payouts/pages/payout-pages").then((m) => ({ default: m.PayoutsOverviewPage })), { loading: ViewSkeleton }),

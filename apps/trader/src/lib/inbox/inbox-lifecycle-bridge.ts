@@ -23,6 +23,15 @@
  *   trade.modified    → "Stop/limit updated" / breakeven / partial / cancel
  *   compliance.violation      → "Rule violated" (R7 I2)
  *   compliance.buffer-warning → "Buffer running low"
+ *   rules.version-published   → "Rules v4 published — here is what changed
+ *                        (Demo)" (R9 W1; the body states that the account
+ *                        keeps its signed-up rules — grandfathering)
+ *   appeal.claim-submitted   → own-claim receipt / "Breach dispute opened
+ *                        from your support ticket" (R9 W1)
+ *   appeal.accepted          → "Appeal accepted — verdict + reason" (R9 W1)
+ *   appeal.rejected          → "Appeal rejected — verdict + reason" (R9 W1)
+ *   breach.reversed          → "Breach reversed — appeal accepted" (R9 W1,
+ *                        emitted by prop-admin reverseBreach())
  *
  * Prop-admin publishes the first seven into the shared
  * `pfaas:demo:lifecycle-log` under the demo gateway; this bridge reads
@@ -360,6 +369,105 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         actionHref: "/risk-dashboard",
       };
     }
+    case "rules.version-published": {
+      // R9 W1 — the trader's copy of an operator publish (UC-T2). Lists the
+      // actual from → to diffs and states the grandfathering promise
+      // plainly: this account keeps the rules it signed up under.
+      const version = Number(e.payload?.version);
+      const rawChanges = Array.isArray(e.payload?.changes) ? e.payload.changes : [];
+      const lines = rawChanges.slice(0, 3).map((c) => {
+        const ch = (c ?? {}) as Record<string, unknown>;
+        return `• ${String(ch.field ?? "rule")}: ${String(ch.from ?? "—")} → ${String(ch.to ?? "—")}`;
+      });
+      const more = rawChanges.length > 3 ? `\n• …and ${rawChanges.length - 3} more change(s)` : "";
+      const notes = String(e.payload?.notes ?? "");
+      return {
+        id: `inbox:${e.id}:rules-version`,
+        subject: `Rules v${version} published — here is what changed (Demo)`,
+        body:
+          `The firm published Rules v${version}${notes ? `: ${notes}` : "."}\n\n` +
+          (lines.length ? `${lines.join("\n")}${more}\n\n` : "No field-level changes were recorded.\n\n") +
+          "Your account keeps the rules it signed up under — a newer version does not apply to you retroactively.",
+        category: "Trading",
+        sender: "Risk Team",
+        at: e.at,
+        read: false,
+        actionType: "risk",
+        actionHref: "/rules",
+      };
+    }
+    case "appeal.claim-submitted": {
+      // R9 W1 — two flavors of one event: the trader's own filing (actor
+      // "trader") gets a receipt; a prop-admin support escalation tells
+      // them a breach dispute was opened on their behalf.
+      const id = String(e.payload?.claimId ?? e.entity?.id ?? "");
+      const escalated = e.actor === "prop-admin";
+      const refs = Array.isArray(e.payload?.tradeRefs) ? e.payload.tradeRefs.length : 0;
+      return {
+        id: `inbox:${e.id}:appeal-submitted`,
+        subject: escalated
+          ? "Breach dispute opened from your support ticket (Demo)"
+          : `Outage claim ${id} submitted (Demo)`,
+        body: escalated
+          ? `${String(e.payload?.notes ?? "The firm opened a breach dispute from your support ticket.")}\n\nTrack it on the claims page — the verdict arrives here with the reason.`
+          : `Your claim ${id} is in the firm's appeals queue with ${refs} trade(s) attached as evidence.\n\n(Demo) — a review agent will assess this claim; the verdict arrives here with the reason.`,
+        category: "Support",
+        sender: "Appeals Review",
+        at: e.at,
+        read: false,
+        actionType: "risk",
+        actionHref: "/outage-claim",
+      };
+    }
+    case "appeal.accepted": {
+      // R9 W1 — verdict receipt (UC-O1). The reason is the operator's,
+      // verbatim; acceptance also reversed the disputed breach.
+      const id = String(e.payload?.appealId ?? e.entity?.id ?? "");
+      const reason = String(e.payload?.verdictReason ?? "");
+      return {
+        id: `inbox:${e.id}:appeal-accepted`,
+        subject: `Appeal accepted — ${id} (Demo)`,
+        body: `Your appeal ${id} was accepted.${reason ? `\n\nReason: ${reason}` : ""}\n\nAny breach disputed in this appeal has been reversed and its risk case closed.`,
+        category: "Support",
+        sender: "Appeals Review",
+        at: e.at,
+        read: false,
+        actionType: "risk",
+        actionHref: "/outage-claim",
+      };
+    }
+    case "appeal.rejected": {
+      const id = String(e.payload?.appealId ?? e.entity?.id ?? "");
+      const reason = String(e.payload?.verdictReason ?? "");
+      return {
+        id: `inbox:${e.id}:appeal-rejected`,
+        subject: `Appeal rejected — ${id} (Demo)`,
+        body: `Your appeal ${id} was not accepted.${reason ? `\n\nReason: ${reason}` : ""}\n\nThe original breach (if any) stands. Reply via support if you have new evidence.`,
+        category: "Support",
+        sender: "Appeals Review",
+        at: e.at,
+        read: false,
+        actionType: "risk",
+        actionHref: "/outage-claim",
+      };
+    }
+    case "breach.reversed": {
+      // R9 W1 — emitted by prop-admin reverseBreach() when an appeal is
+      // accepted; confirms the breach record was cleared.
+      const rule = String(e.payload?.ruleName ?? e.payload?.ruleId ?? "your breach");
+      const reason = String(e.payload?.reason ?? "");
+      return {
+        id: `inbox:${e.id}:breach-reversed`,
+        subject: "Breach reversed — appeal accepted (Demo)",
+        body: `${rule} on ${String(e.payload?.accountLogin ?? "your account")} was reversed.${reason ? `\n\nReason: ${reason}` : ""}\n\nThe alert is cleared and the linked risk case dismissed — your standing no longer cites it.`,
+        category: "Trading",
+        sender: "Risk Team",
+        at: e.at,
+        read: false,
+        actionType: "risk",
+        actionHref: "/risk-dashboard",
+      };
+    }
     default:
       return null;
   }
@@ -370,8 +478,12 @@ export function useInboxLifecycleBridge(): void {
   useEffect(() => {
     for (const e of events) {
       // Trade + compliance receipts (actor "trader") are this app's own
-      // writes — they map below. Everything else comes from prop-admin.
-      const own = e.name.startsWith("trade.") || e.name.startsWith("compliance.");
+      // writes — they map below. Trader-filed appeals (R9 W1) are also
+      // own writes (the submit receipt); everything else is prop-admin.
+      const own =
+        e.name.startsWith("trade.") ||
+        e.name.startsWith("compliance.") ||
+        (e.name.startsWith("appeal.") && e.actor === "trader");
       if (e.actor !== "prop-admin" && !own) continue;
       const msg = mapEvent(e);
       if (!msg) continue;

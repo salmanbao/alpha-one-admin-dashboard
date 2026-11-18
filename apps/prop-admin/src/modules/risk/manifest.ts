@@ -71,6 +71,10 @@ const routes: RouteDefinition[] = [
   // R7 I5 — risk rule engine (store-backed; route + in-page links only,
   // no nav child — NAV_CHILDREN_MAX 150/150).
   { path: "risk-rule-engine", viewId: "risk-rule-engine", label: "Risk Rule Engine", permission: "risk.read", module: "risk" },
+  // R9 W1 — appeals queue (UC-O1 verdicts / UC-O9 escalations). No nav
+  // child (NAV_CHILDREN_MAX is at cap) — reached from Support Tickets,
+  // the Rule versions panel and in-page links.
+  { path: "appeals-queue", viewId: "appeals-queue", label: "Appeals Queue", permission: ["risk.read", "breach.self"], module: "risk" },
   { path: "copy-trading-events", viewId: "copy-trading-events", label: "Copy Trading Events", permission: "risk.read", module: "risk" },
   { path: "copy-trading-analysis", viewId: "copy-trading-analysis", label: "Copy Trading Analysis", permission: "risk.read", module: "risk" },
   { path: "inverse-trading-events", viewId: "inverse-trading-events", label: "Inverse Trading Events", permission: "risk.read", module: "risk" },

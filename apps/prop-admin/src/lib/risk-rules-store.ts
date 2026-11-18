@@ -31,8 +31,12 @@ import { usePlatform } from "@/lib/platform/platform-context";
 import { recordAudit } from "@/lib/audit";
 import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { useLifecycleLog, emitLifecycle, type LifecycleEvent } from "@pfaas/lifecycle";
-import { createRiskCase, getRiskCases, type RiskCaseStatus } from "@/modules/risk/risk-case-store";
+import { createRiskCase, dismissRiskCase, getRiskCases, type RiskCaseStatus } from "@/modules/risk/risk-case-store";
 import { hasPermission } from "@/lib/platform/permission-engine";
+// R9 W1 — accounts are evaluated against their PINNED rule version, not the
+// live rule list (type-only import above keeps this module the owner of the
+// RiskRule shape; rules-versions-store imports it back as a type only).
+import { resolvePinnedRules } from "@/lib/rules-versions-store";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -80,6 +84,14 @@ export interface RiskAlert {
   detail: string;
   at: string;
   status: RiskAlertStatus;
+  /** R9 W1 — the rule version this evaluation was made against. */
+  ruleVersionId?: string;
+  ruleVersion?: number;
+  /** R9 W1 — set when an accepted appeal reverses this breach. */
+  reversedAt?: string;
+  reversedBy?: string;
+  reversedReason?: string;
+  reversedByAppealId?: string;
 }
 
 export interface RiskAccountState {
@@ -147,6 +159,12 @@ const riskAlertSchema = z.object({
   detail: z.string(),
   at: z.string().min(1),
   status: z.enum(["open", "acknowledged"]),
+  ruleVersionId: z.string().optional(),
+  ruleVersion: z.number().int().optional(),
+  reversedAt: z.string().optional(),
+  reversedBy: z.string().optional(),
+  reversedReason: z.string().optional(),
+  reversedByAppealId: z.string().optional(),
 });
 
 const riskAccountStateSchema = z.object({
@@ -363,6 +381,84 @@ export function acknowledgeAlert(id: string): void {
   notify();
 }
 
+/**
+ * R9 W1 — reverse a breach after an accepted appeal (UC-O1).
+ *
+ * Marks the alert reversed (the reversal sticks in the detail: reason +
+ * appeal id), dismisses the linked risk case (the `[alertId]` marker the
+ * hard-breach routing embeds in `signalDetail`), `recordAudit`s both the
+ * reversal and the case dismissal, and emits `breach.reversed`.
+ *
+ * Named consumers of `breach.reversed` (rule 7): trader inbox bridge
+ * ("Breach reversed — appeal accepted (Demo)") + the appeals-queue
+ * evidence panel (alert shows as reversed instead of open).
+ *
+ * Idempotent: reversing an already-reversed alert is a no-op.
+ */
+export function reverseBreach(tid: string, alertId: string, appealId: string, reason: string): boolean {
+  const alert = state.alerts.find((a) => a.id === alertId);
+  if (!alert || alert.reversedAt) return false;
+
+  state.alerts = state.alerts.map((a) =>
+    a.id === alertId
+      ? {
+          ...a,
+          status: "acknowledged" as const,
+          reversedAt: new Date().toISOString(),
+          reversedBy: "Appeals review",
+          reversedReason: reason,
+          reversedByAppealId: appealId,
+        }
+      : a,
+  );
+
+  // The linked risk case the hard-breach routing opened for this alert.
+  const marker = `[${alertId}]`;
+  const kase = getRiskCases(tid).find(
+    (c) => c.signalDetail.includes(marker) && c.status !== "dismissed" && c.status !== "resolved",
+  );
+  if (kase) dismissRiskCase(tid, kase.id);
+
+  persist();
+  notify();
+
+  recordAudit({
+    action: "Reversed breach",
+    entity: "risk-alert",
+    entityId: alertId,
+    summary: `${alert.ruleName} — ${alert.accountLogin ?? alert.accountId}: breach reversed on appeal ${appealId}. Reason: ${reason}`,
+    severity: "info",
+    module: "risk",
+  });
+  if (kase) {
+    recordAudit({
+      action: "Dismissed risk case",
+      entity: "risk-case",
+      entityId: kase.id,
+      summary: `${kase.id} dismissed after appeal ${appealId} reversed ${alertId}.`,
+      severity: "info",
+      module: "risk",
+    });
+  }
+
+  emitLifecycle({
+    entity: { kind: "breach", id: alertId },
+    name: "breach.reversed",
+    actor: "prop-admin",
+    key: `reversed:${alertId}`,
+    payload: {
+      alertId,
+      appealId,
+      ruleId: alert.ruleId,
+      ruleName: alert.ruleName,
+      accountId: alert.accountId,
+      accountLogin: alert.accountLogin,
+      reason,
+    },
+  });
+  return true;
+}
+
 export function clearRiskAlerts(): void {
   state.alerts = [];
   state.stamps = {};
@@ -526,9 +622,19 @@ export function useRiskRulesEvaluator(tid: string): void {
       // Accumulate (idempotent per trade).
       applyTrade(e, acct);
       const tradeId = String(e.entity?.id ?? "");
+      // R9 W1 — resolve the account's PINNED rule version before comparing
+      // thresholds: a grandfathered account keeps evaluating against the
+      // version it signed up under, so publishing v4 never changes v3's
+      // numbers retroactively. First sight pins the account.
+      const program =
+        typeof e.payload?.accountProgram === "string" ? e.payload.accountProgram : undefined;
+      const pinned = resolvePinnedRules(acct.accountId, program, acct.login);
+      if (!pinned) continue;
+      const accountRules = pinned.rules;
+      const citedVersion = `Rules v${pinned.version.version}`;
       // Evaluate each enabled rule once per (rule, account, day).
       const dk = dayKey(typeof e.payload?.closedAt === "string" ? e.payload.closedAt : e.at);
-      for (const rule of state.rules) {
+      for (const rule of accountRules) {
         if (!rule.enabled) continue;
         const stampKey = `${rule.id}|${acct.accountId}|${dk}`;
         if (state.stamps[stampKey]) continue;
@@ -554,17 +660,19 @@ export function useRiskRulesEvaluator(tid: string): void {
           detail: mv.detail,
           at: new Date().toISOString(),
           status: "open",
+          ruleVersionId: pinned.version.id,
+          ruleVersion: pinned.version.version,
         };
         state.alerts = [alert, ...state.alerts].slice(0, 100);
         state.stamps[stampKey] = alertId;
         changed = true;
 
-        // Audit.
+        // Audit — every evaluation that cites a version records it (R9 W1).
         recordAudit({
           action: "Risk alert raised",
           entity: "risk-alert",
           entityId: alertId,
-          summary: `${rule.name} — ${acct.login ?? acct.accountId}: ${mv.detail}`,
+          summary: `${rule.name} — ${acct.login ?? acct.accountId}: ${mv.detail} [${citedVersion}]`,
           severity: rule.severity === "hard-breach" ? "critical" : rule.severity === "soft-breach" ? "warning" : "info",
           module: "risk",
         });
@@ -591,6 +699,8 @@ export function useRiskRulesEvaluator(tid: string): void {
             accountName: acct.name,
             tradeId,
             detail: mv.detail,
+            ruleVersionId: pinned.version.id,
+            ruleVersion: pinned.version.version,
           },
         });
 
@@ -605,7 +715,7 @@ export function useRiskRulesEvaluator(tid: string): void {
               traderId: acct.accountId,
               traderName: acct.name ?? acct.login ?? acct.accountId,
               signal: rule.metric,
-              signalDetail: `${rule.name} — ${mv.detail} — breached account ${marker} (rule ${rule.id})`,
+              signalDetail: `${rule.name} — ${mv.detail} — breached account ${marker} (rule ${rule.id} · ${citedVersion})`,
             });
           }
         }

@@ -35,6 +35,12 @@ import {
   breachDayTrades,
   challengeBreach,
 } from "@/lib/fixtures/terra-fixtures";
+import { useActiveAccount } from "@/lib/platform/account-context";
+import { useTrading } from "@/lib/trading/trading-context";
+
+/** Narrow an unknown lifecycle-payload value to a display string. */
+const payloadText = (v: unknown, fallback = ""): string =>
+  typeof v === "string" || typeof v === "number" ? String(v) : fallback;
 
 export function AccountBreachPage() {
   const breach = challengeBreach;
@@ -42,16 +48,39 @@ export function AccountBreachPage() {
   const coaching = breachCoaching[breach.rule];
 
   const lifecycleEvents = useLifecycleLog();
-  const engineBreach = lifecycleEvents.find(
-    (e) => e.name === "risk.alert.raised" && e.payload?.severity === "hard-breach",
-  );
+  // Oldest-first log → the most recent hard-breach is the last match.
+  const engineBreach = lifecycleEvents
+    .filter((e) => e.name === "risk.alert.raised" && e.payload?.severity === "hard-breach")
+    .at(-1);
+
+  const { activeAccountId } = useActiveAccount();
+  const { closedTrades } = useTrading();
+
+  // Breach account: the event's account, falling back to the active one.
+  const breachAccountId = payloadText(engineBreach?.payload?.accountId) || activeAccountId;
+  const breachTrades = closedTrades.filter((t) => t.accountId === breachAccountId);
+
+  const ruleId = payloadText(engineBreach?.payload?.ruleId);
+  const ruleName = payloadText(engineBreach?.payload?.ruleName, "Risk rule");
+  const ruleVersion =
+    engineBreach && typeof engineBreach.payload.ruleVersion === "number"
+      ? engineBreach.payload.ruleVersion
+      : null;
+  const operator = payloadText(engineBreach?.payload?.operator);
+  const threshold = payloadText(engineBreach?.payload?.threshold);
+  const observedValue = payloadText(engineBreach?.payload?.value);
+  const observedPct =
+    engineBreach && typeof engineBreach.payload.pct === "number"
+      ? ` (${engineBreach.payload.pct}%)`
+      : "";
+  const detail = payloadText(engineBreach?.payload?.detail);
+  const thresholdRow = `${
+    operator ? `${operator} ` : ""
+  }threshold ${threshold} · observed ${observedValue}${observedPct}`;
+  const accountLogin = payloadText(engineBreach?.payload?.accountLogin, breachAccountId);
+
   return (
     <div className="space-y-6">
-      {engineBreach && (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-400">
-          <strong>Rule-triggered breach (Demo):</strong> {String(engineBreach.payload?.ruleName ?? "Risk rule")} — {String(engineBreach.payload?.detail ?? "")}. Cited rule: {String(engineBreach.payload?.ruleId ?? "")}.
-        </div>
-      )}
       <TerraPageHeader
         title="Evaluation Failed"
         description={`${breach.challenge} • Account #${breach.login} • ${breach.phase}`}
@@ -61,6 +90,99 @@ export function AccountBreachPage() {
           </TerraBadge>
         }
       />
+
+      {/* R9 W1 (UC-T3 + UC-O9) — rule-triggered breach evidence replay. */}
+      <TerraCard>
+        <TerraSectionTitle
+          title="Breach evidence"
+          description={
+            engineBreach
+              ? "Rule-triggered breach (Demo) — captured from this session's lifecycle log."
+              : undefined
+          }
+          actions={
+            engineBreach ? (
+              <TerraBadge tone="error" dot>
+                Hard breach
+              </TerraBadge>
+            ) : undefined
+          }
+        />
+        {engineBreach ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-400">
+              <strong>Rule-triggered breach (Demo):</strong> {ruleName} — {detail}. Cited rule:{" "}
+              {ruleId}.
+            </div>
+            <div className="space-y-1.5 text-sm">
+              <p>
+                <strong className="text-on-surface">Rule: </strong>
+                <span className="text-on-surface-variant">
+                  {ruleId} — {ruleName}
+                  {ruleVersion !== null ? ` · Rules v${ruleVersion}` : ""}
+                </span>
+              </p>
+              <p className="tabular-nums">
+                <strong className="text-on-surface">Threshold vs observed: </strong>
+                <span className="text-on-surface-variant">{thresholdRow}</span>
+              </p>
+              {detail && <p className="text-on-surface-variant">{detail}</p>}
+              <p>
+                <strong className="text-on-surface">Detected: </strong>
+                <span className="tabular-nums text-on-surface-variant">
+                  {new Date(engineBreach.at).toLocaleString()}
+                </span>
+              </p>
+            </div>
+            <div>
+              <h3 className="font-headline text-sm font-bold text-on-surface">
+                Closed trades behind the loss
+              </h3>
+              {breachTrades.length === 0 ? (
+                <p className="mt-1 text-sm text-on-surface-variant">
+                  No closed trades recorded in this session (Demo)
+                </p>
+              ) : (
+                <div className="mt-2">
+                  <TerraTable
+                    head={["Closed", "Symbol", "Side", "Lots", "P&L"]}
+                    rows={breachTrades.map((t) => [
+                      <span key="closed" className="tabular-nums">
+                        {new Date(t.closedAt).toLocaleString()}
+                      </span>,
+                      <span key="symbol" className="font-semibold">
+                        {t.symbol}
+                      </span>,
+                      <span key="side" className="text-on-surface-variant">
+                        {t.side}
+                      </span>,
+                      <span key="lots" className="tabular-nums">
+                        {String(t.lots)}
+                      </span>,
+                      <span
+                        key="pnl"
+                        className={`tabular-nums ${t.pnl < 0 ? "text-error" : ""}`}
+                      >
+                        {formatMoney(t.pnl)}
+                      </span>,
+                    ])}
+                  />
+                </div>
+              )}
+            </div>
+            <Link
+              href="/risk-dashboard"
+              className="inline-block rounded-lg px-3 py-2 text-sm font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              Open the equity-vs-drawdown-floor replay →
+            </Link>
+          </div>
+        ) : (
+          <p className="text-sm text-on-surface-variant">
+            (Demo fixture) — no rule-triggered breach recorded in this session
+          </p>
+        )}
+      </TerraCard>
 
       {/* What happened — the specific rule, in plain language */}
       <TerraCard className="border border-error/30 bg-error-container/40">
@@ -254,6 +376,78 @@ export function AccountBreachPage() {
           </TerraCard>
         </div>
       </div>
+
+      {/* R9 W1 (UC-O9) — printable evidence packet for the same facts. */}
+      <TerraCard>
+        <TerraSectionTitle
+          title="Evidence packet"
+          description="(Demo evidence packet) — the same rule-triggered facts as Breach evidence, stacked for printing."
+          actions={
+            <button
+              type="button"
+              onClick={() => window.print()}
+              aria-label="Print the demo evidence packet"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              Print this packet
+            </button>
+          }
+        />
+        {engineBreach ? (
+          <div className="space-y-3 text-sm">
+            <ul className="space-y-1.5">
+              <li>
+                <strong className="text-on-surface">Account: </strong>
+                <span className="text-on-surface-variant">
+                  {accountLogin !== breachAccountId
+                    ? `#${accountLogin} · ${breachAccountId}`
+                    : breachAccountId}
+                </span>
+              </li>
+              <li>
+                <strong className="text-on-surface">Rule: </strong>
+                <span className="text-on-surface-variant">
+                  {ruleId} — {ruleName}
+                  {ruleVersion !== null ? ` · Rules v${ruleVersion}` : ""}
+                </span>
+              </li>
+              <li className="tabular-nums">
+                <strong className="text-on-surface">Threshold vs observed: </strong>
+                <span className="text-on-surface-variant">{thresholdRow}</span>
+              </li>
+              <li>
+                <strong className="text-on-surface">Breached at: </strong>
+                <span className="tabular-nums text-on-surface-variant">
+                  {new Date(engineBreach.at).toLocaleString()}
+                </span>
+              </li>
+            </ul>
+            <div>
+              <h3 className="font-headline text-sm font-bold text-on-surface">
+                Closed trades behind the loss
+              </h3>
+              {breachTrades.length === 0 ? (
+                <p className="mt-1 text-on-surface-variant">
+                  No closed trades recorded in this session (Demo)
+                </p>
+              ) : (
+                <ul className="mt-1 space-y-1 text-on-surface-variant">
+                  {breachTrades.map((t) => (
+                    <li key={t.id} className="tabular-nums">
+                      {new Date(t.closedAt).toLocaleString()} — {t.symbol} {t.side}{" "}
+                      {String(t.lots)} lots · {formatMoney(t.pnl)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-on-surface-variant">
+            (Demo fixture) — no rule-triggered breach recorded in this session
+          </p>
+        )}
+      </TerraCard>
     </div>
   );
 }

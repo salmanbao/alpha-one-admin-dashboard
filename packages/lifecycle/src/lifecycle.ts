@@ -58,7 +58,12 @@ export type LifecycleEntityKind =
   | "account"
   | "trade"
   | "compliance"
-  | "trader";
+  | "trader"
+  // R9 W1 — rule versioning (rules), trader claims + operator appeals
+  // (appeal), and breach reversal after an accepted appeal (breach).
+  | "rules"
+  | "appeal"
+  | "breach";
 
 export interface EntityRef {
   kind: LifecycleEntityKind;
@@ -150,6 +155,20 @@ export const LIFECYCLE_EVENT_NAMES = [
   // risk-dashboard "operator warnings" panel + my-accounts account flag
   // + account-breach wiring; emitted by prop-admin lib/risk-rules-store
   "risk.alert.raised",
+  // Rule versioning (R9 W1) — emitted by prop-admin lib/rules-versions-store.
+  // Consumers: prop-admin risk-rules evaluator (resolves each account's
+  // pinned version before comparing thresholds) + trader lib/rules/rules-store
+  // (version history + pinned badge on /rules) + trader inbox-lifecycle-bridge
+  // ("Rules v4 published — here is what changed (Demo)").
+  "rules.version-published",
+  // Appeals (R9 W1) — emitted by trader lib/appeals/claims-store (submit)
+  // and prop-admin lib/appeals-store (verdict + breach reversal).
+  // Consumers: prop-admin appeals-queue (claims intake → appeal rows) +
+  // trader inbox-lifecycle-bridge (verdict receipt + breach reversal).
+  "appeal.claim-submitted",
+  "appeal.accepted",
+  "appeal.rejected",
+  "breach.reversed",
 ] as const;
 
 export type LifecycleEventName = (typeof LIFECYCLE_EVENT_NAMES)[number];
@@ -413,6 +432,11 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "compliance.violation": "Rule violated",
   "compliance.buffer-warning": "Buffer warning",
   "risk.alert.raised": "Risk alert raised",
+  "rules.version-published": "Rules published",
+  "appeal.claim-submitted": "Claim submitted",
+  "appeal.accepted": "Appeal accepted",
+  "appeal.rejected": "Appeal rejected",
+  "breach.reversed": "Breach reversed",
 };
 
 /**

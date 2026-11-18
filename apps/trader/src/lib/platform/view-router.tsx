@@ -50,6 +50,14 @@ const viewMap: Record<string, ComponentType> = {
       })),
     { loading: ViewSkeleton },
   ),
+  // R9 W1 UC-T7 — outage claims (file a claim, see verdicts)
+  "outage-claim": dynamic(
+    () =>
+      import("../../modules/appeals/pages/outage-claim-page").then((m) => ({
+        default: m.OutageClaimPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
 };
 
 /**
@@ -72,6 +80,15 @@ export const traderRoutes: RouteDefinition[] = [
     icon: Mail,
     permission: "trader.self",
     module: "marketing",
+  },
+  // R9 W1 UC-T7 — outage claim filing + verdict history
+  {
+    path: "outage-claim",
+    viewId: "outage-claim",
+    label: "Outage Claim",
+    icon: ShieldAlert,
+    permission: "trader.self",
+    module: "trading",
   },
 ];
 

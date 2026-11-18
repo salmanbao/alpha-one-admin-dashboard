@@ -33,6 +33,7 @@ import { useActiveAccount } from "@/lib/platform/account-context";
 import { useLifecycleLog } from "@pfaas/lifecycle";
 import { useTrading } from "@/lib/trading/trading-context";
 import { useComplianceSnapshot } from "@/lib/compliance/compliance-store";
+import { versionLabelFromId } from "@/lib/rules/rules-store";
 import {
   BufferGauge,
 } from "@/components/compliance/buffer-gauge";
@@ -142,13 +143,20 @@ export function RiskDashboardPage() {
         title="Risk Dashboard"
         description={`${acc.name} • Login #${acc.login} • compliance & payout readiness`}
         actions={
-          <TerraBadge tone={limitsHealthy ? "primary" : "error"} dot pulse={limitsHealthy}>
-            {limitsHealthy
-              ? "All limits healthy"
-              : violations.length > 0
-                ? `${violations.length} rule violation${violations.length === 1 ? "" : "s"}`
-                : "Limits need attention"}
-          </TerraBadge>
+          <>
+            {/* R9 W1 — which published rule version these numbers are
+                computed from (ComplianceConfig.ruleVersionId). */}
+            <TerraBadge tone="neutral">
+              {versionLabelFromId(snapshot.config.ruleVersionId) ?? "Rules v1"} enforced
+            </TerraBadge>
+            <TerraBadge tone={limitsHealthy ? "primary" : "error"} dot pulse={limitsHealthy}>
+              {limitsHealthy
+                ? "All limits healthy"
+                : violations.length > 0
+                  ? `${violations.length} rule violation${violations.length === 1 ? "" : "s"}`
+                  : "Limits need attention"}
+            </TerraBadge>
+          </>
         }
       />
 
