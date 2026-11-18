@@ -187,6 +187,27 @@ export const demoPayoutFraudSchema = z.object({
       at: z.string(),
     }),
   ),
+  /** R9 W4 — manually escalated flags (collusion workbench → fraud queue). */
+  manualFlags: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        payoutRequestId: z.string(),
+        reference: z.string(),
+        traderId: z.string(),
+        traderName: z.string(),
+        accountLogin: z.string(),
+        amount: z.number(),
+        currency: z.string(),
+        signals: z.array(z.string()),
+        evidence: z.array(z.string()),
+        status: z.enum(["open", "cleared", "blocked", "escalated"]),
+        openedAt: z.string(),
+        verdictReason: z.string().optional(),
+        decidedAt: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 /** breach-store: resolved breach ids. */

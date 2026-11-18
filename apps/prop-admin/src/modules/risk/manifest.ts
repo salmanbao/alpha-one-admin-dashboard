@@ -75,6 +75,10 @@ const routes: RouteDefinition[] = [
   // child (NAV_CHILDREN_MAX is at cap) — reached from Support Tickets,
   // the Rule versions panel and in-page links.
   { path: "appeals-queue", viewId: "appeals-queue", label: "Appeals Queue", permission: ["risk.read", "breach.self"], module: "risk" },
+  // R9 W4 — correlation clusters (collusion workbench). Route-only, no
+  // nav child (NAV_CHILDREN_MAX is at cap) — reached from Risk Cases,
+  // Account IP Addresses and in-page links.
+  { path: "correlation-clusters", viewId: "correlation-clusters", label: "Correlation Clusters", permission: "risk.read", module: "risk" },
   { path: "copy-trading-events", viewId: "copy-trading-events", label: "Copy Trading Events", permission: "risk.read", module: "risk" },
   { path: "copy-trading-analysis", viewId: "copy-trading-analysis", label: "Copy Trading Analysis", permission: "risk.read", module: "risk" },
   { path: "inverse-trading-events", viewId: "inverse-trading-events", label: "Inverse Trading Events", permission: "risk.read", module: "risk" },

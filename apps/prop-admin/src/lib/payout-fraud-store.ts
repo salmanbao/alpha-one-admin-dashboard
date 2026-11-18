@@ -76,6 +76,8 @@ export interface FraudFlag {
 interface FraudState {
   /** Verdicts keyed by flag id — decided rows win over derivation. */
   verdicts: Record<string, { status: "cleared" | "blocked" | "escalated"; reason?: string; at: string }>;
+  /** R9 W4 — manually escalated flags (collusion workbench → fraud queue). */
+  manualFlags?: FraudFlag[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -83,7 +85,7 @@ interface FraudState {
 /* ------------------------------------------------------------------ */
 
 const SLOT = "payout-fraud";
-let state: FraudState = loadDemoState(SLOT, demoPayoutFraudSchema, { verdicts: {} });
+let state: FraudState = loadDemoState(SLOT, demoPayoutFraudSchema, { verdicts: {}, manualFlags: [] });
 const listeners = new Set<() => void>();
 let version = 0;
 
@@ -244,7 +246,18 @@ export function projectPayoutFraudFlags(log: LifecycleEvent[]): FraudFlag[] {
     }
   }
 
-  return flags.sort((a, b) => b.openedAt.localeCompare(a.openedAt));
+  // R9 W4 — append manually escalated flags (collusion workbench).
+  const manual = state.manualFlags ?? [];
+  for (const f of manual) {
+    const v = state.verdicts[f.id];
+    if (v) {
+      f.status = v.status;
+      f.verdictReason = v.reason;
+      f.decidedAt = v.at;
+    }
+  }
+
+  return [...flags, ...manual].sort((a, b) => b.openedAt.localeCompare(a.openedAt));
 }
 
 /** Reactive flags (queue view + badges). */
@@ -344,4 +357,82 @@ export function setPayoutFraudVerdict(
   });
 
   return getPayoutFraudFlags().find((f) => f.reference === reference) ?? null;
+}
+
+/* ------------------------------------------------------------------ */
+/* R9 W4 — Manual escalation (collusion workbench → fraud queue)        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Escalate a cluster case to the payout fraud queue. Creates a manual
+ * flag with the cluster's signals as evidence, persists it (R10), audits,
+ * and emits `payout.fraud-escalated` — consumers: this projection (the
+ * queue row appears) and the trader's inbox bridge (receipt).
+ */
+export function escalateClusterToFraud(input: {
+  clusterId: string;
+  accountLogins: string[];
+  traderIds: string[];
+  traderNames: string[];
+  signals: string[];
+  evidence: string[];
+  reason?: string;
+}): FraudFlag | null {
+  const at = new Date().toISOString();
+  const reference = `cluster-${input.clusterId}`;
+  const flagId = `pf-${reference}`;
+
+  const flag: FraudFlag = {
+    id: flagId,
+    payoutRequestId: `escalated-${input.clusterId}`,
+    reference,
+    traderId: input.traderIds[0] ?? "unknown",
+    traderName: input.traderNames[0] ?? "Cluster escalation",
+    accountLogin: input.accountLogins.join(", "),
+    amount: 0,
+    currency: "USD",
+    signals: input.signals as FraudSignal[],
+    evidence: input.evidence,
+    status: "escalated",
+    openedAt: at,
+    verdictReason: input.reason?.trim() || `Escalated from collusion workbench — ${input.signals.join(", ")}`,
+    decidedAt: at,
+  };
+
+  state.manualFlags = [...(state.manualFlags ?? []), flag];
+  state.verdicts = {
+    ...state.verdicts,
+    [flagId]: { status: "escalated", reason: flag.verdictReason, at },
+  };
+  notify();
+
+  recordAudit({
+    action: "Escalated collusion cluster to fraud queue",
+    entity: "payout",
+    entityId: reference,
+    summary: `Cluster ${input.clusterId} — accounts #${input.accountLogins.join(", #")} (${input.signals.join(", ")}): escalated to fraud queue${input.reason ? `. ${input.reason}` : ""}`,
+    severity: "warning",
+    module: "risk",
+  });
+
+  emitLifecycle({
+    entity: { kind: "payout", id: reference },
+    name: "payout.fraud-escalated",
+    actor: "prop-admin",
+    key: `fraud:${reference}:escalated:${at}`,
+    payload: {
+      reference,
+      flagId,
+      clusterId: input.clusterId,
+      accountLogins: input.accountLogins,
+      traderIds: input.traderIds,
+      traderNames: input.traderNames,
+      signal: input.signals.join(", "),
+      detail: input.evidence.join(" | "),
+      reason: input.reason?.trim() ?? null,
+      status: "escalated",
+    },
+  });
+
+  return flag;
 }

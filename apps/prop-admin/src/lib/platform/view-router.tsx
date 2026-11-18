@@ -142,6 +142,8 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "risk-addon-revenue": dynamic(() => import("@/modules/risk/pages/risk-addon-revenue-page").then((m) => ({ default: m.RiskAddonRevenuePage })), { loading: ViewSkeleton }),
   "risk-rule-engine": dynamic(() => import("@/modules/risk/pages/risk-rule-engine-page").then((m) => ({ default: m.RiskRuleEnginePage })), { loading: ViewSkeleton }),
   "appeals-queue": dynamic(() => import("@/modules/risk/pages/appeals-queue-page").then((m) => ({ default: m.AppealsQueuePage })), { loading: ViewSkeleton }),
+  // R9 W4 — correlation clusters (collusion workbench)
+  "correlation-clusters": dynamic(() => import("@/modules/risk/pages/correlation-clusters-page").then((m) => ({ default: m.CorrelationClustersPage })), { loading: ViewSkeleton }),
 
   /* payouts */
   payouts: dynamic(() => import("@/modules/payouts/pages/payout-pages").then((m) => ({ default: m.PayoutsOverviewPage })), { loading: ViewSkeleton }),

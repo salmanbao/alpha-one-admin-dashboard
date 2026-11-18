@@ -50,6 +50,8 @@ const DEMO_STORES = [
   "appeals",
   // R9 W2 — payout fraud flags (verdicts keyed by flag id).
   "payout-fraud",
+  // R9 W4 — collusion cluster overrides (status/notes).
+  "clusters",
   "connectors",
   "kyc-provider-config",
   "challenge-funding",
