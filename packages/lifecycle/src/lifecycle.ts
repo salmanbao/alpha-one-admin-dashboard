@@ -169,6 +169,21 @@ export const LIFECYCLE_EVENT_NAMES = [
   "appeal.accepted",
   "appeal.rejected",
   "breach.reversed",
+  // Payout fraud queue (R9 W2) — emitted by prop-admin lib/payout-fraud-store
+  // on each verdict. Consumers: prop-admin payout queue chokepoint
+  // (applyPayoutDecision refuses money-moving decisions while a flag is
+  // blocked; clearing restores the Approve button) + trader
+  // inbox-lifecycle-bridge receipts ("Payout PO-x blocked by compliance
+  // review (Demo)" / "... flag cleared").
+  "payout.fraud-cleared",
+  "payout.fraud-blocked",
+  "payout.fraud-escalated",
+  // Fee-refund ledger (R9 W2) — emitted by trader lib/purchases-store when
+  // a paid payout matches a fee-back purchase. Consumers: trader
+  // inbox-lifecycle-bridge receipt ("Challenge fee refunded with payout
+  // PO-x (Demo)") + the purchase-history/invoice ledger line (store field
+  // the flip persists under pfaas:trader:purchases).
+  "purchase.fee-refunded",
 ] as const;
 
 export type LifecycleEventName = (typeof LIFECYCLE_EVENT_NAMES)[number];
@@ -437,6 +452,10 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "appeal.accepted": "Appeal accepted",
   "appeal.rejected": "Appeal rejected",
   "breach.reversed": "Breach reversed",
+  "payout.fraud-cleared": "Fraud flag cleared",
+  "payout.fraud-blocked": "Fraud flag blocked",
+  "payout.fraud-escalated": "Fraud flag escalated",
+  "purchase.fee-refunded": "Challenge fee refunded",
 };
 
 /**

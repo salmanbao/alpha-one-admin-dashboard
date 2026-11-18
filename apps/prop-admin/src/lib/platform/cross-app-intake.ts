@@ -574,6 +574,12 @@ function toPayout(e: LifecycleEvent, tenantId: string): Payout {
     profitSplit: numberOr(e.payload?.profitSplit, 80),
     createdAt: e.at,
     reference: String(e.payload?.reference ?? e.id),
+    // R9 W2 UC-O8 — carry the trader's promise into the operator queue
+    // (SLA panel + fraud/overdue buckets count down the same deadline).
+    promisedBy:
+      typeof e.payload?.promisedBy === "string" && e.payload.promisedBy
+        ? e.payload.promisedBy
+        : undefined,
     source: CROSS_APP_SOURCE,
   });
 }

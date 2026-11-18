@@ -34,6 +34,7 @@ import {
   payoutEscalated,
   usePayoutVersion,
 } from "@/modules/payouts/payout-store";
+import { payoutFraudBlock } from "@/lib/payout-fraud-store";
 import { payouts, getTenantTraders } from "@/lib/platform/mock-data";
 import { buildPayoutRisk } from "@/lib/platform/payout-risk";
 import { resolveBreach } from "@/modules/risk/breach-store";
@@ -210,6 +211,9 @@ export function PayoutReviewActions({
   // with the case ID in the reason; release lives on the AML case detail
   // behind compliance.aml.approve (four-eyes).
   const aml = payoutAmlBlock(payoutId);
+  // R9 W2 UC-O5 — blocked fraud flag: same disabled pattern with the
+  // flag id + signals; the store chokepoint enforces it either way.
+  const fraud = payoutFraudBlock(payoutId);
   // Audit fix #3: reject collects a structured reason via the shared
   // PayoutRejectDialog instead of a reason-less confirmation.
   const [rejectTarget, setRejectTarget] = useState<PayoutRejectTarget | null>(null);
@@ -229,15 +233,23 @@ export function PayoutReviewActions({
       variant: "primary",
       isPrimary: true,
       requires: "payout.approve",
-      disabledReason: aml ? `AML hold ${aml.caseId} — ${aml.typology}` : undefined,
+      disabledReason: fraud
+        ? fraud.reason
+        : aml
+          ? `AML hold ${aml.caseId} — ${aml.typology}`
+          : undefined,
       onAction: () => {
         // Mutate the shared decision store — the pending queue (table,
         // dashboard widget) drops this payout everywhere, instantly.
         const result = applyPayoutDecision(payoutId, "approved");
         if (!result.ok) {
-          // Belt-and-braces (R3-F02): the button is disabled while held,
-          // but the store is the real enforcement chokepoint.
-          toast({ title: "Approval blocked by AML hold", description: `${result.caseId} — ${result.reason}`, variant: "destructive" });
+          // Belt-and-braces (R3-F02 / R9 W2): the button is disabled
+          // while held, but the store is the real enforcement chokepoint.
+          toast({
+            title: result.caseId.startsWith("pf-") ? "Approval blocked by fraud hold" : "Approval blocked by AML hold",
+            description: `${result.caseId} — ${result.reason}`,
+            variant: "destructive",
+          });
           return;
         }
         toast({ title: "Payout approved", description: resolveTermsInString(`${traderName}'s payout of ${currencyFmt} is being processed.`, tenant) });

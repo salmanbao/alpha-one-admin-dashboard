@@ -48,6 +48,8 @@ const DEMO_STORES = [
   "rules-versions",
   // R9 W1 — appeals queue (escalations + decided verdict snapshots).
   "appeals",
+  // R9 W2 — payout fraud flags (verdicts keyed by flag id).
+  "payout-fraud",
   "connectors",
   "kyc-provider-config",
   "challenge-funding",

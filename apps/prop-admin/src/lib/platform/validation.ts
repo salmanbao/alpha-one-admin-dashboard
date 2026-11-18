@@ -177,6 +177,18 @@ export const demoPayoutsSchema = z.record(
   }),
 );
 
+/** payout-fraud-store: verdicts keyed by flag id (`pf-<reference>`). */
+export const demoPayoutFraudSchema = z.object({
+  verdicts: z.record(
+    z.string(),
+    z.object({
+      status: z.enum(["cleared", "blocked", "escalated"]),
+      reason: z.string().optional(),
+      at: z.string(),
+    }),
+  ),
+});
+
 /** breach-store: resolved breach ids. */
 export const demoBreachesSchema = z.array(z.string());
 

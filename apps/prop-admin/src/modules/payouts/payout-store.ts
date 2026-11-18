@@ -6,6 +6,7 @@ import { payouts as seedPayouts } from "@/lib/platform/mock-data";
 import { setNavBadge } from "@/lib/platform/nav-badges";
 import { recordAudit } from "@/lib/audit";
 import { getAmlCase, getAmlHoldCaseForTrader, useAmlVersion } from "@/modules/risk/aml-store";
+import { payoutFraudBlock, useFraudVersion } from "@/lib/payout-fraud-store";
 import { loadDemoState, saveDemoState } from "@/lib/platform/demo-persistence";
 import { demoPayoutsSchema } from "@/lib/platform/validation";
 import { emitLifecycle } from "@pfaas/lifecycle";
@@ -128,6 +129,21 @@ export function applyPayoutDecision(
       });
       return { ok: false, reason, caseId: block.caseId };
     }
+    // R9 W2 UC-O5 — same chokepoint for the fraud queue: a `blocked`
+    // flag refuses every money-moving decision until cleared. The
+    // surfaces disable Approve with this reason; the store is the real
+    // enforcement (batch pre-flight and the rules engine land here too).
+    const fraud = payoutFraudBlock(reference);
+    if (fraud) {
+      recordAudit({
+        action: "Payout decision blocked by fraud hold",
+        entity: "payout",
+        entityId: reference,
+        summary: `${who} — ${amount} (${decision}) blocked: ${fraud.reason}`,
+        severity: "warning",
+      });
+      return { ok: false, reason: fraud.reason, caseId: fraud.flagId };
+    }
   }
 
   decisions.set(reference, { status: decision, at: new Date().toISOString() });
@@ -209,7 +225,10 @@ export function payoutEscalated(reference: string): boolean {
 export function usePayoutVersion(): number {
   // R3-F02: an AML hold release/creation (AML store) changes which payouts
   // are decidable, so payout surfaces subscribe to both stores here.
+  // R9 W2: a fraud verdict (block/clear) does the same — clearing a flag
+  // must restore the Approve button on every surface at once.
   const amlV = useAmlVersion();
+  const fraudV = useFraudVersion();
   const [v, setV] = useState(version);
   useEffect(() => {
     const l = () => setV(version);
@@ -218,7 +237,7 @@ export function usePayoutVersion(): number {
       listeners.delete(l);
     };
   }, []);
-  return v + amlV;
+  return v + amlV + fraudV;
 }
 
 // Seed the sidebar badge at boot (this module is imported by the payouts

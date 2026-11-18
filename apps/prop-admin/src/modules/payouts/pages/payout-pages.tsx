@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import { getTenantPayouts, getTraderPayouts, getTraderForUser, getTenantTraders,
 import { buildPayoutRisk, worstPayoutRisk } from "@/lib/platform/payout-risk";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { applyPayoutDecision, effectivePayoutStatus, payoutAmlBlock, payoutEscalated, usePayoutVersion } from "@/modules/payouts/payout-store";
+import { payoutFraudBlock, usePayoutFraudFlags } from "@/lib/payout-fraud-store";
 import { useLifecycleLog } from "@pfaas/lifecycle";
 import {
   buildPayoutRuleContext,
@@ -51,14 +52,20 @@ import {
 import { TraderPerformanceChip, type PayoutTraderPerformance } from "@/components/platform/trader-performance-chip";
 
 /**
+ * R9 W2 UC-O8 — references whose overdue promise already raised an
+ * operator notification this session (module scope: survives page
+ * remounts, so re-visiting the queue never re-fires the same alert).
+ */
+const slaAlertedRefs = new Set<string>();
+
+/**
  * PRD §4.9 — Reject requires a reason (onReject(reason)). Uses the
  * shared PayoutRejectDialog (audit fix #3): structured category +
  * required detail + optional internal comment + notify-trader toggle,
  * so every reject surface records the same audit-trail shape. The
  * target carries the profit split + performance snapshot (audit X
  * #1/#5) so the dialog can show the payout calculation.
- */
-function PayoutRejectButton({ p, perf }: { p: Payout; perf?: PayoutTraderPerformance }) {
+ */function PayoutRejectButton({ p, perf }: { p: Payout; perf?: PayoutTraderPerformance }) {
   const { user, pushNotification } = usePlatform();
   const [rejectTarget, setRejectTarget] = useState<PayoutRejectTarget | null>(null);
   // In-page guard — rejecting is a payout decision, not just a view.
@@ -238,22 +245,31 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
         // R3-F02 — active AML hold freezes approve/process on this payout;
         // the store enforces it either way, but the button must say why.
         const aml = payoutAmlBlock(p.reference);
-        const heldTitle = aml
-          ? `AML hold ${aml.caseId} — approval blocked until released (compliance.aml.approve)`
-          : decideTitle;
+        // R9 W2 UC-O5 — a blocked fraud flag does the same, with the
+        // flag id + signals in the reason (clearing restores the button).
+        const fraud = payoutFraudBlock(p.reference);
+        const heldTitle = fraud
+          ? `${fraud.reason} — approval blocked until cleared (payout-fraud-queue)`
+          : aml
+            ? `AML hold ${aml.caseId} — approval blocked until released (compliance.aml.approve)`
+            : decideTitle;
         return p.status === "pending" ? (
           <div className="flex gap-1">
             <Button
               size="sm"
               variant="default"
-              disabled={!canDecide || !!aml}
+              disabled={!canDecide || !!aml || !!fraud}
               title={heldTitle}
               onClick={() => {
                 // Mutate the shared decision store — the row leaves the
                 // pending queue everywhere (table, cards, widget).
                 const result = applyPayoutDecision(p.reference, "approved");
                 if (!result.ok) {
-                  toast({ title: "Approval blocked by AML hold", description: `${result.caseId} — ${result.reason}`, variant: "destructive" });
+                  toast({
+                    title: fraud ? "Approval blocked by fraud hold" : "Approval blocked by AML hold",
+                    description: `${result.caseId} — ${result.reason}`,
+                    variant: "destructive",
+                  });
                   return;
                 }
                 toast({ title: "Approved", description: `${p.traderName} payout approved.` });
@@ -292,12 +308,16 @@ function PayoutsTable({ filter }: { filter: (p: Payout) => boolean }) {
              the payment processor (approved → processing everywhere). */
           <Button
             size="sm"
-            disabled={!canDecide || !!aml}
+            disabled={!canDecide || !!aml || !!fraud}
             title={heldTitle}
             onClick={() => {
               const result = applyPayoutDecision(p.reference, "processing");
               if (!result.ok) {
-                toast({ title: "Processing blocked by AML hold", description: `${result.caseId} — ${result.reason}`, variant: "destructive" });
+                toast({
+                  title: fraud ? "Processing blocked by fraud hold" : "Processing blocked by AML hold",
+                  description: `${result.caseId} — ${result.reason}`,
+                  variant: "destructive",
+                });
                 return;
               }
               toast({
@@ -428,6 +448,11 @@ function payoutGate(tid: string, p: Payout): { pass: boolean; reason: string } {
     if (aml) return { pass: false, reason: `AML hold ${aml.caseId} (${aml.typology})` };
     return { pass: false, reason: "AML hold" };
   }
+  // R9 W2 UC-O5 — a blocked fraud flag gates the row exactly like an AML
+  // hold: the pre-flight and the "gate clean" filter must not call it
+  // approvable while the store would refuse the decision.
+  const fraud = payoutFraudBlock(p.reference);
+  if (fraud) return { pass: false, reason: `Fraud hold ${fraud.flagId} (${fraud.signals.join(", ")})` };
   const rule = firstMatchingRule(readPayoutRules().rules, ctx);
   if (!rule) return { pass: false, reason: "No enabled rule matches — manual review" };
   if (rule.action === "auto-approve") return { pass: true, reason: `Clears "${rule.name}"` };
@@ -492,11 +517,104 @@ function AutomationSummaryCard({
   );
 }
 
+/**
+ * R9 W2 UC-O8 — the promise on a payout row: carried from the trader
+ * app's submission (`promisedBy` via intake), derived (createdAt + the
+ * 48h payment horizon) for fixture rows so both kinds bucket alike.
+ */
+function promisedByOfPayout(p: Payout): Date {
+  if (p.promisedBy) {
+    const d = new Date(p.promisedBy);
+    if (Number.isFinite(d.getTime())) return d;
+  }
+  return new Date(new Date(p.createdAt).getTime() + 48 * 3600_000);
+}
+
+/**
+ * R9 W2 UC-O8 — operator SLA monitor: on-time % over the paid history,
+ * aging buckets over the live queue (<6h fresh / 6–24h aging / 24h+
+ * stale, all still inside the promise), and the overdue rows named with
+ * how long they have been past due. Every figure derives from the same
+ * rows the queue renders — no separate truth.
+ */
+function PayoutSlaPanel({ tid, pending }: { tid: string; pending: Payout[] }) {
+  const now = Date.now();
+  let fresh = 0;
+  let aging = 0;
+  let stale = 0;
+  const overdue: Array<{ p: Payout; breachedHours: number }> = [];
+  for (const p of pending) {
+    const promised = promisedByOfPayout(p);
+    if (promised.getTime() <= now) {
+      overdue.push({ p, breachedHours: (now - promised.getTime()) / 3_600_000 });
+      continue;
+    }
+    const ageH = (now - new Date(p.createdAt).getTime()) / 3_600_000;
+    if (ageH < 6) fresh += 1;
+    else if (ageH < 24) aging += 1;
+    else stale += 1;
+  }
+
+  // On-time % — paid rows that actually landed, scored against promise.
+  const paid = getTenantPayouts(tid).filter((p) => effectivePayoutStatus(p) === "paid" && p.processedAt);
+  const onTime = paid.filter(
+    (p) => new Date(p.processedAt as string).getTime() <= promisedByOfPayout(p).getTime(),
+  );
+  const onTimePct = paid.length ? Math.round((onTime.length / paid.length) * 100) : null;
+
+  return (
+    <div className="mb-4 rounded-lg border bg-card p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">Payout SLA monitor</p>
+          <p className="text-xs text-muted-foreground">
+            Every pending request counted down against its promised payout window (Demo).
+          </p>
+        </div>
+        <Badge variant={onTimePct === null ? "secondary" : onTimePct >= 90 ? "default" : "destructive"}>
+          {onTimePct === null ? "No paid history" : `${onTimePct}% on time`}
+        </Badge>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+        <span><span className="font-medium text-foreground">{fresh}</span> fresh (&lt;6h)</span>
+        <span><span className="font-medium text-foreground">{aging}</span> aging (6–24h)</span>
+        <span><span className="font-medium text-foreground">{stale}</span> stale (24h+)</span>
+        <span className={overdue.length ? "font-medium text-rose-600 dark:text-rose-400" : ""}>
+          <span className="font-medium">{overdue.length}</span> overdue (past promise)
+        </span>
+      </div>
+      {overdue.length > 0 && (
+        <ul className="mt-2 space-y-1 border-t pt-2">
+          {overdue.slice(0, 5).map(({ p, breachedHours }) => (
+            <li key={p.reference} className="flex flex-wrap items-center gap-2 text-xs text-rose-600 dark:text-rose-400">
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              <span className="font-medium">Payout {p.reference}</span>
+              <span>
+                breached its promise {breachedHours < 1
+                  ? `${Math.round(breachedHours * 60)}m`
+                  : `${Math.round(breachedHours)}h`}{" "}
+                ago — {p.traderName} · {formatCurrency(p.amount, p.currency)}
+              </span>
+            </li>
+          ))}
+          {overdue.length > 5 && (
+            <li className="text-xs text-muted-foreground">…and {overdue.length - 5} more past promise</li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function PendingPayoutsPage() {
   const { runtime, tenant, navigate, pushNotification, user } = usePlatform();
   const term = makeTermResolver(tenant);
   const tid = runtime.tenant?.id ?? "platform";
   usePayoutVersion(); // review cards + table react to decisions
+  // R9 W2 UC-O5 — open fraud flags gate rows in this queue; the link
+  // carries the live count (nav-children cap keeps it out of the sidebar).
+  const fraudFlags = usePayoutFraudFlags();
+  const openFraudFlags = fraudFlags.filter((f) => f.status === "open" || f.status === "blocked").length;
 
   /* ── Queue filters + saved views (R2-W3-05) ─────────────────────── */
   const [query, setQuery] = useState("");
@@ -512,6 +630,29 @@ export function PendingPayoutsPage() {
   const allPending = getTenantPayouts(tid)
     .map((p) => ({ ...p, status: effectivePayoutStatus(p) }))
     .filter((p) => p.status === "pending");
+
+  // R9 W2 UC-O8 — overdue promises raise an operator notification once
+  // per reference (module-level Set: survives remounts, so revisiting
+  // the queue never re-fires the same alert).
+  useEffect(() => {
+    for (const p of allPending) {
+      const promised = promisedByOfPayout(p).getTime();
+      const breachedMs = Date.now() - promised;
+      if (breachedMs <= 0 || slaAlertedRefs.has(p.reference)) continue;
+      slaAlertedRefs.add(p.reference);
+      const ago = breachedMs < 3_600_000
+        ? `${Math.round(breachedMs / 60_000)}m`
+        : `${Math.round(breachedMs / 3_600_000)}h`;
+      pushNotification({
+        title: `Payout ${p.reference} breached its promise ${ago} ago`,
+        message: `${p.traderName} — ${formatCurrency(p.amount, p.currency)} is past its promised payout window (Demo).`,
+        severity: "warning",
+        module: "payouts",
+        actionLabel: "View",
+        actionHref: "payouts-pending",
+      });
+    }
+  }, [allPending, pushNotification]);
   // Pending rows narrowed by the queue filters — the gate filter runs
   // the same per-row evaluation the batch pre-flight uses (payoutGate).
   const q = query.trim().toLowerCase();
@@ -657,8 +798,27 @@ export function PendingPayoutsPage() {
 
   return (
     <Page>
-      <PageHeader title={`Pending ${plural(term("payout"))}`} description="Awaiting approval." icon={Clock} />
+      <PageHeader
+        title={`Pending ${plural(term("payout"))}`}
+        description="Awaiting approval."
+        icon={Clock}
+        actions={
+          openFraudFlags > 0 ? (
+            <Button size="sm" variant="outline" onClick={() => navigate("payout-fraud-queue")}>
+              <AlertTriangle className="mr-1 h-3.5 w-3.5" />
+              Fraud queue ({openFraudFlags})
+            </Button>
+          ) : (
+            <Button size="sm" variant="ghost" title="Payout-abuse signals from intake (UC-O5)" onClick={() => navigate("payout-fraud-queue")}>
+              Fraud queue
+            </Button>
+          )
+        }
+      />
       <PageContent>
+        {/* ── R9 W2 UC-O8 — SLA monitor: promise countdowns + overdue ── */}
+        <PayoutSlaPanel tid={tid} pending={allPending} />
+
         {/* ── Auto-approve rule + dry run (R3-03) ────────────────────── */}
         <AutomationSummaryCard
           tid={tid}

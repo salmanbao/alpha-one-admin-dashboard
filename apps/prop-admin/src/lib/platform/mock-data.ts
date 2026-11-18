@@ -547,6 +547,12 @@ export interface Payout {
   createdAt: string;
   processedAt?: string;
   reference: string;
+  /**
+   * R9 W2 UC-O8 — the trader's promise (requestedAt + payout schedule),
+   * stamped by the trader app at submission and carried through intake
+   * so the operator SLA panel counts down the same deadline.
+   */
+  promisedBy?: string;
   /** Cross-app demo transport (R2-W3-01) — renders as a "(demo transport)" chip. */
   source?: "cross-app-intake";
 }
