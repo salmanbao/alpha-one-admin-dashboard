@@ -24,7 +24,9 @@ import { aiModule } from "@/modules/ai/manifest";
 import { selfServiceModule } from "@/modules/self-service/manifest";
 import { auditModule } from "@/modules/audit/audit-module";
 import { settingsModule } from "@/modules/settings/settings-module";
+import { economicsModule } from "@/modules/economics/manifest";
 import { stitchModule } from "@/modules/stitch/manifest";
+import { economicsModule } from "@/modules/economics/manifest";
 
 let bootstrapped = false;
 export function bootstrapModules() {
@@ -46,6 +48,8 @@ export function bootstrapModules() {
   moduleRegistry.register(kycModule);
   moduleRegistry.register(supportModule);
   moduleRegistry.register(aiModule);
+  // R9 W3 UC-O6 — economics cockpit module (cohort economics + firm exposure).
+  moduleRegistry.register(economicsModule);
   // trader-facing self-service views grouped into one nav section
   // (navigation only — routes stay with their origin modules).
   moduleRegistry.register(selfServiceModule);

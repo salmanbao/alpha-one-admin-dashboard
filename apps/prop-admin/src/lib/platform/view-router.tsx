@@ -271,6 +271,12 @@ export const viewRegistry: Record<string, ViewComponent> = {
   "ai-anomaly": dynamic(() => import("@/modules/ai/pages/ai-anomaly-page").then((m) => ({ default: m.AiAnomalyPage })), { loading: ViewSkeleton }),
   "ai-cost": dynamic(() => import("@/modules/ai/pages/ai-cost-page").then((m) => ({ default: m.AiCostPage })), { loading: ViewSkeleton }),
 
+  /* economics — R9 W3 UC-O6 cohort cockpit */
+  "economics-cockpit": dynamic(() => import("@/modules/economics/pages/economics-cockpit").then((m) => ({ default: m.EconomicsCockpit })), { loading: ViewSkeleton }),
+
+  /* firm exposure — R9 W3 UC-O3 */
+  "firm-exposure": dynamic(() => import("@/modules/economics/pages/firm-exposure").then((m) => ({ default: m.FirmExposure })), { loading: ViewSkeleton }),
+
   /* audit — new flows */
   "audit-user-events": dynamic(() => import("@/modules/audit/user-events-page").then((m) => ({ default: m.UserEventsPage })), { loading: ViewSkeleton }),
   "audit-change-history": dynamic(() => import("@/modules/audit/change-history-page").then((m) => ({ default: m.ChangeHistoryPage })), { loading: ViewSkeleton }),
