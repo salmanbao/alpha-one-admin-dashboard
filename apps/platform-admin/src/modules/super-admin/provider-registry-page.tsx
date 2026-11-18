@@ -14,6 +14,7 @@ import { useState } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { PROVIDERS, type Provider } from "@/lib/platform/provider-catalog";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +23,6 @@ import { StatusBadge } from "@/components/platform/status";
 import {
   Globe,
   ShieldCheck,
-  DollarSign,
-  Bell,
-  Zap,
   CheckCircle2,
   AlertTriangle,
   XCircle,
@@ -33,109 +31,6 @@ import {
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ComponentType } from "react";
-
-interface Provider {
-  id: string;
-  name: string;
-  type: string;
-  icon: ComponentType<{ className?: string }>;
-  status: "operational" | "degraded" | "down";
-  latency: string;
-  errorRate: string;
-  tenantsUsing: number;
-  credentialFingerprint: string;
-  lastRotated: string;
-  lastSuccess: string;
-  config: string;
-}
-
-const demoProviders: Provider[] = [
-  {
-    id: "metaapi",
-    name: "MetaApi",
-    type: "Trading Bridge",
-    icon: Zap,
-    status: "degraded",
-    latency: "320ms",
-    errorRate: "2.1%",
-    tenantsUsing: 3,
-    credentialFingerprint: "••••8A42",
-    lastRotated: "12 days ago",
-    lastSuccess: "30s ago",
-    config: "Configured",
-  },
-  {
-    id: "veriff",
-    name: "Veriff",
-    type: "KYC Provider",
-    icon: ShieldCheck,
-    status: "operational",
-    latency: "310ms",
-    errorRate: "0.1%",
-    tenantsUsing: 2,
-    credentialFingerprint: "••••F19C",
-    lastRotated: "45 days ago",
-    lastSuccess: "2m ago",
-    config: "Configured",
-  },
-  {
-    id: "nowpayments",
-    name: "NOWPayments",
-    type: "Payment Provider",
-    icon: DollarSign,
-    status: "operational",
-    latency: "210ms",
-    errorRate: "0.3%",
-    tenantsUsing: 2,
-    credentialFingerprint: "••••3B7E",
-    lastRotated: "8 days ago",
-    lastSuccess: "1m ago",
-    config: "Configured",
-  },
-  {
-    id: "postmark",
-    name: "Postmark",
-    type: "Notification Service",
-    icon: Bell,
-    status: "degraded",
-    latency: "680ms",
-    errorRate: "1.4%",
-    tenantsUsing: 3,
-    credentialFingerprint: "••••C2D5",
-    lastRotated: "30 days ago",
-    lastSuccess: "5m ago",
-    config: "Configured",
-  },
-  {
-    id: "match2pay",
-    name: "Match2Pay",
-    type: "Payment Provider",
-    icon: DollarSign,
-    status: "operational",
-    latency: "180ms",
-    errorRate: "0.2%",
-    tenantsUsing: 1,
-    credentialFingerprint: "••••E9A1",
-    lastRotated: "20 days ago",
-    lastSuccess: "3m ago",
-    config: "Configured",
-  },
-  {
-    id: "twilio",
-    name: "Twilio",
-    type: "SMS Provider",
-    icon: Bell,
-    status: "operational",
-    latency: "150ms",
-    errorRate: "0.0%",
-    tenantsUsing: 1,
-    credentialFingerprint: "••••7F3B",
-    lastRotated: "60 days ago",
-    lastSuccess: "1h ago",
-    config: "Not configured",
-  },
-];
 
 const statusTone = (s: Provider["status"]) =>
   s === "operational" ? "success" : s === "degraded" ? "warning" : "danger";
@@ -148,7 +43,7 @@ export function ProviderRegistryPage() {
     loading,
     error,
     retry,
-  } = useAsyncMock(() => mockAsync(() => demoProviders, { delayMs: 450 }), []);
+  } = useAsyncMock(() => mockAsync(() => PROVIDERS, { delayMs: 450 }), []);
   const providers = loadedData ?? [];
   const [selected, setSelected] = useState<Provider | null>(null);
   const operational = providers.filter((p) => p.status === "operational").length;

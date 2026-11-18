@@ -22,63 +22,26 @@ import { AlertTriangle, CheckCircle2, Clock, User, ShieldAlert, BookOpen, ArrowR
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { recordAudit, useConsoleStore, type OperatorRef } from "@/lib/platform/console-store";
+import {
+  readIncidents,
+  useIncidentCenter,
+  setIncidentOverride,
+  acknowledgeCorrelation,
+  correlationsFor,
+  effectiveSeverity,
+  type Incident,
+  type Correlation,
+} from "@/lib/platform/incident-center-store";
+import { providerById, providerName } from "@/lib/platform/provider-catalog";
+import { useTenants } from "@/lib/platform/tenant-store";
 import { SensitiveActionDialog } from "@/components/platform/sensitive-action-dialog";
 import { usePlatform } from "@/lib/platform/platform-context";
 
-interface Incident {
-  id: string;
-  title: string;
-  severity: "critical" | "high" | "medium" | "resolved";
-  affectedTenants: string[];
-  affectedServices: string[];
-  started: string;
-  currentImpact: string;
-  owner: string;
-  runbook: string;
-  relatedAlerts: string[];
-}
-
-const incidents: Incident[] = [
-  {
-    id: "INC-001",
-    title: "MT5 Bridge latency degradation",
-    severity: "high",
-    affectedTenants: ["Alpha Capital", "Beta Trading"],
-    affectedServices: ["MT5 Bridge", "Account Sync"],
-    started: "12m ago",
-    currentImpact: "Account sync delayed by 30s. Trading unaffected.",
-    owner: "Sarah Chen",
-    runbook: "RB-MT5-001",
-    relatedAlerts: ["ALT-101 (MT5 latency >200ms)", "ALT-104 (Sync job failures: 3)"],
-  },
-  {
-    id: "INC-002",
-    title: "Postmark email delivery slow",
-    severity: "medium",
-    affectedTenants: ["All tenants"],
-    affectedServices: ["Notification Service"],
-    started: "45m ago",
-    currentImpact: "Email delivery latency 680ms (normal <200ms). No emails lost.",
-    owner: "Marcus Webb",
-    runbook: "RB-POSTMARK-001",
-    relatedAlerts: ["ALT-202 (Postmark latency >500ms)"],
-  },
-  {
-    id: "INC-003",
-    title: "Payment provider timeout (resolved)",
-    severity: "resolved",
-    affectedTenants: ["Gamma Futures"],
-    affectedServices: ["Payment Processor"],
-    started: "3h ago",
-    currentImpact: "Resolved — provider restored after restart. Monitoring for recurrence.",
-    owner: "Priya Nair",
-    runbook: "RB-PAY-001",
-    relatedAlerts: ["ALT-301 (NOWPayments timeout)"],
-  },
-];
-
 const severityTone = (s: Incident["severity"]) =>
   s === "critical" ? "danger" : s === "high" ? "warning" : s === "medium" ? "info" : "muted";
+
+const providerTone = (s: string | undefined) =>
+  s === "operational" ? "success" : s === "degraded" ? "warning" : "danger";
 
 export function IncidentCenterPage() {
   // Async seam (frontend-first): hydrate via the mock layer so the
@@ -90,33 +53,57 @@ export function IncidentCenterPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const { user } = usePlatform();
+  const { user, navigate } = usePlatform();
   const consoleStore = useConsoleStore();
   const operator: OperatorRef = { id: user.id, name: user.name };
+
+  const incidents = readIncidents();
+  const center = useIncidentCenter();
+  const tenants = useTenants();
 
   const [selected, setSelected] = useState<Incident | null>(incidents[0]);
   const [note, setNote] = useState("");
   const [escalateOpen, setEscalateOpen] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
-  // Per-incident operator overrides layered over the seed data.
-  const [overrides, setOverrides] = useState<Record<string, Partial<Incident>>>({});
 
   const effective: Incident | null = selected
-    ? { ...selected, ...overrides[selected.id] }
+    ? { ...selected, ...center.overrides[selected.id] }
     : null;
 
   // Escalation ladder (docs/21 CON-15 incident ladder).
   const LADDER: Array<Incident["severity"]> = ["medium", "high", "critical"];
 
   const severityOf = (i: Incident): Incident["severity"] =>
-    overrides[i.id]?.severity ?? i.severity;
+    effectiveSeverity(i, center.overrides);
 
-  const applyOverride = (id: string, patch: Partial<Incident>) =>
-    setOverrides((o) => ({ ...o, [id]: { ...o[id], ...patch } }));
+  // UC-P4 — open incidents grouped by provider-registry root cause;
+  // the banner, the "correlated" chips and the tenant deep-links below
+  // all derive from these groups.
+  const correlations = correlationsFor(incidents, center);
+  const correlatedIds = new Set(
+    correlations.flatMap((c) => c.incidents.map((i) => i.id)),
+  );
+  const tenantName = (id: string) => tenants.find((t) => t.id === id)?.name ?? id;
+
+  const handleAcknowledge = (c: Correlation) => {
+    acknowledgeCorrelation(
+      {
+        providerId: c.providerId,
+        providerName: c.providerName,
+        incidentIds: c.incidents.map((i) => i.id),
+        tenantCount: c.tenantIds.length,
+      },
+      user.name,
+    );
+    toast({
+      title: "Correlation acknowledged",
+      description: `${c.providerName} — ${c.tenantIds.length} tenants correlated. Audit row recorded.`,
+    });
+  };
 
   const handleAssign = () => {
     if (!effective) return;
-    applyOverride(effective.id, { owner: user.name });
+    setIncidentOverride(effective.id, { owner: user.name });
     recordAudit({
       actor: user.name,
       action: "console.operator_action",
@@ -131,7 +118,7 @@ export function IncidentCenterPage() {
     if (!effective) return;
     const idx = LADDER.indexOf(effective.severity);
     const next = LADDER[Math.min(idx + 1, LADDER.length - 1)];
-    applyOverride(effective.id, { severity: next });
+    setIncidentOverride(effective.id, { severity: next });
     recordAudit({
       actor: user.name,
       action: "console.escalate_incident",
@@ -144,7 +131,7 @@ export function IncidentCenterPage() {
 
   const handleResolveExecute = (reason: string) => {
     if (!effective) return;
-    applyOverride(effective.id, { severity: "resolved" });
+    setIncidentOverride(effective.id, { severity: "resolved" });
     recordAudit({
       actor: user.name,
       action: "console.resolve_incident",
@@ -190,6 +177,47 @@ export function IncidentCenterPage() {
           hasData={hydrated !== undefined}
           loadingLabel="Loading incidents…"
         >
+        {/* UC-P4 — cross-tenant correlation banner (provider root cause) */}
+        {correlations.length > 0 && (
+          <div className="space-y-2">
+            {correlations.map((c) => (
+              <Card key={c.providerId} className="border-amber-500/40 bg-amber-500/5">
+                <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                    <span className="text-sm font-semibold">
+                      {c.tenantIds.length} tenant{c.tenantIds.length === 1 ? "" : "s"} affected by provider {c.providerName}
+                    </span>
+                    <Badge variant="outline" className="text-[10px]">{c.incidents.map((i) => i.id).join(" + ")}</Badge>
+                    <span className="text-xs text-muted-foreground">shared root cause in the Provider Registry</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {c.tenantIds.map((id) => (
+                      <Button
+                        key={id}
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1 px-2 text-[10px]"
+                        onClick={() => navigate("tenant-detail", { id, tab: "incidents" })}
+                        title={`Open ${tenantName(id)} — Incidents tab`}
+                      >
+                        {tenantName(id)} <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    ))}
+                    {c.ack ? (
+                      <Badge variant="secondary" className="text-[10px]">Acknowledged by {c.ack.by}</Badge>
+                    ) : (
+                      <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => handleAcknowledge(c)}>
+                        Acknowledge &amp; audit
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Critical" value={critical} icon={AlertTriangle} tone={critical > 0 ? "negative" : "positive"} />
           <MetricCard label="High" value={high} icon={AlertTriangle} tone={high > 0 ? "warning" : "positive"} />
@@ -217,6 +245,9 @@ export function IncidentCenterPage() {
                     <div className="flex items-center gap-2">
                       <StatusBadge tone={severityTone(sev)}>{sev}</StatusBadge>
                       <Badge variant="outline" className="text-[10px]">{inc.id}</Badge>
+                      {correlatedIds.has(inc.id) ? (
+                        <Badge variant="outline" className="border-amber-500/60 text-[10px] text-amber-700">correlated</Badge>
+                      ) : null}
                       <span className="text-[10px] text-muted-foreground">{inc.started}</span>
                     </div>
                     <p className="mt-1 text-sm font-medium">{inc.title}</p>
@@ -243,7 +274,7 @@ export function IncidentCenterPage() {
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Affected tenants</p>
-                    <p className="font-medium">{effective.affectedTenants.join(", ")}</p>
+                    <p className="font-medium">{effective.affectedTenantIds.map(tenantName).join(", ")}</p>
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Affected services</p>
@@ -256,6 +287,24 @@ export function IncidentCenterPage() {
                   <div>
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Runbook</p>
                     <p className="flex items-center gap-1 font-mono"><BookOpen className="h-3 w-3" />{effective.runbook}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Provider root cause</p>
+                    {effective.providerId ? (
+                      <p className="flex items-center gap-2 font-medium">
+                        {providerName(effective.providerId)}
+                        {providerById(effective.providerId) ? (
+                          <StatusBadge tone={providerTone(providerById(effective.providerId)?.status)}>
+                            {providerById(effective.providerId)?.status}
+                          </StatusBadge>
+                        ) : null}
+                        <Button size="sm" variant="ghost" className="h-6 gap-1 px-1.5 text-[10px]" onClick={() => navigate("provider-registry")}>
+                          Registry <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      </p>
+                    ) : (
+                      <p className="font-medium text-muted-foreground">Not linked to a provider-registry entry</p>
+                    )}
                   </div>
                 </div>
 

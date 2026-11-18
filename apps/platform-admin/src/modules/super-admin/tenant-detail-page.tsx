@@ -94,6 +94,17 @@ import { useProvisioningStore } from "@/lib/platform/provisioning-saga";
 import { toast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { tenantHealthScore } from "@/lib/platform/tenant-health";
+import {
+  readIncidents,
+  useIncidentCenter,
+  correlationsFor,
+  acknowledgeCorrelation,
+  effectiveSeverity,
+  effectiveOwner,
+  type Incident,
+  type IncidentSeverity,
+} from "@/lib/platform/incident-center-store";
+import { providerName } from "@/lib/platform/provider-catalog";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -160,6 +171,23 @@ const tenantStatusTone = (s: string) =>
 /* ------------------------------------------------------------------ */
 /* Page                                                               */
 /* ------------------------------------------------------------------ */
+
+/** Tab ids honored by this page — `?tab=` deep-links validate against it. */
+const TENANT_TABS = [
+  "overview",
+  "analytics",
+  "modules",
+  "users",
+  "billing",
+  "activity",
+  "incidents",
+  "configuration",
+  "risk",
+] as const;
+
+function initialTab(tab: string | undefined): string {
+  return tab && (TENANT_TABS as readonly string[]).includes(tab) ? tab : "overview";
+}
 
 export function TenantDetailPage() {
   const { router, navigate, pushNotification, user, startImpersonation, setTenant } = usePlatform();
@@ -229,7 +257,11 @@ export function TenantDetailPage() {
   // doesn't exist in the view-router, producing a "View not found"
   // fallback. The Configuration tab IS on this page; switching the
   // active tab is the correct action.)
-  const [activeTab, setActiveTab] = useState<string>("overview");
+  //
+  // Deep-linkable (R9 W6 UC-P4): the Incident Center correlation banner
+  // links here with ?tab=incidents — only known tab ids are honored,
+  // anything else falls back to overview.
+  const [activeTab, setActiveTab] = useState<string>(initialTab(router.params.tab));
   type LifecycleAction = "suspend" | "reactivate" | "terminate";
   const [pendingAction, setPendingAction] = useState<LifecycleAction | null>(null);
 
@@ -609,6 +641,7 @@ export function TenantDetailPage() {
           <TabsTrigger value="users" className="gap-1"><Users className="h-3 w-3" />Users</TabsTrigger>
           <TabsTrigger value="billing" className="gap-1"><DollarSign className="h-3 w-3" />Billing</TabsTrigger>
           <TabsTrigger value="activity" className="gap-1"><Clock className="h-3 w-3" />Activity</TabsTrigger>
+          <TabsTrigger value="incidents" className="gap-1"><AlertTriangle className="h-3 w-3" />Incidents</TabsTrigger>
           <TabsTrigger value="configuration" className="gap-1"><SettingsIcon className="h-3 w-3" />Configuration</TabsTrigger>
           <TabsTrigger value="risk" className="gap-1"><ShieldAlert className="h-3 w-3" />Risk</TabsTrigger>
         </TabsList>
@@ -635,6 +668,9 @@ export function TenantDetailPage() {
             <p className="mb-3 text-sm font-medium">Recent activity</p>
             <ActivityTimeline entries={tenantAudit} max={12} />
           </div>
+        </TabsContent>
+        <TabsContent value="incidents">
+          <TenantIncidentsPanel tenantId={localTenant.id} />
         </TabsContent>
         <TabsContent value="configuration">
           <ConfigurationTab tenant={localTenant} onChange={setLocalTenant} onPersist={persistTenant} />
@@ -1988,6 +2024,160 @@ function FieldRow({
       <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       {children}
       {hint ? <p className="text-[10px] text-muted-foreground/80">{hint}</p> : null}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Tenant Incidents panel — R9 W6 UC-P4                                 */
+/* ------------------------------------------------------------------ */
+
+function TenantIncidentsPanel({ tenantId }: { tenantId: string }) {
+  const { user } = usePlatform();
+  const center = useIncidentCenter();
+  const incidents = readIncidents();
+  const correlations = correlationsFor(incidents, center);
+  const correlatedIds = new Set(
+    correlations.flatMap((c) => c.incidents.map((i) => i.id)),
+  );
+
+  const severityTone = (s: IncidentSeverity) =>
+    s === "critical" ? "danger" : s === "high" ? "warning" : s === "medium" ? "info" : "muted";
+
+  const openIncidents = incidents.filter(
+    (i) =>
+      i.affectedTenantIds.includes(tenantId) &&
+      effectiveSeverity(i, center.overrides) !== "resolved",
+  );
+
+  const handledIds = new Set(Object.keys(center.overrides));
+
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <p className="mb-3 text-sm font-medium">Incidents for {tenantId}</p>
+      {openIncidents.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          No open incidents for this tenant.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {openIncidents.map((inc) => {
+            const hits = correlations.filter((c) =>
+              c.incidents.some((i) => i.id === inc.id),
+            );
+            const hit = hits[0];
+            return (
+              <div key={inc.id} className="border rounded p-3 bg-muted/50">
+                <div className="flex items-center gap-2 mb-1">
+                  <StatusBadge
+                    tone={severityTone(
+                      effectiveSeverity(inc, center.overrides),
+                    )}
+                  >
+                    {inc.severity}
+                  </StatusBadge>
+                  <span className="text-[10px] text-muted-foreground">
+                    {inc.title}
+                  </span>
+                  {hit ? (
+                    <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-500/60">
+                      correlated
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Provider root cause:{providerName(inc.providerId || "")} ({inc.providerId || "—"})
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Started: {inc.started} · Owner:{effectiveOwner(
+                    inc,
+                    center.overrides,
+                  )}
+                </div>
+                {handledIds.has(inc.id) ? (
+                  <>
+                    <div className="mt-1 text-xs">
+                      Owner override:
+                      <input
+                        value=""
+                        className="bg-input border rounded w-full px-2 py-1 text-xs"
+                      />
+                    </div>
+                    <div className="mt-1 text-xs">
+                      Severity override:
+                      <select
+                        className="bg-input border rounded w-full px-2 py-1 text-xs"
+                      >
+                        <option value="medium">medium</option>
+                        <option value="high">high</option>
+                        <option value="critical">critical</option>
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    No overrides yet
+                  </div>
+                )}
+                {hit && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Tenants affected by{hit.providerName}:
+                    {hit.tenantIds.join(", ")}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {correlations.length > 0 && (
+            <div className="mt-3 pt-3 border-t">
+              <p className="text-xs text-muted-foreground">
+                Correlated groups (provider root cause):
+              </p>
+              {correlations.map((c) => (
+                <div
+                  key={c.providerId}
+                  className="border rounded p-2 bg-amber-500/10 mb-2"
+                >
+                  <div className="flex items-center gap-2 text-xs text-amber-700 mb-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    <span className="font-medium">
+                      {c.providerName} — {c.tenantIds.length} tenants affected
+                    </span>
+                    {c.ack ? (
+                      <span className="text-xs text-amber-600">
+                        acknowledged by {c.ack.by}
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-5 px-1 text-xs"
+                        onClick={() =>
+                          acknowledgeCorrelation(
+                            {
+                              providerId: c.providerId,
+                              providerName: c.providerName,
+                              incidentIds: c.incidents.map((i) => i.id),
+                              tenantCount: c.tenantIds.length,
+                            },
+                            user.name,
+                          )
+                        }
+                      >
+                        Acknowledge
+                      </Button>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    Incidents: {c.incidents.map((i) => i.id).join(", ")} ·
+                    Tenants: {c.tenantIds.join(", ")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
