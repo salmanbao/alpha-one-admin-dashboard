@@ -20,6 +20,7 @@ import type {
 import { EmptyState, Skeleton } from "@pfaas/ui";
 import type { ComponentType } from "react";
 import dynamic from "next/dynamic";
+import { useParams } from "next/navigation";
 import {
   LayoutGrid,
   Package,
@@ -27,6 +28,7 @@ import {
   CandlestickChart,
   ShieldAlert,
   Mail,
+  Award,
 } from "lucide-react";
 
 const ViewSkeleton = () => (
@@ -34,6 +36,21 @@ const ViewSkeleton = () => (
     <Skeleton className="h-48 w-full max-w-xl" />
   </div>
 );
+
+/** R9 W5 UC-T10 — registry wrapper: resolve [handle] from the URL. */
+const TraderRecordPageDynamic = dynamic(
+  () =>
+    import("../../modules/record/pages/trader-record-page").then((m) => ({
+      default: m.TraderRecordPage,
+    })),
+  { loading: ViewSkeleton },
+);
+
+function TraderRecordView() {
+  const params = useParams<{ handle: string }>();
+  const handle = typeof params?.handle === "string" ? params.handle : "unknown";
+  return <TraderRecordPageDynamic handle={handle} />;
+}
 
 const viewMap: Record<string, ComponentType> = {
   "closed-positions": dynamic(
@@ -56,6 +73,13 @@ const viewMap: Record<string, ComponentType> = {
       import("../../modules/appeals/pages/outage-claim-page").then((m) => ({
         default: m.OutageClaimPage,
       })),
+    { loading: ViewSkeleton },
+  ),
+  // R9 W5 UC-T10 — public shareable track record (read-only; the
+  // file-system route /trader-record/[handle] is the canonical entry, this
+  // registry key exists for census parity). The handle comes from the URL.
+  "trader-record": dynamic(
+    () => Promise.resolve({ default: TraderRecordView }),
     { loading: ViewSkeleton },
   ),
 };
@@ -87,6 +111,17 @@ export const traderRoutes: RouteDefinition[] = [
     viewId: "outage-claim",
     label: "Outage Claim",
     icon: ShieldAlert,
+    permission: "trader.self",
+    module: "trading",
+  },
+  // R9 W5 UC-T10 — public shareable track record (read-only). The
+  // file-system route /trader-record/[handle] renders it; this declaration
+  // keeps registry ↔ route parity (nav census).
+  {
+    path: "trader-record/[handle]",
+    viewId: "trader-record",
+    label: "Track Record",
+    icon: Award,
     permission: "trader.self",
     module: "trading",
   },
