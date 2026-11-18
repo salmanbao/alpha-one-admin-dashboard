@@ -128,6 +128,16 @@ export const LIFECYCLE_EVENT_NAMES = [
   "account.re-enabled",
   "account.blocked",
   "account.failed",
+  // Account pause / vacation mode (R9 W5 UC-T9) — consumers: prop-admin
+  // cross-app intake pause queue (requested) + trader account-pause-store
+  // and inbox bridge (approved/rejected)
+  "account.pause-requested",
+  "account.pause-approved",
+  "account.pause-rejected",
+  // Breach-aware retry discount (R9 W5 UC-T8) — consumer: trader inbox
+  // bridge ("Your retry discount is ready"); emitted by the compliance
+  // evaluator when it issues the rewards-store grant
+  "promo.retry-discount-issued",
   // Trader status (R7 I9) — consumer: trader inbox-lifecycle-bridge
   "trader.suspended",
   "trader.reactivated",
@@ -449,6 +459,10 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "account.re-enabled": "Re-enabled",
   "account.blocked": "Blocked",
   "account.failed": "Manual fail",
+  "account.pause-requested": "Pause requested",
+  "account.pause-approved": "Pause approved",
+  "account.pause-rejected": "Pause rejected",
+  "promo.retry-discount-issued": "Retry discount issued",
   "trader.suspended": "Trader suspended",
   "trader.reactivated": "Trader reactivated",
   "purchase.refunded": "Refunded",
@@ -499,6 +513,7 @@ const FOLLOW_UP: Partial<
   "provisioning.started": { label: "Credentials delivered", afterHours: 0.5 },
   "provisioning.dispatched": { label: "Provisioning dispatched", afterHours: 0.5 },
   "provisioning.credentials": { label: "Active", afterHours: 0.5 },
+  "account.pause-requested": { label: "Operator decision", afterHours: 24 },
   "account.created": { label: "Verification started", afterHours: 48 },
   "account.password-reset": { label: "Updated", afterHours: 0 },
   "account.extended": { label: "Deadline extended", afterHours: 0 },
