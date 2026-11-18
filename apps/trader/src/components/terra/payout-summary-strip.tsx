@@ -19,6 +19,7 @@
  * the summary and the checklist can never disagree.
  */
 
+import { useEffect, useState } from "react";
 import { formatMoney } from "@/components/terra/terra-ui";
 import {
   payoutSchedule,
@@ -144,7 +145,13 @@ export function PayoutSummaryStrip({
   // R7 I1 — subscribes to the trading store so the day count re-renders
   // when a session trade opens.
   const { closedTrades } = useTrading();
-  const traded = tradedDaysFor(accountId, closedTrades);
+  // SSR-first-paint hydration safety: server HTML is built from the seeded
+  // fixtures (SERVER_SNAPSHOT = seedState() = terraTrades). Render the
+  // fixture count on the first paint so the hydration pass matches; the
+  // persisted client state takes over right after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const traded = mounted ? tradedDaysFor(accountId, closedTrades) : tradedDaysFor(accountId);
   const daysMet = traded >= MIN_PAYOUT_DAYS;
   const { open: windowOpen, daysToOpen, opensAt, closesAt } = payoutWindow();
 

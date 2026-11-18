@@ -19,6 +19,8 @@ const navigation: NavigationItem[] = [
       { id: "payouts.pending", label: "Pending Approval", href: "payouts-pending", icon: Clock, permission: "payout.approve", group: "Requests & Approvals" },
       // "My Withdrawals" moved to the self-service module (§6.6).
       { id: "payouts.withdrawals", label: "Withdrawals", href: "payouts-enhanced-withdrawals", icon: ListChecks, permission: ["payout.read", "payout.self"], group: "Requests & Approvals" },
+      // R9 W2 UC-O5 — the fraud queue is route-declared below and linked
+      // from Pending Payouts (nav-children cap R2-W3-03 is at 150).
     ],
   },
 ];
@@ -39,6 +41,9 @@ const routes: RouteDefinition[] = [
   // R7 I4 — payout automation rules engine (CRUD + last 20 evaluator
   // runs). Linked from Pending Payouts → "Manage rules".
   { path: "payout-rules", viewId: "payout-rules", label: "Payout Automation Rules", permission: "payout.approve", module: "payouts" },
+  // R9 W2 UC-O5 — payout fraud & abuse queue (flags + evidence +
+  // verdicts; blocking removes Approve from every payout surface).
+  { path: "payout-fraud-queue", viewId: "payout-fraud-queue", label: "Payout Fraud Queue", permission: "payout.approve", module: "payouts" },
 ];
 
 const widgets: WidgetDefinition[] = [

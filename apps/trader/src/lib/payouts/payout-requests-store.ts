@@ -15,6 +15,8 @@
 import { useSyncExternalStore } from "react";
 import { emitLifecycle, readLifecycleLog, useLifecycleLog } from "@pfaas/lifecycle";
 import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
+import { hashStr } from "@/lib/fixtures/trader-fixtures";
+import { readPayoutMethods } from "@/lib/payouts/payout-methods-store";
 import { pushInboxMessage } from "@/lib/inbox/inbox-store";
 import { getPayoutStage } from "@/lib/status-progression";
 import type { PayoutRejection } from "@/lib/fixtures/terra-fixtures";
@@ -35,6 +37,10 @@ export type StoredPayoutRequest = {
   method: string;
   feeAmount: number;
   requestedAt: string;
+  // R9 W2 UC-T4 — the firm's promise, stamped at submission from the
+  // payout schedule (deriveExpectedAt's payment horizon, i.e. requestedAt
+  // + PAID_AFTER_HOURS). Older rows without the field derive it on read.
+  promisedBy?: string;
   // base status is "submitted" in storage; R4-05 may flip it to the
   // "cancelled" tombstone; effective status is derived on read
   status: "submitted" | "cancelled";
@@ -51,6 +57,10 @@ export type DisplayPayout = {
   status: "submitted" | "processing" | "paid" | "rejected" | "cancelled";
   requestedAt: string;
   expectedAt: string;
+  /** R9 W2 — promise ISO (stored at submission, derived for old rows). */
+  promisedBy?: string;
+  /** R9 W2 — when money actually landed (admin event or wall clock). */
+  paidAt?: string | null;
   rejection: PayoutRejection | null;
   /** true for requests created by the trader in this session/store */
   isUserRequest?: boolean;
@@ -119,6 +129,17 @@ function deriveExpectedAt(requestedAt: string, status: DisplayPayout["status"]):
 }
 
 /**
+ * R9 W2 UC-T4 — the promise stamped at submission (payment horizon:
+ * requestedAt + PAID_AFTER_HOURS, i.e. the `deriveExpectedAt` "processing"
+ * branch). Rows written before W2 derive the same value on read, so old
+ * requests get an honest clock without a storage migration.
+ */
+export function promisedByOf(req: Pick<StoredPayoutRequest, "requestedAt" | "promisedBy">): string {
+  if (req.promisedBy) return req.promisedBy;
+  return deriveExpectedAt(req.requestedAt, "processing");
+}
+
+/**
  * R3-01 — the firm's decision, read from the shared lifecycle log.
  *
  * prop-admin's payout queue emits `payout.*` under the request's
@@ -170,6 +191,8 @@ export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
       status: "cancelled",
       requestedAt: req.requestedAt,
       expectedAt: req.requestedAt,
+      promisedBy: promisedByOf(req),
+      paidAt: null,
       rejection: null,
       isUserRequest: true,
     };
@@ -193,6 +216,15 @@ export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
           ],
         }
       : null;
+  // R9 W2 — when the money actually landed: the admin `payout.paid`
+  // event timestamp when the firm decided, else the wall-clock payment
+  // horizon the demo progression uses. Null while in flight.
+  const paidAt =
+    status === "paid"
+      ? admin
+        ? admin.at
+        : new Date(new Date(req.requestedAt).getTime() + PAID_AFTER_HOURS * 60 * 60 * 1000).toISOString()
+      : null;
   return {
     id: req.id,
     reference: req.reference,
@@ -204,6 +236,8 @@ export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
     status,
     requestedAt: req.requestedAt,
     expectedAt: deriveExpectedAt(req.requestedAt, status),
+    promisedBy: promisedByOf(req),
+    paidAt,
     rejection,
     isUserRequest: true,
   };
@@ -222,6 +256,11 @@ export function addPayoutRequest(input: {
   const acc = terraAccounts.find((a) => a.id === input.accountId);
   const now = new Date();
   const stamp = now.getTime().toString(36).toUpperCase().slice(-6);
+  const requestedAt = now.toISOString();
+  // R9 W2 — the promise is stamped at submission from the payout
+  // schedule (payment horizon) and travels to the operator queue so
+  // both sides count down the same deadline.
+  const promisedBy = deriveExpectedAt(requestedAt, "processing");
   const req: StoredPayoutRequest = {
     id: `po-req-${now.getTime().toString(36)}`,
     reference: `PO-R${stamp}`,
@@ -231,10 +270,17 @@ export function addPayoutRequest(input: {
     methodId: input.methodId,
     method: input.methodName,
     feeAmount: input.feeAmount,
-    requestedAt: now.toISOString(),
+    requestedAt,
+    promisedBy,
     status: "submitted",
   };
   writeRequests([req, ...readRawRequests()]);
+  // R9 W2 fraud signals (UC-O5) — the intake row carries what the
+  // prop-admin payout-fraud-store needs at intake time: the method
+  // fingerprint (hash of the method detail, e.g. IBAN tail) for
+  // cross-trader reuse, the program for rapid-cycle detection, and the
+  // promise for the operator SLA panel.
+  const methodDetail = readPayoutMethods().find((m) => m.id === input.methodId)?.detail ?? "";
   // R2-W3-01 publish point — prop-admin's payout queue and pendings hub
   // pick this up from the shared log (demo transport, same origin).
   emitLifecycle({
@@ -249,6 +295,10 @@ export function addPayoutRequest(input: {
       accountId: req.accountId,
       accountLogin: req.accountLogin,
       method: req.method,
+      methodId: req.methodId,
+      methodFingerprint: methodDetail ? `fp-${hashStr(methodDetail).toString(36)}` : null,
+      program: acc?.program ?? null,
+      promisedBy,
       currency: "USD", // trader money surfaces render in USD (formatMoney default)
       profitSplit: input.profitSplit ?? null,
       source: "trader-app",
@@ -315,4 +365,66 @@ export function usePayoutRequests(): DisplayPayout[] {
   useLifecycleLog();
   const raw = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   return (JSON.parse(raw) as StoredPayoutRequest[]).map(toDisplayPayout);
+}
+
+/* ------------------------------------------------------------------ */
+/* R9 W2 UC-T4 — on-time honesty stats (rolling window, pure)          */
+/* ------------------------------------------------------------------ */
+
+export type PayoutSlaRow = {
+  requestedAt: string;
+  /** Promise ISO — request rows use `promisedBy`, fixtures their `expectedAt`. */
+  promisedBy: string;
+  status: DisplayPayout["status"];
+  paidAt?: string | null;
+};
+
+export type PayoutSlaStats = {
+  /** Paid rows inside the window (the denominator for on-time %). */
+  paid: number;
+  /** % of paid rows landed at or before the promise — null with no data. */
+  onTimePct: number | null;
+  /** Mean requested→paid hours across paid rows — null with no data. */
+  avgHours: number | null;
+  /** Paid rows that landed after the promise. */
+  late: number;
+  rejected: number;
+  windowDays: 90;
+};
+
+/**
+ * Rolling-window honesty figures computed from actual history — only
+ * rows that moved money (paid) score on-time/late; rejected/cancelled
+ * never did, so they are counted separately. `null` percentages keep the
+ * UI honest when there is nothing to measure yet.
+ */
+export function computePayoutSlaStats(
+  rows: readonly PayoutSlaRow[],
+  now: number = Date.now(),
+): PayoutSlaStats {
+  const cutoff = now - 90 * 24 * 60 * 60 * 1000;
+  const inWindow = rows.filter((r) => {
+    const ms = new Date(r.requestedAt).getTime();
+    return Number.isFinite(ms) && ms >= cutoff;
+  });
+  const paidRows = inWindow.filter(
+    (r) => r.status === "paid" && r.paidAt && Number.isFinite(new Date(r.paidAt).getTime()),
+  );
+  let late = 0;
+  let hoursTotal = 0;
+  for (const r of paidRows) {
+    const paidMs = new Date(r.paidAt as string).getTime();
+    const promisedMs = new Date(r.promisedBy).getTime();
+    hoursTotal += (paidMs - new Date(r.requestedAt).getTime()) / (60 * 60 * 1000);
+    if (Number.isFinite(promisedMs) && paidMs > promisedMs) late += 1;
+  }
+  const paidCount = paidRows.length;
+  return {
+    paid: paidCount,
+    onTimePct: paidCount ? Math.round(((paidCount - late) / paidCount) * 100) : null,
+    avgHours: paidCount ? Math.round((hoursTotal / paidCount) * 10) / 10 : null,
+    late,
+    rejected: inWindow.filter((r) => r.status === "rejected").length,
+    windowDays: 90,
+  };
 }
