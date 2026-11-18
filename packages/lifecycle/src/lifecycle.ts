@@ -63,7 +63,9 @@ export type LifecycleEntityKind =
   // (appeal), and breach reversal after an accepted appeal (breach).
   | "rules"
   | "appeal"
-  | "breach";
+  | "breach"
+  // R9 W6 — platform feature flags (I11 persistence + UC-P1 rollout)
+  | "flag";
 
 export interface EntityRef {
   kind: LifecycleEntityKind;
@@ -206,6 +208,14 @@ export const LIFECYCLE_EVENT_NAMES = [
   // Consumers: prop-admin payout-fraud-store (manual flag appears in queue)
   // + correlation-clusters view (status flips to escalated).
   "risk.cluster-escalated",
+  // Platform feature flags (R9 W6 UC-P1) — emitted by platform-admin
+  // lib/feature-flags-store on every flip / rollout stage / rollback.
+  // Consumers: the feature-flags page "Change history" panel (log
+  // projection, entity kind `flag`) + the Platform Audit Log row written
+  // alongside (recordAudit in console-store).
+  "feature-flag.toggled",
+  "feature-flag.rollout-stage",
+  "feature-flag.rollout-rollback",
 ] as const;
 
 export type LifecycleEventName = (typeof LIFECYCLE_EVENT_NAMES)[number];
@@ -485,6 +495,9 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "risk.ladder-moved": "Ladder rung advanced",
   "risk.ladder-reset": "Ladder rung reset",
   "risk.cluster-escalated": "Cluster escalated to fraud",
+  "feature-flag.toggled": "Flag toggled",
+  "feature-flag.rollout-stage": "Rollout stage advanced",
+  "feature-flag.rollout-rollback": "Rollout rolled back",
 };
 
 /**

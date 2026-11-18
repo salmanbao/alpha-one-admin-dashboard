@@ -1,10 +1,21 @@
 "use client";
 
 /**
- * Feature Flags — research item #31.
+ * Feature Flags — research item #31 + R9 W6 UC-P1.
  *
- * Feature flag registry with global/tenant/environment overrides, kill
- * switches, and change history.
+ * Registry of global/tenant/environment toggles, kill switches (2FA) and
+ * change history. Since I11 every flip runs through
+ * `lib/platform/feature-flags-store`: the change persists under
+ * `pfaas:platform-admin:feature-flags`, writes a Platform Audit Log row
+ * and emits a lifecycle event — the "Change history" panel below is the
+ * named consumer of those events (it projects `kind === "flag"` rows out
+ * of the shared log), so a toast is feedback, never the record.
+ *
+ * UC-P1 — before any flip the confirm dialog shows the blast radius
+ * computed from the tenant-store ("affects N tenants · M accounts") and
+ * lists the affected tenants; global flags stage the rollout 0 → 25 →
+ * 50 → 100 % with a per-stage audit and an auto-rollback criterion the
+ * operator states at flip time.
  */
 
 import { useState } from "react";
@@ -14,92 +25,213 @@ import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/platform/status";
-import { Flag, ToggleLeft, ToggleRight, AlertTriangle, CheckCircle2 } from "lucide-react";
+import {
+  Flag,
+  ToggleLeft,
+  ToggleRight,
+  AlertTriangle,
+  History,
+  Rocket,
+  Undo2,
+  Pencil,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { SensitiveActionDialog } from "@/components/platform/sensitive-action-dialog";
-import { TwoFactorDialog } from "@/components/platform/two-factor-dialog";
+import { usePlatform } from "@/lib/platform/platform-context";
+import { useLifecycleLog } from "@pfaas/lifecycle";
+import {
+  useFeatureFlags,
+  blastRadiusFor,
+  setFlagEnabled,
+  advanceRollout,
+  rollbackRollout,
+  setRolloutCriterion,
+  ROLLOUT_STAGES,
+  type RolloutStage,
+} from "@/lib/platform/feature-flags-store";
 
-interface FeatureFlag {
-  id: string;
-  name: string;
-  description: string;
-  scope: "global" | "tenant-override" | "environment";
-  enabled: boolean;
-  isKillSwitch?: boolean;
-  updatedBy: string;
-  updatedAt: string;
+const scopeTone = (s: string) =>
+  s === "global" ? "info" : s === "tenant-override" ? "warning" : "muted";
+
+type DialogMode = "flip" | "stage" | "rollback" | "criterion";
+
+interface ConfirmState {
+  flagId: string;
+  mode: DialogMode;
+  /** Target stage for `stage` mode. */
+  stage?: RolloutStage;
 }
 
-const initialFlags: FeatureFlag[] = [
-  { id: "evaluation-pause", name: "Evaluation Pause", description: "Pause all challenge evaluations globally.", scope: "global", enabled: false, isKillSwitch: true, updatedBy: "Sarah Chen", updatedAt: "5d ago" },
-  { id: "auto-approval", name: "Auto-Approval", description: "Enable automatic payout approvals.", scope: "global", enabled: true, updatedBy: "Marcus Webb", updatedAt: "12d ago" },
-  { id: "payment-rail", name: "Payment Rail Override", description: "Force payment routing through Match2Pay (instead of NOWPayments).", scope: "environment", enabled: false, updatedBy: "Priya Nair", updatedAt: "3d ago" },
-  { id: "new-onboarding", name: "New Onboarding Flow", description: "Use the v2 tenant onboarding wizard.", scope: "global", enabled: true, updatedBy: "Sarah Chen", updatedAt: "8d ago" },
-  { id: "ai-insights-beta", name: "AI Insights (Beta)", description: "Enable AI-generated insights module.", scope: "global", enabled: true, updatedBy: "Daniel Cooper", updatedAt: "2d ago" },
-  { id: "experimental-chart", name: "Experimental Chart Library", description: "Use the new charting library (D3 instead of Recharts).", scope: "environment", enabled: false, updatedBy: "Elena Rossi", updatedAt: "1d ago" },
-  { id: "mobile-app", name: "Mobile App Access", description: "Enable the mobile companion app for traders.", scope: "tenant-override", enabled: true, updatedBy: "Sarah Chen", updatedAt: "20d ago" },
-  { id: "developer-api", name: "Developer API", description: "Enable the public Developer API for tenants.", scope: "global", enabled: true, updatedBy: "Marcus Webb", updatedAt: "15d ago" },
-];
+/* ------------------------------------------------------------------ */
+/* Change history — named consumer of the flag lifecycle events        */
+/* ------------------------------------------------------------------ */
 
-const scopeTone = (s: FeatureFlag["scope"]) =>
-  s === "global" ? "info" : s === "tenant-override" ? "warning" : "muted";
+function historyLine(e: { name: string; payload: Record<string, unknown>; at: string; actor: string }): string {
+  const p = e.payload;
+  if (e.name === "feature-flag.rollout-stage")
+    return `Rollout ${String(p.from)}% → ${String(p.to)}% · affects ${String(p.affectedTenants)} tenant(s)`;
+  if (e.name === "feature-flag.rollout-rollback")
+    return `Rolled back ${String(p.from)}% → ${String(p.to)}%${p.reason ? ` · ${String(p.reason)}` : ""}`;
+  if (p.change === "criterion") return `Rollback criterion updated → "${String(p.criterion)}"`;
+  return `${p.enabled ? "Enabled" : "Disabled"}${p.stage != null && p.enabled ? ` · rollout ${String(p.stage)}%` : ""} · affects ${String(p.affectedTenants)} tenant(s), ${String(p.affectedAccounts)} account(s)`;
+}
+
+function ChangeHistory({ events }: { events: ReturnType<typeof useLifecycleLog> }) {
+  const rows = events.filter((e) => e.entity.kind === "flag").slice(-8).reverse();
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <History className="h-4 w-4 text-muted-foreground" aria-hidden />
+          <div>
+            <p className="text-sm font-semibold">Change history</p>
+            <p className="text-[11px] text-muted-foreground">
+              Every flip, stage advance and rollback — projected from the shared lifecycle log
+              (the named consumer of <code>feature-flag.*</code> events) plus the Platform Audit
+              Log row.
+            </p>
+          </div>
+        </div>
+        {rows.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No flag changes recorded yet — flip a flag to see the trail here.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border/60">
+            {rows.map((e) => (
+              <li key={e.id} className="flex items-start justify-between gap-3 py-2 text-xs">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{historyLine(e)}</p>
+                  <p className="text-muted-foreground">
+                    {e.name} · by {e.actor} · entity <code>{e.entity.id}</code>
+                  </p>
+                </div>
+                <span className="shrink-0 text-muted-foreground">
+                  {new Date(e.at).toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
 
 export function FeatureFlagsPage() {
   // Async seam (frontend-first): hydrate via the mock layer so the
-  // loading skeleton + error/retry states are exercised; local
-  // interactive state below stays authoritative once loaded.
+  // loading skeleton + error/retry states are exercised; the persisted
+  // store below is authoritative once loaded.
   const {
     data: hydrated,
     loading,
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const [flags, setFlags] = useState<FeatureFlag[]>(initialFlags);
-  const [pendingKillSwitchId, setPendingKillSwitchId] = useState<string | null>(null);
+  const flags = useFeatureFlags();
+  const events = useLifecycleLog();
+  const { user } = usePlatform();
+  const actor = user?.name ?? "Platform operator";
 
-  const toggleFlag = (id: string) => {
-    const flag = flags.find((f) => f.id === id);
-    if (!flag) return;
-    if (flag.isKillSwitch) {
-      // Kill switches require 2FA via SensitiveActionDialog
-      setPendingKillSwitchId(id);
+  const [pendingKillSwitchId, setPendingKillSwitchId] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const [stageDraft, setStageDraft] = useState<RolloutStage>(100);
+  const [criterionDraft, setCriterionDraft] = useState("");
+  const [reasonDraft, setReasonDraft] = useState("");
+  const [tenantDraft, setTenantDraft] = useState<string[]>([]);
+
+  const flag = confirm ? flags.find((f) => f.id === confirm.flagId) ?? null : null;
+  const radius = flag ? blastRadiusFor(flag, confirm?.mode === "flip" && flag.scope === "tenant-override" ? tenantDraft : undefined) : null;
+
+  const openConfirm = (f: (typeof flags)[number], mode: DialogMode, stage?: RolloutStage) => {
+    setStageDraft(stage ?? nextStage(f));
+    setCriterionDraft(f.rollout?.criterion ?? "");
+    setReasonDraft("");
+    if (f.scope === "tenant-override") {
+      setTenantDraft(
+        f.enabled
+          ? blastRadiusFor(f).tenants.map((t) => t.id)
+          : [],
+      );
+    }
+    setConfirm({ flagId: f.id, mode, stage });
+  };
+
+  const closeConfirm = () => setConfirm(null);
+
+  const submitConfirm = () => {
+    if (!flag || !confirm) return;
+    const reason = reasonDraft.trim();
+    if (confirm.mode === "rollback" && !reason) {
+      toast({
+        title: "Reason required",
+        description: "A rollback must say why it was pulled back.",
+        variant: "destructive",
+      });
       return;
     }
-    setFlags((prev) =>
-      prev.map((f) => {
-        if (f.id === id) {
-          const next = { ...f, enabled: !f.enabled };
-          toast({
-            title: `${f.name} ${next.enabled ? "enabled" : "disabled"}`,
-            description: `Scope: ${next.scope} · ${next.isKillSwitch ? "⚠ Kill switch — affects ALL tenants. " : ""}Change audited.`,
-            variant: next.isKillSwitch && next.enabled ? "destructive" : "default",
-          });
-          return next;
-        }
-        return f;
-      }),
-    );
+    if (confirm.mode === "flip") {
+      const stage = flag.scope === "global" ? stageDraft : 100;
+      setFlagEnabled(flag.id, !flag.enabled, {
+        actor,
+        stage,
+        criterion: criterionDraft,
+        reason,
+        tenantIds: tenantDraft,
+      });
+      toast({
+        title: `${flag.name} ${!flag.enabled ? "enabled" : "disabled"}`,
+        description: `Affects ${radius?.tenants.length ?? 0} tenant(s) · ${radius?.accounts ?? 0} account(s)${flag.scope === "global" ? ` · rollout ${stage}%` : ""}. Persisted + audited (Demo).`,
+        variant: flag.isKillSwitch && !flag.enabled ? "destructive" : "default",
+      });
+    } else if (confirm.mode === "stage" && confirm.stage != null) {
+      advanceRollout(flag.id, confirm.stage, { actor, criterion: criterionDraft, reason });
+      toast({
+        title: `Rollout advanced to ${confirm.stage}%`,
+        description: `Affects ${radius?.tenants.length ?? 0} tenant(s) · ${radius?.accounts ?? 0} account(s). Stage audited (Demo).`,
+      });
+    } else if (confirm.mode === "rollback") {
+      rollbackRollout(flag.id, { actor, reason });
+      toast({
+        title: "Rollout rolled back",
+        description: reason,
+        variant: "destructive",
+      });
+    } else if (confirm.mode === "criterion") {
+      setRolloutCriterion(flag.id, criterionDraft, { actor });
+      toast({ title: "Rollback criterion saved", description: criterionDraft || "Cleared." });
+    }
+    closeConfirm();
   };
 
   const handleKillSwitchExecute = async (reason: string) => {
-    const flag = flags.find((f) => f.id === pendingKillSwitchId);
-    if (!flag) return;
-    setFlags((prev) =>
-      prev.map((f) => {
-        if (f.id === flag.id) {
-          const next = { ...f, enabled: !f.enabled };
-          toast({
-            title: `${f.name} ${next.enabled ? "enabled" : "disabled"}`,
-            description: `Scope: ${next.scope} · Kill switch change audited. Reason: ${reason}.`,
-            variant: next.isKillSwitch && next.enabled ? "destructive" : "default",
-          });
-          return next;
-        }
-        return f;
-      }),
-    );
+    const target = flags.find((f) => f.id === pendingKillSwitchId);
+    if (!target) return;
+    const r = blastRadiusFor(target);
+    setFlagEnabled(target.id, !target.enabled, { actor, reason, stage: 100 });
+    toast({
+      title: `${target.name} ${!target.enabled ? "enabled" : "disabled"}`,
+      description: `Kill switch — affects ${r.tenants.length} tenant(s), ${r.accounts} account(s). 2FA + audit recorded (Demo).`,
+      variant: !target.enabled ? "destructive" : "default",
+    });
     setPendingKillSwitchId(null);
   };
 
@@ -112,7 +244,7 @@ export function FeatureFlagsPage() {
     <Page>
       <PageHeader
         title="Feature Flags"
-        description="Global and environment-level feature toggles. Kill switches require 2FA."
+        description="Global and environment-level feature toggles. Kill switches require 2FA; every change persists and is audited."
         icon={Flag}
       />
       <PageContent>
@@ -140,7 +272,10 @@ export function FeatureFlagsPage() {
         )}
 
         <div className="grid gap-3 sm:grid-cols-2">
-          {flags.map((f) => (
+          {flags.map((f) => {
+            const r = blastRadiusFor(f);
+            const next = nextStage(f);
+            return (
             <Card key={f.id} className={cn(f.isKillSwitch && f.enabled && "border-rose-500/40 ring-1 ring-rose-500/20")}>
               <CardContent className="p-3">
                 <div className="flex items-start gap-3">
@@ -157,22 +292,89 @@ export function FeatureFlagsPage() {
                           KILL SWITCH
                         </Badge>
                       )}
+                      {f.rollout && (
+                        <Badge variant="outline" className="text-[9px]">
+                          ROLLOUT {f.rollout.stage}%
+                        </Badge>
+                      )}
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{f.description}</p>
-                    <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+
+                    {/* UC-P1 — blast radius, computed before the flip */}
+                    <p className="mt-1.5 text-[11px] font-medium text-foreground/80">
+                      Affects {r.tenants.length} tenant{r.tenants.length === 1 ? "" : "s"} · {r.accounts.toLocaleString()} account{r.accounts === 1 ? "" : "s"}
+                    </p>
+
+                    {f.rollout && (
+                      <div className="mt-1.5 rounded-md bg-muted/50 p-2 text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Rocket className="h-3 w-3" aria-hidden />
+                          <span>
+                            Rollout {f.rollout.stage}% of {r.tenants.length} tenant(s)
+                          </span>
+                        </div>
+                        <p className="mt-1">
+                          Auto-rollback if: <span className="text-foreground/80">{f.rollout.criterion}</span>
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
                       <StatusBadge tone={scopeTone(f.scope)}>{f.scope}</StatusBadge>
-                      <span>Updated by {f.updatedBy} · {f.updatedAt}</span>
+                      <span>Updated by {f.updatedBy} · {new Date(f.updatedAt).toLocaleDateString()}</span>
                     </div>
                   </div>
                   <Switch
                     checked={f.enabled}
-                    onCheckedChange={() => toggleFlag(f.id)}
+                    onCheckedChange={() =>
+                      f.isKillSwitch
+                        ? setPendingKillSwitchId(f.id)
+                        : openConfirm(f, "flip")
+                    }
                     aria-label={`Toggle ${f.name}`}
                   />
                 </div>
+
+                {/* UC-P1 — staged rollout controls */}
+                {f.rollout && f.enabled && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {ROLLOUT_STAGES.filter((p) => p > f.rollout!.stage).map((p) => (
+                      <Button
+                        key={p}
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => openConfirm(f, "stage", p)}
+                      >
+                        Advance to {p}%
+                      </Button>
+                    ))}
+                    {f.rollout.stage > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-[10px] text-destructive"
+                        onClick={() => openConfirm(f, "rollback")}
+                      >
+                        <Undo2 className="mr-1 h-3 w-3" />
+                        Roll back
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-[10px]"
+                      onClick={() => openConfirm(f, "criterion")}
+                    >
+                      <Pencil className="mr-1 h-3 w-3" />
+                      Criterion
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
 
         {/* Dangerous flag notice */}
@@ -180,25 +382,208 @@ export function FeatureFlagsPage() {
           <p className="font-medium text-foreground">Dangerous flags</p>
           <p className="mt-1">
             Kill switches (evaluation pause, auto-approval force-off, payment rail override) require 2FA verification and are audited.
-            Tenant overrides affect only the specified tenant. Environment overrides affect the current deployment environment.
-            Global flags affect all tenants and all environments.
+            Tenant overrides affect only the selected tenants. Environment overrides affect the current deployment environment.
+            Global flags affect all tenants and all environments — staged 0/25/50/100 % with an auto-rollback criterion (Demo).
           </p>
         </div>
+
+        <ChangeHistory events={events} />
         </PageAsyncBoundary>
       </PageContent>
 
-      {/* Kill switch 2FA gate */}
+      {/* ----- Confirm dialog: blast radius + tenant list (+ stage) ----- */}
+      {flag && radius && (
+        <Dialog open onOpenChange={(o) => { if (!o) closeConfirm(); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                {confirm?.mode === "flip"
+                  ? `${flag.enabled ? "Disable" : "Enable"} ${flag.name}`
+                  : confirm?.mode === "stage"
+                    ? `Advance rollout — ${flag.name}`
+                    : confirm?.mode === "rollback"
+                      ? `Roll back ${flag.name}`
+                      : `Rollback criterion — ${flag.name}`}
+              </DialogTitle>
+              <DialogDescription>
+                {confirm?.mode === "flip"
+                  ? flag.enabled
+                    ? "Turning this off takes effect for every tenant listed below."
+                    : "Turning this on takes effect for every tenant listed below."
+                  : confirm?.mode === "stage"
+                    ? `Move the staged rollout to ${stageDraft}% of tenants.`
+                    : confirm?.mode === "rollback"
+                      ? "Pull the rollout back one stage — the reason is recorded in the audit trail."
+                      : "State the condition that makes this rollout pull back automatically (Demo policy: recorded, not auto-enforced)."}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              {/* Blast radius — computed from the tenant-store */}
+              <div className="rounded-md border bg-muted/40 p-3 text-xs">
+                <p className="font-semibold">
+                  Affects {radius.tenants.length} tenant{radius.tenants.length === 1 ? "" : "s"} · {radius.accounts.toLocaleString()} account{radius.accounts === 1 ? "" : "s"}
+                </p>
+                <p className="mt-0.5 text-muted-foreground">
+                  Scope {flag.scope} · computed from the tenant store before the change.
+                </p>
+                <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto">
+                  {radius.tenants.slice(0, 8).map((t) => (
+                    <li key={t.id} className="flex items-center justify-between gap-2">
+                      <span className="truncate">{t.name}</span>
+                      <Badge variant="outline" className="text-[9px]">{t.plan}</Badge>
+                    </li>
+                  ))}
+                  {radius.tenants.length > 8 && (
+                    <li className="text-muted-foreground">+{radius.tenants.length - 8} more tenant(s)</li>
+                  )}
+                  {radius.tenants.length === 0 && (
+                    <li className="text-muted-foreground">
+                      No tenant carries this override yet — pick tenants below.
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              {/* tenant-override: pick who carries it */}
+              {confirm?.mode === "flip" && flag.scope === "tenant-override" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tenants carrying this override</Label>
+                  <div className="max-h-32 space-y-1 overflow-y-auto rounded-md border p-2">
+                    {blastRadiusFor({ id: flag.id, scope: "global" }).tenants.map((t) => (
+                      <label key={t.id} className="flex cursor-pointer items-center gap-2 text-xs">
+                        <Checkbox
+                          checked={tenantDraft.includes(t.id)}
+                          onCheckedChange={(v) =>
+                            setTenantDraft((prev) =>
+                              v ? [...prev, t.id] : prev.filter((x) => x !== t.id),
+                            )
+                          }
+                        />
+                        <span>{t.name}</span>
+                        <span className="ml-auto text-muted-foreground">{t.plan}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* global: staged rollout target */}
+              {confirm?.mode === "flip" && flag.enabled === false && flag.scope === "global" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Staged rollout (0 / 25 / 50 / 100 % of tenants)</Label>
+                  <div className="flex gap-1.5">
+                    {ROLLOUT_STAGES.map((p) => (
+                      <Button
+                        key={p}
+                        size="sm"
+                        variant={stageDraft === p ? "default" : "outline"}
+                        className="h-7 flex-1 text-[11px]"
+                        onClick={() => setStageDraft(p)}
+                      >
+                        {p}%
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {confirm?.mode === "stage" && (
+                <div className="flex gap-1.5">
+                  {ROLLOUT_STAGES.filter((p) => p > flag.rollout!.stage).map((p) => (
+                    <Button
+                      key={p}
+                      size="sm"
+                      variant={stageDraft === p ? "default" : "outline"}
+                      className="h-7 flex-1 text-[11px]"
+                      onClick={() => setStageDraft(p)}
+                    >
+                      {p}%
+                    </Button>
+                  ))}
+                </div>
+              )}
+
+              {(confirm?.mode === "criterion" ||
+                (confirm?.mode === "stage" && flag.scope === "global") ||
+                (confirm?.mode === "flip" && flag.enabled === false && flag.scope === "global")) && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs" htmlFor="rollback-criterion">
+                    Auto-rollback criterion
+                  </Label>
+                  <Textarea
+                    id="rollback-criterion"
+                    value={criterionDraft}
+                    onChange={(e) => setCriterionDraft(e.target.value)}
+                    placeholder="e.g. error rate above 1% for 5 minutes, or checkout conversion drops 10%"
+                    className="min-h-[56px] text-xs"
+                  />
+                </div>
+              )}
+
+              {(confirm?.mode === "rollback" || confirm?.mode === "stage") && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs" htmlFor="flag-reason">
+                    Reason {confirm.mode === "rollback" ? "(required)" : "(optional)"}
+                  </Label>
+                  <Textarea
+                    id="flag-reason"
+                    value={reasonDraft}
+                    onChange={(e) => setReasonDraft(e.target.value)}
+                    placeholder={confirm.mode === "rollback" ? "Why is this being pulled back?" : "Why advance now?"}
+                    className="min-h-[56px] text-xs"
+                  />
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={closeConfirm}>Cancel</Button>
+              <Button onClick={submitConfirm}>
+                {confirm?.mode === "flip"
+                  ? flag.enabled
+                    ? "Disable flag"
+                    : flag.scope === "global"
+                      ? `Enable at ${stageDraft}%`
+                      : "Enable flag"
+                  : confirm?.mode === "stage"
+                    ? `Advance to ${stageDraft}%`
+                    : confirm?.mode === "rollback"
+                      ? "Roll back"
+                      : "Save criterion"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Kill switch 2FA gate — blast radius listed from the tenant store */}
       <SensitiveActionDialog
         open={pendingKillSwitchId !== null}
         onOpenChange={(o) => { if (!o) setPendingKillSwitchId(null); }}
         actionKey={pendingKillSwitchId ? `kill-switch-${pendingKillSwitchId}` : "kill-switch"}
         title="Kill switch toggle"
         consequence="Kill switches affect ALL tenants and environments. Confirm this action requires 2FA verification."
-        blastRadius={["All production services", "All active user sessions", "Global platform state"]}
+        blastRadius={(() => {
+          const target = flags.find((f) => f.id === pendingKillSwitchId);
+          if (!target) return ["All production services", "All active user sessions", "Global platform state"];
+          const r = blastRadiusFor(target);
+          return [
+            `${r.tenants.length} tenant(s) · ${r.accounts.toLocaleString()} account(s)`,
+            ...r.tenants.slice(0, 5).map((t) => `${t.name} (${t.plan})`),
+            ...(r.tenants.length > 5 ? [`+${r.tenants.length - 5} more tenant(s)`] : []),
+          ];
+        })()}
         confirmPhrase="Enable 2FA"
         requireReason
         onExecute={handleKillSwitchExecute}
       />
     </Page>
   );
+}
+
+/** Next staged-rollout step above the flag's current stage. */
+function nextStage(f: { rollout?: { stage: RolloutStage } }): RolloutStage {
+  if (!f.rollout) return 100;
+  return ROLLOUT_STAGES.find((p) => p > f.rollout!.stage) ?? 100;
 }
