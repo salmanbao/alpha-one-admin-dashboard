@@ -28,6 +28,7 @@ import {
   getTenantTraders,
   type TradingAccount,
 } from "@/lib/platform/mock-data";
+import { buildIpRecords, type IpRecord, type TriState } from "@/lib/ip-records";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge } from "@/components/platform/status";
@@ -69,117 +70,11 @@ import {
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/* Types & mock data                                                  */
+/* Types (re-exported from shared module)                              */
 /* ------------------------------------------------------------------ */
 
-type TriState = "unknown" | "yes" | "no";
-
-interface IpRecord {
-  id: string;
-  tenantId: string;
-  accountId: string;
-  accountLogin: string;
-  traderId: string;
-  traderName: string;
-  status: TradingAccount["status"];
-  phase: TradingAccount["phase"];
-  challenge: string;
-  ipAddress: string;
-  city: string;
-  country: string;
-  isProxy: TriState;
-  isHosting: TriState;
-  isMobile: TriState;
-  createdAt: string;
-  latitude: number;
-  longitude: number;
-}
-
-/** City/country lookup for trader country codes (deterministic). */
-const COUNTRY_INFO: Record<string, { city: string; country: string }> = {
-  US: { city: "New York", country: "United States" },
-  GB: { city: "London", country: "United Kingdom" },
-  AE: { city: "Dubai", country: "United Arab Emirates" },
-  SG: { city: "Singapore", country: "Singapore" },
-  DE: { city: "Frankfurt", country: "Germany" },
-  FR: { city: "Paris", country: "France" },
-  BR: { city: "São Paulo", country: "Brazil" },
-  IN: { city: "Mumbai", country: "India" },
-  ZA: { city: "Johannesburg", country: "South Africa" },
-  CA: { city: "Toronto", country: "Canada" },
-  AU: { city: "Sydney", country: "Australia" },
-  JP: { city: "Tokyo", country: "Japan" },
-  PK: { city: "Karachi", country: "Pakistan" },
-  NG: { city: "Lagos", country: "Nigeria" },
-};
-
-const CHALLENGE_NAMES = [
-  "2 step Gen Z",
-  "1 step Turbo",
-  "Instant Standard",
-  "3 step Pro",
-  "Instant Funded",
-  "Free Trial",
-  "Competition",
-];
-
-function hashStr(s: string): number {
-  let h = 7;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
-}
-
-/** Build a deterministic IP record list from tenant accounts. */
-function buildIpRecords(tenantId: string): IpRecord[] {
-  const accounts = getTenantAccounts(tenantId);
-  const traders = getTenantTraders(tenantId);
-  const traderById = new Map(traders.map((t) => [t.id, t]));
-  const now = Date.now();
-
-  return accounts.map((acct, idx) => {
-    const trader = traderById.get(acct.traderId);
-    const countryCode = trader?.country ?? "US";
-    const countryInfo = COUNTRY_INFO[countryCode] ?? COUNTRY_INFO.US;
-    // Deterministic IPv4: 192.168.(idx % 200).(idx % 255)
-    const octet3 = (idx * 7 + 11) % 200;
-    const octet4 = (idx * 13 + 23) % 255;
-    const ip = idx % 5 === 0
-      ? `203.0.${113 + (idx % 50)}.${(idx * 17 + 5) % 255}` // a hosting-looking IP for variety
-      : `192.168.${octet3}.${octet4}`;
-
-    // Tri-state for proxy / hosting / mobile — deterministic
-    const seed = hashStr(`${acct.id}-${ip}`);
-    const isProxy: TriState = seed % 7 === 0 ? "yes" : seed % 11 === 0 ? "unknown" : "no";
-    const isHosting: TriState = idx % 5 === 0 ? "yes" : idx % 9 === 0 ? "unknown" : "no";
-    const isMobile: TriState = idx % 6 === 4 ? "yes" : idx % 13 === 0 ? "unknown" : "no";
-
-    const challenge = CHALLENGE_NAMES[idx % CHALLENGE_NAMES.length];
-    const createdAtMs = now - ((idx % 30) + 1) * 24 * 60 * 60 * 1000 - (idx % 7) * 60 * 60 * 1000;
-    const latitude = 30 + (seed % 30);
-    const longitude = -120 + (seed % 240);
-
-    return {
-      id: `ip-${acct.id}-1`,
-      tenantId,
-      accountId: acct.id,
-      accountLogin: acct.login,
-      traderId: acct.traderId,
-      traderName: acct.traderName,
-      status: acct.status,
-      phase: acct.phase,
-      challenge,
-      ipAddress: ip,
-      city: countryInfo.city,
-      country: countryInfo.country,
-      isProxy,
-      isHosting,
-      isMobile,
-      createdAt: new Date(createdAtMs).toISOString(),
-      latitude,
-      longitude,
-    };
-  });
-}
+// Types imported from @/lib/ip-records: IpRecord, TriState
+// buildIpRecords imported from @/lib/ip-records
 
 function triStateBadge(v: TriState): { label: string; tone: "success" | "warning" | "muted" } {
   if (v === "yes") return { label: "Yes", tone: "warning" };
