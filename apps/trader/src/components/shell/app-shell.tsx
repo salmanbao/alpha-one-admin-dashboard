@@ -34,6 +34,7 @@ import { SessionExpiryBanner } from "../platform/session-expiry-banner";
 import { useInboxLifecycleBridge } from "@/lib/inbox/inbox-lifecycle-bridge";
 import { useCompetitionNotices } from "@/lib/inbox/competition-notices";
 import { useInboxMessages } from "@/lib/inbox/inbox-store";
+import { useAccountPause, usePauseSync, isPauseActive } from "@/lib/account/account-pause-store";
 import { getCurrentIdentity, removeSession } from "@/lib/session-store";
 
 const THEME_KEY = "terra-theme";
@@ -83,6 +84,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   // R6 — competition joins/claims + milestone notices (starts-in-24h,
   // final day, results/claim-window reminders) into the same inbox.
   useCompetitionNotices();
+
+  // R9 W5 UC-T9 — apply pause verdicts from prop-admin; the banner below
+  // shows "Paused until {date}" wherever the trader is.
+  usePauseSync();
+  const pauses = useAccountPause();
+  const activePause = Object.values(pauses).find(isPauseActive) ?? null;
 
   // Breadcrumb tail (audit #6) — must be computed with the other hooks, not
   // inline in JSX: the onboarding early return below would otherwise skip it
@@ -298,6 +305,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
+
+        {/* R9 W5 UC-T9 — "Paused until {date}" (account-context banner;
+            day counters are frozen while this shows). */}
+        {activePause && (
+          <div
+            className="border-b bg-warning-container/40 px-4 py-2 text-xs font-semibold text-on-warning-container md:px-6"
+            role="status"
+          >
+            ⏸ Account #{activePause.accountLogin} paused until{" "}
+            {new Date(activePause.until).toLocaleDateString()} — day counters frozen while the
+            pause is in force. (Demo)
+          </div>
+        )}
 
         {/* Breadcrumbs — pathname-based (audit #6: trader shell had none) */}
         <nav aria-label="Breadcrumb" className="bg-background/90 border-b px-4 py-2 md:px-6 backdrop-blur">

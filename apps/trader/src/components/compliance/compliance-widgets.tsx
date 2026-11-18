@@ -21,6 +21,7 @@ import {
   type ComplianceTrading,
   type DrawdownType,
 } from "@/lib/compliance/compliance-store";
+import { useAccountPause, activePauseFor } from "@/lib/account/account-pause-store";
 
 /* ------------------------------------------------------------------ */
 /* Consistency score                                                   */
@@ -56,6 +57,9 @@ export function ConsistencyScore({ snapshot }: { snapshot: ComplianceSnapshot })
 /* ------------------------------------------------------------------ */
 
 export function TradingDaysCounter({ snapshot }: { snapshot: ComplianceSnapshot }) {
+  // R9 W5 UC-T9 — an in-force account pause freezes the day counter.
+  const pauses = useAccountPause();
+  const frozen = activePauseFor(snapshot.accountId, pauses);
   const days = snapshot.days;
   if (!days) return null;
   return (
@@ -71,13 +75,19 @@ export function TradingDaysCounter({ snapshot }: { snapshot: ComplianceSnapshot 
       </div>
       <TerraProgress value={days.target > 0 ? Math.min(100, (days.current / days.target) * 100) : 100} height="h-2.5" />
       <p className="text-[11px] text-on-surface-variant">
-        {days.met
-          ? "Minimum met — every other rule can unlock the next step."
-          : `${days.target - days.current} more active trading day${days.target - days.current === 1 ? "" : "s"} required.`}
+        {frozen
+          ? `Day counter frozen until ${new Date(frozen.until).toLocaleDateString()} — the pause stops the clock, it does not add days.`
+          : days.met
+            ? "Minimum met — every other rule can unlock the next step."
+            : `${days.target - days.current} more active trading day${days.target - days.current === 1 ? "" : "s"} required.`}
       </p>
-      <TerraBadge tone={days.met ? "success" : "secondary"}>
-        {days.met ? "Minimum met" : "In progress"}
-      </TerraBadge>
+      {frozen ? (
+        <TerraBadge tone="tertiary">⏸ Paused until {new Date(frozen.until).toLocaleDateString()}</TerraBadge>
+      ) : (
+        <TerraBadge tone={days.met ? "success" : "secondary"}>
+          {days.met ? "Minimum met" : "In progress"}
+        </TerraBadge>
+      )}
     </div>
   );
 }

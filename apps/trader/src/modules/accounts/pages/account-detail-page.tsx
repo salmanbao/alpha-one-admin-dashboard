@@ -36,11 +36,28 @@ import { useTrading } from "@/lib/trading/trading-context";
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
 import { useRovingTabs } from "@/lib/a11y/roving-tabs";
 import { toast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  useAccountPause,
+  activePauseFor,
+  requestPause,
+  PAUSE_MAX_DAYS,
+} from "@/lib/account/account-pause-store";
 
 const detailTabs = ["Charts & Analytics", "Trade History", "Credentials"] as const;
 
 export function AccountDetailPage() {
   const [tab, setTab] = useState<(typeof detailTabs)[number]>("Charts & Analytics");
+  // R9 W5 UC-T9 — pause request dialog + days picker (persisted, §1 rule 1).
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [pauseDays, setPauseDays] = useState(7);
   // Keyboard support for the tab strip (audit finding #3): arrow keys,
   // Home/End, roving tabindex, tab↔panel ARIA wiring.
   const tabs = useRovingTabs(detailTabs, tab, setTab, "account-detail");
@@ -48,6 +65,10 @@ export function AccountDetailPage() {
   // active account from the header switcher (URL and switcher stay in sync).
   const params = useSearchParams();
   const acc = useSyncActiveAccount(params.get("id"));
+  // R9 W5 UC-T9 — this account's pause record (pending / approved / rejected).
+  const pauses = useAccountPause();
+  const pause = pauses[acc.id];
+  const pauseActive = activePauseFor(acc.id, pauses);
   // R7 I1 — positions/trades/charts read the persistent trading store so
   // this account's history and equity follow closes taken this session.
   const { positions, closedTrades, realizedByAccount } = useTrading();
@@ -94,6 +115,22 @@ export function AccountDetailPage() {
     });
   };
 
+  // R9 W5 UC-T9 — request a pause (max PAUSE_MAX_DAYS, Demo policy). The
+  // request persists and queues in prop-admin; the verdict comes back via
+  // the lifecycle log (usePauseSync) + an inbox receipt.
+  const handleRequestPause = () => {
+    const res = requestPause({ id: acc.id, login: acc.login, name: acc.name }, Number(pauseDays));
+    if (!res.ok) {
+      toast({ title: "Pause not requested", description: res.reason, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: "Pause requested",
+      description: `${res.record.days} day(s) requested — awaiting operator approval. The decision lands in your inbox.`,
+    });
+    setPauseOpen(false);
+  };
+
   return (
     <div className="space-y-6">
       <TerraPageHeader
@@ -115,9 +152,52 @@ export function AccountDetailPage() {
             >
               Credentials ↓
             </button>
+            {/* R9 W5 UC-T9 — request a pause while none is pending/active
+                (a rejected request may be re-requested). */}
+            {(!pause || pause.status === "rejected") && (
+              <button
+                type="button"
+                onClick={() => setPauseOpen(true)}
+                aria-label="Request an account pause"
+                className="rounded-xl border border-outline-variant px-3.5 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-low"
+              >
+                ⏸ Request pause
+              </button>
+            )}
           </>
         }
       />
+
+      {/* R9 W5 UC-T9 — pause status (pending / paused / rejected). */}
+      {pause && pause.status === "pending" && (
+        <div className="rounded-xl bg-surface-container-high p-3 text-xs text-on-surface" role="status">
+          <strong className="block font-bold">⏸ Pause request pending</strong>
+          <p className="mt-1">
+            {pause.days} day(s) requested on {new Date(pause.requestedAt).toLocaleDateString()} —
+            awaiting operator decision. Day counters keep running until it is approved.
+          </p>
+        </div>
+      )}
+      {pauseActive && (
+        <div className="rounded-xl bg-warning-container/40 p-3 text-xs text-on-warning-container" role="status">
+          <strong className="block font-bold">
+            ⏸ Paused until {new Date(pauseActive.until).toLocaleDateString()}
+          </strong>
+          <p className="mt-1">
+            Account paused for {pauseActive.days} day(s) — trading-day counters are frozen until the
+            pause ends. (Demo)
+          </p>
+        </div>
+      )}
+      {pause?.status === "rejected" && (
+        <div className="rounded-xl bg-error-container/60 p-3 text-xs text-on-error-container" role="status">
+          <strong className="block font-bold">⏸ Pause request rejected</strong>
+          <p className="mt-1">
+            {pause.reason ? `Reason: ${pause.reason}` : "The operator declined this pause request."}{" "}
+            You can request a new pause below.
+          </p>
+        </div>
+      )}
 
       {/* KPI grid */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -477,6 +557,60 @@ export function AccountDetailPage() {
           <AccountCredentials account={acc} />
         </TerraCard>
         </div>
+      )}
+
+      {/* R9 W5 UC-T9 — pause request dialog (max PAUSE_MAX_DAYS days). */}
+      {pauseOpen && (
+        <Dialog open onOpenChange={(open) => !open && setPauseOpen(false)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Request account pause</DialogTitle>
+              <DialogDescription>
+                Pause #{acc.login} ({acc.name}) for up to {PAUSE_MAX_DAYS} days. An operator
+                approves or rejects the request — trading-day counters only freeze once it is
+                approved.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                  Pause length (1–{PAUSE_MAX_DAYS} days)
+                </span>
+                <select
+                  value={pauseDays}
+                  onChange={(e) => setPauseDays(Number(e.target.value))}
+                  className="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm outline-none focus:border-primary"
+                >
+                  {Array.from({ length: PAUSE_MAX_DAYS }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={d}>
+                      {d} day{d === 1 ? "" : "s"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-[11px] text-on-surface-variant">
+                Policy cap: {PAUSE_MAX_DAYS} days (Demo). The request is queued for an operator in
+                the firm&apos;s pending tasks; the decision arrives in your inbox.
+              </p>
+            </div>
+            <DialogFooter>
+              <button
+                type="button"
+                onClick={() => setPauseOpen(false)}
+                className="rounded-xl border border-outline-variant px-4 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-low"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRequestPause}
+                className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary hover:bg-primary/90"
+              >
+                Request pause
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

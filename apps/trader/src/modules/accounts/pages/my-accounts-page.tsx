@@ -19,6 +19,7 @@ import {
 import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
 import { useLifecycleLog } from "@pfaas/lifecycle";
 import { useActiveAccount } from "@/lib/platform/account-context";
+import { useAccountPause, isPauseActive } from "@/lib/account/account-pause-store";
 import { toast } from "@/hooks/use-toast";
 import { ComplianceSummaryStrip } from "@/components/compliance/compliance-summary-strip";
 
@@ -40,6 +41,8 @@ export function MyAccountsPage() {
   // current card and to power the per-card "Set active" action.
   const { activeAccountId, setActiveAccountId } = useActiveAccount();
   const lifecycleEvents = useLifecycleLog();
+  // R9 W5 UC-T9 — pause records per account ("Paused until {date}" cards).
+  const pauses = useAccountPause();
   const flaggedAccounts = new Set(
     lifecycleEvents
       .filter((e) => e.name === "risk.alert.raised")
@@ -76,6 +79,7 @@ export function MyAccountsPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {terraAccounts.map((acc) => {
           const isActive = acc.id === activeAccountId;
+          const pause = pauses[acc.id];
           return (
           <TerraCard
             key={acc.id}
@@ -116,6 +120,26 @@ export function MyAccountsPage() {
                   : `Server ${acc.server} • ${acc.phase} progress`}
               </p>
             </div>
+
+            {/* R9 W5 UC-T9 — pause state (account-context surface). */}
+            {isPauseActive(pause) && (
+              <div
+                className="rounded-xl bg-warning-container/40 px-3 py-2 text-xs font-semibold text-on-warning-container"
+                role="status"
+              >
+                ⏸ Paused until {new Date(pause.until).toLocaleDateString()} — day counters frozen
+                while the pause is in force. (Demo)
+              </div>
+            )}
+            {pause?.status === "pending" && (
+              <div
+                className="rounded-xl bg-surface-container-high px-3 py-2 text-xs text-on-surface"
+                role="status"
+              >
+                ⏸ Pause request pending — awaiting operator decision ({pause.days} day
+                {pause.days === 1 ? "" : "s"}).
+              </div>
+            )}
 
             {/* KPI mini-cards */}
             <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface-container-low p-3 sm:gap-3">
