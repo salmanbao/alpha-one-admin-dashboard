@@ -184,6 +184,18 @@ export const LIFECYCLE_EVENT_NAMES = [
   // PO-x (Demo)") + the purchase-history/invoice ledger line (store field
   // the flip persists under pfaas:trader:purchases).
   "purchase.fee-refunded",
+  // Graduated enforcement ladder (R9 W4) — emitted by prop-admin
+  // lib/risk-rules-store when an account's rung advances or resets.
+  // Consumers: trader lib/ladder/ladder-store (syncs compliance config
+  // maxLots + ladderRung) + trader inbox-lifecycle-bridge receipt
+  // ("Risk enforcement — Warning (rung 1)").
+  "risk.ladder-moved",
+  "risk.ladder-reset",
+  // Collusion cluster escalation (R9 W4) — emitted by prop-admin
+  // lib/clusters-store when a cluster is escalated to the fraud queue.
+  // Consumers: prop-admin payout-fraud-store (manual flag appears in queue)
+  // + correlation-clusters view (status flips to escalated).
+  "risk.cluster-escalated",
 ] as const;
 
 export type LifecycleEventName = (typeof LIFECYCLE_EVENT_NAMES)[number];
@@ -456,6 +468,9 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "payout.fraud-blocked": "Fraud flag blocked",
   "payout.fraud-escalated": "Fraud flag escalated",
   "purchase.fee-refunded": "Challenge fee refunded",
+  "risk.ladder-moved": "Ladder rung advanced",
+  "risk.ladder-reset": "Ladder rung reset",
+  "risk.cluster-escalated": "Cluster escalated to fraud",
 };
 
 /**
