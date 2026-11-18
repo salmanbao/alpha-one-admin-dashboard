@@ -106,6 +106,18 @@ export interface ComplianceConfig {
    * their numbers are computed from.
    */
   ruleVersionId?: string;
+  /**
+   * R9 W4 — maximum lot size allowed on the order ticket (size-cap rung).
+   * Written by the ladder-moved event consumer (lib/ladder/ladder-store).
+   * When set, the order ticket clamps the lots input to this value.
+   */
+  maxLots?: number;
+  /**
+   * R9 W4 — current enforcement ladder rung (0=warn, 1=size-cap, 2=suspend, 3=breach).
+   * Written by the ladder-moved event consumer; shown as a chip on the
+   * risk dashboard and enforced by the order ticket.
+   */
+  ladderRung?: number;
 }
 
 export type ViolationType = "daily-loss" | "max-drawdown" | "consistency";
@@ -308,6 +320,34 @@ export function setRuleVersionForAccount(accountId: string, ruleVersionId: strin
   commit({
     ...state,
     accounts: { ...state.accounts, [accountId]: { ...cfg, ruleVersionId } },
+  });
+}
+
+/**
+ * R9 W4 — set the max-lots cap for an account (size-cap rung).
+ * Written by the ladder-moved event consumer (lib/ladder/ladder-store).
+ * Silent no-op when unchanged so the projection can call it on every
+ * lifecycle-log update without looping.
+ */
+export function setMaxLotsForAccount(accountId: string, maxLots: number | undefined): void {
+  const cfg = state.accounts[accountId] ?? seedConfigFor(accountId);
+  if (!cfg || cfg.maxLots === maxLots) return;
+  commit({
+    ...state,
+    accounts: { ...state.accounts, [accountId]: { ...cfg, maxLots } },
+  });
+}
+
+/**
+ * R9 W4 — set the ladder rung for an account.
+ * Written by the ladder-moved event consumer (lib/ladder/ladder-store).
+ */
+export function setLadderRungForAccount(accountId: string, ladderRung: number | undefined): void {
+  const cfg = state.accounts[accountId] ?? seedConfigFor(accountId);
+  if (!cfg || cfg.ladderRung === ladderRung) return;
+  commit({
+    ...state,
+    accounts: { ...state.accounts, [accountId]: { ...cfg, ladderRung } },
   });
 }
 

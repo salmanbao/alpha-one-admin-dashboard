@@ -378,6 +378,33 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         actionHref: "/risk-dashboard",
       };
     }
+    case "risk.ladder-moved": {
+      // R9 W4 — graduated enforcement rung move (UC-O7). The trader sees
+      // which rung they moved to and what the next step is.
+      const rung = Number(e.payload?.rung);
+      const rungName = String(e.payload?.rungName ?? "warn");
+      const ruleName = String(e.payload?.ruleName ?? "Risk rule");
+      const detail = typeof e.payload?.detail === "string" ? e.payload.detail : "";
+      const rungLabel =
+        rungName === "warn" ? "Warning" :
+        rungName === "size-cap" ? "Size cap" :
+        rungName === "suspend" ? "Suspension" : "Breach";
+      const nextStep =
+        rungName === "warn" ? "next step: size cap" :
+        rungName === "size-cap" ? "next step: suspension" :
+        rungName === "suspend" ? "next step: breach" : "account breach";
+      return {
+        id: `inbox:${e.id}:ladder-moved`,
+        subject: `Risk enforcement — ${rungLabel} (rung ${rung})`,
+        body: `Your account has been moved to the ${rungLabel} rung (${nextStep}) after a repeat violation of ${ruleName}. ${detail} Rule: ${ruleName}. Contact support if you believe this is an error.`,
+        category: "Trading",
+        sender: "Risk Team",
+        at: e.at,
+        read: false,
+        actionType: "risk",
+        actionHref: "/risk-dashboard",
+      };
+    }
     case "rules.version-published": {
       // R9 W1 — the trader's copy of an operator publish (UC-T2). Lists the
       // actual from → to diffs and states the grandfathering promise

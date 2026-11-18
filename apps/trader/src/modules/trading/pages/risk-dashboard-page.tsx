@@ -144,6 +144,23 @@ export function RiskDashboardPage() {
         description={`${acc.name} • Login #${acc.login} • compliance & payout readiness`}
         actions={
           <>
+            {/* R9 W4 — enforcement ladder chip (UC-T7). Shows current rung
+                and next step when the account has been escalated. */}
+            {(() => {
+              const rung = snapshot.config.ladderRung ?? 0;
+              const maxLots = snapshot.config.maxLots;
+              if (rung === 0) return null;
+              const rungLabel =
+                rung === 1 ? `Warning 1 of 3 — next step: size cap` :
+                rung === 2 ? `Size cap — next step: suspension` :
+                rung === 3 ? `Suspension — next step: breach` : `Breach`;
+              const tone = rung >= 2 ? "error" : "tertiary";
+              return (
+                <TerraBadge tone={tone} dot pulse={rung >= 2}>
+                  {rungLabel}{maxLots !== undefined && rung === 1 ? ` (max ${maxLots.toFixed(2)} lots)` : ""}
+                </TerraBadge>
+              );
+            })()}
             {/* R9 W1 — which published rule version these numbers are
                 computed from (ComplianceConfig.ruleVersionId). */}
             <TerraBadge tone="neutral">

@@ -27,6 +27,8 @@ import { RiskWarningBanner } from "@/components/terra/risk-warning-banner";
 import { markJourney } from "@/lib/onboarding/journey-store";
 import { PreTradeGuard, computeGuardVerdict, type GuardVerdict } from "@/components/compliance/pre-trade-guard";
 import { useComplianceSnapshot } from "@/lib/compliance/compliance-store";
+import { checkOrderEnforcement, useLadderStore } from "@/lib/ladder/ladder-store";
+import { toast } from "@/hooks/use-toast";
 
 const orderTypes = [
   "Market Execution",
@@ -89,6 +91,20 @@ export function OrderTicketPage() {
   const complianceSnapshot = useComplianceSnapshot(activeAccount.id);
   const [amberConfirmed, setAmberConfirmed] = useState(false);
 
+  // R9 W4 UC-T7 — ladder enforcement (size-cap / suspend / breach)
+  const ladderState = useLadderStore();
+  const enforcement = checkOrderEnforcement(activeAccount.id, Number(lots) || 0);
+  const isLadderBlocked = enforcement.blocked;
+  const ladderBlockReason = enforcement.blockReason;
+  const ladderMaxLots = enforcement.maxLots;
+
+  // Auto-clamp lots input when size-cap is active
+  useEffect(() => {
+    if (ladderMaxLots !== undefined && Number(lots) > ladderMaxLots) {
+      setLots(ladderMaxLots.toFixed(2));
+    }
+  }, [ladderMaxLots, lots]);
+
   const pipSizeVal = pipSize(symbol);
   const slDistance = sl !== "" && Number(sl) > 0 ? Math.abs((side === "buy" ? selected.ask : selected.bid) - Number(sl)) / pipSizeVal : 0;
   const guardVerdict = computeGuardVerdict({
@@ -99,10 +115,14 @@ export function OrderTicketPage() {
     side,
   });
   const verdict: GuardVerdict = guardVerdict.verdict;
-  const isBlocked = verdict === "red";
+  const isBlocked = verdict === "red" || isLadderBlocked;
   const needsConfirm = verdict === "amber" && !amberConfirmed;
 
   const handlePlaceOrder = () => {
+    if (isLadderBlocked) {
+      toast({ title: "Order blocked", description: ladderBlockReason, variant: "destructive" });
+      return;
+    }
     if (isBlocked) return;
     if (needsConfirm) {
       // Amber verdict requires explicit confirmation
@@ -112,10 +132,13 @@ export function OrderTicketPage() {
       if (!confirmed) return;
       setAmberConfirmed(true);
     }
+    // R9 W4 — clamp to size-cap if active
+    const requestedLots = Number(lots) || 0.01;
+    const clampedLots = ladderMaxLots !== undefined ? Math.min(requestedLots, ladderMaxLots) : requestedLots;
     placeOrder(activeAccount.id, {
       symbol,
       side,
-      lots: Number(lots) || 0.01,
+      lots: clampedLots,
       orderType,
       price: isPending ? Number(entryPrice) : undefined,
       sl: sl === "" ? null : Number(sl),
@@ -320,6 +343,20 @@ export function OrderTicketPage() {
                 </label>
               </div>
 
+              {/* R9 W4 — ladder enforcement banner */}
+              {isLadderBlocked && (
+                <div className="rounded-xl bg-error-container/60 p-3 text-xs text-on-error-container" role="alert">
+                  <strong className="block font-bold">⛔ Order blocked — enforcement ladder</strong>
+                  <p className="mt-1">{ladderBlockReason}</p>
+                </div>
+              )}
+              {ladderMaxLots !== undefined && !isLadderBlocked && (
+                <div className="rounded-xl bg-warning-container/40 p-3 text-xs text-on-warning-container" role="status">
+                  <strong className="block font-bold">⚠ Size cap active</strong>
+                  <p className="mt-1">Maximum {ladderMaxLots.toFixed(2)} lots per order (rung 1 enforcement). Orders above this are clamped.</p>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={isBlocked}
@@ -331,7 +368,7 @@ export function OrderTicketPage() {
                   isBlocked && "opacity-50 cursor-not-allowed",
                 )}
               >
-                {isBlocked ? "⛔ Blocked — see compliance guard" : (
+                {isLadderBlocked ? "⛔ Blocked — enforcement ladder" : isBlocked ? "⛔ Blocked — see compliance guard" : (
                   <>
                     {side === "buy" ? "Buy" : "Sell"} {lots || "0.00"} {symbol} @{" "}
                     {isPending ? entryPrice || "—" : side === "buy" ? selected.ask : selected.bid}
