@@ -14,12 +14,13 @@
  * tenant's detail page.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import { tenantModuleCatalog } from "@/lib/platform/module-catalog";
 import type { TenantContext } from "@/lib/platform/types";
 import { startProvisioning } from "@/lib/platform/provisioning-saga";
+import { openRun, stampStage, finishRun } from "@/lib/platform/onboarding-runs-store";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -511,6 +512,12 @@ export function CreateTenantPage() {
   // starting point of the form in front of them.
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
 
+  // UC-P3 — open a time-to-value run so stage entries stamp; an
+  // unfinished run resumes with its original startedAt instead.
+  useEffect(() => {
+    openRun("create-tenant");
+  }, []);
+
   const applyTemplate = (t: TenantTemplate) => {
     setState((s) => ({ ...s, ...t.patch }));
     setActiveTemplate(t.id);
@@ -549,7 +556,16 @@ export function CreateTenantPage() {
 
   const canNext = stepValid(step) && step < STEPS.length - 1;
   const canBack = step > 0;
-  const next = () => setStep((s) => Math.min(STEPS.length - 1, s + 1));
+  // UC-P3 — advancing means the operator has ENTERED the next stage;
+  // stamp it for the time-to-value panel (draft name, if any, labels
+  // the run before the tenant exists).
+  const next = () => {
+    if (step >= STEPS.length - 1) return;
+    stampStage("create-tenant", STEPS[step + 1].id, {
+      tenantName: state.name.trim() || undefined,
+    });
+    setStep(step + 1);
+  };
   const back = () => setStep((s) => Math.max(0, s - 1));
 
   /* ---- Create tenant ---- */
@@ -586,6 +602,10 @@ export function CreateTenantPage() {
     // tenant starts `provisioning` (03 §3.5 step 2) and the saga runner
     // drives it to `onboarding` on completion.
     registerTenant(newTenant);
+
+    // UC-P3 — close the time-to-value run ("Tenant created" stamped);
+    // days-to-live for this firm will be measured from goLive()'s liveAt.
+    finishRun("create-tenant", { tenantId: id, tenantName: newTenant.name });
 
     // Kick off the provisioning saga (CON-03 ← 03 §3.5). Sub-step 3a runs
     // only when the tenant contracted SSO.

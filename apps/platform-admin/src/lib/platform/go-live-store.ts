@@ -16,6 +16,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { stampStage, type RunContext } from "@/lib/platform/onboarding-runs-store";
 
 const STORAGE_KEY = "pfaas:platform-admin:go-live";
 
@@ -115,13 +116,23 @@ export function patchGoLive(patch: Partial<GoLiveProgress>): void {
   writeRaw({ ...readRaw(), ...patch });
 }
 
-/** Mark a step complete (idempotent) and park the cursor on `nextStep`. */
-export function completeStep(id: GoLiveStep, nextStep: number): void {
+/**
+ * Mark a step complete (idempotent) and park the cursor on `nextStep`.
+ *
+ * R9 W6 UC-P3: completing a step means the operator has ENTERED the
+ * next one, so this also stamps the time-to-value run
+ * (`onboarding-runs-store`). The first step's entry is the run's
+ * `startedAt`, written by `openRun` when the wizard mounts; `ctx`
+ * carries the run-level tenant facts (set with the tenant step).
+ */
+export function completeStep(id: GoLiveStep, nextStep: number, ctx?: RunContext): void {
   const cur = readRaw();
   const completed = cur.completed.includes(id)
     ? cur.completed
     : [...cur.completed, id];
   writeRaw({ ...cur, completed, step: nextStep });
+  const entered = GO_LIVE_STEPS[nextStep];
+  if (entered) stampStage("go-live", entered, ctx);
 }
 
 /** Back to step 0 with no tenant picked — target stores are untouched. */

@@ -28,10 +28,11 @@
  * owns that (CON-03).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { useTenants, updateTenant } from "@/lib/platform/tenant-store";
 import { recordAudit } from "@/lib/platform/console-store";
+import { openRun, finishRun } from "@/lib/platform/onboarding-runs-store";
 import {
   useIntegrationOverrides,
   setIntegrationOverride,
@@ -178,6 +179,12 @@ export function GoLiveWizardPage() {
   const [picks, setPicks] = useState<string[] | null>(null);
   const [riskDraft, setRiskDraft] = useState<TenantRiskParams | null>(null);
 
+  // UC-P3 — open a time-to-value run so stage entries stamp; an
+  // unfinished run resumes with its original startedAt instead.
+  useEffect(() => {
+    openRun("go-live");
+  }, []);
+
   const assignedIds = tenant
     ? SEED_INTEGRATIONS.filter((i) =>
         (overrides[i.id]?.assignedTenants ?? []).includes(tenant.id),
@@ -235,6 +242,9 @@ export function GoLiveWizardPage() {
 
   const restart = () => {
     resetGoLive();
+    // UC-P3 — if the previous attempt already finished, the next one
+    // gets its own time-to-value run (an unfinished one just resumes).
+    openRun("go-live");
     setMode("new");
     setForm(INITIAL_FORM);
     clearDrafts();
@@ -249,7 +259,7 @@ export function GoLiveWizardPage() {
       if (!target) return;
       clearDrafts();
       patchGoLive({ tenantId: target.id });
-      completeStep("tenant", 1);
+      completeStep("tenant", 1, { tenantId: target.id, tenantName: target.name });
       recordAudit({
         actor,
         action: "go_live.run_started",
@@ -291,7 +301,7 @@ export function GoLiveWizardPage() {
     registerTenant(newTenant);
     clearDrafts();
     patchGoLive({ tenantId: id });
-    completeStep("tenant", 1);
+    completeStep("tenant", 1, { tenantId: id, tenantName: newTenant.name });
     recordAudit({
       actor,
       action: "go_live.tenant_registered",
@@ -410,7 +420,12 @@ export function GoLiveWizardPage() {
 
   const goLive = () => {
     if (!tenant) return;
-    updateTenant(tenant.id, { status: "active" });
+    // liveAt is stamped once — first activation only — so days-to-live
+    // measures the firm's FIRST go-live (UC-P3).
+    updateTenant(tenant.id, {
+      status: "active",
+      liveAt: tenant.liveAt ?? new Date().toISOString(),
+    });
     recordAudit({
       actor,
       action: "go_live.completed",
@@ -419,6 +434,8 @@ export function GoLiveWizardPage() {
       severity: "info",
       detail: `Status → active · plan ${planLabel(planValue)} · KYC ${integrationName(kycValue || tenant.kycProvider || "manual")} · ${assignedIds.length || pickValue.length} connector(s) · risk ${riskValue.dailyLoss}/${riskValue.maxDd}/${riskValue.profitTarget}/${riskValue.minDays}`,
     });
+    // UC-P3 — close the time-to-value run ("Firm live" stamped).
+    finishRun("go-live", { tenantId: tenant.id, tenantName: tenant.name });
     patchGoLive({ done: true, step: STEP_META.length - 1 });
     pushNotification({
       title: "Tenant live",

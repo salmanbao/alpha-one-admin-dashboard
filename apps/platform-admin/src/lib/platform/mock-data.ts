@@ -88,6 +88,9 @@ export const tenants: TenantContext[] = [
     plan: "growth",
     status: "active",
     createdAt: daysAgo(220),
+    // First live 15 days after creation (15d time-to-value, UC-P3) —
+    // the seeded go-live run in onboarding-runs-store ends here too.
+    liveAt: daysAgo(205),
   },
   {
     id: "tenant-beta",
@@ -132,6 +135,8 @@ export const tenants: TenantContext[] = [
     plan: "scale",
     status: "active",
     createdAt: daysAgo(410),
+    // First live 30 days after creation — the platform's first live firm.
+    liveAt: daysAgo(380),
   },
   {
     id: "tenant-gamma",
@@ -175,6 +180,8 @@ export const tenants: TenantContext[] = [
     plan: "enterprise",
     status: "active",
     createdAt: daysAgo(95),
+    // First live 5 days after creation (fastest time-to-value, UC-P3).
+    liveAt: daysAgo(90),
   },
 ];
 

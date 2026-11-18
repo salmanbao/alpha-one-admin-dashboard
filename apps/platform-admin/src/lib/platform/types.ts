@@ -85,6 +85,13 @@ export interface TenantContext {
    */
   kycProvider?: string;
   createdAt: string;
+  /**
+   * When the firm went live — set the first time the go-live wizard
+   * flips `status` to `active`. `createdAt → liveAt` is the tenant
+   * onboarding time-to-value reported by the platform-analytics
+   * "Onboarding time to value" panel (R9 W6 UC-P3); absent until live.
+   */
+  liveAt?: string;
 }
 
 /* ------------------------------------------------------------------ */
