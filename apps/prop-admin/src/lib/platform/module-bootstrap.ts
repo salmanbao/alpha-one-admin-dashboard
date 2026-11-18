@@ -26,7 +26,6 @@ import { auditModule } from "@/modules/audit/audit-module";
 import { settingsModule } from "@/modules/settings/settings-module";
 import { economicsModule } from "@/modules/economics/manifest";
 import { stitchModule } from "@/modules/stitch/manifest";
-import { economicsModule } from "@/modules/economics/manifest";
 
 let bootstrapped = false;
 export function bootstrapModules() {
