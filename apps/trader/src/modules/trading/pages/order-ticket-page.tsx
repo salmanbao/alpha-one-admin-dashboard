@@ -10,7 +10,7 @@
  * cancelled.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { cn } from "@pfaas/ui";
 import {
@@ -25,6 +25,8 @@ import { useTrading } from "@/lib/trading/trading-context";
 import { useRiskWarning } from "@/lib/trading/use-risk-warning";
 import { RiskWarningBanner } from "@/components/terra/risk-warning-banner";
 import { markJourney } from "@/lib/onboarding/journey-store";
+import { PreTradeGuard, computeGuardVerdict, type GuardVerdict } from "@/components/compliance/pre-trade-guard";
+import { useComplianceSnapshot } from "@/lib/compliance/compliance-store";
 
 const orderTypes = [
   "Market Execution",
@@ -65,6 +67,11 @@ export function OrderTicketPage() {
   const [riskPct, setRiskPct] = useState("1");
   const accOrders = orders.filter((o) => o.accountId === activeAccount.id);
 
+  // R9 W3 UC-T1 — reset amber confirmation when inputs change
+  useEffect(() => {
+    setAmberConfirmed(false);
+  }, [lots, sl, side, symbol, orderType, entryPrice]);
+
   const slNumber = Number(sl);
   const slDistancePips =
     sl !== "" && Number.isFinite(slNumber) && slNumber > 0
@@ -78,7 +85,33 @@ export function OrderTicketPage() {
 
   const isPending = orderType !== "Market Execution";
 
+  // R9 W3 UC-T1 — pre-trade compliance guard state
+  const complianceSnapshot = useComplianceSnapshot(activeAccount.id);
+  const [amberConfirmed, setAmberConfirmed] = useState(false);
+
+  const pipSizeVal = pipSize(symbol);
+  const slDistance = sl !== "" && Number(sl) > 0 ? Math.abs((side === "buy" ? selected.ask : selected.bid) - Number(sl)) / pipSizeVal : 0;
+  const guardVerdict = computeGuardVerdict({
+    snapshot: complianceSnapshot,
+    lots: Number(lots) || 0,
+    slDistance,
+    pipValuePerLot: PIP_VALUE_PER_LOT,
+    side,
+  });
+  const verdict: GuardVerdict = guardVerdict.verdict;
+  const isBlocked = verdict === "red";
+  const needsConfirm = verdict === "amber" && !amberConfirmed;
+
   const handlePlaceOrder = () => {
+    if (isBlocked) return;
+    if (needsConfirm) {
+      // Amber verdict requires explicit confirmation
+      const confirmed = window.confirm(
+        `⚠ This order uses ${guardVerdict.usedPct.daily > guardVerdict.usedPct.dd ? guardVerdict.usedPct.daily.toFixed(0) : guardVerdict.usedPct.dd.toFixed(0)}% of your remaining headroom. Continue?`
+      );
+      if (!confirmed) return;
+      setAmberConfirmed(true);
+    }
     placeOrder(activeAccount.id, {
       symbol,
       side,
@@ -289,15 +322,21 @@ export function OrderTicketPage() {
 
               <button
                 type="submit"
+                disabled={isBlocked}
                 className={cn(
                   "w-full rounded-xl py-3 text-sm font-bold uppercase tracking-wide shadow-sm transition-all active:scale-[0.99]",
                   side === "buy"
                     ? "bg-primary text-on-primary hover:bg-primary/90"
                     : "bg-error text-on-error hover:bg-error/90",
+                  isBlocked && "opacity-50 cursor-not-allowed",
                 )}
               >
-                {side === "buy" ? "Buy" : "Sell"} {lots || "0.00"} {symbol} @{" "}
-                {isPending ? entryPrice || "—" : side === "buy" ? selected.ask : selected.bid}
+                {isBlocked ? "⛔ Blocked — see compliance guard" : (
+                  <>
+                    {side === "buy" ? "Buy" : "Sell"} {lots || "0.00"} {symbol} @{" "}
+                    {isPending ? entryPrice || "—" : side === "buy" ? selected.ask : selected.bid}
+                  </>
+                )}
               </button>
             </form>
           </TerraCard>
@@ -305,6 +344,14 @@ export function OrderTicketPage() {
 
         {/* Quote + calculator panel */}
         <div className="space-y-6">
+          {/* R9 W3 UC-T1 — pre-trade compliance guard */}
+          <PreTradeGuard
+            accountId={activeAccount.id}
+            lots={lots}
+            sl={sl}
+            side={side}
+            currentPrice={side === "buy" ? selected.ask : selected.bid}
+          />
           <TerraCard className="flex flex-col gap-3">
             <TerraSectionTitle title="Live quote" />
             <Link
