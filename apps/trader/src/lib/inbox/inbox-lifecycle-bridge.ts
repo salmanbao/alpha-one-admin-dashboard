@@ -32,6 +32,15 @@
  *   appeal.rejected          → "Appeal rejected — verdict + reason" (R9 W1)
  *   breach.reversed          → "Breach reversed — appeal accepted" (R9 W1,
  *                        emitted by prop-admin reverseBreach())
+ *   payout.fraud-cleared     → "Payout PO-x — compliance flag cleared"
+ *                        (R9 W2; prop-admin payout-fraud-store verdict)
+ *   payout.fraud-blocked     → "Payout PO-x — paused for compliance
+ *                        review" (R9 W2 — names the signal, honest about
+ *                        why money stopped)
+ *   payout.fraud-escalated   → "Payout PO-x — escalated to senior review"
+ *                        (R9 W2)
+ *   purchase.fee-refunded    → "Challenge fee refunded with payout PO-x"
+ *                        (R9 W2; own write — purchases-store fee flip)
  *
  * Prop-admin publishes the first seven into the shared
  * `pfaas:demo:lifecycle-log` under the demo gateway; this bridge reads
@@ -468,6 +477,69 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         actionHref: "/risk-dashboard",
       };
     }
+    case "payout.fraud-cleared": {
+      // R9 W2 UC-O5 — prop-admin verdict receipt: the hold is gone and
+      // money-moving decisions are available again.
+      const ref = String(e.payload?.reference ?? e.payload?.payoutReference ?? e.entity.id);
+      return {
+        id: `inbox:${e.id}:payout-fraud-cleared`,
+        subject: `Payout ${ref} — compliance flag cleared (Demo)`,
+        body: `The review on your payout ${ref} found nothing blocking. The request is back in the normal approval flow.\n\nFlagged signal: ${String(e.payload?.signal ?? "—")}.`,
+        category: "Support",
+        sender: "Compliance Review",
+        at: e.at,
+        read: false,
+        actionType: "payout",
+        actionHref: "/payouts",
+      };
+    }
+    case "payout.fraud-blocked": {
+      // R9 W2 UC-O5 — blocked receipt: honest about WHY money stopped.
+      const ref = String(e.payload?.reference ?? e.payload?.payoutReference ?? e.entity.id);
+      const signal = String(e.payload?.signal ?? "a payout-abuse signal");
+      const detail = String(e.payload?.detail ?? "");
+      return {
+        id: `inbox:${e.id}:payout-fraud-blocked`,
+        subject: `Payout ${ref} — paused for compliance review (Demo)`,
+        body: `Your payout ${ref} was paused: ${signal}${detail ? ` (${detail})` : ""}.\n\nNo money moves while the flag stands. Reply via support with context and the firm can clear it — the verdict arrives here.`,
+        category: "Support",
+        sender: "Compliance Review",
+        at: e.at,
+        read: false,
+        actionType: "payout",
+        actionHref: "/payouts",
+      };
+    }
+    case "payout.fraud-escalated": {
+      const ref = String(e.payload?.reference ?? e.payload?.payoutReference ?? e.entity.id);
+      return {
+        id: `inbox:${e.id}:payout-fraud-escalated`,
+        subject: `Payout ${ref} — escalated to senior review (Demo)`,
+        body: `Your payout ${ref} was escalated for a second look (${String(e.payload?.signal ?? "payout-abuse signal")}).\n\nProcessing continues under senior review; the outcome arrives here.`,
+        category: "Support",
+        sender: "Compliance Review",
+        at: e.at,
+        read: false,
+        actionType: "payout",
+        actionHref: "/payouts",
+      };
+    }
+    case "purchase.fee-refunded": {
+      // R9 W2 UC-T6 — own write (trader store flips it); receipt confirms
+      // the fee-back promise landed with the payout.
+      const ref = String(e.payload?.payoutReference ?? "");
+      return {
+        id: `inbox:${e.id}:purchase-fee-refunded`,
+        subject: `Challenge fee refunded with payout ${ref} (Demo)`,
+        body: `Your ${String(e.payload?.program ?? "challenge")} fee (${money(e.payload?.amount)}) was refunded with payout ${ref} — the fee-back promise on funded accounts.\n\nSee the ledger line on the purchase history page.`,
+        category: "Support",
+        sender: "Billing",
+        at: e.at,
+        read: false,
+        actionType: "challenge",
+        actionHref: "/purchase-history",
+      };
+    }
     default:
       return null;
   }
@@ -483,7 +555,10 @@ export function useInboxLifecycleBridge(): void {
       const own =
         e.name.startsWith("trade.") ||
         e.name.startsWith("compliance.") ||
-        (e.name.startsWith("appeal.") && e.actor === "trader");
+        (e.name.startsWith("appeal.") && e.actor === "trader") ||
+        // R9 W2 — trader-store fee flip (purchase.fee-refunded) is an own
+        // write; payout.fraud-* verdicts arrive from prop-admin.
+        e.name === "purchase.fee-refunded";
       if (e.actor !== "prop-admin" && !own) continue;
       const msg = mapEvent(e);
       if (!msg) continue;

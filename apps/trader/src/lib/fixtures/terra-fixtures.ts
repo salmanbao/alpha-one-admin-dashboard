@@ -840,6 +840,9 @@ export const terraPayouts = [
     status: "paid" as const,
     requestedAt: daysAgo(16),
     expectedAt: daysAgo(14),
+    // R9 W2 — actual landing time for the on-time honesty card
+    // (promise met exactly).
+    paidAt: daysAgo(14),
     rejection: null as PayoutRejection | null,
   },
   {
@@ -852,6 +855,8 @@ export const terraPayouts = [
     status: "paid" as const,
     requestedAt: daysAgo(30),
     expectedAt: daysAgo(28),
+    // R9 W2 — landed a day after the promise (counts as late).
+    paidAt: daysAgo(27),
     rejection: null as PayoutRejection | null,
   },
   {
@@ -864,6 +869,8 @@ export const terraPayouts = [
     status: "paid" as const,
     requestedAt: daysAgo(44),
     expectedAt: daysAgo(42),
+    // R9 W2 — landed a day early (on time).
+    paidAt: daysAgo(43),
     rejection: null as PayoutRejection | null,
   },
   {

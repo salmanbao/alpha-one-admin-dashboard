@@ -13,8 +13,10 @@
  * per fact — the event owns "refunded", this store owns the order).
  */
 
-import { useSyncExternalStore } from "react";
-import { useLifecycleLog, readLifecycleLog } from "@pfaas/lifecycle";
+import { useEffect, useSyncExternalStore } from "react";
+import { emitLifecycle, useLifecycleLog, readLifecycleLog } from "@pfaas/lifecycle";
+import { terraAccounts, terraPayouts } from "@/lib/fixtures/terra-fixtures";
+import { readPayoutRequests } from "@/lib/payouts/payout-requests-store";
 
 export interface PurchaseOrder {
   orderId: string;
@@ -29,6 +31,13 @@ export interface PurchaseOrder {
   applicantName: string | null;
   status: "completed";
   createdAt: string;
+  /**
+   * R9 W2 UC-T6 — fee-back ledger: migrated onto every row on read
+   * (existing rows get `pending`), flipped to `refunded` when a paid
+   * payout settles this program's fee. Store-owned (persisted under
+   * pfaas:trader:purchases), emitted once with a dedupe key.
+   */
+  feeRefund?: { status: "pending" | "refunded"; payoutId?: string; refundedAt?: string };
 }
 
 const STORAGE_KEY = "pfaas:trader:purchases";
@@ -51,7 +60,12 @@ function parseOrders(raw: string | null): PurchaseOrder[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isValidOrder);
+    // R9 W2 read-migration — rows written before the fee-back ledger
+    // existed start as "pending"; the flip persists on the next write.
+    return parsed.filter(isValidOrder).map((o) => ({
+      ...o,
+      feeRefund: o.feeRefund ?? { status: "pending" as const },
+    }));
   } catch {
     return [];
   }
@@ -144,6 +158,97 @@ export function readRefunds(): Map<string, { at: string; reason: string }> {
     });
   }
   return out;
+}
+
+/* ------------------------------------------------------------------ */
+/* Fee-refund ledger — R9 W2 UC-T6 ("challenge fee refunded with the
+/* first payout on funded accounts", terra-fixtures payoutEntitlement)  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Flip `feeRefund` to "refunded" on every purchase whose program matches
+ * a paid payout's account program (the fee-back promise: the challenge
+ * fee is refunded with the first payout on funded accounts). Idempotent:
+ * already-refunded rows are left alone, so repeated calls (page mounts,
+ * log changes) never double-emit — `purchase.fee-refunded` also carries
+ * a dedupe key.
+ *
+ * Returns the orders flipped by THIS call (for callers that want to
+ * know something new happened); the ledger itself lives on the record.
+ */
+export function syncFeeRefunds(): PurchaseOrder[] {
+  try {
+    const paid = paidPayoutPrograms(); // program -> payout reference
+    if (paid.size === 0) return [];
+    const orders = readPurchases();
+    const pending = orders.filter(
+      (o) => o.feeRefund?.status !== "refunded" && paid.has(o.program),
+    );
+    if (pending.length === 0) return [];
+    const flipped: PurchaseOrder[] = [];
+    const next = orders.map((o) => {
+      if (o.feeRefund?.status === "refunded") return o;
+      const ref = paid.get(o.program);
+      if (!ref) return o;
+      const refundedAt = new Date().toISOString();
+      const updated: PurchaseOrder = {
+        ...o,
+        feeRefund: { status: "refunded", payoutId: ref.payoutReference, refundedAt },
+      };
+      flipped.push(updated);
+      // Consumer: purchase-history/invoice ledger line + trader
+      // inbox-lifecycle-bridge receipt ("Challenge fee refunded with
+      // payout PO-x (Demo)").
+      emitLifecycle({
+        entity: { kind: "purchase", id: o.orderId },
+        name: "purchase.fee-refunded",
+        actor: "trader",
+        key: o.orderId,
+        payload: {
+          orderId: o.orderId,
+          program: o.program,
+          amount: o.amount,
+          currency: o.currency,
+          payoutReference: ref.payoutReference,
+        },
+      });
+      return updated;
+    });
+    if (flipped.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      emitOrders();
+    }
+    return flipped;
+  } catch {
+    return [];
+  }
+}
+
+/** Paid payouts by the account's program → which payout settled it. */
+function paidPayoutPrograms(): Map<string, { payoutReference: string }> {
+  const out = new Map<string, { payoutReference: string }>();
+  const paidRows = [
+    ...readPayoutRequests().filter((p) => p.status === "paid"),
+    ...terraPayouts.filter((p) => p.status === "paid"),
+  ];
+  for (const p of paidRows) {
+    const program = terraAccounts.find((a) => a.id === p.account)?.program;
+    if (program && !out.has(program)) out.set(program, { payoutReference: p.reference });
+  }
+  return out;
+}
+
+/**
+ * Run the fee-refund sync whenever the shared log changes (a payout
+ * flipping to paid in prop-admin lands here live). Mount once on the
+ * pages that render the ledger.
+ */
+export function useFeeRefundSync(): void {
+  const log = useLifecycleLog();
+  useEffect(() => {
+    syncFeeRefunds();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [log]);
 }
 
 export type PurchaseOrderView = PurchaseOrder & {

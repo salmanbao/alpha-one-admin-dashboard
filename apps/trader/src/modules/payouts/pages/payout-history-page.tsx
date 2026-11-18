@@ -35,7 +35,13 @@ import {
 import { useSyncActiveAccount } from "@/lib/platform/account-context";
 import { useTrading } from "@/lib/trading/trading-context";
 import { usePayoutMethods } from "@/lib/payouts/payout-methods-store";
-import { usePayoutRequests, type DisplayPayout } from "@/lib/payouts/payout-requests-store";
+import {
+  usePayoutRequests,
+  computePayoutSlaStats,
+  type DisplayPayout,
+} from "@/lib/payouts/payout-requests-store";
+import { PayoutSlaChip } from "@/components/terra/payout-sla-chip";
+import { useFeeRefundSync } from "@/lib/purchases-store";
 import {
   PayoutSummaryStrip,
   buildPayoutCriteria,
@@ -145,6 +151,52 @@ function PayoutEligibilityCard({ accountId }: { accountId: string }) {
   );
 }
 
+/** R9 W2 UC-T4 — on-time honesty card (rolling 90-day figures, "(Demo)"). */
+function PayoutHonestyCard({ rows }: { rows: DisplayPayout[] }) {
+  const stats = computePayoutSlaStats(
+    rows.map((p) => ({
+      requestedAt: p.requestedAt,
+      promisedBy: p.promisedBy ?? p.expectedAt,
+      status: p.status,
+      paidAt: p.paidAt ?? null,
+    })),
+  );
+  if (stats.paid === 0 && stats.rejected === 0) return null;
+  return (
+    <TerraCard>
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
+        <TerraSectionTitle
+          title="On-time honesty"
+          description={`Rolling ${stats.windowDays}-day record against the promised payout window (Demo)`}
+        />
+        <TerraBadge tone={stats.onTimePct === null ? "neutral" : stats.onTimePct >= 90 ? "success" : "secondary"}>
+          {stats.onTimePct === null ? "No paid payouts yet" : `${stats.onTimePct}% on time`}
+        </TerraBadge>
+      </div>
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl bg-surface-container p-3">
+          <dt className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Paid</dt>
+          <dd className="text-lg font-bold tabular-nums text-on-surface">{stats.paid}</dd>
+        </div>
+        <div className="rounded-xl bg-surface-container p-3">
+          <dt className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Avg. time to pay</dt>
+          <dd className="text-lg font-bold tabular-nums text-on-surface">
+            {stats.avgHours === null ? "—" : `${stats.avgHours}h`}
+          </dd>
+        </div>
+        <div className="rounded-xl bg-surface-container p-3">
+          <dt className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Late</dt>
+          <dd className="text-lg font-bold tabular-nums text-on-surface">{stats.late}</dd>
+        </div>
+        <div className="rounded-xl bg-surface-container p-3">
+          <dt className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Rejected</dt>
+          <dd className="text-lg font-bold tabular-nums text-on-surface">{stats.rejected}</dd>
+        </div>
+      </dl>
+    </TerraCard>
+  );
+}
+
 export function PayoutHistoryPage() {
   // Quick-view overlay: clicking a reference opens the payout detail in
   // a dialog on top of the table — the history list is never left.
@@ -152,13 +204,24 @@ export function PayoutHistoryPage() {
   const storeRequests = usePayoutRequests();
   const allPayouts: DisplayPayout[] = [
     ...storeRequests,
-    ...terraPayouts.map((p) => ({ ...p, rejection: p.rejection ?? null, isUserRequest: false, methodId: undefined })),
+    ...terraPayouts.map((p) => ({
+      ...p,
+      rejection: p.rejection ?? null,
+      isUserRequest: false,
+      methodId: undefined,
+      // Fixture rows predate the stored promise — their schedule window
+      // (`expectedAt`) is the promise for SLA purposes.
+      promisedBy: p.expectedAt,
+    })),
   ];
   const quickPayout = quickPayoutId
     ? (allPayouts.find((p) => p.id === quickPayoutId) ?? null)
     : null;
   // Account scope: the active trading account (header switcher).
   const acc = useSyncActiveAccount(null);
+  // R9 W2 UC-T6 — the payout that just landed here is what settles the
+  // challenge fee; run the flip as soon as the log reflects a paid row.
+  useFeeRefundSync();
 
   return (
     <div className="space-y-6">
@@ -174,6 +237,9 @@ export function PayoutHistoryPage() {
 
       {/* Eligibility before any request action (finding #1 HIGH) */}
       <PayoutEligibilityCard accountId={acc.id} />
+
+      {/* R9 W2 UC-T4 — measurable promises: rolling on-time record */}
+      <PayoutHonestyCard rows={allPayouts} />
 
       <TerraCard>
         <TerraTable
@@ -194,8 +260,15 @@ export function PayoutHistoryPage() {
             <span key="acc" className="font-mono text-xs text-on-surface-variant">#{p.accountLogin}</span>,
             <span key="amt" className="font-bold tabular-nums">{formatMoney(p.amount)}</span>,
             <span key="meth">{p.method}</span>,
-            <span key="status">
+            <span key="status" className="inline-flex flex-wrap items-center">
               <TerraBadge tone={p.status === "paid" ? "success" : p.status === "rejected" ? "error" : "tertiary"}>{p.status}</TerraBadge>
+              {/* R9 W2 — live promise countdown (in-flight) or post-mortem (paid) */}
+              <PayoutSlaChip
+                requestedAt={p.requestedAt}
+                promisedBy={p.promisedBy ?? p.expectedAt}
+                status={p.status}
+                paidAt={p.paidAt ?? null}
+              />
             </span>,
             <span key="req">{p.requestedAt.slice(0, 10)}</span>,
             <span key="exp">{p.expectedAt.slice(0, 10)}</span>,
