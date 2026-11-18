@@ -52,6 +52,9 @@ export type RiskSeverity = "warn" | "soft-breach" | "hard-breach";
 export type RiskAction = "notify-trader" | "flag-account" | "recommend-breach";
 export type RiskOperator = ">=" | "<=" | ">" | "<";
 
+/** R9 W4 — ladder rung types for graduated enforcement. */
+export type LadderRung = "warn" | "size-cap" | "suspend" | "breach";
+
 export interface RiskRule {
   id: string;
   name: string;
@@ -62,6 +65,11 @@ export interface RiskRule {
   action: RiskAction;
   enabled: boolean;
   notes?: string;
+  /** R9 W4 — graduated enforcement ladder for repeated violations. */
+  ladder?: {
+    rungs: LadderRung[];
+    resetAfterDays?: number;
+  };
 }
 
 export type RiskAlertStatus = "open" | "acknowledged";
@@ -111,6 +119,12 @@ export interface RiskAccountState {
   newsTrades: number;
   dailyPnlByDay: Record<string, number>;
   lastUpdated: string;
+  /** R9 W4 — current ladder rung index (0 = warn, 1 = size-cap, 2 = suspend, 3 = breach). */
+  ladderRung?: number;
+  /** R9 W4 — timestamp of last rung advance (for resetAfterDays). */
+  ladderRungAt?: string;
+  /** R9 W4 — rule ids that triggered each rung advance. */
+  ladderRungRules?: string[];
 }
 
 export interface RiskRulesState {
@@ -128,6 +142,7 @@ const riskMetricSchema = z.enum(["daily-loss", "total-drawdown", "consistency", 
 const riskSeveritySchema = z.enum(["warn", "soft-breach", "hard-breach"]);
 const riskActionSchema = z.enum(["notify-trader", "flag-account", "recommend-breach"]);
 const riskOperatorSchema = z.enum([">=", "<=", ">", "<"]);
+const ladderRungSchema = z.enum(["warn", "size-cap", "suspend", "breach"]);
 
 const riskRuleSchema = z.object({
   id: z.string().min(1),
@@ -139,6 +154,12 @@ const riskRuleSchema = z.object({
   action: riskActionSchema,
   enabled: z.boolean(),
   notes: z.string().optional(),
+  ladder: z
+    .object({
+      rungs: z.array(ladderRungSchema).min(1),
+      resetAfterDays: z.number().int().positive().optional(),
+    })
+    .optional(),
 });
 
 const riskAlertSchema = z.object({
@@ -183,6 +204,9 @@ const riskAccountStateSchema = z.object({
   newsTrades: z.number().int().nonnegative(),
   dailyPnlByDay: z.record(z.string(), z.number().finite()),
   lastUpdated: z.string().min(1),
+  ladderRung: z.number().int().nonnegative().optional(),
+  ladderRungAt: z.string().optional(),
+  ladderRungRules: z.array(z.string()).optional(),
 });
 
 const stateSchema = z.object({
@@ -467,6 +491,65 @@ export function clearRiskAlerts(): void {
 }
 
 /* ------------------------------------------------------------------ */
+/* R9 W4 — Ladder rung management                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Manually reset an account's ladder rung to 0 (warn).
+ * Requires a reason — audited + persisted (R10).
+ */
+export function resetLadderRung(accountId: string, reason: string, actor: string): boolean {
+  const acct = state.accounts[accountId];
+  if (!acct) return false;
+  const previousRung = acct.ladderRung ?? 0;
+  if (previousRung === 0) return false; // already at warn
+
+  acct.ladderRung = 0;
+  acct.ladderRungAt = new Date().toISOString();
+  acct.ladderRungRules = [];
+  persist();
+  notify();
+
+  recordAudit({
+    action: "Reset risk ladder rung",
+    entity: "account",
+    entityId: accountId,
+    summary: `${acct.login ?? accountId} reset from rung ${previousRung} to 0 (warn) by ${actor}: ${reason}`,
+    severity: "warning",
+    module: "risk",
+  });
+
+  emitLifecycle({
+    entity: { kind: "account", id: accountId },
+    name: "risk.ladder-reset",
+    actor: "prop-admin",
+    key: `ladder-reset:${accountId}:${Date.now()}`,
+    payload: {
+      accountId,
+      accountLogin: acct.login,
+      accountName: acct.name,
+      previousRung,
+      resetTo: 0,
+      reason,
+      resetBy: actor,
+    },
+  });
+
+  return true;
+}
+
+/** Get ladder rung state for an account (for UI display). */
+export function getLadderRungState(accountId: string): { rung: number; rungAt?: string; rules: string[] } {
+  const acct = state.accounts[accountId];
+  if (!acct) return { rung: 0, rules: [] };
+  return {
+    rung: acct.ladderRung ?? 0,
+    rungAt: acct.ladderRungAt,
+    rules: acct.ladderRungRules ?? [],
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* Evaluation helpers                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -716,6 +799,50 @@ export function useRiskRulesEvaluator(tid: string): void {
               traderName: acct.name ?? acct.login ?? acct.accountId,
               signal: rule.metric,
               signalDetail: `${rule.name} — ${mv.detail} — breached account ${marker} (rule ${rule.id} · ${citedVersion})`,
+            });
+          }
+        }
+
+        // R9 W4 — ladder advancement for rules with graduated enforcement.
+        if (rule.ladder && rule.ladder.rungs.length > 0) {
+          const currentRung = acct.ladderRung ?? 0;
+          const maxRung = rule.ladder.rungs.length - 1;
+          if (currentRung < maxRung) {
+            const newRung = currentRung + 1;
+            const rungName = rule.ladder.rungs[newRung - 1] ?? "warn"; // rungs[0] = first advance target
+            acct.ladderRung = newRung;
+            acct.ladderRungAt = new Date().toISOString();
+            acct.ladderRungRules = [...(acct.ladderRungRules ?? []), rule.id];
+            changed = true;
+
+            recordAudit({
+              action: "Risk ladder rung advanced",
+              entity: "account",
+              entityId: acct.accountId,
+              summary: `${acct.login ?? acct.accountId} advanced to rung ${newRung} (${rungName}) — rule: ${rule.name} [${citedVersion}]`,
+              severity: newRung >= 3 ? "critical" : newRung >= 2 ? "warning" : "info",
+              module: "risk",
+            });
+
+            emitLifecycle({
+              entity: { kind: "account", id: acct.accountId },
+              name: "risk.ladder-moved",
+              actor: "prop-admin",
+              key: `ladder:${acct.accountId}:${newRung}:${Date.now()}`,
+              payload: {
+                accountId: acct.accountId,
+                accountLogin: acct.login,
+                accountName: acct.name,
+                rung: newRung,
+                rungName,
+                previousRung: currentRung,
+                ruleId: rule.id,
+                ruleName: rule.name,
+                ruleVersionId: pinned.version.id,
+                ruleVersion: pinned.version.version,
+                detail: mv.detail,
+                ladderRungs: rule.ladder.rungs,
+              },
             });
           }
         }

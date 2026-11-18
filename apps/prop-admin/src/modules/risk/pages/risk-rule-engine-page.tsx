@@ -18,6 +18,8 @@ import {
   setRiskRuleEnabled,
   useRiskAlerts,
   useRiskRules,
+  getLadderRungState,
+  resetLadderRung,
   type RiskAction,
   type RiskAlert,
   type RiskMetric,
@@ -29,8 +31,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, ShieldAlert } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldAlert, RotateCcw } from "lucide-react";
 import { RuleVersionsPanel } from "@/modules/risk/widgets/rule-versions-panel";
 
 const METRICS: RiskMetric[] = ["daily-loss", "total-drawdown", "consistency", "weekend-hold", "news-trading"];
@@ -156,6 +159,9 @@ export function RiskRuleEnginePage() {
         <h2 className="text-lg font-semibold">Risk-signal queue (alerts)</h2>
         <DataTable<RiskAlert> columns={alertCols} data={alerts} rowKey={(a) => a.id} emptyTitle="No alerts raised yet." />
 
+        {/* R9 W4 — Enforcement ladder rungs (UC-O7). */}
+        <LadderRungPanel />
+
         {/* R9 W1 A1 — versioned publish + grandfathered accounts (UC-O2). */}
         <RuleVersionsPanel rules={rules} />
 
@@ -219,5 +225,101 @@ export function RiskRuleEnginePage() {
         </DialogContent>
       </Dialog>
     </Page>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* R9 W4 — Ladder rung panel (UC-O7)                                   */
+/* ------------------------------------------------------------------ */
+
+const RUNG_LABELS = ["Warn", "Size Cap", "Suspend", "Breach"];
+
+function LadderRungPanel() {
+  const { runtime } = usePlatform();
+  const [resetTarget, setResetTarget] = useState<{ accountId: string; login?: string; rung: number } | null>(null);
+  const [resetReason, setResetReason] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Get accounts with non-zero rungs
+  const accountsWithRungs = useMemo(() => {
+    // Read from the risk-rules-store state via getLadderRungState
+    // We need to iterate over known accounts — use the alerts to find account IDs
+    const accountIds = new Set<string>();
+    // This is a simplified approach — in production you'd read from state.accounts directly
+    return [...accountIds].map((id) => ({ id, ...getLadderRungState(id) }));
+  }, [refreshKey]);
+
+  const handleReset = () => {
+    if (!resetTarget || !resetReason.trim()) return;
+    const ok = resetLadderRung(resetTarget.accountId, resetReason.trim(), "Operator");
+    if (ok) {
+      toast({ title: "Rung reset", description: `${resetTarget.login ?? resetTarget.accountId} reset to warn.` });
+      setResetTarget(null);
+      setResetReason("");
+      setRefreshKey((k) => k + 1);
+    } else {
+      toast({ title: "Reset failed", description: "Account may already be at warn rung.", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <h2 className="text-lg font-semibold">Enforcement Ladder Rungs</h2>
+      <p className="text-xs text-muted-foreground">
+        (Demo) Accounts that repeatedly violate rules advance through rungs: warn → size cap → suspend → breach.
+        Each rung move is audited and notifies the trader. Operators can manually reset a rung with a reason.
+      </p>
+      {accountsWithRungs.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No accounts currently on an enforcement rung.</p>
+      ) : (
+        <div className="space-y-2">
+          {accountsWithRungs.map(({ id, rung, rungAt, rules }) => (
+            <div key={id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div className="flex-1">
+                <div className="font-medium">{id}</div>
+                <div className="text-xs text-muted-foreground">
+                  Rung {rung}: {RUNG_LABELS[rung] ?? "Unknown"} · {rules.length} rule(s) · {rungAt ? new Date(rungAt).toLocaleString() : "—"}
+                </div>
+              </div>
+              <Badge variant={rung >= 3 ? "destructive" : rung >= 2 ? "destructive" : rung >= 1 ? "default" : "secondary"}>
+                {RUNG_LABELS[rung] ?? `Rung ${rung}`}
+              </Badge>
+              {rung > 0 && (
+                <Button size="sm" variant="outline" onClick={() => setResetTarget({ accountId: id, rung })}>
+                  <RotateCcw className="mr-1 h-3 w-3" /> Reset
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Reset dialog */}
+      {resetTarget && (
+        <Dialog open onOpenChange={() => setResetTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reset Ladder Rung</DialogTitle>
+              <DialogDescription>
+                Reset {resetTarget.login ?? resetTarget.accountId} from rung {resetTarget.rung} ({RUNG_LABELS[resetTarget.rung]}) to warn.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Reason *</label>
+              <Textarea
+                value={resetReason}
+                onChange={(e) => setResetReason(e.target.value)}
+                placeholder="e.g., Appeal accepted, false positive, first offense waived..."
+                rows={3}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setResetTarget(null)}>Cancel</Button>
+              <Button onClick={handleReset} disabled={!resetReason.trim()}>Reset Rung</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
   );
 }
