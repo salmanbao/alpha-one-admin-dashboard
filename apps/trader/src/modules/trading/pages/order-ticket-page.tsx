@@ -20,6 +20,7 @@ import {
   formatMoney,
 } from "@/components/terra/terra-ui";
 import { marketWatch, terraRiskLimits } from "@/lib/fixtures/terra-fixtures";
+import { activeEmbargoFor, embargoWindowLabel } from "@/lib/fixtures/embargo-windows";
 import { useActiveAccount } from "@/lib/platform/account-context";
 import { useTrading } from "@/lib/trading/trading-context";
 import { useRiskWarning } from "@/lib/trading/use-risk-warning";
@@ -97,6 +98,10 @@ export function OrderTicketPage() {
   const isLadderBlocked = enforcement.blocked;
   const ladderBlockReason = enforcement.blockReason;
   const ladderMaxLots = enforcement.maxLots;
+
+  // R9 W5 UC-T5 — embargo window for the selected symbol (editorial
+  // schedule, Demo). Null outside every window → nothing renders.
+  const embargo = activeEmbargoFor(symbol);
 
   // Auto-clamp lots input when size-cap is active
   useEffect(() => {
@@ -342,6 +347,22 @@ export function OrderTicketPage() {
                   />
                 </label>
               </div>
+
+              {/* R9 W5 UC-T5 — embargo-window notice (inside window only) */}
+              {embargo && (
+                <div
+                  className="rounded-xl bg-warning-container/40 p-3 text-xs text-on-warning-container"
+                  role="status"
+                >
+                  <strong className="block font-bold">
+                    ⚠ Embargo window — {embargo.kind === "news" ? "news blackout" : "weekend hold"} ({embargo.symbol})
+                  </strong>
+                  <p className="mt-1">
+                    {embargo.note} Scheduled {embargoWindowLabel(embargo)}. Editorial schedule (Demo) —
+                    informational only; orders are not blocked by this notice.
+                  </p>
+                </div>
+              )}
 
               {/* R9 W4 — ladder enforcement banner */}
               {isLadderBlocked && (
