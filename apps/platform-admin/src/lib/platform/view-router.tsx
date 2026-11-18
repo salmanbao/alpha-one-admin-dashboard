@@ -133,6 +133,14 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  // R9 W6 UC-P2 — payout statistics (declare + register parity)
+  "payout-statistics": dynamic(
+    () =>
+      import("@/modules/super-admin/payout-statistics-page").then((m) => ({
+        default: m.PayoutStatisticsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "my-sessions": dynamic(
     () =>
       import("@/modules/super-admin/my-sessions-page").then((m) => ({

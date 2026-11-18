@@ -903,12 +903,24 @@ function seedPayouts(): Payout[] {
   const out: Payout[] = [];
   const fundedTraders = traders.filter((t) => t.challengePhase === "funded");
   let n = 0;
+  // R9 W6 UC-P2 — cycle statuses per tenant instead of one global
+  // counter: the global index happened to land every `paid` row on a
+  // single firm, so cross-tenant payout stats had a one-tenant
+  // denominator (and a $0.00 total for the other currencies). Each firm
+  // now walks the full lifecycle, so every tenant contributes paid /
+  // in-flight / rejected rows.
+  const cycleByTenant = new Map<string, number>();
   for (const t of fundedTraders) {
     const count = 1 + (n % 3);
     for (let i = 0; i < count; i++) {
       n++;
       const statuses: Payout["status"][] = ["pending", "approved", "processing", "paid", "rejected"];
-      const status = statuses[(n + i) % statuses.length];
+      const cycle = cycleByTenant.get(t.tenantId) ?? 0;
+      cycleByTenant.set(t.tenantId, cycle + 1);
+      const status = statuses[cycle % statuses.length];
+      // Paid lag: 1–10 days, clamped so payment never precedes the
+      // request — a real spread for the published on-time % (≤ 7 days).
+      const lag = Math.min(1 + (n % 10), n * 2);
       out.push({
         id: `pay-${t.tenantId}-${n}`,
         tenantId: t.tenantId,
@@ -920,7 +932,7 @@ function seedPayouts(): Payout[] {
         status,
         profitSplit: 80 + (n % 20),
         createdAt: daysAgo(n * 2),
-        processedAt: status === "paid" ? daysAgo(n) : undefined,
+        processedAt: status === "paid" ? daysAgo(n * 2 - lag) : undefined,
         reference: `WD-${10000 + n}`,
       });
     }

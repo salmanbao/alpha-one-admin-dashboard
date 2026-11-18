@@ -131,6 +131,8 @@ const navigation: NavigationItem[] = [
       { id: "super.billing", label: "Billing & Invoices", href: "platform-billing", icon: CreditCard, application: ["super-admin"], group: "Finance" },
       { id: "super.financials", label: "Financial Overview", href: "platform-financials", icon: DollarSign, application: ["super-admin"], group: "Finance" },
       { id: "super.transactions", label: "Transactions", href: "platform-transactions", icon: CreditCard, application: ["super-admin"], group: "Finance" },
+      // R9 W6 UC-P2 — verifiable payout statistics (declare + register)
+      { id: "super.payout-statistics", label: "Payout Statistics", href: "payout-statistics", icon: BarChart3, application: ["super-admin"], group: "Finance" },
       { id: "super.tax-currency", label: "Tax & Currency", href: "tax-currency", icon: Percent, application: ["super-admin"], group: "Finance" },
       { id: "super.churn-prevention", label: "Churn Prevention", href: "churn-prevention", icon: TrendingDown, application: ["super-admin"], group: "Finance" },
       // N16
@@ -240,6 +242,8 @@ const routes: RouteDefinition[] = [
   { path: "platform-staff", viewId: "platform-staff", label: "Platform Staff", application: ["super-admin"] },
   { path: "pending-tasks", viewId: "pending-tasks", label: "Pending Tasks", application: ["super-admin"] },
   { path: "platform-transactions", viewId: "platform-transactions", label: "Platform Transactions", application: ["super-admin"] },
+  // R9 W6 UC-P2 — payout statistics (cross-tenant aggregates + methodology)
+  { path: "payout-statistics", viewId: "payout-statistics", label: "Payout Statistics", application: ["super-admin"] },
   { path: "system-health", viewId: "system-health", label: "System Health", application: ["super-admin"] },
   { path: "audit-log", viewId: "audit-log", label: "Audit Log", application: ["super-admin"], permission: "platform.audit.read" },
   { path: "api-keys", viewId: "api-keys", label: "API Keys", application: ["super-admin"] },
