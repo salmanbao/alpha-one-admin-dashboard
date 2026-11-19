@@ -8,6 +8,9 @@
  *   - security questionnaire (answered, reviewer verdict),
  *   - staged rollout percentage with ramp schedule + revoke flow,
  * alongside the existing queue, versioning/rollback and publish/suspend.
+ *
+ * P0-4: state persists under pfaas:platform-admin:marketplace via marketplace-store.
+ * Acceptance test: action → reload → state + audit row + toast agree.
  */
 import { useMemo, useState } from "react";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -40,220 +43,28 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "@/hooks/use-toast";
-import { recordAudit } from "@/lib/platform/console-store";
 import { Plug, FileDiff, FlaskConical, ShieldQuestion, Gauge, RotateCcw, Ban } from "lucide-react";
-
-/* ------------------------------------------------------------------ */
-/* Types + seed                                                        */
-/* ------------------------------------------------------------------ */
-
-type State = "submitted" | "in_review" | "needs_info" | "published" | "suspended" | "revoked";
-
-/** Mirrors the platform StatusBadge tone union (not exported by status.tsx). */
-type Tone = "default" | "success" | "warning" | "danger" | "info" | "muted";
-
-type DiffKind = "added" | "removed" | "changed" | "same";
-interface DiffLine {
-  key: string;
-  kind: DiffKind;
-  prev?: string;
-  next?: string;
-}
-type TestStatus = "pass" | "fail" | "pending";
-interface SandboxTest {
-  id: string;
-  name: string;
-  status: TestStatus;
-  ms: number;
-}
-type Verdict = "pass" | "fail" | "pending";
-interface SecurityQ {
-  id: string;
-  q: string;
-  a: string;
-  verdict: Verdict;
-}
-interface HistoryEntry {
-  at: string;
-  actor: string;
-  note: string;
-}
-interface Sub {
-  id: string;
-  app: string;
-  publisher: string;
-  version: string;
-  publishedVersion: string;
-  state: State;
-  perms: string[];
-  notes: string;
-  manifest: DiffLine[];
-  sandbox: SandboxTest[];
-  security: SecurityQ[];
-  rollout: number;
-  ramp: string[];
-  history: HistoryEntry[];
-}
-
-const now = () => new Date().toISOString();
-const stamp = () => new Date().toLocaleString();
-
-const SEED: Sub[] = [
-  {
-    id: "s1",
-    app: "SignalPush",
-    publisher: "Acme Labs",
-    version: "1.3.0",
-    publishedVersion: "1.2.0",
-    state: "in_review",
-    perms: ["events.read", "contacts.read", "segments:read"],
-    notes: "",
-    manifest: [
-      { key: "id", kind: "same", prev: "com.acme.signalpush", next: "com.acme.signalpush" },
-      { key: "version", kind: "changed", prev: "1.2.0", next: "1.3.0" },
-      { key: "scopes[].segments:read", kind: "added", next: "read-only segment lookup" },
-      { key: "scopes[].contacts.write", kind: "added", next: "write back push token state" },
-      { key: "scopes[].events.relay", kind: "removed", prev: "server event forwarding" },
-      { key: "webhooks[]", kind: "changed", prev: "1 endpoint (delivered)", next: "2 endpoints (delivered, bounced)" },
-      { key: "data.retention_days", kind: "changed", prev: "30", next: "90" },
-      { key: "permissions[].notifications", kind: "same", prev: "granted", next: "granted" },
-    ],
-    sandbox: [
-      { id: "t1", name: "Install on sandbox tenant", status: "pass", ms: 820 },
-      { id: "t2", name: "OAuth scope handshake", status: "pass", ms: 410 },
-      { id: "t3", name: "GET /v2/segments (scopes:read)", status: "pass", ms: 190 },
-      { id: "t4", name: "POST /v2/contacts/{id}/push-token", status: "fail", ms: 1240 },
-      { id: "t5", name: "Webhook signature verification", status: "pending", ms: 0 },
-      { id: "t6", name: "Rate-limit 429 handling", status: "pass", ms: 60 },
-    ],
-    security: [
-      { id: "q1", q: "Where is tenant data stored at rest?", a: "EU (Frankfurt) region, AES-256 at rest via managed KMS.", verdict: "pass" },
-      { id: "q2", q: "Describe retention & deletion of webhook payloads.", a: "Payloads purged after 30 days; deletion API exposed to tenant admins.", verdict: "pass" },
-      { id: "q3", q: "Is customer data used for model training or resale?", a: "No. Data is processed only to deliver the app's functionality.", verdict: "pass" },
-      { id: "q4", q: "Incident notification SLA (sub-processor breach)?", a: "— not answered —", verdict: "pending" },
-      { id: "q5", q: "Independent security assessment in last 12 months?", a: "SOC 2 Type II dated 2026-03 (uploaded).", verdict: "pass" },
-    ],
-    rollout: 25,
-    ramp: ["Day 0 — 10% (internal tenants)", "Day 3 — 25%", "Day 7 — 50%", "Day 14 — 100%"],
-    history: [
-      { at: stamp(), actor: "marketplace-bot", note: "Submission received for v1.3.0." },
-      { at: stamp(), actor: "reviewer.kim", note: "Review started; sandbox suite queued." },
-    ],
-  },
-  {
-    id: "s2",
-    app: "LedgerSync",
-    publisher: "FinCo",
-    version: "2.1.0",
-    publishedVersion: "2.0.1",
-    state: "submitted",
-    perms: ["payouts.read"],
-    notes: "",
-    manifest: [
-      { key: "id", kind: "same", prev: "fi.finco.ledgersync", next: "fi.finco.ledgersync" },
-      { key: "version", kind: "changed", prev: "2.0.1", next: "2.1.0" },
-      { key: "scopes[].payouts.read", kind: "same", prev: "read payouts", next: "read payouts" },
-      { key: "scopes[].payouts.write", kind: "added", next: "propose payout batches (needs approval)" },
-      { key: "ui.embedded_views[]", kind: "added", next: "payout-reconciliation" },
-    ],
-    sandbox: [
-      { id: "t1", name: "Install on sandbox tenant", status: "pass", ms: 640 },
-      { id: "t2", name: "OAuth scope handshake", status: "pending", ms: 0 },
-      { id: "t3", name: "GET /v2/payouts (scopes:read)", status: "pending", ms: 0 },
-      { id: "t4", name: "Approval-gated write path", status: "pending", ms: 0 },
-    ],
-    security: [
-      { id: "q1", q: "Where is tenant data stored at rest?", a: "US (Iowa), SOC 2 Type II.", verdict: "pass" },
-      { id: "q2", q: "Sub-processor list published & versioned?", a: "Yes — /subprocessors, 30-day change notice.", verdict: "pass" },
-      { id: "q3", q: "Write-path approval enforcement?", a: "— not answered —", verdict: "pending" },
-    ],
-    rollout: 0,
-    ramp: ["Not scheduled — publish gates the ramp"],
-    history: [{ at: stamp(), actor: "marketplace-bot", note: "Submission received for v2.1.0." }],
-  },
-  {
-    id: "s3",
-    app: "OldWebhook",
-    publisher: "Legacy Inc",
-    version: "0.9.0",
-    publishedVersion: "0.9.0",
-    state: "needs_info",
-    perms: ["events.read"],
-    notes: "Clarify data retention.",
-    manifest: [
-      { key: "id", kind: "same", prev: "io.legacy.oldwebhook", next: "io.legacy.oldwebhook" },
-      { key: "version", kind: "changed", prev: "0.8.4", next: "0.9.0" },
-      { key: "data.retention_days", kind: "changed", prev: "365", next: "unlimited" },
-      { key: "webhooks[].verify", kind: "removed", prev: "HMAC sha256" },
-    ],
-    sandbox: [
-      { id: "t1", name: "Install on sandbox tenant", status: "pass", ms: 910 },
-      { id: "t2", name: "Webhook signature verification", status: "fail", ms: 2100 },
-    ],
-    security: [
-      { id: "q1", q: "Retention & deletion of webhook payloads?", a: "\"Unlimited until tenant deletes app\" — flagged by reviewer.", verdict: "fail" },
-      { id: "q2", q: "Sub-processor list published & versioned?", a: "No published list.", verdict: "fail" },
-    ],
-    rollout: 0,
-    ramp: ["Blocked — security questionnaire failed"],
-    history: [
-      { at: stamp(), actor: "marketplace-bot", note: "Submission received for v0.9.0." },
-      { at: stamp(), actor: "reviewer.kim", note: "Requested info: retention + sub-processors." },
-    ],
-  },
-  {
-    id: "s4",
-    app: "ChatRelay",
-    publisher: "Slipstream",
-    version: "3.4.2",
-    publishedVersion: "3.4.2",
-    state: "published",
-    perms: ["events.read", "contacts.read"],
-    notes: "Healthy; 12% rollout last ramp completed.",
-    manifest: [
-      { key: "id", kind: "same", prev: "co.slipstream.chatrelay", next: "co.slipstream.chatrelay" },
-      { key: "version", kind: "same", prev: "3.4.2", next: "3.4.2" },
-      { key: "scopes[].events.read", kind: "same", prev: "read events", next: "read events" },
-    ],
-    sandbox: [
-      { id: "t1", name: "Install on sandbox tenant", status: "pass", ms: 700 },
-      { id: "t2", name: "Webhook signature verification", status: "pass", ms: 320 },
-    ],
-    security: [
-      { id: "q1", q: "Where is tenant data stored at rest?", a: "EU region, encrypted.", verdict: "pass" },
-      { id: "q2", q: "Incident notification SLA?", a: "24h to tenant admin + platform.", verdict: "pass" },
-    ],
-    rollout: 100,
-    ramp: ["Completed — full availability since 2026-10-02"],
-    history: [{ at: stamp(), actor: "reviewer.kim", note: "Published v3.4.2 at 100%." }],
-  },
-];
-
-/* ------------------------------------------------------------------ */
-/* Helpers                                                             */
-/* ------------------------------------------------------------------ */
-
-const stateTone = (s: State): Tone =>
-  s === "published" ? "success" : s === "suspended" || s === "revoked" ? "danger" : s === "needs_info" ? "warning" : "info";
-
-const testTone = (t: TestStatus): Tone => (t === "pass" ? "success" : t === "fail" ? "danger" : "muted");
-const verdictTone = (v: Verdict): Tone => (v === "pass" ? "success" : v === "fail" ? "danger" : "warning");
-const diffTone = (k: DiffKind): Tone =>
-  k === "added" ? "success" : k === "removed" ? "danger" : k === "changed" ? "warning" : "muted";
-
-/** Publish gate: every sandbox test green + no failed security answer + no new scope on a "fail". */
-function gate(s: Sub): { ok: boolean; reasons: string[] } {
-  const reasons: string[] = [];
-  const failedTests = s.sandbox.filter((t) => t.status !== "pass");
-  if (failedTests.length) reasons.push(`${failedTests.length} sandbox test(s) not passing`);
-  const failedQ = s.security.filter((q) => q.verdict === "fail");
-  if (failedQ.length) reasons.push(`${failedQ.length} security answer(s) failed review`);
-  const pendingQ = s.security.filter((q) => q.verdict === "pending");
-  if (pendingQ.length) reasons.push(`${pendingQ.length} security question(s) unanswered`);
-  const breaking = s.manifest.filter((d) => d.kind === "removed" && d.key.startsWith("webhooks"));
-  if (breaking.length) reasons.push(`breaking manifest removal: ${breaking.map((b) => b.key).join(", ")}`);
-  return { ok: reasons.length === 0, reasons };
-}
+import {
+  useMarketplace,
+  publishMarketplaceApp,
+  needsInfoMarketplaceApp,
+  suspendMarketplaceApp,
+  rollbackMarketplaceApp,
+  revokeMarketplaceApp,
+  applyRolloutMarketplaceApp,
+  applySecurityVerdictMarketplaceApp,
+  applyNotesMarketplaceApp,
+  applySandboxRerunMarketplaceApp,
+  type Sub,
+  type State,
+  type DiffKind,
+  type DiffLine,
+  type SandboxTest,
+  type SecurityQ,
+  type HistoryEntry,
+  type Verdict,
+  type TestStatus,
+} from "@/lib/platform/marketplace-store";
 
 const ROLLOUT_STEPS = [5, 10, 25, 50, 100];
 
@@ -262,7 +73,7 @@ const ROLLOUT_STEPS = [5, 10, 25, 50, 100];
 /* ------------------------------------------------------------------ */
 
 export function MarketplaceReviewPage() {
-  const [rows, setRows] = useState<Sub[]>(SEED);
+  const rows = useMarketplace();
   const [detailId, setDetailId] = useState<string | null>(null);
   const [tab, setTab] = useState("manifest");
   const [act, setAct] = useState<{ r: Sub; next: State } | null>(null);
@@ -275,7 +86,7 @@ export function MarketplaceReviewPage() {
   const selected = act?.r ? rows.find((r) => r.id === act.r.id) ?? act.r : null;
   const gateResult = selected ? gate(selected) : { ok: false, reasons: [] };
 
-  const patch = (id: string, fn: (s: Sub) => Sub) => setRows((rs) => rs.map((s) => (s.id === id ? fn(s) : s)));
+  const counts = (s: State) => rows.filter((r) => r.state === s).length;
 
   const cols: Column<Sub>[] = [
     {
@@ -359,8 +170,7 @@ export function MarketplaceReviewPage() {
             variant="ghost"
             className="h-6 text-[10px]"
             onClick={() => {
-              patch(r.id, (s) => ({ ...s, version: s.publishedVersion || s.version, history: [...s.history, { at: stamp(), actor: "You", note: `Rolled back to previous version (${s.publishedVersion}).` }] }));
-              recordAudit({ actor: "You", action: "marketplace.rollback", target: r.id, detail: `${r.app} rolled back to ${r.publishedVersion}`, severity: "warning" });
+              rollbackMarketplaceApp(r.id, r.publishedVersion);
               toast({ title: "Rolled back", description: `${r.app} → ${r.publishedVersion}` });
             }}
           >
@@ -371,8 +181,6 @@ export function MarketplaceReviewPage() {
       ),
     },
   ];
-
-  const counts = (s: State) => rows.filter((r) => r.state === s).length;
 
   return (
     <Page>
@@ -473,12 +281,8 @@ export function MarketplaceReviewPage() {
                             className="h-7 text-[10px]"
                             onClick={() => {
                               setRetest(detail.id);
-                              window.setTimeout(() => {
-                                patch(detail.id, (s) => ({
-                                  ...s,
-                                  sandbox: s.sandbox.map((t) => ({ ...t, status: "pass", ms: t.ms || 300 })),
-                                  history: [...s.history, { at: stamp(), actor: "sandbox-runner", note: "Sandbox suite re-run: all checks passing." }],
-                                }));
+                              setTimeout(() => {
+                                applySandboxRerunMarketplaceApp(detail.id);
                                 setRetest(null);
                                 toast({ title: "Sandbox re-run complete", description: "All checks now pass." });
                               }, 700);
@@ -525,12 +329,7 @@ export function MarketplaceReviewPage() {
                                   variant={q.verdict === v ? "default" : "outline"}
                                   className="h-6 text-[10px]"
                                   onClick={() => {
-                                    patch(detail.id, (s) => ({
-                                      ...s,
-                                      security: s.security.map((x) => (x.id === q.id ? { ...x, verdict: v } : x)),
-                                      history: [...s.history, { at: stamp(), actor: "You", note: `Security answer "${q.q}" → ${v}.` }],
-                                    }));
-                                    recordAudit({ actor: "You", action: "marketplace.security_verdict", target: detail.id, detail: `${detail.app}: ${q.q} → ${v}`, severity: v === "fail" ? "critical" : "info" });
+                                    applySecurityVerdictMarketplaceApp(detail.id, q.id, v);
                                   }}
                                 >
                                   {v}
@@ -561,8 +360,7 @@ export function MarketplaceReviewPage() {
                               className="h-7 text-[10px]"
                               disabled={detail.state !== "published"}
                               onClick={() => {
-                                patch(detail.id, (s) => ({ ...s, rollout: pct, history: [...s.history, { at: stamp(), actor: "You", note: `Rollout moved to ${pct}%.` }] }));
-                                recordAudit({ actor: "You", action: "marketplace.rollout", target: detail.id, detail: `${detail.app} rollout → ${pct}%`, severity: "info" });
+                                applyRolloutMarketplaceApp(detail.id, pct);
                                 toast({ title: `Rollout ${pct}%`, description: `${detail.app} ramp updated (audited).` });
                               }}
                             >
@@ -605,7 +403,7 @@ export function MarketplaceReviewPage() {
                           className="mt-2 text-xs"
                           placeholder="Reviewer note / publisher communication"
                           defaultValue={detail.notes}
-                          onBlur={(e) => patch(detail.id, (s) => ({ ...s, notes: e.target.value }))}
+                          onBlur={(e) => applyNotesMarketplaceApp(detail.id, e.target.value)}
                         />
                       </CardContent>
                     </Card>
@@ -656,25 +454,15 @@ export function MarketplaceReviewPage() {
                 onClick={() => {
                   if (!act || !selected) return;
                   const pct = act.next === "published" ? Number(rollout) : selected.rollout;
-                  patch(selected.id, (s) => ({
-                    ...s,
-                    state: act.next,
-                    notes: msg,
-                    rollout: pct,
-                    publishedVersion: act.next === "published" ? s.version : s.publishedVersion,
-                    ramp:
-                      act.next === "published"
-                        ? [`Day 0 — 10% (internal tenants)`, `Day 3 — ${pct}%`, `Day 7 — ${Math.min(100, pct * 2)}%`, `Day 14 — 100%`]
-                        : s.ramp,
-                    history: [...s.history, { at: stamp(), actor: "You", note: `${selected.app} → ${act.next}${msg ? `. ${msg}` : ""}` }],
-                  }));
-                  recordAudit({
-                    actor: "You",
-                    action: "marketplace.review",
-                    target: selected.id,
-                    detail: `${selected.app} ${selected.version} → ${act.next}${act.next === "published" ? ` at ${pct}% rollout` : ""}. ${msg}`,
-                    severity: act.next === "suspended" ? "critical" : act.next === "published" ? "info" : "warning",
-                  });
+                  if (act.next === "published") {
+                    publishMarketplaceApp(selected.id, pct, msg);
+                  } else if (act.next === "needs_info") {
+                    needsInfoMarketplaceApp(selected.id, msg);
+                  } else if (act.next === "suspended") {
+                    suspendMarketplaceApp(selected.id, msg);
+                  } else {
+                    applyNotesMarketplaceApp(selected.id, msg);
+                  }
                   toast({ title: "Updated", description: `${selected.app} is now ${act.next}${act.next === `published` ? ` (${pct}% rollout)` : ""}.` });
                   setAct(null);
                 }}
@@ -700,13 +488,7 @@ export function MarketplaceReviewPage() {
               <AlertDialogAction
                 onClick={() => {
                   if (!revoke) return;
-                  patch(revoke.id, (s) => ({
-                    ...s,
-                    state: "revoked",
-                    rollout: 0,
-                    history: [...s.history, { at: stamp(), actor: "You", note: "App revoked — uninstalled for all tenants, scopes cut." }],
-                  }));
-                  recordAudit({ actor: "You", action: "marketplace.revoke", target: revoke.id, detail: `Revoked ${revoke.app} v${revoke.version} for all tenants`, severity: "critical" });
+                  revokeMarketplaceApp(revoke.id);
                   toast({ title: "App revoked", description: `${revoke.app} uninstalled everywhere; audit-logged.`, variant: "destructive" });
                   setRevoke(null);
                 }}
@@ -719,4 +501,32 @@ export function MarketplaceReviewPage() {
       </PageContent>
     </Page>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+const stateTone = (s: State): Tone =>
+  s === "published" ? "success" : s === "suspended" || s === "revoked" ? "danger" : s === "needs_info" ? "warning" : "info";
+
+const testTone = (t: TestStatus): Tone => (t === "pass" ? "success" : t === "fail" ? "danger" : "muted");
+const verdictTone = (v: Verdict): Tone => (v === "pass" ? "success" : v === "fail" ? "danger" : "warning");
+const diffTone = (k: DiffKind): Tone =>
+  k === "added" ? "success" : k === "removed" ? "danger" : k === "changed" ? "warning" : "muted";
+
+type Tone = "default" | "success" | "warning" | "danger" | "info" | "muted";
+
+/** Publish gate: every sandbox test green + no failed security answer + no new scope on a "fail". */
+function gate(s: Sub): { ok: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  const failedTests = s.sandbox.filter((t) => t.status !== "pass");
+  if (failedTests.length) reasons.push(`${failedTests.length} sandbox test(s) not passing`);
+  const failedQ = s.security.filter((q) => q.verdict === "fail");
+  if (failedQ.length) reasons.push(`${failedQ.length} security answer(s) failed review`);
+  const pendingQ = s.security.filter((q) => q.verdict === "pending");
+  if (pendingQ.length) reasons.push(`${pendingQ.length} security question(s) unanswered`);
+  const breaking = s.manifest.filter((d) => d.kind === "removed" && d.key.startsWith("webhooks"));
+  if (breaking.length) reasons.push(`breaking manifest removal: ${breaking.map((b) => b.key).join(", ")}`);
+  return { ok: reasons.length === 0, reasons };
 }

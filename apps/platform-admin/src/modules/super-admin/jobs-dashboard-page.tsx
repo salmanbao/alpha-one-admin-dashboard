@@ -2,23 +2,25 @@
 
 /**
  * Job / Scheduler Dashboard — research item #22.
- *
- * Shows background jobs with last-run, duration, next-run, status, lock
- * holder, failure count, and retry state.
+ * 
+ * Shows background jobs with last-run, duration, next-run, status, lock holder, failure count, and retry state.
+ * 
+ * P0-4: job status transitions persist under pfaas:platform-admin:jobs.
+ * Acceptance test: action → reload → state + audit row + toast agree.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/platform/status";
 import { Zap, CheckCircle2, AlertTriangle, XCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
-import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { useJobOverrides, markJobStatus } from "@/lib/platform/jobs-store";
+import { usePlatform } from "@/lib/platform/platform-context";
 
 interface Job {
   id: string;
@@ -60,17 +62,13 @@ const columns: Column<Job>[] = [
 ];
 
 export function JobsDashboardPage() {
-  // Async seam (frontend-first): loading skeleton + error/retry via mock layer.
-  const {
-    data: rows,
-    loading,
-    error,
-    retry,
-  } = useAsyncMock(() => mockAsync(() => jobs, { delayMs: 400 }), []);
-  const succeeded = rows?.filter((j) => j.status === "succeeded").length ?? 0;
-  const running = rows?.filter((j) => j.status === "running").length ?? 0;
-  const failed = rows?.filter((j) => j.status === "failed").length ?? 0;
-  const paused = rows?.filter((j) => j.status === "paused").length ?? 0;
+  const { user } = usePlatform();
+  const overrides = useJobOverrides();
+  const rows = useMemo(() => jobs.map((j) => ({ ...j, ...(overrides[j.id] ?? {}) })), [overrides]);
+  const succeeded = rows.filter((j) => j.status === "succeeded").length;
+  const running = rows.filter((j) => j.status === "running").length;
+  const failed = rows.filter((j) => j.status === "failed").length;
+  const paused = rows.filter((j) => j.status === "paused").length;
 
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -82,26 +80,60 @@ export function JobsDashboardPage() {
 
   const handleRunNow = () => {
     if (!selectedJob) return;
+    markJobStatus(
+      selectedJob.id,
+      selectedJob.name,
+      { status: "running", lastRun: "just now" },
+      { action: "jobs.run_now", detail: `Manual run triggered for ${selectedJob.name}`, severity: "info" },
+      user?.name ?? "Console operator",
+    );
     toast({ title: "Job triggered", description: `${selectedJob.name} — run queued` });
     setIsSheetOpen(false);
   };
 
   const handlePause = () => {
     if (!selectedJob) return;
-    toast({ title: "Job paused", description: `${selectedJob.name} — paused` });
-    setIsSheetOpen(false);
+    if (selectedJob.status === "running") {
+      markJobStatus(
+        selectedJob.id,
+        selectedJob.name,
+        { status: "paused", lastRun: "just now" },
+        { action: "jobs.pause", detail: `Paused ${selectedJob.name}`, severity: "warning" },
+        user?.name ?? "Console operator",
+      );
+      toast({ title: "Job paused", description: `${selectedJob.name} — paused` });
+      setIsSheetOpen(false);
+    }
   };
 
   const handleRetry = () => {
     if (!selectedJob) return;
-    toast({ title: "Retry queued", description: `${selectedJob.name} — retry scheduled` });
-    setIsSheetOpen(false);
+    if (selectedJob.status === "failed") {
+      markJobStatus(
+        selectedJob.id,
+        selectedJob.name,
+        { status: "running", lastRun: "just now" },
+        { action: "jobs.retry", detail: `Retry scheduled for ${selectedJob.name}`, severity: "info" },
+        user?.name ?? "Console operator",
+      );
+      toast({ title: "Retry queued", description: `${selectedJob.name} — retry scheduled` });
+      setIsSheetOpen(false);
+    }
   };
 
   const handleResume = () => {
     if (!selectedJob) return;
-    toast({ title: "Job resumed", description: `${selectedJob.name} — resumed` });
-    setIsSheetOpen(false);
+    if (selectedJob.status === "paused") {
+      markJobStatus(
+        selectedJob.id,
+        selectedJob.name,
+        { status: "running", lastRun: "just now" },
+        { action: "jobs.resume", detail: `Resumed ${selectedJob.name}`, severity: "info" },
+        user?.name ?? "Console operator",
+      );
+      toast({ title: "Job resumed", description: `${selectedJob.name} — resumed` });
+      setIsSheetOpen(false);
+    }
   };
 
   return (
@@ -112,13 +144,6 @@ export function JobsDashboardPage() {
         icon={Zap}
       />
       <PageContent>
-        <PageAsyncBoundary
-          loading={loading}
-          error={error}
-          onRetry={retry}
-          hasData={rows !== undefined}
-          loadingLabel="Loading jobs…"
-        >
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <MetricCard label="Succeeded" value={succeeded} icon={CheckCircle2} tone="positive" />
           <MetricCard label="Running" value={running} icon={Clock} tone="positive" />
@@ -137,7 +162,7 @@ export function JobsDashboardPage() {
 
         <DataTable
           columns={columns}
-          data={rows ?? []}
+          data={rows}
           rowKey={(j) => j.id}
           searchableText={(j) => `${j.name} ${j.status}`}
           searchPlaceholder="Search jobs…"
@@ -208,7 +233,6 @@ export function JobsDashboardPage() {
             </div>
           </SheetContent>
         </Sheet>
-        </PageAsyncBoundary>
       </PageContent>
     </Page>
   );

@@ -5,10 +5,13 @@
  *
  * Stitch screen: (new)
  * Tier 1 — Per-plan tier rate limit editor (requests/min, burst, concurrent).
+ *
+ * P0-4: tier edits / Create Tier / Change Policy persist under
+ * pfaas:platform-admin:rate-limits. Acceptance test: action → reload →
+ * state + audit row + toast agree.
  */
 
 import { useState, useMemo } from "react";
-import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -23,23 +26,14 @@ import {
   Lock,
   Gauge,
   Activity,
-  Users,
   Clock,
   CheckCircle2,
-  AlertTriangle,
   Settings2,
   Save,
-  RefreshCw,
   Key,
   Zap,
 } from "lucide-react";
-
-const demoRateLimitTiers = [
-  { id: "tier-001", name: "Development", description: "Sandbox/testing tier", requestsPerMin: 60, burstLimit: 10, concurrentConns: 5, monthlyQuota: 10000, overagePolicy: "throttle", status: "active" },
-  { id: "tier-002", name: "Standard", description: "Default production tier", requestsPerMin: 600, burstLimit: 100, concurrentConns: 25, monthlyQuota: 100000, overagePolicy: "throttle", status: "active" },
-  { id: "tier-003", name: "Enterprise", description: "High-volume customers", requestsPerMin: 3000, burstLimit: 500, concurrentConns: 100, monthlyQuota: 1000000, overagePolicy: "bill", status: "active" },
-  { id: "tier-004", name: "Premium (Legacy)", description: "Deprecated — new customers use Enterprise", requestsPerMin: 1500, burstLimit: 300, concurrentConns: 50, monthlyQuota: 500000, overagePolicy: "throttle", status: "deprecated" },
-];
+import { useRateLimitTiers, updateTier, createTier, changeTierPolicy, type RateLimitTier } from "@/lib/platform/rate-limits-store";
 
 const overagePolicyColors: Record<string, string> = {
   throttle: "#705c30",
@@ -55,17 +49,11 @@ const statusTones: Record<string, "success" | "warning" | "danger"> = {
 
 export function RateLimitsPage() {
   const { navigate } = usePlatform();
-  const {
-    data: loadedData,
-    loading,
-    error,
-    retry,
-  } = useAsyncMock(() => mockAsync(() => demoRateLimitTiers, { delayMs: 400 }), []);
-  const rateLimitTiers = loadedData ?? [];
+  const rateLimitTiers = useRateLimitTiers();
   const [editingTier, setEditingTier] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, Record<string, number | string>>>({});
 
-  const startEdit = (tierId: string, tier: (typeof demoRateLimitTiers)[0]) => {
+  const startEdit = (tierId: string, tier: RateLimitTier) => {
     setEditingTier(tierId);
     setEditValues({
       [tierId]: {
@@ -84,9 +72,18 @@ export function RateLimitsPage() {
 
   const saveEdit = (tierId: string) => {
     const values = editValues[tierId];
+    const tier = rateLimitTiers.find((t) => t.id === tierId);
+    if (!tier || !values) return;
+    updateTier({
+      ...tier,
+      requestsPerMin: Number(values.requestsPerMin ?? tier.requestsPerMin),
+      burstLimit: Number(values.burstLimit ?? tier.burstLimit),
+      concurrentConns: Number(values.concurrentConns ?? tier.concurrentConns),
+      monthlyQuota: Number(values.monthlyQuota ?? tier.monthlyQuota),
+    });
     toast({
       title: "Rate limits saved",
-      description: `Tier updated: ${values.requestsPerMin} req/min, ${values.burstLimit} burst, ${values.concurrentConns} concurrent, ${values.monthlyQuota} monthly.`,
+      description: `${tier.name}: ${values.requestsPerMin} req/min, ${values.burstLimit} burst, ${values.concurrentConns} concurrent, ${values.monthlyQuota} monthly.`,
     });
     setEditingTier(null);
     setEditValues({});
@@ -102,11 +99,33 @@ export function RateLimitsPage() {
     }));
   };
 
+  const handleCreateTier = () => {
+    const created = createTier({
+      name: "Custom Tier",
+      description: "Operator-created tier",
+      requestsPerMin: 120,
+      burstLimit: 30,
+      concurrentConns: 10,
+      monthlyQuota: 25000,
+      overagePolicy: "throttle",
+      status: "active",
+    });
+    toast({ title: "Tier created", description: `${created.name} added (${created.requestsPerMin} req/min).` });
+  };
+
+  const handleChangePolicy = (tier: RateLimitTier) => {
+    const order: Array<"throttle" | "bill" | "hard_stop"> = ["throttle", "bill", "hard_stop"];
+    const idx = order.indexOf(tier.overagePolicy);
+    const next = order[(idx + 1) % order.length];
+    changeTierPolicy(tier.id, next);
+    toast({ title: "Overage policy updated", description: `${tier.name} → ${next.replace("_", " ")}.` });
+  };
+
   const stats = useMemo(() => ({
     total: rateLimitTiers.length,
     active: rateLimitTiers.filter((t) => t.status === "active").length,
-    avgReqPerMin: Math.round(rateLimitTiers.reduce((s, t) => s + t.requestsPerMin, 0) / rateLimitTiers.length),
-    avgMonthlyQuota: Math.round(rateLimitTiers.reduce((s, t) => s + t.monthlyQuota, 0) / rateLimitTiers.length),
+    avgReqPerMin: rateLimitTiers.length ? Math.round(rateLimitTiers.reduce((s, t) => s + t.requestsPerMin, 0) / rateLimitTiers.length) : 0,
+    avgMonthlyQuota: rateLimitTiers.length ? Math.round(rateLimitTiers.reduce((s, t) => s + t.monthlyQuota, 0) / rateLimitTiers.length) : 0,
   }), [rateLimitTiers]);
 
   return (
@@ -123,7 +142,7 @@ export function RateLimitsPage() {
             <Button variant="outline" size="sm" onClick={() => navigate("api-analytics")}>
               <Activity className="mr-1 h-4 w-4" /> API Analytics
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "Create tier", description: "New rate limit tier form opened." })}>
+            <Button size="sm" onClick={handleCreateTier}>
               <Zap className="mr-1 h-4 w-4" /> Create Tier
             </Button>
           </>
@@ -131,10 +150,10 @@ export function RateLimitsPage() {
       />
       <PageContent>
         <PageAsyncBoundary
-          loading={loading}
-          error={error}
-          onRetry={retry}
-          hasData={loadedData !== undefined}
+          loading={false}
+          error={undefined}
+          onRetry={() => undefined}
+          hasData={true}
           loadingLabel="Loading rate limit tiers…"
         >
         {/* Stats */}
@@ -254,7 +273,7 @@ export function RateLimitsPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => toast({ title: "Edit overage policy", description: `Change overage policy for ${tier.name}.` })}
+                      onClick={() => handleChangePolicy(tier)}
                     >
                       <Settings2 className="mr-1 h-3 w-3" /> Change Policy
                     </Button>

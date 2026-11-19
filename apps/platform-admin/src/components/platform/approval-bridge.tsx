@@ -15,12 +15,15 @@ import { applyRoleApproval } from "@/lib/platform/role-store";
 import { applyApiKeyApproval } from "@/lib/platform/api-key-store";
 import { applyStaffApproval } from "@/lib/platform/staff-store";
 import { applyOperatorApproval } from "@/lib/platform/platform-context";
+import { applyPlatformApproval } from "@/lib/platform/deployments-store";
 
 registerApprovalHandler("role.", applyRoleApproval);
 registerApprovalHandler("apikey.", applyApiKeyApproval);
 registerApprovalHandler("staff.", applyStaffApproval);
 // Directory lifecycle + profile edits (gap S-01/S-02 — P0-3).
 registerApprovalHandler("operator.", applyOperatorApproval);
+// P0-4: deployment rollback via two-operator approval.
+registerApprovalHandler("platform.", applyPlatformApproval);
 
 export function ApprovalBridge() {
   useApprovalApplier();

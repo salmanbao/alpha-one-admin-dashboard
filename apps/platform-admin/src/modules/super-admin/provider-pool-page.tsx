@@ -11,12 +11,11 @@
  * quarantine re-routes only the affected tenant's traffic.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { PageAsyncBoundary, EmptyState } from "@/components/platform/guards";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { StatusBadge } from "@/components/platform/status";
-import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +27,18 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { usePlatform } from "@/lib/platform/platform-context";
+import {
+  useProviderPool,
+  quarantineAllocation,
+  releaseAllocation,
+  reallocateAllocation,
+  addProvider,
+  type Provider,
+  type Allocation,
+  type ProviderKind,
+  type QuarantineReason,
+} from "@/lib/platform/provider-pool-store";
 import {
   Network,
   Plus,
@@ -43,36 +54,8 @@ import {
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/* Types + seed data                                                   */
+/* Helpers                                                             */
 /* ------------------------------------------------------------------ */
-
-type ProviderKind = "Email" | "SMS" | "WhatsApp";
-type QuarantineReason = "complaint rate" | "spam traps" | "abuse report";
-
-interface Provider {
-  id: string;
-  name: string;
-  kind: ProviderKind;
-  masterStatus: "connected" | "degraded";
-  quotaUsed: number;
-  quotaTotal: number;
-  health: number;
-}
-
-interface Allocation {
-  id: string;
-  tenant: string;
-  plan: string;
-  providerId: string;
-  subaccount: string;
-  quotaUsed: number;
-  quotaAssigned: number;
-  ipPool: string;
-  reputation: number;
-  costCenter: string;
-  status: "active" | "quarantined";
-  quarantineReason?: QuarantineReason;
-}
 
 const kindMeta: Record<ProviderKind, { icon: React.ComponentType<{ className?: string }>; badge: string }> = {
   Email: { icon: Mail, badge: "SMTP" },
@@ -83,26 +66,6 @@ const kindMeta: Record<ProviderKind, { icon: React.ComponentType<{ className?: s
 const quarantineReasons: QuarantineReason[] = ["complaint rate", "spam traps", "abuse report"];
 
 const ipPools = ["shared-us-east", "shared-eu-west", "warmup-pool-2", "isolated-quarantine"];
-
-const seedProviders: Provider[] = [
-  { id: "prv-sendgrid", name: "SendGrid — shared business", kind: "Email", masterStatus: "connected", quotaUsed: 640_000, quotaTotal: 900_000, health: 94 },
-  { id: "prv-twilio", name: "Twilio — shared account", kind: "SMS", masterStatus: "connected", quotaUsed: 62_000, quotaTotal: 150_000, health: 88 },
-  { id: "prv-wa", name: "WhatsApp Cloud API — BSP", kind: "WhatsApp", masterStatus: "degraded", quotaUsed: 34_000, quotaTotal: 60_000, health: 71 },
-];
-
-const seedAllocations: Allocation[] = [
-  { id: "al-1", tenant: "Alpha Capital", plan: "Enterprise", providerId: "prv-sendgrid", subaccount: "sg-alpha-prod", quotaUsed: 412_500, quotaAssigned: 450_000, ipPool: "shared-us-east", reputation: 96, costCenter: "MKT-ALPHA-01", status: "active" },
-  { id: "al-2", tenant: "Beta Trading", plan: "Scale", providerId: "prv-sendgrid", subaccount: "sg-beta-prod", quotaUsed: 96_400, quotaAssigned: 100_000, ipPool: "shared-us-east", reputation: 41, costCenter: "MKT-BETA-02", status: "active" },
-  { id: "al-3", tenant: "Gamma Futures", plan: "Growth", providerId: "prv-sendgrid", subaccount: "sg-gamma-prod", quotaUsed: 51_800, quotaAssigned: 120_000, ipPool: "shared-eu-west", reputation: 74, costCenter: "MKT-GAMMA-01", status: "active" },
-  { id: "al-4", tenant: "Beta Trading", plan: "Scale", providerId: "prv-twilio", subaccount: "tw-beta", quotaUsed: 25_000, quotaAssigned: 40_000, ipPool: "shared-us-east", reputation: 82, costCenter: "MKT-BETA-02", status: "active" },
-  { id: "al-5", tenant: "Delta Prop", plan: "Starter", providerId: "prv-twilio", subaccount: "tw-delta", quotaUsed: 4_200, quotaAssigned: 25_000, ipPool: "warmup-pool-2", reputation: 91, costCenter: "MKT-DELTA-01", status: "active" },
-  { id: "al-6", tenant: "Epsilon Markets", plan: "Growth", providerId: "prv-wa", subaccount: "wa-epsilon", quotaUsed: 18_000, quotaAssigned: 20_000, ipPool: "shared-eu-west", reputation: 68, costCenter: "MKT-EPS-01", status: "active" },
-  { id: "al-7", tenant: "Gamma Futures", plan: "Growth", providerId: "prv-wa", subaccount: "wa-gamma", quotaUsed: 16_000, quotaAssigned: 40_000, ipPool: "shared-eu-west", reputation: 77, costCenter: "MKT-GAMMA-01", status: "active" },
-];
-
-/* ------------------------------------------------------------------ */
-/* Helpers                                                             */
-/* ------------------------------------------------------------------ */
 
 const repTone = (score: number) => (score < 40 ? "#e11d48" : score < 70 ? "#d97706" : "#059669");
 const repLabel = (score: number) => (score < 40 ? "Poor" : score < 70 ? "Fair" : "Good");
@@ -303,27 +266,12 @@ function QuarantineDrawer({
 /* ------------------------------------------------------------------ */
 
 export function ProviderPoolPage() {
-  const {
-    data: loaded,
-    loading,
-    error,
-    retry,
-  } = useAsyncMock(() => mockAsync(() => ({ providers: seedProviders, allocations: seedAllocations }), { delayMs: 450 }), []);
-
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [allocations, setAllocations] = useState<Allocation[]>([]);
-
+  const { user } = usePlatform();
+  const { providers, allocations } = useProviderPool();
   const [addOpen, setAddOpen] = useState(false);
   const [capacityOpen, setCapacityOpen] = useState(false);
   const [quarantineId, setQuarantineId] = useState<string | null>(null);
   const [reallocId, setReallocId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (loaded) {
-      setProviders(loaded.providers);
-      setAllocations(loaded.allocations);
-    }
-  }, [loaded]);
 
   const providerById = (id: string) => providers.find((p) => p.id === id);
   const quarantineTarget = allocations.find((a) => a.id === quarantineId) ?? null;
@@ -333,7 +281,6 @@ export function ProviderPoolPage() {
 
   const changeIpPool = (alloc: Allocation, pool: string) => {
     if (pool === alloc.ipPool) return;
-    setAllocations((prev) => prev.map((a) => (a.id === alloc.id ? { ...a, ipPool: pool } : a)));
     toast({
       title: "IP pool change scheduled",
       description: `${alloc.tenant} → ${pool} applies at the next send batch — no partial-campaign split.`,
@@ -343,13 +290,11 @@ export function ProviderPoolPage() {
   const confirmQuarantine = (reason: QuarantineReason) => {
     const target = quarantineTarget;
     if (!target) return;
-    setAllocations((prev) =>
-      prev.map((a) => (a.id === target.id ? { ...a, status: "quarantined", quarantineReason: reason, ipPool: "isolated-quarantine" } : a)),
-    );
+    quarantineAllocation(target.tenant, reason, user?.name ?? "Console operator");
     setQuarantineId(null);
     toast({
       title: `${target.tenant} quarantined`,
-      description: `Reason: ${reason}. Traffic re-routed to iso-${target.subaccount} on quarantine-pool-1; banner pinned on their channel dashboard. Other tenants' reputation gauges are unchanged.`,
+      description: `Reason: ${reason}. Traffic re-routed to isolated quarantine pool.`,
     });
   };
 
@@ -358,27 +303,23 @@ export function ProviderPoolPage() {
     if (!target) return;
     const destination = providerById(targetProviderId);
     if (!destination) return;
-
     const usedOnDestination = allocations
       .filter((a) => a.providerId === destination.id && a.id !== target.id)
       .reduce((s, a) => s + a.quotaUsed, 0);
     const free = destination.quotaTotal - usedOnDestination;
 
     if (free < target.quotaUsed) {
-      // Failure path: roll back (nothing changed) + incident entry.
       setReallocId(null);
       toast({
         title: "Reallocation failed — rolled back",
-        description: `${destination.name} has ${free.toLocaleString()} free capacity; ${target.quotaUsed.toLocaleString()} required. No change applied. Incident INC-2041 opened against the provider pool.`,
+        description: `${destination.name} has ${free.toLocaleString()} free capacity; ${target.quotaUsed.toLocaleString()} required. No change applied.`,
         variant: "destructive",
       });
       return;
     }
 
     const newLabel = subaccountLabel.trim() || `${destination.id.slice(4)}-${target.tenant.toLowerCase().split(" ")[0]}`;
-    setAllocations((prev) =>
-      prev.map((a) => (a.id === target.id ? { ...a, providerId: destination.id, subaccount: newLabel, status: "active", quarantineReason: undefined } : a)),
-    );
+    reallocateAllocation(target.id, destination.id, newLabel, user?.name ?? "Console operator");
     setReallocId(null);
     toast({
       title: "Tenant reallocated",
@@ -386,11 +327,10 @@ export function ProviderPoolPage() {
     });
   };
 
-  const addProvider = (name: string, kind: ProviderKind) => {
-    const id = `prv-${Date.now()}`;
-    setProviders((prev) => [...prev, { id, name, kind, masterStatus: "connected", quotaUsed: 0, quotaTotal: 100_000, health: 100 }]);
+  const handleAddProvider = (name: string, kind: ProviderKind) => {
+    addProvider(name, kind, user?.name ?? "Console operator");
     setAddOpen(false);
-    toast({ title: "Shared provider connected", description: `${name} (${kind}) added at the platform level — subaccounts can now be allocated to tenants.` });
+    toast({ title: "Shared provider connected", description: `${name} (${kind}) added at the platform level — subaccounts can now be allocated.` });
   };
 
   const columns: Column<Allocation>[] = [
@@ -480,8 +420,8 @@ export function ProviderPoolPage() {
               className="h-7 px-2 text-[10px]"
               aria-label={`Release ${a.tenant} from quarantine`}
               onClick={() => {
-                setAllocations((prev) => prev.map((x) => (x.id === a.id ? { ...x, status: "active", quarantineReason: undefined, ipPool: "shared-us-east" } : x)));
-                toast({ title: "Released from quarantine", description: `${a.tenant} returned to the shared pool after 7 clean days. Approval item routed to the Approval Center.` });
+                releaseAllocation(a.tenant, user?.name ?? "Console operator");
+                toast({ title: "Released from quarantine", description: `${a.tenant} returned to the shared pool after 7 clean days.` });
               }}
             >
               <CheckCircle2 className="h-3 w-3" /> Release
@@ -515,10 +455,10 @@ export function ProviderPoolPage() {
       />
       <PageContent>
         <PageAsyncBoundary
-          loading={loading}
-          error={error}
-          onRetry={retry}
-          hasData={loaded !== undefined}
+          loading={false}
+          error={undefined}
+          onRetry={() => undefined}
+          hasData={true}
           loadingLabel="Loading provider pool…"
         >
           {providers.length === 0 ? (
@@ -601,7 +541,7 @@ export function ProviderPoolPage() {
                     columns={columns}
                     data={allocations}
                     rowKey={(a) => a.id}
-                    loading={loading}
+                    loading={false}
                     searchableText={(a) => `${a.tenant} ${a.subaccount} ${a.ipPool} ${a.costCenter} ${a.status}`}
                     searchPlaceholder="Search allocations…"
                     pageSize={8}
@@ -639,7 +579,7 @@ export function ProviderPoolPage() {
       ) : null}
 
       {/* ── Add shared provider ───────────────────────────────── */}
-      <AddProviderDialog open={addOpen} onClose={() => setAddOpen(false)} onAdd={addProvider} />
+      <AddProviderDialog open={addOpen} onClose={() => setAddOpen(false)} onAdd={handleAddProvider} />
 
       {/* ── Capacity settings ─────────────────────────────────── */}
       <CapacityDialog open={capacityOpen} onClose={() => setCapacityOpen(false)} />

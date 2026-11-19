@@ -5,10 +5,12 @@
  *
  * Stitch screen: (new)
  * Tier 3 — Currency registry, tax rates by region, rounding/precision settings.
+ *
+ * P0-4: exchange rate saves, currency enable/disable, tax-rule edits persist under
+ * pfaas:platform-admin:tax-currency. Acceptance test: action → reload → state + audit row + toast agree.
  */
 
 import { useState, useMemo } from "react";
-import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { StatusBadge } from "@/components/platform/status";
@@ -23,43 +25,21 @@ import {
   Globe,
   Plus,
   Save,
-  CheckCircle2,
-  AlertTriangle,
-  Landmark,
   ArrowLeftRight,
+  Landmark,
 } from "lucide-react";
-
-const demoCurrencies = [
-  { code: "USD", name: "US Dollar", symbol: "$", rate: 1.0, enabled: true, isDefault: true, precision: 2 },
-  { code: "EUR", name: "Euro", symbol: "€", rate: 0.92, enabled: true, isDefault: false, precision: 2 },
-  { code: "GBP", name: "British Pound", symbol: "£", rate: 0.79, enabled: true, isDefault: false, precision: 2 },
-  { code: "AED", name: "UAE Dirham", symbol: "د.إ", rate: 3.67, enabled: true, isDefault: false, precision: 2 },
-  { code: "AUD", name: "Australian Dollar", symbol: "A$", rate: 1.52, enabled: false, isDefault: false, precision: 2 },
-  { code: "JPY", name: "Japanese Yen", symbol: "¥", rate: 149.5, enabled: false, isDefault: false, precision: 0 },
-];
-
-const demoTaxRules = [
-  { id: "tax-001", region: "European Union", type: "VAT", rate: 21, inclusive: true, appliesTo: "All subscription plans", status: "active" },
-  { id: "tax-002", region: "United Kingdom", type: "VAT", rate: 20, inclusive: true, appliesTo: "All subscription plans", status: "active" },
-  { id: "tax-003", region: "United States (CA)", type: "Sales Tax", rate: 8.5, inclusive: false, appliesTo: "All subscription plans", status: "active" },
-  { id: "tax-004", region: "United States (NY)", type: "Sales Tax", rate: 8.0, inclusive: false, appliesTo: "All subscription plans", status: "active" },
-  { id: "tax-005", region: "UAE", type: "VAT", rate: 5, inclusive: true, appliesTo: "All subscription plans", status: "active" },
-  { id: "tax-006", region: "Australia", type: "GST", rate: 10, inclusive: true, appliesTo: "All subscription plans", status: "disabled" },
-];
-
-const statusTones: Record<string, "success" | "warning"> = {
-  active: "success",
-  disabled: "warning",
-};
+import {
+  useTaxCurrency,
+  saveExchangeRate,
+  toggleCurrency,
+  saveTaxRule,
+  toggleTaxRule,
+  type Currency,
+  type TaxRule,
+} from "@/lib/platform/tax-currency-store";
 
 export function TaxCurrencyPage() {
-  const {
-    data: loadedData,
-    loading,
-    error,
-    retry,
-  } = useAsyncMock(() => mockAsync(() => ({ currencies: demoCurrencies, taxRules: demoTaxRules }), { delayMs: 450 }), []);
-  const data = loadedData ?? { currencies: [], taxRules: [] };
+  const data = useTaxCurrency();
   const [editingRate, setEditingRate] = useState<string | null>(null);
   const [rateDraft, setRateDraft] = useState("");
   const [taxSearch, setTaxSearch] = useState("");
@@ -78,8 +58,22 @@ export function TaxCurrencyPage() {
   }), [data]);
 
   const saveRate = (code: string) => {
-    toast({ title: "(demo) Exchange rate saved", description: `${code} rate updated to ${rateDraft}. Rate refresh scheduled.` });
+    const rate = Number(rateDraft);
+    const result = saveExchangeRate(code, rate);
+    toast({ title: result.title, description: result.description });
     setEditingRate(null);
+    setRateDraft("");
+  };
+
+  const toggleCurrencyEnabled = (cur: Currency) => {
+    const result = toggleCurrency(cur.code, !cur.enabled);
+    toast({ title: result.title, description: result.description });
+  };
+
+  const toggleTaxRuleStatus = (rule: TaxRule) => {
+    const next: "active" | "disabled" = rule.status === "active" ? "disabled" : "active";
+    const result = toggleTaxRule(rule.id, next);
+    toast({ title: result.title, description: result.description });
   };
 
   return (
@@ -101,10 +95,10 @@ export function TaxCurrencyPage() {
       />
       <PageContent>
         <PageAsyncBoundary
-          loading={loading}
-          error={error}
-          onRetry={retry}
-          hasData={loadedData !== undefined}
+          loading={false}
+          error={undefined}
+          onRetry={() => undefined}
+          hasData={true}
           loadingLabel="Loading tax & currency settings…"
         >
         {/* Stats */}
@@ -179,7 +173,7 @@ export function TaxCurrencyPage() {
                         <StatusBadge tone={cur.enabled ? "success" : "warning"}>{cur.enabled ? "enabled" : "disabled"}</StatusBadge>
                       </td>
                       <td className="px-4 py-3">
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: `(demo) ${cur.enabled ? "Currency disabled" : "Currency enabled"}`, description: `${cur.code} ${cur.enabled ? "disabled for new charges" : "enabled"}. Audited.` })}>
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toggleCurrencyEnabled(cur)}>
                           {cur.enabled ? "Disable" : "Enable"}
                         </Button>
                       </td>
@@ -228,13 +222,13 @@ export function TaxCurrencyPage() {
                       <td className="px-4 py-3 text-sm font-bold">{rule.rate}%</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{rule.inclusive ? "Tax inclusive" : "Tax exclusive"}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{rule.appliesTo}</td>
-                      <td className="px-4 py-3"><StatusBadge tone={statusTones[rule.status]}>{rule.status}</StatusBadge></td>
+                      <td className="px-4 py-3"><StatusBadge tone={rule.status === "active" ? "success" : "warning"}>{rule.status}</StatusBadge></td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Edit rule", description: `Editing tax rule for ${rule.region}.` })}>
                             Edit
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: `(demo) ${rule.status === "active" ? "Rule disabled" : "Rule enabled"}`, description: `${rule.region} tax rule ${rule.status === "active" ? "disabled" : "enabled"}. Audited.` })}>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toggleTaxRuleStatus(rule)}>
                             {rule.status === "active" ? "Disable" : "Enable"}
                           </Button>
                         </div>

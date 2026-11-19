@@ -2,7 +2,6 @@
 
 /**
  * Risk & Evaluation Engine — finding #8 (4 reviewer gaps):
- *
  *   1. Per-tenant risk parameters — custom daily loss %, max drawdown %,
  *      profit target % and minimum days per tenant prop firm.
  *   2. Engine rule toggles — direct configuration of the real-time
@@ -11,7 +10,7 @@
  *      levels editable and applied live.
  *   4. Status metrics — evaluations, breach events, enabled rules and
  *      decision latency as first-class MetricCards.
- *
+ * 
  * Deterministic fixtures — no Math.random; every apply is toasted and
  * the header links to the audit log where the change would land.
  */
@@ -20,13 +19,10 @@ import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { getTenantBreaches } from "@/lib/platform/mock-data";
 import { useTenants } from "@/lib/platform/tenant-store";
+import { useRiskParams, setRiskParams, DEFAULT_RISK_PARAMS, type TenantRiskParams } from "@/lib/platform/risk-defaults-store";
+import { useRuleToggles, toggleRule as toggleRuleStore, type EngineRule } from "@/lib/platform/risk-engine-store";
+import { useThresholds, applyThresholds as applyThresholdsStore, type Thresholds } from "@/lib/platform/risk-engine-store";
 import { recordAudit } from "@/lib/platform/console-store";
-import {
-  useRiskParams,
-  setRiskParams,
-  DEFAULT_RISK_PARAMS,
-  type TenantRiskParams,
-} from "@/lib/platform/risk-defaults-store";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { StatusBadge, formatCompact } from "@/components/platform/status";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -50,21 +46,12 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
-  Save,
-  Zap,
   Clock,
   ArrowRight,
   SlidersHorizontal,
   RotateCcw,
+  Zap,
 } from "lucide-react";
-
-/* ------------------------------------------------------------------ */
-/* Types & deterministic fixtures                                      */
-/* ------------------------------------------------------------------ */
-
-// TenantRiskParams / DEFAULT_RISK_PARAMS live in risk-defaults-store —
-// the same persisted values the go-live wizard's "Risk defaults" step
-// writes (R2-W3-04).
 
 const PARAM_FIELDS: { key: keyof TenantRiskParams; label: string; unit: string; min: number; max: number; step: string }[] = [
   { key: "dailyLoss", label: "Daily loss limit", unit: "%", min: 0.1, max: 20, step: "0.5" },
@@ -75,7 +62,7 @@ const PARAM_FIELDS: { key: keyof TenantRiskParams; label: string; unit: string; 
 
 const DEFAULT_PARAMS = DEFAULT_RISK_PARAMS;
 
-interface EngineRule {
+interface RiskRule {
   id: string;
   name: string;
   description: string;
@@ -84,30 +71,14 @@ interface EngineRule {
   critical: boolean;
 }
 
-const ENGINE_RULES: EngineRule[] = [
-  { id: "intraday-dd", name: "Intraday drawdown enforcement", description: "Breaches the daily loss limit while the session is still open.", scope: "Global", enabled: true, critical: true },
-  { id: "consistency", name: "Consistency rule (30%)", description: "No single trading day may contribute more than 30% of total profit.", scope: "Global", enabled: true, critical: false },
-  { id: "news-guard", name: "News-event position check", description: "Blocks new entries within ±2 minutes of tier-1 releases.", scope: "Global", enabled: true, critical: false },
-  { id: "copy-detect", name: "Copy-trade detection", description: "Flags mirror execution across account clusters for review.", scope: "Global", enabled: true, critical: true },
-  { id: "weekend-hold", name: "Weekend holding guard", description: "Restricts overnight and weekend exposure on challenge accounts.", scope: "Per-tenant", enabled: false, critical: false },
-  { id: "ai-anomaly", name: "AI anomaly surveillance", description: "Scores tick-level anomalies and routes them to manual review.", scope: "Beta", enabled: false, critical: false },
-];
-
-interface Thresholds {
+interface ThresholdFields {
   nearMiss: string;
   equityDrop: string;
   criticalDd: string;
   rapid: string;
 }
 
-const THRESHOLD_FIELDS: { key: keyof Thresholds; label: string; hint: string; min: number; max: number; step: string }[] = [
-  { key: "nearMiss", label: "Near-miss warning", hint: "% of daily limit consumed", min: 1, max: 100, step: "1" },
-  { key: "equityDrop", label: "Equity drop alert", hint: "% equity lost within 5 minutes", min: 0.1, max: 20, step: "0.1" },
-  { key: "criticalDd", label: "Critical drawdown", hint: "% of max DD before auto-breach", min: 1, max: 100, step: "1" },
-  { key: "rapid", label: "Rapid drawdown trigger", hint: "% lost within 60 seconds", min: 0.1, max: 10, step: "0.1" },
-];
-
-const DEFAULT_THRESHOLDS: Thresholds = {
+const DEFAULT_THRESHOLDS: ThresholdFields = {
   nearMiss: "80",
   equityDrop: "3",
   criticalDd: "90",
@@ -119,29 +90,15 @@ function validateRange(value: string, min: number, max: number): boolean {
   return Number.isFinite(n) && n >= min && n <= max;
 }
 
-/* ------------------------------------------------------------------ */
-/* Page                                                                */
-/* ------------------------------------------------------------------ */
-
 export function RiskEnginePage() {
   const { navigate, user } = usePlatform();
-
-  // Live roster — store-backed, so tenants created by the go-live wizard
-  // show up here — and the persisted parameter overrides they share with
-  // the wizard's "Risk defaults" step (R2-W3-04).
   const rosterTenants = useTenants();
   const appliedParams = useRiskParams();
-
-  // Gap 1 — per-tenant risk parameters (applied overrides on defaults).
-  const [draftParams, setDraftParams] = useState<Record<string, TenantRiskParams>>({});
+  const appliedRules: EngineRule[] = useRuleToggles();
+  const appliedThresholds: Thresholds = useThresholds();
   const [selectedTenant, setSelectedTenant] = useState(rosterTenants[0]?.id ?? "");
-
-  // Gap 2 — engine rule toggles.
-  const [rules, setRules] = useState<EngineRule[]>(ENGINE_RULES);
-
-  // Gap 3 — dynamic breach thresholds.
-  const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
-  const [thresholdDraft, setThresholdDraft] = useState<Thresholds>(DEFAULT_THRESHOLDS);
+  const [draftParams, setDraftParams] = useState<Record<string, TenantRiskParams>>({});
+  const [thresholdDraft, setThresholdDraft] = useState<ThresholdFields>(DEFAULT_THRESHOLDS);
 
   const tenant = rosterTenants.find((t) => t.id === selectedTenant) ?? rosterTenants[0];
   const effectiveParams = (id: string): TenantRiskParams =>
@@ -155,21 +112,9 @@ export function RiskEnginePage() {
     return (Object.keys(base) as (keyof TenantRiskParams)[]).some((k) => draft[k] !== base[k]);
   }, [tenant, draftParams, appliedParams]);
 
-  const thresholdsDirty = useMemo(
-    () =>
-      (Object.keys(DEFAULT_THRESHOLDS) as (keyof Thresholds)[]).some(
-        (k) => thresholdDraft[k] !== thresholds[k],
-      ),
-    [thresholdDraft, thresholds],
-  );
-
-  // Gap 4 — status metrics.
-  const breachEvents = useMemo(
-    () => rosterTenants.reduce((s, t) => s + getTenantBreaches(t.id).length, 0),
-    [],
-  );
-  const enabledRules = rules.filter((r) => r.enabled).length;
-  const criticalOff = rules.filter((r) => r.critical && !r.enabled).length;
+  const thresholdsDirty = useMemo(() => {
+    return Object.keys(DEFAULT_THRESHOLDS).some((k) => thresholdDraft[k as keyof ThresholdFields] !== appliedThresholds[k as keyof Thresholds]);
+  }, [thresholdDraft, appliedThresholds]);
 
   const editParam = (key: keyof TenantRiskParams, value: string) => {
     if (!tenant) return;
@@ -192,18 +137,6 @@ export function RiskEnginePage() {
       });
       return;
     }
-    const base = appliedParams[tenant.id] ?? DEFAULT_PARAMS;
-    const changed = (Object.keys(base) as (keyof TenantRiskParams)[])
-      .filter((k) => draft[k] !== base[k])
-      .map((k) => `${PARAM_FIELDS.find((f) => f.key === k)?.label}: ${base[k]} → ${draft[k]}`);
-    if (changed.length === 0) {
-      setDraftParams((prev) => {
-        const next = { ...prev };
-        delete next[tenant.id];
-        return next;
-      });
-      return;
-    }
     setRiskParams(tenant.id, draft);
     recordAudit({
       actor: user?.name ?? "Console operator",
@@ -211,7 +144,7 @@ export function RiskEnginePage() {
       target: tenant.name,
       tenantId: tenant.id,
       severity: "info",
-      detail: changed.join(" · "),
+      detail: Object.keys(draft).map((k) => `${PARAM_FIELDS.find((f) => f.key === k)?.label}: ${draft[k]}`).join(" · "),
     });
     setDraftParams((prev) => {
       const next = { ...prev };
@@ -220,7 +153,7 @@ export function RiskEnginePage() {
     });
     toast({
       title: "Risk parameters applied",
-      description: `${tenant.name} — ${changed.join(" · ")}. Saved to this tenant and used by new evaluations.`,
+      description: `${tenant.name} — ${Object.keys(draft).map((k) => `${PARAM_FIELDS.find((f) => f.key === k)?.label}: ${draft[k]}`).join(" · ")}. Saved to this tenant and used by new evaluations.`,
     });
   };
 
@@ -234,7 +167,7 @@ export function RiskEnginePage() {
   };
 
   const toggleRule = (rule: EngineRule, enabled: boolean) => {
-    setRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, enabled } : r)));
+    toggleRuleStore(rule, enabled);
     recordAudit({
       actor: user?.name ?? "Console operator",
       action: enabled ? "risk.rule_enabled" : "risk.rule_disabled",
@@ -257,30 +190,33 @@ export function RiskEnginePage() {
   };
 
   const applyThresholds = () => {
-    const bad = THRESHOLD_FIELDS.find((f) => !validateRange(thresholdDraft[f.key], f.min, f.max));
+    const bad = Object.keys(DEFAULT_THRESHOLDS).some(
+      (k) => !validateRange(thresholdDraft[k as keyof ThresholdFields], 1, 100)
+    );
     if (bad) {
       toast({
         variant: "destructive",
         title: "Invalid threshold",
-        description: `${bad.label} must be between ${bad.min} and ${bad.max}.`,
+        description: "Please fix the invalid value before applying.",
       });
       return;
     }
-    setThresholds(thresholdDraft);
-    recordAudit({
-      actor: user?.name ?? "Console operator",
-      action: "risk.thresholds_applied",
-      target: "breach thresholds",
-      severity: "info",
-      detail: `near-miss ${thresholdDraft.nearMiss}% · equity drop ${thresholdDraft.equityDrop}% · critical ${thresholdDraft.criticalDd}% · rapid ${thresholdDraft.rapid}%`,
-    });
+    applyThresholdsStore(thresholdDraft as Thresholds);
     toast({
-      title: "Breach thresholds applied (demo)",
-      description: "Near-miss, equity-drop, critical and rapid-drawdown levels updated for every tenant.",
+      title: "Breach thresholds applied",
+      description: `Near-miss ${thresholdDraft.nearMiss}% · equity drop ${thresholdDraft.equityDrop}% · critical ${thresholdDraft.criticalDd}% · rapid ${thresholdDraft.rapid}%.`,
     });
+    setThresholdDraft(DEFAULT_THRESHOLDS);
   };
 
   const isCustom = (id: string) => Boolean(appliedParams[id]);
+
+  const breachEvents = useMemo(
+    () => rosterTenants.reduce((s, t) => s + getTenantBreaches(t.id).length, 0),
+    []
+  );
+  const enabledRules = appliedRules.filter((r) => r.enabled).length;
+  const criticalOff = appliedRules.filter((r) => r.critical && !r.enabled).length;
 
   return (
     <Page>
@@ -302,7 +238,7 @@ export function RiskEnginePage() {
           <MetricCard label="Breach Events (24h)" value={formatCompact(breachEvents)} delta={-3} icon={ShieldAlert} tone={breachEvents > 0 ? "negative" : "positive"} />
           <MetricCard
             label="Engine Rules Enabled"
-            value={`${enabledRules} / ${rules.length}`}
+            value={`${enabledRules} / ${appliedRules.length}`}
             delta={0}
             icon={CheckCircle2}
             tone={criticalOff > 0 ? "negative" : "positive"}
@@ -314,8 +250,7 @@ export function RiskEnginePage() {
           <div role="alert" className="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              {criticalOff} critical rule{criticalOff === 1 ? " is" : "s are"} disabled —
-              the engine is not enforcing full coverage. Re-enable {criticalOff === 1 ? "it" : "them"} below.
+              {criticalOff} critical rule{criticalOff === 1 ? " is" : "s are"} disabled — the engine is not enforcing full coverage. Re-enable {criticalOff === 1 ? "it" : "them"} below.
             </p>
           </div>
         )}
@@ -375,8 +310,7 @@ export function RiskEnginePage() {
                       <span className="w-4 text-xs text-muted-foreground">{f.unit}</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground">
-                      {f.min}–{f.max}
-                      {f.unit}
+                      {f.min}–{f.max}{f.unit}
                     </p>
                   </div>
                 ))}
@@ -390,11 +324,49 @@ export function RiskEnginePage() {
                   <Button variant="outline" size="sm" disabled={!paramsDirty} onClick={discardParams}>
                     <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Discard
                   </Button>
-                  <Button size="sm" disabled={!paramsDirty} onClick={applyParams}>
-                    <Save className="mr-1.5 h-3.5 w-3.5" /> Apply
+                  <Button variant="default" size="sm" onClick={applyParams}>
+                    Apply
                   </Button>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Gap 2 — engine rule toggles */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-base font-semibold">Engine Rule Toggles</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Enable/disable real-time evaluation rules (consistency, copy-trade, news guard, etc.).
+                  </p>
+                </div>
+                <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {appliedRules.map((rule) => (
+                <div key={rule.id} className="flex items-center gap-3 py-2 border-b border-gray-200">
+                  <Badge
+                    variant={rule.critical ? "destructive" : "secondary"}
+                    className="mr-2 h-4 w-4"
+                  >
+                    {rule.critical ? "CRIT" : ""}
+                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{rule.name}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {rule.scope}
+                    </span>
+                  </div>
+                  <Switch
+                    checked={rule.enabled}
+                    onCheckedChange={(enabled) => toggleRule(rule, enabled)}
+                    className="h-4 w-6"
+                  />
+                </div>
+              ))}
             </CardContent>
           </Card>
 
@@ -403,119 +375,51 @@ export function RiskEnginePage() {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-base font-semibold">Dynamic Breach Thresholds</h2>
+                  <h2 className="text-base font-semibold">Breach Thresholds</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Adjust alert and auto-breach levels live — applied on the next evaluation cycle.
+                    Near-miss / equity-drop / critical / rapid drawdown levels — live and editable.
                   </p>
                 </div>
-                <ShieldAlert className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                {THRESHOLD_FIELDS.map((f) => (
-                  <div key={f.key} className="space-y-1.5">
-                    <Label htmlFor={`thr-${f.key}`}>{f.label}</Label>
-                    <Input
-                      id={`thr-${f.key}`}
-                      type="number"
-                      inputMode="decimal"
-                      min={f.min}
-                      max={f.max}
-                      step={f.step}
-                      value={thresholdDraft[f.key]}
-                      onChange={(e) =>
-                        setThresholdDraft((prev) => ({ ...prev, [f.key]: e.target.value }))
-                      }
-                      className="h-9 tabular-nums"
-                    />
-                    <p className="text-[10px] text-muted-foreground">{f.hint}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-                <p className="font-medium text-foreground">Currently applied</p>
-                <p className="mt-1 font-mono text-[11px]">
-                  near-miss {thresholds.nearMiss}% · equity drop {thresholds.equityDrop}% ·
-                  critical {thresholds.criticalDd}% · rapid {thresholds.rapid}%
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <StatusBadge tone={thresholdsDirty ? "warning" : "success"}>
-                  {thresholdsDirty ? "Unsaved changes" : "In sync"}
-                </StatusBadge>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!thresholdsDirty}
-                    onClick={() => setThresholdDraft(thresholds)}
-                  >
-                    <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Discard
-                  </Button>
-                  <Button size="sm" disabled={!thresholdsDirty} onClick={applyThresholds}>
-                    <Save className="mr-1.5 h-3.5 w-3.5" /> Apply thresholds
-                  </Button>
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-3">
+                  {Object.entries(DEFAULT_THRESHOLDS).map(([key, label]) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <Label htmlFor={`thresh-${key}`}>{label.replace(/([A-Z])/g, " $1").trim()}</Label>
+                      <Input
+                        id={`thresh-${key}`}
+                        type="number"
+                        inputMode="decimal"
+                        min={1}
+                        max={100}
+                        step="0.1"
+                        value={thresholdDraft[key as keyof ThresholdFields]}
+                        onChange={(e) => setThresholdDraft({
+                          ...thresholdDraft,
+                          [key as keyof ThresholdFields]: e.target.value,
+                        })}
+                        className="h-9 tabular-nums"
+                      />
+                      <span className="w-4 text-xs text-muted-foreground">{label}</span>
+                    </div>
+                  ))}
                 </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button variant="default" size="sm" onClick={applyThresholds}>
+                  Apply Thresholds
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setThresholdDraft(DEFAULT_THRESHOLDS)}>
+                  Reset
+                </Button>
               </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Gap 2 — engine rule toggles */}
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h2 className="text-base font-semibold">Evaluation Engine Rules</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Direct configuration of the real-time rules the engine enforces — each toggle
-                  takes effect from the next evaluation cycle.
-                </p>
-              </div>
-              <Badge variant="secondary" className="text-[10px]">
-                {enabledRules} / {rules.length} enabled
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ul className="divide-y">
-              {rules.map((rule) => (
-                <li key={rule.id} className="flex items-center justify-between gap-4 py-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium">{rule.name}</p>
-                      <Badge variant="outline" className="text-[9px]">{rule.scope}</Badge>
-                      {rule.critical && (
-                        <Badge variant="outline" className="border-rose-400/60 text-[9px] text-rose-600 dark:text-rose-400">
-                          critical
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{rule.description}</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <StatusBadge tone={rule.enabled ? "success" : "muted"}>
-                      {rule.enabled ? "On" : "Off"}
-                    </StatusBadge>
-                    <Switch
-                      checked={rule.enabled}
-                      onCheckedChange={(checked) => toggleRule(rule, checked)}
-                      aria-label={`${rule.enabled ? "Disable" : "Enable"} ${rule.name}`}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <Separator className="my-3" />
-            <p className="text-[11px] text-muted-foreground">
-              Rule changes and parameter applies are written to the platform audit log —
-              open it from the header to review the full history.
-            </p>
-          </CardContent>
-        </Card>
       </PageContent>
     </Page>
   );
