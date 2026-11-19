@@ -462,6 +462,21 @@ export const users: AuthUser[] = [
     application: "trader",
     lastActiveAt: hoursAgo(1),
   },
+  {
+    // Second platform operator (S-09 / P0-2). Every two-operator
+    // approval needs a "B" who is not the initiator — the topbar
+    // switcher filters super-admin users, and with only Alex Morgan
+    // the maker-checker flow could never be completed (self-approval
+    // is structurally denied).
+    id: "user-super-2",
+    name: "Dana Whitfield",
+    email: "dana.w@pfaas.io",
+    initials: "DW",
+    roles: ["super-admin"],
+    permissions: ["*"],
+    application: "super-admin",
+    lastActiveAt: hoursAgo(3),
+  },
 ];
 
 /* ------------------------------------------------------------------ */

@@ -60,6 +60,14 @@ export interface ApprovalRequest {
   approver?: OperatorRef;
   decidedAt?: number;
   executedAt?: number;
+  /**
+   * Staged mutation payload (S-09 / P0-2): the exact change the initiator
+   * asked for (role create/update/clone/delete, API-key create/rotate/
+   * revoke, staff invite…). Persisted with the request, so the approval
+   * bridge applies it from any page — even after a reload — the moment a
+   * second operator approves.
+   */
+  payload?: unknown;
   /** Extra context for the approver's review card (runbook, severity…). */
   detail?: string;
 }
@@ -412,6 +420,8 @@ export function initiateApproval(input: {
   initiator: OperatorRef;
   tenantId?: string;
   detail?: string;
+  /** Staged mutation applied by the approval bridge when approved. */
+  payload?: unknown;
 }): ApprovalRequest {
   const t = now();
   const request: ApprovalRequest = {
@@ -424,6 +434,7 @@ export function initiateApproval(input: {
     createdAt: t,
     expiresAt: t + APPROVAL_TTL_MS,
     status: "pending_approval",
+    payload: input.payload,
     detail: input.detail,
   };
   emit({

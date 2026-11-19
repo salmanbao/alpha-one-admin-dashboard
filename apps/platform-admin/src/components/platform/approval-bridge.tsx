@@ -1,0 +1,25 @@
+"use client";
+
+/**
+ * Approval bridge (gap S-09 / P0-2).
+ *
+ * The one place that names every maker-checker-covered domain: role,
+ * API-key and staff mutations register here, and the applier hook
+ * (mounted once in AppShell) applies each approved request exactly
+ * once — from any page, surviving reloads, because the mutation payload
+ * travels on the approval request itself.
+ */
+
+import { registerApprovalHandler, useApprovalApplier } from "@/lib/platform/approval-apply";
+import { applyRoleApproval } from "@/lib/platform/role-store";
+import { applyApiKeyApproval } from "@/lib/platform/api-key-store";
+import { applyStaffApproval } from "@/lib/platform/staff-store";
+
+registerApprovalHandler("role.", applyRoleApproval);
+registerApprovalHandler("apikey.", applyApiKeyApproval);
+registerApprovalHandler("staff.", applyStaffApproval);
+
+export function ApprovalBridge() {
+  useApprovalApplier();
+  return null;
+}

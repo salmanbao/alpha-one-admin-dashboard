@@ -5,6 +5,13 @@
  *
  * Stitch screen: (new)
  * Tier 1 — Create, revoke, rotate API keys; scope management.
+ *
+ * Gap P0-2/S-09: create/rotate/revoke used to be demo toasts on a
+ * page-local const. The roster now lives in the API-key store, and
+ * every mutation runs the 2FA → two-operator approval flow — the key
+ * row lands (with an audit row) the moment operator B approves, from
+ * any page, after reloads. Scope/expiry/IP-binding depth (S-16) lands
+ * in P0-4.
  */
 
 import { useState, useMemo } from "react";
@@ -13,10 +20,35 @@ import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { StatusBadge } from "@/components/platform/status";
+import { SensitiveActionDialog } from "@/components/platform/sensitive-action-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  useApiKeys,
+  API_SCOPES,
+  RATE_LIMIT_TIERS,
+  type ApiKeyMutation,
+  type StoredApiKey,
+} from "@/lib/platform/api-key-store";
+import { useTenants } from "@/lib/platform/tenant-store";
 import { toast } from "@/hooks/use-toast";
 import {
   Key,
@@ -27,24 +59,12 @@ import {
   Eye,
   EyeOff,
   Trash2,
-  ShieldCheck,
-  Clock,
-  Users,
-  AlertTriangle,
   CheckCircle2,
   Lock,
+  Users,
+  Activity,
+  AlertTriangle,
 } from "lucide-react";
-
-const demoApiKeys = [
-  { id: "key-001", name: "Alpha Capital — Production", tenant: "Alpha Capital", scopes: ["read:accounts", "write:trades", "read:balances"], status: "active", lastUsed: "2026-10-08T14:30:00Z", createdAt: "2026-01-15T10:00:00Z", prefix: "sk_live_a1b2…", rateLimitTier: "enterprise" },
-  { id: "key-002", name: "Alpha Capital — Staging", tenant: "Alpha Capital", scopes: ["read:accounts", "read:trades"], status: "active", lastUsed: "2026-10-08T13:00:00Z", createdAt: "2026-01-15T10:00:00Z", prefix: "sk_test_c3d4…", rateLimitTier: "development" },
-  { id: "key-003", name: "Beta Trading — Integration", tenant: "Beta Trading", scopes: ["read:accounts", "write:orders", "read:positions"], status: "active", lastUsed: "2026-10-07T18:45:00Z", createdAt: "2026-02-20T14:30:00Z", prefix: "sk_live_e5f6…", rateLimitTier: "standard" },
-  { id: "key-004", name: "Gamma Futures — Webhook Receiver", tenant: "Gamma Futures", scopes: ["read:accounts"], status: "revoked", lastUsed: "2026-09-30T09:00:00Z", createdAt: "2025-12-05T16:00:00Z", prefix: "sk_live_g7h8…", rateLimitTier: "standard" },
-  { id: "key-005", name: "Gamma Futures — Mobile App", tenant: "Gamma Futures", scopes: ["read:accounts", "read:trades", "write:trades"], status: "active", lastUsed: "2026-10-08T12:15:00Z", createdAt: "2026-03-10T11:20:00Z", prefix: "sk_live_i9j0…", rateLimitTier: "enterprise" },
-  { id: "key-006", name: "Alpha Capital — Reporting", tenant: "Alpha Capital", scopes: ["read:accounts", "read:reports"], status: "active", lastUsed: "2026-10-06T08:00:00Z", createdAt: "2026-04-01T09:00:00Z", prefix: "sk_live_k1l2…", rateLimitTier: "standard" },
-  { id: "key-007", name: "Beta Trading — Analytics Export", tenant: "Beta Trading", scopes: ["read:analytics", "read:reports"], status: "active", lastUsed: "2026-10-05T15:30:00Z", createdAt: "2026-05-12T10:00:00Z", prefix: "sk_live_m3n4…", rateLimitTier: "standard" },
-  { id: "key-008", name: "Legacy — Old Integration", tenant: "Alpha Capital", scopes: ["read:accounts"], status: "revoked", lastUsed: "2026-08-15T00:00:00Z", createdAt: "2025-11-01T12:00:00Z", prefix: "sk_live_o5p6…", rateLimitTier: "development" },
-];
 
 const statusTones: Record<string, "success" | "danger" | "warning"> = {
   active: "success",
@@ -63,18 +83,35 @@ const scopeColors: Record<string, string> = {
   "read:analytics": "#705c30",
 };
 
+type KeyAction = { kind: "rotate" | "revoke"; key: StoredApiKey } | null;
+
 export function ApiKeysPage() {
   const { navigate } = usePlatform();
+  // Async seam (frontend-first): hydrate via the mock layer so the
+  // loading skeleton + error/retry states are exercised; the store-
+  // backed roster below stays authoritative once loaded.
   const {
-    data: loadedData,
+    data: hydrated,
     loading,
     error,
     retry,
-  } = useAsyncMock(() => mockAsync(() => demoApiKeys, { delayMs: 500 }), []);
-  const apiKeys = loadedData ?? [];
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 500 }), []);
+  const apiKeys = useApiKeys();
+  const tenants = useTenants();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+
+  /* ── Create flow (S-09): form dialog → 2FA → staged request ── */
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newTenant, setNewTenant] = useState("");
+  const [newScopes, setNewScopes] = useState<string[]>([]);
+  const [newTier, setNewTier] = useState<string>("standard");
+  const [createFlow, setCreateFlow] = useState<ApiKeyMutation | null>(null);
+
+  /* ── Rotate / revoke row actions → staged request ── */
+  const [keyAction, setKeyAction] = useState<KeyAction>(null);
 
   const filtered = useMemo(() => {
     return apiKeys.filter((key) => {
@@ -99,6 +136,36 @@ export function ApiKeysPage() {
     setShowKeys((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const nameOk = newName.trim().length >= 3;
+  const createFormOk = nameOk && newTenant !== "" && newScopes.length > 0;
+
+  const openCreate = () => {
+    setNewName("");
+    setNewTenant(tenants[0]?.name ?? "");
+    setNewScopes([]);
+    setNewTier("standard");
+    setCreateOpen(true);
+  };
+
+  const toggleScope = (scope: string) => {
+    setNewScopes((prev) =>
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope],
+    );
+  };
+
+  const copyKey = async (key: StoredApiKey) => {
+    const value = `${key.prefix}${key.id.slice(-4)}`;
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({ title: "Copied", description: `${key.name} key copied to clipboard.` });
+    } catch {
+      toast({
+        title: "Clipboard unavailable",
+        description: "Your browser blocked clipboard access — select the key manually.",
+      });
+    }
+  };
+
   return (
     <Page>
       <PageHeader
@@ -113,7 +180,7 @@ export function ApiKeysPage() {
             <Button variant="outline" size="sm" onClick={() => navigate("api-analytics")}>
               <Activity className="mr-1 h-4 w-4" /> API Analytics
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "(demo) Create key", description: "Create API key form opened. Requires tenant selection + scope config." })}>
+            <Button size="sm" onClick={openCreate}>
               <Plus className="mr-1 h-4 w-4" /> Create Key
             </Button>
           </>
@@ -124,7 +191,7 @@ export function ApiKeysPage() {
           loading={loading}
           error={error}
           onRetry={retry}
-          hasData={loadedData !== undefined}
+          hasData={hydrated !== undefined}
           loadingLabel="Loading API keys…"
         >
         {/* Stats */}
@@ -222,7 +289,7 @@ export function ApiKeysPage() {
                             variant="ghost"
                             className="h-6 w-6"
                             aria-label="Copy key"
-                            onClick={() => toast({ title: "(demo) Copied", description: `API key for ${key.name} copied to clipboard.` })}
+                            onClick={() => copyKey(key)}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
@@ -262,7 +329,13 @@ export function ApiKeysPage() {
                             size="sm"
                             variant="ghost"
                             className="h-7 px-2 text-[10px]"
-                            onClick={() => toast({ title: "(demo) Rotate key", description: `Key ${key.name} rotation initiated. New secret will be generated.` })}
+                            disabled={key.status === "revoked"}
+                            title={
+                              key.status === "revoked"
+                                ? "Revoked keys cannot be rotated"
+                                : "Rotate — 2FA + second-operator approval"
+                            }
+                            onClick={() => setKeyAction({ kind: "rotate", key })}
                           >
                             <RefreshCw className="h-3 w-3" /> Rotate
                           </Button>
@@ -271,7 +344,8 @@ export function ApiKeysPage() {
                               size="sm"
                               variant="destructive"
                               className="h-7 px-2 text-[10px]"
-                              onClick={() => toast({ title: "(demo) Revoke key", description: `Key ${key.name} revoked. Audited.` })}
+                              title="Revoke — 2FA + second-operator approval"
+                              onClick={() => setKeyAction({ kind: "revoke", key })}
                             >
                               Revoke
                             </Button>
@@ -281,7 +355,6 @@ export function ApiKeysPage() {
                               size="sm"
                               variant="ghost"
                               className="h-7 px-2 text-[10px]"
-                              onClick={() => toast({ title: "(demo) Key already revoked", description: `Key ${key.name} was revoked. Cannot re-activate.` })}
                               disabled
                             >
                               <Lock className="h-3 w-3" />
@@ -305,9 +378,193 @@ export function ApiKeysPage() {
         </Card>
         </PageAsyncBoundary>
       </PageContent>
+
+      {/* ── Create key form → maker-checker (S-09) ───────────────── */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create API key</DialogTitle>
+            <DialogDescription>
+              Key creation is a two-operator action: 2FA → second operator
+              approves → the key becomes active (audited).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="key-name" className="text-xs">
+                Key name (required)
+              </Label>
+              <Input
+                id="key-name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. Alpha Capital — Backend service"
+                autoFocus
+                maxLength={64}
+              />
+              {newName.trim() !== "" && !nameOk && (
+                <p className="text-[11px] text-destructive">At least 3 characters.</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="key-tenant" className="text-xs">
+                Tenant (required)
+              </Label>
+              <Select value={newTenant} onValueChange={setNewTenant}>
+                <SelectTrigger id="key-tenant">
+                  <SelectValue placeholder="Pick a tenant…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tenants.map((t) => (
+                    <SelectItem key={t.id} value={t.name}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                Scopes (required — pick at least one)
+              </Label>
+              <div className="flex flex-wrap gap-1.5">
+                {API_SCOPES.map((scope) => (
+                  <button
+                    key={scope}
+                    type="button"
+                    onClick={() => toggleScope(scope)}
+                    className={`rounded-md border px-2 py-1 font-mono text-[11px] transition-colors ${
+                      newScopes.includes(scope)
+                        ? "border-emerald-500/40 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
+                        : "text-muted-foreground hover:bg-muted/60"
+                    }`}
+                    aria-pressed={newScopes.includes(scope)}
+                  >
+                    {scope}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="key-tier" className="text-xs">
+                Rate limit tier
+              </Label>
+              <Select value={newTier} onValueChange={setNewTier}>
+                <SelectTrigger id="key-tier">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RATE_LIMIT_TIERS.map((tier) => (
+                    <SelectItem key={tier} value={tier}>
+                      {tier}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="flex items-start gap-1.5 rounded-md border bg-muted/40 px-2.5 py-2 text-[11px] text-muted-foreground">
+              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+              The full secret is shown once after creation — store it in your
+              secrets manager; the console keeps only the masked prefix.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!createFormOk}
+              onClick={() => {
+                setCreateFlow({
+                  kind: "create",
+                  name: newName.trim(),
+                  tenant: newTenant,
+                  scopes: [...newScopes].sort(),
+                  rateLimitTier: newTier,
+                });
+                setCreateOpen(false);
+              }}
+            >
+              <Plus className="mr-1 h-4 w-4" /> Continue to 2FA
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Maker-checker (S-09): create ─────────────────────────── */}
+      {createFlow && createFlow.kind === "create" ? (
+        <SensitiveActionDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setCreateFlow(null);
+          }}
+          actionKey="apikey.create"
+          title={`Create API key "${createFlow.name}"`}
+          consequence={`Issues a new live secret for ${createFlow.tenant}.`}
+          blastRadius={[
+            `${createFlow.scopes.length} scopes: ${createFlow.scopes.join(", ")}`,
+            `Rate limit tier: ${createFlow.rateLimitTier}`,
+            "The key can authenticate against the API the moment it is approved",
+            "Two-operator approval required — the request expires in 10 minutes",
+          ]}
+          detail={`API key creation · ${createFlow.tenant}`}
+          twoOperator
+          approvalPayload={createFlow}
+          onExecute={() => undefined}
+          onApprovalInitiated={() =>
+            toast({
+              title: "Key creation pending approval",
+              description: "Operator B must approve within 10 minutes — Approval Center.",
+            })
+          }
+        />
+      ) : null}
+
+      {/* ── Maker-checker (S-09): rotate / revoke ────────────────── */}
+      {keyAction ? (
+        <SensitiveActionDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setKeyAction(null);
+          }}
+          actionKey={keyAction.kind === "rotate" ? "apikey.rotate" : "apikey.revoke"}
+          title={
+            keyAction.kind === "rotate"
+              ? `Rotate key "${keyAction.key.name}"`
+              : `Revoke key "${keyAction.key.name}"`
+          }
+          consequence={
+            keyAction.kind === "rotate"
+              ? "The current secret stops working immediately; a new one is issued."
+              : "Every request using this key starts failing immediately."
+          }
+          blastRadius={
+            keyAction.kind === "rotate"
+              ? [
+                  `Old secret (${keyAction.key.prefix}) invalidated at approval`,
+                  `Tenant ${keyAction.key.tenant} must deploy the new secret`,
+                  "Integrations using the old secret will 401 until updated",
+                  "Two-operator approval required — the request expires in 10 minutes",
+                ]
+              : [
+                  `Key "${keyAction.key.name}" (${keyAction.key.tenant}) can no longer authenticate`,
+                  `${keyAction.key.scopes.length} scopes revoked with it`,
+                  "This cannot be undone — a new key must be created",
+                  "Two-operator approval required — the request expires in 10 minutes",
+                ]
+          }
+          detail={`API key ${keyAction.kind} · ${keyAction.key.id}`}
+          twoOperator
+          approvalPayload={{ kind: keyAction.kind, keyId: keyAction.key.id } satisfies ApiKeyMutation}
+          onExecute={() => undefined}
+          onApprovalInitiated={() =>
+            toast({
+              title: keyAction.kind === "rotate" ? "Key rotation pending approval" : "Key revocation pending approval",
+              description: "Operator B must approve within 10 minutes — Approval Center.",
+            })
+          }
+        />
+      ) : null}
     </Page>
   );
 }
-
-// Import Activity icon to avoid circular import issues
-import { Activity } from "lucide-react";

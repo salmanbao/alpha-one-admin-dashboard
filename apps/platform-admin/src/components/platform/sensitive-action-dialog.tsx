@@ -78,6 +78,12 @@ interface SensitiveActionDialogProps {
   /** Runbook / case reference surfaced in the request detail. */
   detail?: string;
   tenantId?: string;
+  /**
+   * Staged mutation persisted on the approval request (twoOperator
+   * only) — applied by the approval bridge the moment a second operator
+   * approves, from any page, even after a reload (S-09 / P0-2).
+   */
+  approvalPayload?: unknown;
   /** Executes the action (mock async). Called after 2FA with the reason. */
   onExecute: (reason: string) => void | Promise<void>;
   /** Fired when a two-operator request enters `pending_approval`. */
@@ -96,6 +102,7 @@ export function SensitiveActionDialog({
   requireReason = false,
   detail,
   tenantId,
+  approvalPayload,
   onExecute,
   onApprovalInitiated,
 }: SensitiveActionDialogProps) {
@@ -144,6 +151,7 @@ export function SensitiveActionDialog({
             blastRadius: blastRadius ?? [consequence],
             initiator: { id: user.id, name: user.name },
             tenantId,
+            payload: approvalPayload,
             detail: detail ? `${detail} · reason: ${reasonSnapshot}` : `Reason: ${reasonSnapshot}`,
           });
           if (cancelled) return;

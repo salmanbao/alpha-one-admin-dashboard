@@ -20,6 +20,7 @@ import { OnboardingWizard } from "./onboarding-wizard";
 import { ImpersonationBanner } from "@/components/platform/impersonation-banner";
 import { SessionExpiryBanner } from "@/components/platform/session-expiry-banner";
 import { ReadOnlyGuard } from "@/components/platform/read-only-guard";
+import { ApprovalBridge } from "@/components/platform/approval-bridge";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { setSearchOpen } = usePlatform();
@@ -52,6 +53,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Session expiry warning — fixed banner, appears 5 min before the
           session lapses (audit #7: identical banner in all three apps) */}
       <SessionExpiryBanner />
+      {/* Maker-checker applier (S-09) — applies approved role/API-key/
+          staff mutations exactly once, from any screen. Renders null. */}
+      <ApprovalBridge />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
