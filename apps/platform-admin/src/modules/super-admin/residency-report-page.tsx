@@ -127,7 +127,7 @@ export function ResidencyReportPage() {
         cell: (r) => {
           const loc = r.locations[cls];
           const policy = DATA_CLASS_MAP[cls];
-          const note = policy.followsPin
+          const note = (policy as any).followsPin
             ? loc.pinned
               ? "pinned"
               : "default region"
@@ -220,8 +220,8 @@ export function ResidencyReportPage() {
                     <span className="font-medium text-foreground">
                       {policy.label}:
                     </span>{" "}
-                    {policy.note}{" "}
-                    {policy.followsPin ? (
+                    {(policy as any).note}{" "}
+                    {(policy as any).followsPin ? (
                       <Badge variant="outline" className="ml-1 text-[10px]">
                         follows pin
                       </Badge>

@@ -17,6 +17,7 @@
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { EconomicsCockpit } from "./pages/economics-cockpit";
 import { FirmExposure } from "./pages/firm-exposure";
+import { Calculator } from "lucide-react";
 
 /* Economics navigation is contributed via the sidebar handler in shell/ —
  * keep the module registry entry and route definitions so the views
@@ -28,7 +29,7 @@ const navigation: NavigationItem[] = [
   {
     id: "economics",
     label: "Economics",
-    icon: "Calculator",
+    icon: Calculator,
     order: 65,
     children: [],
   },
@@ -85,13 +86,13 @@ export const economicsModule: FrontendModule = {
       { id: "economics.read", label: "View economics data" },
       { id: "economics.configure", label: "Configure economics settings" },
     ],
-    icon: "Calculator",
+    icon: Calculator,
     accentColor: "#0089f7",
   },
   navigation,
   routes,
   widgets,
   settings: [
-    { id: "economics-settings", label: "Economics", module: "economics", viewId: "economics-settings", icon: "Calculator", order: 60 },
+    { id: "economics-settings", label: "Economics", module: "economics", viewId: "economics-settings", icon: Calculator, order: 60 },
   ],
 };

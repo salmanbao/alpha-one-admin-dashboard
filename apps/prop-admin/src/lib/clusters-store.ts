@@ -107,7 +107,9 @@ export function useClustersVersion(): number {
   useEffect(() => {
     const l = () => setV(version);
     listeners.add(l);
-    return () => listeners.delete(l);
+    return () => {
+      listeners.delete(l);
+    };
   }, []);
   return v + log.length;
 }
@@ -478,7 +480,7 @@ export function escalateCluster(clusterId: string, actor: string): boolean {
   notify();
 
   emitLifecycle({
-    entity: { kind: "risk", id: clusterId },
+    entity: { kind: "compliance", id: clusterId },
     name: "risk.cluster-escalated",
     actor: "prop-admin",
     key: `cluster:${clusterId}:escalated:${Date.now()}`,

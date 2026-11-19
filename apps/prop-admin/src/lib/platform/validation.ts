@@ -199,7 +199,7 @@ export const demoPayoutFraudSchema = z.object({
         accountLogin: z.string(),
         amount: z.number(),
         currency: z.string(),
-        signals: z.array(z.string()),
+        signals: z.array(z.union([z.literal("method-reuse"), z.literal("rapid-cycle"), z.literal("round-amount")])),
         evidence: z.array(z.string()),
         status: z.enum(["open", "cleared", "blocked", "escalated"]),
         openedAt: z.string(),

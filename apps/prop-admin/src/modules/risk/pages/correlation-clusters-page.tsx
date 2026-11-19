@@ -139,12 +139,12 @@ export function CorrelationClustersPage() {
     {
       key: "id",
       header: "Cluster ID",
-      render: (c) => <span className="font-mono text-xs">{c.id.slice(0, 32)}</span>,
+      cell: (c) => <span className="font-mono text-xs">{c.id.slice(0, 32)}</span>,
     },
     {
       key: "accounts",
       header: "Accounts",
-      render: (c) => (
+      cell: (c) => (
         <div className="flex flex-wrap gap-1">
           {c.accountLogins.slice(0, 3).map((l) => (
             <Badge key={l} variant="outline" className="text-xs">#{l}</Badge>
@@ -156,7 +156,7 @@ export function CorrelationClustersPage() {
     {
       key: "signals",
       header: "Signals",
-      render: (c) => (
+      cell: (c) => (
         <div className="flex flex-wrap gap-1">
           {c.signals.map((s) => (
             <Badge key={s} variant="secondary" className="text-xs">
@@ -169,7 +169,7 @@ export function CorrelationClustersPage() {
     {
       key: "strength",
       header: "Strength",
-      render: (c) => {
+      cell: (c) => {
         const { label, tone } = signalStrengthLabel(c.signals);
         return (
           <Badge variant={tone === "error" ? "destructive" : tone === "warning" ? "default" : "secondary"} className="text-xs">
@@ -181,17 +181,19 @@ export function CorrelationClustersPage() {
     {
       key: "status",
       header: "Status",
-      render: (c) => (
+      cell: (c) => (
         <StatusBadge
-          status={c.status === "escalated" ? "escalated" : c.status === "dismissed" ? "dismissed" : "candidate"}
-          label={c.status === "escalated" ? "Escalated" : c.status === "dismissed" ? "Dismissed" : "Candidate"}
-        />
+          tone={c.status === "escalated" ? "danger" : c.status === "dismissed" ? "muted" : "default"}
+          label="Status"
+        >
+          {c.status === "escalated" ? "Escalated" : c.status === "dismissed" ? "Dismissed" : "Candidate"}
+        </StatusBadge>
       ),
     },
     {
       key: "fraudFlag",
       header: "Fraud Queue",
-      render: (c) => {
+      cell: (c) => {
         const hasFlag = clusterHasFraudFlag(c.id);
         return hasFlag ? (
           <Badge variant="destructive" className="text-xs">In Queue</Badge>
@@ -203,7 +205,7 @@ export function CorrelationClustersPage() {
     {
       key: "actions",
       header: "",
-      render: (c) => (
+      cell: (c) => (
         <Button size="sm" variant="ghost" onClick={() => setSelectedCluster(c)}>
           View <ArrowUpRight className="ml-1 h-3 w-3" />
         </Button>
@@ -255,11 +257,12 @@ export function CorrelationClustersPage() {
 
         {/* Cluster table */}
         <div className="rounded-lg border bg-background">
-          <DataTable
+          <DataTable<ClusterCase>
             columns={columns}
             data={clusters}
-            emptyMessage="No collusion clusters detected."
-            keyExtractor={(c) => c.id}
+            emptyTitle="No collusion clusters detected."
+            emptyDescription=""
+            rowKey={(c) => c.id}
           />
         </div>
 
