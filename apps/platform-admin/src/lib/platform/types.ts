@@ -93,6 +93,17 @@ export interface TenantContext {
    */
   liveAt?: string;
   /**
+   * Billing cycle anchor — when the tenant's first billing cycle started.
+   * Used to compute proration at every plan change; persisting across reloads.
+   * Defaults to `createdAt` when absent.
+   */
+  billingCycleAnchor?: string;
+  /**
+   * Invoicing schedule — persisted across reloads so the selector value
+   * does not vanish after a refresh (B-08).
+   */
+  billingCycle?: "weekly" | "monthly" | "quarterly" | "annually";
+  /**
    * Data-residency pin (R9 W6 UC-P6) — the region this tenant's
    * payments/KYC data is pinned to. Absent until pinned; the residency
    * report shows such tenants honestly as "Unpinned".

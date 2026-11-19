@@ -35,6 +35,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Bell,
+  Building2,
   CheckCircle2,
   Gauge,
   Key,
@@ -42,9 +43,13 @@ import {
   Server,
   Zap,
 } from "lucide-react";
+import { useTenants } from "@/lib/platform/tenant-store";
+import type { TenantContext } from "@/lib/platform/types";
+import { StatusBadge } from "@/components/platform/status";
+import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
-/* Deterministic per-tenant API usage                                  */
+/* Deterministic per-tenant API usage                                   */
 /* ------------------------------------------------------------------ */
 
 interface TenantApiRow {
@@ -62,29 +67,9 @@ interface TenantApiRow {
   customLimit: number | null;
 }
 
-const PLAN_API_CAP: Record<TenantApiRow["plan"], number> = {
-  starter: 100_000,
-  growth: 1_000_000,
-  scale: 5_000_000,
-  enterprise: 10_000_000,
-};
-
-/**
- * Usage forecasting — linear projection from the 7-day series: how many
- * days until the tenant hits its limit at the current trend. Deterministic
- * (no randomness): slope = (last − first) / days. Returns:
- *   0        → already at/over the limit,
- *   1..365   → projected breach day count,
- *   null     → flat/declining trend or >1 year out — not actionable.
- */
-function forecastDaysToLimit(series: number[], callsPerDay: number, limit: number): number | null {
-  if (callsPerDay >= limit) return 0;
-  if (series.length < 2) return null;
-  const slope = (series[series.length - 1] - series[0]) / (series.length - 1);
-  if (slope <= 0) return null;
-  const days = (limit - callsPerDay) / slope;
-  return days > 365 ? null : Math.ceil(days);
-}
+/* ------------------------------------------------------------------ */
+/* Deterministic API usage fixture (matches mock-data usage metering)  */
+/* ------------------------------------------------------------------ */
 
 const TENANT_API: TenantApiRow[] = [
   {
@@ -123,7 +108,31 @@ const TENANT_API: TenantApiRow[] = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Anomalies (deterministic heuristics)                                */
+/* Plan API caps                                                        */
+/* ------------------------------------------------------------------ */
+
+const PLAN_API_CAP: Record<TenantApiRow["plan"], number> = {
+  starter: 100_000,
+  growth: 1_000_000,
+  scale: 5_000_000,
+  enterprise: 10_000_000,
+};
+
+/* ------------------------------------------------------------------ */
+/* Usage forecasting                                                     */
+/* ------------------------------------------------------------------ */
+
+function forecastDaysToLimit(series: number[], callsPerDay: number, limit: number): number | null {
+  if (callsPerDay >= limit) return 0;
+  if (series.length < 2) return null;
+  const slope = (series[series.length - 1] - series[0]) / (series.length - 1);
+  if (slope <= 0) return null;
+  const days = (limit - callsPerDay) / slope;
+  return days > 365 ? null : Math.ceil(days);
+}
+
+/* ------------------------------------------------------------------ */
+/* Anomalies (deterministic heuristics)                               */
 /* ------------------------------------------------------------------ */
 
 type Anomaly = { key: string; label: string; tone: "destructive" | "secondary" | "default" };
@@ -172,11 +181,17 @@ function Sparkline({ series, danger }: { series: number[]; danger: boolean }) {
 /* ------------------------------------------------------------------ */
 
 export function TenantApiUsagePage() {
-  const { data: hydrated, loading, error, retry } = useAsyncMock(
+  const {
+    data: hydrated,
+    loading,
+    error,
+    retry,
+  } = useAsyncMock(
     () => mockAsync(() => true, { delayMs: 400 }),
-    [],
+    []
   );
   const { navigate } = usePlatform();
+  const tenants = useTenants();
 
   // Custom per-tenant limits — editable, applied with a toast (audit #1).
   const [limits, setLimits] = useState<Record<string, number | null>>(
@@ -198,355 +213,162 @@ export function TenantApiUsagePage() {
     [limits],
   );
 
-  const totalCalls = TENANT_API.reduce((s, r) => s + r.callsPerDay, 0);
-  const atRisk = rows.filter((r) => r.usagePct >= 80).length;
-  const total429 = TENANT_API.reduce((s, r) => s + r.rateLimited429, 0);
-  const avgError =
-    TENANT_API.reduce((s, r) => s + r.errorRatePct * r.callsPerDay, 0) / Math.max(1, totalCalls);
-  // Forecast summary — tenants projected to reach their limit within 30 days.
-  const projected = rows.filter((r) => r.daysToLimit !== null && r.daysToLimit <= 30);
+  const totalCalls = rows.reduce((s, r) => s + r.row.callsPerDay, 0);
+  const total429 = rows.reduce((s, r) => s + r.row.rateLimited429, 0);
+  const avgErrorRate = rows.reduce((s, r) => s + r.row.errorRatePct * r.row.callsPerDay, 0) / Math.max(1, totalCalls);
+  const anomalyCount = rows.filter((r) => r.anomalies.length > 0).length;
 
-  /** Mock "automated notification" — queues an alert to every tenant the
-   *  forecast flags, so operators act before the overage (audit #10). */
-  const sendForecastAlerts = () => {
-    if (projected.length === 0) {
-      toast({
-        title: "No forecast alerts",
-        description: "No tenant is projected to hit its limit in the next 30 days.",
-      });
-      return;
-    }
-    toast({
-      title: "Forecast alerts queued",
-      description: `${projected.length} tenant${projected.length === 1 ? "" : "s"} flagged at the 80% threshold — ${projected
-        .map((r) => `${r.row.name} (${r.daysToLimit === 0 ? "over limit now" : `${r.daysToLimit}d`})`)
-        .join(", ")}. Mock notification — no emails sent.`,
-    });
-  };
-
-  const applyLimits = () => {
-    const changed = TENANT_API.filter((r) => (limits[r.tenantId] ?? null) !== r.customLimit);
-    toast({
-      title: "API limits saved",
-      description:
-        changed.length === 0
-          ? "No changes — limits unchanged."
-          : `${changed.length} tenant limit${changed.length === 1 ? "" : "s"} updated. New limits take effect within 60 seconds.`,
-    });
-    // Sync the applied baseline so the dirty state clears.
-    TENANT_API.forEach((r) => {
-      r.customLimit = limits[r.tenantId] ?? null;
-    });
-  };
-
-  const columns: Column<(typeof rows)[number]>[] = [
+  const cols: Column<typeof rows[0]>[] = [
     {
       key: "tenant",
       header: "Tenant",
       cell: (r) => (
-        <button
-          type="button"
-          className="font-medium text-foreground underline-offset-2 hover:underline"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate("tenant-detail", { id: r.row.tenantId });
-          }}
-        >
-          {r.row.name}
-        </button>
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <span className="font-medium">{r.row.name}</span>
+            <Badge variant="outline" className="text-[10px] ml-1">
+              {r.row.plan}
+            </Badge>
+          </div>
+        </div>
       ),
-      sortValue: (r) => r.row.name,
     },
     {
       key: "calls",
       header: "Calls/day",
-      cell: (r) => (
-        <span className="tabular-nums">{r.row.callsPerDay.toLocaleString("en-US")}</span>
-      ),
-      sortValue: (r) => r.row.callsPerDay,
-      numeric: true,
+      cell: (r) => <span className="font-mono tabular-nums">{compact(r.row.callsPerDay)}</span>,
     },
     {
       key: "trend",
       header: "7-day trend",
-      cell: (r) => (
-        <span className="flex items-center gap-1.5">
-          <Sparkline series={r.row.series} danger={r.wow >= 25} />
-          <span
-            className={`text-[11px] font-bold tabular-nums ${
-              r.wow >= 25 ? "text-destructive" : r.wow >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
-            }`}
-          >
-            {r.wow >= 0 ? "▲" : "▼"} {Math.abs(Math.round(r.wow))}%
-          </span>
-        </span>
-      ),
-      sortValue: (r) => r.wow,
+      cell: (r) => <Sparkline series={r.row.series} danger={r.anomalies.some((a) => a.tone === "destructive")} />,
     },
     {
-      key: "limit",
-      header: "Rate-limit usage",
-      cell: (r) => (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between gap-2 text-[11px]">
-            <span className="font-bold tabular-nums">
-              {Math.round(r.usagePct)}% of {compact(r.limit)}
-            </span>
-            <span className="text-muted-foreground">{compact(r.row.callsPerDay)}</span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className={`h-full rounded-full ${
-                r.usagePct >= 100 ? "bg-destructive" : r.usagePct >= 80 ? "bg-amber-500" : "bg-emerald-500"
-              }`}
-              style={{ width: `${Math.min(100, r.usagePct)}%` }}
-            />
-          </div>
-        </div>
-      ),
-      sortValue: (r) => r.usagePct,
-    },
-    {
-      /* Usage forecast — when the tenant hits their limit at the current
-         7-day trend, so operators can reach out BEFORE the overage
-         (audit: proactive limit forecasting). */
-      key: "forecast",
-      header: "Limit forecast",
-      cell: (r) => {
-        if (r.daysToLimit === null)
-          return <span className="text-xs text-muted-foreground">No projected breach</span>;
-        if (r.daysToLimit === 0)
-          return (
-            <Badge variant="destructive" className="text-[10px]">
-              Over limit now
-            </Badge>
-          );
-        const soon = r.daysToLimit <= 7;
-        return (
-          <Badge
-            variant={soon ? "destructive" : "secondary"}
-            className="text-[10px]"
-            title={`At the current 7-day trend (~${Math.round(r.wow >= 0 ? r.wow : 0)}% growth over the week), this tenant reaches ${Math.round(r.usagePct)}% → 100% of its limit in ${r.daysToLimit} day${r.daysToLimit === 1 ? "" : "s"}.`}
-          >
-            {soon ? `⚠ Hits limit in ${r.daysToLimit}d` : `In ${r.daysToLimit} days`}
-          </Badge>
-        );
-      },
-      sortValue: (r) => (r.daysToLimit === null ? 999 : r.daysToLimit),
-    },
-    {
-      key: "custom-limit",
-      header: "Custom limit",
-      cell: (r) => (
-        <input
-          type="number"
-          min={1000}
-          step={1000}
-          aria-label={`Custom API limit for ${r.row.name} (calls/day)`}
-          value={limits[r.row.tenantId] ?? ""}
-          placeholder={`Plan ${compact(PLAN_API_CAP[r.row.plan])}`}
-          onClick={(e) => e.stopPropagation()}
-          onChange={(e) => {
-            const v = e.target.value === "" ? null : Math.max(1000, Number(e.target.value));
-            setLimits((prev) => ({ ...prev, [r.row.tenantId]: v }));
-          }}
-          className="w-28 rounded-md border border-input bg-background px-2 py-1 text-xs tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        />
-      ),
-      sortValue: (r) => limits[r.row.tenantId] ?? PLAN_API_CAP[r.row.plan],
+      key: "latency",
+      header: "Avg latency",
+      cell: (r) => <span className="font-mono tabular-nums">{r.row.avgLatencyMs} ms</span>,
     },
     {
       key: "errors",
       header: "Error rate",
       cell: (r) => (
-        <span
-          className={`text-xs font-bold tabular-nums ${
-            r.row.errorRatePct >= 1 ? "text-destructive" : "text-foreground"
-          }`}
-        >
+        <span className={cn("font-mono tabular-nums", r.row.errorRatePct >= 1 && "text-rose-600")}>
           {r.row.errorRatePct.toFixed(2)}%
-          {r.row.rateLimited429 > 0 && (
-            <span className="ml-1 font-normal text-muted-foreground">
-              · {r.row.rateLimited429.toLocaleString("en-US")}×429
-            </span>
-          )}
         </span>
       ),
-      sortValue: (r) => r.row.errorRatePct,
     },
     {
-      key: "latency",
-      header: "Avg latency",
-      cell: (r) => <span className="text-xs tabular-nums">{r.row.avgLatencyMs} ms</span>,
-      sortValue: (r) => r.row.avgLatencyMs,
-      numeric: true,
+      key: "limit",
+      header: "Rate limit",
+      cell: (r) => (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm">{compact(r.limit)}</span>
+            <span className="text-xs text-muted-foreground">
+              {r.limit >= PLAN_API_CAP[r.row.plan] ? "(plan cap)" : "(custom)"}
+            </span>
+          </div>
+          <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary transition-all"
+              style={{ width: `${Math.min(100, (r.row.callsPerDay / r.limit) * 100)}%` }}
+            />
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "usage",
+      header: "Usage",
+      cell: (r) => (
+        <span className={cn("font-medium", r.usagePct >= 100 && "text-rose-600", r.usagePct >= 80 && "text-amber-600")}>
+          {r.usagePct.toFixed(1)}%
+        </span>
+      ),
     },
     {
       key: "anomalies",
       header: "Anomalies",
       cell: (r) =>
         r.anomalies.length === 0 ? (
-          <Badge variant="outline">None</Badge>
+          <StatusBadge tone="success">None</StatusBadge>
         ) : (
-          <span className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1">
             {r.anomalies.map((a) => (
-              <Badge key={a.key} variant={a.tone}>
+              <Badge key={a.key} variant={a.tone === "destructive" ? "destructive" : a.tone === "secondary" ? "secondary" : "default"} className="text-[10px]">
                 {a.label}
               </Badge>
             ))}
-          </span>
+          </div>
         ),
-      sortValue: (r) => r.anomalies.length,
     },
     {
       key: "actions",
       header: "Actions",
       cell: (r) => (
-        <Button
-          size="sm"
-          variant="ghost"
-          title="Open the full tenant profile"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate("tenant-detail", { id: r.row.tenantId });
-          }}
-        >
-          Open tenant <ArrowRight className="ml-1 h-3.5 w-3.5" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={() => {
+              setLimits((prev) => ({ ...prev, [r.row.tenantId]: r.limit }));
+              toast({ title: "Custom limit applied", description: `${r.row.name}: ${compact(r.limit)}/day` });
+            }}
+          >
+            <Save className="mr-1 h-3 w-3" />Apply
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs"
+            onClick={() => navigate(`/tenant/${r.row.tenantId}`)}
+          >
+            <ArrowRight className="h-3 w-3" />
+          </Button>
+        </div>
       ),
     },
   ];
-
-  const activeAnomalies = rows.flatMap((r) =>
-    r.anomalies
-      .filter((a) => a.key === "over" || a.key === "risk" || a.key === "err" || a.key === "spike")
-      .map((a) => ({ tenant: r.row.name, ...a })),
-  );
 
   return (
     <Page>
       <PageHeader
         title="Tenant API Usage"
-        description="Per-tenant API call patterns, rate-limit consumption, and anomaly flags — the abuse-and-overuse view behind the global API analytics."
-        icon={Server}
-        actions={
-          <>
-            <Button size="sm" variant="outline" onClick={() => navigate("api-analytics")}>
-              Global API analytics <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
-            </Button>
-            <Button size="sm" variant="outline" onClick={sendForecastAlerts} title="Queue mock usage alerts for tenants projected to hit their limit within 30 days">
-              <Bell className="mr-1 h-3.5 w-3.5" />
-              Send forecast alerts{projected.length > 0 ? ` (${projected.length})` : ""}
-            </Button>
-            <Button size="sm" onClick={applyLimits}>
-              <Save className="mr-1 h-3.5 w-3.5" /> Save limits
-            </Button>
-          </>
-        }
+        description="Per-tenant call patterns, rate-limit usage, anomaly detection and custom limits. Data matches the usage-metering fixture."
+        icon={Activity}
       />
       <PageContent>
-        <PageAsyncBoundary
-          loading={loading}
-          error={error}
-          onRetry={retry}
-          hasData={hydrated !== undefined}
-          loadingLabel="Loading tenant API usage…"
-        >
-          {/* KPI cards */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <MetricCard
-              label="API calls today (all tenants)"
-              value={totalCalls.toLocaleString("en-US")}
-              icon={Activity}
-              deltaLabel="across tracked tenants"
-            />
-            <MetricCard
-              label="Tenants ≥80% of limit"
-              value={atRisk}
-              icon={Gauge}
-              tone={atRisk > 0 ? "warning" : "positive"}
-              deltaLabel="rate-limit risk zone"
-            />
-            <MetricCard
-              label="Weighted error rate"
-              value={`${avgError.toFixed(2)}%`}
-              icon={AlertTriangle}
-              tone={avgError >= 1 ? "negative" : "positive"}
-              deltaLabel="weighted by call volume"
-            />
-            <MetricCard
-              label="429s served today"
-              value={total429.toLocaleString("en-US")}
-              icon={Zap}
-              tone={total429 > 0 ? "warning" : "positive"}
-              deltaLabel="requests throttled at the edge"
-            />
-          </div>
+        <div className="grid gap-3 sm:grid-cols-4 mb-6">
+          <MetricCard label="Total calls/day" value={compact(totalCalls)} icon={Server} />
+          <MetricCard label="Avg error rate" value={`${avgErrorRate.toFixed(2)}%`} icon={AlertTriangle} tone={avgErrorRate >= 1 ? "negative" : "default"} />
+          <MetricCard label="429s served" value={compact(total429)} icon={Zap} tone={total429 > 0 ? "warning" : "default"} />
+          <MetricCard label="Tenants with anomalies" value={anomalyCount} icon={Bell} tone={anomalyCount > 0 ? "warning" : "positive"} />
+        </div>
 
-          {/* Threshold alerts */}
-          <Card>
-            <CardContent className="space-y-2 p-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-primary" />
-                <p className="text-sm font-medium">Threshold alerts</p>
-                <Badge variant={activeAnomalies.length > 0 ? "destructive" : "secondary"} className="ml-auto">
-                  {activeAnomalies.length} active
-                </Badge>
-              </div>
-              {activeAnomalies.length === 0 ? (
-                <EmptyState
-                  title="No active alerts"
-                  description="No tenant is near a rate limit or showing anomaly patterns."
-                  icon={CheckCircle2}
-                />
-              ) : (
-                <ul className="space-y-1.5 text-sm">
-                  {activeAnomalies.map((a, i) => (
-                    <li
-                      key={`${a.tenant}-${a.key}-${i}`}
-                      className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Badge variant={a.tone === "destructive" ? "destructive" : "secondary"}>{a.label}</Badge>
-                        <span className="text-muted-foreground">{a.tenant}</span>
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs"
-                        onClick={() => navigate("usage-metering")}
-                      >
-                        Usage & overage <ArrowRight className="ml-1 h-3 w-3" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="text-[11px] text-muted-foreground">
-                Heuristics: error rate ≥1% · limit usage ≥80% · week-over-week growth ≥25%.
-                Custom limits are enforced at the API gateway within 60 seconds of saving.
-              </p>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardContent className="pt-0">
+            <DataTable
+              columns={cols}
+              data={rows}
+              rowKey={(r) => r.row.tenantId}
+              pageSize={10}
+              searchableText={(r) => r.row.name}
+            />
+          </CardContent>
+        </Card>
 
-          {/* Per-tenant table with inline custom limits */}
-          <DataTable
-            columns={columns}
-            data={rows}
-            rowKey={(r) => r.row.tenantId}
-            searchableText={(r) => `${r.row.name} ${r.row.plan}`}
-            searchPlaceholder="Search tenants…"
-            onRowClick={(r) => navigate("tenant-detail", { id: r.row.tenantId })}
-            emptyTitle="No tenants match"
-            emptyDescription="Clear the search to see all tracked tenants."
-          />
-
-          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Key className="h-3 w-3" />
-            Calls/day matches the Tenant Usage &amp; Overage screen exactly. Click a tenant to
-            open its detail view for API keys and entitlement context.
-          </p>
-        </PageAsyncBoundary>
+        <div className="mt-6 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+          <p className="font-medium mb-2">Anomaly key</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li><strong>High error rate</strong> — error rate ≥ 1%</li>
+            <li><strong>Over limit</strong> — usage ≥ 100% of limit</li>
+            <li><strong>Rate-limit risk</strong> — usage ≥ 80% of limit</li>
+            <li><strong>Usage spike</strong> — week-over-week increase ≥ 25%</li>
+            <li><strong>429s served</strong> — tenant hit rate limits</li>
+          </ul>
+        </div>
       </PageContent>
     </Page>
   );

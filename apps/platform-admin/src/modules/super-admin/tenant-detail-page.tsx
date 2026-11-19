@@ -29,6 +29,17 @@ import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { useTenants, updateTenant } from "@/lib/platform/tenant-store";
 import { usePlans, readPlans } from "@/lib/platform/plan-catalog-store";
+import { useDunningForTenant, escalateDunning, suspendTenant, reinstateTenant, type DunningRecord } from "@/lib/platform/dunning-store";
+import {
+  useTenantUsers,
+  useTenantUsersForTenant,
+  inviteTenantUser,
+  removeTenantUser,
+  updateTenantUserRole,
+  suspendTenantUser,
+  reactivateTenantUser,
+  type TenantUser,
+} from "@/lib/platform/tenant-users-store";
 import { makeTermResolver, plural } from "@/lib/platform/terminology";
 import {
   getTenantTraders,
@@ -39,7 +50,6 @@ import {
   getTenantAudit,
   tenants as allTenants,
   hashStr,
-  users as allUsers,
 } from "@/lib/platform/mock-data";
 import type { AuthUser, TenantContext } from "@/lib/platform/types";
 import { moduleRegistry } from "@/lib/platform/module-registry";
@@ -958,9 +968,23 @@ function ModulesTab({
 /* ------------------------------------------------------------------ */
 
 function UsersTab({ tenantId }: { tenantId: string }) {
-  const tenantUsers = allUsers.filter((u) => u.tenantId === tenantId);
+  const tenant = useTenants().find((t) => t.id === tenantId);
+  const tenantName = tenant?.name ?? tenantId;
+  const tenantUsers = useTenantUsersForTenant(tenantId);
 
-  const columns: Column<AuthUser>[] = [
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"invite" | "roles" | null>(null);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRoles, setInviteRoles] = useState<string[]>([]);
+  const [inviteApp, setInviteApp] = useState<"prop-admin" | "trader">("prop-admin");
+  const [editUserId, setEditUserId] = useState<string | null>(null);
+  const [editRoles, setEditRoles] = useState<string[]>([]);
+
+  const userStatusTone = (s: string) =>
+    s === "active" ? "success" : s === "suspended" ? "danger" : s === "invited" ? "warning" : "default";
+
+  const columns: Column<TenantUser>[] = [
     {
       key: "name",
       header: "User",
@@ -996,6 +1020,19 @@ function UsersTab({ tenantId }: { tenantId: string }) {
       sortValue: (u) => u.application,
     },
     {
+      key: "status",
+      header: "Status",
+      cell: (u) => (
+        <span className="flex items-center gap-1">
+          <Badge variant={u.status === "active" ? "default" : u.status === "suspended" ? "destructive" : "outline"} className="text-[10px]">
+            {u.status}
+          </Badge>
+          {u.status === "invited" && <span className="text-[10px] text-muted-foreground">· invited {u.invitedAt ? new Date(u.invitedAt).toLocaleDateString() : ""}</span>}
+        </span>
+      ),
+      sortValue: (u) => u.status,
+    },
+    {
       key: "lastActive",
       header: "Last active",
       cell: (u) => {
@@ -1015,15 +1052,53 @@ function UsersTab({ tenantId }: { tenantId: string }) {
             size="sm"
             variant="ghost"
             className="h-7 gap-1 text-xs"
-            onClick={() => toast({ title: "Role management", description: `Use the Roles & Permissions matrix to manage tenant roles. Per-user role editing is not available in this demo.` })}
+            onClick={() => { setEditUserId(u.id); setEditRoles([...u.roles]); setDialogMode("roles"); setDialogOpen(true); }}
           >
             <Pencil className="h-3 w-3" /> Manage roles
           </Button>
+          {u.status === "active" ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
+              onClick={() => {
+                setDialogMode(null);
+                setDialogOpen(true);
+                setEditUserId(null);
+                const result = suspendTenantUser(u.id, tenantId, tenantName);
+                toast({ title: result.title, description: result.description });
+              }}
+            >
+              <Ban className="h-3 w-3" /> Suspend
+            </Button>
+          ) : null}
+          {u.status === "suspended" ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 text-xs"
+              onClick={() => {
+                setDialogMode(null);
+                setDialogOpen(true);
+                setEditUserId(null);
+                const result = reactivateTenantUser(u.id, tenantId, tenantName);
+                toast({ title: result.title, description: result.description });
+              }}
+            >
+              <Play className="h-3 w-3" /> Reactivate
+            </Button>
+          ) : null}
           <Button
             size="sm"
             variant="ghost"
             className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
-            onClick={() => toast({ title: "User removed", description: `${u.name} removed from tenant. (demo)` })}
+            onClick={() => {
+              setDialogMode(null);
+              setDialogOpen(true);
+              setEditUserId(null);
+              const result = removeTenantUser(u.id, tenantId, tenantName);
+              toast({ title: result.title, description: result.description });
+            }}
           >
             <Trash2 className="h-3 w-3" /> Remove
           </Button>
@@ -1038,7 +1113,7 @@ function UsersTab({ tenantId }: { tenantId: string }) {
         <p className="text-sm font-medium">{tenantUsers.length} users in this tenant</p>
         <Button
           size="sm"
-          onClick={() => toast({ title: "Invite user", description: "Invitation form would open here. (demo)" })}
+          onClick={() => { setInviteName(""); setInviteEmail(""); setInviteRoles([]); setInviteApp("prop-admin"); setDialogMode("invite"); setDialogOpen(true); }}
         >
           <UserPlus className="mr-1 h-4 w-4" /> Invite user
         </Button>
@@ -1047,12 +1122,142 @@ function UsersTab({ tenantId }: { tenantId: string }) {
         columns={columns}
         data={tenantUsers}
         rowKey={(u) => u.id}
-        searchableText={(u) => `${u.name} ${u.email} ${u.roles.join(" ")}`}
+        searchableText={(u) => `${u.name} ${u.email} ${u.roles.join(" ")} ${u.status}`}
         searchPlaceholder="Search tenant users…"
         pageSize={6}
         emptyTitle="No users in this tenant"
         emptyDescription="Invite a tenant administrator to manage their prop firm."
       />
+
+      {/* Invite / role dialog */}
+      <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{dialogMode === "invite" ? "Invite user" : "Manage roles"}</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogDescription>
+            {dialogMode === "invite"
+              ? `Invite a new operator to ${tenantName}. The invite is stored and appears in this list immediately (demo).`
+              : `Update roles for this tenant user (demo).`}
+          </AlertDialogDescription>
+          {dialogMode === "invite" && (
+            <form className="space-y-3" onSubmit={(e) => {
+              e.preventDefault();
+              const roles = inviteRoles.filter((r) => r);
+              if (!roles.length) return;
+              const result = inviteTenantUser(tenantId, tenantName, inviteName, inviteEmail, roles, inviteApp);
+              toast({ title: result.title, description: result.description });
+              setDialogOpen(false);
+              setDialogMode(null);
+              setEditUserId(null);
+            }}>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Full name</Label>
+                <Input value={inviteName} onChange={(e) => setInviteName(e.target.value)} placeholder="e.g. Jane Doe" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Email</Label>
+                <Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="e.g. jane@example.com" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Roles</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setInviteRoles(inviteRoles.includes("admin") ? inviteRoles.filter((r) => r !== "admin") : [...inviteRoles, "admin"])}
+                    className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${inviteRoles.includes("admin") ? "border-primary bg-primary/10" : "hover:bg-muted/40"}`}
+                  >
+                    Admin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInviteRoles(inviteRoles.includes("support") ? inviteRoles.filter((r) => r !== "support") : [...inviteRoles, "support"])}
+                    className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${inviteRoles.includes("support") ? "border-primary bg-primary/10" : "hover:bg-muted/40"}`}
+                  >
+                    Support
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInviteRoles(inviteRoles.includes("compliance") ? inviteRoles.filter((r) => r !== "compliance") : [...inviteRoles, "compliance"])}
+                    className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${inviteRoles.includes("compliance") ? "border-primary bg-primary/10" : "hover:bg-muted/40"}`}
+                  >
+                    Compliance
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Select one or more roles</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Application</Label>
+                <Select value={inviteApp} onValueChange={(v) => setInviteApp(v as "prop-admin" | "trader")}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prop-admin">Prop Admin</SelectItem>
+                    <SelectItem value="trader">Trader</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm">Invite</Button>
+              </div>
+            </form>
+          )}
+          {dialogMode === "roles" && editUserId && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                The user's roles determine which console sections and actions they can access.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditRoles(editRoles.includes("admin") ? editRoles.filter((r) => r !== "admin") : [...editRoles, "admin"])}
+                  className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${editRoles.includes("admin") ? "border-primary bg-primary/10" : "hover:bg-muted/40"}`}
+                >
+                  Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditRoles(editRoles.includes("support") ? editRoles.filter((r) => r !== "support") : [...editRoles, "support"])}
+                  className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${editRoles.includes("support") ? "border-primary bg-primary/10" : "hover:bg-muted/40"}`}
+                >
+                  Support
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditRoles(editRoles.includes("compliance") ? editRoles.filter((r) => r !== "compliance") : [...editRoles, "compliance"])}
+                  className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors ${editRoles.includes("compliance") ? "border-primary bg-primary/10" : "hover:bg-muted/40"}`}
+                >
+                  Compliance
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Select one or more roles</p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            {dialogMode === "roles" && editUserId && (
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={() => {
+                  const result = updateTenantUserRole(editUserId!, tenantId, tenantName, editRoles);
+                  toast({ title: result.title, description: result.description });
+                  setDialogOpen(false);
+                  setDialogMode(null);
+                  setEditUserId(null);
+                }}
+                >
+                  Save roles
+                </Button>
+              </div>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1077,7 +1282,7 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
      Session-scoped demo state — the tab remounts per tenant (key below),
      so each tenant starts from its own deterministic baseline. ── */
   const seed = tenant.id.split("").reduce((s, c) => s + c.charCodeAt(0), 0);
-  const [schedule, setSchedule] = useState("Monthly");
+  const [schedule, setSchedule] = useState((tenant.billingCycle ?? "monthly").charAt(0).toUpperCase() + (tenant.billingCycle ?? "monthly").slice(1));
   const [methods, setMethods] = useState<Array<{ id: string; label: string; detail: string }>>(
     () => {
       const list = [
@@ -1098,6 +1303,9 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
     },
   );
   const [defaultMethod, setDefaultMethod] = useState("pm-primary");
+  /* ── Dunning state: live from the dunning store (persists across reloads) ── */
+  const dunningRecord: DunningRecord | undefined = useDunningForTenant(tenant.id);
+
   const [disputes, setDisputes] = useState<
     Array<{
       id: string;
@@ -1122,6 +1330,8 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
   const changeSchedule = (next: string) => {
     if (next === schedule) return;
     setSchedule(next);
+    const cycle = next.toLowerCase() as TenantContext["billingCycle"];
+    updateTenant(tenant.id, { billingCycle: cycle });
     toast({
       title: "Billing schedule updated",
       description: `${tenant.name} now invoices ${next.toLowerCase()}.`,
@@ -1298,7 +1508,11 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
           </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">Status</dt>
-            <dd className="mt-0.5">In good standing</dd>
+            <dd className="mt-0.5">
+                {dunningRecord ? (
+                  dunningRecord.status === "normal" ? <span className="text-emerald-600 font-medium">Active</span> : dunningRecord.status === "suspended" ? <span className="text-red-600 font-medium">Suspended</span> : dunningRecord.status === "overdue" ? <span className="text-orange-600 font-medium">Overdue</span> : <span className="text-amber-600 font-medium">Past due</span>
+                ) : <span className="text-emerald-600 font-medium">Active</span>}
+              </dd>
           </div>
         </dl>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -1381,26 +1595,54 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
           emptyTitle="No invoices yet"
           emptyDescription="Invoices will appear here after the first billing cycle."
         />
-        {/* Dunning / failed payments */}
-        <div className="rounded-lg border border-rose-500/10 bg-rose-50/40 p-3 text-xs text-rose-800 dark:text-rose-200 dark:bg-rose-950/20">
-          <div className="flex items-center gap-2 font-medium"><AlertTriangle className="h-3.5 w-3.5" /> Dunning (failed payments)</div>
-          <div className="mt-2 space-y-1.5">
-            {[
-              { invoice: "INV-2026-10-043", tenant: "Beta Trading", amount: getPlanPrice("growth"), attempts: 2, daysOverdue: 7 },
-              { invoice: "INV-2026-10-040", tenant: "Gamma Futures", amount: getPlanPrice("scale"), attempts: 1, daysOverdue: 3 },
-            ].map((d) => (
-              <div key={d.invoice} className="flex items-center gap-3 rounded-md border bg-white/70 p-2 dark:bg-rose-950/20">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium truncate">{d.invoice} · {d.tenant}</p>
-                  <p className="text-[10px] opacity-70">{d.attempts} attempts · {d.daysOverdue} days overdue</p>
-                </div>
-                <span className="font-bold">{formatCurrency(d.amount)}</span>
-                <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => toast({ title: "Retry scheduled", description: `Retrying ${d.invoice} via dunning flow.` })}>Retry</Button>
-                <Button size="sm" variant="destructive" className="h-6 px-2 text-[10px]" onClick={() => toast({ title: "Paused", description: `Dunning paused for ${d.invoice}.` })}>Pause</Button>
+  {/* Dunning / failed payments */}
+        {dunningRecord ? (
+          <div className="rounded-lg border border-rose-500/10 bg-rose-50/40 p-3 text-xs text-rose-800 dark:text-rose-200 dark:bg-rose-950/20">
+            <div className="flex items-center gap-2 font-medium"><AlertTriangle className="h-3.5 w-3.5" /> Dunning</div>
+            <div className="mt-2 space-y-1.5">
+              <div className="flex flex-col gap-1">
+                <p className="font-medium truncate">{dunningRecord.tenantName}</p>
+                <p className="text-[10px] opacity-70">{dunningRecord.daysOverdue} days overdue</p>
+                {dunningRecord.status === "overdue" && (
+                  <Button size="sm" variant="default" className="h-6 px-2 text-xs" onClick={() => {
+                    const result = escalateDunning(dunningRecord.id);
+                    toast({ title: result.title, description: result.description });
+                  }}>
+                    Escalate
+                  </Button>
+                )}
+                {dunningRecord.status !== "normal" && dunningRecord.status !== "cancelled" && (
+                  <Button size="sm" variant="default" className="h-6 px-2 text-xs" onClick={() => {
+                    const result = suspendTenant(dunningRecord.id, "Non-payment");
+                    toast({ title: result.title, description: result.description });
+                  }}>
+                    Suspend
+                  </Button>
+                )}
+                {dunningRecord.status === "suspended" && (
+                  <Button size="sm" variant="default" className="h-6 px-2 text-xs" onClick={() => {
+                    const result = reinstateTenant(dunningRecord.id);
+                    toast({ title: result.title, description: result.description });
+                  }}>
+                    Reinstate
+                  </Button>
+                )}
+                {dunningRecord.status === "normal" && (
+                  <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => {
+                    toast({ title: "Invoice PDF", description: `${dunningRecord.invoiceNumber} for ${dunningRecord.tenantName} — PDF download (demo).` });
+                  }}>
+                    PDF
+                  </Button>
+                )}
               </div>
-            ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-lg border border-rose-500/10 bg-rose-50/40 p-3 text-xs text-rose-800 dark:text-rose-200 dark:bg-rose-950/20">
+            <div className="flex items-center gap-2 font-medium"><AlertTriangle className="h-3.5 w-3.5" /> Dunning</div>
+            <p className="text-muted-foreground">No overdue invoices</p>
+          </div>
+        )}
 
         {/* Payment method management + dispute handling (audit X #2) —
             the two billing workflows that previously had no surface at

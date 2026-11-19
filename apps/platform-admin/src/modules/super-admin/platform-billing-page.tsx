@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { formatCurrency, StatusBadge } from "@/components/platform/status";
 import { usePlans } from "@/lib/platform/plan-catalog-store";
-import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
+import { tenants as allTenants } from "@/lib/platform/mock-data";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Download, AlertCircle, CreditCard, Receipt, Clock, CheckCircle2 } from "lucide-react";
+import { Download, AlertCircle, CreditCard, AlertTriangle, RotateCcw } from "lucide-react";
+import { useDunningRecords, escalateDunning, sendReminder, suspendTenant, reinstateTenant, type DunningRecord, type DunningStatus } from "@/lib/platform/dunning-store";
 
 interface BillingRecord {
   id: string;
@@ -31,6 +32,7 @@ export function PlatformBillingPage() {
   // R4-06: plan prices come from the shared catalog (component scope —
   // the mock loader runs outside render, so hooks can't live in it).
   const plans = usePlans();
+  const dunningRecords = useDunningRecords();
   const {
     data: records = [],
     loading,
@@ -68,8 +70,89 @@ export function PlatformBillingPage() {
     [],
   );
 
-  const pastDue = records.filter((r) => r.status === "past due");
+  // Separate dunning overdue records for KPI count
+  const dunningOverdue = dunningRecords.filter((r) => r.status === "pastDue" || r.status === "overdue");
+  const pastDue = records.filter((r) => r.status === "past due").concat(
+    dunningOverdue.map((d) => ({
+      id: d.invoiceNumber,
+      tenantName: d.tenantName,
+      tenantId: d.tenantId,
+      plan: "", // dunning records don't have plan
+      amount: d.amount,
+      currency: "USD",
+      status: d.status === "overdue" ? "past due" : "past due",
+      due: d.lastReminderAt,
+      generated: d.lastReminderAt,
+      method: "",
+      overdueDays: d.daysOverdue,
+    }))
+  );
   const totalRevenue = records.filter((r) => r.status === "paid").reduce((s, r) => s + r.amount, 0);
+  
+  // Build dunning actions based on status
+  const dunningActions = (record: DunningRecord) => {
+    const isPastDue = record.status === "pastDue";
+    const isOverdue = record.status === "overdue";
+    const isSuspended = record.status === "suspended";
+    const isCancelled = record.status === "cancelled";
+    
+    return (
+      <div className="flex items-center gap-1">
+        {isPastDue && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 px-2 text-xs"
+            onClick={() => {
+              const result = sendReminder(record.id);
+              toast({ title: result.title, description: result.description });
+            }}
+          >
+            <RotateCcw className="h-3 w-3 mr-0.5" /> Remind
+          </Button>
+        )}
+        {isOverdue && (
+          <Button
+            size="sm"
+            variant="default"
+            className="h-6 px-2 text-xs"
+            onClick={() => {
+              const result = escalateDunning(record.id);
+              toast({ title: result.title, description: result.description });
+            }}
+          >
+            <AlertTriangle className="h-3 w-3 mr-0.5" /> Escalate
+          </Button>
+        )}
+        {isSuspended && (
+          <Button
+            size="sm"
+            variant="default"
+            className="h-6 px-2 text-xs"
+            onClick={() => {
+              const result = reinstateTenant(record.id);
+              toast({ title: result.title, description: result.description });
+            }}
+          >
+            <RotateCcw className="h-3 w-3 mr-0.5" /> Reinstate
+          </Button>
+        )}
+        {isCancelled && (
+          <span className="text-xs text-muted-foreground">Cancelled</span>
+        )}
+        {(!isCancelled && !isSuspended) && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-2 text-xs"
+            onClick={() => toast({ title: "Invoice PDF", description: `${record.invoiceNumber} for ${record.tenantName} — PDF download (demo).` })}
+          >
+            <Download className="h-3 w-3 mr-0.5" /> PDF
+          </Button>
+        )}
+      </div>
+    );
+  };
 
   const columns: Column<BillingRecord>[] = [
     { key: "id", header: "Invoice", cell: (r) => <span className="font-mono text-xs">{r.id}</span>, sortValue: (r) => r.id },
@@ -114,18 +197,36 @@ export function PlatformBillingPage() {
               <CardHeader className="pb-2"><span className="text-sm font-medium text-red-800">Overdue payments — action required</span></CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {pastDue.map((r) => (
-                    <div key={r.id} className="flex items-center justify-between rounded-lg bg-white/70 px-3 py-2 border text-xs">
-                      <div>
-                        <span className="font-medium">{r.id}</span> — <span>{r.tenantName}</span> ({r.plan})
+                  {pastDue.map((r) => {
+                    // Check if this is a dunning record or billing record
+                    const dunningRecord = dunningRecords.find((dr) => dr.tenantId === r.tenantId && dr.invoiceNumber === r.id);
+                    if (dunningRecord) {
+                      return (
+                        <div key={r.id} className="flex items-center justify-between rounded-lg bg-white/70 px-3 py-2 border text-xs">
+                          <div>
+                            <span className="font-medium">{r.id}</span> — <span>{r.tenantName}</span> ({r.plan})
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold tabular-nums">{formatCurrency(r.amount, r.currency)}</span>
+                            <span className="text-red-700 font-semibold">{r.overdueDays}d overdue</span>
+                            {dunningActions(dunningRecord)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={r.id} className="flex items-center justify-between rounded-lg bg-white/70 px-3 py-2 border text-xs">
+                        <div>
+                          <span className="font-medium">{r.id}</span> — <span>{r.tenantName}</span> ({r.plan})
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold tabular-nums">{formatCurrency(r.amount, r.currency)}</span>
+                          <span className="text-red-700 font-semibold">{r.overdueDays}d overdue</span>
+                          <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => toast({ title: "Reminder sent", description: `Payment reminder for ${r.id} (${r.tenantName}) — demo.` })}>Remind</Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold tabular-nums">{formatCurrency(r.amount, r.currency)}</span>
-                        <span className="text-red-700 font-semibold">{r.overdueDays}d overdue</span>
-                        <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => toast({ title: "Reminder sent", description: `Payment reminder for ${r.id} (${r.tenantName}) — demo.` })}>Remind</Button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

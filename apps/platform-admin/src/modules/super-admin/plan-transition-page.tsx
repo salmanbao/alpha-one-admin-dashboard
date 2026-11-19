@@ -28,6 +28,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { computeProration, nextBillingCycleStart } from "@/lib/platform/proration";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { applyDueScheduledPlans, updateTenant, useTenants } from "@/lib/platform/tenant-store";
 import { type PlanId, usePlans } from "@/lib/platform/plan-catalog-store";
@@ -206,15 +207,15 @@ export function PlanTransitionPage({ params }: { params: Record<string, string> 
   const lost = currentPlan.features.filter((f) => !targetPlan.features.includes(f) && !bundle(f));
   const priceDelta = targetPlan.priceMonthly - currentPlan.priceMonthly;
 
-  /* 3 · Proration — deterministic fixture: day 12 of a 30-day cycle. */
-  const CYCLE_DAYS = 30;
-  const CYCLE_DAY_USED = 12;
-  const daysRemaining = CYCLE_DAYS - CYCLE_DAY_USED; // 18
-  const dailyCurrent = currentPlan.priceMonthly / CYCLE_DAYS;
-  const dailyTarget = targetPlan.priceMonthly / CYCLE_DAYS;
-  const creditUnused = dailyCurrent * daysRemaining; // money back on old plan
-  const chargeRemaining = dailyTarget * daysRemaining; // money owed on new plan
-  const netProration = chargeRemaining - creditUnused; // >0 = tenant owes
+  /* 3 · Proration — computed from the tenant's billing cycle anchor. */
+  const proration = computeProration({
+    fromPrice: currentPlan.priceMonthly,
+    toPrice: targetPlan.priceMonthly,
+    anchorIso: tenant.billingCycleAnchor,
+    cycle: tenant.billingCycle,
+  });
+  const { creditUnused, chargeRemaining, netProration, cycleDays, cycleDay, daysRemaining } =
+    proration;
 
   const worstTargetPct = Math.max(...checks.map((c) => pct(c.used, c.target)));
   const canConfirm = !isCurrent && violations.length === 0 && acknowledged;
@@ -266,10 +267,14 @@ export function PlanTransitionPage({ params }: { params: Record<string, string> 
     if (effective === "immediate") {
       updateTenant(tenant.id, { plan: targetPlan.id, scheduledPlan: undefined });
     } else {
+      const nextCycle = nextBillingCycleStart(
+        tenant.billingCycleAnchor ?? tenant.createdAt,
+        tenant.billingCycle ?? "monthly",
+      );
       updateTenant(tenant.id, {
         scheduledPlan: {
           plan: targetPlan.id,
-          scheduledFor: new Date(Date.now() + daysRemaining * 86_400_000).toISOString(),
+          scheduledFor: nextCycle,
         },
       });
     }
@@ -335,8 +340,8 @@ export function PlanTransitionPage({ params }: { params: Record<string, string> 
           />
           <MetricCard
             label="Days left in cycle"
-            value={`${daysRemaining} of ${CYCLE_DAYS}`}
-            deltaLabel={`proration basis · day ${CYCLE_DAY_USED}`}
+            value={`${daysRemaining} of ${cycleDays}`}
+            deltaLabel={`proration basis · day ${cycleDay}`}
             icon={Clock}
           />
           <MetricCard
@@ -550,7 +555,7 @@ export function PlanTransitionPage({ params }: { params: Record<string, string> 
           <CardHeader className="pb-2">
             <span className="text-sm font-medium">3 · Proration</span>
             <p className="text-xs text-muted-foreground">
-              What the change costs today — day {CYCLE_DAY_USED} of a {CYCLE_DAYS}-day cycle, so{" "}
+              What the change costs today — day {cycleDay} of a {cycleDays}-day cycle, so{" "}
               {daysRemaining} days remain.
             </p>
           </CardHeader>

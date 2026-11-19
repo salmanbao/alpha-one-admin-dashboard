@@ -42,6 +42,7 @@ import {
   type PlanLimits,
 } from "@/lib/platform/plan-catalog-store";
 import { toast } from "@/hooks/use-toast";
+import { computeProration, nextBillingCycleStart } from "@/lib/platform/proration";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { recordAudit } from "@/lib/platform/console-store";
 import type { TenantContext } from "@/lib/platform/types";
@@ -487,14 +488,13 @@ function PlanMigrationDialog({
   // immediate migration credits unused time on the current plan and
   // charges the target plan for the remaining days; the net is what the
   // tenant sees on the next invoice.
-  const CYCLE_DAYS = 30;
-  const CYCLE_DAY_USED = 12;
-  const daysRemaining = CYCLE_DAYS - CYCLE_DAY_USED; // 18
-  const dailyCurrent = currentPlan ? currentPlan.priceMonthly / CYCLE_DAYS : 0;
-  const dailyTarget = targetPlan ? targetPlan.priceMonthly / CYCLE_DAYS : 0;
-  const creditUnused = dailyCurrent * daysRemaining; // money back on old plan
-  const chargeRemaining = dailyTarget * daysRemaining; // money owed on new plan
-  const netProration = chargeRemaining - creditUnused; // >0 = tenant owes
+  const prorationInput = {
+    fromPrice: currentPlan?.priceMonthly ?? 0,
+    toPrice: targetPlan?.priceMonthly ?? 0,
+    anchorIso: tenant.billingCycleAnchor,
+    cycle: tenant.billingCycle,
+  };
+  const { creditUnused, chargeRemaining, netProration, cycleDay, daysRemaining, cycleDays } = computeProration(prorationInput);
 
   const canMigrate =
     Boolean(targetPlan) && !isCurrent && violations.length === 0 && acknowledged;
@@ -509,10 +509,14 @@ function PlanMigrationDialog({
     if (effective === "immediate") {
       updateTenant(tenant.id, { plan: targetPlan.id, scheduledPlan: undefined });
     } else {
+      const nextCycle = nextBillingCycleStart(
+        tenant.billingCycleAnchor ?? tenant.createdAt,
+        tenant.billingCycle ?? "monthly",
+      );
       updateTenant(tenant.id, {
         scheduledPlan: {
           plan: targetPlan.id,
-          scheduledFor: new Date(Date.now() + daysRemaining * 86_400_000).toISOString(),
+          scheduledFor: nextCycle,
         },
       });
     }
@@ -725,8 +729,8 @@ function PlanMigrationDialog({
             {effective === "immediate" && currentPlan && targetPlan && !isCurrent && (
               <div className="rounded-md border border-border bg-muted/40 p-2.5 text-xs">
                 <p className="mb-1.5 font-medium text-muted-foreground">
-                  Proration — {daysRemaining} of {CYCLE_DAYS} days remaining in the current cycle
-                  (day {CYCLE_DAY_USED})
+                  Proration — {daysRemaining} of {cycleDays} days remaining in the current cycle
+                  (day {cycleDay})
                 </p>
                 <dl className="space-y-1">
                   <div className="flex justify-between gap-3">
