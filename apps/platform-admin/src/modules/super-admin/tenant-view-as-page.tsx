@@ -26,31 +26,17 @@ import { Label } from "@/components/ui/label";
 import { TwoFactorDialog } from "@/components/platform/two-factor-dialog";
 import {
   useConsoleStore,
-  startImpersonation,
-  renewImpersonation,
-  endImpersonation,
 } from "@/lib/platform/console-store";
+import { impersonationDenyReason } from "@/lib/platform/impersonation-policy";
+import { useTenants } from "@/lib/platform/tenant-store";
 import { useCountdown, formatCountdown, timeAgo } from "@/hooks/use-countdown";
-import { tenants as allTenants, users as allUsers } from "@/lib/platform/mock-data";
+import { platformTenant, users as allUsers } from "@/lib/platform/mock-data";
 import {
   Eye, AlertTriangle, Lock, User, Building2,
   Timer, RefreshCw, LogOut,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-
-/**
- * Deny-list (CON-07): tenants that must never be impersonated, with the
- * reason surfaced next to the disabled option.
- */
-const DENY_LIST: Record<string, string> = {
-  "gamma-futures": "Under abuse investigation AB-131 — impersonation blocked",
-};
-
-const TENANT_BLOCKED_STATUS = {
-  suspended: "Tenant is suspended — reactivate before impersonating",
-  terminated: "Tenant is terminated — impersonation impossible",
-} as const;
 
 export function TenantViewAsPage() {
   // Async seam (frontend-first): hydrate via the mock layer so the
@@ -62,8 +48,9 @@ export function TenantViewAsPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const { setUser, setTenant, navigate, user: currentUser } = usePlatform();
+  const { setUser, setTenant, navigate, user: currentUser, startImpersonation, endImpersonation, renewImpersonation } = usePlatform();
   const store = useConsoleStore();
+  const tenants = useTenants();
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
   const [viewAsRole, setViewAsRole] = useState<"trader" | "prop-admin" | "super-admin">("prop-admin");
@@ -72,33 +59,36 @@ export function TenantViewAsPage() {
   const activeSession = store.impersonations.find((i) => !i.endedAt) ?? null;
   const remaining = useCountdown(activeSession?.expiresAt ?? null);
 
-  const tenantOptions = allTenants.filter((t) => t.id !== "platform");
+  const tenantOptions = tenants.filter((t) => t.id !== "platform");
   const userOptions = allUsers.filter((u) => {
     if (!selectedTenantId) return false;
     if (viewAsRole === "super-admin") return u.application === "super-admin";
     return u.tenantId === selectedTenantId && u.application === viewAsRole;
   });
 
+  /* Shared policy (P0-1): same deny-list + terminal-status gate the
+   * tenant-detail "Login as" action enforces, matched against id, slug
+   * and name so the block can actually match (gap T-20). Reads the live
+   * tenant store, so runtime-created tenants are covered too (T-19). */
   const denyReason = (tenantId: string): string | null => {
-    if (DENY_LIST[tenantId]) return DENY_LIST[tenantId];
-    const t = allTenants.find((x) => x.id === tenantId);
-    if (t && TENANT_BLOCKED_STATUS[t.status as keyof typeof TENANT_BLOCKED_STATUS]) {
-      return TENANT_BLOCKED_STATUS[t.status as keyof typeof TENANT_BLOCKED_STATUS];
-    }
-    return null;
+    if (!tenantId) return null;
+    const t = tenants.find((x) => x.id === tenantId);
+    return t ? impersonationDenyReason(t) : null;
   };
 
   const restoreOperator = () => {
     const superUser = allUsers.find((u) => u.application === "super-admin");
-    const platformTenant = allTenants.find((t) => t.id === "platform");
     if (superUser) setUser(superUser);
-    if (platformTenant) setTenant(platformTenant);
+    setTenant(platformTenant);
   };
 
   const launch = () => {
     const targetUser = allUsers.find((u) => u.id === selectedUserId);
-    const targetTenant = allTenants.find((t) => t.id === selectedTenantId);
+    const targetTenant = tenants.find((t) => t.id === selectedTenantId);
     if (!targetUser || !targetTenant) return;
+    // Context startImpersonation captures the pre-session operator
+    // identity (auto-restore on end) and delegates to the console store
+    // — audited, 15-minute TTL, deny-list checked above.
     startImpersonation({ tenantId: targetTenant.id, tenantName: targetTenant.name, operator: { id: currentUser.id, name: currentUser.name } });
     setUser(targetUser);
     setTenant(targetTenant);
@@ -111,22 +101,17 @@ export function TenantViewAsPage() {
 
   const renew = () => {
     if (!activeSession) return;
-    renewImpersonation(activeSession.id);
-    toast({
-      title: "Session extended",
-      description: `${activeSession.tenantName} — renewed for another 15 minutes (audited).`,
-    });
+    // Context renew toasts + audits (single feedback path, P0-1).
+    renewImpersonation();
   };
 
   const end = () => {
     if (!activeSession) return;
-    endImpersonation(activeSession.id, "manual");
-    restoreOperator();
+    // Ends the audited console-store session; platform-context restores
+    // the operator identity automatically on the state transition and
+    // shows the end-session toast (single feedback path, P0-1).
+    endImpersonation();
     navigate("super-overview");
-    toast({
-      title: "View-As session ended",
-      description: `Returned to platform operator view. ${activeSession.tenantName} session logged.`,
-    });
   };
 
   return (
@@ -176,12 +161,15 @@ export function TenantViewAsPage() {
                   <Timer className="h-4 w-4" />
                   {formatCountdown(remaining)}
                 </span>
-                <Button size="sm" variant="outline" onClick={renew}>
-                  <RefreshCw className="mr-1 h-3.5 w-3.5" /> Renew 15 min
-                </Button>
-                <Button size="sm" variant="destructive" onClick={end}>
-                  <LogOut className="mr-1 h-3.5 w-3.5" /> End session
-                </Button>
+                {/* Session controls stay live inside the read-only gate */}
+                <span data-readonly-allow className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={renew}>
+                    <RefreshCw className="mr-1 h-3.5 w-3.5" /> Renew 15 min
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={end}>
+                    <LogOut className="mr-1 h-3.5 w-3.5" /> End session
+                  </Button>
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -200,7 +188,7 @@ export function TenantViewAsPage() {
                   Platform Operator session · <strong className="text-rose-600">READ ONLY</strong> — no state-changing actions available
                 </p>
               </div>
-              <Button size="sm" variant="destructive" onClick={() => { restoreOperator(); navigate("super-overview"); }}>
+              <Button size="sm" variant="destructive" data-readonly-allow onClick={() => { restoreOperator(); navigate("super-overview"); }}>
                 Exit View-As
               </Button>
             </CardContent>

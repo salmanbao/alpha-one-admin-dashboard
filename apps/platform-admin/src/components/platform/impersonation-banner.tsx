@@ -22,7 +22,7 @@ export function ImpersonationBanner() {
     <div className="w-full border-b bg-amber-50/90 text-amber-900 dark:bg-amber-950/80 dark:text-amber-200 px-4 py-2 flex items-center gap-3 text-xs md:text-sm">
       <ShieldAlert className="h-4 w-4 shrink-0" />
       <span className="font-medium">View-As session active — read-only.</span>
-      <span className="text-xs opacity-80">Tenant: {impersonationSession.tenantId} · {remaining > 0 ? `${Math.floor(remaining / 60)}m ${remaining % 60}s left` : "expiring"}</span>
+      <span className="text-xs opacity-80">Tenant: {impersonationSession.tenantName ?? impersonationSession.tenantId} · {remaining > 0 ? `${Math.floor(remaining / 60)}m ${remaining % 60}s left` : "expiring"}</span>
       <div className="ml-auto flex gap-2">
         <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={renewImpersonation}>Renew</Button>
         <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" onClick={endImpersonation}>End session</Button>

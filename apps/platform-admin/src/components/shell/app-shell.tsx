@@ -19,6 +19,7 @@ import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { OnboardingWizard } from "./onboarding-wizard";
 import { ImpersonationBanner } from "@/components/platform/impersonation-banner";
 import { SessionExpiryBanner } from "@/components/platform/session-expiry-banner";
+import { ReadOnlyGuard } from "@/components/platform/read-only-guard";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { setSearchOpen } = usePlatform();
@@ -60,7 +61,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <MobileNav />
           </div>
           <Breadcrumbs />
-          {children}
+          {/* Read-only gate (gap S-24) — during an active View-As
+              session the routed view renders but its controls are
+              inert; navigation and the banner stay live. */}
+          <ReadOnlyGuard>{children}</ReadOnlyGuard>
         </main>
         <footer className="mt-auto border-t bg-muted/30 px-4 py-4 text-center text-xs text-muted-foreground md:px-6">
           <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">

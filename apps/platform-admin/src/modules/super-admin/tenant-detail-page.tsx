@@ -89,6 +89,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { SensitiveActionDialog } from "@/components/platform/sensitive-action-dialog";
+import { TwoFactorDialog } from "@/components/platform/two-factor-dialog";
+import { impersonationDenyReason } from "@/lib/platform/impersonation-policy";
 import { markApprovalExecuted, recordAudit, useConsoleStore } from "@/lib/platform/console-store";
 import { useProvisioningStore } from "@/lib/platform/provisioning-saga";
 import { toast } from "@/hooks/use-toast";
@@ -196,7 +198,7 @@ function initialTab(tab: string | undefined): string {
 }
 
 export function TenantDetailPage() {
-  const { router, navigate, pushNotification, user, startImpersonation, setTenant } = usePlatform();
+  const { router, navigate, pushNotification, user, startImpersonation, setTenant, isImpersonating } = usePlatform();
   const tenants = useTenants();
   const tenantId = router.params.id;
   const provisioning = useProvisioningStore();
@@ -213,6 +215,9 @@ export function TenantDetailPage() {
   // Local working copy so module toggles / config edits are reflected
   // immediately in this surface and also pushed to global context.
   const [localTenant, setLocalTenant] = useState<TenantContext | null>(foundTenant ?? null);
+  /* Login-as 2FA step-up — the session starts only after the code
+   * verifies (parity with the View-As page, CON-01). */
+  const [impersonateOtpOpen, setImpersonateOtpOpen] = useState(false);
   
   const plans = usePlans();
 
@@ -333,6 +338,10 @@ export function TenantDetailPage() {
   }
 
   const currency = localTenant.currency;
+  /* Shared impersonation policy (P0-1): the same deny-list + terminal
+   * status gate as View-As, and no second session while one is active. */
+  const impersonateDeny = impersonationDenyReason(localTenant);
+  const impersonateBlocked = impersonateDeny !== null || isImpersonating;
   const openBreaches = tenantBreaches.filter((b) => b.status === "open");
   const pendingPayouts = tenantPayouts.filter((p) => p.status === "pending");
   const pendingKyc = tenantKyc.filter((k) => k.status === "pending" || k.status === "review");
@@ -414,15 +423,23 @@ export function TenantDetailPage() {
              */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" variant="outline">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={impersonateBlocked}
+                  title={
+                    impersonateDeny ??
+                    (isImpersonating ? "A View-As session is already active — end it first" : undefined)
+                  }
+                >
                   <LogIn className="mr-1 h-4 w-4" />Login as
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Impersonate this tenant?</AlertDialogTitle>
+                  <AlertDialogTitle>Open a View-As session?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    You will be switched into the <strong>{localTenant.name}</strong> workspace with their branding, modules, and permissions. All actions you take will be logged with an “impersonated by” flag in the audit trail. To return to the platform admin view, use the tenant switcher in the topbar.
+                    You will be switched into the <strong>{localTenant.name}</strong> workspace with their branding and data — in a <strong>read-only</strong> session: every control in the console is disabled for 15 minutes. Start, renew, end and this 2FA confirmation are all recorded in the platform audit log. To return to the platform admin view, use <strong>End session</strong> on the View-As banner.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs dark:border-amber-900 dark:bg-amber-950/20">
@@ -431,34 +448,45 @@ export function TenantDetailPage() {
                     <div>
                       <div className="font-medium text-amber-900 dark:text-amber-100">Audit-trail notice</div>
                       <div className="mt-0.5 text-amber-800 dark:text-amber-200">
-                        Your session is being impersonated by platform admin <strong>{user.name}</strong>. All actions are attributed to <strong>{localTenant.name}</strong> but flagged as impersonated.
+                        Platform admin <strong>{user.name}</strong> opens a read-only session on <strong>{localTenant.name}</strong> — the start row (<code>console.impersonation_started</code>) names both identities, and the session auto-ends at the 15-minute deadline.
                       </div>
                     </div>
                   </div>
                 </div>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => {
-                      startImpersonation({ tenantId: localTenant.id, tenantName: localTenant.name, operator: { id: user.id, name: user.name } });
-                      setTenant(localTenant);
-                      pushNotification({
-                        title: `Impersonating ${localTenant.name}`,
-                        message: `Platform admin ${user.name} switched into ${localTenant.name}. Use the tenant switcher in the topbar to return.`,
-                        severity: "warning",
-                        module: "super-admin",
-                      });
-                      toast({
-                        title: `Now viewing as ${localTenant.name}`,
-                        description: "Use the tenant switcher in topbar to return to platform admin view.",
-                      });
-                    }}
-                  >
-                    <LogIn className="mr-1 h-4 w-4" />Switch to {localTenant.name}
+                  <AlertDialogAction onClick={() => setImpersonateOtpOpen(true)}>
+                    <LogIn className="mr-1 h-4 w-4" />Continue to 2FA
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+
+            {/* ── 2FA step-up — the session starts only after the code
+                verifies (CON-01, parity with the View-As page) ── */}
+            <TwoFactorDialog
+              open={impersonateOtpOpen}
+              onOpenChange={setImpersonateOtpOpen}
+              title={`Switch to ${localTenant.name}?`}
+              description="Confirm with 2FA. The 15-minute read-only session and this verification are audited."
+              submitLabel="Verify & switch"
+              onVerify={(code) => {
+                if (code === "000000") return Promise.reject(new Error("Invalid code. Please try again."));
+                startImpersonation({ tenantId: localTenant.id, tenantName: localTenant.name, operator: { id: user.id, name: user.name } });
+                setTenant(localTenant);
+                pushNotification({
+                  title: `Impersonating ${localTenant.name}`,
+                  message: `Platform admin ${user.name} opened a read-only View-As session on ${localTenant.name}. Use End session on the banner to return.`,
+                  severity: "warning",
+                  module: "super-admin",
+                });
+                toast({
+                  title: `Now viewing as ${localTenant.name} (read-only)`,
+                  description: "Controls are disabled for 15 minutes — use End session on the banner to return.",
+                });
+                return undefined;
+              }}
+            />
 
             <Button
               size="sm"

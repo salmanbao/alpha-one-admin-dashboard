@@ -14,6 +14,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type {
@@ -28,6 +29,13 @@ import {
   tenants,
   users,
 } from "./mock-data";
+import {
+  useConsoleStore,
+  startImpersonation as startConsoleImpersonation,
+  endImpersonation as endConsoleImpersonation,
+  renewImpersonation as renewConsoleImpersonation,
+} from "./console-store";
+import { toast } from "@/hooks/use-toast";
 import { applyTenantBranding, applyThemeMode } from "./theme-engine";
 
 /* ------------------------------------------------------------------ */
@@ -70,9 +78,11 @@ export interface PlatformContextValue {
   markRead: (id: string) => void;
   markAllRead: () => void;
   pushNotification: (n: Omit<AppNotification, "id" | "createdAt" | "read">) => void;
-  /* impersonation (P0-4) */
+  /* impersonation — single source of truth is the console store (P0-1):
+   * both entry points write the same audited session; the banner, the
+   * read-only gate and the auto-restore below all derive from it. */
   isImpersonating: boolean;
-  impersonationSession: { tenantId: string; started: number; expires: number } | null;
+  impersonationSession: { tenantId: string; tenantName?: string; started: number; expires: number } | null;
   startImpersonation: (session: { tenantId: string; tenantName?: string; operator?: { id: string; name: string } }) => void;
   endImpersonation: () => void;
   renewImpersonation: () => void;
@@ -281,8 +291,29 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   });
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [isImpersonating, setIsImpersonating] = useState(false);
-  const [impersonationSession, setImpersonationSession] = useState<{ tenantId: string; started: number; expires: number } | null>(null);
+
+  /* Impersonation — the console store is the single source of truth
+   * (gap P0-1): the View-As page and tenant-detail "Login as" both
+   * write the same audited 15-minute session, and the banner, the
+   * read-only gate and the auto-restore below all derive from it, so
+   * banner and store can never disagree (X-17). The 1-second sweeper
+   * (started on first subscribe) auto-ends expired sessions here too. */
+  const consoleState = useConsoleStore();
+  const activeImpersonation =
+    consoleState.impersonations.find((i) => !i.endedAt) ?? null;
+  const isImpersonating = activeImpersonation !== null;
+  const impersonationSession = activeImpersonation
+    ? {
+        tenantId: activeImpersonation.tenantId,
+        tenantName: activeImpersonation.tenantName,
+        started: activeImpersonation.startedAt,
+        expires: activeImpersonation.expiresAt,
+      }
+    : null;
+  /* Operator identity captured the moment a session starts — restored
+   * automatically when it ends (manual, from any surface, or by the
+   * deadline sweeper). */
+  const preImpersonationRef = useRef<{ user: AuthUser; tenant: TenantContext } | null>(null);
 
   // Reload hiddenWidgets + sidebarCollapsed whenever the active tenant
   // changes — otherwise switching tenants leaves stale per-tenant state.
@@ -478,23 +509,72 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   },
   [],
 );
-  // Impersonation helpers
+  // Impersonation helpers — every path delegates to the console store
+  // (audited start/renew/end, 15-minute TTL, sweeper-enforced), so the
+  // tenant-detail entry point gains the audit, expiry and deny-list
+  // coverage the View-As page always had (gap P0-1). start captures the
+  // pre-session identity for the auto-restore below.
   const startImpersonation = (session: { tenantId: string; tenantName?: string; operator?: { id: string; name: string } }) => {
-    const now = Date.now();
-    const expires = now + 15 * 60 * 1000; // 15 minutes
-    setImpersonationSession({ tenantId: session.tenantId, started: now, expires });
-    setIsImpersonating(true);
+    if (!activeImpersonation) {
+      preImpersonationRef.current = { user, tenant };
+    }
+    startConsoleImpersonation({
+      tenantId: session.tenantId,
+      tenantName: session.tenantName ?? session.tenantId,
+      operator: session.operator ?? { id: user.id, name: user.name },
+    });
   };
   const endImpersonation = () => {
-    setImpersonationSession(null);
-    setIsImpersonating(false);
+    if (!activeImpersonation) return;
+    const name = activeImpersonation.tenantName;
+    endConsoleImpersonation(activeImpersonation.id, "manual");
+    toast({
+      title: "View-As session ended",
+      description: `Returned to platform operator view — ${name} session logged (audited).`,
+    });
   };
   const renewImpersonation = () => {
-    if (!impersonationSession) return;
-    const now = Date.now();
-    const expires = now + 15 * 60 * 1000; // 15 minutes
-    setImpersonationSession({ tenantId: impersonationSession.tenantId, started: now, expires });
+    if (!activeImpersonation) return;
+    renewConsoleImpersonation(activeImpersonation.id);
+    toast({
+      title: "Session extended",
+      description: `${activeImpersonation.tenantName} — renewed for another 15 minutes (audited).`,
+    });
   };
+
+  /* Auto-restore (P0-1/X-17): the moment the active session ends —
+   * however it ends (banner End, View-As End, 15-minute sweeper) —
+   * return to the operator identity captured at start. Sessions that
+   * survived a reload have no captured identity and fall back to the
+   * platform operator. Sweeper (expiry) endings toast here so state,
+   * audit and toast describe the same outcome; manual endings already
+   * toast from endImpersonation above. */
+  const lastImpersonationIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = activeImpersonation?.id ?? null;
+    const previous = lastImpersonationIdRef.current;
+    lastImpersonationIdRef.current = id;
+    if (!previous || id) return;
+    const pre = preImpersonationRef.current;
+    preImpersonationRef.current = null;
+    if (pre) {
+      setUser(pre.user);
+      setTenant(pre.tenant);
+    } else {
+      const superUser = users.find((u) => u.application === "super-admin");
+      if (superUser) setUser(superUser);
+      setTenant(platformTenant);
+    }
+    // Expiry (15-minute deadline) — the store already wrote the
+    // `console.impersonation_ended` audit row; surface the same outcome.
+    const ended = consoleState.impersonations.find((s) => s.id === previous);
+    if (ended?.endReason === "expired") {
+      toast({
+        title: "View-As session expired",
+        description: `${ended.tenantName} — 15-minute deadline reached, session auto-ended and operator view restored (audited).`,
+      });
+    }
+  }, [activeImpersonation?.id, setUser, setTenant, consoleState.impersonations]);
 
   // Compute the module runtime context
   const runtime: ModuleRuntimeContext = useMemo(

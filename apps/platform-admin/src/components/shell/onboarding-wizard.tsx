@@ -70,7 +70,7 @@ const COLOR_PRESETS = [
 ];
 
 export function OnboardingWizard() {
-  const { runtime, tenant } = usePlatform();
+  const { runtime, tenant, isImpersonating } = usePlatform();
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<WizardState>({
     step: 0,
@@ -98,13 +98,16 @@ export function OnboardingWizard() {
     // team). The wizard is admin-onboarding, not trader-onboarding.
     if (tenant.id === "platform") return;
     if (runtime.application === "super-admin") return;
+    // Read-only View-As session (P0-1): the impersonated identity is a
+    // tenant user, but the operator is only browsing — no setup wizard.
+    if (isImpersonating) return;
     const onboarded = window.localStorage.getItem(`${ONBOARDED_KEY}:${tenant.id}`);
     if (!onboarded) {
       // Show onboarding after a short delay so the dashboard loads first
       const timer = setTimeout(() => setOpen(true), 1500);
       return () => clearTimeout(timer);
     }
-  }, [tenant.id, runtime.application]);
+  }, [tenant.id, runtime.application, isImpersonating]);
 
   const skipOnboarding = () => {
     if (typeof window !== "undefined") {
