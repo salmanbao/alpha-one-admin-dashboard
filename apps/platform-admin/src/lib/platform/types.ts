@@ -92,6 +92,12 @@ export interface TenantContext {
    * "Onboarding time to value" panel (R9 W6 UC-P3); absent until live.
    */
   liveAt?: string;
+  /**
+   * Data-residency pin (R9 W6 UC-P6) — the region this tenant's
+   * payments/KYC data is pinned to. Absent until pinned; the residency
+   * report shows such tenants honestly as "Unpinned".
+   */
+  region?: string;
 }
 
 /* ------------------------------------------------------------------ */

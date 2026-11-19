@@ -141,6 +141,14 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  // R9 W6 UC-P6 — data-residency report (declare + register parity)
+  "residency-report": dynamic(
+    () =>
+      import("@/modules/super-admin/residency-report-page").then((m) => ({
+        default: m.ResidencyReportPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "my-sessions": dynamic(
     () =>
       import("@/modules/super-admin/my-sessions-page").then((m) => ({

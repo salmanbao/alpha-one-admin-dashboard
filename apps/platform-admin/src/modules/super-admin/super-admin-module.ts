@@ -141,6 +141,7 @@ const navigation: NavigationItem[] = [
       // ───────── Governance ─────────
       { id: "super.platform-roles", label: "Platform Roles", href: "platform-roles", icon: Settings2, application: ["super-admin"], group: "Governance" },
       { id: "super.staff", label: "Platform Staff", href: "platform-staff", icon: Users, application: ["super-admin"], group: "Governance" },
+      { id: "super.residency", label: "Data Residency", href: "residency-report", icon: Globe, application: ["super-admin"], group: "Governance" },
       { id: "super.pending-tasks", label: "Pending Tasks", href: "pending-tasks", icon: AlertTriangle, application: ["super-admin"], group: "Operations" },
 
       // ───────── Developer (API Gateway) ─────────
@@ -244,6 +245,8 @@ const routes: RouteDefinition[] = [
   { path: "platform-transactions", viewId: "platform-transactions", label: "Platform Transactions", application: ["super-admin"] },
   // R9 W6 UC-P2 — payout statistics (cross-tenant aggregates + methodology)
   { path: "payout-statistics", viewId: "payout-statistics", label: "Payout Statistics", application: ["super-admin"] },
+  // R9 W6 UC-P6 — data-residency report (declare + register parity)
+  { path: "residency-report", viewId: "residency-report", label: "Data Residency", application: ["super-admin"] },
   { path: "system-health", viewId: "system-health", label: "System Health", application: ["super-admin"] },
   { path: "audit-log", viewId: "audit-log", label: "Audit Log", application: ["super-admin"], permission: "platform.audit.read" },
   { path: "api-keys", viewId: "api-keys", label: "API Keys", application: ["super-admin"] },

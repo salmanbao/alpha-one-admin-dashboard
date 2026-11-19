@@ -118,3 +118,65 @@ export function useTenants(): TenantContext[] {
 export function useTenant(id: string): TenantContext | undefined {
   return useTenants().find((t) => t.id === id);
 }
+
+/* ------------------------------------------------------------------ */
+/* Data residency (R9 W6 UC-P6)                                        */
+/* ------------------------------------------------------------------ */
+
+export const DATA_CLASSES = ["payments", "kyc", "trading"] as const;
+export type DataClass = (typeof DATA_CLASSES)[number];
+
+/**
+ * Where trading data is mirrored for fill latency, regardless of the
+ * tenant's pin (Demo mapping — labeled as such in the report).
+ */
+export const TRADING_EXECUTION_REGION = "us-east-1";
+
+/** Default region for a tenant with no pin (honest "Unpinned" in UI). */
+export const DEFAULT_RESIDENCY_REGION = "us-east-1";
+
+/**
+ * Demo mapping — how each data class relates to the tenant's pinned
+ * `region`. The residency report labels this mapping (Demo): the demo
+ * does not move real data.
+ */
+export const DATA_CLASS_MAP: Record<
+  DataClass,
+  { label: string; followsPin: boolean; note: string }
+> = {
+  payments: {
+    label: "Payments",
+    followsPin: true,
+    note: "Billing and payout records stay in the pinned region.",
+  },
+  kyc: {
+    label: "KYC",
+    followsPin: true,
+    note: "Identity documents stay in the pinned region.",
+  },
+  trading: {
+    label: "Trading",
+    followsPin: false,
+    note: "Mirrored to the execution region for fill latency.",
+  },
+};
+
+export interface DataLocation {
+  location: string;
+  /** True only when the class sits in the tenant's explicit pin. */
+  pinned: boolean;
+}
+
+/** Where a tenant's data for `cls` lives — derived, never stored twice. */
+export function dataLocationFor(
+  tenant: TenantContext,
+  cls: DataClass,
+): DataLocation {
+  const policy = DATA_CLASS_MAP[cls];
+  if (policy.followsPin) {
+    return tenant.region
+      ? { location: tenant.region, pinned: true }
+      : { location: `${DEFAULT_RESIDENCY_REGION} (default)`, pinned: false };
+  }
+  return { location: TRADING_EXECUTION_REGION, pinned: false };
+}
