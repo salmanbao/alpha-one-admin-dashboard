@@ -14,11 +14,12 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { recordAudit, type ApprovalRequest } from "@/lib/platform/console-store";
+import { requestReason } from "@/lib/platform/approval-apply";
 import { readRoles } from "@/lib/platform/role-store";
 
 const STORAGE_KEY = "pfaas:platform-admin:staff";
 
-export type StaffStatus = "active" | "inactive" | "suspended" | "invited";
+export type StaffStatus = "active" | "inactive" | "suspended" | "invited" | "offboarded";
 
 export interface StoredStaff {
   id: string;
@@ -35,6 +36,12 @@ export interface StoredStaff {
   /** Set when invited through the two-operator flow (P0-2/S-09). */
   invitedAt?: number;
   invitedBy?: string;
+  /**
+   * Access-revocation stash (gap S-01 / P0-3): suspend and offboard set
+   * permissions to 0 and tenant access to "Access revoked", keeping the
+   * original values here so Activate restores exactly what was held.
+   */
+  revoked?: { permissions: number; tenantAccess: string };
 }
 
 /* ------------------------------------------------------------------ */
@@ -224,6 +231,13 @@ export type StaffMutation = {
   tenantAccess: string;
 };
 
+/** Row lifecycle staged on an approval request (gap S-01 / P0-3). */
+export type StaffLifecycleMutation = {
+  kind: "activate" | "suspend" | "offboard";
+  staffId: string;
+  name: string;
+};
+
 /** `dana.w@pfaas.io` → `Dana W` (honest placeholder until they accept). */
 function nameFromEmail(email: string): string {
   const local = email.split("@")[0] ?? "operator";
@@ -236,13 +250,29 @@ function nameFromEmail(email: string): string {
 
 /**
  * Apply an approved `staff.*` request — called exactly once by the
- * approval bridge (see approval-apply.ts).
+ * approval bridge (see approval-apply.ts). Dispatches on the staged
+ * payload: `invite` adds a row; `activate`/`suspend`/`offboard` run the
+ * S-01 lifecycle transition with access revocation (P0-3).
  */
 export function applyStaffApproval(
   request: ApprovalRequest,
 ): { title: string; description: string } | void {
-  const mutation = request.payload as StaffMutation | undefined;
-  if (mutation?.kind !== "invite") return;
+  const payload = request.payload as (StaffMutation | StaffLifecycleMutation) | undefined;
+  if (!payload?.kind) return;
+  if (payload.kind === "invite") return applyInvite(request, payload as StaffMutation);
+  if (
+    payload.kind === "activate" ||
+    payload.kind === "suspend" ||
+    payload.kind === "offboard"
+  ) {
+    return applyLifecycle(request, payload as StaffLifecycleMutation);
+  }
+}
+
+function applyInvite(
+  request: ApprovalRequest,
+  mutation: StaffMutation,
+): { title: string; description: string } | void {
   const approver = request.approver?.name ?? "second operator";
   const staff = readRaw();
 
@@ -291,5 +321,123 @@ export function applyStaffApproval(
   return {
     title: "Staff invite sent",
     description: `${mutation.email} invited as ${mutation.role} — 2FA + second-operator approval recorded.`,
+  };
+}
+
+/**
+ * S-01 lifecycle transition (gap P0-3): activate / suspend / offboard a
+ * roster row. Suspend and offboard revoke access for real — permissions
+ * drop to 0 and tenant access is replaced with "Access revoked", while
+ * the originals are stashed in `revoked` so Activate restores exactly
+ * what the operator held. Every transition writes one audit row whose
+ * actor is the approver and whose detail names the initiator (and the
+ * typed reason, when one was required).
+ */
+function applyLifecycle(
+  request: ApprovalRequest,
+  mutation: StaffLifecycleMutation,
+): { title: string; description: string } | void {
+  const staff = readRaw();
+  const idx = staff.findIndex((s) => s.id === mutation.staffId);
+  if (idx === -1) {
+    return {
+      title: "Roster entry missing",
+      description: `${mutation.name} is no longer on the roster — nothing was changed.`,
+    };
+  }
+  const row = staff[idx];
+  const approver = request.approver?.name ?? "second operator";
+  const initiator = request.initiator.name;
+  const reason = requestReason(request);
+  const because = reason ? `; reason: ${reason}` : "";
+  const next = [...staff];
+
+  if (mutation.kind === "suspend") {
+    if (row.status === "suspended") {
+      return {
+        title: "Already suspended",
+        description: `${row.name} is already suspended — no duplicate transition applied.`,
+      };
+    }
+    const stash = row.revoked ?? { permissions: row.permissions, tenantAccess: row.tenantAccess };
+    next[idx] = {
+      ...row,
+      status: "suspended",
+      revoked: stash,
+      permissions: 0,
+      tenantAccess: "Access revoked",
+    };
+    writeRaw(next);
+    recordAudit({
+      actor: approver,
+      action: "staff.suspended",
+      target: row.name,
+      severity: "warning",
+      detail: `Suspended ${row.name} (${row.email}) — revoked ${stash.permissions} permissions and tenant access "${stash.tenantAccess}"; initiated by ${initiator}${because}`,
+    });
+    return {
+      title: "Staff suspended",
+      description: `${row.name} can no longer act — access revoked, audited, and reflected after reload.`,
+    };
+  }
+
+  if (mutation.kind === "activate") {
+    if (row.status === "active") {
+      return {
+        title: "Already active",
+        description: `${row.name} is already active — no duplicate transition applied.`,
+      };
+    }
+    const stash = row.revoked;
+    next[idx] = {
+      ...row,
+      status: "active",
+      revoked: undefined,
+      permissions: stash?.permissions ?? row.permissions,
+      tenantAccess: stash?.tenantAccess ?? row.tenantAccess,
+      lastActive: row.lastActive.startsWith("Invite pending") ? "Just now" : row.lastActive,
+    };
+    writeRaw(next);
+    recordAudit({
+      actor: approver,
+      action: "staff.activated",
+      target: row.name,
+      severity: "info",
+      detail: `Reactivated ${row.name} (${row.email}) — restored ${next[idx].permissions} permissions and tenant access "${next[idx].tenantAccess}"; initiated by ${initiator}${because}`,
+    });
+    return {
+      title: "Staff activated",
+      description: `${row.name} is active again with their previous access restored.`,
+    };
+  }
+
+  // offboard — deactivate AND revoke (the gap: "no deactivate or access
+  // revocation on offboard"). Terminal state, hence severity critical.
+  if (row.status === "offboarded") {
+    return {
+      title: "Already offboarded",
+      description: `${row.name} was already offboarded — no duplicate transition applied.`,
+    };
+  }
+  const stash = row.revoked ?? { permissions: row.permissions, tenantAccess: row.tenantAccess };
+  next[idx] = {
+    ...row,
+    status: "offboarded",
+    revoked: stash,
+    permissions: 0,
+    tenantAccess: "Access revoked",
+    lastActive: "Offboarded",
+  };
+  writeRaw(next);
+  recordAudit({
+    actor: approver,
+    action: "staff.offboarded",
+    target: row.name,
+    severity: "critical",
+    detail: `Offboarded ${row.name} (${row.email}) — deactivated and revoked ${stash.permissions} permissions + tenant access "${stash.tenantAccess}"; initiated by ${initiator}${because}`,
+  });
+  return {
+    title: "Staff offboarded",
+    description: `${row.name} is deactivated with all access revoked — audited and persistent.`,
   };
 }

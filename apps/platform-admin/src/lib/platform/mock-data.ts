@@ -380,6 +380,8 @@ export const users: AuthUser[] = [
     permissions: ["*"],
     application: "super-admin",
     lastActiveAt: hoursAgo(1),
+    mfa: "enabled",
+    status: "active",
   },
   {
     id: "user-alpha-admin",
@@ -391,6 +393,8 @@ export const users: AuthUser[] = [
     permissions: roles.find((r) => r.id === "prop-admin")!.permissions,
     application: "prop-admin",
     lastActiveAt: hoursAgo(2),
+    mfa: "enabled",
+    status: "active",
   },
   {
     id: "user-alpha-risk",
@@ -402,6 +406,10 @@ export const users: AuthUser[] = [
     permissions: roles.find((r) => r.id === "risk-manager")!.permissions,
     application: "prop-admin",
     lastActiveAt: hoursAgo(3),
+    // Hired onto the risk desk but not yet enrolled — honest pending
+    // state instead of the old hardcoded "Enabled" (S-02).
+    mfa: "pending",
+    status: "active",
   },
   {
     id: "user-alpha-finance",
@@ -413,6 +421,8 @@ export const users: AuthUser[] = [
     permissions: roles.find((r) => r.id === "finance-manager")!.permissions,
     application: "prop-admin",
     lastActiveAt: hoursAgo(5),
+    mfa: "enabled",
+    status: "active",
   },
   {
     id: "user-beta-admin",
@@ -424,6 +434,9 @@ export const users: AuthUser[] = [
     permissions: roles.find((r) => r.id === "prop-admin")!.permissions,
     application: "prop-admin",
     lastActiveAt: hoursAgo(1),
+    // Lost-device recovery pending — MFA temporarily disabled (S-02).
+    mfa: "disabled",
+    status: "active",
   },
   {
     id: "user-beta-marketing",
@@ -435,6 +448,8 @@ export const users: AuthUser[] = [
     permissions: roles.find((r) => r.id === "marketing-manager")!.permissions,
     application: "prop-admin",
     lastActiveAt: hoursAgo(4),
+    mfa: "enabled",
+    status: "active",
   },
   {
     id: "user-gamma-admin",
@@ -446,6 +461,10 @@ export const users: AuthUser[] = [
     permissions: roles.find((r) => r.id === "prop-admin")!.permissions,
     application: "prop-admin",
     lastActiveAt: hoursAgo(2),
+    mfa: "enabled",
+    // Suspended pending the Gamma Futures abuse investigation (AB-131) —
+    // the directory's Suspended metric now counts real state (S-01).
+    status: "suspended",
   },
   {
     id: "user-trader-1",
@@ -476,6 +495,8 @@ export const users: AuthUser[] = [
     permissions: ["*"],
     application: "super-admin",
     lastActiveAt: hoursAgo(3),
+    mfa: "enabled",
+    status: "active",
   },
 ];
 

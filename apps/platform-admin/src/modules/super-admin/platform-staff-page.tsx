@@ -11,10 +11,17 @@
  * lives in the staff store, and an invite collects email/role/tenant
  * access, then runs the 2FA → two-operator approval flow — the row
  * appears (status `invited`) with an audit row the moment operator B
- * approves. Activation/suspend/offboard build on this in P0-3.
+ * approves.
+ *
+ * Gap P0-3 (S-01): the row action menu runs the real lifecycle —
+ * activate / suspend / offboard — each staged as a `staff.*` two-
+ * operator request whose applier revokes or restores access (permissions
+ * → 0, tenant access → "Access revoked", stashed for restore) and writes
+ * one audit row per transition. Deep-link: the directory's "Invite
+ * operator" arrives with `?invite=1`.
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
@@ -27,6 +34,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +55,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useStaff, type StaffMutation } from "@/lib/platform/staff-store";
+import { useStaff, type StoredStaff, type StaffMutation, type StaffLifecycleMutation } from "@/lib/platform/staff-store";
 import { useRoles } from "@/lib/platform/role-store";
 import { useTenants } from "@/lib/platform/tenant-store";
 import { toast } from "@/hooks/use-toast";
@@ -65,6 +78,7 @@ const staffTone: Record<string, "success" | "muted" | "danger" | "warning"> = {
   inactive: "muted",
   suspended: "danger",
   invited: "warning",
+  offboarded: "muted",
 };
 
 export function PlatformStaffPage() {
@@ -77,7 +91,7 @@ export function PlatformStaffPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const { navigate } = usePlatform();
+  const { navigate, router } = usePlatform();
   const staff = useStaff();
   const platformRoles = useRoles("platform");
   const tenants = useTenants();
@@ -102,6 +116,22 @@ export function PlatformStaffPage() {
     setInviteAccess("All Tenants");
     setInviteOpen(true);
   };
+
+  /* ── Row lifecycle (gap S-01 / P0-3): activate/suspend/offboard ── */
+  const [lifecycleFlow, setLifecycleFlow] = useState<{
+    kind: StaffLifecycleMutation["kind"];
+    staff: StoredStaff;
+  } | null>(null);
+
+  // The directory's "Invite operator" deep-links here with ?invite=1 —
+  // one-shot so later re-renders never clobber a half-typed form.
+  const inviteDeepLinked = useRef(false);
+  useEffect(() => {
+    if (inviteDeepLinked.current || router.params.invite !== "1") return;
+    inviteDeepLinked.current = true;
+    openInvite();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.params.invite]);
 
   const filtered = useMemo(() => {
     return staff.filter((s) => {
@@ -182,7 +212,7 @@ export function PlatformStaffPage() {
             />
           </div>
           <div className="flex items-center gap-2">
-            {["all", "active", "invited", "inactive", "suspended"].map((s) => (
+            {["all", "active", "invited", "inactive", "suspended", "offboarded"].map((s) => (
               <Button
                 key={s}
                 size="sm"
@@ -281,9 +311,42 @@ export function PlatformStaffPage() {
                         </StatusBadge>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Staff actions" aria-hidden={false}>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              aria-label={`Actions for ${s.name}`}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {s.status !== "active" && s.status !== "invited" && (
+                              <DropdownMenuItem
+                                onSelect={() => setLifecycleFlow({ kind: "activate", staff: s })}
+                              >
+                                Activate — restore access
+                              </DropdownMenuItem>
+                            )}
+                            {s.status === "active" && (
+                              <DropdownMenuItem
+                                onSelect={() => setLifecycleFlow({ kind: "suspend", staff: s })}
+                              >
+                                Suspend — revoke access
+                              </DropdownMenuItem>
+                            )}
+                            {s.status !== "offboarded" && (
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={() => setLifecycleFlow({ kind: "offboard", staff: s })}
+                              >
+                                Offboard — deactivate &amp; revoke
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   ))}
@@ -417,6 +480,56 @@ export function PlatformStaffPage() {
           onApprovalInitiated={() =>
             toast({
               title: "Staff invite pending approval",
+              description: "Operator B must approve within 10 minutes — Approval Center.",
+            })
+          }
+        />
+      ) : null}
+
+      {/* ── Row lifecycle (gap S-01 / P0-3): consequence → 2FA → staged
+            request; the applier revokes/restores access + audits ──── */}
+      {lifecycleFlow ? (
+        <SensitiveActionDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setLifecycleFlow(null);
+          }}
+          actionKey={`staff.${lifecycleFlow.kind}`}
+          title={`${lifecycleFlow.kind.charAt(0).toUpperCase()}${lifecycleFlow.kind.slice(1)} ${lifecycleFlow.staff.name}`}
+          consequence={
+            lifecycleFlow.kind === "suspend"
+              ? `Revokes ${lifecycleFlow.staff.name}'s platform access — they cannot act until reactivated.`
+              : lifecycleFlow.kind === "offboard"
+                ? `Deactivates ${lifecycleFlow.staff.name}'s account and revokes all access permanently.`
+                : `Restores ${lifecycleFlow.staff.name}'s previous permissions and tenant access.`
+          }
+          blastRadius={
+            lifecycleFlow.kind === "activate"
+              ? [
+                  `Restores ${lifecycleFlow.staff.revoked?.permissions ?? lifecycleFlow.staff.permissions} permissions (stashed at revocation)`,
+                  `Tenant access restored: ${lifecycleFlow.staff.revoked?.tenantAccess ?? lifecycleFlow.staff.tenantAccess}`,
+                  "The row returns to active in the roster and the metrics recalculate",
+                  "Two-operator approval required — the request expires in 10 minutes",
+                ]
+              : [
+                  `${lifecycleFlow.staff.revoked?.permissions ?? lifecycleFlow.staff.permissions} permissions revoked${lifecycleFlow.kind === "offboard" ? " and account deactivated" : ""}`,
+                  `Tenant access "${lifecycleFlow.staff.revoked?.tenantAccess ?? lifecycleFlow.staff.tenantAccess}" cut to "Access revoked"`,
+                  "An audit row lands with your typed reason (actor = approver)",
+                  "Two-operator approval required — the request expires in 10 minutes",
+                ]
+          }
+          detail={`Staff lifecycle · ${lifecycleFlow.staff.email}`}
+          requireReason={lifecycleFlow.kind !== "activate"}
+          twoOperator
+          approvalPayload={{
+            kind: lifecycleFlow.kind,
+            staffId: lifecycleFlow.staff.id,
+            name: lifecycleFlow.staff.name,
+          } satisfies StaffLifecycleMutation}
+          onExecute={() => undefined}
+          onApprovalInitiated={() =>
+            toast({
+              title: `${lifecycleFlow.kind === "activate" ? "Reactivation" : lifecycleFlow.kind === "suspend" ? "Suspension" : "Offboarding"} pending approval`,
               description: "Operator B must approve within 10 minutes — Approval Center.",
             })
           }

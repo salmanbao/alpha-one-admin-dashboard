@@ -31,10 +31,13 @@ import {
 } from "./mock-data";
 import {
   useConsoleStore,
+  recordAudit,
+  type ApprovalRequest,
   startImpersonation as startConsoleImpersonation,
   endImpersonation as endConsoleImpersonation,
   renewImpersonation as renewConsoleImpersonation,
 } from "./console-store";
+import { requestReason } from "./approval-apply";
 import { toast } from "@/hooks/use-toast";
 import { applyTenantBranding, applyThemeMode } from "./theme-engine";
 
@@ -169,9 +172,11 @@ const DEMO_TENANT_KEY = "pfaas:demoTenant";
 const ROUTE_PARAM = "view";
 
 const USER_OVERRIDES_KEY = "pfaas:userOverrides";
+/** Same-tab signal: patchUserOverride fired → subscribers re-read. */
+const USER_OVERRIDES_EVENT = "pfaas:user-overrides-changed";
 
 /** Profile edits (name/email/avatar) persisted per user id. */
-function readUserOverrides(): Record<string, Partial<AuthUser>> {
+export function readUserOverrides(): Record<string, Partial<AuthUser>> {
   if (typeof window !== "undefined") {
     try {
       const raw = window.localStorage.getItem(USER_OVERRIDES_KEY);
@@ -179,6 +184,146 @@ function readUserOverrides(): Record<string, Partial<AuthUser>> {
     } catch { /* ignore */ }
   }
   return {};
+}
+
+/**
+ * Patch any operator's persisted overrides (gap S-01 / P0-3): the
+ * directory's Edit / Suspend / Activate actions write here — the same
+ * `pfaas:userOverrides` key profile edits already use, so no new
+ * storage key exists and patches merge (never clobber) per user id.
+ * A same-tab event keeps mounted surfaces (the directory) in sync;
+ * cross-tab sync rides the native `storage` event.
+ */
+export function patchUserOverride(id: string, patch: Partial<AuthUser>): void {
+  if (typeof window === "undefined") return;
+  try {
+    const all = readUserOverrides();
+    all[id] = { ...(all[id] ?? {}), ...patch };
+    window.localStorage.setItem(USER_OVERRIDES_KEY, JSON.stringify(all));
+    window.dispatchEvent(new Event(USER_OVERRIDES_EVENT));
+  } catch { /* ignore quota */ }
+}
+
+/**
+ * Live view of persisted per-operator overrides (S-01/P0-3). The
+ * directory merges these over its seed users, so lifecycle transitions
+ * approved on *any* page — and patches from other tabs — show up here
+ * without a manual refresh.
+ */
+export function useUserOverrides(): Record<string, Partial<AuthUser>> {
+  const [overrides, setOverrides] = useState<Record<string, Partial<AuthUser>>>(readUserOverrides);
+  useEffect(() => {
+    const sync = () => setOverrides(readUserOverrides());
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === null || e.key === USER_OVERRIDES_KEY) sync();
+    };
+    window.addEventListener(USER_OVERRIDES_EVENT, sync);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(USER_OVERRIDES_EVENT, sync);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+  return overrides;
+}
+
+/**
+ * Staged directory mutation (gap S-01/S-02 — P0-3): profile/MFA edits and
+ * lifecycle transitions, applied exactly once by the approval bridge.
+ */
+export type OperatorMutation = {
+  kind: "suspend" | "activate" | "edit";
+  userId: string;
+  name: string;
+  email: string;
+  mfa?: AuthUser["mfa"];
+};
+
+/**
+ * Apply an approved `operator.*` request (gap S-01/S-02 lifecycle —
+ * called exactly once by the approval bridge). Guards are re-checked at
+ * apply time: an approval can never suspend the operator who approved
+ * it (the initiator-side self-suspend button is already disabled).
+ */
+export function applyOperatorApproval(
+  request: ApprovalRequest,
+): { title: string; description: string } | void {
+  const payload = request.payload as OperatorMutation | undefined;
+  if (!payload?.userId || !payload.kind) return;
+  const { kind, userId, name } = payload;
+  const approver = request.approver?.name ?? "second operator";
+  const reason = requestReason(request);
+  const because = reason ? `; reason: ${reason}` : "";
+
+  if (kind === "suspend" && request.approver?.id === userId) {
+    return {
+      title: "Self-suspension blocked",
+      description: `${name} approved this request — an operator can never suspend their own access.`,
+    };
+  }
+
+  if (kind === "suspend") {
+    patchUserOverride(userId, { status: "suspended" });
+    recordAudit({
+      actor: approver,
+      action: "operator.suspended",
+      target: name ?? userId,
+      severity: "warning",
+      detail: `Suspended operator ${name} (${payload.email ?? userId}) — console access revoked; initiated by ${request.initiator.name}${because}`,
+    });
+    return {
+      title: "Operator suspended",
+      description: `${name} lost console access — status, audit row and this toast agree.`,
+    };
+  }
+
+  if (kind === "activate") {
+    patchUserOverride(userId, { status: "active" });
+    recordAudit({
+      actor: approver,
+      action: "operator.activated",
+      target: name ?? userId,
+      severity: "info",
+      detail: `Reactivated operator ${name} (${payload.email ?? userId}) — console access restored; initiated by ${request.initiator.name}${because}`,
+    });
+    return {
+      title: "Operator reactivated",
+      description: `${name} can sign in again — status, audit row and this toast agree.`,
+    };
+  }
+
+  if (kind === "edit") {
+    // Diff against the *effective* value (seed merged with overrides) so
+    // the audit names exactly the fields that really changed.
+    const seed = users.find((u) => u.id === userId);
+    const before = { ...seed, ...readUserOverrides()[userId] };
+    patchUserOverride(userId, {
+      name: payload.name,
+      email: payload.email,
+      mfa: payload.mfa,
+    });
+    const changed = [
+      before.name !== payload.name ? "name" : null,
+      before.email !== payload.email ? "email" : null,
+      (before.mfa ?? "enabled") !== payload.mfa ? "MFA status" : null,
+    ].filter(Boolean);
+    recordAudit({
+      actor: approver,
+      action: "operator.updated",
+      target: payload.name ?? userId,
+      severity: "info",
+      detail: `Updated operator ${payload.name}: ${changed.join(", ") || "profile fields"} to their new values; initiated by ${request.initiator.name}${because}`,
+    });
+    return {
+      title: "Operator updated",
+      description: `${payload.name}'s profile change is saved and audited.`,
+    };
+  }
+
+  return {
+    title: "Nothing applied",
+    description: `Unknown operator mutation "${kind}" — the staged payload was ignored.`,
+  };
 }
 
 function readStoredUser(): AuthUser {
@@ -399,13 +544,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const updateUser = useCallback((patch: Partial<AuthUser>) => {
     setUser((u) => {
       const next = { ...u, ...patch };
-      if (typeof window !== "undefined") {
-        try {
-          const all = readUserOverrides();
-          all[next.id] = { ...(all[next.id] ?? {}), ...patch };
-          window.localStorage.setItem(USER_OVERRIDES_KEY, JSON.stringify(all));
-        } catch { /* ignore quota errors */ }
-      }
+      patchUserOverride(next.id, patch);
       return next;
     });
   }, []);

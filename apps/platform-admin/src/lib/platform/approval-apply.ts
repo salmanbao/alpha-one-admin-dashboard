@@ -45,6 +45,20 @@ function findHandler(actionKey: string): ApprovalHandler | undefined {
 }
 
 /**
+ * The typed reason (CON-15) the initiator recorded — SensitiveActionDialog
+ * appends it to `detail` as " · reason: …". Appliers fold it into their
+ * audit row so state, audit and toast all tell the same story.
+ */
+export function requestReason(request: ApprovalRequest): string | undefined {
+  const detail = request.detail;
+  if (!detail) return undefined;
+  const marker = "· reason:";
+  const idx = detail.indexOf(marker);
+  if (idx === -1) return undefined;
+  return detail.slice(idx + marker.length).trim() || undefined;
+}
+
+/**
  * Apply every approved-but-unapplied request that has a registered
  * handler. Mount once (AppShell) so approvals execute no matter which
  * screen operator B happens to be on.

@@ -120,6 +120,14 @@ export interface AuthUser {
   /** Application this user primarily belongs to */
   application: ApplicationId;
   lastActiveAt: string;
+  /**
+   * Per-operator MFA enrollment (gap S-02) — real status instead of the
+   * directory's hardcoded "Enabled". Lifecycle patches persist under
+   * `pfaas:userOverrides` and merge over the seed.
+   */
+  mfa?: "enabled" | "pending" | "disabled";
+  /** Lifecycle status (gap S-01) — `suspended` loses console access. */
+  status?: "active" | "suspended";
 }
 
 export interface RoleDefinition {

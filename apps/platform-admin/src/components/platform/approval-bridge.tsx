@@ -14,10 +14,13 @@ import { registerApprovalHandler, useApprovalApplier } from "@/lib/platform/appr
 import { applyRoleApproval } from "@/lib/platform/role-store";
 import { applyApiKeyApproval } from "@/lib/platform/api-key-store";
 import { applyStaffApproval } from "@/lib/platform/staff-store";
+import { applyOperatorApproval } from "@/lib/platform/platform-context";
 
 registerApprovalHandler("role.", applyRoleApproval);
 registerApprovalHandler("apikey.", applyApiKeyApproval);
 registerApprovalHandler("staff.", applyStaffApproval);
+// Directory lifecycle + profile edits (gap S-01/S-02 — P0-3).
+registerApprovalHandler("operator.", applyOperatorApproval);
 
 export function ApprovalBridge() {
   useApprovalApplier();
