@@ -34,6 +34,8 @@ const routes: RouteDefinition[] = [
   { path: "kyc-onboarding", viewId: "kyc-onboarding", label: "KYC Onboarding", permission: "kyc.read", module: "kyc" },
   { path: "kyc-status", viewId: "kyc-status", label: "KYC Status", permission: "kyc.read", module: "kyc" },
   { path: "kyc-rejected-queue", viewId: "kyc-rejected-queue", label: "Rejected Queue", permission: "kyc.read", module: "kyc" },
+  // R10 W1 — gap-closure operator pages (route-only; nav cap is 150/150)
+  { path: "portfolio-screening", viewId: "portfolio-screening", label: "Portfolio Screening", permission: "kyc.read", module: "kyc" },
 ];
 
 const widgets: WidgetDefinition[] = [

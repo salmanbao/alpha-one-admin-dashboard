@@ -50,6 +50,8 @@ const routes: RouteDefinition[] = [
     permission: ["economics.read"],
     module: "economics",
   },
+  // R10 W1 — add-on entitlements (route-only; nav cap is 150/150)
+  { path: "add-on-entitlements", viewId: "add-on-entitlements", label: "Add-On Entitlements", permission: "economics.read", module: "economics" },
 ];
 
 const widgets: WidgetDefinition[] = [

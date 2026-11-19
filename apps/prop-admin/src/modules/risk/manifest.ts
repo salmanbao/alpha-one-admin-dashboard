@@ -91,6 +91,9 @@ const routes: RouteDefinition[] = [
   { path: "str-filings", viewId: "str-filings", label: "STR / SAR Filing Register", permission: ["compliance.str.manage", "compliance.aml.read"], module: "risk" },
   // Screening Manager (R3-02) — read via compliance.aml.read
   { path: "screening-manager", viewId: "screening-manager", label: "Screening Manager", permission: ["compliance.screening.manage", "compliance.aml.read"], module: "risk" },
+  // R10 W1 — gap-closure operator pages (route-only; nav cap is 150/150)
+  { path: "drawdown-model", viewId: "drawdown-model", label: "Drawdown Model", permission: "risk.read", module: "risk" },
+  { path: "pre-trade-restrictions", viewId: "pre-trade-restrictions", label: "Pre-Trade Restrictions", permission: "risk.read", module: "risk" },
 ];
 
 const widgets: WidgetDefinition[] = [

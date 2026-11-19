@@ -97,6 +97,8 @@ const routes: RouteDefinition[] = [
   { path: "marketplace", viewId: "marketplace", label: "Marketplace", permission: ["settings.marketplace.manage", "settings.manage"], module: "settings" },
   { path: "installed-apps", viewId: "installed-apps", label: "Installed Apps", permission: ["settings.marketplace.manage", "settings.manage"], module: "settings" },
   { path: "webhooks", viewId: "webhooks", label: "Webhooks & Events", permission: ["settings.webhooks.manage", "settings.manage"], module: "settings" },
+  // R10 W1 — operator security policy pack (route-only; nav cap is 150/150)
+  { path: "operator-security", viewId: "operator-security", label: "Operator Security", permission: "settings.manage", module: "settings" },
 ];
 
 export const settingsModule: FrontendModule = {

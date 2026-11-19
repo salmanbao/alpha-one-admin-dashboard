@@ -48,6 +48,10 @@ const routes: RouteDefinition[] = [
   { path: "purchase-completed", viewId: "purchase-completed", label: "Purchase Completed", permission: ["challenge.read", "challenge.self"], module: "challenges" },
   { path: "purchase-queue", viewId: "purchase-queue", label: "Purchase Queue", permission: "challenge.read", module: "challenges" },
   { path: "provisioning-queue", viewId: "provisioning-queue", label: "Provisioning Queue", permission: "challenge.read", module: "challenges" },
+  // R10 W1 — gap-closure operator pages (route-only; nav cap is 150/150)
+  { path: "scaling-plan", viewId: "scaling-plan", label: "Scaling Plan", permission: "challenge.read", module: "challenges" },
+  { path: "profit-split-tiers", viewId: "profit-split-tiers", label: "Profit-Split Tiers", permission: "challenge.read", module: "challenges" },
+  { path: "challenge-commercial-policy", viewId: "challenge-commercial-policy", label: "Challenge Commercial Policy", permission: "challenge.read", module: "challenges" },
 ];
 
 const widgets: WidgetDefinition[] = [
