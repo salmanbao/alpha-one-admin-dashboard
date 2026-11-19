@@ -105,6 +105,12 @@ import {
   type IncidentSeverity,
 } from "@/lib/platform/incident-center-store";
 import { providerName } from "@/lib/platform/provider-catalog";
+import {
+  useSlaCreditRows,
+  adjustSlaCredit,
+  SLA_CREDIT_RATES,
+  type SlaCreditRow,
+} from "@/lib/platform/sla-credits-store";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -1476,6 +1482,180 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Provider SLA credits — R9 W6 UC-P5 (derived from Incident
+          Control Center provider incidents × plan-tier rate). */}
+      <SlaCreditsCard tenant={tenant} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Provider SLA credits — R9 W6 UC-P5                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Credit rows derived from Incident Control Center provider incidents
+ * (high/critical — Demo policy) priced at the tenant's plan-tier rate.
+ * Adjusting a row requires a reason and writes the audit row in the
+ * same step (adjustSlaCredit).
+ */
+function SlaCreditsCard({ tenant }: { tenant: TenantContext }) {
+  const { user } = usePlatform();
+  const rows = useSlaCreditRows(tenant.id);
+  const [adjusting, setAdjusting] = useState<string | null>(null);
+  const [amountDraft, setAmountDraft] = useState("");
+  const [reasonDraft, setReasonDraft] = useState("");
+
+  const pendingTotal = rows
+    .filter((r) => r.status === "pending")
+    .reduce((s, r) => s + r.amount, 0);
+  const appliedTotal = rows
+    .filter((r) => r.status === "applied")
+    .reduce((s, r) => s + r.amount, 0);
+
+  const startAdjust = (row: SlaCreditRow) => {
+    setAdjusting(row.id);
+    setAmountDraft(String(row.amount));
+    setReasonDraft("");
+  };
+
+  const amount = Number(amountDraft);
+  const canSave =
+    adjusting !== null &&
+    Number.isFinite(amount) &&
+    amount >= 0 &&
+    reasonDraft.trim().length > 0;
+
+  const saveAdjust = (row: SlaCreditRow) => {
+    if (!canSave) return;
+    adjustSlaCredit(row, amount, reasonDraft.trim(), user.name);
+    toast({
+      title: "SLA credit adjusted",
+      description: `${row.incidentId} · ${row.tenantName} → ${formatCurrency(amount, tenant.currency)} — audit row recorded.`,
+    });
+    setAdjusting(null);
+  };
+
+  const rateSummary = (
+    Object.keys(SLA_CREDIT_RATES) as TenantContext["plan"][]
+  )
+    .map((p) => `${p} $${SLA_CREDIT_RATES[p]}`)
+    .join(" · ");
+
+  return (
+    <div className="rounded-lg border bg-card p-4 lg:col-span-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium">Provider SLA credits</p>
+        <Badge variant="outline" className="text-[10px]">
+          (Demo)
+        </Badge>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Credits derive from Incident Control Center provider incidents rated
+        high or critical, at the plan-tier rate ({rateSummary}) — one credit
+        per qualifying incident. Resolved incidents stay listed as applied.
+        Simulated aggregates (Demo).
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-4 text-xs">
+        <span>
+          Pending:{" "}
+          <span className="font-semibold">
+            {formatCurrency(pendingTotal, tenant.currency)}
+          </span>
+        </span>
+        <span>
+          Applied:{" "}
+          <span className="font-semibold">
+            {formatCurrency(appliedTotal, tenant.currency)}
+          </span>
+        </span>
+        <span className="text-muted-foreground">
+          {rows.length} credit row{rows.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {rows.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No qualifying SLA credits — credits accrue once a provider
+            incident for this tenant is rated high or critical.
+          </p>
+        ) : (
+          rows.map((row) => (
+            <div key={row.id} className="rounded-md border p-2.5 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">
+                  {row.incidentId} · {row.incidentTitle}
+                </span>
+                <span className="flex items-center gap-2">
+                  <StatusBadge
+                    tone={row.status === "pending" ? "warning" : "success"}
+                  >
+                    {row.status}
+                  </StatusBadge>
+                  <span className="font-semibold">
+                    {formatCurrency(row.amount, tenant.currency)}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-[10px]"
+                    onClick={() =>
+                      adjusting === row.id
+                        ? setAdjusting(null)
+                        : startAdjust(row)
+                    }
+                  >
+                    {adjusting === row.id ? "Cancel" : "Adjust"}
+                  </Button>
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {row.providerName} · plan {row.plan} · rate{" "}
+                {formatCurrency(row.baseAmount, tenant.currency)}
+                {row.adjustment
+                  ? ` · adjusted from ${formatCurrency(row.baseAmount, tenant.currency)} by ${row.adjustment.by} — ${row.adjustment.reason}`
+                  : ""}
+              </p>
+
+              {adjusting === row.id ? (
+                <div className="mt-2 flex flex-wrap items-end gap-2">
+                  <div>
+                    <Label className="text-[10px]">Amount</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={amountDraft}
+                      onChange={(e) => setAmountDraft(e.target.value)}
+                      className="h-7 w-24 text-xs"
+                    />
+                  </div>
+                  <div className="min-w-[220px] flex-1">
+                    <Label className="text-[10px]">Reason (required)</Label>
+                    <Input
+                      value={reasonDraft}
+                      placeholder="Why this amount differs from the rate"
+                      onChange={(e) => setReasonDraft(e.target.value)}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-7 px-2 text-[10px]"
+                    disabled={!canSave}
+                    onClick={() => saveAdjust(row)}
+                  >
+                    Save adjustment
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
