@@ -41,8 +41,12 @@ export function OperatorSecurityPage() {
       <PageHeader
         title="Operator Security Policy Pack"
         description="Password, session, 2FA, IP, SSO, and offboarding policies. Security event log (last 500) and enforcement helpers (`validatePassword`, `isIPAllowed`, `checkSessionTimeout`). All mutations persist and are audited."
+      />
+      <PageContent>
+        <div className="grid gap-4 md:grid-cols-4">
+          <MetricCard label="Password Policy" value={state.passwordPolicy.minLength} />
           <MetricCard label="Max Session Hours" value={state.sessionPolicy.maxSessionDurationHours} />
-          <MetricCard label="2FA Enforced" value={state.twoFactorPolicy.enabled} />
+          <MetricCard label="2FA Enforced" value={state.twoFactorPolicy.enabled ? 1 : 0} />
           <MetricCard label="Critical Events" value={stats.criticalEvents} />
           <MetricCard label="Total Events" value={stats.totalEvents} />
         </div>
@@ -51,8 +55,8 @@ export function OperatorSecurityPage() {
           <h2 className="text-sm font-semibold mb-3">Security Policy Details</h2>
           <DataTable
             columns={[
-              { key: "type", header: "Policy", cell: (t) => <span>{t}</span> },
-              { key: "value", header: "Value", cell: (t) => <span>{t.value}</span> },
+              { key: "type", header: "Policy", cell: (row) => <span>{row.type}</span> },
+              { key: "value", header: "Value", cell: (row) => <span>{row.value}</span> },
             ]}
             data={[
               { type: "Password", value: `min ${state.passwordPolicy.minLength} chars, ${state.passwordPolicy.requireUppercase ? "upper" : "no upper"}` },
