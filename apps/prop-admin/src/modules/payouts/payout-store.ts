@@ -182,6 +182,11 @@ export function applyPayoutDecision(
       trader: who,
       amount: p?.amount ?? null,
       reason: opts?.reason ?? null,
+      // R10 — join keys for the scaling / profit-split evaluators: they
+      // match `payout.paid` back to their per-account progress rows.
+      traderId: p?.traderId ?? null,
+      accountId: p?.accountId ?? null,
+      accountName: p?.accountName ?? null,
       ...(opts?.automated ? { automated: true, ruleId: opts.ruleId ?? null } : {}),
     },
   });

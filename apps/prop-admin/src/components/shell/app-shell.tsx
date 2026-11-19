@@ -12,6 +12,15 @@ import { useEffect, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { usePayoutRulesEvaluator } from "@/modules/payouts/payout-rules-store";
 import { useRiskRulesEvaluator } from "@/lib/risk-rules-store";
+// R10 W1 — gap-closure evaluators (exactly-once over the shared log).
+import { useScalingEvaluator } from "@/lib/scaling-plan-store";
+import { useProfitSplitEvaluator } from "@/lib/profit-split-tiers-store";
+import { useDrawdownEvaluator } from "@/lib/drawdown-model-store";
+import { usePreTradeEvaluator } from "@/lib/pre-trade-restriction-store";
+import { usePortfolioScreeningEvaluator } from "@/lib/portfolio-screening-store";
+import { useSecurityEvaluator } from "@/lib/operator-security-store";
+import { useChallengeCommercialEvaluator } from "@/lib/challenge-commercial-policy-store";
+import { useAddOnEvaluator } from "@/lib/add-on-entitlements-store";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { Breadcrumbs, MobileNav } from "./breadcrumbs";
@@ -34,6 +43,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   usePayoutRulesEvaluator(runtime.tenant?.id ?? "platform");
   // R7 I5 — risk rule engine: reacts to every trade.closed on the shared log.
   useRiskRulesEvaluator(runtime.tenant?.id ?? "platform");
+  // R10 W1 — gap-closure evaluators. Each replays the shared lifecycle log
+  // through a persisted `lastProcessedSeq` watermark (exactly-once, survives
+  // reload) and owns one R10 gap:
+  //   A1 scaling milestones, A2 profit-split tiers + first-payout hold,
+  //   B1 drawdown watermarks + timezone-aware daily reset,
+  //   B2 pre-trade restriction enforcement log,
+  //   D1 portfolio screening schedule + KYC expiry sweep,
+  //   F1 operator security event log,
+  //   A3 challenge commercial policies (fee credit on funding),
+  //   A4 add-on entitlement expiry sweep.
+  const tenantId = runtime.tenant?.id ?? "platform";
+  useScalingEvaluator(tenantId);
+  useProfitSplitEvaluator(tenantId);
+  useDrawdownEvaluator(tenantId);
+  usePreTradeEvaluator(tenantId);
+  usePortfolioScreeningEvaluator(tenantId);
+  useSecurityEvaluator(tenantId);
+  useChallengeCommercialEvaluator(tenantId);
+  useAddOnEvaluator(tenantId);
   // PRD L5494 impersonation service — while a session is active the shell
   // shows a persistent banner; only Exit (impersonation_ended) closes it.
   const impersonation = useImpersonation();

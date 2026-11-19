@@ -65,7 +65,10 @@ export type LifecycleEntityKind =
   | "appeal"
   | "breach"
   // R9 W6 — platform feature flags (I11 persistence + UC-P1 rollout)
-  | "flag";
+  | "flag"
+  // R10 F1 — operator (staff) security events: password/role/session
+  // transitions recorded by prop-admin operator-security-store.
+  | "user";
 
 export interface EntityRef {
   kind: LifecycleEntityKind;
@@ -216,6 +219,30 @@ export const LIFECYCLE_EVENT_NAMES = [
   "feature-flag.toggled",
   "feature-flag.rollout-stage",
   "feature-flag.rollout-rollback",
+  // R10 W1 — prop-admin gap-closure events. Kept in the typed list so the
+  // emitters below stay compile-checked (adding a name here is the
+  // documented way to grow the bus — same path R9 used for "flag").
+  // A1 scaling-plan automation (milestone hit → account size / split upgrade)
+  "scaling.milestone-reached",
+  // A2 profit-split tiers + first-payout hold
+  "profit-split.tier-upgraded",
+  "profit-split.first-payout-hold-released",
+  // B1 drawdown model (watermark recalc + timezone-aware daily reset)
+  "drawdown.watermark-recalculated",
+  "drawdown.daily-reset",
+  // B2 pre-trade restriction enforcement (trade rejected at trade time)
+  "trade.blocked",
+  // D1 portfolio-wide screening + KYC document expiry monitoring
+  "screening.completed",
+  "kyc.document-expiring",
+  // F1 operator security policy pack (payload carries the specific type)
+  "security.event",
+  // A3 challenge commercial policies
+  "challenge.free-retry-used",
+  "challenge.fee-credit-applied",
+  "challenge.refund-applied",
+  // A4 add-on purchases (payload carries the entitlement type)
+  "addon.purchased",
 ] as const;
 
 export type LifecycleEventName = (typeof LIFECYCLE_EVENT_NAMES)[number];
@@ -498,6 +525,20 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "feature-flag.toggled": "Flag toggled",
   "feature-flag.rollout-stage": "Rollout stage advanced",
   "feature-flag.rollout-rollback": "Rollout rolled back",
+  // R10 W1 — prop-admin gap-closure events.
+  "scaling.milestone-reached": "Scaling milestone reached",
+  "profit-split.tier-upgraded": "Profit split upgraded",
+  "profit-split.first-payout-hold-released": "First payout hold released",
+  "drawdown.watermark-recalculated": "Watermark recalculated",
+  "drawdown.daily-reset": "Daily loss reset",
+  "trade.blocked": "Trade blocked",
+  "screening.completed": "Screening completed",
+  "kyc.document-expiring": "KYC document expiring",
+  "security.event": "Security event",
+  "challenge.free-retry-used": "Free retry issued",
+  "challenge.fee-credit-applied": "Fee credit applied",
+  "challenge.refund-applied": "Refund applied",
+  "addon.purchased": "Add-on purchased",
 };
 
 /**

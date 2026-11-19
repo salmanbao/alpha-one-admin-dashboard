@@ -85,6 +85,15 @@ const DEMO_STORES = [
   "deliverability-incidents",
   "marketing-ops",
   "webhooks",
+  // R10 W1 — gap-closure stores (P0: A1/A2/B1/B2/D1/F1 + P1: A3/A4).
+  "scaling-plan",
+  "profit-split-tiers",
+  "drawdown-model",
+  "pre-trade-restrictions",
+  "portfolio-screening",
+  "operator-security",
+  "challenge-commercial-policy",
+  "add-on-entitlements",
 ] as const;
 
 /**

@@ -655,6 +655,11 @@ function toPayout(e: LifecycleEvent, tenantId: string): Payout {
       typeof e.payload?.accountLogin === "string" && e.payload.accountLogin
         ? e.payload.accountLogin
         : undefined,
+    // R10 — terra account id for the scaling/profit-split join.
+    accountId:
+      typeof e.payload?.accountId === "string" && e.payload.accountId
+        ? e.payload.accountId
+        : undefined,
     amount: numberOr(e.payload?.amount, 0),
     currency: typeof e.payload?.currency === "string" ? e.payload.currency : "USD",
     method: mapMethod(e.payload?.method),

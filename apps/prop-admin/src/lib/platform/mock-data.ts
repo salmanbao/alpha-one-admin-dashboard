@@ -544,6 +544,13 @@ export interface Payout {
   status: "pending" | "approved" | "processing" | "paid" | "rejected";
   profitSplit: number; // trader % share
   accountName?: string;
+  /**
+   * R10 — terra account id carried through from the trader app's
+   * `payout.requested` payload (absent on fixture payouts). Lets the
+   * scaling / profit-split evaluators join `payout.paid` to their
+   * per-account progress rows.
+   */
+  accountId?: string;
   createdAt: string;
   processedAt?: string;
   reference: string;
