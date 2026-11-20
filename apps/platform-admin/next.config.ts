@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Next.js 16.3 + output:"standalone" fails Vercel builds in onBuildComplete
+  // (ENOENT .next/next-server.js.nft.json — vercel/next.js#96646). Keep
+  // standalone for self-hosted/Docker builds; let Vercel use native packaging.
+  output: process.env.VERCEL ? undefined : "standalone",
   basePath: "/platform-admin",
   /* config options here */
   reactStrictMode: false,
