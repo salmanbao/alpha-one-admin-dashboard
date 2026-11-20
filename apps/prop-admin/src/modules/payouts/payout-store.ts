@@ -29,7 +29,8 @@ export type PayoutDecision =
   | "info-requested"
   | "processing"
   | "paid"
-  | "escalated";
+  | "escalated"
+  | "failed";
 
 // Rehydrate decisions from a previous visit (demo persistence).
 /**
@@ -62,8 +63,8 @@ export function payoutAmlBlock(reference: string): PayoutAmlBlock | null {
  * AML case detail (four-eyes, R2-07).
  */
 export type PayoutDecisionResult =
-  | { ok: true }
-  | { ok: false; reason: string; caseId: string };
+  | { ok: true; cached?: boolean; }
+  | { ok: false; reason: string; caseId: string; cached?: boolean; };
 
 /** Pending payouts a case's hold currently freezes (AML case detail shows these). */
 export function payoutsHeldByCase(caseId: string): Payout[] {
@@ -73,7 +74,7 @@ export function payoutsHeldByCase(caseId: string): Payout[] {
 }
 
 // Rehydrate decisions from a previous visit (demo persistence).
-const decisions = new Map<string, { status: PayoutDecision; at: string }>(
+const decisions = new Map<string, { status: PayoutDecision; at: string; providerTransactionId: string; statusHistory: string[]; operatorName: string; clientIdempotencyKey?: string }>(
   Object.entries(loadDemoState("payouts", demoPayoutsSchema, {})),
 );
 const listeners = new Set<() => void>();
@@ -105,7 +106,10 @@ export function applyPayoutDecision(
   // R7 I4 — `automated` marks a rules-engine decision: the lifecycle
   // payload carries it so consumers (trader inbox bridge) can suppress the
   // generic receipt in favour of the `payout.auto-decided` one.
-  opts?: { reason?: string; automated?: boolean; ruleId?: string },
+  // R7 — Idempotency key: every decision can carry a `clientIdempotencyKey` to
+  // make the write-idempotent; repeated calls with the same key return the
+  // existing decision without re-auditing or re-emitting.
+  opts?: { reason?: string; automated?: boolean; ruleId?: string; providerTransactionId?: string; operatorName?: string; clientIdempotencyKey?: string },
 ): PayoutDecisionResult {
   // Fixture payout, or a cross-app intake row (R2-W3-01) — the audit entry
   // must name the real trader/amount for either source.
@@ -146,7 +150,67 @@ export function applyPayoutDecision(
     }
   }
 
-  decisions.set(reference, { status: decision, at: new Date().toISOString() });
+  // R7 — Idempotency key: if a decision with this key already exists,
+  // return the cached decision without re-auditing or re-emitting.
+  if (opts?.clientIdempotencyKey) {
+    const cached = decisions.get(opts.clientIdempotencyKey);
+    if (cached) {
+      recordAudit({
+        action: "Idempotent payout decision reused",
+        entity: "payout",
+        entityId: reference,
+        summary: `Reused cached decision ${cached.status} for reference ${reference}`,
+        severity: "info",
+      });
+      return { ok: true, cached };
+    }
+  }
+  // W8 - Post-approval execution pipeline: generate provider transaction ID
+  const providerTransactionId = opts?.providerTransactionId ?? `payout-${Date.now()}-${reference}`;
+  
+  // W15 - Four-eyes tracking: capture operator identity for batch approvals
+  const operatorName = opts?.operatorName ?? "unknown-operator";
+
+  // W15 - Payout-method-verified gate: require provider transaction ID for approved decisions
+  if (decision === "approved" && !opts?.providerTransactionId) {
+    recordAudit({
+      action: "Payout approval blocked: provider transaction ID missing",
+      entity: "payout",
+      entityId: reference,
+      summary: `${who} — ${amount} (${decision}) cannot proceed without providerTransactionId`,
+      severity: "warning",
+    });
+    return { ok: false, reason: "Provider transaction ID required for approval", caseId: "validation-failed" };
+  }
+
+  // Record decision with provider tracking and four-eyes audit trail
+  const existingDecision = decisions.get(reference);
+  const statusHistory = existingDecision?.statusHistory 
+    ? [...existingDecision.statusHistory, `${new Date().toISOString()} - ${decision}`]
+    : [`${new Date().toISOString()} - ${decision}`];
+  
+  // R7 — idempotency key support
+  const idempotencyKey = opts?.clientIdempotencyKey;
+  decisions.set(reference, { 
+    status: decision, 
+    at: new Date().toISOString(),
+    providerTransactionId,
+    statusHistory,
+    operatorName,
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+  });
+  
+  // W15 - Four-eyes audit: log operator identity for batch approvals
+  if (decision === "approved" && opts?.automated === false) {
+    recordAudit({
+      action: "Payout approved by operator",
+      entity: "payout",
+      entityId: reference,
+      summary: `${who} — ${amount} (${decision}) approved via ${operatorName} with providerTransactionId ${providerTransactionId}`,
+      severity: "info",
+    });
+  }
+
   // Audit chokepoint (lib/audit.ts): every decision surface — table row,
   // review card, dashboard widget, batch action — lands here, so the
   // trail is written exactly once per decision regardless of entry point.
@@ -188,6 +252,7 @@ export function applyPayoutDecision(
       accountId: p?.accountId ?? null,
       accountName: p?.accountName ?? null,
       ...(opts?.automated ? { automated: true, ruleId: opts.ruleId ?? null } : {}),
+      providerTransactionId: providerTransactionId,
     },
   });
   emit();
@@ -218,6 +283,7 @@ export function effectivePayoutStatus(
   if (d.status === "processing") return "processing";
   if (d.status === "paid") return "paid";
   if (d.status === "escalated") return "pending";
+  if (d.status === "failed") return "failed";
   return p.status;
 }
 

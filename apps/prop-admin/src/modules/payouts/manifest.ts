@@ -44,6 +44,8 @@ const routes: RouteDefinition[] = [
   // R9 W2 UC-O5 — payout fraud & abuse queue (flags + evidence +
   // verdicts; blocking removes Approve from every payout surface).
   { path: "payout-fraud-queue", viewId: "payout-fraud-queue", label: "Payout Fraud Queue", permission: "payout.approve", module: "payouts" },
+  { path: "payout-policy-settings", viewId: "settings-payouts", label: "Payout Policy Settings", permission: "payout.approve", module: "payouts" },
+  { path: "payouts-failed-queue", viewId: "failed-payouts-queue", label: "Failed Payouts Queue", permission: "payout.approve", module: "payouts" },
 ];
 
 const widgets: WidgetDefinition[] = [

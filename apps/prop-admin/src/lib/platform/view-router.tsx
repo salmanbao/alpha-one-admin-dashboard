@@ -23,6 +23,8 @@ const VIEWS = {
   // Payouts pages
   "payouts-fraud-queue": dynamic(() => import("@/modules/payouts/pages/payout-fraud-queue-page").then(m => ({ default: m.PayoutFraudQueuePage }))),
   
+    "settings-payouts": dynamic(() => import("@/modules/payouts/pages/payout-policy-settings-page").then(m => ({ default: m.PayoutPolicySettingsPage }))),
+  "failed-payouts-queue": dynamic(() => import("@/modules/payouts/pages/failed-payouts-queue-page").then(m => ({ default: m.FailedPayoutsQueuePage }))),
   // Economics pages
   "add-on-entitlements": dynamic(() => import("@/modules/economics/pages/add-on-entitlements-page").then(m => ({ default: m.AddOnEntitlementsPage }))),
 };

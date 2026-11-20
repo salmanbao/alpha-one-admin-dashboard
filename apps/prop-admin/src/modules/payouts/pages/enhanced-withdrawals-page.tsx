@@ -75,6 +75,7 @@ import {
   payoutAmlBlock,
   usePayoutVersion,
 } from "@/modules/payouts/payout-store";
+import { payoutFraudBlock } from "@/lib/payout-fraud-store";
 import {
   PayoutRejectDialog,
   type PayoutRejectTarget,
@@ -476,6 +477,10 @@ export function EnhancedWithdrawalsPage() {
     // R3-F02 — a frozen AML case blocks money-moving decisions: the store
     // would refuse them silently, so pre-check the batch and report which
     // trader froze it (same pattern as the single-row decision surfaces).
+    //
+    // W7 - Check idempotency keys and fraud blocks per row
+    // W15 - Four-eyes: pass operatorName for audit trail
+    const fraudFailures: string[] = [];
     for (const p of selectedPayouts) {
       const aml = payoutAmlBlock(p.reference);
       if (aml) {
@@ -486,11 +491,36 @@ export function EnhancedWithdrawalsPage() {
         });
         return;
       }
+      const fraud = payoutFraudBlock(p.reference);
+      if (fraud) {
+        fraudFailures.push(`${p.traderName}: ${fraud.reason}`);
+      }
     }
-    for (const p of selectedPayouts) applyPayoutDecision(p.reference, "approved");
+    if (fraudFailures.length > 0) {
+      toast({
+        title: "Batch approve partially blocked",
+        description: `The following withdrawals are fraud-blocked: ${fraudFailures.join("; ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    const approved: string[] = [];
+    const failed: string[] = [];
+    // W15 - Four-eyes: pass operatorName for audit trail
+    const operatorName = "operator-1";
+    for (const p of selectedPayouts) {
+      const result = applyPayoutDecision(p.reference, "approved", { operatorName });
+      if (result.ok) {
+        approved.push(p.traderName);
+      } else {
+        failed.push(`${p.traderName}: ${result.reason}`);
+      }
+    }
+    const successMsg = approved.length === 1 ? `${approved[0]} approved` : `${approved.length} withdrawals approved`;
+    const failureMsg = failed.length > 0 ? ` ${failed.join("; ")}` : ``;
     toast({
       title: "Batch approved",
-      description: `${selected.size} withdrawal${selected.size === 1 ? "" : "s"} approved.`,
+      description: successMsg + failureMsg,
     });
     setSelected(new Set());
   };
