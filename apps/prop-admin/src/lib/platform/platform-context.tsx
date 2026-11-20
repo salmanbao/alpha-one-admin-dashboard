@@ -173,13 +173,13 @@ function readStoredUser(): AuthUser {
   if (typeof window !== "undefined") {
     try {
       const id = window.localStorage.getItem(DEMO_USER_KEY);
-      const found = (id && users.find((u) => u.id === id)) || users[1];
+      const found = (id && users.find((u) => u.id === id)) || users[0];
       // Merge persisted profile edits so name/email/avatar survive reloads
       const patch = readUserOverrides()[found.id];
       return patch ? { ...found, ...patch } : found;
     } catch { /* ignore */ }
   }
-  return users[1]; // Sarah Chen — prop-admin (default)
+  return users[0]; // Sarah Chen — prop-admin (default)
 }
 
 function readStoredTenantId(): string | null {

@@ -122,7 +122,15 @@ class ModuleRegistryImpl {
         // A section whose children were all filtered out would render as
         // a dead leaf (parent has no href to go anywhere) — drop it.
         // Parents with their own href (e.g. Settings) stay clickable.
-        if (nav.children?.length && children.length === 0 && !nav.href) continue;
+        if (nav.children?.length && children.length === 0 && !nav.href) {
+          // Emit diagnostic warning in development builds (R11 F4) so a
+          // dropped section is inspectable instead of silent.
+          if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+            const perm = Array.isArray(nav.permission) ? nav.permission.join(", ") : nav.permission;
+            console.warn(`[Navigation Diagnostics] Dropped section: ${nav.label} (${nav.module}) from ${ctx.tenant?.name} - permission: ${perm}`);
+          }
+          continue;
+        }
         items.push({ ...nav, module: moduleId, children: children.length ? children : undefined });
       }
     }

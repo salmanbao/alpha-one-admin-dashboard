@@ -34,7 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { moduleRegistry } from "@/lib/platform/module-registry";
-import { roles as allRoles } from "@/lib/platform/mock-data";
+import { roles as allRoles, tenants, getTenant } from "@/lib/platform/mock-data";
 import {
   Settings as SettingsIcon,
   Palette,
@@ -336,6 +336,7 @@ export function SettingsPage() {
                   <TabsTrigger value="terminology" className="gap-1">
                     <Type className="h-3 w-3" /> Terminology
                   </TabsTrigger>
+                  <TabsTrigger value="diagnostics" className="gap-1"><Search className="h-3 w-3" /> Diagnostics</TabsTrigger>
                   <TabsTrigger value="modules" className="gap-1">
                     <Package className="h-3 w-3" /> Modules
                   </TabsTrigger>
@@ -375,6 +376,9 @@ export function SettingsPage() {
                 </TabsContent>
                 <TabsContent value="notifications">
                   <NotificationsTab />
+                </TabsContent>
+                <TabsContent value="diagnostics">
+                  <DiagnosticsTab />
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -1155,6 +1159,107 @@ function IntegrationsTab() {
           </p>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/**
+ * R11 F4 — Navigation Diagnostics.
+ *
+ * Lists every registered module with its entitlement for the active (or
+ * selected) tenant, and the concrete reason each navigation item is
+ * visible or filtered for the current user (module not entitled /
+ * permission missing). Turns the registry's silent section-drop into
+ * inspectable state; development builds also log a console warning
+ * from module-registry.ts when a section is dropped.
+ */
+function DiagnosticsTab() {
+  const { user, tenant } = usePlatform();
+  const [tenantId, setTenantId] = useState("");
+  const scope = (tenantId ? getTenant(tenantId) : undefined) ?? tenant;
+  const perms = user?.permissions ?? [];
+
+  const has = (perm?: string | string[]) =>
+    !perm ||
+    (Array.isArray(perm) ? perm.some((p) => perms.includes(p)) : perms.includes(perm));
+
+  const rows = moduleRegistry.getAll().map((m) => {
+    const entitled =
+      scope.id === "platform" || scope.enabledModules.includes(m.manifest.id);
+    const items: { label: string; visible: boolean; reason?: string }[] = [];
+    const push = (label: string, perm?: string | string[]) => {
+      const visible = entitled && has(perm);
+      items.push({
+        label,
+        visible,
+        reason: !entitled
+          ? "module not entitled"
+          : !has(perm)
+            ? "permission missing"
+            : undefined,
+      });
+    };
+    for (const nav of m.navigation ?? []) {
+      push(nav.label, nav.permission);
+      for (const c of nav.children ?? []) push(`— ${c.label}`, c.permission);
+    }
+    return { id: m.manifest.id, name: m.manifest.name, entitled, items };
+  });
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Explains why a module or sidebar item is missing: entitlement and
+        permission filter results for every registered module. Development
+        builds also log a console warning when a section is dropped.
+      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <Label htmlFor="diag-tenant">Tenant scope</Label>
+        <select
+          id="diag-tenant"
+          value={tenantId}
+          onChange={(e) => setTenantId(e.target.value)}
+          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+        >
+          <option value="">Current tenant ({tenant.name})</option>
+          {tenants.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+          <option value="platform">Platform (all modules)</option>
+        </select>
+      </div>
+      <div className="rounded-md border p-3">
+        <p className="mb-1 text-xs font-medium">
+          Current user: {user?.name} ({user?.roles.join(", ")})
+        </p>
+        <p className="text-[11px] text-muted-foreground">{perms.join(" · ")}</p>
+      </div>
+      <div className="space-y-2">
+        {rows.map((r) => (
+          <div key={r.id} className="rounded-md border p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{r.name}</span>
+              <Badge variant={r.entitled ? "outline" : "destructive"} className="text-[10px]">
+                {r.entitled ? "entitled" : "not entitled"}
+              </Badge>
+            </div>
+            {r.items.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {r.items.map((it) => (
+                  <li key={it.label} className="flex items-center gap-2 text-xs">
+                    <span className={it.visible ? "text-foreground" : "text-muted-foreground"}>
+                      {it.label}
+                    </span>
+                    {!it.visible && it.reason && (
+                      <Badge variant="secondary" className="text-[9px]">{it.reason}</Badge>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

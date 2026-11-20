@@ -303,6 +303,7 @@ export const roles: RoleDefinition[] = [
       "risk.configure",
       "breach.read",
       "analytics.read",
+      "payout.read",
     ],
     color: "#b91c1c",
   },

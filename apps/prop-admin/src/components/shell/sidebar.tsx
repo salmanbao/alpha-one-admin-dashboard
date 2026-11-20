@@ -13,7 +13,7 @@ import { ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { resolveNavigation, type ResolvedNavigation } from "@/lib/platform/navigation-engine";
 import { useNavBadges } from "@/lib/platform/nav-badges";
-import { makeTermResolver, resolveTermsInString, type TermKey } from "@/lib/platform/terminology";
+import { makeTermResolver, plural, resolveTermsInString, type TermKey } from "@/lib/platform/terminology";
 import type { TenantContext } from "@/lib/platform/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -189,7 +189,16 @@ function SidebarItem({
               {Icon ? (
                 <Icon className={cn("h-4 w-4 shrink-0 transition-colors", active ? "opacity-100" : "opacity-70 group-hover:opacity-100")} />
               ) : null}
-              <span className="flex-1 text-left">{item.termKey ? t(item.termKey) : item.label}</span>
+              <span className="flex-1 text-left">
+                {item.termKey
+                  ? item.children?.length
+                    // Section headers name a group of items — render the
+                    // plural form so "Withdrawal" (Alpha) heads a list whose
+                    // children read "Withdrawals" (R11 F5).
+                    ? plural(t(item.termKey))
+                    : t(item.termKey)
+                  : item.label}
+              </span>
               {item.badge ? (
                 <Badge variant="secondary" className="h-4 px-1 text-[9px]">{item.badge}</Badge>
               ) : null}

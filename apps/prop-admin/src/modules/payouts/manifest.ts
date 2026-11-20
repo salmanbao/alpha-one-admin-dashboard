@@ -2,7 +2,7 @@
  * Payouts Module — manifest, navigation, routes, widgets, settings.
  */
 
-import { Wallet, Banknote, Clock, ListChecks } from "lucide-react";
+import { Wallet, Banknote, Clock, ListChecks, Activity, CreditCard, SlidersHorizontal, ShieldAlert } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition, WidgetDefinition } from "@/lib/platform/types";
 import { PayoutOverviewWidget, PayoutQueueWidget, PayoutTrendWidget, PayoutMethodWidget } from "./widgets/payout-widgets";
 
@@ -11,7 +11,9 @@ const navigation: NavigationItem[] = [
     id: "payouts",
     label: "Payouts",
     termKey: "payout",
+    href: "payouts",
     icon: Wallet,
+    permission: ["payout.read", "payout.self"],
     order: 40,
     children: [
       // ───────── Requests & Approvals ─────────
@@ -21,6 +23,12 @@ const navigation: NavigationItem[] = [
       { id: "payouts.withdrawals", label: "Withdrawals", href: "payouts-enhanced-withdrawals", icon: ListChecks, permission: ["payout.read", "payout.self"], group: "Requests & Approvals" },
       // R9 W2 UC-O5 — the fraud queue is route-declared below and linked
       // from Pending Payouts (nav-children cap R2-W3-03 is at 150).
+      // R11 F6 — these four views were route-only (reachable only via
+      // cross-links); giving them a nav home removes the memory burden.
+      { id: "payouts.provider-status", label: "Provider Status", href: "payout-provider-status", icon: Activity, permission: "payout.read", group: "Operations" },
+      { id: "payouts.methods-review", label: "Methods Review", href: "payout-methods-review", icon: CreditCard, permission: "payout.approve", group: "Operations" },
+      { id: "payouts.rules", label: "Automation Rules", href: "payout-rules", icon: SlidersHorizontal, permission: "payout.approve", group: "Operations" },
+      { id: "payouts.fraud-queue", label: "Fraud Queue", href: "payout-fraud-queue", icon: ShieldAlert, permission: "payout.approve", group: "Operations" },
     ],
   },
 ];
@@ -67,6 +75,11 @@ export const payoutsModule: FrontendModule = {
     permissions: [
       { id: "payout.read", label: "View payouts" },
       { id: "payout.approve", label: "Approve payouts" },
+      // R11 F7 — payout.self is the trader-app self-service persona's
+      // permission. No seeded prop-admin role holds it: every prop-admin
+      // gate pairs it any-of with payout.read, so staff visibility never
+      // depends on it. Kept in the catalogue so the gates read honestly.
+      { id: "payout.self", label: "View own payouts (trader self-service)" },
     ],
     icon: Wallet,
     accentColor: "#15803d",
