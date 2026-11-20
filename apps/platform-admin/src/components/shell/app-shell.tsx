@@ -23,7 +23,7 @@ import { ReadOnlyGuard } from "@/components/platform/read-only-guard";
 import { ApprovalBridge } from "@/components/platform/approval-bridge";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { setSearchOpen } = usePlatform();
+  const { setSearchOpen, sidebarCollapsed } = usePlatform();
 
   // "/" opens global search when not typing in an input
   useEffect(() => {
@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           staff mutations exactly once, from any screen. Renders null. */}
       <ApprovalBridge />
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className={`flex min-w-0 flex-1 flex-col ${sidebarCollapsed ? "ml-14" : "ml-60"}`}>
         <Topbar />
         <ImpersonationBanner />
         <main id="main-content" tabIndex={-1} className="flex-1 px-4 py-4 md:px-6 md:py-6">

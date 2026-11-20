@@ -36,7 +36,7 @@ import { DemoDataBanner } from "@/components/platform/demo-data";
 import { SessionExpiryBanner } from "../platform/session-expiry-banner";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { setSearchOpen, runtime } = usePlatform();
+  const { setSearchOpen, runtime, sidebarCollapsed } = usePlatform();
   // R7 I4 — payout rules engine: evaluates every incoming payout.requested
   // (cross-app intake) on the shared lifecycle log, whichever view the
   // operator is on; outcomes are stamped once and logged as runs.
@@ -119,7 +119,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           session lapses (audit #7: identical banner in all three apps) */}
       <SessionExpiryBanner />
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className={`flex min-w-0 flex-1 flex-col ${sidebarCollapsed ? "ml-14" : "ml-60"}`}>
         <Topbar />
         {/* Demo-environment provenance banner — states once, globally, that
             all figures are simulated fixtures (gap-analysis Phase 0: never let

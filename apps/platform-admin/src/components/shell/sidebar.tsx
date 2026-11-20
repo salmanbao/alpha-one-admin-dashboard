@@ -54,7 +54,7 @@ export function Sidebar() {
 
   if (sidebarCollapsed) {
     return (
-      <aside className="flex h-full w-14 shrink-0 flex-col items-center gap-2 border-r bg-sidebar py-3 lg:flex sticky top-0 z-40">
+      <aside className="flex h-dvh w-14 shrink-0 flex-col items-center gap-2 border-r bg-sidebar py-3 lg:flex fixed top-0 left-0 z-40 overflow-y-auto">
         <Button
           variant="ghost"
           size="icon"
@@ -84,7 +84,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r bg-sidebar lg:flex sticky top-0 z-40">
+    <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar lg:flex fixed top-0 left-0 z-40 h-dvh overflow-y-auto">
       <SidebarHeader />
       <SidebarBrand tenantName={tenant.branding.name} tagline={tenant.branding.tagline} initials={tenant.branding.initials} primaryColor={tenant.branding.primaryColor} />
       <nav aria-label="Main" className="scrollbar-thin flex-1 overflow-y-auto px-2 py-2">
