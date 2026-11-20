@@ -541,7 +541,9 @@ export interface Payout {
   amount: number;
   currency: string;
   method: "bank-transfer" | "crypto" | "paypal" | "skrill";
-  status: "pending" | "approved" | "processing" | "paid" | "rejected";
+  // R10 PW-03 — `failed` is a rail outcome, distinct from `rejected`
+  // (an approval decision). The exception queue needs it as a state.
+  status: "pending" | "approved" | "processing" | "paid" | "rejected" | "failed";
   profitSplit: number; // trader % share
   accountName?: string;
   /**

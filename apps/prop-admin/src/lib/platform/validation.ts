@@ -172,8 +172,21 @@ export const demoKycSchema = z.record(
 export const demoPayoutsSchema = z.record(
   z.string(),
   z.object({
-    status: z.enum(["approved", "rejected", "info-requested", "processing", "paid", "escalated"]),
+    status: z.enum([
+      "approved",
+      "rejected",
+      "info-requested",
+      "processing",
+      "paid",
+      "escalated",
+      "failed",
+    ]),
     at: z.string(),
+    // W8/W15 — execution + four-eyes fields persisted with the decision.
+    providerTransactionId: z.string().optional(),
+    statusHistory: z.array(z.string()).optional(),
+    operatorName: z.string().optional(),
+    clientIdempotencyKey: z.string().optional(),
   }),
 );
 

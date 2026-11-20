@@ -141,6 +141,22 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  // R10 PS-01/PF-01/PW-01 — cross-tenant payout operations console
+  "payout-operations": dynamic(
+    () =>
+      import("@/modules/super-admin/payout-operations-page").then((m) => ({
+        default: m.PayoutOperationsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  // R10 PS-03/PW-03 — payout exception console (failed + stuck)
+  "payout-exceptions": dynamic(
+    () =>
+      import("@/modules/super-admin/payout-exceptions-page").then((m) => ({
+        default: m.PayoutExceptionsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   // R9 W6 UC-P6 — data-residency report (declare + register parity)
   "residency-report": dynamic(
     () =>

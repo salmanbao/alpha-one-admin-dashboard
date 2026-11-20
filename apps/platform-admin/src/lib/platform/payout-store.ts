@@ -11,7 +11,7 @@
 
 import { useSyncExternalStore } from "react";
 import { recordAudit } from "@/lib/platform/console-store";
-import { tenants as allTenants, getTenantTraders, type Payout } from "@/lib/platform/mock-data";
+import { tenants as allTenants, payouts as seedPayouts, type Payout } from "@/lib/platform/mock-data";
 
 const STORAGE_KEY = "pfaas:platform-admin:payouts";
 
@@ -48,7 +48,7 @@ export interface PayoutTransition {
 }
 
 /** Extended payout with platform-side fields (R10: PF-12, PF-09, PF-10) */
-export interface PlatformPayout extends Payout {
+export interface PlatformPayout extends Omit<Payout, "status"> {
   status: PlatformPayoutStatus;
   /** State transition history */
   history?: PayoutTransition[];
@@ -71,32 +71,52 @@ export interface PlatformPayout extends Payout {
   };
   /** Operator annotations (R10: PF-11) */
   notes?: string;
+  /** Enriched tenant display name (resolved on read) */
+  tenantName?: string;
 }
 
-/** Seed fixtures — deterministic payouts from mock-data */
-function buildSeedPayouts(): PlatformPayout[] {
-  const base = getTenantTraders("all"); // This will be filtered per-tenant
-  // We'll use the existing payouts fixture as seed
-  return [];
+/**
+ * Seed fixtures — hydrate from the shared `payouts` fixture in
+ * mock-data so every surface starts from the same rows the read-only
+ * pages already reconcile against (PF-12: the store replaces the const,
+ * it does not fork the data).
+ */
+const SEED_PAYOUTS: PlatformPayout[] = seedPayouts.map((p) => ({ ...p }));
+
+function isValidPayout(v: unknown): v is PlatformPayout {
+  return (
+    !!v &&
+    typeof v === "object" &&
+    typeof (v as PlatformPayout).id === "string" &&
+    typeof (v as PlatformPayout).reference === "string"
+  );
 }
 
-/** Read raw payouts from localStorage */
+/** Read raw payouts: seed merged with persisted state (persisted wins). */
 function readRaw(): PlatformPayout[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return SEED_PAYOUTS;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]");
+    const persisted: PlatformPayout[] = Array.isArray(stored)
+      ? stored.filter(isValidPayout)
+      : [];
+    const byId = new Map<string, PlatformPayout>();
+    for (const s of SEED_PAYOUTS) byId.set(s.id, { ...s });
+    for (const p of persisted) byId.set(p.id, { ...byId.get(p.id) ?? {}, ...p });
+    return [...byId.values()];
   } catch {
-    return [];
+    return SEED_PAYOUTS;
   }
 }
 
 /** Write raw payouts to localStorage */
 function writeRaw(next: PlatformPayout[]): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore quota errors */
+  }
   notify();
 }
 
@@ -107,13 +127,17 @@ function notify() {
 }
 function subscribe(cb: () => void) {
   listeners.add(cb);
-  return () => listeners.delete(cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    listeners.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
 }
 function getSnapshot() {
   return JSON.stringify(readRaw());
 }
 function getServerSnapshot() {
-  return "[]";
+  return JSON.stringify(SEED_PAYOUTS);
 }
 
 /** Read all payouts with tenant names enriched */
@@ -122,7 +146,7 @@ export function readPayouts(): PlatformPayout[] {
   const tenantMap = new Map(allTenants.map((t) => [t.id, t.name]));
   return raw.map((p) => ({
     ...p,
-    tenantName: p.tenantName || tenantMap.get(p.tenantId) || p.tenantId,
+    tenantName: p.tenantName ?? tenantMap.get(p.tenantId) ?? p.tenantId,
   }));
 }
 
@@ -138,7 +162,8 @@ export function getPayout(id: string): PlatformPayout | undefined {
 
 /** React hook for all payouts */
 export function usePayouts(): PlatformPayout[] {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) as unknown as PlatformPayout[];
+  const raw = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  return JSON.parse(raw) as PlatformPayout[];
 }
 
 /** React hook for tenant-scoped payouts */
@@ -147,19 +172,21 @@ export function useTenantPayouts(tenantId: string): PlatformPayout[] {
   return all.filter((p) => p.tenantId === tenantId);
 }
 
-/** Calculate pending liability in money terms (R10: PF-01) */
-export function getPendingLiability(tenantId?: string): { total: number; byCurrency: Record<string, number> } {
+/**
+ * Calculate pending liability in money terms (R10: PF-01).
+ * Reported per currency — no FX conversion is invented (the published
+ * payout methodology refuses cross-currency summation, and so does this).
+ */
+export function getPendingLiability(tenantId?: string): { byCurrency: Record<string, number>; rows: number } {
   const payouts = tenantId ? readTenantPayouts(tenantId) : readPayouts();
-  const pending = payouts.filter((p) => 
-    ["pending", "approved", "processing", "on-hold"].includes(p.status)
+  const pending = payouts.filter((p) =>
+    ["pending", "approved", "processing", "on-hold"].includes(p.status),
   );
   const byCurrency: Record<string, number> = {};
-  let total = 0;
   for (const p of pending) {
     byCurrency[p.currency] = (byCurrency[p.currency] || 0) + p.amount;
-    total += p.amount;
   }
-  return { total, byCurrency };
+  return { byCurrency, rows: pending.length };
 }
 
 /** Calculate in-flight aging buckets (R10: PF-02) */
@@ -180,19 +207,19 @@ export function getAgingBuckets(tenantId?: string): { "0-24h": number; "24-72h":
   return buckets;
 }
 
-/** Get payout method mix and fee analytics (R10: PF-03) */
-export function getMethodMix(tenantId?: string): Record<string, { count: number; totalAmount: number; avgFee: number }> {
+/** Get payout method mix — count and amount per rail (R10: PF-03) */
+export function getMethodMix(tenantId?: string): Record<string, { count: number; totalAmount: number; avgAmount: number }> {
   const payouts = tenantId ? readTenantPayouts(tenantId) : readPayouts();
-  const mix: Record<string, { count: number; totalAmount: number; avgFee: number }> = {};
-  
+  const mix: Record<string, { count: number; totalAmount: number; avgAmount: number }> = {};
+
   for (const p of payouts) {
-    if (!mix[p.method]) mix[p.method] = { count: 0, totalAmount: 0, avgFee: 0 };
+    if (!mix[p.method]) mix[p.method] = { count: 0, totalAmount: 0, avgAmount: 0 };
     mix[p.method].count++;
     mix[p.method].totalAmount += p.amount;
   }
-  
+
   for (const method of Object.keys(mix)) {
-    mix[method].avgFee = mix[method].totalAmount / mix[method].count;
+    mix[method].avgAmount = mix[method].totalAmount / mix[method].count;
   }
   return mix;
 }
@@ -221,10 +248,10 @@ export function approvePayout(id: string, actor: string, reason: string): { ok: 
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.approve",
-    entity: "payout",
-    entityId: id,
-    summary: `Approved payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
+    target: id,
+    detail: `Approved payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
     severity: "info",
   });
   
@@ -248,10 +275,10 @@ export function holdPayout(id: string, actor: string, reason: string): { ok: boo
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.hold",
-    entity: "payout",
-    entityId: id,
-    summary: `Held payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
+    target: id,
+    detail: `Held payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
     severity: "warning",
   });
   
@@ -275,10 +302,10 @@ export function releasePayout(id: string, actor: string, reason: string): { ok: 
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.release",
-    entity: "payout",
-    entityId: id,
-    summary: `Released payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
+    target: id,
+    detail: `Released payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
     severity: "info",
   });
   
@@ -301,10 +328,10 @@ export function rejectPayout(id: string, actor: string, reason: string): { ok: b
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.reject",
-    entity: "payout",
-    entityId: id,
-    summary: `Rejected payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
+    target: id,
+    detail: `Rejected payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
     severity: "warning",
   });
   
@@ -325,10 +352,10 @@ export function processPayout(id: string, actor: string, reason: string): { ok: 
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.process",
-    entity: "payout",
-    entityId: id,
-    summary: `Processing payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
+    target: id,
+    detail: `Processing payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
     severity: "info",
   });
   
@@ -357,10 +384,10 @@ export function completePayout(id: string, actor: string, evidenceRef?: string):
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.complete",
-    entity: "payout",
-    entityId: id,
-    summary: `Completed payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${evidenceRef || "Payment completed"}`,
+    target: id,
+    detail: `Completed payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${evidenceRef || "Payment completed"}`,
     severity: "info",
   });
   
@@ -389,11 +416,11 @@ export function failPayout(
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.fail",
-    entity: "payout",
-    entityId: id,
-    summary: `Failed payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${failureReason}: ${reason}`,
-    severity: "error",
+    target: id,
+    detail: `Failed payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${failureReason}: ${reason}`,
+    severity: "critical",
   });
   
   return { ok: true, payout: updated };
@@ -414,10 +441,10 @@ export function retryPayout(id: string, actor: string, reason: string): { ok: bo
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.retry",
-    entity: "payout",
-    entityId: id,
-    summary: `Retry payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
+    target: id,
+    detail: `Retry payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
     severity: "info",
   });
   
@@ -440,10 +467,10 @@ export function cancelPayout(id: string, actor: string, reason: string): { ok: b
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.cancel",
-    entity: "payout",
-    entityId: id,
-    summary: `Cancelled payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
+    target: id,
+    detail: `Cancelled payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
     severity: "warning",
   });
   
@@ -486,11 +513,11 @@ export function clawbackPayout(id: string, actor: string, reason: string): { ok:
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.clawback",
-    entity: "payout",
-    entityId: id,
-    summary: `Clawed back payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
-    severity: "error",
+    target: id,
+    detail: `Clawed back payout ${p.reference} (${p.amount} ${p.currency}) for ${p.traderName} — ${reason}`,
+    severity: "critical",
   });
   
   return { ok: true, payout: clawback };
@@ -516,10 +543,10 @@ export function attachEvidence(
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.evidence",
-    entity: "payout",
-    entityId: id,
-    summary: `Attached ${type} evidence ${reference} to payout ${p.reference}`,
+    target: id,
+    detail: `Attached ${type} evidence ${reference} to payout ${p.reference}`,
     severity: "info",
   });
   
@@ -541,10 +568,10 @@ export function addNote(id: string, actor: string, note: string): { ok: boolean;
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.note",
-    entity: "payout",
-    entityId: id,
-    summary: `Added note to payout ${p.reference}: ${note}`,
+    target: id,
+    detail: `Added note to payout ${p.reference}: ${note}`,
     severity: "info",
   });
   
@@ -567,10 +594,10 @@ export function updateBeneficiary(
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.beneficiary",
-    entity: "payout",
-    entityId: id,
-    summary: `Updated beneficiary for payout ${p.reference}`,
+    target: id,
+    detail: `Updated beneficiary for payout ${p.reference}`,
     severity: "info",
   });
   
@@ -619,10 +646,10 @@ export function reissuePayout(
   writeRaw(payouts);
   
   recordAudit({
+    actor,
     action: "payout.reissue",
-    entity: "payout",
-    entityId: newId,
-    summary: `Re-issued payout ${p.reference} as ${reissue.reference} — ${reason}`,
+    target: newId,
+    detail: `Re-issued payout ${p.reference} as ${reissue.reference} — ${reason}`,
     severity: "info",
   });
   

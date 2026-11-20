@@ -336,6 +336,15 @@ const PLATFORM_PERMISSION_IDS: Array<[string, string]> = [
   ["platform.billing.manage", "Manage Billing"],
   ["platform.emergency.*", "Emergency Controls"],
   ["platform.emergency.manage", "Manage Emergency Controls"],
+  // R10 PW-01 — payout-scoped permissions (module-catalog's payout
+  // widgets already presume payout.read / payout.approve; the catalog
+  // now models the entitlement it sells).
+  ["payout.*", "Payouts (All)"],
+  ["payout.read", "View Payouts"],
+  ["payout.approve", "Approve Payouts"],
+  ["payout.hold", "Hold / Release Payouts"],
+  ["payout.fail", "Fail / Retry Payouts"],
+  ["payout.clawback", "Claw Back Payouts"],
   ["support.*", "Support (All)"],
   ["support.tickets.*", "Support Tickets"],
 ];

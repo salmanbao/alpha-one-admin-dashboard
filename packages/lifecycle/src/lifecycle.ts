@@ -92,6 +92,9 @@ export const LIFECYCLE_EVENT_NAMES = [
   "payout.escalated",
   "payout.info-requested",
   "payout.cancelled",
+  // R10 PW-03 — a rail failure is a distinct outcome from an approval
+  // rejection; consumers triage failed payouts in the exception queue.
+  "payout.failed",
   // Payout automation (R7 I4) — consumers: prop-admin payouts rules store
   // (evaluator run rows) + trader inbox bridge receipt ("approved
   // automatically under rule X — review window 24h (Demo)"); emitted by
@@ -468,6 +471,7 @@ const STAGE_LABEL: Record<LifecycleEventName, string> = {
   "payout.escalated": "Escalated",
   "payout.info-requested": "Info requested",
   "payout.cancelled": "Cancelled",
+  "payout.failed": "Failed",
   "payout.auto-decided": "Auto-decided",
   "payout-method.added": "Method added",
   "payout-method.updated": "Method updated",

@@ -74,8 +74,30 @@ export function payoutsHeldByCase(caseId: string): Payout[] {
 }
 
 // Rehydrate decisions from a previous visit (demo persistence).
-const decisions = new Map<string, { status: PayoutDecision; at: string; providerTransactionId: string; statusHistory: string[]; operatorName: string; clientIdempotencyKey?: string }>(
-  Object.entries(loadDemoState("payouts", demoPayoutsSchema, {})),
+// Older persisted rows only carry `status`/`at` — fill the W8/W15
+// execution fields with defaults so every entry satisfies the shape.
+type StoredDecision = {
+  status: PayoutDecision;
+  at: string;
+  providerTransactionId: string;
+  statusHistory: string[];
+  operatorName: string;
+  clientIdempotencyKey?: string;
+};
+const decisions = new Map<string, StoredDecision>(
+  Object.entries(loadDemoState("payouts", demoPayoutsSchema, {})).map(
+    ([ref, d]): [string, StoredDecision] => [
+      ref,
+      {
+        status: d.status,
+        at: d.at,
+        providerTransactionId: d.providerTransactionId ?? "",
+        statusHistory: d.statusHistory ?? [],
+        operatorName: d.operatorName ?? "unknown-operator",
+        ...(d.clientIdempotencyKey ? { clientIdempotencyKey: d.clientIdempotencyKey } : {}),
+      },
+    ],
+  ),
 );
 const listeners = new Set<() => void>();
 let version = 0;
@@ -152,8 +174,11 @@ export function applyPayoutDecision(
 
   // R7 — Idempotency key: if a decision with this key already exists,
   // return the cached decision without re-auditing or re-emitting.
+  // (The map is keyed by payout reference, so search values for the key.)
   if (opts?.clientIdempotencyKey) {
-    const cached = decisions.get(opts.clientIdempotencyKey);
+    const cached = [...decisions.values()].find(
+      (d) => d.clientIdempotencyKey === opts.clientIdempotencyKey,
+    );
     if (cached) {
       recordAudit({
         action: "Idempotent payout decision reused",
@@ -162,7 +187,7 @@ export function applyPayoutDecision(
         summary: `Reused cached decision ${cached.status} for reference ${reference}`,
         severity: "info",
       });
-      return { ok: true, cached };
+      return { ok: true, cached: true };
     }
   }
   // W8 - Post-approval execution pipeline: generate provider transaction ID
@@ -189,7 +214,7 @@ export function applyPayoutDecision(
     ? [...existingDecision.statusHistory, `${new Date().toISOString()} - ${decision}`]
     : [`${new Date().toISOString()} - ${decision}`];
   
-  // R7 — idempotency key support
+  // R7 — idempotency key support (stored under the type's field name)
   const idempotencyKey = opts?.clientIdempotencyKey;
   decisions.set(reference, { 
     status: decision, 
@@ -197,7 +222,7 @@ export function applyPayoutDecision(
     providerTransactionId,
     statusHistory,
     operatorName,
-    ...(idempotencyKey ? { idempotencyKey } : {}),
+    ...(idempotencyKey ? { clientIdempotencyKey: idempotencyKey } : {}),
   });
   
   // W15 - Four-eyes audit: log operator identity for batch approvals

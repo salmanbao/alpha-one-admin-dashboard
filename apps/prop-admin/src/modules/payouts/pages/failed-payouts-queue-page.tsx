@@ -53,7 +53,7 @@ export function FailedPayoutsQueuePage() {
   return (
     <Page>
       <PageHeader
-        title={term("failed payouts queue")}
+        title="Failed Payouts Queue"
         description={`${failed.length} ${term("withdrawal")}s require attention`}
         icon={AlertTriangle}
       />
@@ -67,21 +67,21 @@ export function FailedPayoutsQueuePage() {
             label="Failed"
             value={failed.length}
             icon={AlertTriangle}
-            tone="destructive"
+            tone="negative"
           />
           <Button
             variant="outline"
             size="sm"
             onClick={handleExport}
           >
-            {term("Export CSV")}
+            Export CSV
           </Button>
         </div>
 
         {failed.length === 0 ? (
           <EmptyState
-            title={term("no failed payouts")}
-            description={term("All payouts are currently in good standing.")}
+            title="No failed payouts"
+            description="All payouts are currently in good standing."
             icon={CheckCircle2}
           />
         ) : (
