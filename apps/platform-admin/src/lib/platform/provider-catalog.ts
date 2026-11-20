@@ -31,6 +31,8 @@ export interface Provider {
   lastRotated: string;
   lastSuccess: string;
   config: string;
+  /** Payout capability this provider supports (R10 PF-04) */
+  payoutCapability: "bank-transfer" | "crypto" | "paypal" | "skrill" | "none";
 }
 
 export const PROVIDERS: Provider[] = [
@@ -47,6 +49,7 @@ export const PROVIDERS: Provider[] = [
     lastRotated: "12 days ago",
     lastSuccess: "30s ago",
     config: "Configured",
+    payoutCapability: "none",
   },
   {
     id: "veriff",
@@ -61,6 +64,7 @@ export const PROVIDERS: Provider[] = [
     lastRotated: "45 days ago",
     lastSuccess: "2m ago",
     config: "Configured",
+    payoutCapability: "none",
   },
   {
     id: "nowpayments",
@@ -75,6 +79,7 @@ export const PROVIDERS: Provider[] = [
     lastRotated: "8 days ago",
     lastSuccess: "1m ago",
     config: "Configured",
+    payoutCapability: "crypto",
   },
   {
     id: "postmark",
@@ -89,6 +94,7 @@ export const PROVIDERS: Provider[] = [
     lastRotated: "30 days ago",
     lastSuccess: "5m ago",
     config: "Configured",
+    payoutCapability: "none",
   },
   {
     id: "match2pay",
@@ -103,6 +109,7 @@ export const PROVIDERS: Provider[] = [
     lastRotated: "20 days ago",
     lastSuccess: "3m ago",
     config: "Configured",
+    payoutCapability: "crypto",
   },
   {
     id: "twilio",
@@ -117,6 +124,37 @@ export const PROVIDERS: Provider[] = [
     lastRotated: "60 days ago",
     lastSuccess: "1h ago",
     config: "Not configured",
+    payoutCapability: "none",
+  },
+  {
+    id: "paypal-payouts",
+    name: "PayPal Payouts",
+    type: "Payout Provider",
+    icon: DollarSign,
+    status: "operational",
+    latency: "1.2s",
+    errorRate: "0.8%",
+    tenantsUsing: 4,
+    credentialFingerprint: "••••G7H2",
+    lastRotated: "5 days ago",
+    lastSuccess: "45s ago",
+    config: "Configured",
+    payoutCapability: "paypal",
+  },
+  {
+    id: "skrill-payouts",
+    name: "Skrill Payouts",
+    type: "Payout Provider",
+    icon: DollarSign,
+    status: "degraded",
+    latency: "1.5s",
+    errorRate: "3.4%",
+    tenantsUsing: 2,
+    credentialFingerprint: "••••K9L4",
+    lastRotated: "14 days ago",
+    lastSuccess: "12m ago",
+    config: "Configured",
+    payoutCapability: "skrill",
   },
 ];
 

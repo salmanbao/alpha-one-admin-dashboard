@@ -157,6 +157,14 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  // R10 PS-04/PF-04 — payout provider health board (per rail + per provider)
+  "payout-provider-health": dynamic(
+    () =>
+      import("@/modules/super-admin/payout-provider-health-board").then((m) => ({
+        default: m.PayoutProviderHealthBoard,
+      })),
+    { loading: ViewSkeleton },
+  ),
   // R9 W6 UC-P6 — data-residency report (declare + register parity)
   "residency-report": dynamic(
     () =>

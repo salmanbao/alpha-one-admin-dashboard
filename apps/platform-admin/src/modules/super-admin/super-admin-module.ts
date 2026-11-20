@@ -138,6 +138,8 @@ const navigation: NavigationItem[] = [
       { id: "super.payout-operations", label: "Payout Operations", href: "payout-operations", icon: Wallet, application: ["super-admin"], group: "Finance" },
       // R10 PS-03 — payout exception console (failed + stuck)
       { id: "super.payout-exceptions", label: "Payout Exceptions", href: "payout-exceptions", icon: AlertTriangle, application: ["super-admin"], group: "Finance" },
+      // R10 PS-04/PF-04 — payout provider health board (per rail + per provider)
+      { id: "super.payout-provider-health", label: "Payout Provider Health", href: "payout-provider-health", icon: Network, application: ["super-admin"], group: "Finance" },
       { id: "super.tax-currency", label: "Tax & Currency", href: "tax-currency", icon: Percent, application: ["super-admin"], group: "Finance" },
       { id: "super.churn-prevention", label: "Churn Prevention", href: "churn-prevention", icon: TrendingDown, application: ["super-admin"], group: "Finance" },
       // N16
@@ -254,6 +256,8 @@ const routes: RouteDefinition[] = [
   { path: "payout-operations", viewId: "payout-operations", label: "Payout Operations", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
   // R10 PS-03/PW-03 — payout exception console (failed + stuck, reason codes, retry)
   { path: "payout-exceptions", viewId: "payout-exceptions", label: "Payout Exceptions", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
+  // R10 PS-04/PF-04 — payout provider health board (per rail + per provider)
+  { path: "payout-provider-health", viewId: "payout-provider-health", label: "Payout Provider Health", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
   // R9 W6 UC-P6 — data-residency report (declare + register parity)
   { path: "residency-report", viewId: "residency-report", label: "Data Residency", application: ["super-admin"] },
   { path: "system-health", viewId: "system-health", label: "System Health", application: ["super-admin"] },
