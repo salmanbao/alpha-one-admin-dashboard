@@ -51,6 +51,7 @@ import {
   tenants as allTenants,
   hashStr,
 } from "@/lib/platform/mock-data";
+import { PayoutsTab } from "@/modules/super-admin/tenant-payouts-tab";
 import type { AuthUser, TenantContext } from "@/lib/platform/types";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import {
@@ -155,6 +156,7 @@ import {
   ArrowRight,
   Server,
   ScrollText,
+  Wallet,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -201,6 +203,7 @@ const TENANT_TABS = [
   "incidents",
   "configuration",
   "risk",
+  "payouts",
 ] as const;
 
 function initialTab(tab: string | undefined): string {
@@ -688,6 +691,7 @@ export function TenantDetailPage() {
           <TabsTrigger value="incidents" className="gap-1"><AlertTriangle className="h-3 w-3" />Incidents</TabsTrigger>
           <TabsTrigger value="configuration" className="gap-1"><SettingsIcon className="h-3 w-3" />Configuration</TabsTrigger>
           <TabsTrigger value="risk" className="gap-1"><ShieldAlert className="h-3 w-3" />Risk</TabsTrigger>
+          <TabsTrigger value="payouts" className="gap-1"><Wallet className="h-3 w-3" />Payouts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -721,6 +725,9 @@ export function TenantDetailPage() {
         </TabsContent>
         <TabsContent value="risk">
           <RiskTab tenant={localTenant} breaches={tenantBreaches} accountsCount={tenantAccounts.length} />
+        </TabsContent>
+        <TabsContent value="payouts">
+          <PayoutsTab tenantId={localTenant.id} />
         </TabsContent>
       </Tabs>
       </PageAsyncBoundary>

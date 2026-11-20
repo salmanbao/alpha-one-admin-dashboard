@@ -149,6 +149,30 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  // R10 PS-02 — payout detail view (full record for one payout)
+  "payout-detail": dynamic(
+    () =>
+      import("@/modules/super-admin/payout-detail-page").then((m) => ({
+        default: m.PayoutDetailPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  // R10 PS-06 — payout compliance hold queue
+  "payout-compliance-hold": dynamic(
+    () =>
+      import("@/modules/super-admin/payout-compliance-hold-page").then((m) => ({
+        default: m.PayoutComplianceHoldPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  // R10 PS-07 — payout anomaly review board
+  "payout-anomaly": dynamic(
+    () =>
+      import("@/modules/super-admin/payout-anomaly-page").then((m) => ({
+        default: m.PayoutAnomalyPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   // R10 PS-03/PW-03 — payout exception console (failed + stuck)
   "payout-exceptions": dynamic(
     () =>
@@ -170,6 +194,54 @@ export const viewRegistry: Record<string, ViewComponent> = {
     () =>
       import("@/modules/super-admin/payout-policy-console-page").then((m) => ({
         default: m.PayoutPolicyConsolePage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  // R10 PF-06 — profit-split governance (review split configurations)
+  "payout-profit-split": dynamic(
+    () =>
+      import("@/modules/super-admin/payout-profit-split-page").then((m) => ({
+        default: m.PayoutProfitSplitPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  // R10 PF-08 — payout currency exposure (per-currency totals, no FX conversion)
+  "payout-currency-exposure": dynamic(
+    () =>
+      import("@/modules/super-admin/payout-currency-exposure-page").then((m) => ({
+        default: m.PayoutCurrencyExposurePage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  // R10 PW-10 — request-vs-execution split
+  "payout-stage-composition": dynamic(
+    () =>
+      import("@/modules/super-admin/payout-stage-composition-page").then((m) => ({
+        default: m.PayoutStageCompositionPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  // R10 PW-08 — kill-switch verification loop (in-flight snapshot + drain report)
+  "kill-switch-verification": dynamic(
+    () =>
+      import("@/modules/super-admin/kill-switch-verification-page").then((m) => ({
+        default: m.KillSwitchVerificationPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  // R10 PU-03 — auditor evidence pack (filtered export with evidence)
+  "auditor-evidence-pack": dynamic(
+    () =>
+      import("@/modules/super-admin/auditor-evidence-pack-page").then((m) => ({
+        default: m.PayoutAuditorEvidencePackPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  // R10 PU-02 — provider incident runbook (provider outage response workflow)
+  "provider-incident-runbook": dynamic(
+    () =>
+      import("@/modules/super-admin/provider-incident-runbook-page").then((m) => ({
+        default: m.ProviderIncidentRunbookPage,
       })),
     { loading: ViewSkeleton },
   ),
