@@ -151,6 +151,11 @@ const seedNotifications: AppNotification[] = [
 // switcher, so restoring the last-used identity is far less confusing than
 // snapping back to the default user on every F5).
 const DEMO_USER_KEY = "pfaas:demoUser";
+// R11 F1 — id-based default demo identity (Sarah Chen, prop-admin).
+// Resolving by id instead of array index means a seed-array reorder can
+// never silently change the default session (users[1] used to resolve to
+// the risk-manager, who holds no payout permissions).
+const DEFAULT_USER_ID = "user-alpha-admin";
 const DEMO_TENANT_KEY = "pfaas:demoTenant";
 const ROUTE_PARAM = "view";
 
@@ -173,13 +178,16 @@ function readStoredUser(): AuthUser {
   if (typeof window !== "undefined") {
     try {
       const id = window.localStorage.getItem(DEMO_USER_KEY);
-      const found = (id && users.find((u) => u.id === id)) || users[0];
+      const found =
+        (id && users.find((u) => u.id === id)) ||
+        users.find((u) => u.id === DEFAULT_USER_ID) ||
+        users[0];
       // Merge persisted profile edits so name/email/avatar survive reloads
       const patch = readUserOverrides()[found.id];
       return patch ? { ...found, ...patch } : found;
     } catch { /* ignore */ }
   }
-  return users[0]; // Sarah Chen — prop-admin (default)
+  return users.find((u) => u.id === DEFAULT_USER_ID) ?? users[0]; // Sarah Chen — prop-admin (default)
 }
 
 function readStoredTenantId(): string | null {

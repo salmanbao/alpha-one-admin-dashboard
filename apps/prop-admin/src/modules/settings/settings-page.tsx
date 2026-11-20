@@ -1169,39 +1169,47 @@ function IntegrationsTab() {
  * Lists every registered module with its entitlement for the active (or
  * selected) tenant, and the concrete reason each navigation item is
  * visible or filtered for the current user (module not entitled /
- * permission missing). Turns the registry's silent section-drop into
- * inspectable state; development builds also log a console warning
- * from module-registry.ts when a section is dropped.
+ * feature flag off / permission missing). Turns the registry's silent
+ * section-drop into inspectable state; development builds also log a
+ * console warning from module-registry.ts when a section is dropped.
  */
 function DiagnosticsTab() {
   const { user, tenant } = usePlatform();
   const [tenantId, setTenantId] = useState("");
   const scope = (tenantId ? getTenant(tenantId) : undefined) ?? tenant;
   const perms = user?.permissions ?? [];
+  const isPlatform = scope.id === "platform";
+  const feats = scope.enabledFeatures ?? [];
 
   const has = (perm?: string | string[]) =>
     !perm ||
     (Array.isArray(perm) ? perm.some((p) => perms.includes(p)) : perms.includes(perm));
 
   const rows = moduleRegistry.getAll().map((m) => {
-    const entitled =
-      scope.id === "platform" || scope.enabledModules.includes(m.manifest.id);
+    const entitled = isPlatform || scope.enabledModules.includes(m.manifest.id);
     const items: { label: string; visible: boolean; reason?: string }[] = [];
-    const push = (label: string, perm?: string | string[]) => {
-      const visible = entitled && has(perm);
+    const push = (label: string, perm?: string | string[], feature?: string, childModule?: string) => {
+      // Mirror the registry's filter order (module-registry.ts getNavigation):
+      // module entitlement → feature flag → permission.
+      const moduleOk = entitled && (!childModule || isPlatform || scope.enabledModules.includes(childModule));
+      const flagOk = isPlatform || !feature || feats.includes(feature);
+      const permOk = has(perm);
+      const visible = moduleOk && flagOk && permOk;
       items.push({
         label,
         visible,
-        reason: !entitled
+        reason: !moduleOk
           ? "module not entitled"
-          : !has(perm)
-            ? "permission missing"
-            : undefined,
+          : !flagOk
+            ? "feature flag off"
+            : !permOk
+              ? "permission missing"
+              : undefined,
       });
     };
     for (const nav of m.navigation ?? []) {
-      push(nav.label, nav.permission);
-      for (const c of nav.children ?? []) push(`— ${c.label}`, c.permission);
+      push(nav.label, nav.permission, nav.feature);
+      for (const c of nav.children ?? []) push(`— ${c.label}`, c.permission, c.feature, c.module);
     }
     return { id: m.manifest.id, name: m.manifest.name, entitled, items };
   });
@@ -1209,9 +1217,11 @@ function DiagnosticsTab() {
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        Explains why a module or sidebar item is missing: entitlement and
-        permission filter results for every registered module. Development
-        builds also log a console warning when a section is dropped.
+        Explains why a module or sidebar item is missing: module
+        entitlement, feature flag and permission filter results for every
+        registered module, in the same order the registry applies them.
+        Development builds also log a console warning when a section is
+        dropped.
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="diag-tenant">Tenant scope</Label>
