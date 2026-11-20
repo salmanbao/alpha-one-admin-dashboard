@@ -61,6 +61,7 @@ import {
 } from "@/lib/platform/payout-store";
 import { tenants as allTenants } from "@/lib/platform/mock-data";
 import {
+  Shield,
   Wallet,
   Search,
   Download,
@@ -70,6 +71,7 @@ import {
   PlayCircle,
   RotateCcw,
   Banknote,
+AlertTriangle,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -113,7 +115,7 @@ function ageBucket(iso: string): "0-24h" | "24-72h" | "72h-7d" | "7d+" {
   return "7d+";
 }
 
-type DialogAction = "approve" | "hold" | "reject" | "release" | "cancel";
+type DialogAction = "approve" | "hold" | "reject" | "release" | "cancel" | "compliance-hold";
 
 const ACTION_META: Record<
   DialogAction,
@@ -149,6 +151,12 @@ const ACTION_META: Record<
     consequence: (p) =>
       `Payout ${p.reference} (${formatCurrency(p.amount, p.currency)}) is cancelled permanently. This is an operator decision, distinct from a rail failure — the distinction is preserved for SLA reporting.`,
   },
+  "compliance-hold": {
+    label: "Compliance Hold",
+    variant: "custom",
+    consequence: (p) =>
+      `Payout ${p.reference} (${formatCurrency(p.amount, p.currency)}) is placed under compliance hold. The trader will need to resolve compliance queries before this payout can proceed. This is a payout-scoped hold — it does not suspend the whole tenant.`,
+  },
 };
 
 /* ------------------------------------------------------------------ */
@@ -165,6 +173,7 @@ export function PayoutOperationsPage() {
   const [methodFilter, setMethodFilter] = useState("all");
   const [ageFilter, setAgeFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [complianceFilter, setComplianceFilter] = useState("all"); // P1 PW-02+PS-06: Compliance queue filter
 
   // Selection (PW-06 bulk hold / export)
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -222,6 +231,7 @@ export function PayoutOperationsPage() {
       reject: rejectPayout(p.id, actor, reason),
       release: releasePayout(p.id, actor, reason),
       cancel: cancelPayout(p.id, actor, reason),
+      "compliance-hold": holdPayout(p.id, actor, reason),
     };
     const res = results[action];
     if (res.ok) {
@@ -384,6 +394,9 @@ export function PayoutOperationsPage() {
               <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => setDialog({ action: "approve", payout: p })}>
                 <CheckCircle className="mr-1 h-3 w-3" /> Approve
               </Button>
+              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => setDialog({ action: "compliance-hold", payout: p })}>
+                <AlertTriangle className="mr-1 h-3 w-3" /> Compliance Hold
+              </Button>
               <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => setDialog({ action: "hold", payout: p })}>
                 <PauseCircle className="mr-1 h-3 w-3" /> Hold
               </Button>
@@ -536,6 +549,31 @@ export function PayoutOperationsPage() {
               <SelectItem value="7d+">7d+</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Compliance Queue (P1 PW-02+PS-06) */}
+        <div className="mt-3 rounded-lg border bg-muted/10 p-3">
+          <p className="text-sm font-medium mb-2 flex items-center gap-2">
+            <Shield className="h-4 w-4" /> Compliance Queue
+          </p>
+          <Select value={complianceFilter} onValueChange={setComplianceFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Compliance filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All payouts</SelectItem>
+              <SelectItem value="on-hold">On Hold</SelectItem>
+              <SelectItem value="compliance-hold">Compliance Hold</SelectItem>
+              <SelectItem value="review-needed">Review Needed (7d+)</SelectItem>
+            </SelectContent>
+          </Select>
+          {complianceFilter !== "all" && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {complianceFilter === "review-needed"
+                ? "Payouts in-flight for 7+ days requiring compliance review"
+                : `Showing payouts with status: ${complianceFilter}`}
+            </p>
+          )}
         </div>
 
         {/* Selection summary */}
