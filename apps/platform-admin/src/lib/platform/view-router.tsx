@@ -165,6 +165,14 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  // R10 PF-07/PS-05 — payout policy console (SLA, caps, velocity, thresholds)
+  "payout-policy": dynamic(
+    () =>
+      import("@/modules/super-admin/payout-policy-console-page").then((m) => ({
+        default: m.PayoutPolicyConsolePage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   // R9 W6 UC-P6 — data-residency report (declare + register parity)
   "residency-report": dynamic(
     () =>

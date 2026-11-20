@@ -345,6 +345,7 @@ const PLATFORM_PERMISSION_IDS: Array<[string, string]> = [
   ["payout.hold", "Hold / Release Payouts"],
   ["payout.fail", "Fail / Retry Payouts"],
   ["payout.clawback", "Claw Back Payouts"],
+  ["payout.policy", "Manage Payout Policy"],
   ["support.*", "Support (All)"],
   ["support.tickets.*", "Support Tickets"],
 ];
