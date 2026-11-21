@@ -142,15 +142,19 @@ export function ProvisioningSagaPage() {
         module: "super-admin",
       });
     } else if (job.state === "compensated") {
-      updateTenant(tenant.id, { status: "invited" });
-      recordAudit({
-        actor: user.name,
-        action: "tenant.provisioning_compensated",
-        target: tenant.id,
-        tenantId: tenant.id,
-        severity: "warning",
-        detail: `Saga ${job.id} compensated — completed steps rolled back in reverse order`,
-      });
+      // R13 TM-02: a compensated saga is NOT an invitation — no invite
+      // was ever sent. Land on the distinct rolled_back status instead.
+      if (tenant.status !== "rolled_back") {
+        updateTenant(tenant.id, { status: "rolled_back" });
+        recordAudit({
+          actor: user.name,
+          action: "tenant.provisioning_compensated",
+          target: tenant.id,
+          tenantId: tenant.id,
+          severity: "warning",
+          detail: `Saga ${job.id} compensated — completed steps rolled back in reverse order; tenant landed rolled_back`,
+        });
+      }
     }
   }, [job, job?.state, tenants, pushNotification, user.name]);
 
@@ -309,7 +313,8 @@ export function ProvisioningSagaPage() {
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Completed steps were rolled back in reverse order (compensation column of the
-              spec table). The tenant was reset to `invited` — start a fresh run when ready.
+              spec table). The tenant landed in <code>rolled_back</code> — restart provisioning
+              or delete the draft when ready.
             </p>
           </div>
         ) : null}

@@ -284,6 +284,10 @@ export function TenantsPage() {
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="suspended">Suspended</SelectItem>
                 <SelectItem value="terminated">Terminated</SelectItem>
+                <SelectItem value="onboarding">Onboarding</SelectItem>
+                <SelectItem value="provisioning">Provisioning</SelectItem>
+                <SelectItem value="provisioning_failed">Provisioning Failed</SelectItem>
+                <SelectItem value="rolled_back">Rolled Back</SelectItem>
               </SelectContent>
             </Select>
           }

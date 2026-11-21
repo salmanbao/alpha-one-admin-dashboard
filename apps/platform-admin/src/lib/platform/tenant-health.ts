@@ -24,7 +24,7 @@ export type Health = "healthy" | "watch" | "critical";
  *  - healthy:  active tenants with a real module footprint
  */
 export function healthOf(t: TenantContext): Health {
-  if (t.status === "suspended" || t.status === "terminated" || t.status === "provisioning_failed") {
+  if (t.status === "suspended" || t.status === "terminated" || t.status === "provisioning_failed" || t.status === "rolled_back") {
     return "critical";
   }
   if (t.status === "trial" || t.status === "onboarding" || t.status === "invited" || t.status === "provisioning") {
@@ -66,7 +66,7 @@ export function tenantHealthScore(t: TenantContext): TenantHealthScore {
   );
 
   let raw = 100;
-  if (t.status === "suspended" || t.status === "terminated" || t.status === "provisioning_failed") {
+  if (t.status === "suspended" || t.status === "terminated" || t.status === "provisioning_failed" || t.status === "rolled_back") {
     raw -= 70;
   } else if (t.status !== "active") {
     raw -= 25; // trial / onboarding / invited / provisioning
@@ -86,7 +86,9 @@ export function tenantHealthScore(t: TenantContext): TenantHealthScore {
     recommendations.push(
       t.status === "provisioning_failed"
         ? "Resume the failed provisioning saga from the console."
-        : `Resolve the ${t.status} status first — tenant access is blocked.`,
+        : t.status === "rolled_back"
+          ? "Provisioning was compensated — restart the saga or delete the draft."
+          : `Resolve the ${t.status} status first — tenant access is blocked.`,
     );
   }
   if (t.enabledModules.length < 5) {
@@ -160,7 +162,7 @@ export function tenantForecast(t: TenantContext): TenantForecast {
   const drivers: string[] = [];
   let churn = 0;
 
-  if (t.status === "suspended" || t.status === "terminated" || t.status === "provisioning_failed") {
+  if (t.status === "suspended" || t.status === "terminated" || t.status === "provisioning_failed" || t.status === "rolled_back") {
     churn += 45;
     drivers.push(`Status is ${t.status.replace(/_/g, " ")} — access is already blocked.`);
   } else if (t.status !== "active") {

@@ -77,7 +77,14 @@ export interface TenantContext {
     | "terminated"
     | "provisioning"
     | "provisioning_failed"
-    | "onboarding";
+    | "onboarding"
+    /**
+     * R13 TM-02: a provisioning saga that was compensated (rolled back
+     * in reverse order) no longer reuses `invited` — no invitation was
+     * ever sent for it. Distinct state: restart provisioning or delete
+     * the draft.
+     */
+    | "rolled_back";
   /**
    * KYC provider driving verification for this tenant (e.g. "persona",
    * "sumsub"). Set by the go-live wizard's KYC step (R2-W3-04); absent

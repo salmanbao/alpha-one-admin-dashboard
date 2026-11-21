@@ -70,6 +70,7 @@ import {
   ChevronLeft,
   Upload,
   AlertCircle,
+  Undo2,
 } from "lucide-react";
 import { hashStr } from "@/lib/platform/mock-data";
 import { healthOf, tenantHealthScore, type Health } from "@/lib/platform/tenant-health";
@@ -79,7 +80,7 @@ import { formatCurrencyValue } from "@pfaas/platform-core";
 /* Lifecycle stages                                                   */
 /* ------------------------------------------------------------------ */
 
-type LifecycleStage = "invited" | "trial" | "active" | "suspended" | "terminated" | "onboarding" | "provisioning" | "provisioning_failed";
+type LifecycleStage = "invited" | "trial" | "active" | "suspended" | "terminated" | "onboarding" | "provisioning" | "provisioning_failed" | "rolled_back";
 type LifecycleAction = "suspend" | "reactivate" | "terminate";
 
 interface PendingAction {
@@ -103,6 +104,7 @@ const STAGES: {
   { id: "onboarding", label: "Onboarding", tone: "warning", color: "#d97706", icon: Clock, description: "Tenant mid-provisioning from the create wizard." },
   { id: "provisioning", label: "Provisioning", tone: "warning", color: "#d97706", icon: Upload, description: "Tenant being provisioned — resources being allocated." },
   { id: "provisioning_failed", label: "Provisioning Failed", tone: "danger", color: "#e11d48", icon: AlertCircle, description: "Tenant provisioning was rolled back or failed." },
+  { id: "rolled_back", label: "Rolled Back", tone: "warning", color: "#d97706", icon: Undo2, description: "Provisioning saga compensated — restart or delete the draft." },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -259,6 +261,7 @@ export function TenantLifecyclePage() {
       onboarding: [],
       provisioning: [],
       provisioning_failed: [],
+      rolled_back: [],
     };
     for (const t of tenantRoster) {
       const stage = (t.status as LifecycleStage) ?? "active";

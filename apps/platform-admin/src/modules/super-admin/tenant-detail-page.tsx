@@ -188,7 +188,9 @@ const tenantStatusTone = (s: string) =>
                 ? "danger"
                 : s === "onboarding"
                   ? "info"
-                  : "warning";
+                  : s === "rolled_back"
+                    ? "warning"
+                    : "warning";
 
 /* ------------------------------------------------------------------ */
 /* Page                                                               */
