@@ -1,24 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "platform-admin": {
-      "root": "apps/platform-admin",
-      "framework": "nextjs"
-    },
-    "prop-admin": {
-      "root": "apps/prop-admin",
-      "framework": "nextjs"
-    },
-    "trader": {
-      "root": "apps/trader",
-      "framework": "nextjs"
-    }
-  },
-  "rewrites": [
-    { "source": "/prop-admin/:path*", "destination": { "service": "prop-admin" } },
-    { "source": "/prop-admin", "destination": { "service": "prop-admin" } },
-    { "source": "/platform-admin/:path*", "destination": { "service": "platform-admin" } },
-    { "source": "/platform-admin", "destination": { "service": "platform-admin" } },
-    { "source": "/(.*)", "destination": { "service": "trader" } }
-  ]
+  "//": "This root vercel.json is now deprecated. Each app has its own vercel.json for independent Vercel project deployment. Configure each project in Vercel Dashboard with the appropriate Root Directory.",
+  "deprecated": true,
+  "deprecationMessage": "Use individual vercel.json files in each app directory for independent project deployment."
 }

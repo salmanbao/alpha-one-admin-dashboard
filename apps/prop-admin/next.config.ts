@@ -11,7 +11,7 @@ export default {
   // (ENOENT .next/next-server.js.nft.json — vercel/next.js#96646). Keep
   // standalone for self-hosted/Docker builds; let Vercel use native packaging.
   output: process.env.VERCEL ? undefined : "standalone",
-  basePath: "/prop-admin",
+  // basePath removed for independent Vercel project deployment
   transpilePackages: ["@pfaas/ui"],
   reactStrictMode: true,
 } satisfies NextConfig;

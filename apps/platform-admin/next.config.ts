@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   // (ENOENT .next/next-server.js.nft.json — vercel/next.js#96646). Keep
   // standalone for self-hosted/Docker builds; let Vercel use native packaging.
   output: process.env.VERCEL ? undefined : "standalone",
-  basePath: "/platform-admin",
+  // basePath removed for independent Vercel project deployment
   /* config options here */
   reactStrictMode: false,
 };
