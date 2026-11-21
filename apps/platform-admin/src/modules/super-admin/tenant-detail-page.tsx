@@ -103,6 +103,7 @@ import { SensitiveActionDialog } from "@/components/platform/sensitive-action-di
 import { TwoFactorDialog } from "@/components/platform/two-factor-dialog";
 import { impersonationDenyReason } from "@/lib/platform/impersonation-policy";
 import { markApprovalExecuted, recordAudit, useConsoleStore } from "@/lib/platform/console-store";
+import { runLifecycleCascade, formatCascadeSummary } from "@/lib/platform/lifecycle-cascade";
 import { useProvisioningStore } from "@/lib/platform/provisioning-saga";
 import { toast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/platform/export-utils";
@@ -406,9 +407,22 @@ export function TenantDetailPage() {
   const applyStatus = (status: TenantContext["status"], verb: string, reason: string) => {
     setLocalDraft({ status });
     updateTenant(localTenant.id, { status });
+
+    // TM-05: Run lifecycle cascade for restricted statuses.
+    let cascadeSummary = "";
+    if (status === "suspended" || status === "terminated") {
+      const cascadeResult = runLifecycleCascade(
+        localTenant.id,
+        localTenant.name,
+        status,
+        consoleStore,
+      );
+      cascadeSummary = formatCascadeSummary(cascadeResult);
+    }
+
     pushNotification({
       title: `Tenant ${verb}`,
-      message: `${localTenant.name} is now ${status}.`,
+      message: `${localTenant.name} is now ${status}.${cascadeSummary ? ` ${cascadeSummary}` : ""}`,
       severity:
         status === "suspended" || status === "terminated" ? "warning" : "success",
       module: "super-admin",
@@ -419,11 +433,11 @@ export function TenantDetailPage() {
       target: `tenant.${status}`,
       tenantId: localTenant.id,
       severity: status === "active" ? "info" : "critical",
-      detail: `${verb} ${localTenant.name} (2FA verified) — reason: ${reason}`,
+      detail: `${verb} ${localTenant.name} (2FA verified) — reason: ${reason}${cascadeSummary ? ` — ${cascadeSummary}` : ""}`,
     });
     toast({
       title: `Tenant ${verb}`,
-      description: `${localTenant.name} is now ${status}. Recorded in the audit trail.`,
+      description: `${localTenant.name} is now ${status}.${cascadeSummary ? ` ${cascadeSummary}` : ""} Recorded in the audit trail.`,
     });
   };
 

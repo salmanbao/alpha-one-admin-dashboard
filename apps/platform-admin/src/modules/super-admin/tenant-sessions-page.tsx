@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { TwoFactorDialog } from "@/components/platform/two-factor-dialog";
 import { tenants, users } from "@/lib/platform/mock-data";
+import { useTenantSessions, revokeSession, type TenantUserSession } from "@/lib/platform/tenant-sessions-store";
 import { timeAgo } from "@/hooks/use-countdown";
 import {
   Monitor,
@@ -56,56 +57,6 @@ const STALE_IDLE_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_WINDOW_MS = 15 * 60 * 1000;
 
 type Activity = "active" | "idle" | "stale";
-
-interface TenantUserSession {
-  id: string;
-  userId: string;
-  tenantId: string;
-  device: string;
-  browser: string;
-  ip: string;
-  location: string;
-  /** True when the session's location differs from the user's usual one. */
-  unusualLocation?: boolean;
-  createdAt: number;
-  lastSeenAt: number;
-}
-
-/**
- * Session seed — derived at module load from the shared user fixtures
- * (device/IP/location are session-level facts the users fixture
- * doesn't carry). Timestamps are relative so the activity indicators
- * stay deterministic on every render.
- */
-function seedSessions(): TenantUserSession[] {
-  const t = Date.now();
-  const min = 60 * 1000;
-  const hour = 60 * min;
-  const day = 24 * hour;
-
-  const raw: Array<
-    Omit<TenantUserSession, "createdAt" | "lastSeenAt"> & { age: number; online: number }
-  > = [
-    // Alpha Capital
-    { id: "ts-alpha-1", userId: "user-alpha-admin", tenantId: "tenant-alpha", device: "MacBook Pro", browser: "Chrome 141 · macOS", ip: "203.0.113.51", location: "New York, US", age: 90 * day, online: 2 * min },
-    { id: "ts-alpha-2", userId: "user-alpha-admin", tenantId: "tenant-alpha", device: "iPhone 16", browser: "Safari · iOS 19", ip: "203.0.113.88", location: "New York, US", age: 12 * day, online: 48 * min },
-    { id: "ts-alpha-3", userId: "user-alpha-risk", tenantId: "tenant-alpha", device: "ThinkPad X1", browser: "Firefox 132 · Windows", ip: "198.51.100.7", location: "New York, US", age: 40 * day, online: 3 * hour },
-    { id: "ts-alpha-4", userId: "user-alpha-finance", tenantId: "tenant-alpha", device: "Dell Latitude", browser: "Edge 140 · Windows", ip: "192.0.2.190", location: "Bucharest, RO", unusualLocation: true, age: 6 * day, online: 2 * day },
-    // Beta Trading
-    { id: "ts-beta-1", userId: "user-beta-admin", tenantId: "tenant-beta", device: "MacBook Air", browser: "Safari 18 · macOS", ip: "198.51.100.44", location: "London, UK", age: 120 * day, online: 5 * min },
-    { id: "ts-beta-2", userId: "user-beta-marketing", tenantId: "tenant-beta", device: "Pixel 10", browser: "Chrome · Android 16", ip: "192.0.2.61", location: "London, UK", age: 20 * day, online: 40 * min },
-    { id: "ts-beta-3", userId: "user-trader-1", tenantId: "tenant-beta", device: "Windows Desktop", browser: "Chrome 141 · Windows", ip: "192.0.2.144", location: "Manchester, UK", age: 3 * day, online: 12 * min },
-    // Gamma Futures
-    { id: "ts-gamma-1", userId: "user-gamma-admin", tenantId: "tenant-gamma", device: "MacBook Pro", browser: "Chrome 141 · macOS", ip: "203.0.113.12", location: "Singapore, SG", age: 200 * day, online: 14 * min },
-    { id: "ts-gamma-2", userId: "user-gamma-admin", tenantId: "tenant-gamma", device: "iPad Pro", browser: "Safari · iPadOS 19", ip: "45.33.32.156", location: "Jakarta, ID", unusualLocation: true, age: 15 * day, online: 3 * day },
-  ];
-
-  return raw.map(({ age, online, ...s }) => ({
-    ...s,
-    createdAt: t - age,
-    lastSeenAt: t - online,
-  }));
-}
 
 const tenantName = (id: string) => tenants.find((t) => t.id === id)?.name ?? id;
 const userById = (id: string) => users.find((u) => u.id === id);
@@ -154,7 +105,7 @@ export function TenantSessionsPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const [sessions, setSessions] = useState<TenantUserSession[]>(seedSessions);
+  const { sessions } = useTenantSessions();
   const [tenantFilter, setTenantFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState<"all" | Activity>("all");
   const [revokeTarget, setRevokeTarget] = useState<TenantUserSession | null>(null);
@@ -188,7 +139,7 @@ export function TenantSessionsPage() {
   }, [filtered]);
 
   const doRevoke = (s: TenantUserSession) => {
-    setSessions((prev) => prev.filter((x) => x.id !== s.id));
+    revokeSession(s.id);
     const u = userById(s.userId);
     toast({
       title: "Tenant session revoked",

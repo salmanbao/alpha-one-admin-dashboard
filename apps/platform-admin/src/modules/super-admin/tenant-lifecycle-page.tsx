@@ -47,6 +47,7 @@ import {
   recordAudit,
   useConsoleStore,
 } from "@/lib/platform/console-store";
+import { runLifecycleCascade, formatCascadeSummary } from "@/lib/platform/lifecycle-cascade";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -333,9 +334,23 @@ export function TenantLifecyclePage() {
   ) => {
     const updated: TenantContext = { ...tenant, status };
     updateTenant(tenant.id, { status });
+
+    // TM-05: Run lifecycle cascade for restricted statuses.
+    // Revokes sessions, ends impersonations, returns summary.
+    let cascadeSummary = "";
+    if (status === "suspended" || status === "terminated") {
+      const cascadeResult = runLifecycleCascade(
+        tenant.id,
+        tenant.name,
+        status,
+        consoleStore,
+      );
+      cascadeSummary = formatCascadeSummary(cascadeResult);
+    }
+
     pushNotification({
       title: `Tenant ${verb}`,
-      message: `${tenant.name} is now ${status}.`,
+      message: `${tenant.name} is now ${status}.${cascadeSummary ? ` ${cascadeSummary}` : ""}`,
       severity:
         status === "suspended" || status === "terminated" ? "warning" : "success",
       module: "super-admin",
@@ -347,12 +362,12 @@ export function TenantLifecyclePage() {
       tenantId: tenant.id,
       severity: status === "active" ? "info" : "critical",
       detail: approver
-        ? `${verb} ${tenant.name} (two-operator approval satisfied; initiated by ${user.name})`
-        : `${verb} ${tenant.name} (2FA verified) — reason: ${reason}`,
+        ? `${verb} ${tenant.name} (two-operator approval satisfied; initiated by ${user.name})${cascadeSummary ? ` — ${cascadeSummary}` : ""}`
+        : `${verb} ${tenant.name} (2FA verified) — reason: ${reason}${cascadeSummary ? ` — ${cascadeSummary}` : ""}`,
     });
     toast({
       title: `Tenant ${verb}`,
-      description: `${tenant.name} is now ${status}.${approver ? ` Approved by ${approver}.` : " Recorded in the audit trail."}`,
+      description: `${tenant.name} is now ${status}.${cascadeSummary ? ` ${cascadeSummary}` : ""}${approver ? ` Approved by ${approver}.` : " Recorded in the audit trail."}`,
     });
   };
 
