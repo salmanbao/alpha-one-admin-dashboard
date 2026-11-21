@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +10,10 @@ import { usePayouts } from "@/lib/platform/payout-store";
 import { tenants as allTenants } from "@/lib/platform/mock-data";
 import { formatCurrency } from "@/components/platform/status";
 
-const columns: Column<PayoutLedgerEntry>[] = useMemo(() => {
+// NOTE: this is module-level (not inside a component), so it must NOT use
+// hooks like useMemo — hooks outside a render throw React error #321 in
+// production ("Invalid hook call"). The array is static; no memoization needed.
+const columns: Column<PayoutLedgerEntry>[] = (() => {
   return [
     {
       key: "at",
@@ -89,7 +91,7 @@ const columns: Column<PayoutLedgerEntry>[] = useMemo(() => {
       sortValue: (e) => e.reason,
     },
   ];
-}, []);
+})();
 
 export function PayoutsTab({ tenantId }: { tenantId: string }) {
   const { user } = usePlatform();
