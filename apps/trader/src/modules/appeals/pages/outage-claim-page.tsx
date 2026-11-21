@@ -40,6 +40,7 @@ import {
   submitOutageClaim,
   useOutageClaims,
   type OutageClaim,
+  type PayoutRejection,
 } from "@/lib/appeals/claims-store";
 
 /** ISO → value for `<input type="datetime-local">` (local time, no tz). */
@@ -76,6 +77,9 @@ export function OutageClaimPage() {
   const { activeAccount } = useActiveAccount();
   const { closedTrades } = useTrading();
   const claims = useOutageClaims();
+
+// Filter to only OutageClaim items (PayoutRejection doesn't have symbol, windowFrom, etc.)
+const outageClaims = claims.filter((c): c is OutageClaim => "symbol" in c);
 
   // Symbols the trader actually traded — the claim is scoped to one.
   const symbols = useMemo(() => {
@@ -311,9 +315,9 @@ export function OutageClaimPage() {
           title="Your claims"
           description="Submitted claims and their verdicts — persisted across reloads (Demo)"
         />
-        {claims.length ? (
+        {outageClaims.length ? (
           <div className="space-y-3">
-            {claims.map((c) => (
+            {outageClaims.map((c) => (
               <div
                 key={c.id}
                 className="rounded-lg border border-outline-variant/60 p-3"

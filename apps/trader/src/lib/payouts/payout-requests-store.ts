@@ -2,31 +2,33 @@
 
 /**
  * Payout requests store — R2-02.
- *
+ * 
  * Persists trader-submitted payout requests so they survive reload and
  * appear in history/detail. Store entries merge ahead of fixture payouts
  * and use deterministic, time-seeded progression on read:
  *   submitted → processing → paid
- *
+ * 
  * Pattern mirrors payout-methods-store: localStorage backing,
  * useSyncExternalStore reactivity, cross-tab sync.
  */
 
 import { useSyncExternalStore } from "react";
 import { emitLifecycle, readLifecycleLog, useLifecycleLog } from "@pfaas/lifecycle";
-import { terraAccounts } from "@/lib/fixtures/terra-fixtures";
+import { terraAccounts, payoutEntitlement } from "@/lib/fixtures/terra-fixtures";
 import { hashStr } from "@/lib/fixtures/trader-fixtures";
 import { readPayoutMethods } from "@/lib/payouts/payout-methods-store";
 import { pushInboxMessage } from "@/lib/inbox/inbox-store";
 import { getPayoutStage } from "@/lib/status-progression";
+import { payoutWindow } from "@/lib/payouts/payout-window";
 import type { PayoutRejection } from "@/lib/fixtures/terra-fixtures";
 
 const STORAGE_KEY = "pfaas:trader:payoutRequests";
 
-// Demo progression timings (hours from requestedAt)
+/* Demo progression timings (hours from requestedAt) */
 const PROCESSING_AFTER_HOURS = 2;
 const PAID_AFTER_HOURS = 48;
 
+/* Stored request type with partial approval fields */
 export type StoredPayoutRequest = {
   id: string;
   reference: string;
@@ -50,9 +52,24 @@ export type StoredPayoutRequest = {
   retryOf?: string;
   // base status is "submitted" in storage; R4-05 may flip it to the
   // "cancelled" tombstone; effective status is derived on read
-  status: "submitted" | "cancelled";
+  status:
+    | "submitted"
+    | "cancelled"
+    | "failed";
+  // R12 GAP-T6 — partial approval fields
+  /** The original requested amount */
+  originalAmount: number;
+  /** The amount after partial approval (reduced amount) */
+  reducedAmount?: number;
+  /** The delta between originalAmount and reducedAmount (positive = reduced) */
+  amountDelta: number;
+  /** R12 GAP-T6 — true if this request has been partially approved */
+  partialApproved?: boolean;
+  /** R12 GAP-T6 — when partial approval was granted (ISO string) */
+  partialApprovedAt?: string;
 };
 
+/* Display request type with partial approval fields */
 export type DisplayPayout = {
   id: string;
   reference: string;
@@ -77,6 +94,17 @@ export type DisplayPayout = {
   rejection: PayoutRejection | null;
   /** true for requests created by the trader in this session/store */
   isUserRequest?: boolean;
+  /** R12 GAP-T6 — partial approval fields */
+  /** The original requested amount */
+  originalAmount?: number;
+  /** The amount after partial approval (reduced amount) */
+  reducedAmount?: number;
+  /** The delta between originalAmount and reducedAmount (positive = reduced) */
+  amountDelta?: number;
+  /** R12 GAP-T6 — true if this request has been partially approved */
+  partialApproved?: boolean;
+  /** R12 GAP-T6 — when partial approval was granted (ISO string) */
+  partialApprovedAt?: string;
 };
 
 function readRawRequests(): StoredPayoutRequest[] {
@@ -154,7 +182,7 @@ export function promisedByOf(req: Pick<StoredPayoutRequest, "requestedAt" | "pro
 
 /**
  * R3-01 — the firm's decision, read from the shared lifecycle log.
- *
+ * 
  * prop-admin's payout queue emits `payout.*` under the request's
  * reference (R2-W3-01 publish point; intake rows carry the same
  * reference), so the trader's own request can see the real verdict
@@ -218,6 +246,11 @@ export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
       failedAt: null,
       rejection: null,
       isUserRequest: true,
+      originalAmount: req.amount,
+      reducedAmount: req.reducedAmount,
+      amountDelta: req.amountDelta,
+      partialApproved: req.partialApproved,
+      partialApprovedAt: req.partialApprovedAt,
     };
   }
   // R3-01: an admin decision overrides the time-based derivation — a
@@ -268,6 +301,11 @@ export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
     failedAt,
     rejection,
     isUserRequest: true,
+    originalAmount: req.amount,
+    reducedAmount: req.reducedAmount,
+    amountDelta: req.amountDelta,
+    partialApproved: req.partialApproved,
+    partialApprovedAt: req.partialApprovedAt,
   };
 }
 
@@ -284,6 +322,8 @@ export function addPayoutRequest(input: {
   currency?: string;
   /** R12 GAP-T4 — reference of the failed request this one retries. */
   retryOf?: string;
+  /** R12 GAP-T6 — auto-payout schedule preference */
+  autoPayoutSchedule?: "none" | "biweekly" | "monthly" | "quarterly";
 }): StoredPayoutRequest {
   const acc = terraAccounts.find((a) => a.id === input.accountId);
   const now = new Date();
@@ -308,6 +348,12 @@ export function addPayoutRequest(input: {
     promisedBy,
     retryOf: input.retryOf,
     status: "submitted",
+    // R12 GAP-T6 — partial approval fields default to original amount,
+    // no partial approval yet
+    originalAmount: input.amount,
+    reducedAmount: undefined,
+    amountDelta: 0,
+    partialApproved: false,
   };
   writeRequests([req, ...readRawRequests()]);
   // R9 W2 fraud signals (UC-O5) — the intake row carries what the
@@ -407,6 +453,7 @@ export function usePayoutRequests(): DisplayPayout[] {
 /* R9 W2 UC-T4 — on-time honesty stats (rolling window, pure)          */
 /* ------------------------------------------------------------------ */
 
+/** Payout SLA Row - tracks requestedAt, promisedBy, and status */
 export type PayoutSlaRow = {
   requestedAt: string;
   /** Promise ISO — request rows use `promisedBy`, fixtures their `expectedAt`. */
@@ -415,6 +462,7 @@ export type PayoutSlaRow = {
   paidAt?: string | null;
 };
 
+/** Payout SLA Statistics - tracks paid rows, on-time %, avg hours, etc. */
 export type PayoutSlaStats = {
   /** Paid rows inside the window (the denominator for on-time %). */
   paid: number;
@@ -462,5 +510,47 @@ export function computePayoutSlaStats(
     late,
     rejected: inWindow.filter((r) => r.status === "rejected").length,
     windowDays: 90,
+  };
+}
+
+/**
+ * Project the next payout date and amount based on current payout criteria.
+ * @param accountId Account ID for the trader
+ * @returns Object with projected payout info or null if not eligible
+ */
+export function projectPayoutProjection(accountId: string): {
+  eligible: boolean;
+  projectedAmount: number;
+  projectedDate: string;
+  nextWindowStart: string;
+  currentWithdrawable: number;
+} | null {
+  const account = terraAccounts.find((a) => a.id === accountId);
+  if (!account) return null;
+
+  const entitlement = payoutEntitlement(accountId);
+  const { isFunded, eligible, withdrawable, splitPct } = entitlement;
+
+  if (!isFunded || !eligible || withdrawable === 0) {
+    return null;
+  }
+
+  // Calculate next window dates
+  const window = payoutWindow();
+  const windowStart = window.opensAt.toISOString();
+  const windowEnd = window.closesAt.toISOString();
+
+  // Project based on current profit and split
+  const projectedAmount = Math.round(entitlement.netProfit * (splitPct / 100) * 100) / 100;
+
+  // Project to next window start
+  const projectedDate = new Date(windowStart).toISOString();
+
+  return {
+    eligible: true,
+    projectedAmount,
+    projectedDate,
+    nextWindowStart: windowStart,
+    currentWithdrawable: withdrawable,
   };
 }

@@ -14,7 +14,7 @@ import { terraPayouts } from "@/lib/fixtures/terra-fixtures";
 import { toast } from "@/hooks/use-toast";
 import { getPayoutStage } from "@/lib/status-progression";
 import { usePayoutRequests, type DisplayPayout } from "@/lib/payouts/payout-requests-store";
-
+import { submitPayoutAppeal, type PayoutRejectionReason } from "@/lib/appeals/claims-store";
 const fixturePayouts: DisplayPayout[] = terraPayouts.map((p) => ({
   ...p,
   rejection: p.rejection ?? null,
@@ -99,6 +99,9 @@ export function PayoutDetailContent({
 
   const statusTone =
     payout.status === "paid" ? "success" : payout.status === "rejected" ? "error" : "tertiary";
+
+  // R12 GAP-T6 — payout appeal UI shown only when request is rejected
+  const canAppeal = payout.status === "rejected" && !payout.rejection?.appealed;
 
   const handleDownloadReceipt = () => {
     // Real artifact: print/save the receipt (window.print is the browser's
@@ -204,6 +207,50 @@ export function PayoutDetailContent({
             </p>
           </div>
         )}
+
+        {/* R12 GAP-T6 — payout appeal: dispute a rejected request */}
+        {canAppeal && (
+          <div className="mt-6 rounded-xl border border-primary/40 bg-primary-container/40 p-4">
+            <p className="font-semibold text-primary">Appeal this rejection</p>
+            <p className="text-sm text-on-primary-container">
+              You may dispute this rejection by providing additional evidence or context.
+              Appeals are reviewed by the firm within 2 business days (Demo).
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = `/payout-request?retry=${payout.id}`;
+              }}
+              className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary hover:bg-primary/90"
+            >
+              Submit Appeal
+            </button>
+          </div>
+        )}
+
+        {/* R12 GAP-T11 — partial approval representation */}
+        {payout.partialApproved && (
+          <div className="mt-6 rounded-xl border border-success/40 bg-success-container/40 p-4">
+            <p className="font-semibold text-success">Partial approval</p>
+            <p className="text-sm text-on-success">
+              Your payout request has been partially approved. The firm is paying
+              {payout.reducedAmount ? formatMoney(payout.reducedAmount) : formatMoney(payout.amount)} {payout.currency}
+              of the requested {payout.originalAmount} {payout.currency}.
+            </p>
+            <p className="text-sm text-on-success-container mt-2">
+              Delta: {payout.amountDelta !== undefined ? formatMoney(payout.amountDelta) : '0'} reduced from original
+              request.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.href = `/payout-request?retry=${payout.id}`}
+              className="rounded-xl bg-success px-5 py-2.5 text-sm font-bold text-on-success hover:bg-success/90"
+              disabled={payout.partialApprovedAt !== undefined}
+            >
+              Acknowledge partial approval
+            </button>
+          </div>
+        )}
       </TerraCard>
 
       {/* Detail panels */}
@@ -247,6 +294,14 @@ export function PayoutDetailContent({
               <dt className="text-on-surface-variant">Currency</dt>
               <dd className="font-bold text-on-surface">{payout.currency}</dd>
             </div>
+            {payout.partialApproved && (
+              <div className="mt-2 text-sm text-on-success">
+                <div className="font-medium">Partial approval</div>
+                <div className="text-on-success/80">Original: {payout.originalAmount ? formatMoney(payout.originalAmount) : formatMoney(payout.amount)} {payout.currency}</div>
+                <div className="text-on-success/80">Paid: {payout.reducedAmount ? formatMoney(payout.reducedAmount) : formatMoney(payout.amount)} {payout.currency}</div>
+                <div className="text-on-success/80 mt-1">Delta: {payout.amountDelta !== undefined ? formatMoney(payout.amountDelta) : '0'} reduced</div>
+              </div>
+            )}
           </dl>
 
           {rejected && (

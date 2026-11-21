@@ -472,14 +472,31 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
       // R9 W1 — two flavors of one event: the trader's own filing (actor
       // "trader") gets a receipt; a prop-admin support escalation tells
       // them a breach dispute was opened on their behalf.
+      const kind = String(e.payload?.kind ?? "");
       const id = String(e.payload?.claimId ?? e.entity?.id ?? "");
       const escalated = e.actor === "prop-admin";
       const refs = Array.isArray(e.payload?.tradeRefs) ? e.payload.tradeRefs.length : 0;
+      if (kind === "payout-appeal") {
+        // R12 GAP-T6 — payout appeal receipt for the trader.
+        const reason = String(e.payload?.reason ?? "");
+        return {
+          id: `inbox:${e.id}:payout-appeal-submitted`,
+          subject: `Payout appeal submitted — ${id}`,
+          body: `Your payout appeal for request ${id} has been submitted.\n\nReason: ${reason}\n\nAwait operator review — verdict within 2 business days (Demo).\n\n${refs > 0 ? ` ${refs} trade evidence attached.` : ""}`,
+          category: "Payouts",
+          sender: "Payouts Team",
+          at: e.at,
+          read: false,
+          actionType: "payout",
+          actionHref: `/payout-detail?id=${id}`,
+        };
+      }
+      const escalatedText = escalated
+        ? "Breach dispute opened from your support ticket (Demo)"
+        : `Outage claim ${id} submitted (Demo)`;
       return {
         id: `inbox:${e.id}:appeal-submitted`,
-        subject: escalated
-          ? "Breach dispute opened from your support ticket (Demo)"
-          : `Outage claim ${id} submitted (Demo)`,
+        subject: escalatedText,
         body: escalated
           ? `${String(e.payload?.notes ?? "The firm opened a breach dispute from your support ticket.")}\n\nTrack it on the claims page — the verdict arrives here with the reason.`
           : `Your claim ${id} is in the firm's appeals queue with ${refs} trade(s) attached as evidence.\n\n(Demo) — a review agent will assess this claim; the verdict arrives here with the reason.`,

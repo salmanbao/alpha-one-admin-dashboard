@@ -63,19 +63,19 @@ export interface SubmitOutageClaimInput {
 /* Storage                                                             */
 /* ------------------------------------------------------------------ */
 
-function readStored(): OutageClaim[] {
+function readStored(): (OutageClaim | PayoutRejection)[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as OutageClaim[]) : [];
+    return Array.isArray(parsed) ? (parsed as (OutageClaim | PayoutRejection)[]) : [];
   } catch {
     return [];
   }
 }
 
-function writeStored(claims: OutageClaim[]): void {
+function writeStored(claims: (OutageClaim | PayoutRejection)[]): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(claims));
@@ -105,7 +105,7 @@ function verdictOf(e: LifecycleEvent): { id: string; status: OutageClaimStatus; 
  * argument so callers derive from the `useLifecycleLog` snapshot
  * (hydration-safe: the server snapshot is `[]`).
  */
-export function projectVerdicts(claims: OutageClaim[], log: LifecycleEvent[]): OutageClaim[] {
+export function projectVerdicts(claims: (OutageClaim | PayoutRejection)[], log: LifecycleEvent[]): (OutageClaim | PayoutRejection)[] {
   const verdicts = new Map<string, { status: OutageClaimStatus; decidedAt: string; reason: string }>();
   for (const e of log) {
     const v = verdictOf(e);
@@ -121,10 +121,12 @@ export function projectVerdicts(claims: OutageClaim[], log: LifecycleEvent[]): O
 /* Reads                                                               */
 /* ------------------------------------------------------------------ */
 
-export function readOutageClaims(log: LifecycleEvent[] = []): OutageClaim[] {
-  return projectVerdicts(readStored(), log).sort((a, b) =>
-    b.submittedAt.localeCompare(a.submittedAt),
-  );
+export function readOutageClaims(log: LifecycleEvent[] = []): (OutageClaim | PayoutRejection)[] {
+  return projectVerdicts(readStored(), log).sort((a, b) => {
+    const aDate = "submittedAt" in a ? a.submittedAt : a.appealedAt ?? "";
+    const bDate = "submittedAt" in b ? b.submittedAt : b.appealedAt ?? "";
+    return bDate.localeCompare(aDate);
+  });
 }
 
 /**
@@ -135,7 +137,7 @@ export function readOutageClaims(log: LifecycleEvent[] = []): OutageClaim[] {
  * server's `[]`, so the first client render matches the server HTML and
  * no setState-in-effect is needed.
  */
-export function useOutageClaims(): OutageClaim[] {
+export function useOutageClaims(): (OutageClaim | PayoutRejection)[] {
   const log = useLifecycleLog();
   return useMemo(() => readOutageClaims(log), [log]);
 }
@@ -174,6 +176,75 @@ export function submitOutageClaim(input: SubmitOutageClaimInput): OutageClaim {
       description: claim.description,
       tradeRefs: claim.tradeRefs,
       kind: "outage-claim",
+    },
+  });
+
+  return claim;
+}
+
+/* ------------------------------------------------------------------ */
+/* Payout appeal (R12 GAP-T6 — the trader can dispute a rejected payout). */
+/* ------------------------------------------------------------------ */
+
+export type PayoutRejectionReason =
+  | "insufficient-funds"
+  | "method-rejected"
+  | "aml-hold"
+  | "fraud-flag"
+  | "kyc-pending"
+  | "other";
+
+export interface PayoutRejection {
+  id: string;
+  requestId: string;
+  reason: PayoutRejectionReason;
+  summary: string;
+  nextSteps: string[];
+  appealed?: boolean;
+  appealedAt?: string;
+  verdictReason?: string;
+}
+
+/** Submit a payout dispute/appeal for a rejected request. */
+export function submitPayoutAppeal(input: {
+  requestId: string;
+  reason: PayoutRejectionReason;
+  summary: string;
+  tradeRefs?: string[];
+}): PayoutRejection {
+  const claimId = `payout-appeal-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const claim: PayoutRejection = {
+    id: claimId,
+    requestId: input.requestId,
+    reason: input.reason,
+    summary: input.summary,
+    nextSteps: [
+      "Await operator review — verdict within 2 business days (Demo).",
+      "Update payment details and retry if needed.",
+      "Contact support if you believe the decision was made in error.",
+    ],
+    appealed: true,
+    appealedAt: new Date().toISOString(),
+  };
+
+  // Persist locally (survives reload)
+  const stored = readStored();
+  const next = [claim, ...stored];
+  writeStored(next);
+
+  // Publish to shared lifecycle log so prop-admin sees it
+  emitLifecycle({
+    entity: { kind: "payout", id: input.requestId },
+    name: "appeal.claim-submitted",
+    actor: "trader",
+    key: `submitted:${claimId}`,
+    payload: {
+      claimId,
+      requestId: input.requestId,
+      reason: input.reason,
+      summary: input.summary,
+      tradeRefs: input.tradeRefs ?? [],
+      kind: "payout-appeal",
     },
   });
 

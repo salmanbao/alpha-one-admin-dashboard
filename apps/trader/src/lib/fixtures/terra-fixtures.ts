@@ -818,6 +818,12 @@ export interface PayoutRejection {
   checks: { label: string; met: boolean; required: string; actual: string }[];
   /** Ordered action plan to become eligible again. */
   nextSteps: string[];
+  /** R12 GAP-T6 — whether the trader has appealed this rejection. */
+  appealed?: boolean;
+  /** R12 GAP-T6 — when the appeal was submitted. */
+  appealedAt?: string;
+  /** R12 GAP-T6 — operator verdict reason on the appeal. */
+  verdictReason?: string;
 }
 
 export const terraPayouts = [

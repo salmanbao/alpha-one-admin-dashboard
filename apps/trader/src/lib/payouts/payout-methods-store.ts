@@ -59,12 +59,61 @@ export interface PayoutMethod {
   rail: RailType;
   /** Ownership proof status — verified identity for payout method */
   ownership: VerificationState;
+  /** Rail-specific fields */
+  iban?: string;
+  bic?: string;
+  cryptoNetwork?: string;
+  destinationTag?: string;
+  sortCode?: string;
+  accountNumber?: string;
+  /** Ownership proof filename (null = no proof uploaded) */
+  ownershipProof?: string | null;
 }
 
 /** Parse fee amount from string */
 function parseFeeAmount(fee: string): number {
   const match = fee.match(/(\d+(?:\.\d+)?)/);
   return match ? Number(match[1]) : 0;
+}
+
+/** Validate IBAN format (modulo 97 check) */
+export function isValidIBAN(iban: string): boolean {
+  const clean = iban.replace(/\s/g, "").toUpperCase();
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/.test(clean)) return false;
+  // Modulo 97 check
+  const rearranged = clean.slice(4) + clean.slice(0, 4);
+  let mod = 0;
+  for (const char of rearranged) {
+    const val = char >= "A" ? char.charCodeAt(0) - 55 : parseInt(char, 10);
+    mod = (mod * 10 + val) % 97;
+  }
+  return mod === 1;
+}
+
+/** Validate crypto address format (basic check) */
+export function isValidCryptoAddress(address: string, network: string): boolean {
+  const clean = address.trim();
+  if (!clean) return false;
+  switch (network) {
+    case "ERC-20":
+    case "BEP-20":
+      return /^0x[a-fA-F0-9]{40}$/.test(clean);
+    case "TRC-20":
+      return /^T[a-zA-Z0-9]{33}$/.test(clean);
+    case "SOLANA":
+      return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(clean);
+    case "BITCOIN":
+      return /^(1|3|bc1)[a-zA-Z0-9]{25,62}$/.test(clean);
+    default:
+      return clean.length >= 20; // Generic check
+  }
+}
+
+
+
+/** Validate rail type is known */
+export function isValidRail(rail: string): rail is RailType {
+  return ["domestic", "swift", "sepa", "faster-payments", "crypto", "other"].includes(rail);
 }
 
 /** Map fixture withdrawal method to PayoutMethod with rail and ownership */
@@ -238,6 +287,15 @@ export function addPayoutMethod(input: {
   fee: string;
   eta: string;
   rail: RailType;
+  /** Rail-specific fields */
+  iban?: string;
+  bic?: string;
+  cryptoNetwork?: string;
+  destinationTag?: string;
+  sortCode?: string;
+  accountNumber?: string;
+  /** Ownership proof filename */
+  ownershipProof?: string;
 }): void {
   const method: PayoutMethod = {
     id: `wm-custom-${Date.now().toString(36)}`,
@@ -250,6 +308,14 @@ export function addPayoutMethod(input: {
     verification: "pending",
     rail: input.rail,
     ownership: "pending",
+    // Store rail-specific details
+    iban: input.iban,
+    bic: input.bic,
+    cryptoNetwork: input.cryptoNetwork,
+    destinationTag: input.destinationTag,
+    sortCode: input.sortCode,
+    accountNumber: input.accountNumber,
+    ownershipProof: input.ownershipProof,
   };
   writeMethods([method, ...readRawMethods()]);
   publish("payout-method.added", method, method.id);
