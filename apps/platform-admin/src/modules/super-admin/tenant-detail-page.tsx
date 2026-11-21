@@ -227,16 +227,47 @@ export function TenantDetailPage() {
 
   // Local working copy so module toggles / config edits are reflected
   // immediately in this surface and also pushed to global context.
-  const [localTenant, setLocalTenant] = useState<TenantContext | null>(foundTenant ?? null);
+  const [localDraft, setLocalDraft] = useState<Partial<TenantContext> | null>(null);
+  const [editBase, setEditBase] = useState<{ status: TenantContext["status"]; plan: TenantContext["plan"] } | null>(null);
+
+  const localTenant: TenantContext | null = useMemo(() => {
+    if (!foundTenant) return null;
+    if (!localDraft) return foundTenant;
+    return { ...foundTenant, ...localDraft };
+  }, [foundTenant, localDraft]);
+  // Sync local draft with store when store changes, preserving only edited fields.
+  useEffect(() => {
+    if (!foundTenant) {
+      setLocalDraft(null);
+      setEditBase(null);
+    } else if (localDraft === null) {
+      setLocalDraft({});
+      setEditBase({ status: foundTenant.status, plan: foundTenant.plan });
+    }
+  }, [foundTenant]);
   /* Login-as 2FA step-up — the session starts only after the code
    * verifies (parity with the View-As page, CON-01). */
   const [impersonateOtpOpen, setImpersonateOtpOpen] = useState(false);
   
   const plans = usePlans();
 
-  const persistTenant = (t: TenantContext) => {
-    if (!t) return;
-    updateTenant(t.id, t);
+  const persistTenant = (draft: Partial<TenantContext> | TenantContext) => {
+    if (!foundTenant) return;
+    const isFullObject = "id" in draft;
+    const changes: Partial<TenantContext> = isFullObject ? draft : draft;
+
+    if (editBase && (foundTenant.status !== editBase.status || foundTenant.plan !== editBase.plan)) {
+      pushNotification({
+        severity: "warning",
+        title: "Concurrency conflict",
+        message: "This tenant's status or plan was changed by another operator. Please refresh and re-apply your changes.",
+      });
+      return;
+    }
+
+    const merged: TenantContext = { ...foundTenant, ...changes };
+    updateTenant(foundTenant.id, merged);
+    setEditBase({ status: merged.status, plan: merged.plan });
   };
 
   // Async seam (frontend-first): detail hydration resolves via the mock
@@ -309,8 +340,7 @@ export function TenantDetailPage() {
           : "active";
       const verb =
         status === "suspended" ? "suspended" : status === "terminated" ? "terminated" : "reactivated";
-      const updated: TenantContext = { ...localTenant, status };
-      setLocalTenant(updated);
+      setLocalDraft({ status });
       updateTenant(localTenant.id, { status });
       pushNotification({
         title: `Tenant ${verb}`,
@@ -363,8 +393,7 @@ export function TenantDetailPage() {
 
   /* ---- Apply status change with toast + notification + audit ---- */
   const applyStatus = (status: TenantContext["status"], verb: string, reason: string) => {
-    const updated: TenantContext = { ...localTenant, status };
-    setLocalTenant(updated);
+    setLocalDraft({ status });
     updateTenant(localTenant.id, { status });
     pushNotification({
       title: `Tenant ${verb}`,
@@ -701,7 +730,7 @@ export function TenantDetailPage() {
           <AnalyticsTab tenant={localTenant} />
         </TabsContent>
         <TabsContent value="modules">
-          <ModulesTab tenant={localTenant} onChange={setLocalTenant} onPersist={persistTenant} />
+          <ModulesTab tenant={localTenant} onChange={(draft: Partial<TenantContext>) => setLocalDraft(draft)} onPersist={persistTenant} />
         </TabsContent>
         <TabsContent value="users">
           <UsersTab tenantId={localTenant.id} />
@@ -721,7 +750,7 @@ export function TenantDetailPage() {
           <TenantIncidentsPanel tenantId={localTenant.id} />
         </TabsContent>
         <TabsContent value="configuration">
-          <ConfigurationTab tenant={localTenant} onChange={setLocalTenant} onPersist={persistTenant} />
+          <ConfigurationTab tenant={localTenant} onChange={(draft: Partial<TenantContext>) => setLocalDraft(draft)} onPersist={persistTenant} />
         </TabsContent>
         <TabsContent value="risk">
           <RiskTab tenant={localTenant} breaches={tenantBreaches} accountsCount={tenantAccounts.length} />
