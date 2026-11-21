@@ -33,6 +33,10 @@ export type StoredPayoutRequest = {
   accountId: string;
   accountLogin: string;
   amount: number;
+  // R12 GAP-T2 — explicit currency on the money model (phase 1: stamped
+  // everywhere, no FX conversion yet). Defaults to "USD" for rows that
+  // predate the field.
+  currency: string;
   methodId: string;
   method: string;
   feeAmount: number;
@@ -41,6 +45,9 @@ export type StoredPayoutRequest = {
   // payout schedule (deriveExpectedAt's payment horizon, i.e. requestedAt
   // + PAID_AFTER_HOURS). Older rows without the field derive it on read.
   promisedBy?: string;
+  // R12 GAP-T4 — reference continuity for a retry: the reference of the
+  // failed request this one replaces.
+  retryOf?: string;
   // base status is "submitted" in storage; R4-05 may flip it to the
   // "cancelled" tombstone; effective status is derived on read
   status: "submitted" | "cancelled";
@@ -52,15 +59,21 @@ export type DisplayPayout = {
   account: string;
   accountLogin: string;
   amount: number;
+  /** R12 GAP-T2 — ISO 4217 code every money surface renders with. */
+  currency: string;
   methodId?: string;
   method: string;
-  status: "submitted" | "processing" | "paid" | "rejected" | "cancelled";
+  /** R12 GAP-T4 — `failed` is a rail outcome (bounced transfer, PSP
+   *  decline), distinct from `rejected`, which is a firm decision. */
+  status: "submitted" | "processing" | "paid" | "rejected" | "cancelled" | "failed";
   requestedAt: string;
   expectedAt: string;
   /** R9 W2 — promise ISO (stored at submission, derived for old rows). */
   promisedBy?: string;
   /** R9 W2 — when money actually landed (admin event or wall clock). */
   paidAt?: string | null;
+  /** R12 GAP-T4 — when the rail failed (admin `payout.failed` event). */
+  failedAt?: string | null;
   rejection: PayoutRejection | null;
   /** true for requests created by the trader in this session/store */
   isUserRequest?: boolean;
@@ -151,14 +164,20 @@ export function promisedByOf(req: Pick<StoredPayoutRequest, "requestedAt" | "pro
  */
 function adminDecision(
   req: StoredPayoutRequest,
-): { status: "processing" | "paid" | "rejected"; reason: string | null; at: string } | null {
+):
+  | { status: "processing" | "paid" | "rejected" | "failed"; reason: string | null; at: string }
+  | null {
   const decided = readLifecycleLog().filter(
     (e) =>
       (e.entity.kind === "payout" && (e.entity.id === req.reference || e.entity.id === req.id)) &&
       (e.name === "payout.approved" ||
         e.name === "payout.processing" ||
         e.name === "payout.paid" ||
-        e.name === "payout.rejected"),
+        e.name === "payout.rejected" ||
+        // R12 GAP-T4 — the rail outcome (bounced transfer / PSP decline)
+        // the operator emits from the payouts exception queue; prop-admin
+        // writes it under the same entity id (the request reference).
+        e.name === "payout.failed"),
   );
   const latest = decided[decided.length - 1];
   if (!latest) return null;
@@ -170,9 +189,11 @@ function adminDecision(
   const status =
     latest.name === "payout.rejected"
       ? "rejected"
-      : latest.name === "payout.paid"
-        ? "paid"
-        : "processing";
+      : latest.name === "payout.failed"
+        ? "failed"
+        : latest.name === "payout.paid"
+          ? "paid"
+          : "processing";
   return { status, reason, at: latest.at };
 }
 
@@ -186,6 +207,7 @@ export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
       account: req.accountId,
       accountLogin: req.accountLogin,
       amount: req.amount,
+      currency: req.currency ?? "USD",
       methodId: req.methodId,
       method: req.method,
       status: "cancelled",
@@ -193,6 +215,7 @@ export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
       expectedAt: req.requestedAt,
       promisedBy: promisedByOf(req),
       paidAt: null,
+      failedAt: null,
       rejection: null,
       isUserRequest: true,
     };
@@ -225,12 +248,16 @@ export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
         ? admin.at
         : new Date(new Date(req.requestedAt).getTime() + PAID_AFTER_HOURS * 60 * 60 * 1000).toISOString()
       : null;
+  // R12 GAP-T4 — when the rail failed: the operator's `payout.failed`
+  // event timestamp (admin path only — wall-clock never invents a fail).
+  const failedAt = status === "failed" && admin ? admin.at : null;
   return {
     id: req.id,
     reference: req.reference,
     account: req.accountId,
     accountLogin: req.accountLogin,
     amount: req.amount,
+    currency: req.currency ?? "USD",
     methodId: req.methodId,
     method: req.method,
     status,
@@ -238,6 +265,7 @@ export function toDisplayPayout(req: StoredPayoutRequest): DisplayPayout {
     expectedAt: deriveExpectedAt(req.requestedAt, status),
     promisedBy: promisedByOf(req),
     paidAt,
+    failedAt,
     rejection,
     isUserRequest: true,
   };
@@ -252,11 +280,16 @@ export function addPayoutRequest(input: {
   feeAmount: number;
   /** Profit split of the requesting account — carried to the intake queue. */
   profitSplit?: number;
+  /** R12 GAP-T2 — explicit currency; defaults to USD (no FX yet). */
+  currency?: string;
+  /** R12 GAP-T4 — reference of the failed request this one retries. */
+  retryOf?: string;
 }): StoredPayoutRequest {
   const acc = terraAccounts.find((a) => a.id === input.accountId);
   const now = new Date();
   const stamp = now.getTime().toString(36).toUpperCase().slice(-6);
   const requestedAt = now.toISOString();
+  const currency = input.currency ?? "USD";
   // R9 W2 — the promise is stamped at submission from the payout
   // schedule (payment horizon) and travels to the operator queue so
   // both sides count down the same deadline.
@@ -267,11 +300,13 @@ export function addPayoutRequest(input: {
     accountId: input.accountId,
     accountLogin: acc?.login ?? input.accountId,
     amount: input.amount,
+    currency,
     methodId: input.methodId,
     method: input.methodName,
     feeAmount: input.feeAmount,
     requestedAt,
     promisedBy,
+    retryOf: input.retryOf,
     status: "submitted",
   };
   writeRequests([req, ...readRawRequests()]);
@@ -299,7 +334,8 @@ export function addPayoutRequest(input: {
       methodFingerprint: methodDetail ? `fp-${hashStr(methodDetail).toString(36)}` : null,
       program: acc?.program ?? null,
       promisedBy,
-      currency: "USD", // trader money surfaces render in USD (formatMoney default)
+      currency, // R12 GAP-T2 — stamped from the request's explicit currency
+      retryOf: req.retryOf ?? null,
       profitSplit: input.profitSplit ?? null,
       source: "trader-app",
     },

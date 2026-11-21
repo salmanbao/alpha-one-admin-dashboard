@@ -209,6 +209,7 @@ export function PayoutHistoryPage() {
       rejection: p.rejection ?? null,
       isUserRequest: false,
       methodId: undefined,
+      currency: "USD",
       // Fixture rows predate the stored promise — their schedule window
       // (`expectedAt`) is the promise for SLA purposes.
       promisedBy: p.expectedAt,

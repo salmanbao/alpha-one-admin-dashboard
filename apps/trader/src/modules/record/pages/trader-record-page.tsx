@@ -52,6 +52,7 @@ export function TraderRecordPage({ handle }: { handle: string }) {
       ...p,
       rejection: p.rejection ?? null,
       isUserRequest: false,
+      currency: "USD",
       methodId: undefined,
       promisedBy: p.expectedAt,
     })),

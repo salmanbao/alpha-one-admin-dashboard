@@ -40,6 +40,10 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function fmtWindowDate(d: Date) {
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 export function PayoutEligibilityPage() {
   const params = useSearchParams();
   const methods = usePayoutMethods();
@@ -95,7 +99,7 @@ export function PayoutEligibilityPage() {
               {entitlement.eligible ? "Eligible" : "Not eligible"}
             </TerraBadge>
             <TerraBadge tone={entitlement.eligible ? "success" : "neutral"} dot={entitlement.eligible}>
-              {entitlement.eligible ? "Payout window open" : "Payouts locked"}
+              {nextWindow.open ? "Payout window open" : "Payouts locked"}
             </TerraBadge>
           </>
         }
@@ -262,7 +266,7 @@ export function PayoutEligibilityPage() {
                 </span>
                 <span className="font-bold text-on-surface">
                   {nextWindow.open
-                    ? fmtDate(payoutSchedule.windowClosesAt)
+                    ? nextWindow.closesAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })
                     : `${nextWindow.daysToOpen} day${nextWindow.daysToOpen === 1 ? "" : "s"}`}
                 </span>
               </div>
@@ -299,7 +303,9 @@ export function PayoutEligibilityPage() {
                 </dd>
                 <dt className="text-on-surface-variant">Window</dt>
                 <dd className="text-right font-bold text-on-surface">
-                  {fmtDate(payoutSchedule.windowOpensAt)} – {fmtDate(payoutSchedule.windowClosesAt)}
+                  {nextWindow.open
+                    ? `${nextWindow.opensAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${nextWindow.closesAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                    : `${nextWindow.daysToOpen} day${nextWindow.daysToOpen === 1 ? "" : "s"}`}
                 </dd>
               </dl>
             </div>
@@ -332,7 +338,9 @@ export function PayoutEligibilityPage() {
               <div className="flex justify-between">
                 <span className="text-on-surface-variant">Next window</span>
                 <span className="font-bold text-on-surface">
-                  {fmtDate(payoutSchedule.windowOpensAt)} – {fmtDate(payoutSchedule.windowClosesAt)}
+                  {nextWindow.open
+                    ? `${nextWindow.opensAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${nextWindow.closesAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                    : "Window closed — next window opens in " + nextWindow.daysToOpen + " day" + (nextWindow.daysToOpen === 1 ? "" : "s") + " (opens " + nextWindow.opensAt.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ")"}
                 </span>
               </div>
               <div className="flex justify-between gap-3">
@@ -380,8 +388,7 @@ export function PayoutEligibilityPage() {
                 <p className="text-xs leading-relaxed text-on-surface-variant">
                   Your schedule is <span className="font-semibold">{schedule}</span> — one
                   request per {payoutSchedule.cycleDays}-day cycle, submitted during the
-                  open window ({fmtDate(payoutSchedule.windowOpensAt)} –{" "}
-                  {fmtDate(payoutSchedule.windowClosesAt)}).
+                  open window ({fmtWindowDate(nextWindow.opensAt)} – {fmtWindowDate(nextWindow.closesAt)})
                 </p>
               </div>
               <div>
@@ -391,7 +398,7 @@ export function PayoutEligibilityPage() {
                 <p className="text-xs leading-relaxed text-on-surface-variant">
                   {nextWindow.open
                     ? "The window is open now — requests submitted before the cutoff are processed in this cycle."
-                    : `The next window opens in ${nextWindow.daysToOpen} day${nextWindow.daysToOpen === 1 ? "" : "s"} (${fmtDate(payoutSchedule.windowOpensAt)}). ${payoutSchedule.cutoffNote}`}
+                    : `The next window opens in ${nextWindow.daysToOpen} day${nextWindow.daysToOpen === 1 ? "" : "s"} (${nextWindow.opensAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}). ${payoutSchedule.cutoffNote}`}
                 </p>
               </div>
               <div>

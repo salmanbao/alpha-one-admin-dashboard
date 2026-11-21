@@ -11,6 +11,7 @@
  *   payout.rejected   → "Payout rejected — revised request"
  *   payout.paid       → "Payout paid — settled"
  *   payout.escalated  → "Payout escalated — second signature required"
+ *   payout.failed      → "Payout failed — action needed" (R12 GAP-T4)
  *   payout.auto-decided → "Payout approved automatically under rule X —
  *                        review window 24h (Demo)" (R7 I4; the generic
  *                        approved/rejected/escalated receipts above are
@@ -151,6 +152,22 @@ function mapEvent(e: LifecycleEvent): InboxMessage | null {
         at: e.at,
         read: false,
         actionType: "payout",
+      };
+    // R12 GAP-T4 — the rail outcome (bounced transfer / PSP decline)
+    // emitted by prop-admin's exception queue; the trader needs the
+    // reason + a CTA to retry.
+    case "payout.failed":
+      return {
+        id: `inbox:${e.id}:payout-failed`,
+        subject: "Payout failed — action needed",
+        body:
+          `Your payout request ${ref} could not be completed. ${typeof e.payload?.reason === "string" && e.payload.reason ? `Reason: ${e.payload.reason}. ` : ""}You can retry with the same method or choose a different one.`,
+        category: "Payouts",
+        sender: "Payouts Team",
+        at: e.at,
+        read: false,
+        actionType: "payout",
+        actionHref: "/payouts",
       };
     case "kyc.approved":
       return {

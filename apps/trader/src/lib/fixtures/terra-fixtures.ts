@@ -312,8 +312,11 @@ export const payoutScheduleOptions = [
 export const payoutSchedule = {
   current: "Bi-weekly" as (typeof payoutScheduleOptions)[number],
   cycleDays: 14,
-  windowOpensAt: daysFromNow(4),
-  windowClosesAt: daysFromNow(7),
+  // R12 GAP-T1 — the window is a ROLLING schedule computed from a fixed
+  // epoch anchor (see payoutWindow() in payout-summary-strip). The old
+  // static `windowOpensAt/windowClosesAt: daysFromNow(4/7)` values were
+  // evaluated once at module load and never rolled forward, so the
+  // displayed window could never match real time.
   cutoffNote: "Requests cut off Fridays 23:59 UTC",
   autoSubmit: false,
 };

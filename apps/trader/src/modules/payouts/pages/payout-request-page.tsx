@@ -34,11 +34,14 @@ import {
   PayoutSummaryStrip,
   buildPayoutCriteria,
   minPayout,
+  payoutWindow,
   tradedDaysFor,
   type PayoutCriterion,
 } from "@/components/terra/payout-summary-strip";
+import { payoutSchedule } from "@/lib/fixtures/terra-fixtures";
 import { type PayoutMethod, usePayoutMethods } from "@/lib/payouts/payout-methods-store";
 import { addPayoutRequest, cancelPayoutRequest, usePayoutRequests } from "@/lib/payouts/payout-requests-store";
+import { readWindowReminder, setWindowReminder } from "@/lib/payouts/payout-window-reminder";
 
 /**
  * Pre-request eligibility checklist (audit #4, HIGH): the payout gates
@@ -125,11 +128,7 @@ export function PayoutRequestPage() {
   // ?id= deep link wins, otherwise the active trading account (switcher).
   const acc = useSyncActiveAccount(params.get("id"));
   const entitlement = payoutEntitlement(acc.id);
-  const [amount, setAmount] = useState("");
-  // Focus targets for the gated submit (finding #5) — the button stays
-  // focusable (aria-disabled, not disabled) and moves focus to the
-  // field or checklist that explains why submission is blocked.
-  const amountRef = useRef<HTMLInputElement>(null);
+  const requests = usePayoutRequests();
   const methods = usePayoutMethods();
   const primaryMethod = methods.find((m) => m.primary);
   // Open on the primary method (W1-01: set-primary is honored here);
@@ -139,20 +138,21 @@ export function PayoutRequestPage() {
   );
   const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const requests = usePayoutRequests();
   const submittedRequest = submittedRequestId
     ? requests.find((r) => r.id === submittedRequestId) ?? null
     : null;
   const method =
     methods.find((m) => m.id === methodId) ?? primaryMethod ?? methods[0];
   const feeAmount = method?.feeAmount ?? 0;
+  // R4-11: block submission on rejected method, warn on unverified
+  const methodRejected = method?.verification === "rejected";
+  const methodUnverified = method?.verification === "unverified";
   // R7 I1 — day counts read the persistent trading store.
   const { closedTrades } = useTrading();
   const criteria = buildPayoutCriteria(acc.id, entitlement.withdrawable, closedTrades);
   const outstanding = criteria.filter((c) => !c.ok).length;
-  // R4-11: block submission on rejected method, warn on unverified
-  const methodRejected = method?.verification === "rejected";
-  const methodUnverified = method?.verification === "unverified";
+  const [amount, setAmount] = useState("");  // Initialize as empty string
+  const amountRef = useRef<HTMLInputElement>(null);
 
   // Performance & risk context (audit #1, HIGH) — the metrics that can
   // still put a payout at risk, shown alongside the request form.

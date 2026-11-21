@@ -30,6 +30,9 @@ import {
 import { useTrading } from "@/lib/trading/trading-context";
 import { readPayoutMethods, readPrimaryPayoutMethod } from "@/lib/payouts/payout-methods-store";
 import { readVerificationDraft } from "@/lib/verification/verification-store";
+import { activePayoutHolds } from "@/lib/payouts/payout-holds";
+import { fmtWindowDate, payoutWindow } from "@/lib/payouts/payout-window";
+import { runWindowReminderCheck } from "@/lib/payouts/payout-window-reminder";
 
 /** Minimum single payout request — shared by every payout surface. */
 export const minPayout = 100;
@@ -48,15 +51,16 @@ export function tradedDaysFor(accountId: string, trades: TerraTrade[] = terraTra
   ).size;
 }
 
-/** Next payout window status — single source for both screens. */
-export function payoutWindow() {
-  const opensAt = new Date(payoutSchedule.windowOpensAt);
-  const closesAt = new Date(payoutSchedule.windowClosesAt);
-  const now = Date.now();
-  const open = now >= opensAt.getTime() && now <= closesAt.getTime();
-  const daysToOpen = Math.max(0, Math.ceil((opensAt.getTime() - now) / 86_400_000));
-  return { open, daysToOpen, opensAt, closesAt };
-}
+/**
+ * R12 GAP-T1 — the payout window is a ROLLING schedule, not a fixture.
+ *
+ * Re-exported from lib/payouts/payout-window (fixed epoch anchor, 14-day
+ * cycle, 3-day open duration) so every surface — this strip, the
+ * eligibility page, the request banner — reads the same schedule.
+ * Contract: `{ open, daysToOpen, opensAt, closesAt }` — when open,
+ * opensAt/closesAt describe the CURRENT window; when closed, the NEXT one.
+ */
+export { payoutWindow };
 
 export type PayoutCriterion = {
   label: string;
@@ -80,6 +84,8 @@ export function buildPayoutCriteria(
   const acc = terraAccounts.find((a) => a.id === accountId);
   const traded = tradedDaysFor(accountId, trades);
   const daysLeft = Math.max(0, MIN_PAYOUT_DAYS - traded);
+  const win = payoutWindow();
+  const holds = activePayoutHolds(accountId);
   return [
     {
       label: "Account is funded",
@@ -123,6 +129,34 @@ export function buildPayoutCriteria(
           : "Not yet approved — submit your identity documents",
       resolve: { label: "Complete identity verification", href: "/verification" },
     },
+    // R12 GAP-T1 — the window is ENFORCED, not just displayed: this
+    // criterion flows into every surface the engine drives (landing
+    // card, request pre-check, eligibility checklist, dashboard strip),
+    // so a submission outside the window is blocked everywhere at once
+    // with the next window's date.
+    {
+      label: "Payout window open",
+      ok: win.open,
+      note: win.open
+        ? `Open now — closes ${fmtWindowDate(win.closesAt)} • ${payoutSchedule.cutoffNote}`
+        : `Closed — next window ${fmtWindowDate(win.opensAt)} – ${fmtWindowDate(win.closesAt)} (${win.daysToOpen} day${win.daysToOpen === 1 ? "" : "s"})`,
+      resolve: { label: "See the payout schedule", href: "/payout-eligibility" },
+    },
+    // R12 GAP-T5 — the holds that actually stall money (AML, fraud,
+    // senior review) were invisible before submission: the trader saw a
+    // healthy state while operations held the funds. Blocking holds fail
+    // this criterion (and therefore gate submission); review states are
+    // reported in the note without blocking new requests.
+    {
+      label: "No compliance holds on payouts",
+      ok: !holds.some((h) => h.blocking),
+      note: holds.length === 0
+        ? "No AML, fraud or review holds"
+        : holds
+            .map((h) => `${h.blocking ? "HOLD" : "Review"}: ${h.label} — ${h.detail}`)
+            .join(" • "),
+      resolve: { label: "Open your inbox for receipts", href: "/notification-center" },
+    },
   ];
 }
 
@@ -155,11 +189,25 @@ export function PayoutSummaryStrip({
   const daysMet = traded >= MIN_PAYOUT_DAYS;
   const { open: windowOpen, daysToOpen, opensAt, closesAt } = payoutWindow();
 
+  // R12 GAP-T1 — the opt-in window reminder: while a reminder is set,
+  // check (on mount + every minute) whether the rolling window just
+  // opened and push ONE inbox receipt per window (deduped by opensAt
+  // inside the reminder store, so four strip instances can't double-send).
+  useEffect(() => {
+    runWindowReminderCheck();
+    const t = window.setInterval(runWindowReminderCheck, 60_000);
+    return () => window.clearInterval(t);
+  }, []);
+
   const stats = [
     {
       label: "Available now",
       value: formatMoney(withdrawable),
-      note: balance !== undefined ? `${formatMoney(balance)} account balance` : "Your split of net profit",
+      // R12 GAP-T2 — money surfaces stamp the currency explicitly.
+      note:
+        balance !== undefined
+          ? `${formatMoney(balance)} account balance · USD`
+          : "USD · your split of net profit",
       tone: withdrawable > 0 ? "text-primary" : "text-error",
     },
     {

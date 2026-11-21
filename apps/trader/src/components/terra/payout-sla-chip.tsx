@@ -24,7 +24,7 @@ import type { TerraTone } from "@/components/terra/terra-ui";
 export type PayoutSlaChipProps = {
   requestedAt: string;
   promisedBy: string;
-  status: "submitted" | "processing" | "paid" | "rejected" | "cancelled";
+  status: "submitted" | "processing" | "paid" | "rejected" | "cancelled" | "failed";
   paidAt?: string | null;
   className?: string;
 };
@@ -79,7 +79,7 @@ export function PayoutSlaChip({
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  const terminal = status === "paid" || status === "rejected" || status === "cancelled";
+  const terminal = status === "paid" || status === "rejected" || status === "cancelled" || status === "failed";
   useEffect(() => {
     if (reduced || terminal) return;
     setNow(Date.now());
@@ -87,7 +87,7 @@ export function PayoutSlaChip({
     return () => window.clearInterval(t);
   }, [reduced, terminal]);
 
-  if (status === "rejected" || status === "cancelled") return null;
+  if (status === "rejected" || status === "cancelled" || status === "failed") return null;
 
   const promisedMs = new Date(promisedBy).getTime();
   const requestedMs = new Date(requestedAt).getTime();

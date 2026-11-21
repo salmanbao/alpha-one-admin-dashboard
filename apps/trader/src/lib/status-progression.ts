@@ -95,6 +95,15 @@ export function getPayoutStage(status: string, eta?: string): LifecycleStage {
       badgeLabel: "✗",
       dot: true,
     },
+    // R12 GAP-T4 — rail outcome (bounced transfer / PSP decline): the firm
+    // approved, but the money never landed. Distinct from "rejected".
+    failed: {
+      label: "Failed",
+      tone: "error",
+      badgeLabel: "!",
+      dot: true,
+      eta: "Retry — funds were not moved",
+    },
     cancelled: {
       label: "Cancelled",
       tone: "neutral",
