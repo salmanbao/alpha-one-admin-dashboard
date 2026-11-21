@@ -26,7 +26,7 @@ import {
   usePayoutMethods,
 } from "@/lib/payouts/payout-methods-store";
 
-const emptyForm = { name: "", detail: "", fee: "", eta: "" };
+const emptyForm = { name: "", detail: "", fee: "", eta: "", rail: "domestic" as PayoutMethod["rail"] };
 
 const inputClass =
   "w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm outline-none focus:border-primary";
@@ -54,7 +54,7 @@ export function WithdrawalMethodsPage() {
   };
 
   const startEdit = (m: PayoutMethod) => {
-    setForm({ name: m.name, detail: m.detail, fee: m.fee, eta: m.eta });
+    setForm({ name: m.name, detail: m.detail, fee: m.fee, eta: m.eta, rail: m.rail });
     setEditingId(m.id);
     setFormError(null);
     setPendingRemoveId(null);
@@ -80,6 +80,7 @@ export function WithdrawalMethodsPage() {
         detail: form.detail.trim(),
         fee: form.fee.trim() || "Varies",
         eta: form.eta.trim() || "1–3 business days",
+        rail: form.rail,
       });
       flash(`"${form.name.trim()}" added as a withdrawal method.`);
     } else if (editingId) {
@@ -88,6 +89,7 @@ export function WithdrawalMethodsPage() {
         detail: form.detail.trim(),
         fee: form.fee.trim() || "Varies",
         eta: form.eta.trim() || "1–3 business days",
+        rail: form.rail,
       });
       flash(`"${form.name.trim()}" updated.`);
     }

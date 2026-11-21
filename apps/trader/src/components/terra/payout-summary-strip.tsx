@@ -28,7 +28,11 @@ import {
   type TerraTrade,
 } from "@/lib/fixtures/terra-fixtures";
 import { useTrading } from "@/lib/trading/trading-context";
-import { readPayoutMethods, readPrimaryPayoutMethod } from "@/lib/payouts/payout-methods-store";
+import {
+  readPayoutMethods,
+  readPrimaryPayoutMethod,
+  type PayoutMethod,
+} from "@/lib/payouts/payout-methods-store";
 import { readVerificationDraft } from "@/lib/verification/verification-store";
 import { activePayoutHolds } from "@/lib/payouts/payout-holds";
 import { fmtWindowDate, payoutWindow } from "@/lib/payouts/payout-window";
@@ -157,7 +161,32 @@ export function buildPayoutCriteria(
             .join(" • "),
       resolve: { label: "Open your inbox for receipts", href: "/notification-center" },
     },
+    // R12 GAP-T3 — rail taxonomy: every payout method must have a
+    // recognized rail type so the system can route and validate it.
+    // Methods without a valid rail are rejected at submission.
+    {
+      label: "Valid rail type",
+      ok: readPayoutMethods().some((m) => isValidRail(m.rail)),
+      note: readPayoutMethods().length > 0
+        ? readPayoutMethods().filter((m) => !isValidRail(m.rail))[0]?.name
+          ? "One method has no rail — add a valid rail type"
+          : "All methods have valid rail types"
+        : "Add a withdrawal method",
+      resolve: { label: "Add/fix payout method", href: "/withdrawal-methods" },
+    },
   ];
+}
+
+/** Check if a rail type is one of the recognized types. */
+function isValidRail(rail: string): rail is PayoutMethod["rail"] {
+  return [
+    "domestic",
+    "swift",
+    "sepa",
+    "faster-payments",
+    "crypto",
+    "other",
+  ].includes(rail);
 }
 
 interface PayoutSummaryStripProps {

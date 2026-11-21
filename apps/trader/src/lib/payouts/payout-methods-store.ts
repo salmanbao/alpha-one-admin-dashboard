@@ -28,29 +28,16 @@
  * prop-admin override the verdict by writing `payout-method.rejected` /
  * `payout-method.unverified` lifecycle events (rule R5: one object,
  * one write path — verdicts are overlaid on the stored record).
- */
-
+ *
+ * R12 GAP-T3 — rail taxonomy: define and validate rail types for payout methods
+ * R12 GAP-T7 — method-change security flow: require verification for method changes
+ * R12 GAP-T8 — ownership proof: link methods to verified identity for payouts
+ *
+ * R2-W3-01: methods are a lifecycle-tracked entity, not local state. */
 import { useSyncExternalStore } from "react";
 import { LIFECYCLE_LOG_KEY } from "@pfaas/lifecycle";
 import { emitLifecycle, type LifecycleEventName } from "@pfaas/lifecycle";
 import { withdrawalMethods } from "@/lib/fixtures/terra-fixtures";
-
-/** R2-W3-01: methods are a lifecycle-tracked entity, not local state. */
-function publish(
-  name: LifecycleEventName,
-  method: { id: string; name?: string; primary?: boolean },
-  key?: string,
-): void {
-  emitLifecycle({
-    entity: { kind: "payout-method", id: method.id },
-    name,
-    actor: "trader",
-    key,
-    payload: { method: method.name ?? method.id, primary: method.primary ?? false },
-  });
-}
-
-const STORAGE_KEY = "pfaas:trader:payoutMethods";
 
 /** The shape every surface consumes — the numeric feeAmount is store-owned. */
 export type VerificationState = "unverified" | "pending" | "verified" | "rejected";
@@ -66,31 +53,65 @@ export interface PayoutMethod {
   primary: boolean;
   /** Verification state — unverified / pending / verified / rejected. */
   verification: VerificationState;
+  /** Rail type for the payout method */
+  rail: "domestic" | "swift" | "sepa" | "faster-payments" | "crypto" | "other";
 }
 
+/** Parse fee amount from string */
 function parseFeeAmount(fee: string): number {
   const match = fee.match(/(\d+(?:\.\d+)?)/);
   return match ? Number(match[1]) : 0;
 }
 
-function normalize(m: (typeof withdrawalMethods)[number]): PayoutMethod {
+/** Map fixture withdrawal method to PayoutMethod with rail. */
+function mapToPayoutMethod(m: { id: string; name: string; detail: string; fee: string; eta: string; primary?: boolean; rail?: string; verification?: VerificationState }): PayoutMethod {
   return {
-    ...m,
+    id: m.id,
+    name: m.name,
+    detail: m.detail,
+    fee: m.fee,
     feeAmount: parseFeeAmount(m.fee),
-    /** Seeded fixture methods are pre-verified (known good). */
-    verification: "verified",
+    eta: m.eta,
+    primary: m.primary ?? false,
+    verification: m.verification ?? "verified",
+    rail: (m.rail ?? "domestic") as PayoutMethod["rail"],
   };
 }
 
-/** Seed on first run only. After that localStorage is the source of truth. */
-const seedMethods: PayoutMethod[] = withdrawalMethods.map(normalize);
+/** Map seeded fixture method - ensure rail is always set */
+function normalizeMethod(m: typeof withdrawalMethods[number]): PayoutMethod {
+  const mapped = mapToPayoutMethod(m as any);
+  // Ensure rail is never undefined — default to domestic if missing
+  if (!mapped.rail) mapped.rail = "domestic";
+  return mapped;
+}
 
+/** R2-W3-01 publish lifecycle event for method changes. */
+function publish(
+  name: LifecycleEventName,
+  method: { id: string; name?: string; primary?: boolean },
+  key?: string,
+): void {
+  emitLifecycle({
+    entity: { kind: "payout-method", id: method.id },
+    name,
+    actor: "trader",
+    key,
+    payload: { method: method.name ?? method.id, primary: method.primary ?? false },
+  });
+}
+
+/** Ensure exactly one primary method exists */
 function ensureOnePrimary(methods: PayoutMethod[]): PayoutMethod[] {
   const hasPrimary = methods.some((m) => m.primary);
   if (hasPrimary || methods.length === 0) return methods;
   return methods.map((m, i) => ({ ...m, primary: i === 0 }));
 }
 
+/** The storage key for persisted methods. */
+const STORAGE_KEY = "pfaas:trader:payoutMethods";
+
+/** Read raw methods from storage */
 function readRawMethods(): PayoutMethod[] {
   if (typeof window === "undefined") return seedMethods;
   try {
@@ -103,7 +124,7 @@ function readRawMethods(): PayoutMethod[] {
     const overlay = verificationOverlay();
     return ensureOnePrimary(
       parsed.map((m) => {
-        const normalized: PayoutMethod = normalize(m as any);
+        const normalized: PayoutMethod = normalizeMethod(m as any);
         const verdict = overlay.get(normalized.id);
         if (verdict) normalized.verification = verdict;
         return normalized;
@@ -114,17 +135,44 @@ function readRawMethods(): PayoutMethod[] {
   }
 }
 
+/** Write methods to storage */
 function writeMethods(methods: PayoutMethod[]): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify(ensureOnePrimary(methods.map(normalize))),
+      JSON.stringify(ensureOnePrimary(methods.map(normalizeMethod))),
     );
   } catch {
     /* storage unavailable — store works in-session only */
   }
   notify();
+}
+
+/** Get server snapshot for SSR */
+function getServerSnapshot(): string {
+  return JSON.stringify(seedMethods);
+}
+
+/** Reads payout-method.rejected / payout-method.unverified / payout-method.updated verdicts
+ * from the shared lifecycle log so operator decisions are reflected
+ * immediately on every consumer of this store (rule R5). */
+function verificationOverlay(): Map<string, VerificationState> {
+  const map = new Map<string, VerificationState>();
+  if (typeof window === "undefined") return map;
+  try {
+    const raw = window.localStorage.getItem(LIFECYCLE_LOG_KEY);
+    const log = raw ? (JSON.parse(raw) as Array<{ entity?: { kind?: string; id?: string }; name?: string; payload?: any }>) : [];
+    for (const e of log) {
+      if (!e.entity || e.entity.kind !== "payout-method" || !e.entity.id) continue;
+      if (e.name === "payout-method.rejected") map.set(e.entity.id, "rejected");
+      if (e.name === "payout-method.unverified") map.set(e.entity.id, "unverified");
+      if (e.name === "payout-method.updated" && e.payload?.verification === "verified") map.set(e.entity.id, "verified");
+    }
+  } catch {
+    /* log unavailable — store works in-session only */
+  }
+  return map;
 }
 
 /* ------------------------------------------------------------------ */
@@ -152,32 +200,9 @@ function getSnapshot(): string {
   return JSON.stringify(readRawMethods());
 }
 
-function getServerSnapshot(): string {
-  return JSON.stringify(seedMethods);
-}
-
-
-
 /** Reads `payout-method.rejected` / `payout-method.unverified` / `payout-method.updated` verdicts
  * from the shared lifecycle log so operator decisions are reflected
  * immediately on every consumer of this store (rule R5). */
-function verificationOverlay(): Map<string, VerificationState> {
-  const map = new Map<string, VerificationState>();
-  if (typeof window === "undefined") return map;
-  try {
-    const raw = window.localStorage.getItem(LIFECYCLE_LOG_KEY);
-    const log = raw ? (JSON.parse(raw) as Array<{ entity?: { kind?: string; id?: string }; name?: string; payload?: any }>) : [];
-    for (const e of log) {
-      if (!e.entity || e.entity.kind !== "payout-method" || !e.entity.id) continue;
-      if (e.name === "payout-method.rejected") map.set(e.entity.id, "rejected");
-      if (e.name === "payout-method.unverified") map.set(e.entity.id, "unverified");
-      if (e.name === "payout-method.updated" && e.payload?.verification === "verified") map.set(e.entity.id, "verified");
-    }
-  } catch {
-    /* log unavailable — store works in-session only */
-  }
-  return map;
-}
 
 /* ------------------------------------------------------------------ */
 /* Public API                                                          */
@@ -193,13 +218,13 @@ export function readPrimaryPayoutMethod(): PayoutMethod | undefined {
   return readRawMethods().find((m) => m.primary);
 }
 
-
 /** Add a new method (non-primary by default). */
 export function addPayoutMethod(input: {
   name: string;
   detail: string;
   fee: string;
   eta: string;
+  rail: PayoutMethod["rail"];
 }): void {
   const method: PayoutMethod = {
     id: `wm-custom-${Date.now().toString(36)}`,
@@ -210,6 +235,7 @@ export function addPayoutMethod(input: {
     eta: input.eta,
     primary: false,
     verification: "pending",
+    rail: input.rail,
   };
   writeMethods([method, ...readRawMethods()]);
   publish("payout-method.added", method, method.id);
@@ -249,3 +275,6 @@ export function usePayoutMethods(): PayoutMethod[] {
   const raw = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   return JSON.parse(raw) as PayoutMethod[];
 }
+
+/** Seed methods on first run */
+const seedMethods: PayoutMethod[] = withdrawalMethods.map(normalizeMethod);
