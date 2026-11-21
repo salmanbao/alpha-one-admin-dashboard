@@ -18,6 +18,7 @@ import { useState } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
+import type { TenantContext } from "@/lib/platform/types";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,7 @@ import {
 import { impersonationDenyReason } from "@/lib/platform/impersonation-policy";
 import { useTenants } from "@/lib/platform/tenant-store";
 import { useCountdown, formatCountdown, timeAgo } from "@/hooks/use-countdown";
-import { platformTenant, users as allUsers } from "@/lib/platform/mock-data";
+import { users as allUsers } from "@/lib/platform/mock-data";
 import {
   Eye, AlertTriangle, Lock, User, Building2,
   Timer, RefreshCw, LogOut,
@@ -79,7 +80,9 @@ export function TenantViewAsPage() {
   const restoreOperator = () => {
     const superUser = allUsers.find((u) => u.application === "super-admin");
     if (superUser) setUser(superUser);
-    setTenant(platformTenant);
+    // Find the platform tenant from the live store
+    const pt = tenants.find((t) => t.id === "platform");
+    setTenant(pt ?? { id: "platform", name: "PFaaS Platform", plan: "enterprise", status: "active", application: "super-admin" } as TenantContext);
   };
 
   const launch = () => {
