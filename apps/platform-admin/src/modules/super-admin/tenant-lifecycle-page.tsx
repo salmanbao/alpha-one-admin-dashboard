@@ -67,6 +67,8 @@ import {
   X,
   ChevronRight,
   ChevronLeft,
+  Upload,
+  AlertCircle,
 } from "lucide-react";
 import { hashStr } from "@/lib/platform/mock-data";
 import { healthOf, tenantHealthScore, type Health } from "@/lib/platform/tenant-health";
@@ -76,7 +78,7 @@ import { formatCurrencyValue } from "@pfaas/platform-core";
 /* Lifecycle stages                                                   */
 /* ------------------------------------------------------------------ */
 
-type LifecycleStage = "invited" | "trial" | "active" | "suspended" | "terminated";
+type LifecycleStage = "invited" | "trial" | "active" | "suspended" | "terminated" | "onboarding" | "provisioning" | "provisioning_failed";
 type LifecycleAction = "suspend" | "reactivate" | "terminate";
 
 interface PendingAction {
@@ -97,6 +99,9 @@ const STAGES: {
   { id: "active", label: "Active", tone: "success", color: "#059669", icon: CheckCircle2, description: "Full platform access, billed normally." },
   { id: "suspended", label: "Suspended", tone: "danger", color: "#e11d48", icon: Pause, description: "Access paused — reversible." },
   { id: "terminated", label: "Terminated", tone: "muted", color: "#6b7280", icon: Ban, description: "Permanently archived — irreversible." },
+  { id: "onboarding", label: "Onboarding", tone: "warning", color: "#d97706", icon: Clock, description: "Tenant mid-provisioning from the create wizard." },
+  { id: "provisioning", label: "Provisioning", tone: "warning", color: "#d97706", icon: Upload, description: "Tenant being provisioned — resources being allocated." },
+  { id: "provisioning_failed", label: "Provisioning Failed", tone: "danger", color: "#e11d48", icon: AlertCircle, description: "Tenant provisioning was rolled back or failed." },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -250,6 +255,9 @@ export function TenantLifecyclePage() {
       active: [],
       suspended: [],
       terminated: [],
+      onboarding: [],
+      provisioning: [],
+      provisioning_failed: [],
     };
     for (const t of tenantRoster) {
       const stage = (t.status as LifecycleStage) ?? "active";
@@ -266,12 +274,13 @@ export function TenantLifecyclePage() {
    * pipeline previously made operators work out mentally: each stage's
    * proportional share, and operational hot spots (suspended buildup,
    * unusual terminations, stalling invitations, trial backlog). */
-  const total = tenantRoster.length;
+  const total = Object.values(buckets).reduce((sum, tenants) => sum + tenants.length, 0);
   const distribution = useMemo(
     () =>
-      STAGES.map((s) => ({ ...s, count: buckets[s.id].length })).filter(
-        (s) => s.count > 0,
-      ),
+      STAGES.map((s) => ({
+        ...s,
+        count: buckets[s.id].length,
+      })).filter((s) => s.count > 0),
     [buckets],
   );
   const shareOf = (count: number) =>
