@@ -16,6 +16,7 @@ import { ForbiddenState } from "@/components/platform/guards";
 import { ModuleErrorBoundary } from "@/components/platform/guards";
 import { Page, PageContent } from "@/components/platform/page";
 import { PackageX } from "lucide-react";
+import { CreateTenantPage } from "@/modules/super-admin/create-tenant-page";
 
 export function DashboardRouter() {
   const { router, runtime } = usePlatform();

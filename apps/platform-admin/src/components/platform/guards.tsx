@@ -95,6 +95,9 @@ export class ModuleErrorBoundary extends Component<
               Something went wrong loading {this.props.name}.
             </p>
             <p className="text-sm text-muted-foreground">
+              Error: {this.state.error.message}
+            </p>
+            <p className="text-sm text-muted-foreground">
               The rest of the dashboard is still operational.
             </p>
           </div>
