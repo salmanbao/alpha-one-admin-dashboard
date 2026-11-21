@@ -21,7 +21,6 @@ import { DataTable, type Column } from "@/components/platform/data-table";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/platform/status";
 import {
-  tenants as allTenants,
   getTenantKyc,
   getTenantPayouts,
   getTenantBreaches,
