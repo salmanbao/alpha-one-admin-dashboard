@@ -31,7 +31,7 @@ import {
   resolveDashboardLayout,
   resolveWidgets,
 } from "@/lib/platform/dashboard-engine";
-import { platformTenant, roles as allRoles } from "@/lib/platform/mock-data";
+import { roles as allRoles } from "@/lib/platform/mock-data";
 import type {
   AuthUser,
   DashboardWidgetPlacement,
