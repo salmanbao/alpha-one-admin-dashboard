@@ -15,6 +15,8 @@ const navigation: NavigationItem[] = [
     label: "CRM",
     icon: Contact,
     order: 70,
+    href: "crm",
+    permission: "crm.read",
     children: [
       { id: "crm.overview", label: "Overview", href: "crm", icon: BarChart3, permission: "crm.read" },
       { id: "crm.contacts", label: "Contacts", href: "crm-contacts", icon: Contact, permission: "crm.read" },

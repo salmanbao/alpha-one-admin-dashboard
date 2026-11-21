@@ -13,6 +13,10 @@ const navigation: NavigationItem[] = [
     label: "Pendings",
     icon: ClipboardList,
     order: 35,
+    href: "pending-tasks",
+    // R11 F3 — same union as the child (see below): show the hub to
+    // operators who can act on either queue.
+    permission: ["payout.approve", "kyc.review"],
     children: [
       {
         id: "pendings.tasks",

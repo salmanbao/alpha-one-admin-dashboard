@@ -19,6 +19,31 @@ const navigation: NavigationItem[] = [
     label: "Marketing",
     icon: Megaphone,
     order: 65,
+    href: "marketing",
+    // R11 F3 — any-of union of every child's permission gates. The section
+    // must open for anyone who can see at least one child (a settings.manage
+    // operator sees Channels; a gateway operator sees Send Queue), so the
+    // parent gate can never be narrower than the union of its children.
+    permission: [
+      "marketing.read",
+      "marketing.configure",
+      "settings.manage",
+      "marketing.ads.manage",
+      "marketing.locales.manage",
+      "marketing.gateway.operate",
+      "marketing.pages.manage",
+      "marketing.forms.manage",
+      "marketing.leads.operate",
+      "marketing.onsite.manage",
+      "marketing.assets.manage",
+      "marketing.surveys.manage",
+      "marketing.automation.manage",
+      "marketing.segments.manage",
+      "marketing.connect",
+      "compliance.workspace.read",
+      "compliance.archive.read",
+      "marketing.links.manage",
+    ],
     children: [
       // ───────── Campaigns ─────────
       { id: "marketing.overview", label: "Overview", href: "marketing", icon: Megaphone, permission: "marketing.read", group: "Campaigns" },

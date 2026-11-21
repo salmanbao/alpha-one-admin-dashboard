@@ -19,11 +19,11 @@ import { EconomicsCockpit } from "./pages/economics-cockpit";
 import { FirmExposure } from "./pages/firm-exposure";
 import { Calculator } from "lucide-react";
 
-/* Economics navigation is contributed via the sidebar handler in shell/ —
- * keep the module registry entry and route definitions so the views
- * resolve at /prop-admin/economics-cockpit and /prop-admin/firm-exposure,
- * even though there is no top-level nav child counted toward the 150 limit.
- */
+/* Economics has no nav children (the nav-child cap is at 150/150), so the
+ * section parent itself carries the link and the gate (R11 F3): without
+ * them it rendered as a dead leaf that went nowhere on click. The routes
+ * below keep the views resolvable at /prop-admin/economics-cockpit and
+ * /prop-admin/firm-exposure. */
 
 const navigation: NavigationItem[] = [
   {
@@ -31,6 +31,8 @@ const navigation: NavigationItem[] = [
     label: "Economics",
     icon: Calculator,
     order: 65,
+    href: "economics-cockpit",
+    permission: "economics.read",
     children: [],
   },
 ];

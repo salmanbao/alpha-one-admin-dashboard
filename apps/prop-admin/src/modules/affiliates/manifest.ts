@@ -15,6 +15,8 @@ const navigation: NavigationItem[] = [
     label: "Affiliates",
     icon: Megaphone,
     order: 55,
+    href: "affiliates",
+    permission: "affiliate.read",
     children: [
       // ───────── Management ─────────
       { id: "affiliates.overview", label: "Overview", href: "affiliates", icon: BarChart3, permission: "affiliate.read", group: "Management" },

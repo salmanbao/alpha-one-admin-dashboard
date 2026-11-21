@@ -15,6 +15,8 @@ const navigation: NavigationItem[] = [
     label: "KYC / AML",
     icon: ShieldCheck,
     order: 75,
+    href: "kyc",
+    permission: "kyc.read",
     children: [
       { id: "kyc.overview", label: "Overview", href: "kyc", icon: ShieldCheck, permission: "kyc.read" },
       { id: "kyc.reviews", label: "Reviews", href: "kyc-reviews", icon: FileSearch, permission: "kyc.read" },

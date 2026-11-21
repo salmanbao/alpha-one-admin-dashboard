@@ -15,6 +15,8 @@ const navigation: NavigationItem[] = [
     label: "AI / LLM",
     icon: Brain,
     order: 85,
+    href: "ai",
+    permission: "ai.read",
     children: [
       // ───────── Insights ─────────
       { id: "ai.overview", label: "Overview", href: "ai", icon: Brain, permission: "ai.read", group: "Insights" },

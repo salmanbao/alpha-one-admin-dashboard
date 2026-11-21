@@ -15,6 +15,10 @@ const navigation: NavigationItem[] = [
     label: "Analytics",
     icon: BarChart3,
     order: 50,
+    href: "analytics",
+    // R11 F3 — any-of union of child permissions: the section stays alive
+    // for a reader (analytics.read) even when the Pro child is filtered.
+    permission: ["analytics.read", "analytics.advanced.read"],
     children: [
       // ───────── Reports ─────────
       { id: "analytics.overview", label: "Overview", href: "analytics", icon: BarChart3, permission: "analytics.read", group: "Reports" },

@@ -31,6 +31,22 @@ const navigation: NavigationItem[] = [
     label: "Self-Service",
     icon: UserRound,
     order: 95,
+    // First child's route — identical to the resolved effectiveHref.
+    href: "challenges-active",
+    // R11 F3 — any-of union of every child's permission. Children are also
+    // gated by their origin module (module: below), so the parent gate
+    // alone must never narrow who sees the section.
+    permission: [
+      "challenge.read",
+      "challenge.self",
+      "breach.read",
+      "breach.self",
+      "payout.read",
+      "payout.self",
+      "analytics.read",
+      "support.read",
+      "support.self",
+    ],
     children: [
       // ───────── Challenges (origin: challenges module) ─────────
       { id: "challenges.active", label: "My Active", href: "challenges-active", icon: Flame, permission: ["challenge.read", "challenge.self"], module: "challenges" },

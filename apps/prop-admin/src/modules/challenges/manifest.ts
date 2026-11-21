@@ -13,6 +13,9 @@ const navigation: NavigationItem[] = [
     termKey: "challenge",
     icon: Target,
     order: 20,
+    href: "challenges",
+    // R11 F3 — any-of union of child permissions (read/self/update).
+    permission: ["challenge.read", "challenge.self", "challenge.update"],
     children: [
       // ───────── Status ─────────
       // My Active / My Passed / My Failed moved to the self-service

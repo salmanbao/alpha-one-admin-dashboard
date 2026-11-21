@@ -23,6 +23,10 @@ const navigation: NavigationItem[] = [
     label: "Trading",
     icon: CandlestickChart,
     order: 10,
+    href: "trading",
+    // R11 F3 — any-of union of child permissions (trader/account/
+    // evaluation read + account.write for bulk ops).
+    permission: ["trader.read", "account.read", "evaluation.read", "account.write"],
     children: [
       { id: "trading.overview", label: "Overview", href: "trading", icon: LineChart, permission: "trader.read" },
       { id: "trading.traders", label: "Traders", href: "trading-traders", icon: Users, permission: "trader.read" },

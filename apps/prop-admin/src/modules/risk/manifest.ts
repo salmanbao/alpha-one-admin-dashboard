@@ -13,6 +13,18 @@ const navigation: NavigationItem[] = [
     label: "Risk",
     icon: ShieldCheck,
     order: 30,
+    href: "risk",
+    // R11 F3 — any-of union of child permissions (incl. the AML/STR/
+    // screening compliance gates) so partially filtered sections survive
+    // the registry's dead-leaf drop.
+    permission: [
+      "risk.read",
+      "risk.self",
+      "breach.self",
+      "compliance.aml.read",
+      "compliance.str.manage",
+      "compliance.screening.manage",
+    ],
     children: [
       // ───────── Overview & Breaches ─────────
       { id: "risk.overview", label: "Overview", href: "risk", icon: ShieldCheck, permission: ["risk.read", "risk.self", "breach.self"], group: "Overview & Breaches" },

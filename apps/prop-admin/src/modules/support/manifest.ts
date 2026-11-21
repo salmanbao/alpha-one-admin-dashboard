@@ -15,6 +15,9 @@ const navigation: NavigationItem[] = [
     label: "Support",
     icon: LifeBuoy,
     order: 80,
+    href: "support",
+    // R11 F3 — any-of union of child permissions (read OR self-service).
+    permission: ["support.read", "support.self"],
     children: [
       { id: "support.overview", label: "Overview", href: "support", icon: LifeBuoy, permission: ["support.read", "support.self"] },
       // "My Tickets" moved to the self-service module (§6.6).

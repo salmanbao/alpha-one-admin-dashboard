@@ -16,6 +16,8 @@ const navigation: NavigationItem[] = [
     label: "Accounting",
     icon: Calculator,
     order: 60,
+    href: "accounting",
+    permission: "accounting.read",
     children: [
       // ───────── Ledger ─────────
       { id: "accounting.overview", label: "Overview", href: "accounting", icon: BookOpen, permission: "accounting.read", group: "Ledger" },
