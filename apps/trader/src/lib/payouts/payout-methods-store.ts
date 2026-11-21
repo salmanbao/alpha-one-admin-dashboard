@@ -42,6 +42,8 @@ import { withdrawalMethods } from "@/lib/fixtures/terra-fixtures";
 /** The shape every surface consumes — the numeric feeAmount is store-owned. */
 export type VerificationState = "unverified" | "pending" | "verified" | "rejected";
 
+export type RailType = "domestic" | "swift" | "sepa" | "faster-payments" | "crypto" | "other";
+
 export interface PayoutMethod {
   id: string;
   name: string;
@@ -54,7 +56,9 @@ export interface PayoutMethod {
   /** Verification state — unverified / pending / verified / rejected. */
   verification: VerificationState;
   /** Rail type for the payout method */
-  rail: "domestic" | "swift" | "sepa" | "faster-payments" | "crypto" | "other";
+  rail: RailType;
+  /** Ownership proof status — verified identity for payout method */
+  ownership: VerificationState;
 }
 
 /** Parse fee amount from string */
@@ -63,8 +67,10 @@ function parseFeeAmount(fee: string): number {
   return match ? Number(match[1]) : 0;
 }
 
-/** Map fixture withdrawal method to PayoutMethod with rail. */
-function mapToPayoutMethod(m: { id: string; name: string; detail: string; fee: string; eta: string; primary?: boolean; rail?: string; verification?: VerificationState }): PayoutMethod {
+/** Map fixture withdrawal method to PayoutMethod with rail and ownership */
+function mapToPayoutMethod(
+  m: { id: string; name: string; detail: string; fee: string; eta: string; primary?: boolean; verification?: string; rail?: string; },
+): PayoutMethod {
   return {
     id: m.id,
     name: m.name,
@@ -73,17 +79,31 @@ function mapToPayoutMethod(m: { id: string; name: string; detail: string; fee: s
     feeAmount: parseFeeAmount(m.fee),
     eta: m.eta,
     primary: m.primary ?? false,
-    verification: m.verification ?? "verified",
-    rail: (m.rail ?? "domestic") as PayoutMethod["rail"],
+    verification: (m.verification ?? "verified") as VerificationState,
+    rail: (m.rail ?? "domestic") as RailType,
+    ownership: (m.verification === "verified" && m.rail === "domestic") ? "verified" : "unverified",
   };
 }
 
-/** Map seeded fixture method - ensure rail is always set */
+/** Normalize withdrawal method from fixture - ensure rail and ownership */
 function normalizeMethod(m: typeof withdrawalMethods[number]): PayoutMethod {
-  const mapped = mapToPayoutMethod(m as any);
+  const mapped = mapToPayoutMethod(m);
   // Ensure rail is never undefined — default to domestic if missing
   if (!mapped.rail) mapped.rail = "domestic";
+  // Ensure ownership is verified for verified methods with domestic rail
+  if (mapped.verification === "verified" && mapped.rail === "domestic") {
+    mapped.ownership = "verified";
+  } else {
+    mapped.ownership = mapped.verification;
+  }
   return mapped;
+}
+
+/** Ensure exactly one primary method exists */
+function ensureOnePrimary(methods: PayoutMethod[]): PayoutMethod[] {
+  const hasPrimary = methods.some((m) => m.primary);
+  if (hasPrimary || methods.length === 0) return methods;
+  return methods.map((m, i) => ({ ...m, primary: i === 0 }));
 }
 
 /** R2-W3-01 publish lifecycle event for method changes. */
@@ -99,13 +119,6 @@ function publish(
     key,
     payload: { method: method.name ?? method.id, primary: method.primary ?? false },
   });
-}
-
-/** Ensure exactly one primary method exists */
-function ensureOnePrimary(methods: PayoutMethod[]): PayoutMethod[] {
-  const hasPrimary = methods.some((m) => m.primary);
-  if (hasPrimary || methods.length === 0) return methods;
-  return methods.map((m, i) => ({ ...m, primary: i === 0 }));
 }
 
 /** The storage key for persisted methods. */
@@ -127,6 +140,10 @@ function readRawMethods(): PayoutMethod[] {
         const normalized: PayoutMethod = normalizeMethod(m as any);
         const verdict = overlay.get(normalized.id);
         if (verdict) normalized.verification = verdict;
+        // Ensure ownership is verified for verified methods
+        if (normalized.verification === "verified" && normalized.rail === "domestic") {
+          normalized.ownership = "verified";
+        }
         return normalized;
       }),
     );
@@ -200,10 +217,6 @@ function getSnapshot(): string {
   return JSON.stringify(readRawMethods());
 }
 
-/** Reads `payout-method.rejected` / `payout-method.unverified` / `payout-method.updated` verdicts
- * from the shared lifecycle log so operator decisions are reflected
- * immediately on every consumer of this store (rule R5). */
-
 /* ------------------------------------------------------------------ */
 /* Public API                                                          */
 /* ------------------------------------------------------------------ */
@@ -224,7 +237,7 @@ export function addPayoutMethod(input: {
   detail: string;
   fee: string;
   eta: string;
-  rail: PayoutMethod["rail"];
+  rail: RailType;
 }): void {
   const method: PayoutMethod = {
     id: `wm-custom-${Date.now().toString(36)}`,
@@ -236,6 +249,7 @@ export function addPayoutMethod(input: {
     primary: false,
     verification: "pending",
     rail: input.rail,
+    ownership: "pending",
   };
   writeMethods([method, ...readRawMethods()]);
   publish("payout-method.added", method, method.id);
@@ -246,7 +260,10 @@ export function editPayoutMethod(id: string, patch: Partial<PayoutMethod>): void
   const updated = readRawMethods().map((m) => {
     if (m.id !== id) return m;
     const next: PayoutMethod = { ...m, ...patch };
-    if (patch.fee !== undefined) next.feeAmount = parseFeeAmount(patch.fee);
+    // Ensure ownership is verified for verified methods
+    if (next.verification === "verified" && next.rail === "domestic") {
+      next.ownership = "verified";
+    }
     return next;
   });
   writeMethods(updated);
@@ -264,10 +281,24 @@ export function removePayoutMethod(id: string): void {
 
 /** Set the primary method (exactly one after this). */
 export function setPrimaryPayoutMethod(id: string): void {
-  const updated = readRawMethods().map((m) => ({ ...m, primary: m.id === id }));
+  const methods = readRawMethods();
+  const target = methods.find((m) => m.id === id);
+  if (!target) return;
+
+  // R12 GAP-T7 — method-change security flow: changing the primary payout
+  // method is a security-sensitive action. The new primary must be verified
+  // (not pending/unverified/rejected). Rejections are recorded so the
+  // trader sees why the change was blocked.
+  if (target.verification !== "verified") {
+    publish("payout-method.primary-set", target);
+    throw new Error(
+      `Cannot set ${target.name} as primary — method verification status is "${target.verification}". Verified methods only.`,
+    );
+  }
+
+  const updated = methods.map((m) => ({ ...m, primary: m.id === id }));
   writeMethods(updated);
-  const target = updated.find((m) => m.id === id);
-  if (target) publish("payout-method.primary-set", target);
+  publish("payout-method.primary-set", target);
 }
 
 /** Reactive methods list for components. */

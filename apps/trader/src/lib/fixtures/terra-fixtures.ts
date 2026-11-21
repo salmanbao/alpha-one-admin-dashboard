@@ -910,7 +910,7 @@ export const terraPayouts = [
 
 export const withdrawalMethods = [
   {
-    id: "wm-wise",
+    id: "wm-wise", rail: "domestic", verification: "verified",
     name: "Bank Transfer (Wise)",
     detail: "IBAN •••• 4821 • Tom Allen • USD",
     fee: "$0 (covered by Terra)",
@@ -918,7 +918,7 @@ export const withdrawalMethods = [
     primary: true,
   },
   {
-    id: "wm-usdt",
+    id: "wm-usdt", verification: "verified", rail: "crypto",
     name: "USDT (TRC-20)",
     detail: "Wallet TXyz…9f2c",
     fee: "Network fee ~1 USDT",
@@ -926,7 +926,7 @@ export const withdrawalMethods = [
     primary: false,
   },
   {
-    id: "wm-ripple",
+    id: "wm-ripple", verification: "verified", rail: "crypto",
     name: "Ripple (XRP)",
     detail: "Wallet rPwX…k4Qm",
     fee: "Network fee ~0.2 XRP",
@@ -937,7 +937,7 @@ export const withdrawalMethods = [
     // Automatic crypto payouts via Confirmo (finding #7c) — eta is
     // exactly "immediate" so the success screen skips the business-days
     // line and the request card shows the auto-settlement note.
-    id: "wm-confirmo",
+    id: "wm-confirmo", verification: "verified", rail: "crypto",
     name: "Confirmo — Auto Crypto",
     detail: "USDT · auto-settled on-chain, 24/7",
     fee: "Network fee ~1 USDT",
