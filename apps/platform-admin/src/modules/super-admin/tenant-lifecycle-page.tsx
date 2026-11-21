@@ -359,18 +359,23 @@ export function TenantLifecyclePage() {
   /* ---- Two-operator closure (CON-06): apply approved tenant actions ---- */
   const consoleStore = useConsoleStore();
   const appliedApprovals = useRef<Set<string>>(new Set());
+  const TENANT_APPROVAL_ALLOWLIST = new Set([
+    "tenant.suspend",
+    "tenant.terminate",
+    "tenant.reactivate",
+  ]);
   useEffect(() => {
     for (const a of consoleStore.approvals) {
       if (!a.actionKey.startsWith("tenant.")) continue;
+      if (!TENANT_APPROVAL_ALLOWLIST.has(a.actionKey)) continue;
       if (a.status !== "approved" && a.status !== "executed") continue;
       if (appliedApprovals.current.has(a.id)) continue;
       const tenant = tenantRoster.find((t) => t.id === a.tenantId);
       if (!tenant) continue;
       appliedApprovals.current.add(a.id);
-      const status: TenantContext["status"] = a.actionKey.includes("suspend")
-        ? "suspended"
-        : a.actionKey.includes("terminate")
-          ? "terminated"
+      const status: TenantContext["status"] =
+        a.actionKey === "tenant.suspend" ? "suspended"
+          : a.actionKey === "tenant.terminate" ? "terminated"
           : "active";
       const verb =
         status === "suspended" ? "suspended" : status === "terminated" ? "terminated" : "reactivated";

@@ -322,7 +322,17 @@ export function TenantDetailPage() {
 
   /* ---- Two-operator closure (CON-06): when operator B approves a
    * `tenant.*` request in the Approval Center, apply the status change
-   * here. Each approval id is applied exactly once. ---- */
+   * here. Each approval id is applied exactly once.
+   *
+   * TM-02: Fail-open approval mapping — only known, explicit action keys
+   * are accepted. This prevents an unknown/rogue actionKey from silently
+   * defaulting to "active" and inadvertently reactivating a tenant.
+   * Any unrecognized key is silently skipped. */
+  const TENANT_APPROVAL_ALLOWLIST = new Set([
+    "tenant.suspend",
+    "tenant.terminate",
+    "tenant.reactivate",
+  ]);
   const consoleStore = useConsoleStore();
   const appliedApprovals = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -330,13 +340,13 @@ export function TenantDetailPage() {
     for (const a of consoleStore.approvals) {
       if (a.tenantId !== localTenant.id) continue;
       if (!a.actionKey.startsWith("tenant.")) continue;
+      if (!TENANT_APPROVAL_ALLOWLIST.has(a.actionKey)) continue;
       if (a.status !== "approved" && a.status !== "executed") continue;
       if (appliedApprovals.current.has(a.id)) continue;
       appliedApprovals.current.add(a.id);
-      const status: TenantContext["status"] = a.actionKey.includes("suspend")
-        ? "suspended"
-        : a.actionKey.includes("terminate")
-          ? "terminated"
+      const status: TenantContext["status"] =
+        a.actionKey === "tenant.suspend" ? "suspended"
+          : a.actionKey === "tenant.terminate" ? "terminated"
           : "active";
       const verb =
         status === "suspended" ? "suspended" : status === "terminated" ? "terminated" : "reactivated";
