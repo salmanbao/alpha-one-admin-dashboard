@@ -157,6 +157,7 @@ import {
   Server,
   ScrollText,
   Wallet,
+  ChevronRight,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -1320,7 +1321,7 @@ interface InvoiceRow {
 }
 
 function BillingTab({ tenant }: { tenant: TenantContext }) {
-  const { user } = usePlatform();
+  const { user, navigate } = usePlatform();
   const cost = getPlanPrice(tenant.plan);
   const costLabel = formatCurrency(cost, tenant.currency);
 
@@ -1562,35 +1563,9 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
           </div>
         </dl>
         <div className="mt-4 flex flex-wrap gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1">
-                Change plan <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem
-                onClick={() => { updateTenant(tenant.id, { plan: "starter" }); toast({ title: "Plan updated", description: "Switched to Starter plan." }); }}
-              >
-                Starter — $890/mo
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => { updateTenant(tenant.id, { plan: "growth" }); toast({ title: "Plan updated", description: "Switched to Growth plan." }); }}
-              >
-                Growth — $1,900/mo
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => { updateTenant(tenant.id, { plan: "scale" }); toast({ title: "Plan updated", description: "Switched to Scale plan." }); }}
-              >
-                Scale — $4,900/mo
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => { updateTenant(tenant.id, { plan: "enterprise" }); toast({ title: "Plan updated", description: "Switched to Enterprise plan." }); }}
-              >
-                Enterprise — Custom
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button size="sm" variant="outline" className="gap-1" onClick={() => navigate("plan-transition", { tenant: tenant.id })}>
+            Change plan <ChevronRight className="h-3 w-3" />
+          </Button>
           <Button
             size="sm"
             variant="outline"
