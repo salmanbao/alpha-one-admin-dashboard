@@ -400,6 +400,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "adoption-funnel": dynamic(
+    () =>
+      import("@/modules/super-admin/adoption-funnel-page").then((m) => ({
+        default: m.AdoptionFunnelPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "tenant-health": dynamic(
     () =>
       import("@/modules/super-admin/tenant-health-page").then((m) => ({
