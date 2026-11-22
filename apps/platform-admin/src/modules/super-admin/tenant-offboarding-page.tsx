@@ -22,7 +22,7 @@ import { formatCurrency } from "@/components/platform/status";
 import {
   Package,
   Trash2,
-  Restore,
+  RotateCcw,
   Download,
   Clock,
   AlertTriangle,
@@ -32,7 +32,7 @@ import {
   AlertCircle,
   EyeOff,
   Zap,
-  FileDownload,
+  Filter,
 } from "lucide-react";
 import { useSavedViews } from "@/lib/platform/saved-views";
 import { recordAudit } from "@/lib/platform/console-store";
@@ -61,13 +61,6 @@ const RETENTION_PERIODS: { label: string; value: string; days: number }[] = [
   { label: "Indefinite", value: "indefinite", days: 0 },
 ];
 
-const purgeStatusTones: Record<string, "default" | "warning" | "success" | "danger"> = {
-  none: "default",
-  scheduled: "warning",
-  completed: "success",
-  blocked: "danger",
-};
-
 export function TenantOffboardingPage() {
   const { user } = usePlatform();
   const tenants = useTenants();
@@ -89,7 +82,7 @@ export function TenantOffboardingPage() {
         plan: t.plan,
         dataSize: `${t.enabledModules.length * 12} GB`,
         retentionPeriod: isTerminated ? "90d" : "30d",
-        purgeStatus: purgeStatus,
+        purgeStatus,
         daysUntilPurge: isTerminated ? 45 : undefined,
         lastExport: isTerminated ? new Date(Date.now() - 2 * 86400000).toISOString() : undefined,
       };
@@ -102,18 +95,6 @@ export function TenantOffboardingPage() {
     blockedPurges: offboardingRows.filter((r) => r.purgeStatus === "blocked").length,
     lastExportCount: offboardingRows.filter((r) => r.lastExport).length,
   }), [offboardingRows]);
-
-  const statusTones: Record<string, "success" | "warning" | "info" | "danger"> = {
-    active: "success",
-    trial: "info",
-    suspended: "warning",
-    terminated: "danger",
-    invited: "info",
-    onboarding: "info",
-    provisioning: "info",
-    provisioning_failed: "danger",
-    rolled_back: "warning",
-  };
 
   const columns: Column<OffboardingTenantRow>[] = [
     {
@@ -159,9 +140,9 @@ export function TenantOffboardingPage() {
       cell: (r) => (
         <Badge
           variant={
-            r.purgeStatus === "scheduled" ? "warning" :
-            r.purgeStatus === "completed" ? "secondary" :
-            r.purgeStatus === "blocked" ? "danger" :
+            r.purgeStatus === "scheduled" ? "secondary" :
+            r.purgeStatus === "completed" ? "outline" :
+            r.purgeStatus === "blocked" ? "destructive" :
             "default"
           }
         >{r.purgeStatus}</Badge>
@@ -177,7 +158,7 @@ export function TenantOffboardingPage() {
 
         return (
           <div className="flex items-center gap-1">
-            {isTerminated && (
+            {isTerminated ? (
               <Button
                 size="sm"
                 variant="destructive"
@@ -203,7 +184,7 @@ export function TenantOffboardingPage() {
                 className="h-7 px-2 text-[10px] text-emerald-500 hover:text-emerald-600"
                 onClick={() => handleRestore(r.tenantId, r.tenant)}
               >
-                <Restore className="h-3 w-3" /> Restore
+                <RotateCcw className="h-3 w-3" />
               </Button>
             )}
           </div>
@@ -212,6 +193,42 @@ export function TenantOffboardingPage() {
       sortValue: () => "",
     },
   ];
+
+  const handleExport = (tenantId: string, tenantName: string) => {
+    recordAudit({
+      actor: user.name,
+      action: "tenant.export",
+      target: tenantName,
+      tenantId,
+      severity: "info",
+      detail: "Exporting tenant data package for offboarding review",
+    });
+    toast({ title: "Export started", description: `Data package for ${tenantName} queued for generation.` });
+  };
+
+  const handlePurge = (tenantId: string, tenantName: string) => {
+    recordAudit({
+      actor: user.name,
+      action: "tenant.purge",
+      target: tenantName,
+      tenantId,
+      severity: "critical",
+      detail: "Purging tenant data — irreversible data deletion",
+    });
+    toast({ title: "Purge initiated", description: `Purge scheduled for ${tenantName}. This cannot be undone.` });
+  };
+
+  const handleRestore = (tenantId: string, tenantName: string) => {
+    recordAudit({
+      actor: user.name,
+      action: "tenant.restore",
+      target: tenantName,
+      tenantId,
+      severity: "warning",
+      detail: "Restoring tenant from retention window",
+    });
+    toast({ title: "Restore initiated", description: `Restore requested for ${tenantName} — pending approval.` });
+  };
 
   return (
     <Page>
@@ -222,10 +239,10 @@ export function TenantOffboardingPage() {
       />
       <PageContent>
         <PageAsyncBoundary
-          loading={loading}
-          error={error}
-          onRetry={retry}
-          hasData={hydrated !== undefined}
+          loading={false}
+          error={undefined}
+          onRetry={() => {}}
+          hasData={true}
           loadingLabel="Loading offboarding data…"
         >
           {/* Stats */}
@@ -233,7 +250,7 @@ export function TenantOffboardingPage() {
             <MetricCard label="Terminated Tenants" value={stats.terminatedCount} icon={AlertCircle} tone="negative" />
             <MetricCard label="Scheduled Purges" value={stats.scheduledPurges} icon={Clock} tone="warning" />
             <MetricCard label="Blocked Purges" value={stats.blockedPurges} icon={AlertTriangle} tone="warning" />
-            <MetricCard label="Recent Exports" value={stats.lastExportCount} icon={FileDownload} />
+            <MetricCard label="Recent Exports" value={stats.lastExportCount} icon={Download} />
           </div>
 
           {/* Tenant Offboarding Table */}
@@ -268,6 +285,29 @@ export function TenantOffboardingPage() {
                 emptyDescription="No tenants require offboarding at this time."
                 pageSize={10}
               />
+            </CardContent>
+          </Card>
+
+          {/* Retention Policy Info */}
+          <Card className="mt-4 bg-muted/50 border border-muted/30">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-medium mb-2">Retention Policy</h3>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {RETENTION_PERIODS.map((p) => (
+                  <div key={p.value} className="rounded bg-background border p-3">
+                    <span className="text-xs font-medium text-muted-foreground">{p.label}</span>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs">{p.days > 0 ? `${p.days} days` : p.label}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Separator className="my-2" />
+              <p className="text-xs text-muted-foreground">
+                Terminated tenants remain in the retention window for 90 days before
+                automatic purge. Purge actions are audit-logged and irreversible.
+                Restores require two-operator approval.
+              </p>
             </CardContent>
           </Card>
         </PageAsyncBoundary>
