@@ -18,7 +18,24 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import {
+  listTemplates,
+  saveTemplate,
+  sendTestTemplate,
+  duplicateTemplate,
+  createTemplate,
+  useTemplatesVersion,
+} from "@/lib/platform/notification-templates-store";
 import {
   FileCode,
   Search,
@@ -35,17 +52,6 @@ import {
   Copy,
   Eye,
 } from "lucide-react";
-
-const demoTemplates = [
-  { id: "tpl-001", name: "Welcome Email", channel: "email", language: "en", status: "active", subject: "Welcome to {{tenant_name}}, {{user_name}}!", body: "Hi {{user_name}},\n\nYour account on {{tenant_name}} is ready. Your login: {{login_url}}\n\n- The {{tenant_name}} Team", variables: ["tenant_name", "user_name", "login_url"], updatedAt: "2026-10-05T10:00:00Z", sentCount: 12480 },
-  { id: "tpl-002", name: "Welcome Email (ES)", channel: "email", language: "es", status: "active", subject: "Bienvenido a {{tenant_name}}, {{user_name}}", body: "Hola {{user_name}},\n\nTu cuenta en {{tenant_name}} está lista. Tu acceso: {{login_url}}", variables: ["tenant_name", "user_name", "login_url"], updatedAt: "2026-10-05T10:05:00Z", sentCount: 3420 },
-  { id: "tpl-003", name: "Password Reset", channel: "email", language: "en", status: "active", subject: "Reset your password", body: "Hi {{user_name}},\n\nReset link (valid 30 min): {{reset_url}}\n\nIf you didn't request this, ignore this email.", variables: ["user_name", "reset_url"], updatedAt: "2026-09-28T14:00:00Z", sentCount: 8750 },
-  { id: "tpl-004", name: "Payout Processed", channel: "push", language: "en", status: "active", subject: "", body: "Payout of {{amount}} {{currency}} processed to {{method}}.", variables: ["amount", "currency", "method"], updatedAt: "2026-10-02T09:30:00Z", sentCount: 2140 },
-  { id: "tpl-005", name: "Risk Breach Alert", channel: "sms", language: "en", status: "active", subject: "", body: "{{tenant_name}}: risk breach on {{account_id}}. Level {{risk_level}}. Action required.", variables: ["tenant_name", "account_id", "risk_level"], updatedAt: "2026-09-20T16:45:00Z", sentCount: 890 },
-  { id: "tpl-006", name: "KYC Approved", channel: "in-app", language: "en", status: "active", subject: "", body: "Your verification ({{kyc_level}}) is approved. You can now trade.", variables: ["kyc_level"], updatedAt: "2026-10-01T11:00:00Z", sentCount: 5610 },
-  { id: "tpl-007", name: "Billing Failed (Dunning)", channel: "email", language: "en", status: "draft", subject: "Payment failed — action needed", body: "Hi {{user_name}},\n\nYour payment of {{amount}} failed ({{error_reason}}). Retry: {{retry_url}}", variables: ["user_name", "amount", "error_reason", "retry_url"], updatedAt: "2026-10-07T18:20:00Z", sentCount: 0 },
-  { id: "tpl-008", name: "Discord Ops Alert", channel: "discord", language: "en", status: "disabled", subject: "", body: "[{{severity}}] {{service}}: {{message}}", variables: ["severity", "service", "message"], updatedAt: "2026-08-15T08:00:00Z", sentCount: 430 },
-];
 
 const channelMeta: Record<string, { icon: typeof Mail; color: string; label: string }> = {
   email: { icon: Mail, color: "#4a7c59", label: "Email" },
@@ -70,17 +76,24 @@ const availableVariables = [
 
 export function NotificationTemplatesPage() {
   const { navigate } = usePlatform();
+  // Async seam (frontend-first): hydrate via the mock layer so the
+  // loading skeleton + error/retry states are exercised; the persisted
+  // template store is authoritative once loaded.
   const {
-    data: loadedData,
+    data: hydrated,
     loading,
     error,
     retry,
-  } = useAsyncMock(() => mockAsync(() => demoTemplates, { delayMs: 450 }), []);
-  const templates = loadedData ?? [];
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 450 }), []);
+  useTemplatesVersion();
+  const templates = listTemplates();
   const [search, setSearch] = useState("");
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState("");
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newChannel, setNewChannel] = useState<"email" | "push" | "sms" | "in-app" | "discord" | "telegram">("email");
 
   const filtered = useMemo(() => {
     return templates.filter((tpl) => {
@@ -112,6 +125,35 @@ export function NotificationTemplatesPage() {
     setEditBody((prev) => `${prev}{{${variable}}}`);
   };
 
+  const handleSave = () => {
+    if (!selected) return;
+    saveTemplate(selected.id, { body: editBody });
+    toast({ title: "Template saved", description: `${selected.name} updated and audit-logged.` });
+  };
+
+  const handleTest = () => {
+    if (!selected) return;
+    sendTestTemplate(selected.id);
+    toast({ title: "Test sent", description: `Test ${selected.channel} message dispatched to you.` });
+  };
+
+  const handleDuplicate = () => {
+    if (!selected) return;
+    const copy = duplicateTemplate(selected.id);
+    if (!copy) return;
+    toast({ title: "Template duplicated", description: `${selected.name} copied as "${copy.name}" (draft).` });
+    openEditor(copy.id);
+  };
+
+  const handleCreate = () => {
+    if (!newName.trim()) return;
+    const tpl = createTemplate({ name: newName.trim(), channel: newChannel });
+    setNewName("");
+    setShowNew(false);
+    toast({ title: "Template created", description: `"${tpl.name}" created as a draft.` });
+    openEditor(tpl.id);
+  };
+
   return (
     <Page>
       <PageHeader
@@ -123,7 +165,7 @@ export function NotificationTemplatesPage() {
             <Button variant="outline" size="sm" onClick={() => navigate("notifications")}>
               <Bell className="mr-1 h-4 w-4" /> Notification Center
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "(demo) New template", description: "Template form: channel, language, subject, body." })}>
+            <Button size="sm" onClick={() => setShowNew(true)}>
               <Plus className="mr-1 h-4 w-4" /> New Template
             </Button>
           </>
@@ -134,9 +176,42 @@ export function NotificationTemplatesPage() {
           loading={loading}
           error={error}
           onRetry={retry}
-          hasData={loadedData !== undefined}
+          hasData={hydrated !== undefined}
           loadingLabel="Loading templates…"
         >
+        {/* New template dialog */}
+        <Dialog open={showNew} onOpenChange={setShowNew}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>New notification template</DialogTitle>
+              <DialogDescription>
+                Templates start as drafts. Edit the body in the editor after creation.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Name</Label>
+                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Welcome Email" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Channel</Label>
+                <select
+                  value={newChannel}
+                  onChange={(e) => setNewChannel(e.target.value as typeof newChannel)}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                >
+                  {Object.entries(channelMeta).map(([ch, meta]) => (
+                    <option key={ch} value={ch}>{meta.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setShowNew(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleCreate} disabled={!newName.trim()}>Create template</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard label="Templates" value={stats.total} icon={FileCode} />
@@ -268,13 +343,13 @@ export function NotificationTemplatesPage() {
                     Sent {selected.sentCount.toLocaleString()} times · Updated {new Date(selected.updatedAt).toLocaleDateString()}
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => toast({ title: "(demo) Test sent", description: `Test ${selected.channel} message dispatched to you.` })}>
+                    <Button size="sm" variant="outline" onClick={handleTest}>
                       <Send className="mr-1 h-3 w-3" /> Test Send
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => toast({ title: "(demo) Template duplicated", description: `${selected.name} copied as draft.` })}>
+                    <Button size="sm" variant="outline" onClick={handleDuplicate}>
                       <Copy className="mr-1 h-3 w-3" /> Duplicate
                     </Button>
-                    <Button size="sm" onClick={() => toast({ title: "(demo) Template saved", description: `${selected.name} updated. Audited.` })}>
+                    <Button size="sm" onClick={handleSave}>
                       <Save className="mr-1 h-3 w-3" /> Save
                     </Button>
                   </div>

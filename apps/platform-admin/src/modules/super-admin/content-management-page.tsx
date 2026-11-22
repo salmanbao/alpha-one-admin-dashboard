@@ -17,7 +17,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import {
+  listContent,
+  publishContent,
+  createContent,
+  runSeoAudit,
+  requestLegalReview,
+  useContentVersion,
+} from "@/lib/platform/content-store";
 import {
   FileText,
   Search,
@@ -33,17 +49,6 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
-
-const demoContent = [
-  { id: "cnt-001", title: "Pricing Page", type: "page", slug: "/pricing", status: "published", author: "Marketing Team", seoScore: 92, metaTitle: "Prop Firm as a Service — Pricing", updatedAt: "2026-10-05T10:00:00Z", views: 24500 },
-  { id: "cnt-002", title: "How Challenge Payouts Work", type: "blog", slug: "/blog/how-payouts-work", status: "published", author: "Content Team", seoScore: 88, metaTitle: "How Prop Firm Payouts Work (2026 Guide)", updatedAt: "2026-10-02T14:30:00Z", views: 18200 },
-  { id: "cnt-003", title: "FAQ — Account Scaling", type: "faq", slug: "/faq/scaling", status: "published", author: "Support Team", seoScore: 74, metaTitle: "Scaling Rules FAQ", updatedAt: "2026-09-28T09:15:00Z", views: 9800 },
-  { id: "cnt-004", title: "Terms of Service", type: "legal", slug: "/legal/terms", status: "published", author: "Legal Team", seoScore: 60, metaTitle: "Terms of Service", updatedAt: "2026-08-15T11:00:00Z", views: 5400 },
-  { id: "cnt-005", title: "Privacy Policy (GDPR)", type: "legal", slug: "/legal/privacy", status: "published", author: "Legal Team", seoScore: 65, metaTitle: "Privacy Policy — GDPR Compliance", updatedAt: "2026-09-10T16:45:00Z", views: 6100 },
-  { id: "cnt-006", title: "Affiliate Program Landing", type: "landing", slug: "/affiliates", status: "draft", author: "Growth Team", seoScore: 45, metaTitle: "Earn with the PFAAS Affiliate Program", updatedAt: "2026-10-07T18:00:00Z", views: 0 },
-  { id: "cnt-007", title: "Blog — Risk Management Basics", type: "blog", slug: "/blog/risk-basics", status: "draft", author: "Content Team", seoScore: 52, metaTitle: "Risk Management Basics for Traders", updatedAt: "2026-10-06T12:20:00Z", views: 0 },
-  { id: "cnt-008", title: "Cookie Policy", type: "legal", slug: "/legal/cookies", status: "review", author: "Legal Team", seoScore: 58, metaTitle: "Cookie Policy", updatedAt: "2026-10-08T08:30:00Z", views: 2300 },
-];
 
 const typeMeta: Record<string, { icon: typeof FileText; color: string }> = {
   page: { icon: FileText, color: "#4a7c59" },
@@ -69,16 +74,46 @@ function SeoBadge({ score }: { score: number }) {
 }
 
 export function ContentManagementPage() {
+  // Async seam (frontend-first): hydrate via the mock layer so the
+  // loading skeleton + error/retry states are exercised; the persisted
+  // content store is authoritative once loaded.
   const {
-    data: loadedData,
+    data: hydrated,
     loading,
     error,
     retry,
-  } = useAsyncMock(() => mockAsync(() => demoContent, { delayMs: 450 }), []);
-  const content = loadedData ?? [];
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 450 }), []);
+  useContentVersion();
+  const content = listContent();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const previewItem = content.find((c) => c.id === previewId) ?? null;
+
+  const handlePublish = (id: string) => {
+    const item = publishContent(id);
+    if (item) toast({ title: "Published", description: `${item.title} is now live — CDN purge queued.` });
+  };
+
+  const handleSeoAudit = () => {
+    const count = runSeoAudit();
+    toast({ title: "SEO audit queued", description: `Full-site audit queued across ${count} item(s). Results in Analytics.` });
+  };
+
+  const handleNewContent = () => {
+    const item = createContent({ title: "Untitled draft", type: "page" });
+    toast({ title: "Content created", description: `"${item.title}" created at ${item.slug} as a draft.` });
+  };
+
+  const handleLegalReview = () => {
+    const routed = requestLegalReview();
+    if (routed.length === 0) {
+      toast({ title: "No documents to route", description: "All legal documents are already in review." });
+      return;
+    }
+    toast({ title: "Legal review requested", description: `${routed.length} document(s) routed for counsel review.` });
+  };
 
   const filtered = useMemo(() => {
     return content.filter((item) => {
@@ -108,10 +143,10 @@ export function ContentManagementPage() {
         icon={FileText}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => toast({ title: "(demo) SEO audit", description: "Full-site SEO audit queued. Results in Analytics." })}>
+            <Button variant="outline" size="sm" onClick={handleSeoAudit}>
               <Search className="mr-1 h-4 w-4" /> SEO Audit
             </Button>
-            <Button size="sm" onClick={() => toast({ title: "(demo) New content", description: "Content form: type, title, slug, body, SEO metadata." })}>
+            <Button size="sm" onClick={handleNewContent}>
               <Plus className="mr-1 h-4 w-4" /> New Content
             </Button>
           </>
@@ -122,7 +157,7 @@ export function ContentManagementPage() {
           loading={loading}
           error={error}
           onRetry={retry}
-          hasData={loadedData !== undefined}
+          hasData={hydrated !== undefined}
           loadingLabel="Loading content…"
         >
         {/* Stats */}
@@ -205,14 +240,14 @@ export function ContentManagementPage() {
                         <td className="px-4 py-3"><StatusBadge tone={statusTones[item.status]}>{item.status}</StatusBadge></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Preview", description: `Previewing ${item.title} at ${item.slug}.` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => setPreviewId(item.id)}>
                               <Eye className="h-3 w-3" /> Preview
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Editor opened", description: `Editing ${item.title}. SEO fields included.` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => setPreviewId(item.id)}>
                               Edit
                             </Button>
                             {item.status !== "published" && (
-                              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Published", description: `${item.title} is now live. CDN purge queued.` })}>
+                              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => handlePublish(item.id)}>
                                 <Send className="h-3 w-3" /> Publish
                               </Button>
                             )}
@@ -272,12 +307,57 @@ export function ContentManagementPage() {
                 </div>
               ))}
               <Separator className="my-2" />
-              <Button size="sm" variant="outline" className="w-full" onClick={() => toast({ title: "(demo) Legal review", description: "Legal documents routed for counsel review. Audited." })}>
+              <Button size="sm" variant="outline" className="w-full" onClick={handleLegalReview}>
                 <RefreshCw className="mr-1 h-3 w-3" /> Request Legal Review
               </Button>
             </CardContent>
           </Card>
         </div>
+
+        {/* Preview / edit detail dialog */}
+        <Dialog open={previewId !== null} onOpenChange={(open) => { if (!open) setPreviewId(null); }}>
+          <DialogContent>
+            {previewItem && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{previewItem.title}</DialogTitle>
+                  <DialogDescription>
+                    {previewItem.type} · <code className="font-mono">{previewItem.slug}</code> · {previewItem.status}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 text-sm">
+                  <div className="rounded-md bg-muted/40 px-3 py-2">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Meta title</p>
+                    <p className="mt-0.5">{previewItem.metaTitle}</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <p className="text-muted-foreground">SEO score</p>
+                      <p className="mt-0.5 font-semibold">{previewItem.seoScore}</p>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <p className="text-muted-foreground">Views</p>
+                      <p className="mt-0.5 font-semibold">{previewItem.views.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2">
+                      <p className="text-muted-foreground">Updated</p>
+                      <p className="mt-0.5 font-semibold">{new Date(previewItem.updatedAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Author: {previewItem.author} — editing opens the CMS editor with SEO fields included.
+                  </p>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" size="sm" onClick={() => setPreviewId(null)}>Close</Button>
+                  {previewItem.status !== "published" && (
+                    <Button size="sm" onClick={() => { handlePublish(previewItem.id); setPreviewId(null); }}>Publish</Button>
+                  )}
+                </DialogFooter>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
         </PageAsyncBoundary>
       </PageContent>
     </Page>
