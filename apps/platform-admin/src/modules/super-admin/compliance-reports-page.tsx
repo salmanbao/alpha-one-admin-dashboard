@@ -29,6 +29,18 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import {
+  listReports,
+  listComplianceSchedules,
+  generateReport as generateComplianceReport,
+  downloadReport,
+  runReport,
+  addSchedule as addComplianceSchedule,
+  toggleSchedule,
+  runScheduleNow,
+  useComplianceVersion,
+  type ReportType,
+} from "@/lib/platform/compliance-reports-store";
+import {
   FileCheck,
   Plus,
   Download,
@@ -44,21 +56,6 @@ import {
   Eye,
   Send,
 } from "lucide-react";
-
-const demoReports = [
-  { id: "rpt-001", name: "SOC2 Type II — Q4 2026", type: "soc2", period: "2026-07-01 to 2026-09-30", status: "completed", generatedAt: "2026-10-01T10:00:00Z", fileSize: "2.4 MB", sections: ["Access Controls", "Availability", "Confidentiality", "Security"], schedule: null },
-  { id: "rpt-002", name: "GDPR Data Processing — Oct 2026", type: "gdpr", period: "2026-10-01 to 2026-10-31", status: "generating", generatedAt: null, fileSize: null, sections: ["Data Inventory", "Processing Activities", "Third Country Transfers"], schedule: null },
-  { id: "rpt-003", name: "PCI DSS — Monthly Compliance", type: "pci", period: "2026-10-01 to 2026-10-31", status: "scheduled", generatedAt: null, fileSize: null, sections: ["Network Security", "Access Control", "Monitoring"], schedule: "Monthly, 1st day 02:00 UTC" },
-  { id: "rpt-004", name: "Internal Audit — Security Controls", type: "custom", period: "2026-09-01 to 2026-09-30", status: "completed", generatedAt: "2026-10-01T14:30:00Z", fileSize: "1.8 MB", sections: ["Authentication", "Authorization", "Encryption", "Logging"], schedule: null },
-  { id: "rpt-005", name: "SOC2 Type II — Q3 2026", type: "soc2", period: "2026-04-01 to 2026-06-30", status: "completed", generatedAt: "2026-07-01T10:00:00Z", fileSize: "2.3 MB", sections: ["Access Controls", "Availability", "Confidentiality", "Security"], schedule: null },
-  { id: "rpt-006", name: "GDPR Data Processing — Sep 2026", type: "gdpr", period: "2026-09-01 to 2026-09-30", status: "completed", generatedAt: "2026-10-01T09:00:00Z", fileSize: "890 KB", sections: ["Data Inventory", "Processing Activities"], schedule: null },
-];
-
-const demoSchedules = [
-  { id: "sch-001", name: "Monthly PCI DSS", type: "pci", frequency: "Monthly", nextRun: "2026-11-01T02:00:00Z", enabled: true, delivery: "Email to compliance@" },
-  { id: "sch-002", name: "Quarterly SOC2", type: "soc2", frequency: "Quarterly", nextRun: "2027-01-01T02:00:00Z", enabled: true, delivery: "Email + S3 Archive" },
-  { id: "sch-003", name: "GDPR Monthly", type: "gdpr", frequency: "Monthly", nextRun: "2026-11-01T03:00:00Z", enabled: false, delivery: "Email to dpo@" },
-];
 
 const typeColors: Record<string, string> = {
   soc2: "#4a7c59",
@@ -77,22 +74,24 @@ const statusTones: Record<string, "success" | "warning" | "info" | "danger"> = {
 
 export function ComplianceReportsPage() {
   const { navigate } = usePlatform();
+  // Async seam (frontend-first): hydrate via the mock layer so the
+  // loading skeleton + error/retry states are exercised; the persisted
+  // compliance store is authoritative once loaded.
   const {
-    data: loadedData,
+    data: hydrated,
     loading,
     error,
     retry,
-  } = useAsyncMock(() => mockAsync(() => ({ reports: demoReports, schedules: demoSchedules }), { delayMs: 500 }), []);
-  const data = loadedData ?? { reports: [], schedules: [] };
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 500 }), []);
+  useComplianceVersion();
+  const allReports = listReports();
+  const allSchedules = listComplianceSchedules();
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [showSchedules, setShowSchedules] = useState(false);
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
 
   // Report generation + schedule creation (finding #10) — real forms
-  // layered over the async fixture data. Deterministic: IDs derive from
-  // list position, next-run dates come from a fixed lookup (no clocks).
-  const [extraReports, setExtraReports] = useState<typeof demoReports>([]);
-  const [extraSchedules, setExtraSchedules] = useState<typeof demoSchedules>([]);
+  // writing to the persisted compliance store.
   const [genOpen, setGenOpen] = useState(false);
   const [schedOpen, setSchedOpen] = useState(false);
   const [genType, setGenType] = useState("soc2");
@@ -103,35 +102,21 @@ export function ComplianceReportsPage() {
   const [schedFrequency, setSchedFrequency] = useState("Monthly");
   const [schedDelivery, setSchedDelivery] = useState("Email to compliance@");
 
-  const allReports = [...extraReports, ...data.reports];
-  const allSchedules = [...data.schedules, ...extraSchedules];
-
   const SECTION_OPTIONS = ["Access Controls", "Availability", "Confidentiality", "Security", "Data Inventory", "Processing Activities", "Network Security", "Monitoring"];
 
   const generateReport = () => {
-    const id = `rpt-${String(demoReports.length + extraReports.length + 1).padStart(3, "0")}`;
     const typeName = genType === "soc2" ? "SOC2" : genType === "gdpr" ? "GDPR" : genType === "pci" ? "PCI DSS" : genType === "hipaa" ? "HIPAA" : "Custom";
-    setExtraReports((prev) => [
-      {
-        id,
-        name: `${typeName} — ${genPeriod.split(" to ")[0]}`,
-        type: genType,
-        period: genPeriod,
-        status: "generating",
-        generatedAt: null,
-        fileSize: null,
-        sections: genSections.length > 0 ? genSections : ["Security"],
-        schedule: null,
-      },
-      ...prev,
-    ]);
+    generateComplianceReport({
+      type: genType as ReportType,
+      period: genPeriod,
+      sections: genSections,
+    });
     setGenOpen(false);
-    toast({ title: "(demo) Report generation started", description: `${typeName} for ${genPeriod} — ${genSections.length} sections. It will appear as completed once processing finishes.` });
+    toast({ title: "Report generation started", description: `${typeName} for ${genPeriod} — ${genSections.length} sections queued.` });
   };
 
   const addSchedule = () => {
     const name = schedName.trim() || `${schedFrequency} ${schedType.toUpperCase()}`;
-    const id = `sch-${String(demoSchedules.length + extraSchedules.length + 1).padStart(3, "0")}`;
     // Deterministic next-run per frequency (fixed fixture dates).
     const nextRunByFreq: Record<string, string> = {
       Weekly: "2026-11-08T02:00:00Z",
@@ -139,14 +124,17 @@ export function ComplianceReportsPage() {
       Quarterly: "2027-01-01T02:00:00Z",
       Annually: "2027-01-01T02:00:00Z",
     };
-    setExtraSchedules((prev) => [
-      ...prev,
-      { id, name, type: schedType, frequency: schedFrequency, nextRun: nextRunByFreq[schedFrequency] ?? "2026-12-01T02:00:00Z", enabled: true, delivery: schedDelivery },
-    ]);
+    addComplianceSchedule({
+      name,
+      type: schedType as ReportType,
+      frequency: schedFrequency,
+      nextRun: nextRunByFreq[schedFrequency] ?? "2026-12-01T02:00:00Z",
+      delivery: schedDelivery,
+    });
     setSchedOpen(false);
     setSchedName("");
     setShowSchedules(true);
-    toast({ title: "(demo) Schedule created", description: `${name} — ${schedFrequency}, ${schedDelivery}.` });
+    toast({ title: "Schedule created", description: `${name} — ${schedFrequency}, ${schedDelivery}.` });
   };
 
   const filtered = useMemo(() => {
@@ -188,7 +176,7 @@ export function ComplianceReportsPage() {
           loading={loading}
           error={error}
           onRetry={retry}
-          hasData={loadedData !== undefined}
+          hasData={hydrated !== undefined}
           loadingLabel="Loading compliance reports…"
         >
         {/* Stats */}
@@ -262,12 +250,12 @@ export function ComplianceReportsPage() {
                             <Eye className="h-3 w-3" /> View
                           </Button>
                           {rpt.status === "completed" && (
-                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Download started", description: `${rpt.name} PDF download initiated.` })}>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => { downloadReport(rpt.id); toast({ title: "Download started", description: `${rpt.name} PDF download initiated.` }); }}>
                               <Download className="h-3 w-3" /> Download
                             </Button>
                           )}
                           {rpt.status === "scheduled" && (
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Run now", description: `Triggering ${rpt.name} generation.` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => { runReport(rpt.id); toast({ title: "Report queued", description: `Triggering ${rpt.name} generation.` }); }}>
                               <Play className="h-3 w-3" /> Run Now
                             </Button>
                           )}
@@ -323,10 +311,10 @@ export function ComplianceReportsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: sch.enabled ? "Schedule disabled" : "Schedule enabled", description: `${sch.name} ${sch.enabled ? "disabled" : "enabled"}.` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => { const next = toggleSchedule(sch.id); if (next) toast({ title: next.enabled ? "Schedule enabled" : "Schedule disabled", description: `${next.name} ${next.enabled ? "enabled" : "disabled"}.` }); }}>
                               {sch.enabled ? "Disable" : "Enable"}
                             </Button>
-                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Run now", description: `Triggering ${sch.name} report generation.` })}>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => { runScheduleNow(sch.id); toast({ title: "Report queued", description: `Triggering ${sch.name} report generation.` }); }}>
                               <Play className="h-3 w-3" />
                             </Button>
                           </div>
@@ -391,12 +379,12 @@ export function ComplianceReportsPage() {
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setSelectedReport(null)}>Close</Button>
                 {selectedRpt.status === "completed" && (
-                  <Button onClick={() => toast({ title: "(demo) Download started", description: `${selectedRpt.name} PDF download initiated.` })}>
+                  <Button onClick={() => { downloadReport(selectedRpt.id); toast({ title: "Download started", description: `${selectedRpt.name} PDF download initiated.` }); }}>
                     <Download className="mr-1 h-4 w-4" /> Download PDF
                   </Button>
                 )}
                 {selectedRpt.status !== "completed" && (
-                  <Button onClick={() => toast({ title: "(demo) Regenerate", description: `Triggering regeneration of ${selectedRpt.name}.` })}>
+                  <Button onClick={() => { runReport(selectedRpt.id); toast({ title: "Report queued", description: `Triggering regeneration of ${selectedRpt.name}.` }); }}>
                     <RefreshCw className="mr-1 h-4 w-4" /> Regenerate
                   </Button>
                 )}

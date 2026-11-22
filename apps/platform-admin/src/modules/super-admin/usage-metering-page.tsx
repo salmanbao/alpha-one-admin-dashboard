@@ -38,6 +38,11 @@ import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/platform/guards";
 import { toast } from "@/hooks/use-toast";
 import {
+  areUsageAlertsArmed,
+  toggleUsageAlerts,
+  useUsageAlertsVersion,
+} from "@/lib/platform/usage-alerts-store";
+import {
   UsageNoticeDialog,
   type UsageNoticePrefill,
 } from "@/modules/super-admin/usage-notice-dialog";
@@ -157,18 +162,16 @@ const tenants = useTenants();
   const nearLimit = rows.filter(rowNear).length;
   const projected = rows.filter((r) => r.soon.days <= 90).length;
 
-  // finding #4 — proactive notification system (arm 80%/95% alerts)
-  const [alertsArmed, setAlertsArmed] = useState<Record<string, boolean>>({});
-  const toggleAlerts = (tenantName: string) => {
-    setAlertsArmed((prev) => {
-      const next = !prev[tenantName];
-      toast({
-        title: next ? "Usage alerts armed" : "Usage alerts muted",
-        description: next
-          ? `${tenantName} will be notified at 80% and 95% of each plan limit.`
-          : `No more limit notifications for ${tenantName}.`,
-      });
-      return { ...prev, [tenantName]: next };
+  // finding #4 — proactive notification system (arm 80%/95% alerts),
+  // persisted via the usage-alerts store so arming survives reload.
+  useUsageAlertsVersion();
+  const toggleAlerts = (tenantName: string, tenantId: string) => {
+    const next = toggleUsageAlerts(tenantName, tenantId);
+    toast({
+      title: next ? "Usage alerts armed" : "Usage alerts muted",
+      description: next
+        ? `${tenantName} will be notified at 80% and 95% of each plan limit.`
+        : `No more limit notifications for ${tenantName}.`,
     });
   };
 
@@ -253,7 +256,7 @@ const tenants = useTenants();
               const worst = Math.max(...metrics.map((m) => m.p));
               const flagged = worst >= 80 || soon.days <= 90;
               const soonMetric = metrics.find((m) => m.key === soon.key) ?? metrics[0];
-              const armed = !!alertsArmed[tenant.name];
+              const armed = areUsageAlertsArmed(tenant.name);
               const forecastText =
                 soon.days === 0
                   ? `${soonMetric.label} is over its ceiling now`
@@ -304,7 +307,7 @@ const tenants = useTenants();
                               className="h-7 gap-1 text-xs"
                               aria-pressed={armed}
                               title="Notify the tenant at 80% and 95% of each plan limit"
-                              onClick={() => toggleAlerts(tenant.name)}
+                              onClick={() => toggleAlerts(tenant.name, tenant.id)}
                             >
                               {armed ? <BellRing className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
                               {armed ? "Alerts armed" : "Arm alerts"}

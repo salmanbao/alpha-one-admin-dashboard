@@ -15,8 +15,8 @@
  * Mounted fresh per notice (parent renders it only while open), so
  * useState(prefill) is the reset mechanism — no effects.
  *
- * Frontend-only demo: "send" confirms with a toast; nothing leaves
- * the browser.
+ * Frontend-only demo: "send" writes an audit row and confirms with a
+ * toast; nothing leaves the browser (delivery is a backend concern).
  */
 
 import { useState } from "react";
@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { recordAudit } from "@/lib/platform/console-store";
 
 export interface UsageNoticePrefill {
   tenantName: string;
@@ -61,9 +62,16 @@ export function UsageNoticeDialog({
       });
       return;
     }
+    recordAudit({
+      actor: "operator",
+      action: "usage.tenant_notice",
+      target: prefill.tenantName,
+      detail: `Overage/upgrade notice queued for ${prefill.tenantName} (${prefill.recipient}): "${subject.trim()}"`,
+      severity: "warning",
+    });
     toast({
-      title: `Notice sent to ${prefill.tenantName}`,
-      description: `“${subject.trim()}” → ${prefill.recipient} — the tenant admin sees it at next login.`,
+      title: `Notice queued for ${prefill.tenantName}`,
+      description: `"${subject.trim()}" → ${prefill.recipient} — audit row written; delivery happens at the next notification sweep.`,
     });
     onClose();
   };

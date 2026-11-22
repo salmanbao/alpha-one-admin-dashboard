@@ -28,7 +28,22 @@ import { DataTable, type Column } from "@/components/platform/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import {
+  readCustomLimits,
+  setCustomLimit,
+  useApiLimitsVersion,
+} from "@/lib/platform/api-limits-store";
 import {
   Activity,
   AlertTriangle,
@@ -193,13 +208,45 @@ export function TenantApiUsagePage() {
   const { navigate } = usePlatform();
   const tenants = useTenants();
 
-  // Custom per-tenant limits — editable, applied with a toast (audit #1).
-  const [limits, setLimits] = useState<Record<string, number | null>>(
-    () => Object.fromEntries(TENANT_API.map((r) => [r.tenantId, r.customLimit])),
-  );
+  // Custom per-tenant limits — persisted via the api-limits store (R13
+  // P1-1); every change writes an audit row and survives reload.
+  useApiLimitsVersion();
+  const limits = readCustomLimits();
 
+  // Limit edit dialog
+  const [limitTarget, setLimitTarget] = useState<TenantApiRow | null>(null);
+  const [limitValue, setLimitValue] = useState("");
+
+  const openLimitDialog = (row: TenantApiRow) => {
+    setLimitTarget(row);
+    setLimitValue(String(limits[row.tenantId] ?? row.customLimit ?? PLAN_API_CAP[row.plan]));
+  };
+
+  const applyLimit = () => {
+    if (!limitTarget) return;
+    const parsed = Number(limitValue.replace(/[,_\s]/g, ""));
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      toast({ title: "Invalid limit", description: "Enter a positive number of calls per day.", variant: "destructive" });
+      return;
+    }
+    setCustomLimit(limitTarget.tenantId, limitTarget.name, parsed, PLAN_API_CAP[limitTarget.plan]);
+    setLimitTarget(null);
+    toast({ title: "Custom limit applied", description: `${limitTarget.name}: ${compact(parsed)}/day — persisted and audit-logged.` });
+  };
+
+  const clearLimit = () => {
+    if (!limitTarget) return;
+    setCustomLimit(limitTarget.tenantId, limitTarget.name, null, PLAN_API_CAP[limitTarget.plan]);
+    setLimitTarget(null);
+    toast({ title: "Custom limit cleared", description: `${limitTarget.name} now uses its plan cap.` });
+  };
+
+  // A key present in the store (even null after a clear) wins; otherwise
+  // fall back to the row's seeded custom limit, then the plan cap.
   const effectiveLimit = (row: TenantApiRow) =>
-    limits[row.tenantId] ?? PLAN_API_CAP[row.plan];
+    row.tenantId in limits
+      ? limits[row.tenantId] ?? PLAN_API_CAP[row.plan]
+      : row.customLimit ?? PLAN_API_CAP[row.plan];
 
   const rows = useMemo(
     () =>
@@ -312,10 +359,7 @@ export function TenantApiUsagePage() {
             size="sm"
             variant="outline"
             className="h-7 text-xs"
-            onClick={() => {
-              setLimits((prev) => ({ ...prev, [r.row.tenantId]: r.limit }));
-              toast({ title: "Custom limit applied", description: `${r.row.name}: ${compact(r.limit)}/day` });
-            }}
+            onClick={() => openLimitDialog(r.row)}
           >
             <Save className="mr-1 h-3 w-3" />Apply
           </Button>
@@ -369,6 +413,36 @@ export function TenantApiUsagePage() {
             <li><strong>429s served</strong> — tenant hit rate limits</li>
           </ul>
         </div>
+
+        {/* Custom limit edit dialog — persists via api-limits store */}
+        <Dialog open={limitTarget !== null} onOpenChange={(open) => { if (!open) setLimitTarget(null); }}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Custom API limit</DialogTitle>
+              <DialogDescription>
+                {limitTarget?.name} — overrides the {limitTarget ? compact(PLAN_API_CAP[limitTarget.plan]) : ""}/day plan cap.
+                Changes persist and are audit-logged.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="custom-limit">Calls per day</Label>
+              <Input
+                id="custom-limit"
+                inputMode="numeric"
+                value={limitValue}
+                onChange={(e) => setLimitValue(e.target.value)}
+                placeholder="800000"
+              />
+            </div>
+            <DialogFooter className="sm:justify-between">
+              <Button variant="outline" size="sm" onClick={clearLimit}>Reset to plan cap</Button>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setLimitTarget(null)}>Cancel</Button>
+                <Button size="sm" onClick={applyLimit}>Apply</Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </PageContent>
     </Page>
   );
