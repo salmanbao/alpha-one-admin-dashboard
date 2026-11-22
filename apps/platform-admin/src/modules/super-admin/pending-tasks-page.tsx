@@ -3,81 +3,27 @@
 /**
  * Pending Tasks — platform-admin
  * View and manage pending operations requiring attention across the platform.
+ *
+ * R13 P1-1: backed by the persisted pending-tasks store. "Take action"
+ * navigates to the surface that resolves the task (and marks it
+ * in-progress); "Mark all as reviewed" actually clears the inbox and
+ * writes an audit row instead of firing a toast over untouched state.
  */
 
-import { useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
-import { Zap, CheckCircle2, AlertTriangle, Shield, Clock, Users, UserPlus, Folder } from "lucide-react";
-
-interface PendingTask {
-  id: string;
-  title: string;
-  description: string;
-  category: "billing" | "approval" | "security" | "compliance" | "operations";
-  priority: "low" | "medium" | "high" | "urgent";
-  dueDate: string;
-  status: "pending" | "in-progress" | "blocked";
-  action: () => void;
-}
-
-const tasks: PendingTask[] = [
-  {
-    id: "task-1",
-    title: "Review pending invoices",
-    description: "3 invoices require approval before the billing cycle closes.",
-    category: "billing",
-    priority: "high",
-    dueDate: "2025-12-15",
-    status: "pending",
-    action: () => toast({ title: "Opening billing", description: "Redirecting to billing & invoices page." }),
-  },
-  {
-    id: "task-2",
-    title: "User access review",
-    description: "2 users have pending access requests that need approval.",
-    category: "security",
-    priority: "urgent",
-    dueDate: "2025-12-10",
-    status: "pending",
-    action: () => toast({ title: "Opening security", description: "Redirecting to security overview." }),
-  },
-  {
-    id: "task-3",
-    title: "Module catalog sync",
-    description: "Module catalog needs synchronization with the central registry.",
-    category: "compliance",
-    priority: "medium",
-    dueDate: "2025-12-20",
-    status: "pending",
-    action: () => toast({ title: "Catalog sync", description: "Syncing module catalog (demo — no network call)." }),
-  },
-  {
-    id: "task-4",
-    title: "Feature flags audit",
-    description: "Review recently created feature flags for compliance.",
-    category: "compliance",
-    priority: "low",
-    dueDate: "2025-12-25",
-    status: "in-progress",
-    action: () => toast({ title: "Feature flags", description: "Opening feature flags audit." }),
-  },
-  {
-    id: "task-5",
-    title: "Backup verification",
-    description: "Verify recent backups are complete and restorable.",
-    category: "operations",
-    priority: "high",
-    dueDate: "2025-12-12",
-    status: "pending",
-    action: () => toast({ title: "Backup verification", description: "Starting backup verification (demo)." }),
-  },
-];
+import {
+  listOpenTasks,
+  startTask,
+  reviewAllTasks,
+  usePendingTasksVersion,
+  type PendingTask,
+} from "@/lib/platform/pending-tasks-store";
+import { Zap, CheckCircle2, AlertTriangle, Shield, Clock, Folder } from "lucide-react";
 
 const priorityColors: Record<PendingTask["priority"], string> = {
   low: "text-green-500/70",
@@ -98,10 +44,30 @@ const statusIndicators: Record<PendingTask["status"], string> = {
   pending: "bg-gray-100 text-gray-800",
   "in-progress": "bg-blue-100 text-blue-800",
   blocked: "bg-red-100 text-red-800",
+  reviewed: "bg-green-100 text-green-800",
 };
 
 export function PendingTasksPage() {
   const { navigate } = usePlatform();
+  usePendingTasksVersion();
+  const tasks = listOpenTasks();
+
+  const handleTakeAction = (task: PendingTask) => {
+    startTask(task.id);
+    navigate(task.route);
+  };
+
+  const handleReviewAll = () => {
+    const cleared = reviewAllTasks();
+    if (cleared === 0) {
+      toast({ title: "Inbox already clear", description: "No open tasks to review." });
+      return;
+    }
+    toast({
+      title: "All tasks reviewed",
+      description: `${cleared} task(s) cleared from the operations inbox.`,
+    });
+  };
 
   return (
     <Page>
@@ -112,7 +78,7 @@ export function PendingTasksPage() {
       />
       <PageContent>
         <p className="text-sm text-muted-foreground mb-4">
-          {tasks.length} pending tasks requiring attention
+          {tasks.length} pending task{tasks.length === 1 ? "" : "s"} requiring attention
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -151,7 +117,7 @@ export function PendingTasksPage() {
                   size="sm"
                   variant="ghost"
                   className="hover:bg-primary/10"
-                  onClick={task.action}
+                  onClick={() => handleTakeAction(task)}
                 >
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Take action
                 </Button>
@@ -161,18 +127,21 @@ export function PendingTasksPage() {
         </div>
 
         <div className="mt-6 pt-6 border-t border-border/50">
-          <p className="text-sm text-muted-foreground mb-3">
-            No pending tasks
-          </p>
+          {tasks.length === 0 ? (
+            <p className="text-sm text-muted-foreground mb-3">
+              No pending tasks — the operations inbox is clear.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground mb-3">
+              {tasks.length} task{tasks.length === 1 ? "" : "s"} still open. Reviewing clears
+              them from this inbox and writes an audit record.
+            </p>
+          )}
           <Button
             size="sm"
             variant="outline"
-            onClick={() =>
-              toast({
-                title: "No tasks",
-                description: "All caught up — great work!",
-              })
-            }
+            onClick={handleReviewAll}
+            disabled={tasks.length === 0}
           >
             Mark all as reviewed
           </Button>
