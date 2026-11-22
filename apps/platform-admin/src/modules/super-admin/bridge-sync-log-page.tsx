@@ -85,7 +85,7 @@ export function BridgeSyncLogPage() {
         title="Bridge Sync Log"
         description="Real-time bridge synchronization, replay, retry, and failover events with record counts and hashes."
         icon={Activity}
-        actions={<Button size="sm" variant="outline"><RefreshCw className="mr-1 h-4 w-4" /> Retry Failed</Button>}
+        actions={<Button size="sm" variant="outline" onClick={() => { toast({ title: "Retry initiated", description: "Failed bridge sync entries queued for retry." }); }}><RefreshCw className="mr-1 h-4 w-4" /> Retry Failed</Button>}
       />
       <PageContent>
         <PageAsyncBoundary

@@ -99,7 +99,7 @@ export function SystemHealthPage() {
             <Button variant="outline" size="sm" onClick={() => navigate("bridge-sync-log")}>
               <GitBranch className="mr-1 h-4 w-4" /> Bridge sync
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => navigate('incident-center')}>
               <Activity className="mr-1 h-4 w-4" /> Live Monitor
             </Button>
             <Button variant="outline" size="sm" onClick={() => navigate("incident-center")}>
@@ -160,7 +160,7 @@ export function SystemHealthPage() {
                   </p>
                 </div>
               </div>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" onClick={() => navigate('incident-center')}>
                 View Details
               </Button>
             </div>

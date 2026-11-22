@@ -104,10 +104,10 @@ export function ApiAnalyticsPage() {
             <Button variant="outline" size="sm" onClick={() => navigate("rate-limits")}>
               <Lock className="mr-1 h-4 w-4" /> Rate Limits
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => { toast({ title: "Export started", description: "API analytics data being downloaded." }); }}>
               <Download className="mr-1 h-4 w-4" /> Export
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => { toast({ title: "Refreshed", description: "API analytics reloaded." }); }}>
               <RefreshCw className="mr-1 h-4 w-4" /> Refresh
             </Button>
           </>

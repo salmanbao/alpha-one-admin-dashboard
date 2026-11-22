@@ -649,7 +649,19 @@ export function AuditLogPage() {
                   key={f.label}
                   variant="outline"
                   className="justify-start text-sm"
-                  onClick={() => {}}
+                  onClick={() => {
+                    // Apply saved filter based on its structure
+                    if (f.filter.severity) {
+                      setSeverityFilter(f.filter.severity);
+                    }
+                    if (f.filter.action) {
+                      setActionFilter(f.filter.action);
+                    }
+                    // For actor filter, we need a different approach
+                    if (f.filter.actor) {
+                      setSearch(f.filter.actor);
+                    }
+                  }}
                 >
                   <CheckCircle2 className="mr-2 h-4 w-4 text-muted-foreground" />
                   {f.label}

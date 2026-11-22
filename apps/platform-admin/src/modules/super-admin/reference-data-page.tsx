@@ -62,15 +62,15 @@ const accountTypes: RefEntry[] = [
 
 const allEntries = [...currencies, ...countries, ...platforms, ...ruleTypes, ...accountTypes];
 
-const columns: Column<RefEntry>[] = [
+const getColumns = (onEdit: (entry: RefEntry) => void, onDelete: (entry: RefEntry) => void): Column<RefEntry>[] => [
   { key: "code", header: "Code", cell: (r) => <span className="font-mono text-xs font-medium">{r.code}</span>, sortValue: (r) => r.code },
   { key: "name", header: "Name", cell: (r) => <span className="text-sm">{r.name}</span>, sortValue: (r) => r.name },
   { key: "category", header: "Category", cell: (r) => <Badge variant="outline" className="text-[10px]">{r.category}</Badge>, sortValue: (r) => r.category },
   { key: "description", header: "Description", cell: (r) => <span className="text-xs text-muted-foreground">{r.description}</span> },
-  { key: "actions", header: "Actions", cell: () => (
+  { key: "actions", header: "Actions", cell: (r) => (
     <div className="flex gap-1">
-      <Button size="sm" variant="ghost" className="text-xs"><Edit2 className="mr-1 h-3 w-3" />Edit</Button>
-      <Button size="sm" variant="ghost" className="text-xs text-rose-600 hover:text-rose-600"><Trash2 className="mr-1 h-3 w-3" />Delete</Button>
+      <Button size="sm" variant="ghost" className="text-xs" onClick={() => onEdit(r)}><Edit2 className="mr-1 h-3 w-3" />Edit</Button>
+      <Button size="sm" variant="ghost" className="text-xs text-rose-600 hover:text-rose-600" onClick={() => onDelete(r)}><Trash2 className="mr-1 h-3 w-3" />Delete</Button>
     </div>
   )},
 ];
@@ -84,6 +84,16 @@ export function ReferenceDataPage() {
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const categories = Array.from(new Set(allEntries.map((e) => e.category)));
+  
+  const handleEdit = (entry: RefEntry) => {
+    toast({ title: "Edit reference data", description: `Editing ${entry.code} - ${entry.name}. This is a global change affecting all tenants.` });
+  };
+  
+  const handleDelete = (entry: RefEntry) => {
+    toast({ title: "Delete reference data", description: `Deleting ${entry.code} - ${entry.name}. This is a global change affecting all tenants.` });
+  };
+  
+  const columns = getColumns(handleEdit, handleDelete);
 
   return (
     <Page>

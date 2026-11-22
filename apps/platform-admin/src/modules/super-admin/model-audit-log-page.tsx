@@ -80,7 +80,7 @@ export function ModelAuditLogPage() {
         title="Model Audit Log"
         description="AI model deployment, configuration, training, and inference audit trail with cryptographic proof hashes."
         icon={Shield}
-        actions={<Button size="sm" variant="outline"><Eye className="mr-1 h-4 w-4" /> View Certificate</Button>}
+        actions={<Button size="sm" variant="outline" onClick={() => { toast({ title: "View Certificate", description: "Generating cryptographic certificate for model audit log." }); }}><Eye className="mr-1 h-4 w-4" /> View Certificate</Button>}
       />
       <PageContent>
         <PageAsyncBoundary

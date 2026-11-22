@@ -13,6 +13,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { recordAudit } from "@/lib/platform/console-store";
 
 export interface TenantUserSession {
   id: string;
@@ -114,6 +115,18 @@ function getServerSnapshot(): TenantSessionsState {
 
 /** Revoke a single session. */
 export function revokeSession(id: string) {
+  const session = state.sessions.find((s) => s.id === id);
+  if (!session) return;
+  
+  recordAudit({
+    actor: "Super Admin",
+    action: "console.tenant_session_revoked",
+    target: session.userId,
+    severity: "warning",
+    detail: `Revoked session from ${session.device} (${session.location})`,
+    tenantId: session.tenantId,
+  });
+  
   emit({
     ...state,
     sessions: state.sessions.filter((s) => s.id !== id),

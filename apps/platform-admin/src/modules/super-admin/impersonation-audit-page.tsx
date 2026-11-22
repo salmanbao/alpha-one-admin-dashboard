@@ -80,7 +80,7 @@ export function ImpersonationAuditPage() {
         title="Impersonation Audit Trail"
         description="All tenant impersonation and view-as sessions with operator, target, duration, and audit status."
         icon={Eye}
-        actions={<Button size="sm" variant="outline"><Shield className="mr-1 h-4 w-4" /> Audit Now</Button>}
+        actions={<Button size="sm" variant="outline" onClick={() => { toast({ title: "Audit started", description: "Running impersonation audit pass." }); }}><Shield className="mr-1 h-4 w-4" /> Audit Now</Button>}
       />
       <PageContent>
         <PageAsyncBoundary
