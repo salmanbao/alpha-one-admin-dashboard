@@ -82,6 +82,7 @@ const navigation: NavigationItem[] = [
       { id: "super.go-live", label: "Go-Live Wizard", href: "go-live-wizard", icon: Rocket, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.lifecycle", label: "Lifecycle", href: "tenant-lifecycle", icon: GitBranch, application: ["super-admin"], group: "Tenant Management" },
   { id: "super.adoption", label: "Adoption Funnel", href: "adoption-funnel", icon: Funnel, application: ["super-admin"], group: "Tenant Management" },
+  { id: "super.tenant-offboarding", label: "Tenant Offboarding", href: "tenant-offboarding", icon: Package, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.challenge-programs", label: "Challenge Programs", href: "challenge-programs", icon: Target, application: ["super-admin"], group: "Tenant Management", permission: "platform.modules.manage" },
       { id: "super.tenant-health", label: "Tenant Health", href: "tenant-health", icon: HeartPulse, application: ["super-admin"], group: "Tenant Management" },
 
@@ -294,6 +295,7 @@ const routes: RouteDefinition[] = [
   { path: "marketing-api-console", viewId: "marketing-api-console", label: "Marketing API Gateway Console", application: ["super-admin"], permission: ["platform.developer.manage"] },
   { path: "marketplace-review", viewId: "marketplace-review", label: "Marketplace App Review", application: ["super-admin"] },
   { path: "send-billing", viewId: "send-billing", label: "Send-Based Usage Billing", application: ["super-admin"], permission: ["platform.developer.manage", "platform.billing.manage"] },
+  { path: "tenant-offboarding", viewId: "tenant-offboarding", label: "Tenant Offboarding", application: ["super-admin"] },
 ];
 
 export const superAdminModule: FrontendModule = {
