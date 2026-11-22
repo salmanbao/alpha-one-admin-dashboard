@@ -74,13 +74,26 @@ export interface ProvisioningJob {
   steps: SagaStep[];
   /** Set when the job went terminal before an operator resumed it. */
   blocker?: { stepNum: string; message: string };
+  /**
+   * R13 TM-07 — wizard-captured tenant admin identity. The create wizard
+   * collects adminName/adminEmail; they now ride on the job so step 8's
+   * welcome invite has a real recipient instead of narrative text.
+   */
+  adminName?: string;
+  adminEmail?: string;
+  /**
+   * TM-07 — persisted invitation record: written the moment step 8
+   * completes, so the "invite sent" claim is backed by stored state
+   * (survives reload) rather than a toast that evaporates.
+   */
+  invitation?: { email: string; name: string; sentAt: number };
 }
 
 /* ------------------------------------------------------------------ */
 /* Spec table (03 §3.5)                                                */
 /* ------------------------------------------------------------------ */
 
-function baseSteps(): SagaStep[] {
+function baseSteps(adminEmail?: string): SagaStep[] {
   return [
     {
       num: "1",
@@ -159,7 +172,7 @@ function baseSteps(): SagaStep[] {
     },
     {
       num: "8",
-      title: "Welcome invite email to owner (NOT)",
+      title: `Welcome invite email to owner${adminEmail ? ` — ${adminEmail}` : ""}`,
       compensate: "— (safe to resend)",
       failMode: "retry ×3",
       state: "pending",
@@ -338,8 +351,14 @@ function runNext(jobId: string) {
       return;
     }
 
+    // TM-07 — step 8 completes: record the persisted invitation so
+    // "invite sent" is backed by stored state (survives reload).
+    const isStep8 = step.num === "8";
     updateJob(jobId, (j) => ({
       ...j,
+      ...(isStep8 && j.adminEmail
+        ? { invitation: { email: j.adminEmail, name: j.adminName ?? "", sentAt: Date.now() } }
+        : {}),
       steps: j.steps.map((s) =>
         s.num === step.num
           ? { ...s, state: "completed", completedAt: Date.now() }
@@ -361,6 +380,8 @@ export function startProvisioning(input: {
   slug: string;
   plan: string;
   sso: boolean;
+  adminName?: string;
+  adminEmail?: string;
   createdBy: string;
 }): ProvisioningJob {
   const job: ProvisioningJob = {
@@ -371,9 +392,11 @@ export function startProvisioning(input: {
     plan: input.plan,
     sso: input.sso,
     createdBy: input.createdBy,
+    adminName: input.adminName,
+    adminEmail: input.adminEmail,
     createdAt: Date.now(),
     state: "running",
-    steps: baseSteps(),
+    steps: baseSteps(input.adminEmail),
   };
   emit({ ...state, jobs: [job, ...state.jobs] });
   schedule(job.id);

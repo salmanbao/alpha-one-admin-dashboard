@@ -115,6 +115,17 @@ export function ProvisioningSagaPage() {
         severity: "info",
         detail: `Provisioning saga ${job.id} completed — ${done}/${runnable} steps, status=onboarding`,
       });
+      // TM-07 — if step 8 recorded an invitation, log it explicitly.
+      if (job.invitation) {
+        recordAudit({
+          actor: job.createdBy,
+          action: "tenant.provisioning_invite_sent",
+          target: tenant.id,
+          tenantId: tenant.id,
+          severity: "info",
+          detail: `Welcome invite recorded for ${job.invitation.name} <${job.invitation.email}>`,
+        });
+      }
       pushNotification({
         title: `${tenant.name} provisioned`,
         message: "All 9 saga steps completed — onboarding checklist started.",
@@ -123,7 +134,9 @@ export function ProvisioningSagaPage() {
       });
       toast({
         title: "Provisioning complete",
-        description: `${tenant.name} is onboarding — invite sent to the owner.`,
+        description: job.invitation
+          ? `${tenant.name} is onboarding — welcome invite recorded for ${job.invitation.email}.`
+          : `${tenant.name} is onboarding.`,
       });
     } else if (job.state === "blocked" && tenant.status !== "provisioning_failed") {
       updateTenant(tenant.id, { status: "provisioning_failed" });
@@ -299,8 +312,11 @@ export function ProvisioningSagaPage() {
               <CheckCircle2 className="h-4 w-4" /> Provisioning complete — tenant is onboarding
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              All {runnable} runnable steps completed (skipped sub-steps excluded). Owner invite
-              (step 8) was sent; the ADM-39 onboarding checklist starts on the tenant side.
+              All {runnable} runnable steps completed (skipped sub-steps excluded).
+              {job.invitation
+                ? ` Welcome invite recorded for ${job.invitation.email}.`
+                : " Owner invite step completed."}{" "}
+              The ADM-39 onboarding checklist starts on the tenant side.
               Recorded as `tenant.provisioned` in the audit trail.
             </p>
           </div>

@@ -615,6 +615,8 @@ export function CreateTenantPage() {
       slug: state.slug,
       plan: state.plan,
       sso: state.contractSso,
+      adminName: state.adminName,
+      adminEmail: state.adminEmail,
       createdBy: user?.name ?? "Console operator",
     });
 
