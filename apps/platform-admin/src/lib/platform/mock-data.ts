@@ -95,6 +95,8 @@ export const tenants: TenantContext[] = [
     liveAt: daysAgo(205),
     // Data-residency pin (UC-P6) — matches the USD billing region.
     region: "us-east-1",
+    owner: "Sarah Mitchell",
+    ownerEmail: "sarah.mitchell@alpha-capital.com",
   },
   {
     id: "tenant-beta",
@@ -129,6 +131,8 @@ export const tenants: TenantContext[] = [
     liveAt: daysAgo(380),
     // Data-residency pin (UC-P6) — matches the GBP billing region.
     region: "eu-west-1",
+    owner: "James Carter",
+    ownerEmail: "james.carter@beta-trading.io",
   },
   {
     id: "tenant-gamma",
@@ -163,6 +167,8 @@ export const tenants: TenantContext[] = [
     liveAt: daysAgo(90),
     // Data-residency pin (UC-P6) — APAC serving region.
     region: "ap-southeast-1",
+    owner: "Dr. Wei Chen",
+    ownerEmail: "wei.chen@gamma-futures.sg",
   },
 ];
 
@@ -205,6 +211,8 @@ export const platformTenant: TenantContext = {
   plan: "enterprise",
   status: "active",
   createdAt: daysAgo(900),
+  owner: "Platform Ops",
+  ownerEmail: "ops@pfaas.io",
 };
 
 /* ------------------------------------------------------------------ */

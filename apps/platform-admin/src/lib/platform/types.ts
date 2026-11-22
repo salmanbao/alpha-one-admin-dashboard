@@ -120,6 +120,15 @@ export interface TenantContext {
    * report shows such tenants honestly as "Unpinned".
    */
   region?: string;
+  /**
+   * R13 TM-11 — owner / primary contact for this tenant. Set at creation
+   * via the create/go-live wizard, surfaced on the detail header and
+   * Configuration tab.
+   */
+  owner?: string;
+  /** Owner's email address — paired with owner for contact/permission
+   * communications (invites, billing notices, breach alerts). */
+  ownerEmail?: string;
 }
 
 /* ------------------------------------------------------------------ */
