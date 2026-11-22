@@ -2101,6 +2101,8 @@ const addCustomTerm = () => {
   setNewTermKey('');
   setNewTermValue('');
 };
+const [owner, setOwner] = useState(tenant.owner || "");
+const [ownerEmail, setOwnerEmail] = useState(tenant.ownerEmail || "");
 
   const presets = [
     { name: "Forest", primary: "#4a7c59", accent: "#705c30", surface: "#f5efe6" },
@@ -2121,6 +2123,8 @@ const addCustomTerm = () => {
       region,
       domain,
       subdomain,
+      owner,
+      ownerEmail,
       terminology,
       branding: {
         ...tenant.branding,
@@ -2209,6 +2213,12 @@ const addCustomTerm = () => {
             </FieldRow>
             <FieldRow label="Subdomain">
               <Input value={subdomain} onChange={(e) => setSubdomain(e.target.value)} />
+            </FieldRow>
+            <FieldRow label="Owner">
+              <Input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="Owner name" />
+            </FieldRow>
+            <FieldRow label="Owner Email">
+              <Input value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} placeholder="owner@tenant.com" type="email" />
             </FieldRow>
             <FieldRow label="Terminology overrides">
               <div className="space-y-2">
