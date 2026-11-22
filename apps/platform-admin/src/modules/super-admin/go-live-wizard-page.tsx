@@ -134,7 +134,7 @@ const CORE_MODULE_IDS = ["trading", "challenges", "risk", "payouts", "settings"]
 const TIMEZONES = ["UTC", "America/New_York", "Europe/London", "Asia/Dubai", "Asia/Karachi"];
 const CURRENCIES = ["USD", "EUR", "GBP", "AED", "PKR"];
 
-const INITIAL_FORM = { name: "", slug: "", timezone: "UTC", currency: "USD", existingId: "", owner: "", ownerEmail: "", moduleRollout: {} };
+const INITIAL_FORM = { name: "", slug: "", timezone: "UTC", currency: "USD", existingId: "", owner: "", ownerEmail: "", moduleRollout: {}, priceOverride: 0, discountPct: 0 };
 
 function validRange(value: string, min: number, max: number): boolean {
   const n = Number(value);
@@ -300,6 +300,8 @@ export function GoLiveWizardPage() {
       owner: form.owner,
       ownerEmail: form.ownerEmail,
       moduleRollout: {},
+      priceOverride: 0,
+      discountPct: 0,
     };
     // Same mechanism as Create Tenant — registered WITHOUT hijacking the
     // operator's context; the provisioning saga is not started here.

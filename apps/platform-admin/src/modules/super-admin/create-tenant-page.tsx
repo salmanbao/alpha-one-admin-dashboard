@@ -127,6 +127,9 @@ interface WizardState {
   owner?: string;
   ownerEmail?: string;
   moduleRollout?: Record<string, number>;
+  // Price override settings
+  priceOverride?: number;  // Custom price to override plan base price
+  discountPct?: number;   // Discount percentage (0-100) to apply on top
   // SSO (AUTH-24/25) — when contracted, saga sub-step 3a runs.
   contractSso: boolean;
 }
@@ -150,6 +153,9 @@ const INITIAL_STATE: WizardState = {
   owner: "",
   ownerEmail: "",
   moduleRollout: {},
+  // Price override defaults
+  priceOverride: 0,  // 0 = use plan base price
+  discountPct: 0,   // 0% discount on base price
   contractSso: false,
 };
 

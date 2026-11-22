@@ -97,6 +97,8 @@ export const tenants: TenantContext[] = [
     region: "us-east-1",
     owner: "Sarah Mitchell",
     ownerEmail: "sarah.mitchell@alpha-capital.com",
+    priceOverride: 10000, // $10,000/month custom price
+    discountPct: 10, // 10% discount on custom price
     moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, settings: 50 },
   },
   {
@@ -134,6 +136,8 @@ export const tenants: TenantContext[] = [
     region: "eu-west-1",
     owner: "James Carter",
     ownerEmail: "james.carter@beta-trading.io",
+    priceOverride: 8000, // $8,000/month custom price
+    discountPct: 5, // 5% discount on custom price
     moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, analytics: 50, affiliates: 50, accounting: 50, ai: 50, settings: 50 },
   },
   {
@@ -171,6 +175,8 @@ export const tenants: TenantContext[] = [
     region: "ap-southeast-1",
     owner: "Dr. Wei Chen",
     ownerEmail: "wei.chen@gamma-futures.sg",
+    priceOverride: 15000, // $15,000/month custom price
+    discountPct: 15, // 15% discount on custom price
     moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, analytics: 50, marketing: 50, crm: 50, kyc: 50, support: 50, settings: 50 },
   },
 ];
@@ -216,12 +222,10 @@ export const platformTenant: TenantContext = {
   createdAt: daysAgo(900),
   owner: "Platform Ops",
   ownerEmail: "ops@pfaas.io",
-  moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, analytics: 50, affiliates: 50, accounting: 50, marketing: 50, crm: 50, kyc: 50, support: 50, ai: 50 },
+    priceOverride: 20000, // $20,000/month custom price
+    discountPct: 20, // 20% discount on custom price
+    moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, analytics: 50, affiliates: 50, accounting: 50, marketing: 50, crm: 50, kyc: 50, support: 50, ai: 50 },
 };
-
-/* ------------------------------------------------------------------ */
-/* Roles                                                               */
-/* ------------------------------------------------------------------ */
 
 export const roles: RoleDefinition[] = [
   {

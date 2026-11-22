@@ -131,6 +131,17 @@ export interface TenantContext {
   /** Owner's email address — paired with owner for contact/permission
    * communications (invites, billing notices, breach alerts). */
   ownerEmail?: string;
+   /**
+   * Price override — per-tenant custom price (0 = disabled).
+   * This overrides the plan's base price for billing purposes.
+   */
+   priceOverride?: number;
+   /**
+   * Discount percentage (0-100) to apply on top of the base price.
+   * When priceOverride is set, this is applied to the overridden price.
+   * When priceOverride is 0 (disabled), this field is ignored.
+   */
+   discountPct?: number;
 }
 
 /* ------------------------------------------------------------------ */

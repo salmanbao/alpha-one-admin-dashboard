@@ -37,6 +37,8 @@ const DEMO_TENANTS: TenantContext[] = [
     terminology: {},
     kycProvider: undefined,
     moduleRollout: { billing: 50, users: 50, analytics: 50, "api-keys": 50 },
+    priceOverride: 10000, // $10,000/month custom price
+    discountPct: 10, // 10% discount on custom price
   },
   {
     id: "tenant-beta",
@@ -70,6 +72,8 @@ const DEMO_TENANTS: TenantContext[] = [
     terminology: {},
     kycProvider: undefined,
     moduleRollout: { billing: 50, users: 50, analytics: 50, "api-keys": 50 },
+    priceOverride: 8000, // $8,000/month custom price
+    discountPct: 5, // 5% discount on custom price
   },
   {
     id: "tenant-gamma",
@@ -103,6 +107,8 @@ const DEMO_TENANTS: TenantContext[] = [
     terminology: {},
     kycProvider: undefined,
     moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, analytics: 50, marketing: 50, crm: 50, kyc: 50, support: 50, ai: 50 },
+    priceOverride: 15000, // $15,000/month custom price
+    discountPct: 15, // 15% discount on custom price
   },
 ];
 
