@@ -104,7 +104,13 @@ import { TwoFactorDialog } from "@/components/platform/two-factor-dialog";
 import { impersonationDenyReason } from "@/lib/platform/impersonation-policy";
 import { markApprovalExecuted, recordAudit, useConsoleStore } from "@/lib/platform/console-store";
 import { runLifecycleCascade, formatCascadeSummary } from "@/lib/platform/lifecycle-cascade";
-import { useProvisioningStore } from "@/lib/platform/provisioning-saga";
+import {
+  reattachProvisioning,
+  deleteProvisioningDraft,
+  resumeJob,
+  useProvisioningStore,
+  isStaleProvisioning,
+} from "@/lib/platform/provisioning-saga";
 import { toast } from "@/hooks/use-toast";
 import { exportToCsv } from "@/lib/platform/export-utils";
 import { tenantHealthScore } from "@/lib/platform/tenant-health";
@@ -137,6 +143,7 @@ import {
   DollarSign,
   Banknote,
   AlertTriangle,
+  Upload,
   CreditCard,
   Plus,
   Clock,
@@ -239,6 +246,59 @@ export function TenantDetailPage() {
     if (!localDraft) return foundTenant;
     return { ...foundTenant, ...localDraft };
   }, [foundTenant, localDraft]);
+
+  /* TM-06 — recovery for an orphaned/stuck provisioning. */
+  const isStale = useMemo(
+    () =>
+      !!foundTenant &&
+      isStaleProvisioning({ id: foundTenant.id, status: foundTenant.status }),
+    [foundTenant],
+  );
+
+  const reattach = () => {
+    if (!foundTenant) return;
+    const job = reattachProvisioning({
+      tenantId: foundTenant.id,
+      tenantName: foundTenant.name,
+      slug: foundTenant.slug,
+      plan: foundTenant.plan,
+      createdBy: user.name,
+    });
+    pushNotification({
+      title: "Provisioning re-attached",
+      message: `${foundTenant.name} — new saga ${job.id} is running from step 1.`,
+      severity: "info",
+      module: "super-admin",
+    });
+    toast({
+      title: "Saga re-attached",
+      description: `${foundTenant.name} is provisioning again — follow it on the live view.`,
+    });
+  };
+
+  const resumeBlocked = () => {
+    if (!provJob || !resumeJob(provJob.id)) return;
+    pushNotification({
+      title: "Provisioning resumed",
+      message: `${foundTenant?.name ?? tenantId} — saga ${provJob.id} retries the blocked step.`,
+      severity: "info",
+      module: "super-admin",
+    });
+    toast({ title: "Job resumed", description: "Retrying the blocked step (idempotent)." });
+  };
+
+  const deleteDraft = () => {
+    if (!foundTenant || !deleteProvisioningDraft(foundTenant.id, user.name)) return;
+    pushNotification({
+      title: "Provisioning draft deleted",
+      message: `${foundTenant.name} — stuck draft removed with its saga jobs.`,
+      severity: "warning",
+      module: "super-admin",
+    });
+    toast({ title: "Draft deleted", description: `${foundTenant.name} and its saga jobs were removed.` });
+    navigate("tenant-lifecycle");
+  };
+
   // Sync local draft with store when store changes, preserving only edited fields.
   useEffect(() => {
     if (!foundTenant) {
@@ -717,16 +777,55 @@ export function TenantDetailPage() {
                   ) : null}
                 </span>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => navigate("provisioning-saga", { job: provJob.id })}
-              >
-                View saga <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* TM-06 — blocked jobs resume in place (idempotent retry,
+                    job context preserved — never a silent re-run). */}
+                {provJob.state === "blocked" ? (
+                  <Button size="sm" variant="outline" onClick={resumeBlocked}>
+                    <Play className="mr-1 h-3.5 w-3.5" /> Resume
+                  </Button>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate("provisioning-saga", { job: provJob.id })}
+                >
+                  View saga <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           );
         })()
+      ) : null}
+
+      {/* TM-06 — stale-provisioning callout: status says provisioning but
+          nothing is driving it. One-click re-attach (or delete the draft). */}
+      {isStale && localTenant ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/50 bg-amber-50/60 px-4 py-3 text-sm dark:bg-amber-950/20">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>
+              <span className="font-medium text-amber-700 dark:text-amber-400">
+                Stale provisioning —{" "}
+              </span>
+              this tenant is <code>{localTenant.status}</code> with no live saga behind it (the
+              job did not survive a reload). Re-attach restarts it from step 1.
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={reattach}>
+              <Upload className="mr-1 h-3.5 w-3.5" /> Re-attach
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={deleteDraft}
+            >
+              Delete draft
+            </Button>
+          </div>
+        </div>
       ) : null}
 
       <PageAsyncBoundary

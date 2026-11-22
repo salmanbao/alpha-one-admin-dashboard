@@ -48,6 +48,14 @@ import {
   useConsoleStore,
 } from "@/lib/platform/console-store";
 import { runLifecycleCascade, formatCascadeSummary } from "@/lib/platform/lifecycle-cascade";
+import {
+  useProvisioningStore,
+  isStaleProvisioning,
+  isLiveJob,
+  reattachProvisioning,
+  deleteProvisioningDraft,
+  resumeJob,
+} from "@/lib/platform/provisioning-saga";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -327,6 +335,59 @@ export function TenantLifecyclePage() {
     return out;
   }, [buckets, total]);
 
+  /* ---- TM-06: stale provisioning (orphaned tenants) ----
+   * A tenant whose status claims an in-flight provisioning but has no
+   * live saga behind it (the pre-persistence orphan). One-click
+   * re-attach restarts the job; the stuck draft can be deleted. */
+  const provisioningStore = useProvisioningStore();
+  const staleProvisioning = useMemo(
+    () => tenantRoster.filter((t) => isStaleProvisioning(t)),
+    [tenantRoster, provisioningStore.jobs],
+  );
+
+  const reattachStale = (t: TenantContext) => {
+    const job = reattachProvisioning({
+      tenantId: t.id,
+      tenantName: t.name,
+      slug: t.slug,
+      plan: t.plan,
+      createdBy: user.name,
+    });
+    pushNotification({
+      title: "Provisioning re-attached",
+      message: `${t.name} — new saga ${job.id} is running from step 1.`,
+      severity: "info",
+      module: "super-admin",
+    });
+    toast({
+      title: "Saga re-attached",
+      description: `${t.name} is provisioning again — follow it on the live view.`,
+    });
+  };
+
+  const resumeStuckJob = (t: TenantContext) => {
+    const job = provisioningStore.jobs.find((j) => j.tenantId === t.id);
+    if (!job || !resumeJob(job.id)) return;
+    pushNotification({
+      title: "Provisioning resumed",
+      message: `${t.name} — saga ${job.id} continues from the failed step (idempotent retry).`,
+      severity: "info",
+      module: "super-admin",
+    });
+    toast({ title: "Job resumed", description: `${t.name} — retrying the blocked step.` });
+  };
+
+  const deleteStuckDraft = (t: TenantContext) => {
+    if (!deleteProvisioningDraft(t.id, user.name)) return;
+    pushNotification({
+      title: "Provisioning draft deleted",
+      message: `${t.name} — stuck draft removed with its saga jobs.`,
+      severity: "warning",
+      module: "super-admin",
+    });
+    toast({ title: "Draft deleted", description: `${t.name} and its saga jobs were removed.` });
+  };
+
   /* ---- Apply status change (with audit trail) ---- */
   const applyStatus = (
     tenant: TenantContext,
@@ -493,6 +554,9 @@ export function TenantLifecyclePage() {
           tenant={t}
           onAction={(action) => setPending({ tenant: t, action })}
           onView={() => navigate("tenant-detail", { id: t.id })}
+          onResume={() => resumeStuckJob(t)}
+          onReattach={() => reattachStale(t)}
+          onDeleteDraft={() => deleteStuckDraft(t)}
         />
       ),
     },
@@ -564,6 +628,48 @@ export function TenantLifecyclePage() {
               {distribution.length} stage{distribution.length === 1 ? "" : "s"}
             </span>
           </div>
+
+          {/* TM-06: stale-provisioning callout — orphaned tenants get a
+              one-click re-attach (or resume/delete for stuck jobs) */}
+          {staleProvisioning.length > 0 ? (
+            <div className="mb-3 space-y-2">
+              {staleProvisioning.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex flex-wrap items-center gap-2 rounded-md border-l-4 border-amber-500 bg-amber-50/60 px-3 py-2 dark:bg-amber-950/20"
+                >
+                  <AlertCircle
+                    className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400"
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-foreground">
+                      Stale provisioning — {t.name} is <code>{t.status}</code> with no live saga
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      The job is gone (reload before persistence) — the tenant would sit here
+                      forever. Re-attach restarts the saga; a stuck draft can be deleted instead.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-6 gap-0.5 text-[11px]"
+                    onClick={() => reattachStale(t)}
+                  >
+                    <Upload className="h-3 w-3" /> Re-attach
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 gap-0.5 text-[11px] text-destructive hover:text-destructive"
+                    onClick={() => deleteStuckDraft(t)}
+                  >
+                    <X className="h-3 w-3" /> Delete draft
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           {/* Bottleneck callouts — operational hot spots + one-click focus */}
           {bottlenecks.length > 0 ? (
@@ -840,14 +946,32 @@ function RowActions({
   tenant,
   onAction,
   onView,
+  onResume,
+  onReattach,
+  onDeleteDraft,
 }: {
   tenant: TenantContext;
   onAction: (action: LifecycleAction) => void;
   onView: () => void;
+  /** TM-06 — retry the blocked step of this tenant's live saga. */
+  onResume: () => void;
+  /** TM-06 — restart a stale/failed provisioning from step 1. */
+  onReattach: () => void;
+  /** TM-06 — remove a stuck draft tenant + its saga jobs. */
+  onDeleteDraft: () => void;
 }) {
   const isActive = tenant.status === "active" || tenant.status === "trial";
   const isSuspended = tenant.status === "suspended";
   const isTerminated = tenant.status === "terminated";
+  const isRolledBack = tenant.status === "rolled_back";
+  const isFailed = tenant.status === "provisioning_failed";
+  const isProvisioning = tenant.status === "provisioning";
+  const provisioning = useProvisioningStore();
+  const liveJob = provisioning.jobs.find(
+    (j) => j.tenantId === tenant.id && isLiveJob(j),
+  );
+  const canReattach = isProvisioning || isFailed || isRolledBack;
+  const canDeleteDraft = isFailed || isRolledBack;
 
   return (
     <div className="flex items-center justify-end gap-1">
@@ -862,6 +986,51 @@ function RowActions({
       >
         View
       </Button>
+
+      {/* TM-06 — blocked saga: retry the failed step in place (idempotent). */}
+      {liveJob?.state === "blocked" ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1 text-xs text-sky-600 hover:text-sky-700"
+          onClick={(e) => {
+            e.stopPropagation();
+            onResume();
+          }}
+        >
+          <Play className="h-3 w-3" />Resume
+        </Button>
+      ) : null}
+
+      {/* TM-06 — failed / rolled back / orphaned: start a fresh saga. */}
+      {canReattach ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1 text-xs text-amber-600 hover:text-amber-700"
+          onClick={(e) => {
+            e.stopPropagation();
+            onReattach();
+          }}
+        >
+          <Upload className="h-3 w-3" />Re-attach
+        </Button>
+      ) : null}
+
+      {/* TM-06 — a stuck draft can be discarded instead of recovered. */}
+      {canDeleteDraft ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteDraft();
+          }}
+        >
+          <X className="h-3 w-3" />Delete
+        </Button>
+      ) : null}
 
       {isActive ? (
         <Button

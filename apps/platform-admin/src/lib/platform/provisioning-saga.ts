@@ -21,6 +21,8 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { updateTenant, removeTenant } from "./tenant-store";
+import { recordAudit } from "./console-store";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -194,12 +196,47 @@ const ERROR_BY_STEP: Record<string, string> = {
 /* Store plumbing                                                      */
 /* ------------------------------------------------------------------ */
 
+/**
+ * R13 TM-06 — jobs persist across reloads. A page refresh mid-saga used
+ * to destroy the job while the tenant stayed `provisioning` forever with
+ * no console recovery path; the array now lives in localStorage like the
+ * other platform stores, and running jobs re-schedule their timers on
+ * module load.
+ */
+const STORAGE_KEY = "pfaas:platform-admin:provisioning-jobs";
+
+function loadState(): ProvisioningState {
+  if (typeof window === "undefined") return { jobs: [] };
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { jobs: [] };
+    const parsed = JSON.parse(raw) as ProvisioningState;
+    if (!parsed || !Array.isArray(parsed.jobs)) return { jobs: [] };
+    // A step persisted mid-flight has no timer behind it — demote it
+    // back to pending so the resumed runner picks it up again.
+    return {
+      jobs: parsed.jobs.map((j) =>
+        j.state === "running"
+          ? {
+              ...j,
+              steps: j.steps.map((s) =>
+                s.state === "running" ? { ...s, state: "pending" as StepState } : s,
+              ),
+            }
+          : j,
+      ),
+    };
+  } catch {
+    return { jobs: [] };
+  }
+}
+
 export interface ProvisioningState {
   jobs: ProvisioningJob[];
 }
 
-let state: ProvisioningState = { jobs: [] };
-const SERVER_STATE: ProvisioningState = state;
+let state: ProvisioningState = loadState();
+const SERVER_STATE: ProvisioningState = { jobs: [] };
 const listeners = new Set<() => void>();
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -207,6 +244,13 @@ const uid = (p: string) => `${p}-${Date.now().toString(36)}-${Math.random().toSt
 
 function emit(next: ProvisioningState) {
   state = next;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      /* quota — state stays in memory for this session */
+    }
+  }
   for (const l of listeners) l();
 }
 
@@ -386,9 +430,132 @@ export function getJob(jobId: string | undefined): ProvisioningJob | undefined {
 }
 
 export function jobForTenant(tenantId: string): ProvisioningJob | undefined {
+  // Newest first (startProvisioning prepends) — a tenant may have a
+  // completed history job plus a fresh re-attached one.
   return state.jobs.find((j) => j.tenantId === tenantId);
+}
+
+/** A job can still make progress (running, or blocked awaiting a retry). */
+export function isLiveJob(job: ProvisioningJob | undefined): job is ProvisioningJob {
+  return !!job && (job.state === "running" || job.state === "blocked");
+}
+
+/**
+ * R13 TM-06 — the tenant claims an in-flight provisioning but nothing
+ * is driving it (no job, or only terminal jobs): the classic orphan
+ * left behind by a reload before persistence existed. The console shows
+ * a stale-provisioning callout with a one-click re-attach for these.
+ */
+export function isStaleProvisioning(tenant: {
+  id: string;
+  status: string;
+}): boolean {
+  if (tenant.status !== "provisioning" && tenant.status !== "provisioning_failed") {
+    return false;
+  }
+  return !isLiveJob(jobForTenant(tenant.id));
+}
+
+/**
+ * TM-06 recovery — re-attach: start a fresh saga for a stuck tenant and
+ * put it back on `provisioning`. Prior terminal jobs stay in the store
+ * as history; the new job is prepended so jobForTenant resolves to it.
+ */
+export function reattachProvisioning(input: {
+  tenantId: string;
+  tenantName: string;
+  slug: string;
+  plan: string;
+  sso?: boolean;
+  createdBy: string;
+}): ProvisioningJob {
+  const job = startProvisioning({
+    tenantId: input.tenantId,
+    tenantName: input.tenantName,
+    slug: input.slug,
+    plan: input.plan,
+    sso: input.sso ?? false,
+    createdBy: input.createdBy,
+  });
+  updateTenant(input.tenantId, { status: "provisioning" });
+  recordAudit({
+    actor: input.createdBy,
+    action: "tenant.provisioning_reattached",
+    target: input.tenantId,
+    tenantId: input.tenantId,
+    severity: "warning",
+    detail: `Stale provisioning for ${input.tenantName} re-attached — new saga ${job.id} running`,
+  });
+  return job;
+}
+
+/**
+ * TM-06 recovery — delete a stuck draft (rolled_back / failed with no
+ * live job): drops its jobs + timers and removes the tenant row.
+ */
+export function deleteProvisioningDraft(
+  tenantId: string,
+  createdBy: string,
+): boolean {
+  // At least one saga job or a live tenant row must exist; otherwise
+  // there's nothing to delete (tenant already removed by another page).
+  const job = jobForTenant(tenantId);
+  if (!job && !state.jobs.some((x) => x.tenantId === tenantId)) return false;
+  for (const j of state.jobs.filter((x) => x.tenantId === tenantId)) {
+    const t = timers.get(j.id);
+    if (t) clearTimeout(t);
+    timers.delete(j.id);
+  }
+  emit({ ...state, jobs: state.jobs.filter((x) => x.tenantId !== tenantId) });
+  removeTenant(tenantId);
+  recordAudit({
+    actor: createdBy,
+    action: "tenant.provisioning_draft_deleted",
+    target: tenantId,
+    tenantId,
+    severity: "warning",
+    detail: `Stuck provisioning draft deleted${job ? ` (last saga ${job.id})` : ""} — tenant row removed`,
+  });
+  return true;
+}
+
+/**
+ * TM-06 recovery — resume: blocked → retry the failed step (idempotent,
+ * job context preserved); running without a timer (defensive) → re-arm.
+ */
+export function resumeJob(jobId: string): boolean {
+  const job = state.jobs.find((j) => j.id === jobId);
+  if (!job) return false;
+  if (job.state === "blocked") {
+    const failed = job.steps.find((s) => s.state === "failed");
+    return failed ? retryStep(jobId, failed.num) : false;
+  }
+  if (job.state === "running") {
+    if (timers.has(jobId)) return false;
+    schedule(jobId);
+    return true;
+  }
+  return false;
 }
 
 export function useProvisioningStore(): ProvisioningState {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
+/* ------------------------------------------------------------------ */
+/* TM-06 — resume persisted jobs on load                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A page refresh mid-run used to destroy the job (in-memory singleton),
+ * orphaning the tenant in `provisioning`. Jobs now persist, and any job
+ * still `running` when the module loads re-arms its timer — loadState
+ * already demoted its in-flight step back to `pending`, so the runner
+ * picks it up. `blocked` jobs intentionally do NOT auto-resume: the
+ * spec requires an operator retry (job context preserved).
+ */
+if (typeof window !== "undefined") {
+  for (const j of state.jobs) {
+    if (j.state === "running" && !timers.has(j.id)) schedule(j.id);
+  }
 }
