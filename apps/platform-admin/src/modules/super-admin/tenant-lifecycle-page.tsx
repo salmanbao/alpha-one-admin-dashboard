@@ -58,6 +58,7 @@ import {
 } from "@/lib/platform/provisioning-saga";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useSavedViews } from "@/lib/platform/saved-views";
 import {
   Building2,
   Mail,
@@ -79,6 +80,7 @@ import {
   Upload,
   AlertCircle,
   Undo2,
+  Bookmark,
 } from "lucide-react";
 import { hashStr } from "@/lib/platform/mock-data";
 import { healthOf, tenantHealthScore, type Health } from "@/lib/platform/tenant-health";
@@ -257,6 +259,7 @@ export function TenantLifecyclePage() {
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
 
   const tenantRoster = tenants.filter((t) => t.id !== "platform");
+  const { views, saveView } = useSavedViews("tenant-lifecycle", user?.id ?? "anon");
 
   /* ---- Bucket tenants into lifecycle stages ---- */
   const buckets = useMemo(() => {
@@ -826,15 +829,31 @@ export function TenantLifecyclePage() {
                 ? `All tenants (${filteredTenants.length})`
                 : `Filtered by: ${activeFilter} (${filteredTenants.length})`}
             </p>
-            {activeFilter !== "all" ? (
+            <div className="flex items-center gap-2">
+              {activeFilter !== "all" ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setActiveFilter("all")}
+                >
+                  Clear filter
+                </Button>
+              ) : null}
+              
+              {/* Saved Views button */}
               <Button
                 size="sm"
-                variant="ghost"
-                onClick={() => setActiveFilter("all")}
+                variant="outline"
+                className="h-8 gap-1 text-xs"
+                onClick={() => {
+                  const name = window.prompt("Name this view:", `View ${views.length + 1}`);
+                  if (!name) return;
+                  saveView(name, { activeFilter, columns: columns.map(c => c.key).join(",") });
+                }}
               >
-                Clear filter
+                <Bookmark className="h-3 w-3" /> Views
               </Button>
-            ) : null}
+            </div>
           </div>
           <DataTable
             columns={columns}
