@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { PageAsyncBoundary } from "@/components/platform/guards";
@@ -13,6 +12,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Sparkles, RefreshCw as Refresh, Play, CheckCircle2, Clock, AlertCircle, BookOpen, UserPlus, Building2, Shield, BarChart3, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import {
+  readCompletedSteps,
+  toggleStep as toggleStepStore,
+  resetOnboarding,
+  useOnboardingVersion,
+} from "@/lib/platform/onboarding-store";
 
 const STEPS = [
   { id: "account", label: "Account Setup", icon: UserPlus, done: true, description: "Configure your operator profile and credentials." },
@@ -22,12 +27,20 @@ const STEPS = [
   { id: "payouts", label: "Payout Integration", icon: BarChart3, done: false, description: "Connect payout rails and configure withdrawal rules." },
 ];
 
-const milestones = [
-  { label: "Account Setup", done: true },
-  { label: "Tenant Provisioning", done: true },
-  { label: "Module Configuration", done: true },
-  { label: "Risk Rules", done: false },
-  { label: "Payout Integration", done: false },
+/**
+ * R13 P1-4 — folded surfaces. Routes without their own sidebar entry
+ * are reachable through a parent screen (or breadcrumb trail); this
+ * index documents where each one lives so an operator can find it.
+ */
+const FOLDED_SURFACES: { label: string; via: string; viewId: string }[] = [
+  { label: "Tenant Detail", via: "Tenants list row click", viewId: "tenants" },
+  { label: "Provisioning Saga", via: "Create Tenant / Tenant Detail", viewId: "create-tenant" },
+  { label: "Operator Directory", via: "Platform Staff", viewId: "platform-staff" },
+  { label: "Role Management → Create Role / Permissions", via: "Platform Roles", viewId: "platform-roles" },
+  { label: "Module Detail / Settings", via: "Service Catalog cards", viewId: "module-catalog" },
+  { label: "Audit Log → Model Audit Log", via: "Platform Audit chain", viewId: "platform-audit" },
+  { label: "Impersonation Audit", via: "Tenant View-As", viewId: "tenant-view-as" },
+  { label: "Platform Overview", via: "Super Overview → Detailed metrics", viewId: "super-overview" },
 ];
 
 export function GettingStartedPage() {
@@ -39,9 +52,14 @@ export function GettingStartedPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const [completed, setCompleted] = useState(STEPS.map((s) => s.id));
+  // R13 P2-2 — completion derives from the persisted onboarding store
+  // (the old useState pre-marked EVERY step done, contradicting the step
+  // data, and reset on reload despite the "saved per operator" copy).
+  useOnboardingVersion();
+  const completed: readonly string[] = readCompletedSteps();
   const progress = Math.round((completed.length / STEPS.length) * 100);
   const completedCount = completed.length;
+  const milestones = STEPS.map((s) => ({ label: s.label, done: completed.includes(s.id) }));
   const { navigate } = usePlatform();
 
   // SF-28: "Resume Tour" scrolls the checklist to the first step that is
@@ -57,10 +75,14 @@ export function GettingStartedPage() {
   };
 
   const toggleStep = (id: string) => {
-    setCompleted((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
-    );
-    toast({ title: "Step updated", description: `${id} ${completed.includes(id) ? "unmarked" : "marked"} as complete.` });
+    const next = toggleStepStore(id);
+    const nowDone = next.includes(id as (typeof next)[number]);
+    toast({ title: "Step updated", description: `${STEPS.find((s) => s.id === id)?.label ?? id} marked ${nowDone ? "complete" : "incomplete"} — saved.` });
+  };
+
+  const restart = () => {
+    resetOnboarding();
+    toast({ title: "Onboarding restarted", description: "All steps have been reset and the change audit-logged." });
   };
 
   return (
@@ -69,7 +91,7 @@ export function GettingStartedPage() {
         title="Getting Started"
         description="Step-by-step operator onboarding. Master tenant provisioning, risk rules, trading bridge integration, and payout clearance."
         icon={Sparkles}
-        actions={<Button size="sm" variant="outline" onClick={() => setCompleted([])}><Refresh className="mr-1 h-4 w-4" /> Restart</Button>}
+        actions={<Button size="sm" variant="outline" onClick={restart}><Refresh className="mr-1 h-4 w-4" /> Restart</Button>}
       />
       <PageContent>
         <PageAsyncBoundary
@@ -158,16 +180,44 @@ export function GettingStartedPage() {
         {/* Quick actions */}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={resumeTour}><Play className="mr-1 h-4 w-4" /> Resume Tour</Button>
-          <Button size="sm" variant="outline" onClick={() => { setCompleted([]); toast({ title: "Onboarding restarted", description: "All steps have been reset." }); }}>Restart Onboarding</Button>
+          <Button size="sm" variant="outline" onClick={restart}>Restart Onboarding</Button>
           <Button size="sm" variant="outline" onClick={() => navigate("knowledge-base")}><BookOpen className="mr-1 h-4 w-4" /> Knowledge Base</Button>
           <Button size="sm" variant="outline" onClick={() => navigate("platform-overview")}><Shield className="mr-1 h-4 w-4" /> Platform Overview</Button>
         </div>
+
+        {/* R13 P1-4 — where the folded (link-only) surfaces live */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              <span className="text-sm font-medium">Folded surfaces (no sidebar entry)</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">
+              These screens are reached from a parent screen rather than the sidebar. Each row
+              links to the parent; the breadcrumb trail on the child screen leads back.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {FOLDED_SURFACES.map((f) => (
+                <button
+                  key={f.label}
+                  onClick={() => navigate(f.viewId)}
+                  className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2 text-left text-xs hover:bg-muted/40 transition-colors"
+                >
+                  <span className="font-medium">{f.label}</span>
+                  <span className="text-muted-foreground">via {f.via}</span>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground dark:bg-muted/10">
           <div className="flex items-center gap-2 font-medium text-foreground">
             <AlertCircle className="h-3 w-3" /> Operator Onboarding · Self-Paced Cohort · Level 1 Certified Track
           </div>
-          <p className="mt-1">Complete all 5 steps to achieve Level 1 certification. Estimated total time: 45 minutes. Progress is saved per operator.</p>
+          <p className="mt-1">Complete all 5 steps to achieve Level 1 certification. Estimated total time: 45 minutes.</p>
         </div>
         </PageAsyncBoundary>
       </PageContent>

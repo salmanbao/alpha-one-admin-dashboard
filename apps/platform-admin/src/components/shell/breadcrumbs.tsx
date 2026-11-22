@@ -79,6 +79,10 @@ function resolveDetail(
       return { parent: "platform-staff", label: "Operator Directory" };
     case "role-management":
       return { parent: "platform-roles", label: "Role Management" };
+    case "create-role":
+      return { parent: "role-management", label: "Create Role" };
+    case "manage-permissions":
+      return { parent: "role-management", label: "Manage Permissions" };
     case "platform-overview":
       return { parent: "super-overview", label: "Platform Overview" };
     case "ai-usage-quota":

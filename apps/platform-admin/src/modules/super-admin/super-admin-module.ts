@@ -64,6 +64,7 @@ import {
   Target,
   Wallet,
   Funnel,
+  Timer,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 
@@ -94,10 +95,13 @@ const navigation: NavigationItem[] = [
       { id: "super.jobs", label: "Jobs", href: "jobs-dashboard", icon: Zap, application: ["super-admin"], group: "Operations" },
       { id: "super.approvals", label: "Approval Center", href: "approval-center", icon: ShieldCheck, application: ["super-admin"], group: "Operations" },
       { id: "super.support-assist", label: "Support Assist", href: "support-assist", icon: LifeBuoy, application: ["super-admin"], group: "Operations" },
+      { id: "super.provider-registry", label: "Provider Registry", href: "provider-registry", icon: Plug, application: ["super-admin"], group: "Operations" },
 
       // ───────── Observability ─────────
       { id: "super.system-health", label: "System Health", href: "system-health", icon: Server, application: ["super-admin"], group: "Observability" },
+      { id: "super.sla", label: "SLA Monitoring", href: "sla-monitoring", icon: Timer, application: ["super-admin"], group: "Observability" },
       { id: "super.queues", label: "Cross-Tenant Queues", href: "cross-tenant-queues", icon: Layers, application: ["super-admin"], group: "Observability" },
+      { id: "super.bridge-sync", label: "Bridge Sync Log", href: "bridge-sync-log", icon: Webhook, application: ["super-admin"], group: "Observability" },
       { id: "super.platform-audit", label: "Platform Audit", href: "platform-audit", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 65, group: "Observability" },
       { id: "super.usage-metering", label: "Tenant Usage & Overage", href: "usage-metering", icon: Gauge, application: ["super-admin"], group: "Observability" },
       { id: "super.tenant-api-usage", label: "Tenant API Usage", href: "tenant-api-usage", icon: Server, application: ["super-admin"], group: "Observability" },
@@ -129,6 +133,8 @@ const navigation: NavigationItem[] = [
       // `role-management` nav entry folded into Platform Roles (Governance);
       // route stays registered and is linked from the platform-roles page.
       { id: "super.view-as", label: "Tenant View-As", href: "tenant-view-as", icon: Eye, application: ["super-admin"], group: "Security" },
+      { id: "super.impersonation-audit", label: "Impersonation Audit", href: "impersonation-audit", icon: ScrollText, application: ["super-admin"], group: "Security" },
+      { id: "super.abuse-signals", label: "Abuse Signals", href: "abuse-signals", icon: ShieldAlert, application: ["super-admin"], group: "Security" },
 
       // ───────── Finance ─────────
       { id: "super.plans", label: "Plans & Subscriptions", href: "plans", icon: CreditCard, application: ["super-admin"], group: "Finance" },
@@ -172,6 +178,7 @@ const navigation: NavigationItem[] = [
 
       // ───────── Analytics ─────────
       { id: "super.analytics", label: "Platform Analytics", href: "platform-analytics", icon: BarChart3, application: ["super-admin"], group: "Analytics" },
+      { id: "super.ai-quota", label: "AI Usage Quota", href: "ai-usage-quota", icon: Gauge, application: ["super-admin"], group: "Analytics" },
       { id: "super.scheduled-reports", label: "Scheduled Reports", href: "scheduled-reports", icon: CalendarClock, application: ["super-admin"], group: "Analytics" },
 
       // ───────── Content & Marketing ─────────
