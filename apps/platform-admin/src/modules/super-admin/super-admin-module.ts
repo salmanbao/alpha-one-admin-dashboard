@@ -96,7 +96,7 @@ const navigation: NavigationItem[] = [
       { id: "super.support-assist", label: "Support Assist", href: "support-assist", icon: LifeBuoy, application: ["super-admin"], group: "Operations" },
 
       // ───────── Observability ─────────
-      { id: "super.health", label: "Platform Health", href: "platform-health", icon: Server, application: ["super-admin"], group: "Observability" },
+      { id: "super.system-health", label: "System Health", href: "system-health", icon: Server, application: ["super-admin"], group: "Observability" },
       { id: "super.queues", label: "Cross-Tenant Queues", href: "cross-tenant-queues", icon: Layers, application: ["super-admin"], group: "Observability" },
       { id: "super.platform-audit", label: "Platform Audit", href: "platform-audit", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 65, group: "Observability" },
       { id: "super.usage-metering", label: "Tenant Usage & Overage", href: "usage-metering", icon: Gauge, application: ["super-admin"], group: "Observability" },
@@ -210,7 +210,6 @@ const routes: RouteDefinition[] = [
   { path: "incident-center", viewId: "incident-center", label: "Incident Center", application: ["super-admin"] },
   { path: "jobs-dashboard", viewId: "jobs-dashboard", label: "Jobs Dashboard", application: ["super-admin"] },
   { path: "approval-center", viewId: "approval-center", label: "Approval Center", application: ["super-admin"] },
-  { path: "platform-health", viewId: "platform-health", label: "Platform Health", application: ["super-admin"] },
   { path: "provider-registry", viewId: "provider-registry", label: "Provider Registry", application: ["super-admin"] },
   { path: "cross-tenant-queues", viewId: "cross-tenant-queues", label: "Cross-Tenant Queues", application: ["super-admin"] },
   { path: "deployments", viewId: "deployments", label: "Deployments", application: ["super-admin"] },

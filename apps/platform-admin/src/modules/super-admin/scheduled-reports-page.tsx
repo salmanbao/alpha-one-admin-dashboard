@@ -163,7 +163,7 @@ export function ScheduledReportsPage() {
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Report generated", description: `${sch.name} generated and queued for ${sch.recipients.length} recipient(s).` })}>
                               <Play className="h-3 w-3" /> Run Now
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: sch.status === "active" ? "Schedule paused" : "Schedule resumed", description: `${sch.name} ${sch.status === "active" ? "paused" : "resumed"}. Audited.` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: sch.status === "active" ? "Schedule paused" : "Schedule resumed", description: `${sch.name} ${sch.status === "active" ? "paused" : "resumed"}.` })}>
                               {sch.status === "active" ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                             </Button>
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Download", description: `Fetching last generated file for ${sch.name}.` })}>

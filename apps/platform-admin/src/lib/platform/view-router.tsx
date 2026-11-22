@@ -56,13 +56,6 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
-  "platform-health": dynamic(
-    () =>
-      import("@/modules/super-admin/super-admin-pages").then((m) => ({
-        default: m.PlatformHealthPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
   "platform-operations": dynamic(
     () =>
       import("@/modules/super-admin/platform-operations-page").then((m) => ({

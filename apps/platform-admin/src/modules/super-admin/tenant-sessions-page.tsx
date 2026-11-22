@@ -16,9 +16,7 @@
  * stays coherent with the rest of the console.
  *
  * Frontend-only demo: revocation is a local state removal behind the
- * same 2FA step-up (CON-01) every protected console action uses; a
- * production build would call the tenant-session admin API and write a
- * `console.tenant_session_revoked` audit record.
+ * same 2FA step-up (CON-01) every protected console action uses.
  */
 
 import { useMemo, useState } from "react";

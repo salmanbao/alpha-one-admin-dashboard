@@ -251,7 +251,7 @@ export function ChurnPreventionPage() {
                       <td className="px-4 py-3 text-sm font-semibold text-emerald-600">48,200</td>
                       <td className="px-4 py-3"><StatusBadge tone="success">active</StatusBadge></td>
                       <td className="px-4 py-3">
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Failed payment escalation paused. Audited." })}>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Failed payment escalation paused." })}>
                           <Pause className="h-3 w-3" />
                         </Button>
                       </td>
@@ -264,7 +264,7 @@ export function ChurnPreventionPage() {
                       <td className="px-4 py-3 text-sm font-semibold text-emerald-600">21,400</td>
                       <td className="px-4 py-3"><StatusBadge tone="success">active</StatusBadge></td>
                       <td className="px-4 py-3">
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Usage decline paused. Audited." })}>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Usage decline paused." })}>
                           <Pause className="h-3 w-3" />
                         </Button>
                       </td>
@@ -277,7 +277,7 @@ export function ChurnPreventionPage() {
                       <td className="px-4 py-3 text-sm font-semibold text-emerald-600">15,900</td>
                       <td className="px-4 py-3"><StatusBadge tone="success">active</StatusBadge></td>
                       <td className="px-4 py-3">
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Inactivity window paused. Audited." })}>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Inactivity window paused." })}>
                           <Pause className="h-3 w-3" />
                         </Button>
                       </td>
@@ -290,7 +290,7 @@ export function ChurnPreventionPage() {
                       <td className="px-4 py-3 text-sm font-semibold text-emerald-600">8,600</td>
                       <td className="px-4 py-3"><StatusBadge tone="success">active</StatusBadge></td>
                       <td className="px-4 py-3">
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Downgrade intent paused. Audited." })}>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Downgrade intent paused." })}>
                           <Pause className="h-3 w-3" />
                         </Button>
                       </td>
