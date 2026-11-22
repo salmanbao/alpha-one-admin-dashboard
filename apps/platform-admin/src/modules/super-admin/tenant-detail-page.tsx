@@ -2089,6 +2089,7 @@ function ConfigurationTab({
   const [accentColor, setAccentColor] = useState(tenant.branding.accentColor);
   const [radius, setRadius] = useState(tenant.branding.radius);
   const [initials, setInitials] = useState(tenant.branding.initials);
+  const [region, setRegion] = useState(tenant.region || "");
 
   const presets = [
     { name: "Forest", primary: "#4a7c59", accent: "#705c30", surface: "#f5efe6" },
@@ -2106,6 +2107,7 @@ function ConfigurationTab({
       currency,
       timezone,
       locale,
+      region,
       branding: {
         ...tenant.branding,
         name,
@@ -2177,6 +2179,9 @@ function ConfigurationTab({
             </FieldRow>
             <FieldRow label="Locale">
               <Input value={locale} onChange={(e) => setLocale(e.target.value)} />
+            </FieldRow>
+            <FieldRow label="Region">
+              <Input value={region} onChange={(e) => setRegion(e.target.value)} />
             </FieldRow>
             <FieldRow label="Initials">
               <Input
