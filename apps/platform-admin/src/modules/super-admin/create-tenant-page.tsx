@@ -21,6 +21,7 @@ import { tenantModuleCatalog } from "@/lib/platform/module-catalog";
 import type { TenantContext } from "@/lib/platform/types";
 import { startProvisioning } from "@/lib/platform/provisioning-saga";
 import { openRun, stampStage, finishRun } from "@/lib/platform/onboarding-runs-store";
+import { readTenants } from "@/lib/platform/tenant-store";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,6 +133,8 @@ interface WizardState {
   discountPct?: number;   // Discount percentage (0-100) to apply on top
   // SSO (AUTH-24/25) — when contracted, saga sub-step 3a runs.
   contractSso: boolean;
+  // R13 TM-09 — residency pin (data residency region).
+  region?: string;
 }
 
 const INITIAL_STATE: WizardState = {
@@ -157,6 +160,7 @@ const INITIAL_STATE: WizardState = {
   priceOverride: 0,  // 0 = use plan base price
   discountPct: 0,   // 0% discount on base price
   contractSso: false,
+  region: undefined, // TM-09: unpinned by default
 };
 
 /* ------------------------------------------------------------------ */
@@ -335,9 +339,12 @@ function initialsFromName(name: string): string {
 const REQUIRED_ASTERISK = <span className="text-rose-500" aria-hidden>*</span>;
 
 /** Why is the current step's Next button disabled? (audit #3 fix #5) */
-function stepValidationMessage(step: number): string {
+function stepValidationMessage(step: number, state?: WizardState, existingSlugs?: Set<string>): string {
   switch (step) {
     case 0:
+      if (state && existingSlugs && state.slug && existingSlugs.has(state.slug)) {
+        return `Slug "${state.slug}" is already taken. Choose a different slug.`;
+      }
       return "Tenant name and slug are required.";
     case 1:
       return "Initials and primary color are required.";
@@ -546,10 +553,12 @@ export function CreateTenantPage() {
     .filter((m) => m.manifest.id !== "super-admin");
 
   /* ---- Validation per step ---- */
+  const existingSlugs = useMemo(() => new Set(readTenants().map(t => t.slug)), []);
   const stepValid = (i: number): boolean => {
     switch (i) {
       case 0:
-        return state.name.trim().length > 1 && state.slug.trim().length > 0;
+        // TM-11: slug uniqueness check.
+        return state.name.trim().length > 1 && state.slug.trim().length > 0 && !existingSlugs.has(state.slug);
       case 1:
         return state.initials.trim().length > 0 && state.primaryColor.length > 0;
       case 2:
@@ -612,6 +621,8 @@ export function CreateTenantPage() {
       moduleRollout: state.moduleRollout ?? {},
       status: "provisioning",
       createdAt: new Date().toISOString(),
+      // TM-09 — residency pin (data residency region).
+      region: state.region,
     };
     // Register the tenant in the platform roster WITHOUT hijacking the
     // operator's context — the super-admin stays in the Platform shell and
@@ -786,7 +797,7 @@ export function CreateTenantPage() {
                   disabled Next button unexplained. */}
               {!canNext && step < STEPS.length - 1 ? (
                 <span role="alert" className="text-[11px] text-amber-700 dark:text-amber-400">
-                  {stepValidationMessage(step)}
+                  {stepValidationMessage(step, state, existingSlugs)}
                 </span>
               ) : null}
             </div>
@@ -997,6 +1008,27 @@ function BasicsStep({
               {TIMEZONES.map((tz) => (
                 <SelectItem key={tz} value={tz}>{tz}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </FieldRow>
+        {/* TM-09 — residency pin (data residency region). */}
+        <FieldRow label="Data Residency Region" hint="Pin this tenant's payments/KYC data to a specific region. Leave unpinned for global.">
+          <Select
+            value={state.region ?? ""}
+            onValueChange={(v) => update({ region: v || undefined })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Unpinned (global)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Unpinned (global)</SelectItem>
+              <SelectItem value="us-east">US East (N. Virginia)</SelectItem>
+              <SelectItem value="us-west">US West (Oregon)</SelectItem>
+              <SelectItem value="eu-west">EU West (Ireland)</SelectItem>
+              <SelectItem value="eu-central">EU Central (Frankfurt)</SelectItem>
+              <SelectItem value="ap-southeast">AP Southeast (Singapore)</SelectItem>
+              <SelectItem value="ap-northeast">AP Northeast (Tokyo)</SelectItem>
+              <SelectItem value="me-south">ME South (Bahrain)</SelectItem>
             </SelectContent>
           </Select>
         </FieldRow>

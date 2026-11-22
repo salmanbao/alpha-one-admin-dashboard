@@ -142,6 +142,49 @@ export interface TenantContext {
    * When priceOverride is 0 (disabled), this field is ignored.
    */
    discountPct?: number;
+  /**
+   * R13 TM-08 — trial lifecycle fields.
+   */
+  trialEndsAt?: string;
+  invitationSentAt?: string;
+  /**
+   * R13 TM-12 — status history with reasons.
+   */
+  statusHistory?: Array<{
+    status: TenantContext["status"];
+    at: string;
+    by: string;
+    reason?: string;
+  }>;
+  suspensionReason?: string;
+  suspendedAt?: string;
+  terminatedAt?: string;
+  /**
+   * R13 TM-18 — commercial and organizational layer.
+   */
+  contract?: {
+    startedAt?: string;
+    renewsAt?: string;
+    term?: string;
+  };
+  taxId?: string;
+  tags?: string[];
+  notes?: string;
+  parentTenantId?: string;
+  /**
+   * R13 TM-24 — per-tenant entitlement envelope.
+   */
+  entitlements?: {
+    seats?: number;
+    rateTier?: string;
+    quotas?: {
+      apiCallsPerDay?: number;
+      storageGb?: number;
+      eventsPerDay?: number;
+    };
+    supportTier?: string;
+  };
+
 }
 
 /* ------------------------------------------------------------------ */

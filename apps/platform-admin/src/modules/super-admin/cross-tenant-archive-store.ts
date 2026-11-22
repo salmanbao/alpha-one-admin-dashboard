@@ -32,6 +32,20 @@ export interface ArchivedMsg {
 
 const TENANTS = ["Alpha Funded", "Beta Prop", "Gamma"];
 
+/**
+ * R13 TM-17 — source the tenant filter from the live roster instead of
+ * a hard-coded three-name list, so new tenants are visible to eDiscovery.
+ */
+function liveTenantNames(): string[] {
+  try {
+    const { readTenants } = require("@/lib/platform/tenant-store");
+    const tenants = readTenants();
+    return tenants.filter((t: any) => t.id !== "platform").map((t: any) => t.name);
+  } catch {
+    return TENANTS;
+  }
+}
+
 let MSGS: ArchivedMsg[] = Array.from({ length: 30 }, (_, i) => {
   const tenant = TENANTS[i % 3];
   const campaign = ["Q4 Scale", "Win-back"][i % 2];
@@ -57,6 +71,17 @@ export function listMessages(filter: { tenant?: string; text?: string } = {}): A
     (!filter.tenant || m.tenant === filter.tenant) &&
     (!t || `${m.to} ${m.campaign} ${m.tenant} ${m.id}`.toLowerCase().includes(t)),
   );
+}
+
+/**
+ * R13 TM-17 — returns the list of tenant names available for filtering.
+ * Sources from the live roster when possible; falls back to seed names.
+ */
+export function getTenantFilterOptions(): string[] {
+  const live = liveTenantNames();
+  // Merge with any tenant names already in the corpus
+  const corpusTenants = Array.from(new Set(MSGS.map(m => m.tenant)));
+  return Array.from(new Set([...live, ...corpusTenants]));
 }
 export function getMessage(id: string): ArchivedMsg | undefined { return MSGS.find(m => m.id === id); }
 

@@ -101,6 +101,7 @@ import {
   Globe,
   Zap,
   Plus,
+  Copy,
 } from "lucide-react";
 
 const tenantStatusTone = (s: string) =>
@@ -196,7 +197,7 @@ export function SuperAdminOverviewPage() {
 }
 
 export function TenantsPage() {
-  const { setUser, navigate } = usePlatform();
+  const { setUser, navigate, registerTenant, pushNotification } = usePlatform();
   const tenants = useTenants();
   const [stageFilter, setStageFilter] = useState<string>("all");
 
@@ -204,6 +205,45 @@ export function TenantsPage() {
     if (stageFilter === "all") return tenants;
     return tenants.filter((t) => t.status === stageFilter);
   }, [tenants, stageFilter]);
+
+  // TM-21 — clone tenant: creates a new tenant with the same config.
+  const cloneTenant = (source: TenantContext) => {
+    const cloneId = `tenant-${source.slug}-clone-${Math.random().toString(36).slice(2, 6)}`;
+    const cloneName = `${source.name} (Copy)`;
+    const cloneSlug = `${source.slug}-copy-${Math.random().toString(36).slice(2, 4)}`;
+    
+    const newTenant: TenantContext = {
+      ...source,
+      id: cloneId,
+      slug: cloneSlug,
+      name: cloneName,
+      branding: {
+        ...source.branding,
+        name: cloneName,
+        initials: source.branding.initials,
+      },
+      status: "provisioning",
+      createdAt: new Date().toISOString(),
+      liveAt: undefined,
+      scheduledPlan: undefined,
+      statusHistory: [],
+      // Clear trial-specific fields
+      trialEndsAt: undefined,
+      invitationSentAt: undefined,
+      // Clear commercial fields
+      contract: undefined,
+      // Keep modules, plan, branding, locale, etc.
+    };
+    
+    registerTenant(newTenant);
+    pushNotification({
+      title: "Tenant cloned",
+      message: `${cloneName} created from ${source.name}.`,
+      severity: "success",
+      module: "super-admin",
+    });
+    navigate("tenant-detail", { id: cloneId });
+  };
 
   const columns: Column<TenantContext>[] = [
     {
@@ -230,16 +270,30 @@ export function TenantsPage() {
       key: "actions",
       header: "Actions",
       cell: (t) => (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate("tenant-detail", { id: t.id });
-          }}
-        >
-          View
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("tenant-detail", { id: t.id });
+            }}
+          >
+            View
+          </Button>
+          {/* TM-21 — clone tenant action. */}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              cloneTenant(t);
+            }}
+          >
+            <Copy className="h-3 w-3" /> Clone
+          </Button>
+        </div>
       ),
     },
   ];

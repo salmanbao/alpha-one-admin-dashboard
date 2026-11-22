@@ -391,7 +391,50 @@ export function TenantLifecyclePage() {
     toast({ title: "Draft deleted", description: `${t.name} and its saga jobs were removed.` });
   };
 
-  /* ---- Apply status change (with audit trail) ---- */
+  /* TM-08 — trial lifecycle actions: convert / extend / expire. */
+  const handleTrialAction = (t: TenantContext, action: "convert" | "extend" | "expire") => {
+    const now = new Date().toISOString();
+    if (action === "convert") {
+      // Convert trial → active: clear trialEndsAt, set active.
+      const updated: TenantContext = {
+        ...t,
+        status: "active",
+        trialEndsAt: undefined,
+        statusHistory: [...(t.statusHistory ?? []), { status: "active", at: now, by: user.name, reason: "Trial converted to active" }],
+      };
+      updateTenant(t.id, updated);
+      recordAudit({ actor: user.name, action: "console.operator_action", target: "tenant.convert_trial", tenantId: t.id, severity: "info", detail: `Converted trial ${t.name} to active` });
+      pushNotification({ title: "Trial converted", message: `${t.name} is now active.`, severity: "success", module: "super-admin" });
+      toast({ title: "Trial converted", description: `${t.name} is now an active tenant.` });
+    } else if (action === "extend") {
+      // Extend trial by 14 days from current trialEndsAt or now.
+      const currentEnd = t.trialEndsAt ? new Date(t.trialEndsAt) : new Date();
+      currentEnd.setDate(currentEnd.getDate() + 14);
+      const updated: TenantContext = {
+        ...t,
+        trialEndsAt: currentEnd.toISOString(),
+        statusHistory: [...(t.statusHistory ?? []), { status: "trial", at: now, by: user.name, reason: "Trial extended by 14 days" }],
+      };
+      updateTenant(t.id, updated);
+      recordAudit({ actor: user.name, action: "console.operator_action", target: "tenant.extend_trial", tenantId: t.id, severity: "info", detail: `Extended trial for ${t.name} by 14 days` });
+      pushNotification({ title: "Trial extended", message: `${t.name} trial extended to ${currentEnd.toLocaleDateString()}.`, severity: "info", module: "super-admin" });
+      toast({ title: "Trial extended", description: `${t.name} trial now ends ${currentEnd.toLocaleDateString()}.` });
+    } else if (action === "expire") {
+      // Expire trial now: set status to invited (trial over, awaiting conversion).
+      const updated: TenantContext = {
+        ...t,
+        status: "invited",
+        trialEndsAt: now,
+        statusHistory: [...(t.statusHistory ?? []), { status: "invited", at: now, by: user.name, reason: "Trial expired" }],
+      };
+      updateTenant(t.id, updated);
+      recordAudit({ actor: user.name, action: "console.operator_action", target: "tenant.expire_trial", tenantId: t.id, severity: "warning", detail: `Expired trial for ${t.name}` });
+      pushNotification({ title: "Trial expired", message: `${t.name} trial has ended.`, severity: "warning", module: "super-admin" });
+      toast({ title: "Trial expired", description: `${t.name} trial has ended — tenant is now in invited state.` });
+    }
+  };
+
+  /* ---- Apply status change (with audit trail + status history — TM-12) ---- */
   const applyStatus = (
     tenant: TenantContext,
     status: TenantContext["status"],
@@ -399,8 +442,22 @@ export function TenantLifecyclePage() {
     reason: string,
     approver?: string,
   ) => {
-    const updated: TenantContext = { ...tenant, status };
-    updateTenant(tenant.id, { status });
+    const now = new Date().toISOString();
+    const historyEntry = {
+      status,
+      at: now,
+      by: approver ?? user.name,
+      reason: reason || undefined,
+    };
+    const updated: TenantContext = {
+      ...tenant,
+      status,
+      statusHistory: [...(tenant.statusHistory ?? []), historyEntry],
+      ...(status === "suspended" ? { suspensionReason: reason, suspendedAt: now } : {}),
+      ...(status === "terminated" ? { terminatedAt: now } : {}),
+      ...(status === "active" && tenant.suspendedAt ? { suspendedAt: undefined, suspensionReason: undefined } : {}),
+    };
+    updateTenant(tenant.id, updated);
 
     // TM-05: Run lifecycle cascade for restricted statuses.
     // Revokes sessions, ends impersonations, returns summary.
@@ -560,6 +617,7 @@ export function TenantLifecyclePage() {
           onResume={() => resumeStuckJob(t)}
           onReattach={() => reattachStale(t)}
           onDeleteDraft={() => deleteStuckDraft(t)}
+          onTrialAction={(action) => handleTrialAction(t, action)}
         />
       ),
     },
@@ -968,6 +1026,7 @@ function RowActions({
   onResume,
   onReattach,
   onDeleteDraft,
+  onTrialAction,
 }: {
   tenant: TenantContext;
   onAction: (action: LifecycleAction) => void;
@@ -978,8 +1037,11 @@ function RowActions({
   onReattach: () => void;
   /** TM-06 — remove a stuck draft tenant + its saga jobs. */
   onDeleteDraft: () => void;
+  /** TM-08 — trial lifecycle actions (convert/extend/expire). */
+  onTrialAction: (action: "convert" | "extend" | "expire") => void;
 }) {
   const isActive = tenant.status === "active" || tenant.status === "trial";
+  const isTrial = tenant.status === "trial";
   const isSuspended = tenant.status === "suspended";
   const isTerminated = tenant.status === "terminated";
   const isRolledBack = tenant.status === "rolled_back";
@@ -1049,6 +1111,45 @@ function RowActions({
         >
           <X className="h-3 w-3" />Delete
         </Button>
+      ) : null}
+
+      {/* TM-08 — trial lifecycle actions. */}
+      {isTrial ? (
+        <>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1 text-xs text-emerald-600 hover:text-emerald-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTrialAction("convert");
+            }}
+          >
+            <CheckCircle2 className="h-3 w-3" />Convert
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1 text-xs text-sky-600 hover:text-sky-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTrialAction("extend");
+            }}
+          >
+            <Clock className="h-3 w-3" />Extend
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1 text-xs text-amber-600 hover:text-amber-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTrialAction("expire");
+            }}
+          >
+            <Ban className="h-3 w-3" />Expire
+          </Button>
+        </>
       ) : null}
 
       {isActive ? (

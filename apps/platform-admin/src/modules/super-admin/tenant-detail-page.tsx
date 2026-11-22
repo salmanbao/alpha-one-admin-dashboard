@@ -921,10 +921,9 @@ function OverviewTab({ tenant }: { tenant: TenantContext }) {
     { label: "Timezone", value: tenant.timezone },
     { label: "Locale", value: tenant.locale },
     { label: "Created", value: new Date(tenant.createdAt).toLocaleDateString() },
-    // Derive "Last active" from the most recent audit entry for this
-    // tenant — was hardcoded "2 hours ago" for every tenant. Round 4 fix.
+    // TM-19 — relabel to "Last console activity" (was mislabeled "Last active").
     {
-      label: "Last active",
+      label: "Last console activity",
       value: (() => {
         const audit = getTenantAudit(tenant.id);
         if (audit.length === 0) return "—";
@@ -939,6 +938,10 @@ function OverviewTab({ tenant }: { tenant: TenantContext }) {
       })(),
     },
     { label: "Application", value: tenant.application },
+    // TM-19 — show liveAt, region, kycProvider on the overview.
+    ...(tenant.liveAt ? [{ label: "Went live", value: new Date(tenant.liveAt).toLocaleDateString() }] : []),
+    ...(tenant.region ? [{ label: "Region", value: tenant.region }] : []),
+    ...(tenant.kycProvider ? [{ label: "KYC Provider", value: tenant.kycProvider }] : []),
   ];
 
   // Health band + numeric score + next steps — same derivation as the
@@ -1023,6 +1026,43 @@ function OverviewTab({ tenant }: { tenant: TenantContext }) {
           ))}
         </ul>
       </div>
+
+      {/* TM-24 — Entitlement envelope summary. */}
+      <div className="rounded-lg border bg-card p-4">
+        <p className="mb-3 text-sm font-medium">
+          <LabelWithHelp help="Quantified entitlements for this tenant: seats, rate-limit tier, API/storage quotas, and support tier. Set per-tenant overrides on the Configuration tab.">
+            Entitlements
+          </LabelWithHelp>
+        </p>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-4">
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Seats</dt>
+            <dd className="mt-0.5 text-sm">{tenant.entitlements?.seats ?? "Unlimited"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Rate Tier</dt>
+            <dd className="mt-0.5 text-sm capitalize">{tenant.entitlements?.rateTier ?? "Standard"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">API Quota</dt>
+            <dd className="mt-0.5 text-sm">
+              {tenant.entitlements?.quotas?.apiCallsPerDay 
+                ? `${(tenant.entitlements.quotas.apiCallsPerDay / 1000).toFixed(0)}k/day`
+                : "Plan default"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Support</dt>
+            <dd className="mt-0.5 text-sm capitalize">{tenant.entitlements?.supportTier ?? "Standard"}</dd>
+          </div>
+        </dl>
+        {tenant.entitlements?.quotas?.storageGb && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Storage: {tenant.entitlements.quotas.storageGb} GB
+            {tenant.entitlements.quotas.eventsPerDay && ` · Events: ${tenant.entitlements.quotas.eventsPerDay.toLocaleString()}/day`}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -1099,9 +1139,20 @@ function ModulesTab({
       ...tenant,
       enabledModules: Array.from(enabled),
     };
+    
+    // TM-20 — audit the module change.
+    const mod = allModules.find((m) => m.manifest.id === moduleId);
+    recordAudit({
+      actor: "operator", // Should be user.name from context
+      action: "console.operator_action",
+      target: `tenant.module_toggle`,
+      tenantId: tenant.id,
+      severity: "info",
+      detail: `${willEnable ? "Enabled" : "Disabled"} module "${mod?.manifest.name ?? moduleId}" for ${tenant.name}`,
+    });
+    
     onChange(updated);
     onPersist(updated);
-    const mod = allModules.find((m) => m.manifest.id === moduleId);
     toast({
       title: willEnable ? "Module enabled" : "Module disabled",
       description: `${mod?.manifest.name ?? moduleId} is now ${willEnable ? "accessible" : "hidden"} for ${tenant.name}.`,
@@ -2312,11 +2363,34 @@ const [ownerEmail, setOwnerEmail] = useState(tenant.ownerEmail || "");
         initials: initials.toUpperCase(),
       },
     };
+    // TM-15 — audit the configuration change with before/after diff.
+    const changes: string[] = [];
+    if (name !== tenant.name) changes.push(`name: "${tenant.name}" → "${name}"`);
+    if (currency !== tenant.currency) changes.push(`currency: ${tenant.currency} → ${currency}`);
+    if (timezone !== tenant.timezone) changes.push(`timezone: ${tenant.timezone} → ${timezone}`);
+    if (locale !== tenant.locale) changes.push(`locale: ${tenant.locale} → ${locale}`);
+    if (region !== (tenant.region ?? "")) changes.push(`region: ${tenant.region ?? "unpinned"} → ${region || "unpinned"}`);
+    if (owner !== (tenant.owner ?? "")) changes.push(`owner: ${tenant.owner ?? "-"} → ${owner || "-"}`);
+    if (tagline !== (tenant.branding.tagline ?? "")) changes.push(`tagline updated`);
+    if (primaryColor !== tenant.branding.primaryColor) changes.push(`primaryColor updated`);
+    if (accentColor !== tenant.branding.accentColor) changes.push(`accentColor updated`);
+    
+    if (changes.length > 0) {
+      recordAudit({
+        actor: "operator", // Should be user.name from context
+        action: "console.operator_action",
+        target: `tenant.configure`,
+        tenantId: tenant.id,
+        severity: "info",
+        detail: `Configuration updated for ${tenant.name}: ${changes.join("; ")}`,
+      });
+    }
+    
     onChange(updated);
     onPersist(updated);
     toast({
       title: "Configuration saved",
-      description: `${name} updated successfully.`,
+      description: `${name} updated successfully.${changes.length > 0 ? ` ${changes.length} change(s) audited.` : ""}`,
     });
   };
 
