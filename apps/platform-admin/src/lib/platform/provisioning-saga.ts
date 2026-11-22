@@ -68,19 +68,18 @@ export interface ProvisioningJob {
   /** Tenant contracted SSO → step 3a runs (AUTH-24/25). */
   sso: boolean;
   createdBy: string;
+  /** Tenant admin identity from wizard (TM-07). */
+  adminName?: string;
+  adminEmail?: string;
+  /** Tenant owner identity from wizard (TM-11). */
+  owner?: string;
+  ownerEmail?: string;
   createdAt: number;
   completedAt?: number;
   state: JobState;
   steps: SagaStep[];
   /** Set when the job went terminal before an operator resumed it. */
   blocker?: { stepNum: string; message: string };
-  /**
-   * R13 TM-07 — wizard-captured tenant admin identity. The create wizard
-   * collects adminName/adminEmail; they now ride on the job so step 8's
-   * welcome invite has a real recipient instead of narrative text.
-   */
-  adminName?: string;
-  adminEmail?: string;
   /**
    * TM-07 — persisted invitation record: written the moment step 8
    * completes, so the "invite sent" claim is backed by stored state
@@ -382,6 +381,8 @@ export function startProvisioning(input: {
   sso: boolean;
   adminName?: string;
   adminEmail?: string;
+  owner?: string;
+  ownerEmail?: string;
   createdBy: string;
 }): ProvisioningJob {
   const job: ProvisioningJob = {
@@ -394,6 +395,8 @@ export function startProvisioning(input: {
     createdBy: input.createdBy,
     adminName: input.adminName,
     adminEmail: input.adminEmail,
+    owner: input.owner,
+    ownerEmail: input.ownerEmail,
     createdAt: Date.now(),
     state: "running",
     steps: baseSteps(input.adminEmail),

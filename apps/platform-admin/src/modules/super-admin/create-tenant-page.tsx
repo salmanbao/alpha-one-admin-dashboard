@@ -124,6 +124,8 @@ interface WizardState {
   // Admin user
   adminEmail: string;
   adminName: string;
+  owner?: string;
+  ownerEmail?: string;
   // SSO (AUTH-24/25) — when contracted, saga sub-step 3a runs.
   contractSso: boolean;
 }
@@ -144,6 +146,8 @@ const INITIAL_STATE: WizardState = {
   enabledModules: [...CORE_MODULE_IDS],
   adminEmail: "",
   adminName: "",
+  owner: "",
+  ownerEmail: "",
   contractSso: false,
 };
 
@@ -595,6 +599,8 @@ export function CreateTenantPage() {
       enabledFeatures: [],
       terminology: {},
       plan: state.plan,
+      owner: state.owner,
+      ownerEmail: state.ownerEmail,
       status: "provisioning",
       createdAt: new Date().toISOString(),
     };
@@ -619,6 +625,8 @@ export function CreateTenantPage() {
       sso: state.contractSso,
       adminName: state.adminName,
       adminEmail: state.adminEmail,
+      owner: state.owner,
+      ownerEmail: state.ownerEmail,
       createdBy: user?.name ?? "Console operator",
     });
 
