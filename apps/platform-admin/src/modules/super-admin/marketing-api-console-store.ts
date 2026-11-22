@@ -34,8 +34,36 @@ export interface RateLimitBreach {
   severity: "warning" | "critical";
 }
 
-let RUNS: PlaygroundRun[] = [];
-let BREACHES: RateLimitBreach[] = [];
+/* R13 P1-2 — run log and breaches persist across reloads. */
+const STORAGE_KEY = "pfaas:platform-admin:marketing-api-console";
+
+function loadState(): { runs: PlaygroundRun[]; breaches: RateLimitBreach[] } {
+  if (typeof window === "undefined") return { runs: [], breaches: [] };
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { runs: [], breaches: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      runs: Array.isArray(parsed?.runs) ? parsed.runs : [],
+      breaches: Array.isArray(parsed?.breaches) ? parsed.breaches : [],
+    };
+  } catch {
+    return { runs: [], breaches: [] };
+  }
+}
+
+function saveState() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ runs: RUNS, breaches: BREACHES }));
+  } catch {
+    /* quota — state stays in memory for this session */
+  }
+}
+
+const loaded = loadState();
+let RUNS: PlaygroundRun[] = loaded.runs;
+let BREACHES: RateLimitBreach[] = loaded.breaches;
 
 export function listRuns(): PlaygroundRun[] { return [...RUNS].sort((a, b) => b.at.localeCompare(a.at)); }
 export function listBreaches(): RateLimitBreach[] { return [...BREACHES].sort((a, b) => b.at.localeCompare(a.at)); }
@@ -43,6 +71,7 @@ export function listBreaches(): RateLimitBreach[] { return [...BREACHES].sort((a
 export function recordRun(run: Omit<PlaygroundRun, "id" | "at">): PlaygroundRun {
   const rec: PlaygroundRun = { ...run, id: `run-${Date.now().toString(36)}`, at: new Date().toISOString() };
   RUNS = [rec, ...RUNS].slice(0, 50);
+  saveState();
   recordAudit({ actor: "operator", action: "api.playground", target: run.keyId, detail: `Playground run on ${run.tenant} via ${run.keyName}: ${run.status} ${run.note}`, severity: "info" });
   emit();
   return rec;
@@ -51,6 +80,7 @@ export function recordRun(run: Omit<PlaygroundRun, "id" | "at">): PlaygroundRun 
 export function recordBreach(b: Omit<RateLimitBreach, "id" | "at">): RateLimitBreach {
   const rec: RateLimitBreach = { ...b, id: `br-${Date.now().toString(36)}`, at: new Date().toISOString() };
   BREACHES = [rec, ...BREACHES].slice(0, 50);
+  saveState();
   recordAudit({ actor: "system", action: "api.rate_limit_breach", target: b.keyId, detail: `${b.keyName} (${b.tenant}) breached rate limit — ${b.count} hit(s)`, severity: b.severity });
   emit();
   return rec;

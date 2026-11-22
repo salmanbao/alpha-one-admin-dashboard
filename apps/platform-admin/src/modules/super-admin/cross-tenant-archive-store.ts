@@ -106,7 +106,32 @@ export interface CaseFolder {
   sealed?: CaseSeal;
 }
 
-let CASES: CaseFolder[] = [];
+/* R13 P1-2 — case folders persist across reloads (they carry seals a
+ * reviewer must be able to compare against what was handed over). */
+const CASES_STORAGE_KEY = "pfaas:platform-admin:archive-cases";
+
+function loadCases(): CaseFolder[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(CASES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as CaseFolder[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCases(next: CaseFolder[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(CASES_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    /* quota — cases stay in memory for this session */
+  }
+}
+
+let CASES: CaseFolder[] = loadCases();
 
 export function listCases(): CaseFolder[] { return CASES; }
 export function getCase(id: string): CaseFolder | undefined { return CASES.find(c => c.id === id); }
@@ -117,6 +142,7 @@ export function createCase(name: string, ids: string[], actor = "operator"): Cas
     name, ids: [...ids].sort(), createdAt: new Date().toISOString(), createdBy: actor,
   };
   CASES = [...CASES, rec];
+  saveCases(CASES);
   recordAudit({
     actor, action: "archive.case.create", target: name,
     detail: `e-discovery case folder "${name}" created with ${ids.length} message(s)`,
@@ -252,6 +278,7 @@ export function exportCaseBundle(caseId: string, format: BundleFormat, actor = "
   CASES = CASES.map(x => x.id === caseId
     ? { ...x, sealed: { bundleId: res.bundleId, seal: res.seal, format, at: res.generatedAt, bytes: res.content.length } }
     : x);
+  saveCases(CASES);
   recordAudit({
     actor, action: "archive.case.export", target: c.name,
     detail: `Case bundle ${res.bundleId} (${res.count} message(s), ${format}) sealed sha256:${res.seal.slice(0, 16)}… — deterministic scope "${c.name}"`,

@@ -166,6 +166,40 @@ export function exportSuppression(rows: LedgerRow[], actor = "operator"): Suppre
 
 /* ------------------------------------------------------------------ */
 
+/* R13 P1-2 — the global enforcement toggle is a real operational
+ * setting; it must survive reload (an audit row describing a change
+ * that did not survive is itself an audit defect). */
+const ENFORCE_STORAGE_KEY = "pfaas:platform-admin:consent-enforcement";
+
+function loadEnforce(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const raw = window.localStorage.getItem(ENFORCE_STORAGE_KEY);
+    return raw === null ? true : raw === "1";
+  } catch {
+    return true;
+  }
+}
+
+let enforceGlobal = loadEnforce();
+
+/** Current global-vs-per-tenant suppression enforcement state. */
+export function isGlobalEnforcementOn(): boolean { return enforceGlobal; }
+
+/** Toggle enforcement and persist it. Returns the new value. */
+export function setGlobalEnforcement(on: boolean): boolean {
+  enforceGlobal = on;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(ENFORCE_STORAGE_KEY, on ? "1" : "0");
+    } catch {
+      /* quota — value stays in memory for this session */
+    }
+  }
+  emit();
+  return enforceGlobal;
+}
+
 const listeners = new Set<() => void>();
 let version = 0;
 function emit() {

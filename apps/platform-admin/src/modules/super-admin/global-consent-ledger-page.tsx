@@ -25,6 +25,7 @@ import { Shield, Download, FileText } from "lucide-react";
 import { downloadText } from "./bundle-utils";
 import {
   listLedger, exportSuppression, useLedgerVersion,
+  isGlobalEnforcementOn, setGlobalEnforcement,
   type LedgerRow, type TenantReceipt,
 } from "./global-consent-ledger-store";
 
@@ -40,7 +41,7 @@ export function GlobalConsentLedgerPage(){
   const { user } = usePlatform();
   useLedgerVersion();
   const rows = listLedger();
-  const [enforce,setEnforce]=useState(true);
+  const enforce = isGlobalEnforcementOn();
   const [detail,setDetail]=useState<LedgerRow|null>(null);
   const [openRcpt,setOpenRcpt]=useState<TenantReceipt|null>(null);
   const [q,setQ]=useState("");
@@ -70,7 +71,7 @@ export function GlobalConsentLedgerPage(){
         }}><Download className="mr-1 h-4 w-4"/>Export (ESP sync)</Button>} />
       <PageContent>
         <div className="grid gap-3 sm:grid-cols-4"><MetricCard label="Suppressed/bounced" value={String(rows.filter(r=>r.state!=="clear").length)} tone="warning"/><MetricCard label="Contributing tenants" value={String(new Set(rows.flatMap(r=>r.tenants)).size)}/><MetricCard label="Global enforcement" value={enforce?"ON":"OFF"} tone={enforce?"positive":"warning"}/><MetricCard label="Evidence links" value={String(rows.reduce((s,r)=>s+r.receipts.length,0))}/></div>
-        <Card><CardContent className="p-3 flex items-center justify-between text-sm"><div><p className="font-semibold">Global vs per-tenant suppression</p><p className="text-xs text-muted-foreground">When ON, an address suppressed on tenant A cannot be re-added as sendable on tenant B (logged).</p></div><Switch checked={enforce} onCheckedChange={v=>{setEnforce(!!v); recordAudit({action:`suppression.enforcement.${v?"on":"off"}`,target:"global",actor:user?.name??"operator",detail:`Global enforcement ${v?"enabled":"disabled"}`,severity:"warning"});}}/></CardContent></Card>
+        <Card><CardContent className="p-3 flex items-center justify-between text-sm"><div><p className="font-semibold">Global vs per-tenant suppression</p><p className="text-xs text-muted-foreground">When ON, an address suppressed on tenant A cannot be re-added as sendable on tenant B (logged).</p></div><Switch checked={enforce} onCheckedChange={v=>{setGlobalEnforcement(!!v); recordAudit({action:`suppression.enforcement.${v?"on":"off"}`,target:"global",actor:user?.name??"operator",detail:`Global enforcement ${v?"enabled":"disabled"}`,severity:"warning"});}}/></CardContent></Card>
         <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
           <div><Input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search hashed identity…" className="mb-2 max-w-sm"/><DataTable columns={cols} data={filtered} rowKey={r=>r.id} pageSize={8}/></div>
           <Card><CardContent className="p-3 text-xs space-y-2"><p className="font-semibold">Enforcement rules / hit stats</p>{RULES.map(r=><div key={r.name} className="flex justify-between rounded border p-2"><span>{r.name}</span><span className="font-mono">{r.hits} hits</span></div>)}</CardContent></Card>
