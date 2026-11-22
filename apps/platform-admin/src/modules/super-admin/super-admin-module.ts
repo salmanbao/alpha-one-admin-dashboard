@@ -196,7 +196,7 @@ const routes: RouteDefinition[] = [
   { path: "super-overview", viewId: "super-overview", label: "Platform Overview", application: ["super-admin"] },
   { path: "tenants", viewId: "tenants", label: "Tenants", application: ["super-admin"] },
   { path: "create-tenant", viewId: "create-tenant", label: "Create Tenant", application: ["super-admin"] },
-  { path: "go-live-wizard", viewId: "go-live-wizard", label: "Go-Live Wizard", application: ["super-admin"] },
+  { path: "invoice-detail", viewId: "invoice-detail", label: "Invoice Detail", application: ["super-admin"] },
   { path: "tenant-detail", viewId: "tenant-detail", label: "Tenant Detail", application: ["super-admin"] },
   { path: "tenant-lifecycle", viewId: "tenant-lifecycle", label: "Tenant Lifecycle", application: ["super-admin"] },
   { path: "tenant-health", viewId: "tenant-health", label: "Tenant Health", application: ["super-admin"] },

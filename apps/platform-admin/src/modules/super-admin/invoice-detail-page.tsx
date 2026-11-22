@@ -30,10 +30,11 @@ interface InvoiceLineForm {
 }
 
 export function InvoiceDetailPage({
-  invoiceId,
+  params,
 }: {
-  invoiceId?: string;
+  params?: Record<string, string>;
 }) {
+  const invoiceId = params?.invoiceId;
   const invoices = useInvoices();
   const [invoice, setInvoice] = useState<ReturnType<typeof useInvoices>[0] | undefined>(undefined);
   const [lines, setLines] = useState<any[]>([]);

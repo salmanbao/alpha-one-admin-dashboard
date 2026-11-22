@@ -27,6 +27,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "invoice-detail": dynamic(
+    () =>
+      import("@/modules/super-admin/invoice-detail-page").then((m) => ({
+        default: m.InvoiceDetailPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   /* R4-03 — role surfaces registered alongside the restored registry */
   "create-role": dynamic(
     () =>
