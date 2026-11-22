@@ -85,6 +85,7 @@ const navigation: NavigationItem[] = [
   { id: "super.tenant-offboarding", label: "Tenant Offboarding", href: "tenant-offboarding", icon: Package, application: ["super-admin"], group: "Tenant Management" },
       { id: "super.challenge-programs", label: "Challenge Programs", href: "challenge-programs", icon: Target, application: ["super-admin"], group: "Tenant Management", permission: "platform.modules.manage" },
       { id: "super.tenant-health", label: "Tenant Health", href: "tenant-health", icon: HeartPulse, application: ["super-admin"], group: "Tenant Management" },
+  { id: "super.benchmarking", label: "Benchmarking", href: "tenant-benchmarking", icon: BarChart3, application: ["super-admin"], group: "Tenant Management" },
 
       // ───────── Operations ─────────
       { id: "super.operations", label: "Operations Home", href: "platform-operations", icon: Activity, application: ["super-admin"], group: "Operations" },
