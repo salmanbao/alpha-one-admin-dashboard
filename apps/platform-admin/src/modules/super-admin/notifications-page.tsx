@@ -7,11 +7,14 @@
  * operator has been notified about, with severity/read filters, deep-link
  * actions into the owning console view, and read-state management that
  * shares state with the topbar dropdown (both read from `usePlatform()`).
+ *
+ * P1-5: Alert rules now persisted to localStorage via the alert-rules-store.
+ * Every toggle/threshold change writes an audit row.
  */
 
-import { useMemo, useState } from "react";
-import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
-import { PageAsyncBoundary } from "@/components/platform/guards";
+import { useMemo, useState, useEffect } from "react";
+import { useAlertRulesVersion, readAlertRules, toggleAlertRule, updateAlertRuleThreshold, resetAlertRules } from "@/lib/platform/alert-rules-store";
+import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,28 +22,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/platform/status";
+import { PageAsyncBoundary } from "@/components/platform/guards";
 import { EmptyState } from "@/components/platform/guards";
-import {
-  Bell,
-  CheckCheck,
-  Check,
-  Inbox,
-  AlertTriangle,
-  Info,
-  XCircle,
-  ShieldAlert,
-  Activity,
-  Gauge,
-} from "lucide-react";
-import { usePlatform } from "@/lib/platform/platform-context";
-import type { AppNotification } from "@/lib/platform/types";
+import { Inbox, Activity, Gauge, ShieldAlert, XCircle, CheckCheck, Check, AlertTriangle, Info, Bell } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 type Filter = "all" | "unread" | "critical";
 
-const sevTone = (s: AppNotification["severity"]) =>
+const sevTone = (s: string) =>
   s === "critical" ? "danger" : s === "warning" ? "warning" : s === "success" ? "success" : "info";
 
-const sevIcon = (s: AppNotification["severity"]) =>
+const sevIcon = (s: string) =>
   s === "critical" ? XCircle : s === "warning" ? AlertTriangle : s === "success" ? Check : Info;
 
 const timeAgo = (iso: string) => {
@@ -52,16 +44,6 @@ const timeAgo = (iso: string) => {
   return `${Math.round(hours / 24)}d ago`;
 };
 
-const FILTERS: Array<{ id: Filter; label: string }> = [
-  { id: "all", label: "All" },
-  { id: "unread", label: "Unread" },
-  { id: "critical", label: "Critical" },
-];
-
-/* ------------------------------------------------------------------ */
-/* Configurable alert rules — audit #8: threshold-based alerting       */
-/* ------------------------------------------------------------------ */
-
 type AlertRuleId = "queueBacklog" | "apiUsage" | "tenantHealth" | "slaBreach";
 
 interface AlertRule {
@@ -69,122 +51,54 @@ interface AlertRule {
   label: string;
   description: string;
   unit: string;
-  /** Threshold above/below which the alert fires. */
   threshold: number;
   enabled: boolean;
-  icon: typeof ShieldAlert;
-  /** Current mock value for demo breach simulation. */
+  icon: typeof Inbox | typeof Activity | typeof Gauge | typeof ShieldAlert;
   currentValue: number;
-  /** Whether higher values are worse (true) or lower (false). */
   higherIsWorse: boolean;
   linkHref: string;
 }
 
-const DEFAULT_ALERT_RULES: AlertRule[] = [
-  {
-    id: "queueBacklog",
-    label: "Queue backlog",
-    description: "Alert when total pending KYC + payouts + tickets exceeds the threshold.",
-    unit: "items",
-    threshold: 25,
-    enabled: true,
-    icon: Inbox,
-    currentValue: 18,
-    higherIsWorse: true,
-    linkHref: "cross-tenant-queues",
-  },
-  {
-    id: "apiUsage",
-    label: "API usage anomaly",
-    description: "Alert when any tenant's daily API calls exceed the threshold.",
-    unit: "calls/day",
-    threshold: 50000,
-    enabled: true,
-    icon: Activity,
-    currentValue: 42000,
-    higherIsWorse: true,
-    linkHref: "tenant-api-usage",
-  },
-  {
-    id: "tenantHealth",
-    label: "Tenant health score",
-    description: "Alert when a tenant's health score drops below the threshold.",
-    unit: "score",
-    threshold: 60,
-    enabled: false,
-    icon: Gauge,
-    currentValue: 72,
-    higherIsWorse: false,
-    linkHref: "tenant-health",
-  },
-  {
-    id: "slaBreach",
-    label: "SLA breach risk",
-    description: "Alert when projected SLA breach probability exceeds the threshold.",
-    unit: "%",
-    threshold: 70,
-    enabled: true,
-    icon: ShieldAlert,
-    currentValue: 82,
-    higherIsWorse: true,
-    linkHref: "sla-monitoring",
-  },
+const FILTERS: Array<{ id: Filter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "unread", label: "Unread" },
+  { id: "critical", label: "Critical" },
 ];
 
-const ALERT_RULES_KEY = "pfaas:platform:alertRules";
-
-function loadAlertRules(): AlertRule[] {
-  if (typeof window === "undefined") return DEFAULT_ALERT_RULES;
-  try {
-    const stored = window.localStorage.getItem(ALERT_RULES_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored) as Partial<Record<AlertRuleId, { threshold: number; enabled: boolean }>>;
-      return DEFAULT_ALERT_RULES.map((rule) => {
-        const override = parsed[rule.id];
-        return override ? { ...rule, threshold: override.threshold, enabled: override.enabled } : rule;
-      });
-    }
-  } catch { /* ignore corrupt storage */ }
-  return DEFAULT_ALERT_RULES;
-}
-
-function saveAlertRules(rules: AlertRule[]) {
-  if (typeof window === "undefined") return;
-  try {
-    const payload: Partial<Record<AlertRuleId, { threshold: number; enabled: boolean }>> = {};
-    rules.forEach((r) => { payload[r.id] = { threshold: r.threshold, enabled: r.enabled }; });
-    window.localStorage.setItem(ALERT_RULES_KEY, JSON.stringify(payload));
-  } catch { /* ignore quota errors */ }
-}
-
-function isBreached(rule: AlertRule): boolean {
-  if (!rule.enabled) return false;
-  return rule.higherIsWorse ? rule.currentValue >= rule.threshold : rule.currentValue <= rule.threshold;
-}
-
 export function NotificationsPage() {
-  // Async seam (frontend-first): hydrate via the mock layer so the
-  // loading skeleton + error/retry states are exercised; local
-  // interactive state below stays authoritative once loaded.
-  const {
-    data: hydrated,
-    loading,
-    error,
-    retry,
-  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const { notifications, markRead, markAllRead, navigate } = usePlatform();
+
   const [filter, setFilter] = useState<Filter>("all");
-  const [alertRules, setAlertRules] = useState<AlertRule[]>(loadAlertRules);
+  const [alertRules, setAlertRules] = useState<AlertRule[]>(() => {
+    const read = readAlertRules();
+    return read;
+  });
 
-  const updateRule = (id: AlertRuleId, patch: Partial<Pick<AlertRule, "threshold" | "enabled">>) => {
-    setAlertRules((prev) => {
-      const next = prev.map((r) => (r.id === id ? { ...r, ...patch } : r));
-      saveAlertRules(next);
-      return next;
+  useEffect(() => {
+    // Re-read from store whenever the store changes (persistence across tabs)
+    const current = readAlertRules();
+    if (current.length !== alertRules.length || current.some((r, i) => r.id !== alertRules[i]?.id)) {
+      setAlertRules(current);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Persist only threshold + enabled when alertRules changes
+    const persisted: Record<string, { threshold: number; enabled: boolean }> = {};
+    alertRules.forEach((r) => {
+      persisted[r.id] = { threshold: r.threshold, enabled: r.enabled };
     });
-  };
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem("pfaas:platform:alertRules", JSON.stringify(persisted));
+      } catch {
+        /* ignore quota */
+      }
+    }
+  }, [alertRules]);
 
-  const breachedRules = alertRules.filter(isBreached);
+  const breachedRules = alertRules.filter((r) => r.enabled && 
+    (r.higherIsWorse ? r.currentValue >= r.threshold : r.currentValue <= r.threshold));
 
   const unread = notifications.filter((n) => !n.read);
   const critical = notifications.filter((n) => n.severity === "critical");
@@ -198,6 +112,24 @@ export function NotificationsPage() {
     if (filter === "critical") return sorted.filter((n) => n.severity === "critical");
     return sorted;
   }, [notifications, filter]);
+
+  const handleToggle = (id: AlertRuleId) => {
+    const next = toggleAlertRule(id);
+    setAlertRules(next);
+    toast({ title: "Alert rule updated", description: `Alert rule "${id}" toggled` });
+  };
+
+  const handleThreshold = (id: AlertRuleId, threshold: number) => {
+    const next = updateAlertRuleThreshold(id, threshold);
+    setAlertRules(next);
+    toast({ title: "Alert rule updated", description: `Alert rule "${id}" threshold set to ${threshold}` });
+  };
+
+  const handleReset = () => {
+    const next = resetAlertRules();
+    setAlertRules(next);
+    toast({ title: "Alert rules reset", description: "All alert rules reset to defaults" });
+  };
 
   return (
     <Page>
@@ -218,10 +150,9 @@ export function NotificationsPage() {
       />
       <PageContent>
         <PageAsyncBoundary
-          loading={loading}
-          error={error}
-          onRetry={retry}
-          hasData={hydrated !== undefined}
+          loading={true}
+          hasData={true}
+          onRetry={() => {}}
           loadingLabel="Loading notifications…"
         >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -250,16 +181,13 @@ export function NotificationsPage() {
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {alertRules.map((rule) => {
                 const Icon = rule.icon;
-                const breached = isBreached(rule);
+                const breached = rule.enabled && 
+                  (rule.higherIsWorse ? rule.currentValue >= rule.threshold : rule.currentValue <= rule.threshold);
                 return (
                   <div
                     key={rule.id}
                     className={`rounded-lg border p-3 transition-colors ${
-                      breached
-                        ? "border-rose-500/40 bg-rose-50/50 dark:bg-rose-950/20"
-                        : rule.enabled
-                          ? "border-border"
-                          : "border-border opacity-60"
+                      breached ? "border-rose-500/40 bg-rose-50/50 dark:bg-rose-950/20" : rule.enabled ? "border-border" : "border-border opacity-60"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -277,7 +205,7 @@ export function NotificationsPage() {
                       </div>
                       <Switch
                         checked={rule.enabled}
-                        onCheckedChange={(v) => updateRule(rule.id, { enabled: v })}
+                        onCheckedChange={(v) => handleToggle(rule.id)}
                         aria-label={`Toggle ${rule.label} alert`}
                       />
                     </div>
@@ -289,7 +217,7 @@ export function NotificationsPage() {
                         id={`threshold-${rule.id}`}
                         type="number"
                         value={rule.threshold}
-                        onChange={(e) => updateRule(rule.id, { threshold: Number(e.target.value) })}
+                        onChange={(e) => handleThreshold(rule.id, Number(e.target.value))}
                         className="h-7 w-24 text-xs"
                         disabled={!rule.enabled}
                         aria-label={`${rule.label} threshold in ${rule.unit}`}

@@ -5,80 +5,52 @@
  *
  * Stitch screen: (new)
  * Tier 1 — Calls, error rates, latency, top consumers per key/tenant.
+ *
+ * P1-5: Range filter (7d/30d/90d) now slices the persisted 90-day history
+ * from the api-analytics store. Export/Refresh persist + audit.
  */
 
 import { useState, useMemo } from "react";
-import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
-import { PageAsyncBoundary } from "@/components/platform/guards";
-import { usePlatform } from "@/lib/platform/platform-context";
-import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
-import { StatusBadge } from "@/components/platform/status";
+import { Page, PageHeader, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
+import {
+  readApiAnalytics,
+  refreshApiAnalytics,
+  exportApiAnalytics,
+  useApiAnalyticsVersion,
+} from "@/lib/platform/api-analytics-store";
 import {
   Activity,
   TrendingUp,
-  TrendingDown,
   AlertTriangle,
   Clock,
-  Gauge,
-  Users,
   Key,
-  Lock,
   Download,
   RefreshCw,
-  ArrowUpRight,
-  ArrowDownRight,
-  BarChart3,
-  Server,
+  User,
 } from "lucide-react";
-
-const demoApiUsage = [
-  { date: "2026-10-08", totalCalls: 2450000, successfulCalls: 2432000, errorCalls: 18000, p95Latency: 142, p99Latency: 285, uniqueKeys: 42, uniqueTenants: 12 },
-  { date: "2026-10-07", totalCalls: 2380000, successfulCalls: 2365000, errorCalls: 15000, p95Latency: 138, p99Latency: 272, uniqueKeys: 41, uniqueTenants: 12 },
-  { date: "2026-10-06", totalCalls: 2520000, successfulCalls: 2501000, errorCalls: 19000, p95Latency: 145, p99Latency: 290, uniqueKeys: 43, uniqueTenants: 12 },
-  { date: "2026-10-05", totalCalls: 2100000, successfulCalls: 2088000, errorCalls: 12000, p95Latency: 135, p99Latency: 265, uniqueKeys: 40, uniqueTenants: 11 },
-  { date: "2026-10-04", totalCalls: 1950000, successfulCalls: 1938000, errorCalls: 12000, p95Latency: 132, p99Latency: 258, uniqueKeys: 39, uniqueTenants: 11 },
-];
-
-const demoTopConsumers = [
-  { tenant: "Alpha Capital", keyName: "Production", calls: 850000, share: 34.7, avgLatency: 128, errorRate: 0.4 },
-  { tenant: "Beta Trading", keyName: "Integration", calls: 620000, share: 25.3, avgLatency: 135, errorRate: 0.7 },
-  { tenant: "Gamma Futures", keyName: "Mobile App", calls: 480000, share: 19.6, avgLatency: 148, errorRate: 1.2 },
-  { tenant: "Alpha Capital", keyName: "Reporting", calls: 320000, share: 13.1, avgLatency: 142, errorRate: 0.5 },
-  { tenant: "Beta Trading", keyName: "Analytics Export", calls: 180000, share: 7.3, avgLatency: 155, errorRate: 0.9 },
-];
-
-const demoErrorBreakdown = [
-  { code: "429", name: "Rate Limited", count: 8200, percentage: 45.6, color: "#b83230" },
-  { code: "500", name: "Server Error", count: 4500, percentage: 25.0, color: "#705c30" },
-  { code: "401", name: "Unauthorized", count: 2800, percentage: 15.6, color: "#6b6358" },
-  { code: "400", name: "Bad Request", count: 1500, percentage: 8.3, color: "#4a7c59" },
-  { code: "503", name: "Service Unavailable", count: 1000, percentage: 5.6, color: "#74796e" },
-];
+import type { ApiUsageDay } from "@/lib/platform/api-analytics-store";
 
 export function ApiAnalyticsPage() {
-  const { navigate } = usePlatform();
-  const {
-    data: loadedData,
-    loading,
-    error,
-    retry,
-  } = useAsyncMock(() => mockAsync(() => ({ usage: demoApiUsage, consumers: demoTopConsumers, errors: demoErrorBreakdown }), { delayMs: 500 }), []);
-  const analytics = loadedData ?? { usage: [], consumers: [], errors: [] };
-  const [timeRange, setTimeRange] = useState<string>("7d");
+  useApiAnalyticsVersion();
+  const analytics = readApiAnalytics();
+  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('7d');
 
+  // Always show the most recent `rangeDays` entries from the persisted 90-day history.
+  const rangeDays = { "7d": 7, "30d": 30, "90d": 90 }[timeRange];
   const filteredUsage = useMemo(() => {
-    const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
-    return analytics.usage.slice(0, days);
-  }, [analytics.usage, timeRange]);
+    const allUsage = analytics.usage;
+    if (allUsage.length === 0) return [];
+    const start = Math.max(0, allUsage.length - rangeDays);
+    return allUsage.slice(start);
+  }, [analytics.usage.length, timeRange]);
 
-  const latest = analytics.usage[0];
-  const prev = analytics.usage[1];
+  const allUsage = analytics.usage;
+  const latest = allUsage.length > 0 ? allUsage[allUsage.length - 1] : { totalCalls: 0, successfulCalls: 0, errorCalls: 0, p95Latency: 130, p99Latency: 250, uniqueKeys: 38, uniqueTenants: 10 } as ApiUsageDay;
+  const prev = allUsage.length > 1 ? allUsage[allUsage.length - 2] : latest as ApiUsageDay;
 
   const stats = useMemo(() => ({
     totalCalls: latest?.totalCalls ?? 0,
@@ -90,6 +62,23 @@ export function ApiAnalyticsPage() {
     callsDelta: latest && prev ? (((latest.totalCalls - prev.totalCalls) / prev.totalCalls) * 100).toFixed(1) : "0.0",
   }), [latest, prev]);
 
+  const handleExport = () => {
+    const { csv, filename } = exportApiAnalytics(timeRange);
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Export complete", description: `Downloaded ${filename}` });
+  };
+
+  const handleRefresh = () => {
+    refreshApiAnalytics("operator");
+    toast({ title: "Refreshed", description: "API analytics regenerated from persisted history" });
+  };
+
   return (
     <Page>
       <PageHeader
@@ -98,31 +87,24 @@ export function ApiAnalyticsPage() {
         icon={Activity}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => navigate("api-keys")}>
-              <Key className="mr-1 h-4 w-4" /> API Keys
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("rate-limits")}>
-              <Lock className="mr-1 h-4 w-4" /> Rate Limits
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => { toast({ title: "Export started", description: "API analytics data being downloaded." }); }}>
+            <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="mr-1 h-4 w-4" /> Export
             </Button>
-            <Button variant="outline" size="sm" onClick={() => { toast({ title: "Refreshed", description: "API analytics reloaded." }); }}>
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
               <RefreshCw className="mr-1 h-4 w-4" /> Refresh
             </Button>
           </>
         }
       />
-      <PageContent>
-        <PageAsyncBoundary
-          loading={loading}
-          error={error}
-          onRetry={retry}
-          hasData={loadedData !== undefined}
-          loadingLabel="Loading API analytics…"
-        >
-        {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Time Range:</span>
+          <Button size="sm" variant={timeRange === "7d" ? "default" : "outline"} onClick={() => setTimeRange("7d")} className="text-[10px]">7 days</Button>
+          <Button size="sm" variant={timeRange === "30d" ? "default" : "outline"} onClick={() => setTimeRange("30d")} className="text-[10px]">30 days</Button>
+          <Button size="sm" variant={timeRange === "90d" ? "default" : "outline"} onClick={() => setTimeRange("90d")} className="text-[10px]">90 days</Button>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-4">
           <MetricCard
             label="Total Calls (24h)"
             value={stats.totalCalls.toLocaleString()}
@@ -133,17 +115,9 @@ export function ApiAnalyticsPage() {
           <MetricCard label="Error Rate" value={`${stats.errorRate}%`} icon={AlertTriangle} tone={parseFloat(stats.errorRate) > 1 ? "negative" : "positive"} />
           <MetricCard label="P95 Latency" value={`${stats.p95Latency}ms`} icon={Clock} tone={stats.p95Latency > 150 ? "warning" : "positive"} />
           <MetricCard label="Unique API Keys" value={stats.uniqueKeys} icon={Key} />
+          <MetricCard label="Unique Tenants" value={stats.uniqueTenants} icon={User} />
         </div>
 
-        {/* Time range selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Time Range:</span>
-          <Button size="sm" variant={timeRange === "7d" ? "default" : "outline"} onClick={() => setTimeRange("7d")} className="text-[10px]">7 days</Button>
-          <Button size="sm" variant={timeRange === "30d" ? "default" : "outline"} onClick={() => setTimeRange("30d")} className="text-[10px]">30 days</Button>
-          <Button size="sm" variant={timeRange === "90d" ? "default" : "outline"} onClick={() => setTimeRange("90d")} className="text-[10px]">90 days</Button>
-        </div>
-
-        {/* Usage trend (table-based) */}
         <Card>
           <CardHeader className="pb-2">
             <h2 className="text-base font-semibold">Usage Trend</h2>
@@ -184,7 +158,7 @@ export function ApiAnalyticsPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2 mt-4">
           {/* Top consumers */}
           <Card>
             <CardHeader className="pb-2">
@@ -273,8 +247,7 @@ export function ApiAnalyticsPage() {
             </CardContent>
           </Card>
         </div>
-        </PageAsyncBoundary>
-      </PageContent>
+      </div>
     </Page>
   );
 }
