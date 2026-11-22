@@ -40,7 +40,7 @@ import {
   reactivateTenantUser,
   type TenantUser,
 } from "@/lib/platform/tenant-users-store";
-import { makeTermResolver, plural } from "@/lib/platform/terminology";
+import { makeTermResolver, plural, type TermKey } from "@/lib/platform/terminology";
 import {
   getTenantTraders,
   getTenantAccounts,
@@ -2091,7 +2091,16 @@ function ConfigurationTab({
   const [initials, setInitials] = useState(tenant.branding.initials);
 const [domain, setDomain] = useState(tenant.domain || "");
 const [subdomain, setSubdomain] = useState(tenant.subdomain || "");
-  const [region, setRegion] = useState(tenant.region || "");
+const [region, setRegion] = useState(tenant.region || "");
+const [terminology, setTerminology] = useState<Record<TermKey, string>>(tenant.terminology as Record<TermKey, string>);
+const [newTermKey, setNewTermKey] = useState('');
+const [newTermValue, setNewTermValue] = useState('');
+const addCustomTerm = () => {
+  if (!newTermKey || !newTermValue) return;
+  setTerminology(prev => ({ ...prev, [newTermKey as TermKey]: newTermValue }));
+  setNewTermKey('');
+  setNewTermValue('');
+};
 
   const presets = [
     { name: "Forest", primary: "#4a7c59", accent: "#705c30", surface: "#f5efe6" },
@@ -2112,6 +2121,7 @@ const [subdomain, setSubdomain] = useState(tenant.subdomain || "");
       region,
       domain,
       subdomain,
+      terminology,
       branding: {
         ...tenant.branding,
         name,
@@ -2199,6 +2209,51 @@ const [subdomain, setSubdomain] = useState(tenant.subdomain || "");
             </FieldRow>
             <FieldRow label="Subdomain">
               <Input value={subdomain} onChange={(e) => setSubdomain(e.target.value)} />
+            </FieldRow>
+            <FieldRow label="Terminology overrides">
+              <div className="space-y-2">
+                {Object.entries(terminology).map(([key, value]) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <Input
+                      value={value}
+                      onChange={(e) => setTerminology(prev => ({ ...prev, [key as TermKey]: e.target.value }))}
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setTerminology(prev => {
+                        const next = { ...prev };
+                        delete next[key as TermKey];
+                        return next;
+                      })}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <Input
+                    value={newTermKey}
+                    onChange={(e) => setNewTermKey(e.target.value)}
+                    placeholder="Term key (e.g., challenge)"
+                    className="w-40"
+                  />
+                  <Input
+                    value={newTermValue}
+                    onChange={(e) => setNewTermValue(e.target.value)}
+                    placeholder="Value"
+                    className="flex-1"
+                  />
+                  <Button onClick={addCustomTerm} disabled={!newTermKey || !newTermValue}>
+                    Add
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Override default business terms. Use standard keys (challenge, trader, payout, etc.)
+                  or custom keys for tenant-specific terminology.
+                </p>
+              </div>
             </FieldRow>
             <FieldRow label="Primary color">
               <div className="flex gap-2">
