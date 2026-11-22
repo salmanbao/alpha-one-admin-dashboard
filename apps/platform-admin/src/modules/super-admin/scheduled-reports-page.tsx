@@ -17,6 +17,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import {
+  listSchedules,
+  runSchedule,
+  pauseSchedule,
+  resumeSchedule,
+  createSchedule,
+  downloadLastRun,
+  useSchedulesVersion,
+} from "@/lib/platform/report-schedules-store";
+import {
   CalendarClock,
   Plus,
   Play,
@@ -28,15 +37,6 @@ import {
   FileText,
   BarChart3,
 } from "lucide-react";
-
-const demoSchedules = [
-  { id: "sch-001", name: "Weekly Revenue Digest", category: "finance", frequency: "Weekly (Mon 07:00 UTC)", recipients: ["finance@pfaas.com", "ceo@pfaas.com"], format: "PDF + CSV", lastRun: "2026-10-06T07:00:00Z", nextRun: "2026-10-13T07:00:00Z", status: "active", lastDelivery: "delivered" },
-  { id: "sch-002", name: "Daily Tenant Usage Meter", category: "analytics", frequency: "Daily 06:00 UTC", recipients: ["ops@pfaas.com"], format: "CSV", lastRun: "2026-10-08T06:00:00Z", nextRun: "2026-10-09T06:00:00Z", status: "active", lastDelivery: "delivered" },
-  { id: "sch-003", name: "Monthly Churn & Retention", category: "growth", frequency: "Monthly (1st 08:00)", recipients: ["growth@pfaas.com"], format: "PDF", lastRun: "2026-10-01T08:00:00Z", nextRun: "2026-11-01T08:00:00Z", status: "active", lastDelivery: "delivered" },
-  { id: "sch-004", name: "Payout Reconciliation", category: "finance", frequency: "Daily 23:00 UTC", recipients: ["finance@pfaas.com", "treasury@pfaas.com"], format: "CSV", lastRun: "2026-10-07T23:00:00Z", nextRun: "2026-10-08T23:00:00Z", status: "active", lastDelivery: "failed" },
-  { id: "sch-005", name: "Quarterly Board Metrics", category: "analytics", frequency: "Quarterly (1st 09:00)", recipients: ["board@pfaas.com"], format: "PDF", lastRun: "2026-07-01T09:00:00Z", nextRun: "2027-01-01T09:00:00Z", status: "active", lastDelivery: "delivered" },
-  { id: "sch-006", name: "API Usage Export", category: "analytics", frequency: "Weekly (Fri 18:00)", recipients: ["platform@pfaas.com"], format: "CSV", lastRun: "2026-10-02T18:00:00Z", nextRun: "2026-10-09T18:00:00Z", status: "paused", lastDelivery: "delivered" },
-];
 
 const categoryMeta: Record<string, { icon: typeof FileText; color: string }> = {
   finance: { icon: BarChart3, color: "#705c30" },
@@ -52,14 +52,50 @@ const statusTones: Record<string, "success" | "warning" | "danger"> = {
 };
 
 export function ScheduledReportsPage() {
+  // Async seam (frontend-first): hydrate via the mock layer so the
+  // loading skeleton + error/retry states are exercised; the persisted
+  // schedule store is authoritative once loaded.
   const {
-    data: loadedData,
+    data: hydrated,
     loading,
     error,
     retry,
-  } = useAsyncMock(() => mockAsync(() => demoSchedules, { delayMs: 450 }), []);
-  const schedules = loadedData ?? [];
+  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 450 }), []);
+  useSchedulesVersion();
+  const schedules = listSchedules();
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
+  const handleRun = (id: string) => {
+    const sch = runSchedule(id);
+    if (sch) toast({ title: "Report generated", description: `${sch.name} generated and queued for ${sch.recipients.length} recipient(s).` });
+  };
+
+  const handleToggle = (id: string) => {
+    const current = schedules.find((s) => s.id === id);
+    if (!current) return;
+    const next = current.status === "active" ? pauseSchedule(id) : resumeSchedule(id);
+    if (!next) return;
+    toast({
+      title: next.status === "active" ? "Schedule resumed" : "Schedule paused",
+      description: `${next.name} ${next.status === "active" ? "resumed" : "paused"}.`,
+    });
+  };
+
+  const handleDownload = (id: string) => {
+    const sch = downloadLastRun(id);
+    if (sch) toast({ title: "Download started", description: `Fetching last generated file for ${sch.name}.` });
+  };
+
+  const handleNewSchedule = () => {
+    const sch = createSchedule({
+      name: "Untitled schedule",
+      category: "analytics",
+      frequency: "Weekly (Mon 07:00 UTC)",
+      recipients: ["platform@pfaas.com"],
+      format: "CSV",
+    });
+    toast({ title: "Schedule created", description: `"${sch.name}" created and active.` });
+  };
 
   const filtered = useMemo(() => {
     return schedules.filter((s) => categoryFilter === "all" || s.category === categoryFilter);
@@ -79,7 +115,7 @@ export function ScheduledReportsPage() {
         description="Auto-delivered analytics and finance reports."
         icon={CalendarClock}
         actions={
-          <Button size="sm" onClick={() => toast({ title: "(demo) New schedule", description: "Schedule form: report type, frequency, recipients, format." })}>
+          <Button size="sm" onClick={handleNewSchedule}>
             <Plus className="mr-1 h-4 w-4" /> New Schedule
           </Button>
         }
@@ -89,7 +125,7 @@ export function ScheduledReportsPage() {
           loading={loading}
           error={error}
           onRetry={retry}
-          hasData={loadedData !== undefined}
+          hasData={hydrated !== undefined}
           loadingLabel="Loading schedules…"
         >
         {/* Stats */}
@@ -160,13 +196,13 @@ export function ScheduledReportsPage() {
                         <td className="px-4 py-3"><StatusBadge tone={statusTones[sch.status]}>{sch.status}</StatusBadge></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Report generated", description: `${sch.name} generated and queued for ${sch.recipients.length} recipient(s).` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => handleRun(sch.id)}>
                               <Play className="h-3 w-3" /> Run Now
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: sch.status === "active" ? "Schedule paused" : "Schedule resumed", description: `${sch.name} ${sch.status === "active" ? "paused" : "resumed"}.` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => handleToggle(sch.id)}>
                               {sch.status === "active" ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "(demo) Download", description: `Fetching last generated file for ${sch.name}.` })}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => handleDownload(sch.id)}>
                               <Download className="h-3 w-3" />
                             </Button>
                           </div>

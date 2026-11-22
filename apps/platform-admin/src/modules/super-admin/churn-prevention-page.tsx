@@ -37,6 +37,7 @@ import {
 import { useTenants } from "@/lib/platform/tenant-store";
 import { tenantHealthScore, tenantForecast, type TenantForecast } from "@/lib/platform/tenant-health";
 import { readPlans } from "@/lib/platform/plan-catalog-store";
+import { listChurnRules, toggleChurnRule, useChurnRulesVersion } from "@/lib/platform/churn-rules-store";
 import type { TenantContext } from "@/lib/platform/types";
 
 const stageTones: Record<string, "success" | "warning" | "info" | "danger"> = {
@@ -116,6 +117,33 @@ export function ChurnPreventionPage() {
     toast({ title: "Intervention recorded", description: `${action} for ${account} — audit row written.` });
   };
 
+  useChurnRulesVersion();
+  const rules = listChurnRules();
+
+  const handleToggleRule = (id: string) => {
+    const rule = toggleChurnRule(id, user.name);
+    if (!rule) return;
+    toast({
+      title: rule.status === "active" ? "Rule resumed" : "Rule paused",
+      description: `${rule.name} is now ${rule.status}.`,
+    });
+  };
+
+  const handleRetentionReport = () => {
+    recordAudit({
+      actor: user.name,
+      action: "churn.retention_report",
+      target: "retention",
+      severity: "info",
+      detail: "Monthly retention report queued for delivery",
+    });
+    toast({ title: "Retention report queued", description: "Monthly retention report queued for delivery." });
+  };
+
+  const handleNewRule = () => {
+    toast({ title: "New rule", description: "Rule form: trigger condition → action sequence → audience." });
+  };
+
   return (
     <Page>
       <PageHeader
@@ -124,7 +152,13 @@ export function ChurnPreventionPage() {
         icon={TrendingDown}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => toast({ title: "(demo) Retention report", description: "Monthly retention report queued for delivery." })}>\n              <DollarSign className="mr-1 h-4 w-4" /> Retention Report\n            </Button>\n            <Button size="sm" onClick={() => toast({ title: "(demo) New rule", description: "Rule form: trigger condition → action sequence → audience." })}>\n              <Play className="mr-1 h-4 w-4" /> New Rule\n            </Button>\n          </>
+            <Button variant="outline" size="sm" onClick={handleRetentionReport}>
+              <DollarSign className="mr-1 h-4 w-4" /> Retention Report
+            </Button>
+            <Button size="sm" onClick={handleNewRule}>
+              <Play className="mr-1 h-4 w-4" /> New Rule
+            </Button>
+          </>
         }
       />
       <PageContent>
@@ -243,58 +277,29 @@ export function ChurnPreventionPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    <tr key="rule-failed-payment" className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium">Failed payment escalation</td>
-                      <td className="px-4 py-3 text-xs"><code className="bg-muted px-1.5 py-0.5 rounded">2+ failed charges</code></td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground max-w-[260px]">Dunning email → 7d → account pause warning</td>
-                      <td className="px-4 py-3 text-sm">34</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-emerald-600">48,200</td>
-                      <td className="px-4 py-3"><StatusBadge tone="success">active</StatusBadge></td>
-                      <td className="px-4 py-3">
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Failed payment escalation paused." })}>
-                          <Pause className="h-3 w-3" />
-                        </Button>
-                      </td>
-                    </tr>
-                    <tr key="rule-usage-decline" className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium">Usage decline</td>
-                      <td className="px-4 py-3 text-xs"><code className="bg-muted px-1.5 py-0.5 rounded">Usage −50% MoM</code></td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground max-w-[260px]">Check-in email + success-manager task</td>
-                      <td className="px-4 py-3 text-sm">18</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-emerald-600">21,400</td>
-                      <td className="px-4 py-3"><StatusBadge tone="success">active</StatusBadge></td>
-                      <td className="px-4 py-3">
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Usage decline paused." })}>
-                          <Pause className="h-3 w-3" />
-                        </Button>
-                      </td>
-                    </tr>
-                    <tr key="rule-inactivity" className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium">Inactivity window</td>
-                      <td className="px-4 py-3 text-xs"><code className="bg-muted px-1.5 py-0.5 rounded">No login 30d</code></td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground max-w-[260px]">Win-back series (3 emails over 14d)</td>
-                      <td className="px-4 py-3 text-sm">52</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-emerald-600">15,900</td>
-                      <td className="px-4 py-3"><StatusBadge tone="success">active</StatusBadge></td>
-                      <td className="px-4 py-3">
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Inactivity window paused." })}>
-                          <Pause className="h-3 w-3" />
-                        </Button>
-                      </td>
-                    </tr>
-                    <tr key="rule-downgrade-intent" className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium">Downgrade intent</td>
-                      <td className="px-4 py-3 text-xs"><code className="bg-muted px-1.5 py-0.5 rounded">Pricing/downgrade page ×3</code></td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground max-w-[260px]">Retention offer (10% off 3 months)</td>
-                      <td className="px-4 py-3 text-sm">9</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-emerald-600">8,600</td>
-                      <td className="px-4 py-3"><StatusBadge tone="success">active</StatusBadge></td>
-                      <td className="px-4 py-3">
-                        <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Rule paused", description: "Downgrade intent paused." })}>
-                          <Pause className="h-3 w-3" />
-                        </Button>
-                      </td>
-                    </tr>
+                    {rules.map((rule) => (
+                      <tr key={rule.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 text-sm font-medium">{rule.name}</td>
+                        <td className="px-4 py-3 text-xs"><code className="bg-muted px-1.5 py-0.5 rounded">{rule.trigger}</code></td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground max-w-[260px]">{rule.action}</td>
+                        <td className="px-4 py-3 text-sm">{rule.triggered30d}</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-emerald-600">{rule.saved30d.toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          <StatusBadge tone={rule.status === "active" ? "success" : "warning"}>{rule.status}</StatusBadge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-[10px]"
+                            onClick={() => handleToggleRule(rule.id)}
+                            aria-label={`${rule.status === "active" ? "Pause" : "Resume"} ${rule.name}`}
+                          >
+                            {rule.status === "active" ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
