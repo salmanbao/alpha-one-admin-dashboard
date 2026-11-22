@@ -80,7 +80,7 @@ export function TaxCurrencyPage() {
     <Page>
       <PageHeader
         title="Tax & Currency"
-        description="Currency registry, exchange rates, and tax rules by region."
+        description="Currency registry, exchange rates, and tax rules by region. (Demo data)"
         icon={Percent}
         actions={
           <>

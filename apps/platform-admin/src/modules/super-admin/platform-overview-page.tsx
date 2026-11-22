@@ -135,7 +135,7 @@ export function PlatformOverviewPage() {
     <Page>
       <PageHeader
         title="Platform Overview"
-        description="Global PFaaS infrastructure health, multi-tenant billing analytics, and capability module penetration."
+        description="Global PFaaS infrastructure health, multi-tenant billing analytics, and capability module penetration. (Demo data)"
         icon={Activity}
         actions={
           <>

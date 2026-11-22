@@ -97,7 +97,7 @@ export function ApprovalCenterPage() {
     <Page>
       <PageHeader
         title="Approval Center"
-        description="Two-operator approval queue for dangerous actions. Operator A initiates (2FA) → operator B approves (2FA, 10-min window) → executes. Self-approval is impossible."
+        description="Two-operator approval queue for dangerous actions. Operator A initiates (2FA) → operator B approves (2FA, 10-min window) → executes. Self-approval is impossible. (Demo data)"
         icon={ShieldCheck}
         actions={
           <Button size="sm" variant="ghost" onClick={simulate}>
