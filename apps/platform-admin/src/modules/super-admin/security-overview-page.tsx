@@ -5,9 +5,10 @@ import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/platform/status";
 import { DataTable, type Column } from "@/components/platform/data-table";
-import { Lock, AlertTriangle, CheckCircle2, XCircle, KeyRound, Clock, Eye, ShieldAlert } from "lucide-react";
+import { Lock, AlertTriangle, CheckCircle2, XCircle, KeyRound, Clock, Eye, ShieldAlert, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SecurityEvent {
@@ -55,9 +56,14 @@ export function SecurityOverviewPage() {
   const suspiciousLogins = events.filter((e) => e.type === "Suspicious login").length;
   const anomalyBlocks = events.filter((e) => e.severity === "critical").length;
 
+  // Derived deltas vs previous window (deterministic demo values).
+  const failedLoginsDelta = -3; // down vs yesterday
+  const suspiciousLoginsDelta = 1; // up vs yesterday
+  const anomalyBlocksDelta = 0; // unchanged vs yesterday
+
   return (
     <Page>
-      <PageHeader title="Security Overview" description="Platform security posture — logins, anomalies, credential rotation, and certificate health." icon={Lock} />
+      <PageHeader title="Security Overview" description="Platform security posture — logins, anomalies, credential rotation, and certificate health. (Demo data)" icon={Lock} />
       <PageContent>
         <PageAsyncBoundary
           loading={loading}
@@ -68,7 +74,12 @@ export function SecurityOverviewPage() {
         >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Failed Logins (24h)" value={failedLogins} icon={XCircle} tone={failedLogins > 2 ? "warning" : "positive"} />
-          <MetricCard label="Suspicious Logins" value={suspiciousLogins} icon={ShieldAlert} tone={suspiciousLogins > 0 ? "negative" : "positive"} />
+          <div className="flex items-center gap-2">
+            <MetricCard label="Suspicious Logins" value={suspiciousLogins} delta={suspiciousLoginsDelta} icon={ShieldAlert} tone={suspiciousLogins > 0 ? "negative" : "positive"} />
+            <Button size="sm" variant="outline" className="h-6" onClick={() => alert('Block suspicious login (demo)')}>
+              Block
+            </Button>
+          </div>
           <MetricCard label="Anomaly Blocks" value={anomalyBlocks} icon={AlertTriangle} tone={anomalyBlocks > 0 ? "warning" : "positive"} />
           <MetricCard label="MFA Enabled" value="100%" icon={KeyRound} tone="positive" />
         </div>
