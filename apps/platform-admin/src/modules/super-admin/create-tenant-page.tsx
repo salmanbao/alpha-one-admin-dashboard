@@ -576,6 +576,8 @@ export function CreateTenantPage() {
       slug: state.slug,
       name: state.name,
       application: "prop-admin",
+      domain: `${state.slug}.${state.slug}1.io`,
+      subdomain: state.slug,
       branding: {
         name: state.name,
         tagline: state.tagline,

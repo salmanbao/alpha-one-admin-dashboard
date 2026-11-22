@@ -49,6 +49,10 @@ export interface TenantContext {
   locale: string;
   timezone: string;
   currency: string;
+  /** Domain name (subdomain + domain) */
+  domain: string;
+  /** Subdomain part of the domain (slug) */
+  subdomain: string;
   /** Module IDs this tenant is entitled to */
   enabledModules: string[];
   /** Feature flags enabled for this tenant */

@@ -277,6 +277,8 @@ export function GoLiveWizardPage() {
       slug: form.slug,
       name: form.name.trim(),
       application: "prop-admin",
+      domain: `${form.slug}.${form.slug}1.io`,
+      subdomain: form.slug,
       branding: {
         name: form.name.trim(),
         tagline: "",

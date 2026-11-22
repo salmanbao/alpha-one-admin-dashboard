@@ -2089,6 +2089,8 @@ function ConfigurationTab({
   const [accentColor, setAccentColor] = useState(tenant.branding.accentColor);
   const [radius, setRadius] = useState(tenant.branding.radius);
   const [initials, setInitials] = useState(tenant.branding.initials);
+const [domain, setDomain] = useState(tenant.domain || "");
+const [subdomain, setSubdomain] = useState(tenant.subdomain || "");
   const [region, setRegion] = useState(tenant.region || "");
 
   const presets = [
@@ -2108,6 +2110,8 @@ function ConfigurationTab({
       timezone,
       locale,
       region,
+      domain,
+      subdomain,
       branding: {
         ...tenant.branding,
         name,
@@ -2189,6 +2193,12 @@ function ConfigurationTab({
                 maxLength={3}
                 onChange={(e) => setInitials(e.target.value.toUpperCase())}
               />
+            </FieldRow>
+            <FieldRow label="Domain">
+              <Input value={domain} onChange={(e) => setDomain(e.target.value)} />
+            </FieldRow>
+            <FieldRow label="Subdomain">
+              <Input value={subdomain} onChange={(e) => setSubdomain(e.target.value)} />
             </FieldRow>
             <FieldRow label="Primary color">
               <div className="flex gap-2">
