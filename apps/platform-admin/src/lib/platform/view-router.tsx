@@ -181,7 +181,7 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
-  // R10 PS-04/PF-04 — payout provider health board (per rail + per provider)
+  // R10 PF-04 — payout provider health board (per rail + per provider)
   "payout-provider-health": dynamic(
     () =>
       import("@/modules/super-admin/payout-provider-health-board").then((m) => ({
@@ -414,6 +414,13 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "tenant-offboarding": dynamic(
+    () =>
+      import("@/modules/super-admin/tenant-offboarding-page").then((m) => ({
+        default: m.TenantOffboardingPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
   "sla-monitoring": dynamic(
     () =>
       import("@/modules/super-admin/sla-monitoring-page").then((m) => ({
@@ -610,98 +617,10 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
-  "integrations": dynamic(
-    () =>
-      import("@/modules/super-admin/integrations-page").then((m) => ({
-        default: m.IntegrationsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "compliance-reports": dynamic(
-    () =>
-      import("@/modules/super-admin/compliance-reports-page").then((m) => ({
-        default: m.ComplianceReportsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "notification-templates": dynamic(
-    () =>
-      import("@/modules/super-admin/notification-templates-page").then((m) => ({
-        default: m.NotificationTemplatesPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "backup-policies": dynamic(
-    () =>
-      import("@/modules/super-admin/backup-policies-page").then((m) => ({
-        default: m.BackupPoliciesPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "content-management": dynamic(
-    () =>
-      import("@/modules/super-admin/content-management-page").then((m) => ({
-        default: m.ContentManagementPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  marketing: dynamic(
-    () =>
-      import("@/modules/super-admin/marketing-page").then((m) => ({
-        default: m.MarketingPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "template-library-admin": dynamic(
-    () =>
-      import("@/modules/super-admin/template-library-admin-page").then((m) => ({
-        default: m.TemplateLibraryAdminPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-
-  "tenant-channel-entitlements": dynamic(
-    () =>
-      import("@/modules/super-admin/tenant-channel-entitlements-page").then((m) => ({
-        default: m.TenantChannelEntitlementsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  // R4-F02 — orphaned: superseded by the 360-line incident center and absent
-  // from navigation. Removed so dead routes do not accumulate.
   "marketing-api-console": dynamic(
     () =>
       import("@/modules/super-admin/marketing-api-console-page").then((m) => ({
         default: m.MarketingApiConsolePage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "marketplace-review": dynamic(
-    () =>
-      import("@/modules/super-admin/marketplace-review-page").then((m) => ({
-        default: m.MarketplaceReviewPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "send-billing": dynamic(
-    () =>
-      import("@/modules/super-admin/send-billing-page").then((m) => ({
-        default: m.SendBillingPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  // R4-F02 — was unreachable: nav + route existed but no view-router registration.
-  "platform-billing": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-billing-page").then((m) => ({
-        default: m.PlatformBillingPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "provider-pool": dynamic(
-    () =>
-      import("@/modules/super-admin/provider-pool-page").then((m) => ({
-        default: m.ProviderPoolPage,
       })),
     { loading: ViewSkeleton },
   ),
@@ -719,27 +638,6 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
-  "challenge-programs": dynamic(
-    () =>
-      import("@/modules/super-admin/challenge-programs-page").then((m) => ({
-        default: m.ChallengeProgramsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "churn-prevention": dynamic(
-    () =>
-      import("@/modules/super-admin/churn-prevention-page").then((m) => ({
-        default: m.ChurnPreventionPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "scheduled-reports": dynamic(
-    () =>
-      import("@/modules/super-admin/scheduled-reports-page").then((m) => ({
-        default: m.ScheduledReportsPage,
-      })),
-    { loading: ViewSkeleton },
-  ),
   "tax-currency": dynamic(
     () =>
       import("@/modules/super-admin/tax-currency-page").then((m) => ({
@@ -747,14 +645,15 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  "marketplace-review": dynamic(
+    () =>
+      import("@/modules/super-admin/marketplace-review-page").then((m) => ({
+        default: m.MarketplaceReviewPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
 };
 
-const dynamicViews = new Map<string, ViewComponent>();
-
-export function registerModuleView(viewId: string, component: ViewComponent) {
-  dynamicViews.set(viewId, component);
-}
-
-export function resolveView(viewId: string): ViewComponent | undefined {
-  return viewRegistry[viewId] ?? dynamicViews.get(viewId);
+export function resolveView(viewId: string): ViewComponent | null {
+  return viewRegistry[viewId] ?? null;
 }
