@@ -126,6 +126,7 @@ interface WizardState {
   adminName: string;
   owner?: string;
   ownerEmail?: string;
+  moduleRollout?: Record<string, number>;
   // SSO (AUTH-24/25) — when contracted, saga sub-step 3a runs.
   contractSso: boolean;
 }
@@ -148,6 +149,7 @@ const INITIAL_STATE: WizardState = {
   adminName: "",
   owner: "",
   ownerEmail: "",
+  moduleRollout: {},
   contractSso: false,
 };
 
@@ -601,6 +603,7 @@ export function CreateTenantPage() {
       plan: state.plan,
       owner: state.owner,
       ownerEmail: state.ownerEmail,
+      moduleRollout: state.moduleRollout ?? {},
       status: "provisioning",
       createdAt: new Date().toISOString(),
     };

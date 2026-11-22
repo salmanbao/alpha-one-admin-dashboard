@@ -57,6 +57,8 @@ export interface TenantContext {
   enabledModules: string[];
   /** Feature flags enabled for this tenant */
   enabledFeatures: string[];
+  /** Rollout percentage for each module (0-100) */
+  moduleRollout: Record<string, number>;
   /** Custom terminology overrides */
   terminology: Record<string, string>;
   /** Plan tier */

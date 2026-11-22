@@ -97,6 +97,7 @@ export const tenants: TenantContext[] = [
     region: "us-east-1",
     owner: "Sarah Mitchell",
     ownerEmail: "sarah.mitchell@alpha-capital.com",
+    moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, settings: 50 },
   },
   {
     id: "tenant-beta",
@@ -133,6 +134,7 @@ export const tenants: TenantContext[] = [
     region: "eu-west-1",
     owner: "James Carter",
     ownerEmail: "james.carter@beta-trading.io",
+    moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, analytics: 50, affiliates: 50, accounting: 50, ai: 50, settings: 50 },
   },
   {
     id: "tenant-gamma",
@@ -169,6 +171,7 @@ export const tenants: TenantContext[] = [
     region: "ap-southeast-1",
     owner: "Dr. Wei Chen",
     ownerEmail: "wei.chen@gamma-futures.sg",
+    moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, analytics: 50, marketing: 50, crm: 50, kyc: 50, support: 50, settings: 50 },
   },
 ];
 
@@ -213,6 +216,7 @@ export const platformTenant: TenantContext = {
   createdAt: daysAgo(900),
   owner: "Platform Ops",
   ownerEmail: "ops@pfaas.io",
+  moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, analytics: 50, affiliates: 50, accounting: 50, marketing: 50, crm: 50, kyc: 50, support: 50, ai: 50 },
 };
 
 /* ------------------------------------------------------------------ */

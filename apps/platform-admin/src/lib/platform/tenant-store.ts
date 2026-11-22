@@ -36,6 +36,7 @@ const DEMO_TENANTS: TenantContext[] = [
     region: "us-east",
     terminology: {},
     kycProvider: undefined,
+    moduleRollout: { billing: 50, users: 50, analytics: 50, "api-keys": 50 },
   },
   {
     id: "tenant-beta",
@@ -68,6 +69,7 @@ const DEMO_TENANTS: TenantContext[] = [
     ownerEmail: "james.carter@beta-trading.io",
     terminology: {},
     kycProvider: undefined,
+    moduleRollout: { billing: 50, users: 50, analytics: 50, "api-keys": 50 },
   },
   {
     id: "tenant-gamma",
@@ -100,6 +102,7 @@ const DEMO_TENANTS: TenantContext[] = [
     ownerEmail: "wei.chen@gamma-futures.sg",
     terminology: {},
     kycProvider: undefined,
+    moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, analytics: 50, marketing: 50, crm: 50, kyc: 50, support: 50, ai: 50 },
   },
 ];
 
