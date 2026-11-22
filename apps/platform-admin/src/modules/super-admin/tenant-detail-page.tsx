@@ -1513,6 +1513,11 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
   const { user, navigate } = usePlatform();
   const cost = getPlanPrice(tenant.plan);
   const costLabel = formatCurrency(cost, tenant.currency);
+  const overridePrice = tenant.priceOverride ?? cost;
+  const finalPrice = overridePrice - (overridePrice * (tenant.discountPct ?? 0) / 100);
+  const costLabelOverride = formatCurrency(finalPrice, tenant.currency);
+  const [discountPct, setDiscountPct] = useState(tenant.discountPct ?? 0);
+  const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
 
   /* ── Invoicing configuration, payment methods, disputes (audit X #2)
      Session-scoped demo state — the tab remounts per tenant (key below),
@@ -1694,8 +1699,17 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Current plan</p>
             <p className="mt-1 text-lg font-semibold capitalize">{tenant.plan}</p>
             <p className="text-sm text-muted-foreground">
-              {costLabel} / month · billed {schedule.toLowerCase()}
+              {costLabelOverride} / month · billed {schedule.toLowerCase()}
             </p>
+            {tenant.priceOverride && (
+              <div className="mt-2 p-2 bg-muted/50 rounded">
+                <p className="text-xs text-muted-foreground">Custom price override</p>
+                <p className="text-sm font-medium text-primary">{formatCurrency(overridePrice, tenant.currency)} / month</p>
+                {tenant.discountPct && (
+                  <p className="text-xs text-muted-foreground">• {tenant.discountPct}% discount applied</p>
+                )}
+              </div>
+            )}
           </div>
           <StatusBadge tone="success">active</StatusBadge>
         </div>
@@ -1751,6 +1765,54 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
               </dd>
           </div>
         </dl>
+        {/* Discount / Price Override Section */}
+        <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+          <p className="mb-2 text-sm font-medium">Price Override & Discount</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Base plan price: {costLabel} / month</p>
+              {tenant.priceOverride ? (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Custom price:</span>
+                    <span className="font-medium text-primary">{formatCurrency(overridePrice, tenant.currency)} / month</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Discount:</span>
+                    <span className="font-medium">{tenant.discountPct ?? 0}%</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">Final price:</span>
+                    <span className="font-semibold text-primary">{costLabelOverride} / month</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">No custom price override set — using plan base price.</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      className="border rounded p-1 w-32"
+                      min="0"
+                      max="100"
+                      value={tenant.discountPct ?? 0}
+                      onChange={(e) => {
+                        const newDiscount = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                        updateTenant(tenant.id, { discountPct: newDiscount });
+                      }}
+                    />
+                    <span className="text-sm">%</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">
+                Discount changes require two-operator approval via SensitiveActionDialog.
+              </p>
+            </div>
+          </div>
+        </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button size="sm" variant="outline" className="gap-1" onClick={() => navigate("plan-transition", { tenant: tenant.id })}>
             Change plan <ChevronRight className="h-3 w-3" />
@@ -1967,6 +2029,46 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
       {/* Provider SLA credits — R9 W6 UC-P5 (derived from Incident
           Control Center provider incidents × plan-tier rate). */}
       <SlaCreditsCard tenant={tenant} />
+
+      {/* Discount approval dialog (two-operator) */}
+      <SensitiveActionDialog
+        open={discountDialogOpen}
+        onOpenChange={setDiscountDialogOpen}
+        actionKey="tenant.discount.change"
+        title="Change tenant discount"
+        consequence={`Update discount for ${tenant.name} to ${discountPct}%`}
+        blastRadius={[
+          `New monthly price: ${costLabelOverride}`,
+          `Previous discount: ${tenant.discountPct ?? 0}% → New discount: ${discountPct}%`,
+          `This change affects all future invoices for this tenant.`
+        ]}
+        twoOperator={true}
+        requireReason={true}
+        detail={`Plan: ${tenant.plan}, Base price: ${costLabel}, Override price: ${tenant.priceOverride ? formatCurrency(tenant.priceOverride, tenant.currency) : 'none'}`}
+        tenantId={tenant.id}
+        approvalPayload={{ discountPct }}
+        onExecute={(reason) => {
+          updateTenant(tenant.id, { discountPct });
+          toast({
+            title: "Discount updated",
+            description: `${tenant.name} discount set to ${discountPct}% — ${costLabelOverride}/month.`,
+          });
+          recordAudit({
+            actor: user.name,
+            action: "console.billing_discount_changed",
+            target: tenant.id,
+            tenantId: tenant.id,
+            severity: "warning",
+            detail: `${tenant.name}: discount ${tenant.discountPct ?? 0}% → ${discountPct}% (reason: ${reason})`,
+          });
+        }}
+        onApprovalInitiated={() => {
+          toast({
+            title: "Approval requested",
+            description: "Discount change requires a second operator approval. Check the Approval Center.",
+          });
+        }}
+      />
     </div>
   );
 }
