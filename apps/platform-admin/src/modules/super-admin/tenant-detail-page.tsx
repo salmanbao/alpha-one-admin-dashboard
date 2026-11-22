@@ -54,6 +54,7 @@ import {
 import { PayoutsTab } from "@/modules/super-admin/tenant-payouts-tab";
 import type { AuthUser, TenantContext } from "@/lib/platform/types";
 import { moduleRegistry } from "@/lib/platform/module-registry";
+import { ROLLOUT_STAGES } from "@/lib/platform/feature-flags-store";
 import {
   Page,
   PageContent,
@@ -1045,6 +1046,50 @@ function ModulesTab({
     .getAll()
     .filter((m) => m.manifest.id !== "super-admin");
 
+  // Rollout stage for each module (0-100%)
+  const [moduleRollout, setModuleRollout] = useState<Record<string, number>>({});
+
+  // Helper functions for rollout advancement
+  const advanceRollout = (moduleId: string, stage: number) => {
+    setModuleRollout(prev => {
+      const updated = { ...prev };
+      updated[moduleId] = Math.min(100, (prev[moduleId] ?? 0) + stage);
+      return updated;
+    });
+    const updatedTenant: TenantContext = {
+      ...tenant,
+      moduleRollout: {
+        ...tenant.moduleRollout,
+        [moduleId]: Math.min(100, (tenant.moduleRollout[moduleId] ?? 0) + stage),
+      },
+    };
+    onChange(updatedTenant);
+    onPersist(updatedTenant);
+  };
+
+  const rollbackRollout = (moduleId: string) => {
+    setModuleRollout(prev => {
+      const updated = { ...prev };
+      if ((updated[moduleId] ?? 0) > 0) {
+        updated[moduleId] = Math.max(0, (updated[moduleId] ?? 0) - 25);
+      }
+      return updated;
+    });
+    const updatedTenant: TenantContext = {
+      ...tenant,
+      moduleRollout: {
+        ...tenant.moduleRollout,
+        [moduleId]: Math.max(0, (tenant.moduleRollout[moduleId] ?? 0) - 25),
+      },
+    };
+    onChange(updatedTenant);
+    onPersist(updatedTenant);
+  };
+
+  useEffect(() => {
+    setModuleRollout(tenant.moduleRollout ?? {});
+  }, [tenant]);
+
   const toggle = (moduleId: string) => {
     const enabled = new Set(tenant.enabledModules);
     const willEnable = !enabled.has(moduleId);
@@ -1115,6 +1160,35 @@ function ModulesTab({
                   {m.manifest.supportedApplications?.map((a) => (
                     <Badge key={a} variant="secondary" className="text-[9px]">{a}</Badge>
                   ))}
+                </div>
+
+                <div className="mt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Rollout:</span>
+                    <span className="text-sm text-muted-foreground">{moduleRollout[m.manifest.id] ?? 0}%</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    {moduleRollout[m.manifest.id] > 0 && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mr-1"
+                          onClick={() => advanceRollout(m.manifest.id, 25)}
+                        >
+                          Next 25%
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="ml-1"
+                          onClick={() => rollbackRollout(m.manifest.id)}
+                        >
+                          Roll back
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
