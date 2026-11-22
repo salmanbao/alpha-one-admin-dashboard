@@ -63,6 +63,7 @@ import {
   Code2,
   Target,
   Wallet,
+  Funnel,
 } from "lucide-react";
 import type { FrontendModule, NavigationItem, RouteDefinition } from "@/lib/platform/types";
 

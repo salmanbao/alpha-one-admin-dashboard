@@ -84,7 +84,7 @@ export function AdoptionFunnelPage() {
   // Calculate adoption stages
   const stages = useMemo(() => {
     const stageCounts = tenantRoster.reduce((acc, t) => {
-      let stage = t.status;
+      let stage: string = t.status;
       if (t.status === "active" && t.enabledModules.length >= 5) stage = "engaged";
       acc[stage] = (acc[stage] || 0) + 1;
       return acc;
@@ -110,7 +110,7 @@ export function AdoptionFunnelPage() {
   const adoptionRows = useMemo((): TenantAdoptionRow[] => {
     return tenantRoster.map((t) => {
       const health = tenantHealthScore(t);
-      let currentStage = t.status;
+      let currentStage: string = t.status;
       if (t.status === "active" && t.enabledModules.length >= 5) currentStage = "engaged";
       else if (t.status === "active" && t.enabledModules.length >= 3) currentStage = "active";
       else if (t.status === "onboarding") currentStage = "onboarding";
