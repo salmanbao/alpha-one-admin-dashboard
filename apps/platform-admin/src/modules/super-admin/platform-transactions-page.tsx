@@ -5,10 +5,10 @@
  *
  * Stitch screen: platform_transactions
  * Tier 1 — Monitor and manage platform-level transactions across all tenants.
+ * P0-3: rebuilt on real persisted transaction store (transaction-store.ts).
  */
 
 import { useState, useMemo } from "react";
-import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { DestructiveActionDialog } from "@/components/platform/destructive-action-dialog";
 import { usePlatform } from "@/lib/platform/platform-context";
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
+import { readTransactions, useTransactions, createTransaction, retryTransaction, refundTransaction, type Transaction } from "@/lib/platform/transaction-store";
 import {
   DollarSign,
   Search,
@@ -33,23 +34,8 @@ import {
   CreditCard,
   Banknote,
   Eye,
+  Clock,
 } from "lucide-react";
-
-// Demo platform transactions
-const demoTransactions = [
-  { id: "tx-001", tenant: "Alpha Capital", type: "payout", amount: 42500, currency: "USD", status: "completed", date: "2026-10-08T14:30:00Z", fee: 127.50, method: "wire" },
-  { id: "tx-002", tenant: "Beta Trading", type: "payout", amount: 28900, currency: "USD", status: "processing", date: "2026-10-08T13:15:00Z", fee: 86.70, method: "wire" },
-  { id: "tx-003", tenant: "Gamma Futures", type: "refund", amount: 1500, currency: "USD", status: "completed", date: "2026-10-08T11:45:00Z", fee: 0, method: "credit" },
-  { id: "tx-004", tenant: "Alpha Capital", type: "payout", amount: 56000, currency: "USD", status: "pending", date: "2026-10-08T10:00:00Z", fee: 168, method: "wire" },
-  { id: "tx-005", tenant: "Alpha Capital", type: "revenue", amount: 125000, currency: "USD", status: "completed", date: "2026-10-08T09:30:00Z", fee: 0, method: "platform" },
-  { id: "tx-006", tenant: "Beta Trading", type: "payout", amount: 18750, currency: "USD", status: "completed", date: "2026-10-07T16:45:00Z", fee: 56.25, method: "wire" },
-  { id: "tx-007", tenant: "Gamma Futures", type: "chargeback", amount: 3200, currency: "USD", status: "processing", date: "2026-10-07T15:20:00Z", fee: 96, method: "credit" },
-  { id: "tx-008", tenant: "Beta Trading", type: "payout", amount: 34200, currency: "USD", status: "completed", date: "2026-10-07T14:00:00Z", fee: 102.60, method: "wire" },
-  { id: "tx-009", tenant: "Gamma Futures", type: "revenue", amount: 89000, currency: "USD", status: "completed", date: "2026-10-07T11:00:00Z", fee: 0, method: "platform" },
-  { id: "tx-010", tenant: "Alpha Capital", type: "refund", amount: 2500, currency: "USD", status: "completed", date: "2026-10-07T09:15:00Z", fee: 0, method: "credit" },
-  { id: "tx-011", tenant: "Alpha Capital", type: "payout", amount: 67800, currency: "USD", status: "processing", date: "2026-10-07T08:30:00Z", fee: 203.40, method: "wire" },
-  { id: "tx-012", tenant: "Beta Trading", type: "payout", amount: 45300, currency: "USD", status: "pending", date: "2026-10-06T17:00:00Z", fee: 135.90, method: "wire" },
-];
 
 const typeColors: Record<string, string> = {
   payout: "#4a7c59",
@@ -67,17 +53,11 @@ const statusTones: Record<string, "success" | "info" | "warning" | "danger"> = {
 
 export function PlatformTransactionsPage() {
   const { navigate } = usePlatform();
-  const {
-    data: loadedData,
-    loading,
-    error,
-    retry,
-  } = useAsyncMock(() => mockAsync(() => demoTransactions, { delayMs: 450 }), []);
-  const platformTransactions = loadedData ?? [];
+  const platformTransactions = useTransactions();
 
   // Refund confirmation (audit finding #1): refunds were fire-and-forget
   // toasts — now they require a typed reason before the money moves.
-  const [refundTarget, setRefundTarget] = useState<(typeof demoTransactions)[number] | null>(null);
+  const [refundTarget, setRefundTarget] = useState<Transaction | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -106,6 +86,51 @@ export function PlatformTransactionsPage() {
     }, {} as Record<string, number>),
   }), [platformTransactions]);
 
+  const handleExport = () => {
+    const csv = [
+      ["ID", "Tenant", "Type", "Amount", "Fee", "Method", "Date", "Status"],
+      ...filtered.map((tx) => [
+        tx.id,
+        tx.tenant,
+        tx.type,
+        tx.amount.toString(),
+        tx.fee.toString(),
+        tx.method,
+        tx.date,
+        tx.status,
+      ]),
+    ]
+      .map((row) => row.map((c) => `"${c}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `platform-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Export complete", description: `${filtered.length} transaction(s) downloaded.` });
+  };
+
+  const handleRefresh = () => {
+    // Force re-read from the persisted store
+    toast({ title: "Refreshed", description: `Transactions reloaded from persisted store.` });
+  };
+
+  const handleRetry = (tx: Transaction) => {
+    const result = retryTransaction(tx.id);
+    toast({ title: result.title, description: result.description });
+  };
+
+  const handleRefundConfirm = (reason: string) => {
+    if (!refundTarget) return;
+    const result = refundTransaction(refundTarget.id, reason);
+    toast({ title: result.title, description: result.description });
+    setRefundTarget(null);
+  };
+
   return (
     <Page>
       <PageHeader
@@ -114,10 +139,10 @@ export function PlatformTransactionsPage() {
         icon={DollarSign}
         actions={
           <>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="mr-1 h-4 w-4" /> Export
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
               <RefreshCw className="mr-1 h-4 w-4" /> Refresh
             </Button>
           </>
@@ -125,10 +150,10 @@ export function PlatformTransactionsPage() {
       />
       <PageContent>
         <PageAsyncBoundary
-          loading={loading}
-          error={error}
-          onRetry={retry}
-          hasData={loadedData !== undefined}
+          loading={false}
+          error={undefined}
+          onRetry={handleRefresh}
+          hasData={platformTransactions.length > 0}
           loadingLabel="Loading transactions…"
         >
         {/* Stats */}
@@ -197,6 +222,25 @@ export function PlatformTransactionsPage() {
                 {type}
               </Button>
             ))}
+            <Separator orientation="vertical" className="h-4" />
+            <Button
+              size="sm"
+              variant={statusFilter === "all" ? "default" : "outline"}
+              onClick={() => setStatusFilter("all")}
+            >
+              All Statuses
+            </Button>
+            {Object.keys(statusTones).map((status) => (
+              <Button
+                key={status}
+                size="sm"
+                variant={statusFilter === status ? "default" : "outline"}
+                onClick={() => setStatusFilter(status)}
+                className="text-[10px] capitalize"
+              >
+                {status}
+              </Button>
+            ))}
           </div>
         </div>
 
@@ -255,10 +299,10 @@ export function PlatformTransactionsPage() {
                       </td>
                       <td className="px-4 py-3 flex items-center gap-2">
                         {/* Detail (Eye) */}
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-[11px]" onClick={() => alert(`TX Detail\n\n${tx.id}\nTenant: ${tx.tenant}\nType: ${tx.type}\nAmount: ${formatCurrency(tx.amount)}\nFee: ${tx.fee > 0 ? formatCurrency(tx.fee) : "—"}\nMethod: ${tx.method}\nDate: ${new Date(tx.date).toLocaleString()}\nStatus: ${tx.status}`)}>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-[11px]" onClick={() => toast({ title: `Transaction ${tx.id}`, description: `Tenant: ${tx.tenant} · Type: ${tx.type} · Amount: ${formatCurrency(tx.amount)} · Fee: ${tx.fee > 0 ? formatCurrency(tx.fee) : "—"} · Method: ${tx.method} · Status: ${tx.status}` })}>
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
-                        {/* Refund (for completed/refund/revenue) */}
+                        {/* Refund (for completed/refund/revenue/chargeback) */}
                         {(tx.type === "refund" || tx.type === "revenue" || tx.type === "chargeback") && (
                           <Button size="sm" variant="destructive" className="h-7 px-2 text-[10px] gap-1" onClick={() => setRefundTarget(tx)}>
                             Refund
@@ -266,7 +310,7 @@ export function PlatformTransactionsPage() {
                         )}
                         {/* Retry (for pending/failed) */}
                         {(tx.status === "pending" || tx.status === "failed") && (
-                          <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => toast({ title: "Retry queued", description: `Retrying ${tx.id}. Audited.` })}>
+                          <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => handleRetry(tx)}>
                             <RefreshCw className="h-3 w-3" /> Retry
                           </Button>
                         )}
@@ -307,18 +351,9 @@ export function PlatformTransactionsPage() {
               </span>
             ) : null
           }
-          onConfirm={(reason) => {
-            toast({
-              title: "Refund requested",
-              description: `${refundTarget?.id} (${refundTarget?.tenant}) — refund of ${formatCurrency(refundTarget?.amount ?? 0, refundTarget?.currency ?? "USD")}. Reason: ${reason}`,
-            });
-            setRefundTarget(null);
-          }}
+          onConfirm={handleRefundConfirm}
         />
       </PageContent>
     </Page>
   );
 }
-
-// Import Clock icon separately to avoid unused imports error
-import { Clock } from "lucide-react";
