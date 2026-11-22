@@ -1882,6 +1882,7 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
       {/* Spending summary */}
       <div className="rounded-lg border bg-card p-4">
         <p className="mb-2 text-sm font-medium text-foreground">Spending summary</p>
+        <Badge variant="outline" className="text-[10px] ml-2">(Demo data)</Badge>
         <div className="space-y-2 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">This month</span>
@@ -1910,6 +1911,7 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
       {/* Billing history */}
       <div className="lg:col-span-3">
         <p className="mb-2 text-sm font-medium text-foreground">Billing history</p>
+        <Badge variant="outline" className="text-[10px] ml-2">(Demo data)</Badge>
         <DataTable
           columns={columns}
           data={history}
@@ -1975,6 +1977,7 @@ function BillingTab({ tenant }: { tenant: TenantContext }) {
           <div className="rounded-lg border bg-card p-4 lg:col-span-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">Payment methods</p>
+          <Badge variant="outline" className="text-[10px] ml-2">(Demo data)</Badge>
               <Button
                 size="sm"
                 variant="outline"

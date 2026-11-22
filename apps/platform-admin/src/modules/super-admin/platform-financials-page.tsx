@@ -84,7 +84,7 @@ export function PlatformFinancialsPage() {
 
   return (
     <Page>
-      <PageHeader title="Platform Financials" description="Revenue, billing, and metering across all tenants." icon={DollarSign} />
+      <PageHeader title="Platform Financials" description="Revenue, billing, and metering across all tenants. (Demo data)" icon={DollarSign} />
       <PageContent>
         <PageAsyncBoundary
           loading={false}
@@ -150,7 +150,10 @@ export function PlatformFinancialsPage() {
           </div>
 
           <Card>
-            <CardHeader className="pb-2"><span className="text-sm font-medium">Per-tenant revenue</span></CardHeader>
+            <CardHeader className="pb-2 flex items-center justify-between">
+              <span className="text-sm font-medium">Per-tenant revenue</span>
+              <Badge variant="outline" className="text-[10px]">(Demo data — fixture)</Badge>
+            </CardHeader>
             <CardContent>
               <DataTable
                 columns={columns}
