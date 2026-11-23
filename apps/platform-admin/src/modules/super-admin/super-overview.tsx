@@ -84,7 +84,7 @@ export function SuperAdminOverviewPage() {
   const pendingApprovals = consoleStore.approvals?.filter((a: any) => a.status === "pending_approval").length ?? 0;
 
   // Failed Jobs 24h - count only failed jobs in 24h window (D03)
-  const failedJobs24h = (data.jobs || []).filter((job: any) => 
+  const failedJobs24h = Object.values(data.jobs || {}).filter((job: any) => 
     job.status === "failed" && 
     Date.now() - new Date(job.createdAt || 0).getTime() <= 24 * 60 * 60 * 1000
   ).length;
