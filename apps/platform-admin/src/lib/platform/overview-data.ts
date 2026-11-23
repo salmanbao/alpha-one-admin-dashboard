@@ -17,9 +17,10 @@ import { readJobOverrides, useJobOverrides } from "./jobs-store";
 import { useTenants } from "./tenant-store";
 import { usePlans } from "./plan-catalog-store";
 import { useAsyncMock } from "@/lib/platform/async-mock";
+import { useState, useCallback, useEffect } from "react";
 
 /* ------------------------------------------------------------------ */
-/* Types ----------------------------------------------------------------- */
+/* Types ------------------------------------------------------------- */
 export interface OverviewData {
   tenants: any[]; // TenantContext[]
   incidents: any[]; // Incident[]
@@ -33,6 +34,7 @@ export interface OverviewData {
   loading: boolean;
   error: string | null;
   retry: () => void;
+  fetchedAt: Date | null;
   data: any; // Full dataset for components
 }
 
@@ -69,14 +71,43 @@ export function useOverviewData(): OverviewData {
     activeTenantCount = tenants.filter((t: any) => t.status === "active").length;
   }
 
-  // 8. Loading/error/retry – all sources are synchronous stores,
-  //    but we provide a retry mechanism for the async-mock pattern
-  const loading = false; // all stores are live/sync; loading only during initial render
-  const error = null; // no async call failures with sync stores
-  const retry = () => {
-    // Force re-read of all stores; in a real async scenario this would
-    // trigger re-fetches, but stores are sync so no-op for now
-  };
+  // 8. Loading/error/retry/fetchedAt – async-mock pattern (D06)
+  const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const { loading, retry: mockRetry } = useAsyncMock(
+    async () => {
+      // Simulate fetching from all stores
+      // In production this would be real API calls
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return {
+        tenants,
+        incidents,
+        pendingTasks,
+        jobs,
+        announcements,
+        incidentState,
+        plans,
+        mrrValue,
+        activeTenantCount,
+      };
+    },
+    [tenants, incidents, pendingTasks, jobs, announcements, incidentState, plans, mrrValue, activeTenantCount],
+    { keepPreviousData: true }
+  );
+
+  // Wrap retry to also clear error and update fetchedAt
+  const retry = useCallback(() => {
+    setError(null);
+    mockRetry();
+  }, [mockRetry]);
+
+  // Update fetchedAt on successful data load
+  useEffect(() => {
+    if (!loading && !error) {
+      setFetchedAt(new Date());
+    }
+  }, [loading, error]);
 
   // 9. Aggregate dataset
   const data = {
@@ -104,10 +135,11 @@ export function useOverviewData(): OverviewData {
     loading,
     error,
     retry,
+    fetchedAt,
     data,
   };
 }
 
 /* ------------------------------------------------------------------ */
-/* Export ----------------------------------------------------------------- */
+/* Export ------------------------------------------------------------ */
 export default useOverviewData;
