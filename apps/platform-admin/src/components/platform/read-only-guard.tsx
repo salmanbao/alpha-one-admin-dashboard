@@ -32,8 +32,18 @@ export function ReadOnlyGuard({ children }: { children: ReactNode }) {
   const blockActivation = (e: SyntheticEvent) => {
     const target = e.target as HTMLElement | null;
     // Navigation, tab switches (view-local) and explicitly-allowed
-    // session controls stay live; everything else is inert.
-    if (target?.closest("a[href], [role='tab'], [data-readonly-allow]")) return;
+    // session controls stay live; everything else is inert. The selector
+    // is wrapped defensively: Element.closest() throws SyntaxError on an
+    // invalid selector, and a throw here would happen BEFORE
+    // preventDefault — silently disabling the whole gate (F4). Never let
+    // a bad selector open the gate.
+    let allowed = false;
+    try {
+      allowed = !!target?.closest("a[href], [role='tab'], [data-readonly-allow]");
+    } catch {
+      allowed = false;
+    }
+    if (allowed) return;
     e.preventDefault();
     e.stopPropagation();
   };

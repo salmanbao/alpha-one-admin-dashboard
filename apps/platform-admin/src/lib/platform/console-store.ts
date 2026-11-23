@@ -95,6 +95,8 @@ export interface ImpersonationSession {
   id: string;
   tenantId: string;
   tenantName: string;
+  /** S2/F3 — display persona being viewed (never the authorization identity). */
+  persona?: { id: string; name: string };
   startedBy: OperatorRef;
   startedAt: number;
   /** 15 minutes per docs/21 CON-07. */
@@ -577,12 +579,17 @@ export function startImpersonation(input: {
   tenantId: string;
   tenantName: string;
   operator: OperatorRef;
+  /** S2/F3 — persona being viewed (display identity). Audit records both
+   * the operator (initiator, `operator`) and the persona so the trail
+   * stays complete even though runtime.user never swaps. */
+  persona?: { id: string; name: string };
 }): ImpersonationSession {
   const t = now();
   const session: ImpersonationSession = {
     id: uid("imp"),
     tenantId: input.tenantId,
     tenantName: input.tenantName,
+    persona: input.persona,
     startedBy: input.operator,
     startedAt: t,
     expiresAt: t + IMPERSONATION_TTL_MS,
@@ -596,7 +603,9 @@ export function startImpersonation(input: {
       action: "console.impersonation_started",
       target: input.tenantName,
       severity: "critical",
-      detail: "View-as session opened (15-minute limit, read-only)",
+      detail: input.persona
+        ? `View-as session opened as ${input.persona.name} on ${input.tenantName} (15-minute limit, read-only) — operator ${input.operator.name} retains authorization`
+        : "View-as session opened (15-minute limit, read-only)",
     }),
   });
   return session;
@@ -674,6 +683,18 @@ export function setControl(
 /** Append an arbitrary console audit record (e.g. from screen-level flows). */
 export function recordAudit(entry: Omit<AuditRecord, "id" | "at">) {
   emit({ ...state, audit: pushAudit(entry) });
+}
+
+/**
+ * S6/F2 — synchronous boot-time read of the active (non-ended,
+ * non-expired) impersonation session. PlatformProvider's tenant initial
+ * state runs before any React subscription exists, so the boot restore
+ * guard needs a plain function, not useConsoleStore(). Expired sessions
+ * are treated as absent (the 1s sweeper may not have run yet at boot).
+ */
+export function readActiveImpersonation(): ImpersonationSession | null {
+  const t = now();
+  return state.impersonations.find((i) => !i.endedAt && i.expiresAt > t) ?? null;
 }
 
 /* ------------------------------------------------------------------ */

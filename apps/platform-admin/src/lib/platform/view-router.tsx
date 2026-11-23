@@ -652,6 +652,111 @@ export const viewRegistry: Record<string, ViewComponent> = {
       })),
     { loading: ViewSkeleton },
   ),
+  /* F1 restore — commit 98b88420 (TM-18) accidentally deleted these 14
+   * entries while adding tenant-offboarding, so every route/nav/search
+   * reference below rendered the "View not found — module disabled for
+   * this tenant" fallback. Restored verbatim from 98b88420^; the S7
+   * parity gate (scripts/nav-census.ts R9 + tests/platform-admin-view-parity.mjs)
+   * fails CI if this class of deletion recurs. */
+  "integrations": dynamic(
+    () =>
+      import("@/modules/super-admin/integrations-page").then((m) => ({
+        default: m.IntegrationsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "compliance-reports": dynamic(
+    () =>
+      import("@/modules/super-admin/compliance-reports-page").then((m) => ({
+        default: m.ComplianceReportsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "notification-templates": dynamic(
+    () =>
+      import("@/modules/super-admin/notification-templates-page").then((m) => ({
+        default: m.NotificationTemplatesPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "backup-policies": dynamic(
+    () =>
+      import("@/modules/super-admin/backup-policies-page").then((m) => ({
+        default: m.BackupPoliciesPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "content-management": dynamic(
+    () =>
+      import("@/modules/super-admin/content-management-page").then((m) => ({
+        default: m.ContentManagementPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  marketing: dynamic(
+    () =>
+      import("@/modules/super-admin/marketing-page").then((m) => ({
+        default: m.MarketingPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "template-library-admin": dynamic(
+    () =>
+      import("@/modules/super-admin/template-library-admin-page").then((m) => ({
+        default: m.TemplateLibraryAdminPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "tenant-channel-entitlements": dynamic(
+    () =>
+      import("@/modules/super-admin/tenant-channel-entitlements-page").then((m) => ({
+        default: m.TenantChannelEntitlementsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "send-billing": dynamic(
+    () =>
+      import("@/modules/super-admin/send-billing-page").then((m) => ({
+        default: m.SendBillingPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  // R4-F02 — was unreachable: nav + route existed but no view-router registration.
+  "platform-billing": dynamic(
+    () =>
+      import("@/modules/super-admin/platform-billing-page").then((m) => ({
+        default: m.PlatformBillingPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "provider-pool": dynamic(
+    () =>
+      import("@/modules/super-admin/provider-pool-page").then((m) => ({
+        default: m.ProviderPoolPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "challenge-programs": dynamic(
+    () =>
+      import("@/modules/super-admin/challenge-programs-page").then((m) => ({
+        default: m.ChallengeProgramsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "churn-prevention": dynamic(
+    () =>
+      import("@/modules/super-admin/churn-prevention-page").then((m) => ({
+        default: m.ChurnPreventionPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "scheduled-reports": dynamic(
+    () =>
+      import("@/modules/super-admin/scheduled-reports-page").then((m) => ({
+        default: m.ScheduledReportsPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
 };
 
 export function resolveView(viewId: string): ViewComponent | null {

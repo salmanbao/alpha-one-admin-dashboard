@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,8 @@ import { useTenants } from "@/lib/platform/tenant-store";
 import { usePlans } from "@/lib/platform/plan-catalog-store";
 import { toast } from "@/hooks/use-toast";
 import { updateInvoiceStatus, recordPayment, cancelInvoice, addInvoiceLine, createInvoice } from "@/lib/platform/invoice-store";
+import { recordAudit } from "@/lib/platform/console-store";
+import { usePlatform } from "@/lib/platform/platform-context";
 import { DollarSign, FileText, Clock, X } from "lucide-react";
 
 interface InvoiceLineForm {
@@ -34,7 +36,7 @@ export function InvoiceDetailPage({
 }: {
   params?: Record<string, string>;
 }) {
-  const invoiceId = params?.invoiceId;
+  const invoiceId = params?.invoiceId ?? params?.id; // platform-billing passes `id`
   const invoices = useInvoices();
   const [invoice, setInvoice] = useState<ReturnType<typeof useInvoices>[0] | undefined>(undefined);
   const [lines, setLines] = useState<any[]>([]);
@@ -70,6 +72,22 @@ export function InvoiceDetailPage({
       }
     }
   }, [invoiceId, invoices]);
+
+  // S4/F5 (V5) — opening an invoice detail writes a console audit row, so
+  // billing access is traceable like every other permission-gated surface.
+  const { user } = usePlatform();
+  const auditedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!invoice || auditedForRef.current === invoice.id) return;
+    auditedForRef.current = invoice.id;
+    recordAudit({
+      actor: user.name,
+      action: "billing.invoice_opened",
+      target: invoice.id,
+      severity: "info",
+      detail: `Opened invoice ${invoice.id} (${invoice.status}) from platform billing`,
+    });
+  }, [invoice, user.name]);
 
   // Re-derive lines when invoice changes
   useEffect(() => {

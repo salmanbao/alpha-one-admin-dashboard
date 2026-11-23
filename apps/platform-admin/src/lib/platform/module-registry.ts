@@ -44,7 +44,13 @@ class ModuleRegistryImpl {
    */
   getEnabledModules(ctx: ModuleRuntimeContext): FrontendModule[] {
     const tenantModules = ctx.enabledModules;
-    const isPlatform = ctx.tenant?.id === "platform";
+    // S1/F2 — operator-mode bypass: the platform pseudo-tenant AND the
+    // super-admin application both mean "platform operator". Before this,
+    // only tenant.id === "platform" bypassed, so switching the topbar
+    // tenant to any real tenant emptied the whole console (no tenant's
+    // module list contains "super-admin"). Permission filtering is
+    // intentionally untouched — it's identity-based and still honors "*".
+    const isOperatorCtx = ctx.tenant?.id === "platform" || ctx.application === "super-admin";
 
     const enabled = new Set<string>();
 
@@ -55,7 +61,7 @@ class ModuleRegistryImpl {
 
       const mod = this.modules.get(id);
       if (!mod) return false;
-      if (!isPlatform && !tenantModules.includes(id)) return false;
+      if (!isOperatorCtx && !tenantModules.includes(id)) return false;
       if (
         mod.manifest.supportedApplications &&
         mod.manifest.supportedApplications.length > 0 &&
@@ -72,7 +78,9 @@ class ModuleRegistryImpl {
     };
 
     // Try every module the tenant thinks it has, plus platform-only ones
-    const candidates = new Set<string>(isPlatform ? this.getAll().map((m) => m.manifest.id) : tenantModules);
+    const candidates = new Set<string>(
+      isOperatorCtx ? this.getAll().map((m) => m.manifest.id) : tenantModules,
+    );
     for (const id of candidates) {
       tryEnable(id, new Set());
     }
@@ -91,7 +99,8 @@ class ModuleRegistryImpl {
   getNavigation(ctx: ModuleRuntimeContext): NavigationItem[] {
     const enabled = this.getEnabledModules(ctx);
     const tenantFeatures = ctx.enabledFeatures;
-    const isPlatform = ctx.tenant?.id === "platform";
+    // S1/F2 — same operator bypass as getEnabledModules (see above).
+    const isOperatorCtx = ctx.tenant?.id === "platform" || ctx.application === "super-admin";
 
     const items: NavigationItem[] = [];
     for (const mod of enabled) {
@@ -106,15 +115,15 @@ class ModuleRegistryImpl {
         }
         // module-level filter (use the module id from nav or the module's own id)
         const moduleId = nav.module ?? mod.manifest.id;
-        if (!isPlatform && !ctx.enabledModules.includes(moduleId)) continue;
+        if (!isOperatorCtx && !ctx.enabledModules.includes(moduleId)) continue;
         // feature flag filter
-        if (nav.feature && !ctx.enabledFeatures.includes(nav.feature) && !isPlatform) continue;
+        if (nav.feature && !ctx.enabledFeatures.includes(nav.feature) && !isOperatorCtx) continue;
         // permission filter
         if (!hasPermission(ctx.user, nav.permission)) continue;
         // recurse into children with same filters
         const children = (nav.children ?? []).filter((c) => {
           if (c.application && c.application.length > 0 && !c.application.includes(ctx.application)) return false;
-          if (c.feature && !tenantFeatures.includes(c.feature) && !isPlatform) return false;
+          if (c.feature && !tenantFeatures.includes(c.feature) && !isOperatorCtx) return false;
           if (!hasPermission(ctx.user, c.permission)) return false;
           return true;
         });
@@ -132,7 +141,8 @@ class ModuleRegistryImpl {
   getWidgets(ctx: ModuleRuntimeContext): WidgetDefinition[] {
     const enabled = this.getEnabledModules(ctx);
     const tenantFeatures = ctx.enabledFeatures;
-    const isPlatform = ctx.tenant?.id === "platform";
+    // S1/F2 — same operator bypass as getEnabledModules (see above).
+    const isOperatorCtx = ctx.tenant?.id === "platform" || ctx.application === "super-admin";
 
     const out: WidgetDefinition[] = [];
     for (const mod of enabled) {
@@ -142,7 +152,7 @@ class ModuleRegistryImpl {
           w.application.length > 0 &&
           !w.application.includes(ctx.application)
         ) continue;
-        if (w.feature && !ctx.enabledFeatures.includes(w.feature) && !isPlatform) continue;
+        if (w.feature && !ctx.enabledFeatures.includes(w.feature) && !isOperatorCtx) continue;
         if (!hasPermission(ctx.user, w.permission)) continue;
         out.push(w);
       }

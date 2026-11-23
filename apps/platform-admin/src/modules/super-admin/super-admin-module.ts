@@ -203,7 +203,9 @@ const routes: RouteDefinition[] = [
   { path: "super-overview", viewId: "super-overview", label: "Platform Overview", application: ["super-admin"] },
   { path: "tenants", viewId: "tenants", label: "Tenants", application: ["super-admin"] },
   { path: "create-tenant", viewId: "create-tenant", label: "Create Tenant", application: ["super-admin"] },
-  { path: "invoice-detail", viewId: "invoice-detail", label: "Invoice Detail", application: ["super-admin"] },
+  // S4/F5 — P1-1 shipped the store + page with no permission guard; V5
+  // expects billing-scoped access plus an audit row on open (below).
+  { path: "invoice-detail", viewId: "invoice-detail", label: "Invoice Detail", application: ["super-admin"], permission: "platform.billing.manage" },
   { path: "tenant-detail", viewId: "tenant-detail", label: "Tenant Detail", application: ["super-admin"] },
   { path: "tenant-lifecycle", viewId: "tenant-lifecycle", label: "Tenant Lifecycle", application: ["super-admin"] },
   { path: "tenant-health", viewId: "tenant-health", label: "Tenant Health", application: ["super-admin"] },
@@ -272,6 +274,19 @@ const routes: RouteDefinition[] = [
   { path: "payout-provider-health", viewId: "payout-provider-health", label: "Payout Provider Health", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
   // R10 PF-07/PS-05 — payout policy console (SLA, caps, velocity, thresholds)
   { path: "payout-policy", viewId: "payout-policy", label: "Payout Policy", application: ["super-admin"], permission: ["payout.read", "payout.*", "payout.policy"] },
+  // R10 orphans (S7/F1 parity) — these pages + registry entries shipped in
+  // a830464e with no route declaration, so the R9 reverse gate flagged them
+  // as unreachable dead weight. Declared here so every registry key resolves
+  // to a guarded route.
+  { path: "payout-detail", viewId: "payout-detail", label: "Payout Detail", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
+  { path: "payout-anomaly", viewId: "payout-anomaly", label: "Payout Anomaly Detection", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
+  { path: "payout-compliance-hold", viewId: "payout-compliance-hold", label: "Payout Compliance Holds", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
+  { path: "payout-currency-exposure", viewId: "payout-currency-exposure", label: "Payout Currency Exposure", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
+  { path: "payout-profit-split", viewId: "payout-profit-split", label: "Payout Profit Split", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
+  { path: "payout-stage-composition", viewId: "payout-stage-composition", label: "Payout Stage Composition", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
+  { path: "kill-switch-verification", viewId: "kill-switch-verification", label: "Kill-Switch Verification", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
+  { path: "auditor-evidence-pack", viewId: "auditor-evidence-pack", label: "Auditor Evidence Pack", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
+  { path: "provider-incident-runbook", viewId: "provider-incident-runbook", label: "Provider Incident Runbook", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
   // R9 W6 UC-P6 — data-residency report (declare + register parity)
   { path: "residency-report", viewId: "residency-report", label: "Data Residency", application: ["super-admin"] },
   { path: "system-health", viewId: "system-health", label: "System Health", application: ["super-admin"] },

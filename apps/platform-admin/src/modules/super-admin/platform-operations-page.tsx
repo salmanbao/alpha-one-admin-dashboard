@@ -239,7 +239,9 @@ export function PlatformOperationsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <span className="text-sm font-medium">Platform service health</span>
-            <Button size="sm" variant="ghost" onClick={() => navigate("platform-health")}>
+            {/* 1262e6c1 renamed platform-health → system-health but left this
+                navigate on the old id: a dead link into the F1 fallback. */}
+            <Button size="sm" variant="ghost" onClick={() => navigate("system-health")}>
               View details <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
           </CardHeader>

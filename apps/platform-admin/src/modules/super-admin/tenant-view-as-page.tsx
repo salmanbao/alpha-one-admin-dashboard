@@ -49,7 +49,15 @@ export function TenantViewAsPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const { setUser, setTenant, navigate, user: currentUser, startImpersonation, endImpersonation, renewImpersonation } = usePlatform();
+  const {
+    setTenant,
+    navigate,
+    user: currentUser,
+    viewAsUser,
+    startImpersonation,
+    endImpersonation,
+    renewImpersonation,
+  } = usePlatform();
   const store = useConsoleStore();
   const tenants = useTenants();
   const [selectedTenantId, setSelectedTenantId] = useState("");
@@ -78,9 +86,8 @@ export function TenantViewAsPage() {
   };
 
   const restoreOperator = () => {
-    const superUser = allUsers.find((u) => u.application === "super-admin");
-    if (superUser) setUser(superUser);
-    // Find the platform tenant from the live store
+    // S2/F3 — runtime.user never swapped during a session (the persona is
+    // viewAsUser now), so restoring is about the tenant context.
     const pt = tenants.find((t) => t.id === "platform");
     setTenant(pt ?? { id: "platform", name: "PFaaS Platform", plan: "enterprise", status: "active", application: "super-admin" } as TenantContext);
   };
@@ -91,9 +98,11 @@ export function TenantViewAsPage() {
     if (!targetUser || !targetTenant) return;
     // Context startImpersonation captures the pre-session operator
     // identity (auto-restore on end) and delegates to the console store
-    // — audited, 15-minute TTL, deny-list checked above.
-    startImpersonation({ tenantId: targetTenant.id, tenantName: targetTenant.name, operator: { id: currentUser.id, name: currentUser.name } });
-    setUser(targetUser);
+    // — audited, 15-minute TTL, deny-list checked above. S2/F3: the
+    // target user is the DISPLAY persona only (viewAsUser); runtime.user
+    // stays the operator so the sidebar and all permission-gated routes
+    // survive the session (read-only gate enforces safety).
+    startImpersonation({ tenantId: targetTenant.id, tenantName: targetTenant.name, operator: { id: currentUser.id, name: currentUser.name }, persona: targetUser });
     setTenant(targetTenant);
     navigate("super-overview");
     toast({
@@ -178,14 +187,16 @@ export function TenantViewAsPage() {
           </Card>
         ) : null}
 
-        {/* Fallback exit when identity was switched without a store session */}
+        {/* Fallback exit when identity was switched without a store session
+            (legacy pre-S2 state — the boot migration in platform-context
+            now normalizes this; the card remains as a safety net) */}
         {!activeSession && currentUser.application !== "super-admin" && (
           <Card className="border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20">
             <CardContent className="flex items-center gap-3 py-3">
               <Eye className="h-5 w-5 text-amber-600" />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-                  You are viewing as {currentUser.name}
+                  You are viewing as {viewAsUser?.name ?? currentUser.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Platform Operator session · <strong className="text-rose-600">READ ONLY</strong> — no state-changing actions available

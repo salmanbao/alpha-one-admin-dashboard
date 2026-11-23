@@ -36,6 +36,7 @@ import {
   startImpersonation as startConsoleImpersonation,
   endImpersonation as endConsoleImpersonation,
   renewImpersonation as renewConsoleImpersonation,
+  readActiveImpersonation,
 } from "./console-store";
 import { requestReason } from "./approval-apply";
 import { toast } from "@/hooks/use-toast";
@@ -83,10 +84,21 @@ export interface PlatformContextValue {
   pushNotification: (n: Omit<AppNotification, "id" | "createdAt" | "read">) => void;
   /* impersonation — single source of truth is the console store (P0-1):
    * both entry points write the same audited session; the banner, the
-   * read-only gate and the auto-restore below all derive from it. */
+   * read-only gate and the auto-restore below all derive from it.
+   * S2/F3: `user` is the AUTHORIZATION identity and never swaps during a
+   * session; `viewAsUser` is the DISPLAY persona (what the operator is
+   * viewing as) — consumers rendering the persona read viewAsUser ?? user,
+   * while navigation, widgets and permission guards keep reading `user`. */
   isImpersonating: boolean;
+  viewAsUser: AuthUser | null;
   impersonationSession: { tenantId: string; tenantName?: string; started: number; expires: number } | null;
-  startImpersonation: (session: { tenantId: string; tenantName?: string; operator?: { id: string; name: string } }) => void;
+  startImpersonation: (session: {
+    tenantId: string;
+    tenantName?: string;
+    operator?: { id: string; name: string };
+    /** Persona being viewed — display/audit only, never authorization. */
+    persona?: AuthUser;
+  }) => void;
   endImpersonation: () => void;
   renewImpersonation: () => void;
   /* command menu */
@@ -348,14 +360,25 @@ function readStoredTenantId(): string | null {
   return null;
 }
 
+/** S5/F7 — legacy view id aliases (old id → canonical id). Consulted at
+ * URL parse so renamed/retired identifiers land on their replacement
+ * instead of the not-found fallback; the URL self-heals via the existing
+ * pushState sync (router → URL) after boot. Extend whenever a view id
+ * changes — the S7 parity gate asserts every target here is registered. */
+export const VIEW_ALIASES: Record<string, string> = {
+  /** Legacy prop-admin sentinel (pre super-overview rename). */
+  overview: "super-overview",
+};
+
 /** Parse the current URL (?view=tenant-detail&id=…) into router state. */
 function routerStateFromUrl(): RouterState {
   const fallback: RouterState = { view: "super-overview", params: {}, history: ["super-overview"] };
   if (typeof window === "undefined") return fallback;
   try {
     const usp = new URLSearchParams(window.location.search);
-    const view = usp.get(ROUTE_PARAM);
-    if (!view) return fallback;
+    const raw = usp.get(ROUTE_PARAM);
+    if (!raw) return fallback;
+    const view = VIEW_ALIASES[raw] ?? raw;
     const params: Record<string, string> = {};
     usp.forEach((v, k) => {
       if (k !== ROUTE_PARAM) params[k] = v;
@@ -368,6 +391,17 @@ function routerStateFromUrl(): RouterState {
 
 export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser>(readStoredUser); // persisted, falls back to Alex Morgan (super-admin)
+  /* S2/F3 — display persona for an active View-As session. Separate from
+   * `user` so the authorization identity never degrades (F3). Rehydrated
+   * from the persisted console-store session on boot; cleared on end. */
+  const [viewAsUser, setViewAsUser] = useState<AuthUser | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const active = readActiveImpersonation();
+      if (!active?.persona) return null;
+      return users.find((u) => u.id === active.persona!.id) ?? null;
+    } catch { return null; }
+  });
   const [customTenants, setCustomTenants] = useState<TenantContext[]>(() => {
     // Tenants created at runtime (Create Tenant wizard) persist across reloads.
     if (typeof window === "undefined") return [];
@@ -378,16 +412,32 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   });
   const [tenant, setTenant] = useState<TenantContext>(() => {
     const storedId = readStoredTenantId();
-    if (storedId) {
-      const all = [...tenants, ...customTenants];
-      return all.find((t) => t.id === storedId) ?? platformTenant;
+    const all = [...tenants, ...customTenants];
+    // S6/F2 — the persisted switcher choice only wins on boot when a
+    // View-As session is actually active (audited in the console store).
+    // Otherwise an operator always boots on the platform pseudo-tenant,
+    // so a stale `pfaas:demoTenant` from a previous switcher click can no
+    // longer leave the console half-empty after refresh (F2).
+    const activeImpersonation = readActiveImpersonation();
+    if (activeImpersonation) {
+      const impTenantId = activeImpersonation.tenantId;
+      return all.find((t) => t.id === impTenantId) ?? platformTenant;
+    }
+    if (storedId && storedId !== "platform") {
+      // No active session — ignore the stale stored tenant for super-admin
+      // operators, but keep the tenant-bound-user branch below (a signed-in
+      // tenant user still boots into their own tenant).
+      const storedUser = users.find((u) => u.id === user.id);
+      if (storedUser?.application !== "super-admin") {
+        return all.find((t) => t.id === storedId) ?? platformTenant;
+      }
+      return platformTenant;
     }
     // No stored tenant: pick the tenant that matches the (default) user.
     // Super-admin users use the platform pseudo-tenant; tenant-bound users
     // use their own tenant.
     const userTenant = users.find((u) => u.id === user.id)?.tenantId;
     if (userTenant) {
-      const all = [...tenants, ...customTenants];
       return all.find((t) => t.id === userTenant) ?? platformTenant;
     }
     return platformTenant;
@@ -401,11 +451,10 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     } catch { return "light"; }
   });
   const [router, setRouter] = useState<RouterState>(() => {
-    // First-boot: land on the platform overview. Legacy bookmarks with the
-    // removed `?view=overview` sentinel (copied from prop-admin) fall back too.
-    const url = routerStateFromUrl();
-    if (url.view && url.view !== "overview") return url;
-    return { view: "super-overview", params: {}, history: ["super-overview"] };
+    // First-boot: land on the platform overview. Legacy `?view=overview`
+    // bookmarks resolve through VIEW_ALIASES inside routerStateFromUrl
+    // (S5/F7), so the ad-hoc sentinel check here is gone.
+    return routerStateFromUrl();
   });
   const [notifications, setNotifications] = useState<AppNotification[]>(seedNotifications);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -460,6 +509,27 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
    * deadline sweeper). */
   const preImpersonationRef = useRef<{ user: AuthUser; tenant: TenantContext } | null>(null);
 
+  /* S2/F3 boot migration — View-As used to call setUser(targetUser), and
+   * that persona id was persisted under DEMO_USER_KEY. On the first boot
+   * after this fix the stored user can therefore be a tenant account
+   * (mock `users` includes tenant users, so the stale id resolves). No
+   * legitimate platform-admin flow persists a non-super-admin user (the
+   * switchers filter to super-admin), so: recover the persona into
+   * viewAsUser when its session survived the reload, and always restore
+   * the operator as the authorization identity. */
+  useEffect(() => {
+    if (user.application === "super-admin") return;
+    if (activeImpersonation) {
+      setViewAsUser(user);
+    } else {
+      // Stale persona, no live session — S6 says operators always boot
+      // on the platform pseudo-tenant.
+      setTenant(platformTenant);
+    }
+    const superUser = users.find((u) => u.application === "super-admin");
+    if (superUser) setUser(superUser);
+  }, [user, activeImpersonation, setViewAsUser, setTenant]);
+
   // Reload hiddenWidgets + sidebarCollapsed whenever the active tenant
   // changes — otherwise switching tenants leaves stale per-tenant state.
   // This deliberately syncs from external storage (localStorage) to React
@@ -470,7 +540,6 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
     try {
       const stored = window.localStorage.getItem(`pfaas:hiddenWidgets:${tenant.id}`);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHiddenWidgets(stored ? new Set(JSON.parse(stored) as string[]) : new Set());
       setSidebarCollapsed(window.localStorage.getItem(`pfaas:sidebarCollapsed:${tenant.id}`) === "1");
     } catch { /* ignore parse errors */ }
@@ -653,14 +722,26 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   // tenant-detail entry point gains the audit, expiry and deny-list
   // coverage the View-As page always had (gap P0-1). start captures the
   // pre-session identity for the auto-restore below.
-  const startImpersonation = (session: { tenantId: string; tenantName?: string; operator?: { id: string; name: string } }) => {
+  const startImpersonation = (session: {
+    tenantId: string;
+    tenantName?: string;
+    operator?: { id: string; name: string };
+    persona?: AuthUser;
+  }) => {
     if (!activeImpersonation) {
       preImpersonationRef.current = { user, tenant };
     }
+    // S2/F3 — the persona is DISPLAY state only. runtime.user (and thus
+    // runtime.application, the sidebar, the widget set and every
+    // permission guard) stays the operator for the whole session; only
+    // the tenant context switches. The read-only gate (S3) is what makes
+    // the retained reach safe.
+    setViewAsUser(session.persona ?? null);
     startConsoleImpersonation({
       tenantId: session.tenantId,
       tenantName: session.tenantName ?? session.tenantId,
       operator: session.operator ?? { id: user.id, name: user.name },
+      persona: session.persona ? { id: session.persona.id, name: session.persona.name } : undefined,
     });
   };
   const endImpersonation = () => {
@@ -696,12 +777,12 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     if (!previous || id) return;
     const pre = preImpersonationRef.current;
     preImpersonationRef.current = null;
+    // S2/F3 — `user` never swapped during the session, so restore is just
+    // clearing the display persona and returning the tenant context.
+    setViewAsUser(null);
     if (pre) {
-      setUser(pre.user);
       setTenant(pre.tenant);
     } else {
-      const superUser = users.find((u) => u.application === "super-admin");
-      if (superUser) setUser(superUser);
       setTenant(platformTenant);
     }
     // Expiry (15-minute deadline) — the store already wrote the
@@ -713,7 +794,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         description: `${ended.tenantName} — 15-minute deadline reached, session auto-ended and operator view restored (audited).`,
       });
     }
-  }, [activeImpersonation?.id, setUser, setTenant, consoleState.impersonations]);
+  }, [activeImpersonation?.id, setTenant, setViewAsUser, consoleState.impersonations]);
 
   // Compute the module runtime context
   const runtime: ModuleRuntimeContext = useMemo(
@@ -759,6 +840,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     searchOpen,
     setSearchOpen,
     isImpersonating,
+    viewAsUser,
     impersonationSession,
     startImpersonation,
     endImpersonation,
