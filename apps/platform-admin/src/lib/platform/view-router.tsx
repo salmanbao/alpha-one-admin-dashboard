@@ -22,7 +22,14 @@ export const viewRegistry: Record<string, ViewComponent> = {
   /* super-admin — pages defined inside the barrel; the rest are deep imports */
   "super-overview": dynamic(
     () =>
-      import("@/modules/super-admin/super-admin-pages").then((m) => ({
+      import("@/modules/super-admin/super-overview").then((m) => ({
+        default: m.SuperAdminOverviewPage,
+      })),
+    { loading: ViewSkeleton },
+  ),
+  "platform-overview": dynamic(
+    () =>
+      import("@/modules/super-admin/super-overview").then((m) => ({
         default: m.SuperAdminOverviewPage,
       })),
     { loading: ViewSkeleton },
@@ -537,13 +544,6 @@ export const viewRegistry: Record<string, ViewComponent> = {
     () =>
       import("@/modules/super-admin/platform-architecture-page").then((m) => ({
         default: m.PlatformArchitecturePage,
-      })),
-    { loading: ViewSkeleton },
-  ),
-  "platform-overview": dynamic(
-    () =>
-      import("@/modules/super-admin/platform-overview-page").then((m) => ({
-        default: m.PlatformOverviewPage,
       })),
     { loading: ViewSkeleton },
   ),

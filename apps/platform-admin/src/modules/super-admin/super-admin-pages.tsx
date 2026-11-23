@@ -55,7 +55,8 @@ export { PlansPage } from "./plans-page";
 export { PlatformAnalyticsPage } from "./platform-analytics-page";
 export { DashboardManagerPage } from "./dashboard-manager-page";
 export { PlatformAuditPage } from "./platform-audit-page";
-export { PlatformOverviewPage } from "./platform-overview-page";
+export { SuperAdminOverviewPage } from "./super-overview";
+export { SuperAdminOverviewPage as PlatformOverviewPage } from "./super-overview";
 export { PlatformRolesPage } from "./platform-roles-page";
 export { PlatformStaffPage } from "./platform-staff-page";
 export { PlatformTransactionsPage } from "./platform-transactions-page";
@@ -117,84 +118,6 @@ const tenantStatusTone = (s: string) =>
             ? "info"
             : "warning";
 
-export function SuperAdminOverviewPage() {
-  const { setUser, navigate } = usePlatform();
-  const allTenants = readTenants();
-  // Round 4 fix: derive the trader count by summing each tenant's actual
-  // trader list (was `allTenants.length * 26` — a fabricated multiplier
-  // that didn't reflect any real data, especially since Alpha has 26
-  // traders, Beta has 17, Gamma has 8, etc. — the fabricated "x26" was
-  // never right except by accident for Alpha).
-  const _tenants = readTenants();
-  const totalTraders = _tenants.reduce((s, t) => s + getTenantTraders(t.id).length, 0);
-  const plans = usePlans();
-  const totalRevenue = _tenants.reduce((s, t) => s + (t.plan === "enterprise" ? plans.find(p => p.id === "enterprise")?.priceMonthly ?? 890 : t.plan === "scale" ? plans.find(p => p.id === "scale")?.priceMonthly ?? 890 : 890), 0);
-  const allModules = moduleRegistry.getAll();
-  // Only tenant-facing modules belong in a per-tenant adoption metric
-  const tenantFacingModules = allModules.filter((m) => m.manifest.id !== "super-admin");
-
-  return (
-    <Page>
-      <PageHeader
-        title="Platform Overview"
-        description="PFaaS platform health and tenant summary."
-        icon={BarChart3}
-        actions={
-          <Button size="sm" variant="outline" onClick={() => navigate("platform-overview")}>
-            Detailed metrics
-          </Button>
-        }
-      />
-      <PageContent>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MetricCard label="Active Tenants" value={allTenants.length} delta={3} icon={Building2} tone="positive" />
-          <MetricCard label="Total Traders" value={formatCompact(totalTraders)} delta={8} icon={Users} />
-          <MetricCard label="MRR" value={formatCurrency(totalRevenue)} delta={12} icon={DollarSign} tone="positive" />
-          <MetricCard label="Modules" value={allModules.length} icon={Package} />
-        </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader className="pb-2"><span className="text-sm font-medium">Tenant distribution</span></CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {allTenants.map((t) => (
-                  <div key={t.id} className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-sm" style={{ background: t.branding.primaryColor }} />
-                    <span className="flex-1 text-sm">{t.name}</span>
-                    <Badge variant="outline" className="text-[10px]">{t.plan}</Badge>
-                    <StatusBadge tone={tenantStatusTone(t.status)}>{t.status}</StatusBadge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2"><span className="text-sm font-medium">Module adoption</span></CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {/* Platform-only modules (super-admin) can never be enabled for
-                    tenants — showing them as "0/N adoption" reads like a bug. */}
-                {tenantFacingModules.map((m) => {
-                  const count = allTenants.filter((t) => t.enabledModules.includes(m.manifest.id)).length;
-                  const pct = Math.round((count / allTenants.length) * 100);
-                  return (
-                    <div key={m.manifest.id}>
-                      <div className="mb-1 flex items-center justify-between text-xs">
-                        <span className="font-medium">{m.manifest.name}</span>
-                        <span className="text-muted-foreground">{count}/{allTenants.length}</span>
-                      </div>
-                      <Progress value={pct} className="h-1.5" />
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </PageContent>
-    </Page>
-  );
-}
 
 export function TenantsPage() {
   const { setUser, navigate, registerTenant, pushNotification } = usePlatform();

@@ -40,7 +40,7 @@ const FOLDED_SURFACES: { label: string; via: string; viewId: string }[] = [
   { label: "Module Detail / Settings", via: "Service Catalog cards", viewId: "module-catalog" },
   { label: "Audit Log → Model Audit Log", via: "Platform Audit chain", viewId: "platform-audit" },
   { label: "Impersonation Audit", via: "Tenant View-As", viewId: "tenant-view-as" },
-  { label: "Platform Overview", via: "Super Overview → Detailed metrics", viewId: "super-overview" },
+  { label: "Platform Overview", via: "Super Overview → Platform Overview", viewId: "super-overview" },
 ];
 
 export function GettingStartedPage() {
@@ -182,7 +182,7 @@ export function GettingStartedPage() {
           <Button size="sm" onClick={resumeTour}><Play className="mr-1 h-4 w-4" /> Resume Tour</Button>
           <Button size="sm" variant="outline" onClick={restart}>Restart Onboarding</Button>
           <Button size="sm" variant="outline" onClick={() => navigate("knowledge-base")}><BookOpen className="mr-1 h-4 w-4" /> Knowledge Base</Button>
-          <Button size="sm" variant="outline" onClick={() => navigate("platform-overview")}><Shield className="mr-1 h-4 w-4" /> Platform Overview</Button>
+          <Button size="sm" variant="outline" onClick={() => navigate("super-overview")}><Shield className="mr-1 h-4 w-4" /> Platform Overview</Button>
         </div>
 
         {/* R13 P1-4 — where the folded (link-only) surfaces live */}
