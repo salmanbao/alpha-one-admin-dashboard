@@ -16,11 +16,10 @@ import { listOpenTasks } from "@/lib/platform/pending-tasks-store";
 import { listAnnouncements } from "@/lib/platform/announcements-store";
 import { readJobOverrides, useJobOverrides } from "@/lib/platform/jobs-store";
 import { usePlans } from "@/lib/platform/plan-catalog-store";
-import { useAsyncMock } from "@/lib/platform/async-mock";
 import { useState, useMemo } from "react";
 import { ArrowRightIcon } from "lucide-react";
 import { Sun, Moon, Settings } from "lucide-react";
-import { Building2, Users, DollarSign, Package, TrendingDown, BarChart3, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { BarChart3, Building2, Users, DollarSign, Package, TrendingDown, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { formatCurrency, formatCompact } from "@/components/platform/status";
 import { traderStatusTone } from "@/components/platform/status";
 
@@ -66,8 +65,11 @@ export function SuperAdminOverviewPage() {
     return tenants.reduce((s: number, t: any) => s + (t.traderCount || 0), 0);
   }, [tenants]);
 
-  const pendingApprovals = 0;
-  const failedJobs24h = (data.jobs || []).length;
+  const pendingApprovals = 0; // Will be bound to approval-center store
+  const failedJobs24h = (data.jobs || []).filter((job: any) => 
+    job.status === "failed" && 
+    Date.now() - job.createdAt <= 24 * 60 * 60 * 1000
+  ).length;
 
   // --- Z3: Work Queues and Pending Tasks ---
   const openTasks = listOpenTasks();
@@ -164,7 +166,7 @@ export function SuperAdminOverviewPage() {
         </div>
 
         {/* Z1: Operations Alert Strip */}
-        <div className="rounded-lg border {statusTone === 'success' ? 'bg-green-100' : 'bg-amber-50'} {statusTone === 'success' ? 'text-green-800' : 'text-amber-800'} p-4 mb-4">
+        <div className={`rounded-lg border ${statusTone === 'success' ? 'bg-green-100' : 'bg-amber-50'} ${statusTone === 'success' ? 'text-green-800' : 'text-amber-800'} p-4 mb-4`}>
           {criticalHigh.length > 0 ? (
             <div className="space-y-2 text-sm">
               {criticalHigh.slice(0, 2).map((inc: any, i: number) => (
@@ -178,7 +180,7 @@ export function SuperAdminOverviewPage() {
                   </div>
                   <a
                     href="#"
-                    className="text-amber-600 underline hover:text-primary"
+                    className="text-amber-600 underline hover:text-primary block mt-2"
                     onClick={() => navigate("incident-center")}
                   >
                     View
@@ -363,7 +365,7 @@ export function SuperAdminOverviewPage() {
             <CardContent className="space-y-3">
               {sortedTenants.length > 0 ? (
                 <div className="space-y-2">
-                  {sortedTenants.map((t: any, i: number) => (
+                  {sortedTenants.map((t: any) => (
                     <div
                       key={t.id}
                       className="flex items-center gap-3 p-2 rounded bg-muted hover:bg-primary/5 transition"
@@ -454,7 +456,7 @@ export function SuperAdminOverviewPage() {
                 <div className="space-y-2">
                   {visibleAnnouncements.map((ann: any) => (
                     <div key={ann.id} className="flex items-start gap-2 p-1 rounded bg-muted hover:bg-primary/5 transition">
-                      <AlertTriangle className="mt-0.5 h-3 w-3"  />
+                      <AlertTriangle className="mt-0.5 h-3 w-3" />
                       <div className="flex-1">
                         <p className="font-medium truncate">{ann.title}</p>
                         <p className="text-[10px] text-muted-foreground">
@@ -475,11 +477,21 @@ export function SuperAdminOverviewPage() {
         <div className="mt-8 text-center">
           <p className="text-xs text-muted-foreground mb-3">Quick Links</p>
           <div className="inline-flex gap-4">
-            <Button size="sm" variant="outline">Getting Started</Button>
-            <Button size="sm" variant="outline">Platform Architecture</Button>
-            <Button size="sm" variant="outline">Support Assist</Button>
-            <Button size="sm" variant="outline">Knowledge Base</Button>
-            <Button size="sm" variant="outline">What's New</Button>
+            <Button size="sm" variant="outline" onClick={() => navigate("create-tenant")}>
+              Getting Started
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate("platform-architecture")}>
+              Platform Architecture
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate("support-assist")}>
+              Support Assist
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate("knowledge-base")}>
+              Knowledge Base
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate("whats-new")}>
+              What's New
+            </Button>
           </div>
         </div>
       </PageContent>
