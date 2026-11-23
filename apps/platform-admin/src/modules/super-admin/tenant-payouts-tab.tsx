@@ -9,6 +9,7 @@ import { useLedgerForTenant } from "@/lib/platform/payout-ledger";
 import { usePayouts } from "@/lib/platform/payout-store";
 import { tenants as allTenants } from "@/lib/platform/mock-data";
 import { formatCurrency } from "@/components/platform/status";
+import { ArrowRight } from "lucide-react";
 
 // NOTE: this is module-level (not inside a component), so it must NOT use
 // hooks like useMemo — hooks outside a render throw React error #321 in
@@ -105,7 +106,7 @@ export function PayoutsTab({ tenantId }: { tenantId: string }) {
       <PageHeader
         title={`Payouts for ${tenantName}`}
         description={`View all payout entries for ${tenantName}. Filter and sort the ledger entries.`}
-        icon={require("lucide-react").ArrowRight}
+        icon={ArrowRight}
       />
       <PageContent className="p-4">
         <Card className="p-0">

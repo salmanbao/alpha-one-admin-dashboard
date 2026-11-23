@@ -549,7 +549,7 @@ export function SuperAdminOverviewPage() {
 
         {/* Z6: Governance Feed and Announcements */}
         <div className="grid grid-cols-1 gap-6">
-          {/* Audit Feed - real audit from src/lib/audit.ts (D08) */}
+          {/* Audit Feed — real audit rows from the console store (D08) */}
           <Card>
             <CardHeader className="pb-2">
               <span className="text-sm font-medium">Platform Audit</span>

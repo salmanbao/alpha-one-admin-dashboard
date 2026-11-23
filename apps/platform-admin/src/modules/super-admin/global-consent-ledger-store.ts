@@ -56,7 +56,7 @@ export interface LedgerRow {
 
 const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
 
-let ROWS: LedgerRow[] = [
+const ROWS: LedgerRow[] = [
   {
     id: "g1", identity: "h:9f2a…@mailinator.com", state: "suppressed",
     tenants: ["Alpha Funded", "Beta Prop"], first: "2026-08-01", latest: "2026-11-01",

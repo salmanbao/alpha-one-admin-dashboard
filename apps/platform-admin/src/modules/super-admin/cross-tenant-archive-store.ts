@@ -17,6 +17,7 @@
  */
 import { useEffect, useState } from "react";
 import { recordAudit } from "@/lib/platform/console-store";
+import { readTenants } from "@/lib/platform/tenant-store";
 import { sha256Hex, buildPdf } from "./bundle-utils";
 
 export interface ArchivedMsg {
@@ -38,7 +39,6 @@ const TENANTS = ["Alpha Funded", "Beta Prop", "Gamma"];
  */
 function liveTenantNames(): string[] {
   try {
-    const { readTenants } = require("@/lib/platform/tenant-store");
     const tenants = readTenants();
     return tenants.filter((t: any) => t.id !== "platform").map((t: any) => t.name);
   } catch {
@@ -46,7 +46,7 @@ function liveTenantNames(): string[] {
   }
 }
 
-let MSGS: ArchivedMsg[] = Array.from({ length: 30 }, (_, i) => {
+const MSGS: ArchivedMsg[] = Array.from({ length: 30 }, (_, i) => {
   const tenant = TENANTS[i % 3];
   const campaign = ["Q4 Scale", "Win-back"][i % 2];
   return {

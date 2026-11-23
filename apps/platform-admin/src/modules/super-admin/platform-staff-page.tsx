@@ -130,7 +130,7 @@ export function PlatformStaffPage() {
     if (inviteDeepLinked.current || router.params.invite !== "1") return;
     inviteDeepLinked.current = true;
     openInvite();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [router.params.invite]);
 
   const filtered = useMemo(() => {

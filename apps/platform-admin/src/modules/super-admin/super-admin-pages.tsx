@@ -10,6 +10,7 @@
 // Re-export the new lifecycle / detail / create pages so the view router
 // can wire them up via a single import source.
 export { TenantDetailPage } from "./tenant-detail-page";
+export { TenantsPage } from "./tenants-page";
 export { CreateTenantPage } from "./create-tenant-page";
 export { TenantLifecyclePage } from "./tenant-lifecycle-page";
 export { AdoptionFunnelPage } from "./adoption-funnel-page";
@@ -63,219 +64,28 @@ export { PlatformTransactionsPage } from "./platform-transactions-page";
 export { SystemHealthPage } from "./system-health-page";
 export { AuditLogPage } from "./audit-log-page";
 
-import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
-import { DataTable, type Column } from "@/components/platform/data-table";
-import { StatusBadge, formatCurrency, formatCompact } from "@/components/platform/status";
+import { StatusBadge } from "@/components/platform/status";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
-import { tenants as allTenantsSeed, getTenantTraders } from "@/lib/platform/mock-data";
-import { readTenants, useTenants } from "@/lib/platform/tenant-store";
-import { usePlans } from "@/lib/platform/plan-catalog-store";
-import type { TenantContext } from "@/lib/platform/types";
+import { readTenants } from "@/lib/platform/tenant-store";
 import { moduleRegistry } from "@/lib/platform/module-registry";
 import {
-  Building2,
   Package,
   Server,
-  BarChart3,
   ShieldCheck,
   Users,
   DollarSign,
   Activity,
-  CheckCircle2,
   AlertTriangle,
   Cpu,
   Database,
   Globe,
   Zap,
-  Plus,
-  Copy,
 } from "lucide-react";
-
-const tenantStatusTone = (s: string) =>
-  s === "active"
-    ? "success"
-    : s === "trial"
-      ? "info"
-      : s === "suspended"
-        ? "danger"
-        : s === "terminated"
-          ? "muted"
-          : s === "invited"
-            ? "info"
-            : "warning";
-
-
-export function TenantsPage() {
-  const { setUser, navigate, registerTenant, pushNotification } = usePlatform();
-  const tenants = useTenants();
-  const [stageFilter, setStageFilter] = useState<string>("all");
-
-  const visibleTenants = useMemo(() => {
-    if (stageFilter === "all") return tenants;
-    return tenants.filter((t) => t.status === stageFilter);
-  }, [tenants, stageFilter]);
-
-  // TM-21 — clone tenant: creates a new tenant with the same config.
-  const cloneTenant = (source: TenantContext) => {
-    const cloneId = `tenant-${source.slug}-clone-${Math.random().toString(36).slice(2, 6)}`;
-    const cloneName = `${source.name} (Copy)`;
-    const cloneSlug = `${source.slug}-copy-${Math.random().toString(36).slice(2, 4)}`;
-    
-    const newTenant: TenantContext = {
-      ...source,
-      id: cloneId,
-      slug: cloneSlug,
-      name: cloneName,
-      branding: {
-        ...source.branding,
-        name: cloneName,
-        initials: source.branding.initials,
-      },
-      status: "provisioning",
-      createdAt: new Date().toISOString(),
-      liveAt: undefined,
-      scheduledPlan: undefined,
-      statusHistory: [],
-      // Clear trial-specific fields
-      trialEndsAt: undefined,
-      invitationSentAt: undefined,
-      // Clear commercial fields
-      contract: undefined,
-      // Keep modules, plan, branding, locale, etc.
-    };
-    
-    registerTenant(newTenant);
-    pushNotification({
-      title: "Tenant cloned",
-      message: `${cloneName} created from ${source.name}.`,
-      severity: "success",
-      module: "super-admin",
-    });
-    navigate("tenant-detail", { id: cloneId });
-  };
-
-  const columns: Column<TenantContext>[] = [
-    {
-      key: "name",
-      header: "Tenant",
-      cell: (t) => (
-        <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-md text-xs font-bold text-white" style={{ background: t.branding.primaryColor }}>{t.branding.initials}</span>
-          <div>
-            <p className="font-medium text-foreground">{t.name}</p>
-            <p className="text-[10px] text-muted-foreground">{t.branding.tagline}</p>
-          </div>
-        </div>
-      ),
-      sortValue: (t) => t.name,
-    },
-    { key: "plan", header: "Plan", cell: (t) => <Badge variant="outline" className="text-[10px] capitalize">{t.plan}</Badge>, sortValue: (t) => t.plan },
-    { key: "status", header: "Status", cell: (t) => <StatusBadge tone={tenantStatusTone(t.status)}>{t.status}</StatusBadge>, sortValue: (t) => t.status },
-    { key: "modules", header: "Modules", cell: (t) => <span className="text-sm font-medium">{t.enabledModules.length}</span>, sortValue: (t) => t.enabledModules.length },
-    { key: "features", header: "Features", cell: (t) => t.enabledFeatures.length, sortValue: (t) => t.enabledFeatures.length },
-    { key: "currency", header: "Currency", cell: (t) => t.currency, sortValue: (t) => t.currency },
-    { key: "created", header: "Created", cell: (t) => <span className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleDateString()}</span>, sortValue: (t) => t.createdAt },
-    {
-      key: "actions",
-      header: "Actions",
-      cell: (t) => (
-        <div className="flex gap-1">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate("tenant-detail", { id: t.id });
-            }}
-          >
-            View
-          </Button>
-          {/* TM-21 — clone tenant action. */}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 gap-1 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              cloneTenant(t);
-            }}
-          >
-            <Copy className="h-3 w-3" /> Clone
-          </Button>
-        </div>
-      ),
-    },
-  ];
-
-  return (
-    <Page>
-      <PageHeader
-        title="Tenants"
-        description={`${tenants.length} tenants on the platform.`}
-        icon={Building2}
-        actions={
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => navigate("tenant-lifecycle")}
-            >
-              <Activity className="mr-1 h-4 w-4" /> Lifecycle
-            </Button>
-            <Button size="sm" onClick={() => navigate("create-tenant")}>
-              <Plus className="mr-1 h-4 w-4" /> Create tenant
-            </Button>
-          </>
-        }
-      />
-      <PageContent>
-        <DataTable
-          columns={columns}
-          data={visibleTenants}
-          rowKey={(t) => t.id}
-          onRowClick={(t) => navigate("tenant-detail", { id: t.id })}
-          searchableText={(t) => `${t.name} ${t.plan} ${t.status}`}
-          searchPlaceholder="Search tenants…"
-          toolbar={
-            <Select value={stageFilter} onValueChange={setStageFilter}>
-              <SelectTrigger className="h-8 w-[180px] text-xs">
-                <SelectValue placeholder="Filter by stage" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All stages</SelectItem>
-                <SelectItem value="invited">Invited</SelectItem>
-                <SelectItem value="trial">Trial</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
-                <SelectItem value="terminated">Terminated</SelectItem>
-                <SelectItem value="onboarding">Onboarding</SelectItem>
-                <SelectItem value="provisioning">Provisioning</SelectItem>
-                <SelectItem value="provisioning_failed">Provisioning Failed</SelectItem>
-                <SelectItem value="rolled_back">Rolled Back</SelectItem>
-              </SelectContent>
-            </Select>
-          }
-          emptyTitle="No tenants match"
-          emptyDescription="Try a different stage filter or search term."
-        />
-      </PageContent>
-    </Page>
-  );
-}
 
 export function ModuleCatalogPage() {
   const allModules = moduleRegistry.getAll();

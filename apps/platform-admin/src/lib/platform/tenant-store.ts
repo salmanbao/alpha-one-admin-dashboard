@@ -1,118 +1,104 @@
+import { useSyncExternalStore } from "react";
 import type { TenantContext } from "./types";
+import { tenants as SEED_TENANTS } from "./mock-data";
 
 /* ------------------------------------------------------------------ */
-/* Seed data                                                             */
+/* Store — single source of truth for the tenant roster                 */
 /* ------------------------------------------------------------------ */
+/*
+ * Every surface (tenants list, tenant detail, switcher, breadcrumbs,
+ * global search) reads from this store. `mock-data.tenants` is the ONE
+ * seed definition; localStorage-persisted custom tenants are merged in
+ * at boot by `hydrateTenants` (custom wins by id).
+ */
 
-const DEMO_TENANTS: TenantContext[] = [
-  {
-    id: "tenant-alpha",
-    slug: "alpha-capital",
-    name: "Alpha Capital",
-    application: "prop-admin",
-    branding: {
-      name: "Alpha Capital",
-      initials: "AC",
-      primaryColor: "#4a7c59",
-      accentColor: "#2d5a3c",
-      surfaceColor: "#e5e7eb",
-      radius: "0.5rem",
-    },
-    locale: "en-US",
-    timezone: "America/New_York",
-    currency: "USD",
-    domain: "alpha.alpha1.io",
-    subdomain: "alpha",
-    enabledModules: ["billing", "users", "analytics", "api-keys"],
-    enabledFeatures: ["api-rate-limits", "payouts"],
-    plan: "growth",
-    status: "active",
-    createdAt: "2023-01-15T10:30:00Z",
-    liveAt: "2023-02-01T14:00:00Z",
-    billingCycleAnchor: "2023-01-15T10:30:00Z",
-    billingCycle: "monthly",
-    owner: "Sarah Mitchell",
-    ownerEmail: "sarah.mitchell@alpha-capital.com",
-    region: "us-east",
-    terminology: {},
-    kycProvider: undefined,
-    moduleRollout: { billing: 50, users: 50, analytics: 50, "api-keys": 50 },
-    priceOverride: 10000, // $10,000/month custom price
-    discountPct: 10, // 10% discount on custom price
-  },
-  {
-    id: "tenant-beta",
-    slug: "beta-trading",
-    name: "Beta Trading",
-    application: "prop-admin",
-    branding: {
-      name: "Beta Trading",
-      initials: "BT",
-      primaryColor: "#dc2626",
-      accentColor: "#b91c1c",
-      surfaceColor: "#fee2e2",
-      radius: "0.5rem",
-    },
-    locale: "en-US",
-    timezone: "Europe/London",
-    currency: "GBP",
-    domain: "beta.beta1.io",
-    subdomain: "beta",
-    enabledModules: ["billing", "users", "analytics", "api-keys"],
-    enabledFeatures: ["api-rate-limits", "payouts"],
-    plan: "scale",
-    status: "active",
-    createdAt: "2023-03-10T08:00:00Z",
-    liveAt: "2023-04-01T12:00:00Z",
-    billingCycleAnchor: "2023-03-10T08:00:00Z",
-    billingCycle: "weekly",
-    region: "eu-west",
-    owner: "James Carter",
-    ownerEmail: "james.carter@beta-trading.io",
-    terminology: {},
-    kycProvider: undefined,
-    moduleRollout: { billing: 50, users: 50, analytics: 50, "api-keys": 50 },
-    priceOverride: 8000, // $8,000/month custom price
-    discountPct: 5, // 5% discount on custom price
-  },
-  {
-    id: "tenant-gamma",
-    slug: "gamma-futures",
-    name: "Gamma Futures",
-    application: "prop-admin",
-    branding: {
-      name: "Gamma Futures",
-      initials: "GF",
-      primaryColor: "#7c3aed",
-      accentColor: "#5b21b6",
-      surfaceColor: "#ede9fe",
-      radius: "0.5rem",
-    },
-    locale: "en-US",
-    timezone: "Asia/Singapore",
-    currency: "SGD",
-    domain: "gamma.gamma1.io",
-    subdomain: "gamma",
-    enabledModules: ["billing", "users", "analytics", "api-keys", "functions"],
-    enabledFeatures: ["api-rate-limits", "payouts", "functions"],
-    plan: "enterprise",
-    status: "active",
-    createdAt: "2022-11-20T16:00:00Z",
-    liveAt: "2022-12-01T09:00:00Z",
-    billingCycleAnchor: "2022-11-20T16:00:00Z",
-    billingCycle: "annually",
-    region: "ap-southeast",
-    owner: "Dr. Wei Chen",
-    ownerEmail: "wei.chen@gamma-futures.sg",
-    terminology: {},
-    kycProvider: undefined,
-    moduleRollout: { trading: 50, challenges: 50, risk: 50, payouts: 50, analytics: 50, marketing: 50, crm: 50, kyc: 50, support: 50, ai: 50 },
-    priceOverride: 15000, // $15,000/month custom price
-    discountPct: 15, // 15% discount on custom price
-  },
-];
+let tenantState: TenantContext[] = SEED_TENANTS;
+const listeners = new Set<() => void>();
 
-let tenantState: TenantContext[] = DEMO_TENANTS;
+const CUSTOM_KEY = "pfaas:customTenants";
+const OVERRIDE_KEY = "pfaas:tenantOverrides";
+const SEED_IDS = new Set(SEED_TENANTS.map((t) => t.id));
+
+type Overrides = Record<string, Partial<TenantContext>>;
+
+function safeParse<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function compact(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+}
+
+/** Runtime-created tenants (Create Tenant wizard / clone) — persisted. */
+export function readPersistedCustomTenants(): TenantContext[] {
+  if (typeof window === "undefined") return [];
+  const parsed = safeParse<unknown>(window.localStorage.getItem(CUSTOM_KEY));
+  return Array.isArray(parsed)
+    ? parsed.filter((x): x is TenantContext => !!x && typeof (x as TenantContext).id === "string")
+    : [];
+}
+
+function persistCustom(list: TenantContext[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+/** Field-level edits made to seed tenants, so a rename survives reload. */
+function readOverrides(): Overrides {
+  if (typeof window === "undefined") return {};
+  const parsed = safeParse<Overrides>(window.localStorage.getItem(OVERRIDE_KEY));
+  return parsed && typeof parsed === "object" ? parsed : {};
+}
+
+function writeOverrides(next: Overrides) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(OVERRIDE_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+function applyOverrides(t: TenantContext, ov: Overrides): TenantContext {
+  const o = ov[t.id];
+  return o ? { ...t, ...o } : t;
+}
+
+function notify() {
+  for (const l of listeners) l();
+}
+
+function subscribeTenants(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/**
+ * Boot-time hydration: merge the canonical seed with the operator's
+ * persisted custom tenants (custom wins by id), then re-apply any
+ * field-level edits made to seed tenants in a previous session. Call
+ * this ONCE on app mount — re-hydrating later would wipe in-memory
+ * `updateTenant` mutations that have not been re-persisted.
+ */
+export function hydrateTenants(seed: TenantContext[], custom: TenantContext[]) {
+  const ov = readOverrides();
+  const byId = new Map<string, TenantContext>();
+  for (const t of seed) byId.set(t.id, applyOverrides(t, ov));
+  for (const t of custom) byId.set(t.id, applyOverrides(t, ov));
+  tenantState = [...byId.values()];
+  notify();
+}
 
 /* ------------------------------------------------------------------ */
 /* Public API                                                            */
@@ -122,26 +108,76 @@ export function readTenants(): TenantContext[] {
   return tenantState;
 }
 
+/** Add a tenant to the roster (create-tenant wizard, clone, etc.). */
+export function addTenant(tenant: TenantContext) {
+  if (tenantState.some((t) => t.id === tenant.id)) return;
+  tenantState = [...tenantState, tenant];
+  if (!SEED_IDS.has(tenant.id)) {
+    const custom = readPersistedCustomTenants();
+    if (!custom.some((x) => x.id === tenant.id)) persistCustom([...custom, tenant]);
+  }
+  notify();
+}
+
 export function updateTenant(id: string, partial: Partial<TenantContext>) {
-  tenantState = tenantState.map((t) => (t.id === id ? { ...t, ...partial } : t));
+  const idx = tenantState.findIndex((t) => t.id === id);
+  if (idx < 0) return;
+  const next = [...tenantState];
+  next[idx] = { ...next[idx], ...partial };
+  tenantState = next;
+  if (SEED_IDS.has(id)) {
+    const ov = readOverrides();
+    ov[id] = { ...(ov[id] ?? {}), ...compact(partial as Record<string, unknown>) } as Partial<TenantContext>;
+    writeOverrides(ov);
+  } else {
+    const custom = readPersistedCustomTenants();
+    const ci = custom.findIndex((x) => x.id === id);
+    if (ci >= 0) {
+      const nc = [...custom];
+      nc[ci] = { ...nc[ci], ...partial };
+      persistCustom(nc);
+    }
+  }
+  notify();
 }
 
 export function removeTenant(id: string) {
-  tenantState = tenantState.filter((t) => t.id !== id);
+  const next = tenantState.filter((t) => t.id !== id);
+  if (next.length === tenantState.length) return;
+  tenantState = next;
+  if (SEED_IDS.has(id)) {
+    // Seed tenants are canonical demo data — a removal is in-memory only
+    // and the seed row returns on the next boot.
+    const ov = readOverrides();
+    if (id in ov) {
+      delete ov[id];
+      writeOverrides(ov);
+    }
+  } else {
+    persistCustom(readPersistedCustomTenants().filter((x) => x.id !== id));
+  }
+  notify();
 }
 
+/** Reactive roster hook (useSyncExternalStore — re-renders on mutation). */
 export function useTenants(): TenantContext[] {
-  return tenantState;
+  return useSyncExternalStore(subscribeTenants, readTenants, readTenants);
 }
 
 export function applyDueScheduledPlans(): TenantContext[] {
   const now = new Date();
-  tenantState = tenantState.map((t) => {
+  let changed = false;
+  const next = tenantState.map((t) => {
     if (t.scheduledPlan && new Date(t.scheduledPlan.scheduledFor) <= now) {
+      changed = true;
       return { ...t, plan: t.scheduledPlan.plan, scheduledPlan: undefined };
     }
     return t;
   });
+  if (changed) {
+    tenantState = next;
+    notify();
+  }
   return tenantState;
 }
 

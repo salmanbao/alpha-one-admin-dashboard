@@ -328,6 +328,10 @@ export function Topbar() {
                   title: "Signed out",
                   description: "Console session terminated. 2FA required on next sign-in.",
                 });
+                // Hard reload is intentional: sign-out must clear every
+                // in-memory store (console/tenant/notification), which an
+                // SPA navigation would leave hydrated.
+                // eslint-disable-next-line @next/next/no-location-assign-relative-destination
                 window.location.href = "/";
               }}
             >

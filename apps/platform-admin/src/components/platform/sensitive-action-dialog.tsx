@@ -172,7 +172,7 @@ export function SensitiveActionDialog({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [step]);
 
   const phraseOk = !confirmPhrase || typed.trim() === confirmPhrase;

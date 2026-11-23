@@ -19,6 +19,7 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { usePayouts } from "@/lib/platform/payout-store";
+import { tenants as allTenants } from "@/lib/platform/mock-data";
 import { Shield, Clock, RefreshCw } from "lucide-react";
 import { formatCurrency } from "@/components/platform/status";
 
@@ -29,14 +30,7 @@ export function KillSwitchVerificationPage() {
   const payouts = usePayouts();
 
   const tenantMap = new Map(
-    (() => {
-      try {
-        const allTenants = require("@/lib/platform/mock-data").tenants;
-        return new Map(allTenants.map((t: { id: string; name: string }) => [t.id, t.name]));
-      } catch {
-        return new Map();
-      }
-    })(),
+    allTenants.map((t) => [t.id, t.name] as const),
   );
 
   const inFlight = useMemo(

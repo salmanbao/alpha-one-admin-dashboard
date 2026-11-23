@@ -10,7 +10,7 @@
 
 import { useSyncExternalStore } from "react";
 import { recordAudit } from "@/lib/platform/console-store";
-import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
+import { readTenants } from "@/lib/platform/tenant-store";
 
 const STORAGE_KEY = "pfaas:platform-admin:invoices";
 
@@ -49,11 +49,24 @@ export interface PlatformInvoice {
   method: string;
 }
 
+/**
+ * Legacy rows stored the tenant NAME in `tenantId` ("Alpha Capital"),
+ * which silently broke every invoices↔tenants join on rename. Normalize
+ * to the real tenant id on read (P0-3); new rows always key on id.
+ */
+function normalizeTenantKey(i: Invoice): Invoice {
+  if (!i || typeof i.tenantId !== "string") return i;
+  const roster = readTenants();
+  if (roster.some((t) => t.id === i.tenantId)) return i;
+  const byName = roster.find((t) => t.name === i.tenantId);
+  return byName ? { ...i, tenantId: byName.id } : i;
+}
+
 /** Seed fixtures — one tenant gets 2–3 deterministic invoices per cycle. */
 const SEED_INVOICES: Invoice[] = [
   {
     id: "inv-1",
-    tenantId: "Alpha Capital",
+    tenantId: "tenant-alpha",
     tenantName: "Alpha Capital",
     invoiceNumber: "INV-2026-11-001",
     issueDate: "2026-11-01",
@@ -70,7 +83,7 @@ const SEED_INVOICES: Invoice[] = [
   },
   {
     id: "inv-2",
-    tenantId: "Beta Trading",
+    tenantId: "tenant-beta",
     tenantName: "Beta Trading",
     invoiceNumber: "INV-2026-11-002",
     issueDate: "2026-11-01",
@@ -87,7 +100,7 @@ const SEED_INVOICES: Invoice[] = [
   },
   {
     id: "inv-3",
-    tenantId: "Gamma Futures",
+    tenantId: "tenant-gamma",
     tenantName: "Gamma Futures",
     invoiceNumber: "INV-2026-11-003",
     issueDate: "2026-11-01",
@@ -105,13 +118,15 @@ const SEED_INVOICES: Invoice[] = [
 
 function readSeedList(list: unknown): Invoice[] {
   if (!Array.isArray(list)) return SEED_INVOICES;
-  return list.filter(
-    (i): i is Invoice =>
-      !!i &&
-      typeof i === "object" &&
-      typeof (i as Invoice).id === "string" &&
-      typeof (i as Invoice).invoiceNumber === "string",
-  );
+  return list
+    .filter(
+      (i): i is Invoice =>
+        !!i &&
+        typeof i === "object" &&
+        typeof (i as Invoice).id === "string" &&
+        typeof (i as Invoice).invoiceNumber === "string",
+    )
+    .map(normalizeTenantKey);
 }
 
 function readRaw(): Invoice[] {
@@ -180,7 +195,7 @@ export function createInvoice(
 ): { title: string; description: string; invoice: Invoice } {
   const invoices = readRaw();
   // Find the tenant
-  const tenant = allTenants.find((t) => t.id === tenantId);
+  const tenant = readTenants().find((t) => t.id === tenantId);
   if (!tenant) {
     return {
       title: "(Demo)",

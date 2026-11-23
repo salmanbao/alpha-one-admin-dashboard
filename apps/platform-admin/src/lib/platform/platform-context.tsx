@@ -30,6 +30,12 @@ import {
   users,
 } from "./mock-data";
 import {
+  addTenant,
+  hydrateTenants,
+  readPersistedCustomTenants,
+  useTenants,
+} from "./tenant-store";
+import {
   useConsoleStore,
   recordAudit,
   type ApprovalRequest,
@@ -50,6 +56,12 @@ export interface RouterState {
   view: string;
   params: Record<string, string>;
   history: string[];
+  /**
+   * When true, the next URL sync uses `replaceState` instead of
+   * `pushState` — used for incremental updates (typing in a search box)
+   * so history is not spammed with one entry per keystroke.
+   */
+  replace?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -73,7 +85,7 @@ export interface PlatformContextValue {
   setThemeMode: (mode: "light" | "dark") => void;
   /* router */
   router: RouterState;
-  navigate: (view: string, params?: Record<string, string>) => void;
+  navigate: (view: string, params?: Record<string, string>, opts?: { replace?: boolean }) => void;
   back: () => void;
   /* module runtime */
   runtime: ModuleRuntimeContext;
@@ -402,17 +414,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       return users.find((u) => u.id === active.persona!.id) ?? null;
     } catch { return null; }
   });
-  const [customTenants, setCustomTenants] = useState<TenantContext[]>(() => {
-    // Tenants created at runtime (Create Tenant wizard) persist across reloads.
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = window.localStorage.getItem("pfaas:customTenants");
-      return raw ? (JSON.parse(raw) as TenantContext[]) : [];
-    } catch { return []; }
-  });
   const [tenant, setTenant] = useState<TenantContext>(() => {
     const storedId = readStoredTenantId();
-    const all = [...tenants, ...customTenants];
+    const all = [...tenants, ...readPersistedCustomTenants()];
     // S6/F2 — the persisted switcher choice only wins on boot when a
     // View-As session is actually active (audited in the console store).
     // Otherwise an operator always boots on the platform pseudo-tenant,
@@ -581,32 +585,20 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore quota errors */ }
   }, [themeMode]);
 
-  // Persist runtime-created tenants so they survive reloads
+  // Roster hydration — run ONCE on boot: merge the canonical seed with
+  // the operator's persisted custom tenants into the tenant-store (the
+  // single reactive source of truth). Re-running would wipe in-memory
+  // mutations, so the deps are deliberately empty.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem("pfaas:customTenants", JSON.stringify(customTenants));
-    } catch { /* ignore quota errors */ }
-  }, [customTenants]);
+    hydrateTenants(tenants, readPersistedCustomTenants());
+  }, []);
 
   const registerTenant = useCallback((t: TenantContext) => {
-    // Persist synchronously: tenant-store (and the go-live wizard, which
-    // sets progress.tenantId in the same handler) read localStorage
-    // directly and must see the tenant immediately — not after the
-    // mirror effect below flushes (R2-W3-04).
-    if (typeof window !== "undefined") {
-      try {
-        const raw = window.localStorage.getItem("pfaas:customTenants");
-        const parsed: unknown = raw ? JSON.parse(raw) : [];
-        const list = Array.isArray(parsed)
-          ? parsed.filter((x): x is TenantContext => !!x && typeof (x as TenantContext).id === "string")
-          : [];
-        if (!list.some((x) => x.id === t.id)) {
-          window.localStorage.setItem("pfaas:customTenants", JSON.stringify([...list, t]));
-        }
-      } catch { /* ignore quota errors */ }
-    }
-    setCustomTenants((prev) => (prev.some((x) => x.id === t.id) ? prev : [...prev, t]));
+    // tenant-store owns both the reactive roster and the synchronous
+    // localStorage write (pfaas:customTenants), so the go-live wizard,
+    // which reads localStorage directly in the same handler, sees the
+    // tenant immediately — not after a React state flush (R2-W3-04).
+    addTenant(t);
   }, []);
 
   // Profile edits: merge into live user + persist per user id (survive reloads)
@@ -663,10 +655,14 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       const qs = usp.toString();
       const nextUrl = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
       if (window.location.search !== (qs ? `?${qs}` : "")) {
-        window.history.pushState({ view: router.view }, "", nextUrl);
+        if (router.replace) {
+          window.history.replaceState({ view: router.view }, "", nextUrl);
+        } else {
+          window.history.pushState({ view: router.view }, "", nextUrl);
+        }
       }
     } catch { /* ignore */ }
-  }, [router.view, router.params]);
+  }, [router.view, router.params, router.replace]);
 
   // Browser back/forward → sync router from URL
   useEffect(() => {
@@ -679,8 +675,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  const navigate = useCallback((view: string, params: Record<string, string> = {}) => {
-    setRouter((r) => ({ view, params, history: [...r.history, view].slice(-32) }));
+  const navigate = useCallback((view: string, params: Record<string, string> = {}, opts?: { replace?: boolean }) => {
+    setRouter((r) => ({
+      view,
+      params,
+      history: [...r.history, view].slice(-32),
+      replace: opts?.replace ?? false,
+    }));
   }, []);
 
   const back = useCallback(() => {
@@ -809,13 +810,17 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     [user, tenant],
   );
 
+  // Reactive tenant roster (tenant-store is the single source of truth —
+  // list, detail, switcher and breadcrumbs all read the same store).
+  const rosterTenants = useTenants();
+
   const value: PlatformContextValue = {
     user,
     setUser,
     updateUser,
     tenant,
     setTenant,
-    availableTenants: [platformTenant, ...tenants, ...customTenants],
+    availableTenants: [platformTenant, ...rosterTenants],
     registerTenant,
     themeMode,
     setThemeMode,

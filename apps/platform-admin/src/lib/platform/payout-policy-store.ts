@@ -142,7 +142,7 @@ function writeSnapshot(state: { global: GlobalPayoutPolicy; overrides: TenantPay
 }
 
 /** Subscribe/unsubscribe pattern for useSyncExternalStore. */
-let subscribers: Set<() => void> = new Set();
+const subscribers: Set<() => void> = new Set();
 let state: { global: GlobalPayoutPolicy; overrides: TenantPayoutPolicyOverride[] } = readSnapshot();
 
 function subscribe(cb: () => void) {

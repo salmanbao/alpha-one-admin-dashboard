@@ -67,16 +67,30 @@ export function TenantOffboardingWizard({
   const tenants = useTenants();
   const tenant = tenants.find((t) => t.id === tenantId);
 
-  if (!tenant) {
-    return null;
-  }
-
   const [retention, setRetention] = useState<RetentionChoice>("preserve");
   const [gracePeriodDays, setGracePeriodDays] = useState<number>(30);
   const [reason, setReason] = useState<string>("");
   const [scheduledFor, setScheduledFor] = useState<string>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
   const [flow, setFlow] = useState<OffboardingFlow | null>(null);
   const [approvalPending, setApprovalPending] = useState<boolean>(false);
+
+  // Approval-window timeout. Declared before the `!tenant` guard so hook
+  // order is identical on every render (rules-of-hooks).
+  useEffect(() => {
+    if (!flow) return;
+
+    // Set a timeout for the approval window (10 minutes)
+    const timeoutId = setTimeout(() => {
+      setApprovalPending(false);
+      setFlow(null);
+    }, 10 * 60 * 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [flow]);
+
+  if (!tenant) {
+    return null;
+  }
 
   const gracePeriodOptions = [
     { value: 7, label: "1 week" },
@@ -170,18 +184,6 @@ export function TenantOffboardingWizard({
       description: `Tenant ${tenant.name} offboarding has been cancelled. Tenant remains active.`,
     });
   };
-
-  useEffect(() => {
-    if (!flow) return;
-
-    // Set a timeout for the approval window (10 minutes)
-    const timeoutId = setTimeout(() => {
-      setApprovalPending(false);
-      setFlow(null);
-    }, 10 * 60 * 1000);
-
-    return () => clearTimeout(timeoutId);
-  }, [flow]);
 
   return (
     <>

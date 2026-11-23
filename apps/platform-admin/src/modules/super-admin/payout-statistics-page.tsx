@@ -113,7 +113,7 @@ export function PayoutStatisticsPage() {
   const { user } = usePlatform();
   const [printing, setPrinting] = useState(false);
 
-  const stats = useMemo(buildStats, []);
+  const stats = useMemo(() => buildStats(), []);
 
   /* Headline aggregates — computed row-wise, then re-derived per tenant
    * for the tie-out (the acceptance: stats reconcile with intake rows). */

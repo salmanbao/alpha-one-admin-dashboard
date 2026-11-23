@@ -3,9 +3,17 @@
 /**
  * PFaaS Platform — DataTable wrapper
  *
- * Spec section 26. Reusable table abstraction with sorting, filtering,
- * pagination, search, empty/error/loading states, responsive behavior.
- * URL state is handled by the consumer (kept simple here for the demo).
+ * Spec section 26 / §26 of docs/AGENTS.md. Reusable table abstraction
+ * with sorting, filtering, pagination, search, empty/error/loading
+ * states, responsive behavior — plus the decision-table capabilities the
+ * constitution requires: row selection + bulk actions, column
+ * visibility, CSV export and a page-size selector.
+ *
+ * URL state is owned by the CONSUMER: pass the optional `state` object
+ * (search/sortKey/sortDir/page/pageSize) to control the view from the
+ * query string and receive the merged next state via `onStateChange`.
+ * Without `state` the table keeps its own local state (backward
+ * compatible with every existing call site).
  */
 
 import { useMemo, useState } from "react";
@@ -19,19 +27,75 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EmptyState } from "./guards";
-import { ArrowDown, ArrowUp, ArrowUpDown, Inbox, Search } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Columns3,
+  Download,
+  Inbox,
+  Search,
+} from "lucide-react";
 
 export interface Column<T> {
   key: string;
-  header: string;
+  header: React.ReactNode;
   cell: (row: T) => React.ReactNode;
   sortValue?: (row: T) => string | number;
   className?: string;
   width?: string;
   /** Right-align numeric content */
   numeric?: boolean;
+}
+
+/** Controlled view state — the shape consumers persist in the URL. */
+export interface TableState {
+  search: string;
+  sortKey: string | null;
+  sortDir: "asc" | "desc";
+  page: number;
+  pageSize: number;
+}
+
+export interface TableSelection {
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+  /** `pageIds` are the row keys currently visible on this page. */
+  onToggleAll: (pageIds: string[]) => void;
+  /** Rendered above the table while at least one row is selected. */
+  bulkBar?: React.ReactNode;
+}
+
+export interface TableColumnVisibility {
+  hidden: Set<string>;
+  onChange: (next: Set<string>) => void;
+}
+
+export interface TableCsvExport<T> {
+  /** Download name (`.csv` appended when missing). */
+  filename: string;
+  /** Column headers; defaults to the visible column headers. */
+  headers?: string[];
+  /** One CSV row per record, in visible-column order. */
+  toRow: (row: T) => string[];
 }
 
 interface DataTableProps<T> {
@@ -46,6 +110,39 @@ interface DataTableProps<T> {
   toolbar?: React.ReactNode;
   emptyTitle?: string;
   emptyDescription?: string;
+  emptyAction?: React.ReactNode;
+  emptyHint?: string;
+  /**
+   * Controlled view state. When provided, changes flow through
+   * `onStateChange` (pass the full merged object back to keep every
+   * field authoritative — the table does not mutate it).
+   */
+  state?: Partial<TableState>;
+  onStateChange?: (next: TableState) => void;
+  selection?: TableSelection;
+  columnVisibility?: TableColumnVisibility;
+  exportCsv?: TableCsvExport<T>;
+  /** Page-size selector options, e.g. `[8, 25, 50, 100]`. */
+  pageSizeOptions?: number[];
+}
+
+function csvEscape(value: string): string {
+  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+/** Download a CSV (BOM-prefixed for Excel). Exported for screens that
+ *  export a custom selection outside the table's own Export button. */
+export function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map(csvEscape).join(",")).join("\r\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename.endsWith(".csv") ? filename : `${filename}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export function DataTable<T>({
@@ -60,11 +157,44 @@ export function DataTable<T>({
   toolbar,
   emptyTitle = "No records found",
   emptyDescription = "Adjust your filters or try a different search.",
+  emptyAction,
+  emptyHint,
+  state,
+  onStateChange,
+  selection,
+  columnVisibility,
+  exportCsv,
+  pageSizeOptions,
 }: DataTableProps<T>) {
-  const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [page, setPage] = useState(1);
+  const [internal, setInternal] = useState<TableState>({
+    search: "",
+    sortKey: null,
+    sortDir: "asc",
+    page: 1,
+    pageSize,
+  });
+
+  const controlled = state !== undefined;
+  const view: TableState = { ...internal, ...state };
+  // Primitive views of the state — memo deps on these (rather than on
+  // `view`, a fresh object each render) let the React Compiler prove the
+  // memoization is stable.
+  const { search, sortKey, sortDir, page, pageSize: viewPageSize } = view;
+  const update = (patch: Partial<TableState>) => {
+    const next: TableState = { ...view, ...patch };
+    if (controlled) {
+      onStateChange?.(next);
+    } else {
+      setInternal(next);
+      onStateChange?.(next);
+    }
+  };
+
+  const hidden = columnVisibility?.hidden;
+  const visibleColumns = useMemo(
+    () => (hidden && hidden.size > 0 ? columns.filter((c) => !hidden.has(c.key)) : columns),
+    [columns, hidden],
+  );
 
   const filtered = useMemo(() => {
     if (!search.trim() || !searchableText) return data;
@@ -74,7 +204,7 @@ export function DataTable<T>({
 
   const sorted = useMemo(() => {
     if (!sortKey) return filtered;
-    const col = columns.find((c) => c.key === sortKey);
+    const col = visibleColumns.find((c) => c.key === sortKey);
     if (!col?.sortValue) return filtered;
     const out = [...filtered].sort((a, b) => {
       const av = col.sortValue!(a);
@@ -84,84 +214,186 @@ export function DataTable<T>({
       return 0;
     });
     return out;
-  }, [filtered, sortKey, sortDir, columns]);
+  }, [filtered, sortKey, sortDir, visibleColumns]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(sorted.length / viewPageSize));
   const pageSafe = Math.min(page, totalPages);
-  const paged = sorted.slice((pageSafe - 1) * pageSize, pageSafe * pageSize);
+  const paged = sorted.slice((pageSafe - 1) * viewPageSize, pageSafe * viewPageSize);
 
   const toggleSort = (key: string) => {
-    if (sortKey !== key) {
-      setSortKey(key);
-      setSortDir("asc");
-    } else if (sortDir === "asc") {
-      setSortDir("desc");
+    if (view.sortKey !== key) {
+      update({ sortKey: key, sortDir: "asc", page: 1 });
+    } else if (view.sortDir === "asc") {
+      update({ sortDir: "desc", page: 1 });
     } else {
-      setSortKey(null);
+      update({ sortKey: null, page: 1 });
     }
-    // New ordering can shrink the result set — reset to the first page so
-    // the user isn't left on a near-empty page position.
-    setPage(1);
   };
+
+  /* ---- selection ------------------------------------------------- */
+  const pageIds = paged.map(rowKey);
+  const selectedOnPage = pageIds.filter((id) => selection?.selectedIds.has(id));
+  const allSelected = Boolean(selection) && pageIds.length > 0 && selectedOnPage.length === pageIds.length;
+  const someSelected = selectedOnPage.length > 0 && !allSelected;
+
+  const selectionColumn: Column<T> | null = selection
+    ? {
+        key: "__select",
+        header: (
+          <Checkbox
+            checked={allSelected ? true : someSelected ? "indeterminate" : false}
+            onCheckedChange={() => selection.onToggleAll(pageIds)}
+            aria-label="Select all rows on this page"
+            onClick={(e) => e.stopPropagation()}
+          />
+        ),
+        cell: (row) => {
+          const id = rowKey(row);
+          return (
+            <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+              <Checkbox
+                checked={selection.selectedIds.has(id)}
+                onCheckedChange={() => selection.onToggle(id)}
+                aria-label={`Select row ${id}`}
+              />
+            </div>
+          );
+        },
+        width: "40px",
+        className: "align-middle",
+      }
+    : null;
+
+  const tableColumns = selectionColumn ? [selectionColumn, ...visibleColumns] : visibleColumns;
+
+  const handleExport = () => {
+    if (!exportCsv) return;
+    const headers =
+      exportCsv.headers ?? visibleColumns.map((c) => (typeof c.header === "string" ? c.header : c.key));
+    const rows = [headers, ...sorted.map(exportCsv.toRow)];
+    downloadCsv(exportCsv.filename, rows);
+  };
+
+  const showPageSizeSelector = Boolean(pageSizeOptions && pageSizeOptions.length > 0);
+  const showFooter = totalPages > 1 || showPageSizeSelector;
+
+  const searchBox = searchableText ? (
+    <div className="relative w-full md:max-w-xs">
+      <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        value={view.search}
+        onChange={(e) => update({ search: e.target.value, page: 1 })}
+        placeholder={searchPlaceholder}
+        className="pl-8"
+        aria-label={searchPlaceholder}
+      />
+    </div>
+  ) : (
+    <div />
+  );
+
+  const tableTools = columnVisibility || exportCsv ? (
+    <div className="flex flex-wrap items-center gap-2">
+      {columnVisibility ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" aria-label="Choose visible columns">
+              <Columns3 className="h-3.5 w-3.5" /> Columns
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel className="text-xs">Visible columns</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {columns.map((c) => {
+              const label = typeof c.header === "string" ? c.header : c.key;
+              const checked = !columnVisibility.hidden.has(c.key);
+              return (
+                <DropdownMenuCheckboxItem
+                  key={c.key}
+                  checked={checked}
+                  disabled={!checked && visibleColumns.length <= 1}
+                  onCheckedChange={(next) => {
+                    if (next !== true && next !== false) return;
+                    const set = new Set(columnVisibility.hidden);
+                    if (next) set.delete(c.key);
+                    else set.add(c.key);
+                    columnVisibility.onChange(set);
+                  }}
+                >
+                  {label}
+                </DropdownMenuCheckboxItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+      {exportCsv ? (
+        <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={handleExport} aria-label={`Export ${exportCsv.filename}`}>
+          <Download className="h-3.5 w-3.5" /> Export
+        </Button>
+      ) : null}
+    </div>
+  ) : null;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        {searchableText ? (
-          <div className="relative w-full md:max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              placeholder={searchPlaceholder}
-              className="pl-8"
-            />
-          </div>
-        ) : (
-          <div />
-        )}
-        {toolbar ? <div className="flex flex-wrap items-center gap-2">{toolbar}</div> : null}
+        {searchBox}
+        <div className="flex flex-wrap items-center gap-2">
+          {toolbar}
+          {tableTools}
+        </div>
       </div>
+
+      {selection?.bulkBar && selection.selectedIds.size > 0 ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2"
+        >
+          {selection.bulkBar}
+        </div>
+      ) : null}
 
       <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
-              {columns.map((c) => (
-                <TableHead
-                  key={c.key}
-                  aria-sort={c.sortValue ? (sortKey === c.key ? (sortDir === "asc" ? "ascending" : "descending") : "none") : undefined}
-                  className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} h-9 px-3 text-xs uppercase tracking-wide`}
-                  style={c.width ? { width: c.width } : undefined}
-                >
-                  {c.sortValue ? (
-                    <button
-                      className={`inline-flex items-center gap-1 ${c.numeric ? "justify-end" : "text-left"} font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm`}
-                      onClick={() => toggleSort(c.key)}
-                      aria-label={`Sort by ${c.header}${sortKey === c.key ? ` (currently ${sortDir === "asc" ? "ascending" : "descending"})` : ""}`}
-                    >
-                      {c.header}
-                      {sortKey === c.key ? (
-                        sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                      ) : (
-                        <ArrowUpDown className="h-3 w-3 opacity-50" />
-                      )}
-                    </button>
-                  ) : (
-                    c.header
-                  )}
-                </TableHead>
-              ))}
+              {tableColumns.map((c) => {
+                const label = typeof c.header === "string" ? c.header : c.key;
+                return (
+                  <TableHead
+                    key={c.key}
+                    aria-sort={c.sortValue ? (view.sortKey === c.key ? (view.sortDir === "asc" ? "ascending" : "descending") : "none") : undefined}
+                    className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} h-9 px-3 text-xs uppercase tracking-wide`}
+                    style={c.width ? { width: c.width } : undefined}
+                  >
+                    {c.sortValue ? (
+                      <button
+                        className={`inline-flex items-center gap-1 ${c.numeric ? "justify-end" : "text-left"} font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm`}
+                        onClick={() => toggleSort(c.key)}
+                        aria-label={`Sort by ${label}${view.sortKey === c.key ? ` (currently ${view.sortDir === "asc" ? "ascending" : "descending"})` : ""}`}
+                      >
+                        {c.header}
+                        {view.sortKey === c.key ? (
+                          view.sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                        ) : (
+                          <ArrowUpDown className="h-3 w-3 opacity-50" />
+                        )}
+                      </button>
+                    ) : (
+                      c.header
+                    )}
+                  </TableHead>
+                );
+              })}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {columns.map((c) => (
+                  {tableColumns.map((c) => (
                     <TableCell key={c.key} className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} px-3 py-2.5 text-sm`}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -170,11 +402,13 @@ export function DataTable<T>({
               ))
             ) : paged.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="p-0">
+                <TableCell colSpan={Math.max(1, tableColumns.length)} className="p-0">
                   <EmptyState
                     title={emptyTitle}
                     description={emptyDescription}
                     icon={Inbox}
+                    action={emptyAction}
+                    hint={emptyHint}
                   />
                 </TableCell>
               </TableRow>
@@ -204,7 +438,7 @@ export function DataTable<T>({
                       : undefined
                   }
                 >
-                  {columns.map((c) => (
+                  {tableColumns.map((c) => (
                     <TableCell key={c.key} className={`${c.className ?? ""} ${c.numeric ? "text-right tabular-nums" : ""} px-3 py-2.5 text-sm`}>
                       {c.cell(row)}
                     </TableCell>
@@ -216,31 +450,53 @@ export function DataTable<T>({
         </Table>
       </div>
 
-      {totalPages > 1 ? (
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+      {showFooter ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>
-            Showing {(pageSafe - 1) * pageSize + 1}–{Math.min(pageSafe * pageSize, sorted.length)} of {sorted.length}
+            Showing {sorted.length === 0 ? 0 : (pageSafe - 1) * view.pageSize + 1}–
+            {Math.min(pageSafe * view.pageSize, sorted.length)} of {sorted.length}
           </span>
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={pageSafe <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Prev
-            </Button>
-            <span className="font-medium text-foreground">
-              {pageSafe} / {totalPages}
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={pageSafe >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Next
-            </Button>
+            {showPageSizeSelector ? (
+              <Select
+                value={String(view.pageSize)}
+                onValueChange={(v) => update({ pageSize: Number(v), page: 1 })}
+              >
+                <SelectTrigger className="h-8 w-[110px] text-xs" aria-label="Rows per page">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(pageSizeOptions ?? []).map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n} / page
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+            {totalPages > 1 ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pageSafe <= 1}
+                  onClick={() => update({ page: Math.max(1, pageSafe - 1) })}
+                >
+                  Prev
+                </Button>
+                <span className="font-medium text-foreground">
+                  {pageSafe} / {totalPages}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pageSafe >= totalPages}
+                  onClick={() => update({ page: Math.min(totalPages, pageSafe + 1) })}
+                >
+                  Next
+                </Button>
+              </>
+            ) : null}
           </div>
         </div>
       ) : null}

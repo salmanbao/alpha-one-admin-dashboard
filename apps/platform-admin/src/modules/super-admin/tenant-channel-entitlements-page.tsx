@@ -12,13 +12,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { recordAudit } from "@/lib/platform/console-store";
 import { Radio, Settings2, AlertTriangle } from "lucide-react";
-import { useTenants } from "@/lib/platform/tenant-store";
+import { readTenants } from "@/lib/platform/tenant-store";
 
 type Ch = "email"|"sms"|"whatsapp"|"push";
 interface Ent { tenantId:string; name:string; channels:Record<Ch,boolean>; caps:Record<Ch,number>; usage:Record<Ch,number>; costCeilings:Record<Ch,number>; costUsed:Record<Ch,number>; delegated:boolean; anomaly?:string; approval?: "pending"|"approved"|"none" }
 
+/** Lazy useState initializer — reads the roster synchronously (no hook). */
 function seed(): Ent[] {
-  const tenants = useTenants();
+  const tenants = readTenants();
   return tenants.slice(0,8).map((t:any,i:number)=>({
     tenantId:t.id, name:t.name||t.slug||t.id, delegated: i%3===0,
     channels:{email:true,sms:i%2===0,whatsapp:i%3===0,push:true},

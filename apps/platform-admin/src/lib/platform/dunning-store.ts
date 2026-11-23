@@ -9,7 +9,7 @@
 
 import { useSyncExternalStore } from "react";
 import { recordAudit } from "@/lib/platform/console-store";
-import { tenants as allTenants, getTenantTraders } from "@/lib/platform/mock-data";
+import { readTenants } from "@/lib/platform/tenant-store";
 
 const STORAGE_KEY = "pfaas:platform-admin:dunning";
 
@@ -34,10 +34,23 @@ export interface DunningRecord {
   suspensionDueAt?: string;
 }
 
+/**
+ * Legacy rows stored the tenant NAME in `tenantId`; normalize to the
+ * real tenant id on read so `useDunningForTenant(tenant.id)` and the
+ * invoices↔dunning join on the billing page actually match (P0-3).
+ */
+function normalizeTenantKey(r: DunningRecord): DunningRecord {
+  if (!r || typeof r.tenantId !== "string") return r;
+  const roster = readTenants();
+  if (roster.some((t) => t.id === r.tenantId)) return r;
+  const byName = roster.find((t) => t.name === r.tenantId);
+  return byName ? { ...r, tenantId: byName.id } : r;
+}
+
 const SEED_RECORDS: DunningRecord[] = [
   {
     id: "dun-1",
-    tenantId: "Beta Trading",
+    tenantId: "tenant-beta",
     tenantName: "Beta Trading",
     invoiceId: "inv-2",
     invoiceNumber: "INV-2026-11-002",
@@ -49,7 +62,7 @@ const SEED_RECORDS: DunningRecord[] = [
   },
   {
     id: "dun-2",
-    tenantId: "Gamma Futures",
+    tenantId: "tenant-gamma",
     tenantName: "Gamma Futures",
     invoiceId: "inv-3",
     invoiceNumber: "INV-2026-11-003",
@@ -66,13 +79,15 @@ function readRaw(): DunningRecord[] {
   if (typeof window === "undefined") return SEED_RECORDS;
   try {
     const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY ?? "null") ?? "[]");
-    return stored.filter(
-      (r): r is DunningRecord => 
-        !!r && 
-        typeof r === "object" && 
-        typeof r.id === "string" && 
-        typeof r.tenantId === "string"
-    );
+    return stored
+      .filter(
+        (r): r is DunningRecord => 
+          !!r && 
+          typeof r === "object" && 
+          typeof r.id === "string" && 
+          typeof r.tenantId === "string"
+      )
+      .map(normalizeTenantKey);
   } catch {
     return SEED_RECORDS;
   }

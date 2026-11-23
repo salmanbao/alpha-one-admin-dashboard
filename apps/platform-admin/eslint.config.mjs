@@ -22,6 +22,10 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "react-hooks/exhaustive-deps": "off",
     "react-hooks/purity": "off",
     "react-hooks/set-state-in-effect": "off",
+    // React Compiler optimization notice (same family as the two rules
+    // above; prop-admin disables it too) — "Compilation Skipped" means the
+    // compiler bailed on a manual useMemo, not a correctness bug.
+    "react-hooks/preserve-manual-memoization": "off",
     "react/no-unescaped-entities": "off",
     "react/display-name": "off",
     "react/prop-types": "off",

@@ -25,15 +25,6 @@ type PushNotification = (opts: {
 export function useScheduledPlanScheduler(pushNotification: PushNotification) {
   const lastNotified = useRef<Set<string>>(new Set());
 
-  useEffect(() => {
-    // Run immediately on mount.
-    sweep();
-
-    const interval = setInterval(sweep, CHECK_INTERVAL_MS);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   function sweep() {
     // Capture tenants with due schedules before applying.
     const now = new Date();
@@ -58,4 +49,13 @@ export function useScheduledPlanScheduler(pushNotification: PushNotification) {
       });
     }
   }
+
+  useEffect(() => {
+    // Run immediately on mount.
+    sweep();
+
+    const interval = setInterval(sweep, CHECK_INTERVAL_MS);
+    return () => clearInterval(interval);
+
+  }, []);
 }

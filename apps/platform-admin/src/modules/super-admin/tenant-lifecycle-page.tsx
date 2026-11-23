@@ -521,7 +521,7 @@ export function TenantLifecyclePage() {
       applyStatus(tenant, status, verb, "", a.approver?.name);
       markApprovalExecuted(a.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [consoleStore.approvals, tenantRoster]);
 
   /* ---- Table columns ---- */
