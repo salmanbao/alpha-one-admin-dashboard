@@ -18,8 +18,10 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
+import { useSavedViews } from "@/lib/platform/saved-views";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
+import { resolveTermsInString } from "@/lib/platform/terminology";
 import { DataTable, downloadCsv, type Column, type TableState } from "@/components/platform/data-table";
 import { StatusBadge, formatCurrency } from "@/components/platform/status";
 import { SensitiveActionDialog } from "@/components/platform/sensitive-action-dialog";
@@ -63,6 +65,7 @@ import {
   Activity,
   AlertTriangle,
   Ban,
+  Bookmark,
   Building2,
   CheckCircle2,
   ChevronDown,
@@ -326,7 +329,8 @@ export function buildTenantClone(source: TenantContext, opts: TenantCloneOptions
 /* ------------------------------------------------------------------ */
 
 export function TenantsPage() {
-  const { router, navigate, registerTenant, pushNotification, user } = usePlatform();
+  const { router, navigate, registerTenant, pushNotification, user, tenant } = usePlatform();
+  const { views, saveView, deleteView, renameView, applyView } = useSavedViews("tenants", user?.id ?? "anon");
   const tenants = useTenants();
   const plans = usePlans();
   const provisioning = useProvisioningStore();
@@ -861,6 +865,23 @@ export function TenantsPage() {
         ),
       sortValue: (t) => (t.tags ?? []).join(","),
     },
+    {
+      key: "lastActivity",
+      header: "Last activity",
+      cell: (t) => {
+        const last = t.liveAt ? new Date(t.liveAt) : t.createdAt ? new Date(t.createdAt) : null;
+        if (!last || isNaN(last.getTime())) return <span className="text-xs text-muted-foreground">—</span>;
+        const ms = Date.now() - last.getTime();
+        const days = Math.floor(ms / 86_400_000);
+        if (days > 0) return <span className="text-xs text-muted-foreground">{days}d ago</span>;
+        const hours = Math.floor(ms / 3_600_000);
+        if (hours > 0) return <span className="text-xs text-muted-foreground">{hours}h ago</span>;
+        const mins = Math.floor(ms / 60_000);
+        if (mins > 0) return <span className="text-xs text-muted-foreground">{mins}m ago</span>;
+        return <span className="text-xs text-muted-foreground">just now</span>;
+      },
+      sortValue: (t) => t.liveAt ?? t.createdAt ?? "",
+    },
     { key: "actions", header: "Actions", cell: (t) => rowActions(t), width: "130px" },
   ];
 
@@ -1041,7 +1062,7 @@ export function TenantsPage() {
         <SelectContent>
           <SelectItem value="all">All applications</SelectItem>
           <SelectItem value="prop-admin">prop-admin</SelectItem>
-          <SelectItem value="trader">trader</SelectItem>
+          <SelectItem value="trader">{resolveTermsInString("trader", tenant)}</SelectItem>
           <SelectItem value="super-admin">super-admin</SelectItem>
         </SelectContent>
       </Select>
@@ -1094,6 +1115,67 @@ export function TenantsPage() {
           Clear filters ({activeFilterCount})
         </Button>
       ) : null}
+
+      {/* Saved views / segments */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" aria-label="Saved segments">
+            <Bookmark className="mr-1 h-3 w-3" /> Segments
+            <ChevronDown className="h-3 w-3" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-72">
+          <DropdownMenuLabel className="text-xs">Saved Segments</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {views.length === 0 ? (
+            <DropdownMenuItem className="text-xs text-muted-foreground" disabled>
+              No saved segments yet
+            </DropdownMenuItem>
+          ) : (
+            <>
+              {views.map((view) => (
+                <DropdownMenuItem
+                  key={view.id}
+                  className="text-xs flex items-center justify-between gap-2"
+                  onClick={() => {
+                    const params = applyView(view);
+                    navigate("tenants", params);
+                  }}
+                >
+                  <span className="truncate">{view.name}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(view.createdAt).toLocaleDateString()}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+            </>
+          )}
+          <DropdownMenuItem
+            className="text-xs flex items-center gap-1"
+            onClick={() => {
+              const name = window.prompt("Name this segment:", `Segment ${views.length + 1}`);
+              if (name) {
+                const currentFilters: Record<string, string> = {};
+                if (filters.q) currentFilters.q = filters.q;
+                if (filters.status.length) currentFilters.status = filters.status.join(",");
+                if (filters.plan !== "all") currentFilters.plan = filters.plan;
+                if (filters.application !== "all") currentFilters.application = filters.application;
+                if (filters.region !== "all") currentFilters.region = filters.region;
+                if (filters.health !== "all") currentFilters.health = filters.health;
+                if (filters.tag !== "all") currentFilters.tag = filters.tag;
+                if (filters.sort) currentFilters.sort = filters.sort;
+                if (filters.dir) currentFilters.dir = filters.dir;
+                if (filters.pageSize !== DEFAULT_FILTERS.pageSize) currentFilters.pageSize = String(filters.pageSize);
+                if (filters.hidden.length) currentFilters.cols = filters.hidden.join(",");
+                saveView(name, currentFilters);
+              }
+            }}
+          >
+            <Plus className="h-3 w-3" /> Save current filters
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 
@@ -1279,7 +1361,10 @@ export function TenantsPage() {
         consequence={`${selected.size} tenant workspaces lose console access immediately; live sessions are revoked and billing continues until reinstatement.`}
         blastRadius={[
           `${selected.size} tenant workspaces locked`,
-          "All operator and trader sessions in those tenants revoked",
+          resolveTermsInString(
+            "All operator and trader sessions in those tenants revoked",
+            tenant,
+          ),
           "One audited suspension row per tenant (reason required)",
         ]}
         requireReason
