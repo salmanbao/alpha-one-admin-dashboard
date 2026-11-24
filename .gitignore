@@ -4,6 +4,7 @@
 dist/
 build/
 *.log
+.turbo/
 
 # IDE files
 .idea/
@@ -31,8 +32,8 @@ build/
 .next-env.d.ts
 
 # Configuration files
-.omg/
-.stitch_screens/
+.omo/
+stitch_screens/
 
 # Test harness artifacts
 *.playwright-mcp/
