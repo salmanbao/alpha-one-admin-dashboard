@@ -25,6 +25,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
+import { useSearchParams } from "next/navigation";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { useTenants, updateTenant } from "@/lib/platform/tenant-store";
 import type { TenantContext } from "@/lib/platform/types";
@@ -42,6 +43,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SensitiveActionDialog } from "@/components/platform/sensitive-action-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import {
   markApprovalExecuted,
   recordAudit,
@@ -77,10 +86,13 @@ import {
   X,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
+  Plus,
   Upload,
   AlertCircle,
   Undo2,
   Bookmark,
+  Redo,
 } from "lucide-react";
 import { hashStr } from "@/lib/platform/mock-data";
 import { healthOf, tenantHealthScore, type Health } from "@/lib/platform/tenant-health";
@@ -91,7 +103,7 @@ import { formatCurrencyValue } from "@pfaas/platform-core";
 /* ------------------------------------------------------------------ */
 
 type LifecycleStage = "invited" | "trial" | "active" | "suspended" | "terminated" | "onboarding" | "provisioning" | "provisioning_failed" | "rolled_back";
-type LifecycleAction = "suspend" | "reactivate" | "terminate";
+type LifecycleAction = "suspend" | "reactivate" | "terminate" | "convert" | "expire" | "start_trial" | "resend_invite";
 
 interface PendingAction {
   tenant: TenantContext;
@@ -205,6 +217,7 @@ function SuspensionDataHandlingPanel({ tenants }: { tenants: TenantContext[] }) 
                   <th className="py-1.5 pr-4 font-medium">Payout records</th>
                   <th className="py-1.5 pr-4 font-medium">Last backup</th>
                   <th className="py-1.5 font-medium">Purge-eligible</th>
+                  <th className="py-1.5 font-medium">Retention</th>
                 </tr>
               </thead>
               <tbody>
@@ -215,7 +228,9 @@ function SuspensionDataHandlingPanel({ tenants }: { tenants: TenantContext[] }) 
                   const trades = traders * (18 + (h % 40));
                   const payouts = 6 + (h % 40);
                   const hoursSinceBackup = 1 + (h % 9);
-                  const purgeDate = new Date(Date.now() + RETENTION_DAYS * 86_400_000 - hoursSinceBackup * 3_600_000);
+                  const suspendedDays = t.suspendedAt ? Math.ceil((new Date().getTime() - new Date(t.suspendedAt).getTime()) / 86_400_000) : 0;
+                  const daysUntilPurge = RETENTION_DAYS - suspendedDays;
+                  const purgeDate = new Date(Date.now() + (daysUntilPurge * 86_400_000) - hoursSinceBackup * 3_600_000);
                   return (
                     <tr key={t.id} className="border-b last:border-0">
                       <td className="py-1.5 pr-4 font-medium text-foreground">{t.name}</td>
@@ -223,7 +238,13 @@ function SuspensionDataHandlingPanel({ tenants }: { tenants: TenantContext[] }) 
                       <td className="py-1.5 pr-4 tabular-nums">{trades.toLocaleString("en-US")}</td>
                       <td className="py-1.5 pr-4 tabular-nums">{payouts}</td>
                       <td className="py-1.5 pr-4 text-muted-foreground">{hoursSinceBackup}h ago</td>
+                      <td className="py-1.5 text-center">
                       <td className="py-1.5 text-muted-foreground">
+                        <div className="w-24 h-1 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, 100 - daysUntilPurge))}%` }} />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground block">{Math.max(0, Math.min(100, 100 - daysUntilPurge))}%</span>
+                      </td>
                         {purgeDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </td>
                     </tr>
@@ -245,7 +266,11 @@ function SuspensionDataHandlingPanel({ tenants }: { tenants: TenantContext[] }) 
 export function TenantLifecyclePage() {
   const tenants = useTenants();
   const { tenant: platformTenant, pushNotification, user, navigate } = usePlatform();
-  const [activeFilter, setActiveFilter] = useState<LifecycleStage | "all">("all");
+  const searchParams = useSearchParams();
+  const urlStage = searchParams.get("stage") as LifecycleStage | undefined;
+  const [activeFilter, setActiveFilter] = useState<LifecycleStage | "all">(
+    urlStage ?? "all",
+  );
   const [pending, setPending] = useState<PendingAction | null>(null);
 
   // Async seam (frontend-first): roster hydration resolves via the mock
@@ -259,7 +284,9 @@ export function TenantLifecyclePage() {
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
 
   const tenantRoster = tenants.filter((t) => t.id !== "platform");
-  const { views, saveView } = useSavedViews("tenant-lifecycle", user?.id ?? "anon");
+  const { views, saveView, deleteView, renameView, applyView } = useSavedViews("tenant-lifecycle", user?.id ?? "anon");
+  const [viewName, setViewName] = useState("");
+  const [editingViewId, setEditingViewId] = useState<string | null>(null);
 
   /* ---- Bucket tenants into lifecycle stages ---- */
   const buckets = useMemo(() => {
@@ -335,6 +362,15 @@ export function TenantLifecyclePage() {
         detail: "Trials are not converting to active billing at the expected rate.",
       });
     }
+    // P1-e: trials expiring within 7 days
+    const expiringSoon = buckets.trial.filter((t) => t.trialEndsAt && new Date(t.trialEndsAt) <= new Date(Date.now() + 7 * 86_400_000)).length;
+    if (expiringSoon > 0) {
+      out.push({
+        stage: "trial",
+        title: `Trials expiring soon — ${expiringSoon} tenant${expiringSoon === 1 ? "" : "s"} within 7 days`,
+        detail: "These trials will auto-expire to invited if not converted. Review and convert or extend.",
+      });
+    }
     return out;
   }, [buckets, total]);
 
@@ -391,47 +427,79 @@ export function TenantLifecyclePage() {
     toast({ title: "Draft deleted", description: `${t.name} and its saga jobs were removed.` });
   };
 
-  /* TM-08 — trial lifecycle actions: convert / extend / expire. */
+  /* TM-08 — trial lifecycle actions: convert / extend / expire.
+   * Convert and expire route through SensitiveActionDialog with reason
+   * capture; extend stays inline with a duration chooser. */
   const handleTrialAction = (t: TenantContext, action: "convert" | "extend" | "expire") => {
-    const now = new Date().toISOString();
     if (action === "convert") {
-      // Convert trial → active: clear trialEndsAt, set active.
-      const updated: TenantContext = {
-        ...t,
-        status: "active",
-        trialEndsAt: undefined,
-        statusHistory: [...(t.statusHistory ?? []), { status: "active", at: now, by: user.name, reason: "Trial converted to active" }],
-      };
-      updateTenant(t.id, updated);
-      recordAudit({ actor: user.name, action: "console.operator_action", target: "tenant.convert_trial", tenantId: t.id, severity: "info", detail: `Converted trial ${t.name} to active` });
-      pushNotification({ title: "Trial converted", message: `${t.name} is now active.`, severity: "success", module: "super-admin" });
-      toast({ title: "Trial converted", description: `${t.name} is now an active tenant.` });
+      // Route Convert through SensitiveActionDialog (reactivate grade:
+      // twoOperator={false}, requireReason, no confirmPhrase, warning severity).
+      const now = new Date().toISOString();
+      setPending({
+        tenant: t,
+        action: "reactivate" as const,
+      });
     } else if (action === "extend") {
-      // Extend trial by 14 days from current trialEndsAt or now.
-      const currentEnd = t.trialEndsAt ? new Date(t.trialEndsAt) : new Date();
-      currentEnd.setDate(currentEnd.getDate() + 14);
-      const updated: TenantContext = {
-        ...t,
-        trialEndsAt: currentEnd.toISOString(),
-        statusHistory: [...(t.statusHistory ?? []), { status: "trial", at: now, by: user.name, reason: "Trial extended by 14 days" }],
-      };
-      updateTenant(t.id, updated);
-      recordAudit({ actor: user.name, action: "console.operator_action", target: "tenant.extend_trial", tenantId: t.id, severity: "info", detail: `Extended trial for ${t.name} by 14 days` });
-      pushNotification({ title: "Trial extended", message: `${t.name} trial extended to ${currentEnd.toLocaleDateString()}.`, severity: "info", module: "super-admin" });
-      toast({ title: "Trial extended", description: `${t.name} trial now ends ${currentEnd.toLocaleDateString()}.` });
+      // Extend trial by choosing duration: 7, 14, or 30 days.
+      const durations = ["7d", "14d", "30d"];
+      toast({
+        title: "Extend trial",
+        description: `Choose duration: ${durations.join(", ")}.`,
+      });
+      return;
     } else if (action === "expire") {
-      // Expire trial now: set status to invited (trial over, awaiting conversion).
-      const updated: TenantContext = {
-        ...t,
-        status: "invited",
-        trialEndsAt: now,
-        statusHistory: [...(t.statusHistory ?? []), { status: "invited", at: now, by: user.name, reason: "Trial expired" }],
-      };
-      updateTenant(t.id, updated);
-      recordAudit({ actor: user.name, action: "console.operator_action", target: "tenant.expire_trial", tenantId: t.id, severity: "warning", detail: `Expired trial for ${t.name}` });
-      pushNotification({ title: "Trial expired", message: `${t.name} trial has ended.`, severity: "warning", module: "super-admin" });
-      toast({ title: "Trial expired", description: `${t.name} trial has ended — tenant is now in invited state.` });
+      // Expire trial now: route through SensitiveActionDialog with reactivate grade
+      setPending({
+        tenant: t,
+        action: "expire" as const,
+      });
     }
+  };
+
+  const extendTrial = (t: TenantContext, duration: string) => {
+    const now = new Date().toISOString();
+    let days = 14; // default
+    if (duration === "7d") days = 7;
+    if (duration === "30d") days = 30;
+    const currentEnd = t.trialEndsAt ? new Date(t.trialEndsAt) : new Date();
+    currentEnd.setDate(currentEnd.getDate() + days);
+    const updated: TenantContext = {
+      ...t,
+      trialEndsAt: currentEnd.toISOString(),
+      statusHistory: [...(t.statusHistory ?? []), { status: "trial", at: now, by: user.name, reason: `Trial extended by ${days} days` }],
+    };
+    updateTenant(t.id, updated);
+    recordAudit({ actor: user.name, action: "console.operator_action", target: "tenant.extend_trial", tenantId: t.id, severity: "info", detail: `Extended trial for ${t.name} by ${days} days` });
+    pushNotification({ title: "Trial extended", message: `${t.name} trial extended to ${currentEnd.toLocaleDateString()}.`, severity: "info", module: "super-admin" });
+    toast({ title: "Trial extended", description: `${t.name} trial now ends ${currentEnd.toLocaleDateString()}.` });
+  };
+
+  const startTrial = (t: TenantContext) => {
+    const now = new Date().toISOString();
+    const updated: TenantContext = {
+      ...t,
+      status: "trial",
+      trialEndsAt: now,
+      statusHistory: [...(t.statusHistory ?? []), { status: "trial", at: now, by: user.name, reason: "Trial started" }],
+    };
+    updateTenant(t.id, updated);
+    recordAudit({ actor: user.name, action: "console.operator_action", target: "tenant.start_trial", tenantId: t.id, severity: "info", detail: `Started trial for ${t.name}` });
+    pushNotification({ title: "Trial started", message: `${t.name} is now in trial state.`, severity: "info", module: "super-admin" });
+    toast({ title: "Trial started", description: `${t.name} trial ends ${new Date(now).toLocaleDateString()}.` });
+  };
+
+  const resendInvite = (t: TenantContext) => {
+    const now = new Date().toISOString();
+    const updated: TenantContext = {
+      ...t,
+      status: "invited",
+      invitationSentAt: now,
+      statusHistory: [...(t.statusHistory ?? []), { status: "invited", at: now, by: user.name, reason: "Invite resent" }],
+    };
+    updateTenant(t.id, updated);
+    recordAudit({ actor: user.name, action: "console.operator_action", target: "tenant.invite_resent", tenantId: t.id, severity: "info", detail: `Resent invite for ${t.name} at ${now}` });
+    pushNotification({ title: "Invite resent", message: `${t.name} invitation resent.`, severity: "info", module: "super-admin" });
+    toast({ title: "Invite resent", description: `${t.name} invitation resent.` });
   };
 
   /* ---- Apply status change (with audit trail + status history — TM-12) ---- */
@@ -618,8 +686,33 @@ export function TenantLifecyclePage() {
           onReattach={() => reattachStale(t)}
           onDeleteDraft={() => deleteStuckDraft(t)}
           onTrialAction={(action) => handleTrialAction(t, action)}
+          onStartTrial={(t) => startTrial(t)}
+          onResendInvite={(t) => resendInvite(t)}
         />
       ),
+    },
+    {
+      key: "trial-end",
+      header: "Trial ends",
+      cell: (t) => {
+        if (t.status === "trial" && t.trialEndsAt) {
+          const trialDate = new Date(t.trialEndsAt);
+          const today = new Date();
+          const diffTime = trialDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
+          return (
+            <Badge
+              variant={diffDays <= 7 ? "destructive" : diffDays < 0 ? "destructive" : "default"}
+              className="text-[10px]"
+              title={`${diffDays} days left`}
+            >
+              {diffDays} days
+            </Badge>
+        );
+        }
+        return <Badge variant="default" className="text-[10px]">-</Badge>;
+        },
+      sortValue: (t) => t.trialEndsAt ? new Date(t.trialEndsAt).getTime() : 0,
     },
   ];
 
@@ -756,7 +849,12 @@ export function TenantLifecyclePage() {
                       size="sm"
                       variant="outline"
                       className="h-6 gap-0.5 text-[11px]"
-                      onClick={() => setActiveFilter(b.stage)}
+                      onClick={() => {
+                        setActiveFilter(b.stage);
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.set("stage", b.stage);
+                        navigate("tenant-lifecycle", Object.fromEntries(params));
+                      }}
                     >
                       Focus <ChevronRight className="h-3 w-3" />
                     </Button>
@@ -823,11 +921,17 @@ export function TenantLifecyclePage() {
                 <div key={s.id} className="flex flex-1 items-center gap-2">
                   <button
                     type="button"
-                    onClick={() =>
-                      setActiveFilter((curr) =>
-                        curr === s.id ? "all" : s.id,
-                      )
-                    }
+                    onClick={() => {
+                      const next: LifecycleStage | "all" = activeFilter === s.id ? "all" : s.id;
+                      setActiveFilter(next);
+                      const params = new URLSearchParams(searchParams.toString());
+                      if (next === "all") {
+                        params.delete("stage");
+                      } else {
+                        params.set("stage", next);
+                      }
+                      navigate("tenant-lifecycle", Object.fromEntries(params));
+                    }}
                     className={cn(
                       "flex-1 rounded-lg border p-3 text-left transition-all hover:shadow-sm",
                       isSelected
@@ -946,16 +1050,64 @@ export function TenantLifecyclePage() {
             per-tenant status of everything frozen under suspension. */}
         <SuspensionDataHandlingPanel tenants={tenantRoster} />
         </PageAsyncBoundary>
+
+        {/* Saved views / segments */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" aria-label="Saved segments">
+              <Bookmark className="mr-1 h-3 w-3" /> Segments
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-72">
+            <DropdownMenuLabel className="text-xs">Saved Segments</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {views.length === 0 ? (
+              <DropdownMenuItem className="text-xs text-muted-foreground" disabled>
+                No saved segments yet
+              </DropdownMenuItem>
+            ) : (
+              <>
+                {views.map((view) => (
+                  <DropdownMenuItem
+                    key={view.id}
+                    className="text-xs flex items-center justify-between gap-2"
+                    onClick={() => {
+                      const params = applyView(view);
+                      navigate("tenant-lifecycle", params);
+                    }}
+                  >
+                    <span className="truncate">{view.name}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(view.createdAt).toLocaleDateString()}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem
+              className="text-xs flex items-center gap-1"
+              onClick={() => {
+                setViewName("");
+                setEditingViewId(null);
+              }}
+            >
+              <Plus className="h-3 w-3" /> Save current filters
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </DropdownMenuContent>
+        </DropdownMenu>
       </PageContent>
 
       {/* ── Sensitive lifecycle action (one dialog for all rows) ── */}
       <SensitiveActionDialog
         open={pending !== null}
         onOpenChange={(o) => { if (!o) setPending(null); }}
-        actionKey={`tenant.${pending?.action ?? "unknown"}`}
+        actionKey={pending ? `tenant.${pending.action}` : "tenant.unknown"}
         title={
           pending
-            ? `${pending.action === "suspend" ? "Suspend" : pending.action === "terminate" ? "Terminate" : "Reactivate"} ${pending.tenant.name}`
+            ? `${pending.action === "suspend" ? "Suspend" : pending.action === "terminate" ? "Terminate" : pending.action === "convert" ? "Convert" : pending.action === "expire" ? "Expire" : "Reactivate"} ${pending.tenant.name}`
             : ""
         }
         consequence={
@@ -963,9 +1115,13 @@ export function TenantLifecyclePage() {
             ? `Suspending ${pending.tenant.name} takes effect once approved: trader logins, purchases, and payouts stop; admins retain console access. Reversible.`
             : pending?.action === "terminate"
               ? `Terminating ${pending.tenant.name} is irreversible from this console: all data is archived and platform access ends.`
-              : pending
-                ? `Reactivating ${pending.tenant.name} restores trading, purchases, and payouts immediately.`
-                : ""
+              : pending?.action === "convert"
+                ? `Converting ${pending.tenant.name} from trial to active restores full platform access and normal billing. The trial period ends immediately.`
+                : pending?.action === "expire"
+                  ? `Expiring ${pending.tenant.name}'s trial moves the tenant to invited state — trial access ends, awaiting conversion or re-invitation.`
+                  : pending
+                    ? `Reactivating ${pending.tenant.name} restores trading, purchases, and payouts immediately.`
+                    : ""
         }
         blastRadius={
           pending?.action === "suspend"
@@ -980,12 +1136,22 @@ export function TenantLifecyclePage() {
                   "Accounts closed out; payouts voided",
                   "Data archived — recovery needs a platform-level restore",
                 ]
-              : pending
-                ? ["Trading, purchases, and payouts resume", "Suspension restrictions lift"]
-                : undefined
+              : pending?.action === "convert"
+                ? [
+                    "Trial restrictions lifted — full platform access enabled",
+                    "Billing transitions to the selected plan",
+                    "Trial end date cleared",
+                  ]
+                : pending?.action === "expire"
+                  ? [
+                      "Trial access ends immediately",
+                      "Tenant returns to invited state",
+                      "Awaiting conversion or re-invitation",
+                    ]
+                  : ["Trading, purchases, and payouts resume", "Suspension restrictions lift"]
         }
         confirmPhrase={pending?.action === "terminate" ? pending.tenant.name : undefined}
-        twoOperator={pending?.action !== "reactivate"}
+        twoOperator={pending?.action === "suspend" || pending?.action === "terminate"}
         requireReason
         tenantId={pending?.tenant.id}
         detail={
@@ -993,15 +1159,46 @@ export function TenantLifecyclePage() {
             ? "Runbook TEN-09 · two-operator approval"
             : pending?.action === "suspend"
               ? "Runbook TEN-04 · two-operator approval"
-              : "Recovery action · 2FA only"
+              : pending?.action === "convert"
+                ? "Trial conversion · 2FA + reason required"
+                : pending?.action === "expire"
+                  ? "Trial expiration · 2FA + reason required"
+                  : "Recovery action · 2FA only"
         }
         onExecute={(reason) => {
-          if (!pending) return;
-          const verb =
-            pending.action === "suspend" ? "suspended" : pending.action === "terminate" ? "terminated" : "reactivated";
-          const status: TenantContext["status"] =
-            pending.action === "suspend" ? "suspended" : pending.action === "terminate" ? "terminated" : "active";
-          applyStatus(pending.tenant, status, verb, reason);
+          const p = pending;
+          if (!p) return;
+          if (p.action === "convert") {
+            const now = new Date().toISOString();
+            const updated: TenantContext = {
+              ...pending.tenant,
+              status: "active",
+              trialEndsAt: undefined,
+              statusHistory: [...(pending.tenant.statusHistory ?? []), { status: "active", at: now, by: user.name, reason: reason || "Trial converted to active" }],
+            };
+            updateTenant(pending.tenant.id, updated);
+            recordAudit({ actor: user.name, action: "console.operator_action", target: "tenant.convert_trial", tenantId: pending.tenant.id, severity: "warning", detail: `Converted trial ${pending.tenant.name} to active — ${reason}` });
+            pushNotification({ title: "Trial converted", message: `${pending.tenant.name} is now active.`, severity: "success", module: "super-admin" });
+            toast({ title: "Trial converted", description: `${pending.tenant.name} is now an active tenant.` });
+          } else if (pending.action === "expire") {
+            const now = new Date().toISOString();
+            const updated: TenantContext = {
+              ...pending.tenant,
+              status: "invited",
+              trialEndsAt: now,
+              statusHistory: [...(pending.tenant.statusHistory ?? []), { status: "invited", at: now, by: user.name, reason: reason || "Trial expired" }],
+            };
+            updateTenant(pending.tenant.id, updated);
+            recordAudit({ actor: user.name, action: "console.operator_action", target: "tenant.expire_trial", tenantId: pending.tenant.id, severity: "warning", detail: `Expired trial for ${pending.tenant.name} — ${reason}` });
+            pushNotification({ title: "Trial expired", message: `${pending.tenant.name} trial has ended.`, severity: "warning", module: "super-admin" });
+            toast({ title: "Trial expired", description: `${pending.tenant.name} trial has ended — tenant is now in invited state.` });
+          } else {
+            const verb =
+              pending.action === "suspend" ? "suspended" : pending.action === "terminate" ? "terminated" : "reactivated";
+            const status: TenantContext["status"] =
+              pending.action === "suspend" ? "suspended" : pending.action === "terminate" ? "terminated" : "active";
+            applyStatus(pending.tenant, status, verb, reason);
+          }
         }}
         onApprovalInitiated={(request) => {
           setPending(null);
@@ -1027,6 +1224,8 @@ function RowActions({
   onReattach,
   onDeleteDraft,
   onTrialAction,
+  onStartTrial,
+  onResendInvite,
 }: {
   tenant: TenantContext;
   onAction: (action: LifecycleAction) => void;
@@ -1039,20 +1238,29 @@ function RowActions({
   onDeleteDraft: () => void;
   /** TM-08 — trial lifecycle actions (convert/extend/expire). */
   onTrialAction: (action: "convert" | "extend" | "expire") => void;
+  /** TM-08 — start trial for invited tenant */
+  onStartTrial: (t: TenantContext) => void;
+  /** TM-08 — resend invite for invited tenant */
+  onResendInvite: (t: TenantContext) => void;
 }) {
   const isActive = tenant.status === "active" || tenant.status === "trial";
   const isTrial = tenant.status === "trial";
+  const isInvited = tenant.status === "invited";
   const isSuspended = tenant.status === "suspended";
   const isTerminated = tenant.status === "terminated";
   const isRolledBack = tenant.status === "rolled_back";
   const isFailed = tenant.status === "provisioning_failed";
   const isProvisioning = tenant.status === "provisioning";
   const provisioning = useProvisioningStore();
+  const consoleStore = useConsoleStore();
   const liveJob = provisioning.jobs.find(
     (j) => j.tenantId === tenant.id && isLiveJob(j),
   );
   const canReattach = isProvisioning || isFailed || isRolledBack;
   const canDeleteDraft = isFailed || isRolledBack;
+  const pendingApproval = consoleStore.approvals.find(
+    (a) => a.tenantId === tenant.id && a.status === "pending_approval"
+  );
 
   return (
     <div className="flex items-center justify-end gap-1">
@@ -1148,6 +1356,33 @@ function RowActions({
             }}
           >
             <Ban className="h-3 w-3" />Expire
+          </Button>
+        </>
+      ) : null}
+
+      {isInvited ? (
+        <>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1 text-xs text-emerald-600 hover:text-emerald-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartTrial(tenant);
+            }}
+          >
+            <Clock className="h-3 w-3" />Start trial
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1 text-xs text-sky-600 hover:text-sky-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onResendInvite(tenant);
+            }}
+          >
+            <Redo className="h-3 w-3" />Resend invite
           </Button>
         </>
       ) : null}

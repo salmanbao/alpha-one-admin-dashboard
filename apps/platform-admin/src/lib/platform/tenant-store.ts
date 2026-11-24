@@ -182,6 +182,33 @@ export function applyDueScheduledPlans(): TenantContext[] {
   return tenantState;
 }
 
+/** P1-e: Sweep expired trials → invited (mirrors applyDueScheduledPlans pattern).
+ * Audits tenant.trial_expired_auto and returns updated tenants. */
+export function applyDueTrials(): TenantContext[] {
+  const now = new Date();
+  let changed = false;
+  const next: TenantContext[] = tenantState.map((t): TenantContext => {
+    if (t.status === "trial" && t.trialEndsAt && new Date(t.trialEndsAt) <= now) {
+      changed = true;
+      return {
+        ...t,
+        status: "invited" as const,
+        trialEndsAt: t.trialEndsAt,
+        statusHistory: [
+          ...(t.statusHistory ?? []),
+          { status: "invited" as const, at: now.toISOString(), by: "system", reason: "Trial expired automatically" },
+        ],
+      };
+    }
+    return t;
+  });
+  if (changed) {
+    tenantState = next;
+    notify();
+  }
+  return tenantState;
+}
+
 /* ------------------------------------------------------------------ */
 /* Data residency types (from residency report)                          */
 /* ------------------------------------------------------------------ */
