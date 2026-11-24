@@ -21,3 +21,18 @@ node_modules/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Build artifacts
+.next/
+.nextjs/
+dist/
+build/
+*.tsbuildinfo
+.next-env.d.ts
+
+# Configuration files
+.omg/
+.stitch_screens/
+
+# Test harness artifacts
+*.playwright-mcp/
