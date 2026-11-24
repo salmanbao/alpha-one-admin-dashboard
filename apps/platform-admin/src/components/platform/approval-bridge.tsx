@@ -16,6 +16,7 @@ import { applyApiKeyApproval } from "@/lib/platform/api-key-store";
 import { applyStaffApproval } from "@/lib/platform/staff-store";
 import { applyOperatorApproval } from "@/lib/platform/platform-context";
 import { applyPlatformApproval } from "@/lib/platform/deployments-store";
+import { applyTenantApproval } from "@/lib/platform/tenant-approvals";
 
 registerApprovalHandler("role.", applyRoleApproval);
 registerApprovalHandler("apikey.", applyApiKeyApproval);
@@ -24,6 +25,8 @@ registerApprovalHandler("staff.", applyStaffApproval);
 registerApprovalHandler("operator.", applyOperatorApproval);
 // P0-4: deployment rollback via two-operator approval.
 registerApprovalHandler("platform.", applyPlatformApproval);
+// P0-2 (offboarding): tenant-domain two-operator mutations
+registerApprovalHandler("tenant.", applyTenantApproval);
 
 export function ApprovalBridge() {
   useApprovalApplier();

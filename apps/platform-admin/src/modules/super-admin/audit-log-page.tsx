@@ -56,6 +56,7 @@ import {
   Rocket,
   Plug,
   Gauge,
+  RotateCcw,
 } from "lucide-react";
 
 // Demo audit events
@@ -78,6 +79,10 @@ const actionIcons: Record<string, React.ComponentType<{ className?: string }>> =
   "tenant.update": Edit2,
   "tenant.create": Plus,
   "tenant.delete": Trash2,
+  // P2-2 (offboarding): tenant-domain action glyphs
+  "tenant.export": Download,
+  "tenant.purge": Trash2,
+  "tenant.restore": RotateCcw,
   "user.suspend": ShieldAlert,
   "user.activate": CheckCircle2,
   "billing.payout": DollarSign,
@@ -108,6 +113,10 @@ const actionColors: Record<string, string> = {
   "tenant.update": "#4a7c59",
   "tenant.create": "#4a7c59",
   "tenant.delete": "#b83230",
+  // P2-2 (offboarding): tenant-domain action colors
+  "tenant.export": "#4a4e4a",
+  "tenant.purge": "#b83230",
+  "tenant.restore": "#4a7c59",
   "user.suspend": "#d97706",
   "user.activate": "#059669",
   "billing.payout": "#705c30",

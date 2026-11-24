@@ -160,6 +160,12 @@ export interface TenantContext {
   suspendedAt?: string;
   terminatedAt?: string;
   /**
+   * P0-2 (offboarding): when the tenant's purge has been scheduled
+   * by an approved two-operator mutation; populated from
+   * purgeEligibleAt → terminatedAt/suspendedAt + RETENTION_DAYS.
+   */
+  purgeScheduledFor?: string;
+  /**
    * R13 TM-18 — commercial and organizational layer.
    */
   contract?: {
