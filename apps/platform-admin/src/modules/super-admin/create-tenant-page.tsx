@@ -10,18 +10,52 @@
  * per step (§22), warm Terra palette only (§6).
  *
  * On Create: builds a new TenantContext, persists it to global context
- * via registerTenant (no context hijack), fires a success toast, and navigates to the new
- * tenant's detail page.
+ * via registerTenant (no context hijack), records a `tenant.create` audit
+ * row, fires one notification + one toast, and navigates to the live
+ * provisioning saga view.
+ *
+ * Resilience (create-tenant report, P1/P2):
+ *   • every field is autosaved to `pfaas:createTenantDraft` — a refresh
+ *     offers Resume / Discard instead of silently losing 5 steps;
+ *   • Cancel and Discard confirm when the form is dirty (§17 state-first);
+ *   • Create is idempotent: `isSubmitting` blocks double-clicks, the
+ *     generated tenant id is held in a ref so a failed saga start can be
+ *     retried without a second roster entry;
+ *   • `?view=create-tenant&template={starter|growth|full|enterprise}`
+ *     opens the wizard pre-filled from the shared template list.
+ *
+ * Follow-up (out of scope here, see create-tenant report P2-10): the
+ * lifecycle's `invited` / `trial` entry states have no creation flow — a
+ * "Create invite / trial" variant of this wizard is a separate round.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { moduleRegistry } from "@/lib/platform/module-registry";
-import { tenantModuleCatalog } from "@/lib/platform/module-catalog";
 import type { TenantContext } from "@/lib/platform/types";
 import { startProvisioning } from "@/lib/platform/provisioning-saga";
 import { openRun, stampStage, finishRun } from "@/lib/platform/onboarding-runs-store";
 import { readTenants } from "@/lib/platform/tenant-store";
+import { readPlans, usePlans } from "@/lib/platform/plan-catalog-store";
+import { recordAudit } from "@/lib/platform/console-store";
+import { formatCurrency } from "@/components/platform/status";
+import { CURRENCIES } from "@/lib/platform/currency";
+import { TENANT_REGIONS, regionLabel } from "@/lib/platform/regions";
+import { deriveEnabledFeatures, deriveModuleRollout } from "@/lib/platform/tenant-features";
+import {
+  COLOR_PRESETS,
+  CORE_MODULE_IDS,
+  TENANT_TEMPLATES,
+  tenantTemplateById,
+  type TenantTemplate,
+} from "@/lib/platform/tenant-templates";
+import {
+  clearDraft,
+  CREATE_TENANT_DRAFT_VERSION,
+  loadDraft,
+  saveDraft,
+  type CreateTenantDraft,
+} from "@/lib/platform/create-tenant-draft";
 import { Page, PageHeader, PageContent } from "@/components/platform/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +64,16 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -53,9 +97,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   ChevronDown,
-  Megaphone,
-  ShieldCheck,
-  Target,
+  History,
+  Loader2,
+  Lock,
   Eraser,
   type LucideIcon,
 } from "lucide-react";
@@ -72,35 +116,59 @@ const STEPS: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "review", label: "Review", icon: ScrollText },
 ];
 
-const COLOR_PRESETS = [
-  { name: "Forest", primary: "#4a7c59", accent: "#705c30", surface: "#f5efe6" },
-  { name: "Sage", primary: "#5a7c4a", accent: "#8a6d30", surface: "#f5efe6" },
-  { name: "Deep Green", primary: "#4a6c59", accent: "#705c30", surface: "#f5efe6" },
-  { name: "Golden Brown", primary: "#705c30", accent: "#4a7c59", surface: "#f5efe6" },
-  { name: "Warm Taupe", primary: "#8a7560", accent: "#4a7c59", surface: "#f5efe6" },
-  { name: "Slate Green", primary: "#5a7060", accent: "#705c30", surface: "#f5efe6" },
-];
-
-const CORE_MODULE_IDS = ["trading", "challenges", "risk", "payouts", "settings"];
-
-const PLAN_COST: Record<TenantContext["plan"], string> = {
-  starter: "$890/mo",
-  growth: "$1,900/mo",
-  scale: "$4,900/mo",
-  enterprise: "Custom",
-};
-
+/**
+ * Reporting timezones offered at create. The wizard previously shipped
+ * nine; the list now covers the desks that actually run prop firms
+ * across regions (create-tenant report, P2-9).
+ */
 const TIMEZONES = [
   "UTC",
   "America/New_York",
   "America/Chicago",
+  "America/Denver",
   "America/Los_Angeles",
+  "America/Sao_Paulo",
   "Europe/London",
+  "Europe/Paris",
   "Europe/Berlin",
+  "Europe/Madrid",
+  "Europe/Istanbul",
+  "Africa/Cairo",
   "Asia/Dubai",
+  "Asia/Karachi",
+  "Asia/Kolkata",
   "Asia/Singapore",
+  "Asia/Tokyo",
   "Australia/Sydney",
 ];
+
+/**
+ * Tenant shell locales (create-tenant report, P2-9) — `locale` used to be
+ * hardcoded to `en-US` at create even though `TenantContext.locale`
+ * exists and the seed roster ships `en-GB` too.
+ */
+const LOCALES = [
+  { id: "en-US", label: "English (US)" },
+  { id: "en-GB", label: "English (UK)" },
+  { id: "de-DE", label: "German" },
+  { id: "fr-FR", label: "French" },
+  { id: "es-ES", label: "Spanish" },
+  { id: "pt-BR", label: "Portuguese (Brazil)" },
+  { id: "ar-AE", label: "Arabic" },
+  { id: "tr-TR", label: "Turkish" },
+  { id: "ja-JP", label: "Japanese" },
+];
+
+/**
+ * Plan → entitlement `supportTier` (lowercase; the detail header
+ * capitalizes it and falls back to "standard").
+ */
+const SUPPORT_TIER_BY_PLAN: Record<TenantContext["plan"], string> = {
+  starter: "standard",
+  growth: "priority",
+  scale: "dedicated",
+  enterprise: "premium",
+};
 
 /* ------------------------------------------------------------------ */
 /* Wizard state                                                       */
@@ -113,6 +181,8 @@ interface WizardState {
   plan: TenantContext["plan"];
   currency: string;
   timezone: string;
+  /** Tenant shell locale (P2-9) — was hardcoded to `en-US` at create. */
+  locale: string;
   // Branding
   primaryColor: string;
   accentColor: string;
@@ -125,10 +195,14 @@ interface WizardState {
   // Admin user
   adminEmail: string;
   adminName: string;
+  /**
+   * Owner / primary contact (P0-1). No input used to update these, so
+   * every wizard-created tenant got `owner: ""`. They now derive from the
+   * admin unless the operator opens "Owner differs from admin?".
+   */
   owner?: string;
   ownerEmail?: string;
-  moduleRollout?: Record<string, number>;
-  // Price override settings
+  // Price override settings (P2-4 — un-deadened, editable on Review).
   priceOverride?: number;  // Custom price to override plan base price
   discountPct?: number;   // Discount percentage (0-100) to apply on top
   // SSO (AUTH-24/25) — when contracted, saga sub-step 3a runs.
@@ -144,6 +218,7 @@ const INITIAL_STATE: WizardState = {
   plan: "growth",
   currency: "USD",
   timezone: "UTC",
+  locale: "en-US",
   primaryColor: "#4a7c59",
   accentColor: "#705c30",
   surfaceColor: "#f5efe6",
@@ -155,7 +230,6 @@ const INITIAL_STATE: WizardState = {
   adminName: "",
   owner: "",
   ownerEmail: "",
-  moduleRollout: {},
   // Price override defaults
   priceOverride: 0,  // 0 = use plan base price
   discountPct: 0,   // 0% discount on base price
@@ -166,106 +240,12 @@ const INITIAL_STATE: WizardState = {
 /* ------------------------------------------------------------------ */
 /* Templates (audit B #10) — one click to a sane starting config.      */
 /*                                                                     */
-/* Every template prefills plan, branding, module set and (optionally) */
-/* identity so the wizard starts from a real firm profile instead of a */
-/* blank form. Module sets are derived from the module catalog — never */
-/* hardcoded here — so adding a module to the catalog automatically     */
-/* reaches the "everything on" template. All fields stay editable.      */
+/* Moved to lib/platform/tenant-templates.ts (create-tenant report,    */
+/* P2-6): the wizard is no longer the only consumer — `?template=`     */
+/* deep links and future Tenants-screen entry points resolve the SAME  */
+/* list, so the presets cannot drift. COLOR_PRESETS / CORE_MODULE_IDS  */
+/* live there too and are re-imported below. All fields stay editable. */
 /* ------------------------------------------------------------------ */
-
-/** Every tenant-facing module the platform ships (from the catalog). */
-const ALL_MODULE_IDS = tenantModuleCatalog.map((m) => m.manifest.id);
-
-/** Core modules every firm needs, plus the growth stack for acquisition. */
-const GROWTH_MODULE_IDS = [
-  ...CORE_MODULE_IDS,
-  "analytics",
-  "affiliates",
-  "marketing",
-  "crm",
-  "support",
-];
-
-interface TenantTemplate {
-  id: string;
-  label: string;
-  /** One-line "who this is for" — shown under the chips. */
-  blurb: string;
-  icon: LucideIcon;
-  patch: Partial<WizardState>;
-}
-
-const TENANT_TEMPLATES: TenantTemplate[] = [
-  {
-    id: "starter",
-    label: "Starter firm",
-    blurb: "Lean launch: core trading, challenges, risk, payouts and settings on the Starter plan.",
-    icon: Target,
-    patch: {
-      name: "Acme Trading",
-      slug: "acme-trading",
-      initials: "AT",
-      plan: "starter",
-      tagline: "Trade smart, fund faster.",
-      primaryColor: COLOR_PRESETS[1].primary,
-      accentColor: COLOR_PRESETS[1].accent,
-      surfaceColor: COLOR_PRESETS[1].surface,
-      enabledModules: [...CORE_MODULE_IDS],
-    },
-  },
-  {
-    id: "growth",
-    label: "Growth firm",
-    blurb: "Adds analytics, affiliates, marketing, CRM and support — for firms actively acquiring traders.",
-    icon: Megaphone,
-    patch: {
-      name: "Northwind Capital",
-      slug: "northwind-capital",
-      initials: "NC",
-      plan: "growth",
-      tagline: "Funded traders, faster.",
-      primaryColor: COLOR_PRESETS[0].primary,
-      accentColor: COLOR_PRESETS[0].accent,
-      surfaceColor: COLOR_PRESETS[0].surface,
-      enabledModules: [...GROWTH_MODULE_IDS],
-    },
-  },
-  {
-    id: "full",
-    label: "Full platform",
-    blurb: "Every module from the catalog enabled — enterprise-style operation with compliance and AI.",
-    icon: Package,
-    patch: {
-      name: "Vertex Markets",
-      slug: "vertex-markets",
-      initials: "VM",
-      plan: "scale",
-      tagline: "Institutional-grade prop trading.",
-      primaryColor: COLOR_PRESETS[3].primary,
-      accentColor: COLOR_PRESETS[3].accent,
-      surfaceColor: COLOR_PRESETS[3].surface,
-      enabledModules: [...ALL_MODULE_IDS],
-    },
-  },
-  {
-    id: "enterprise",
-    label: "Enterprise + SSO",
-    blurb: "Full module set on the Enterprise plan with contracted SSO (provisioning sub-step 3a runs).",
-    icon: ShieldCheck,
-    patch: {
-      name: "Meridian Global",
-      slug: "meridian-global",
-      initials: "MG",
-      plan: "enterprise",
-      tagline: "Global desk, single sign-on.",
-      primaryColor: COLOR_PRESETS[5].primary,
-      accentColor: COLOR_PRESETS[5].accent,
-      surfaceColor: COLOR_PRESETS[5].surface,
-      enabledModules: [...ALL_MODULE_IDS],
-      contractSso: true,
-    },
-  },
-];
 
 /* ------------------------------------------------------------------ */
 /* Business-model personalization (audit B #6) — per-template tips   */
@@ -336,6 +316,15 @@ function initialsFromName(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+/**
+ * The tenant's resolved domain — previewed under the slug, shown on the
+ * Review card, and written to `TenantContext.domain`. Assigned by the
+ * saga at its DNS step; there is no availability check at create time.
+ */
+function domainFor(slug: string): string {
+  return `${slug}.${slug}1.io`;
+}
+
 const REQUIRED_ASTERISK = <span className="text-rose-500" aria-hidden>*</span>;
 
 /** Why is the current step's Next button disabled? (audit #3 fix #5) */
@@ -383,7 +372,7 @@ const STEP_GUIDANCE: Array<{ title: string; tips: string[] }> = [
   {
     title: "Modules — what the firm can access",
     tips: [
-      "Core modules (trading, challenges, risk, payouts, settings) are pre-selected and required.",
+      "Core modules (trading, challenges, risk, payouts, settings) are pre-selected and locked — every tenant needs them to operate.",
       "Enable marketing/affiliates only if the firm runs acquisition programs — unused modules add dashboard noise.",
       "You can grant more modules later from the tenant detail page without reprovisioning.",
     ],
@@ -437,12 +426,13 @@ function preflightChecks(state: WizardState): Array<{ ok: boolean; label: string
       ? "Slug starts with a placeholder word — traders will see it in URLs."
       : undefined,
   });
+  const missingCore = CORE_MODULE_IDS.filter((id) => !state.enabledModules.includes(id));
   checks.push({
-    ok: state.enabledModules.length >= 5,
+    ok: missingCore.length === 0,
     label: "All core modules enabled",
     fix:
-      state.enabledModules.length < 5
-        ? "Firms need trading, challenges, risk, payouts, and settings to operate."
+      missingCore.length > 0
+        ? `Firms need trading, challenges, risk, payouts and settings to operate — missing ${missingCore.join(", ")}.`
         : undefined,
   });
   checks.push({
@@ -473,6 +463,17 @@ function preflightChecks(state: WizardState): Array<{ ok: boolean; label: string
     fix:
       state.currency === "USD" && state.timezone === "UTC"
         ? "Defaults kept — confirm UTC is right for the firm's daily-loss reset."
+        : undefined,
+  });
+  // Residency vs pricing sanity — an EU pin invoiced in USD usually means
+  // the operator picked the wrong side of the form.
+  const euPinned = (state.region ?? "").startsWith("eu-");
+  checks.push({
+    ok: !euPinned || state.currency === "EUR",
+    label: "Region & pricing currency agree",
+    fix:
+      euPinned && state.currency !== "EUR"
+        ? `Data pinned to ${state.region} but invoiced in ${state.currency} — confirm FX exposure is intended.`
         : undefined,
   });
   return checks;
@@ -517,12 +518,60 @@ function FieldRow({
   );
 }
 
+/**
+ * Confirmation for work-destroying actions (§17 state-first): the dialog
+ * states the consequence and the choice is explicit. Controlled so one
+ * surface can gate both Cancel and Discard-draft without a trigger button
+ * living inside the dialog.
+ */
+function ConfirmAction({
+  open,
+  onOpenChange,
+  title,
+  description,
+  confirmLabel,
+  onConfirm,
+  destructive,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  destructive?: boolean;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep editing</AlertDialogCancel>
+          <AlertDialogAction
+            className={
+              destructive
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                : undefined
+            }
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Component                                                          */
 /* ------------------------------------------------------------------ */
 
 export function CreateTenantPage() {
-  const { navigate, registerTenant, pushNotification, user } = usePlatform();
+  const { navigate, registerTenant, pushNotification, user, router } = usePlatform();
   const [state, setState] = useState<WizardState>(INITIAL_STATE);
   const [step, setStep] = useState(0);
   // Audit B #10 — which template (if any) seeded the current state. Purely
@@ -531,11 +580,104 @@ export function CreateTenantPage() {
   // starting point of the form in front of them.
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
 
+  /* ---- Draft persistence (create-tenant report, P1-3) ---- */
+  /** A draft found on mount — Resume / Discard is answered first, so the
+   *  autosave never overwrites a prompt the operator hasn't seen. */
+  const [pendingDraft, setPendingDraft] = useState<CreateTenantDraft<WizardState> | null>(null);
+  /** Timestamp of the last successful autosave — drives the status chip. */
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  /** Single confirm surface for the two "throw this work away" moments. */
+  const [confirming, setConfirming] = useState<null | "cancel" | "discard-draft">(null);
+
+  /* ---- Create guard (create-tenant report, P2-3) ---- */
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  /** The generated tenant id survives a failed create so a retry
+   *  re-registers the SAME roster entry instead of orphaning a second. */
+  const pendingIdRef = useRef<string | null>(null);
+  /** `finishRun` / `recordAudit` fire once per create, even across retries. */
+  const runClosedRef = useRef(false);
+  const auditLoggedRef = useRef(false);
+
+  const isDirty = useMemo(
+    () => JSON.stringify(state) !== JSON.stringify(INITIAL_STATE),
+    [state],
+  );
+
   // UC-P3 — open a time-to-value run so stage entries stamp; an
   // unfinished run resumes with its original startedAt instead.
+  // Mount also resolves the `?template=` deep link (P2-5). A stored draft
+  // only becomes the Resume/Discard prompt when no template was asked for
+  // — an explicit deep link is a deliberate fresh start.
   useEffect(() => {
     openRun("create-tenant");
-  }, []);
+    const deepLinked = tenantTemplateById(router.params.template);
+    if (deepLinked) {
+      setState((s) => ({ ...s, ...deepLinked.patch }));
+      setActiveTemplate(deepLinked.id);
+      return;
+    }
+    const stored = loadDraft<WizardState>();
+    if (stored && JSON.stringify(stored.state) !== JSON.stringify(INITIAL_STATE)) {
+      setPendingDraft(stored);
+    }
+  }, [router.params.template]);
+
+  // Debounced autosave — a refresh must never cost the operator their
+  // configuration. Best-effort: `saveDraft` swallows storage failures so
+  // typing never breaks in private-mode / quota-exhausted browsers.
+  useEffect(() => {
+    if (!isDirty || pendingDraft) return;
+    const timer = window.setTimeout(() => {
+      const savedAt = new Date().toISOString();
+      saveDraft<WizardState>({
+        version: CREATE_TENANT_DRAFT_VERSION,
+        state,
+        step,
+        activeTemplate,
+        savedAt,
+      });
+      setDraftSavedAt(savedAt);
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [state, step, activeTemplate, isDirty, pendingDraft]);
+
+  // Unsaved-changes guard for refresh / tab close (§17 state-first).
+  useEffect(() => {
+    if (!isDirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty]);
+
+  const resumeDraft = () => {
+    if (!pendingDraft) return;
+    setState(pendingDraft.state);
+    setStep(Math.min(Math.max(pendingDraft.step, 0), STEPS.length - 1));
+    setActiveTemplate(pendingDraft.activeTemplate);
+    setDraftSavedAt(pendingDraft.savedAt);
+    setPendingDraft(null);
+    toast({
+      title: "Draft resumed",
+      description: `${pendingDraft.state.name || "Untitled tenant"} — step ${pendingDraft.step + 1} of ${STEPS.length}.`,
+    });
+  };
+
+  const discardDraft = () => {
+    clearDraft();
+    setDraftSavedAt(null);
+    setPendingDraft(null);
+    setConfirming(null);
+    // Reset the form too: a dirty state would re-trigger the debounced
+    // autosave (or resurrect it if a timer was already pending), bringing
+    // the just-discarded draft straight back.
+    setState(INITIAL_STATE);
+    setStep(0);
+    setActiveTemplate(null);
+  };
 
   const applyTemplate = (t: TenantTemplate) => {
     setState((s) => ({ ...s, ...t.patch }));
@@ -591,78 +733,175 @@ export function CreateTenantPage() {
 
   /* ---- Create tenant ---- */
   const createTenant = () => {
-    const id = `tenant-${state.slug}-${Math.random().toString(36).slice(2, 6)}`;
-    const newTenant: TenantContext = {
-      id,
-      slug: state.slug,
-      name: state.name,
-      application: "prop-admin",
-      domain: `${state.slug}.${state.slug}1.io`,
-      subdomain: state.slug,
-      branding: {
+    // Double-click guard (P2-3) — a second click before navigation would
+    // race the roster write and the saga start.
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      // Idempotency: reuse the id generated by a previous failed attempt
+      // so a retry cannot orphan a second roster entry (`addTenant` is a
+      // no-op for an id that already exists).
+      const id =
+        pendingIdRef.current ??
+        `tenant-${state.slug}-${Math.random().toString(36).slice(2, 6)}`;
+      pendingIdRef.current = id;
+
+      const actor = user?.name ?? "Console operator";
+      // P0-1 — owner never lands empty: it derives from the first admin
+      // unless the operator set a different owner on the Admin step.
+      const owner = state.owner?.trim() || state.adminName;
+      const ownerEmail = state.ownerEmail?.trim() || state.adminEmail;
+      const createdAt = new Date().toISOString();
+      // P1-2 — structural parity with the seed roster: feature flags
+      // implied by the module selection, full rollout per enabled module.
+      const enabledFeatures = deriveEnabledFeatures(state.enabledModules);
+      const moduleRollout = deriveModuleRollout(state.enabledModules);
+      const planDef = readPlans().find((p) => p.id === state.plan);
+
+      const newTenant: TenantContext = {
+        id,
+        slug: state.slug,
         name: state.name,
-        tagline: state.tagline,
-        logoUrl: state.logoUrl || undefined,
-        initials: state.initials.toUpperCase(),
-        primaryColor: state.primaryColor,
-        accentColor: state.accentColor,
-        surfaceColor: state.surfaceColor,
-        radius: state.radius,
-      },
-      locale: "en-US",
-      timezone: state.timezone,
-      currency: state.currency,
-      enabledModules: state.enabledModules,
-      enabledFeatures: [],
-      terminology: {},
-      plan: state.plan,
-      owner: state.owner,
-      ownerEmail: state.ownerEmail,
-      moduleRollout: state.moduleRollout ?? {},
-      status: "provisioning",
-      createdAt: new Date().toISOString(),
-      // TM-09 — residency pin (data residency region).
-      region: state.region,
-    };
-    // Register the tenant in the platform roster WITHOUT hijacking the
-    // operator's context — the super-admin stays in the Platform shell and
-    // is taken to the live saga view the wizard now feeds (CON-03). The
-    // tenant starts `provisioning` (03 §3.5 step 2) and the saga runner
-    // drives it to `onboarding` on completion.
-    registerTenant(newTenant);
+        application: "prop-admin",
+        domain: domainFor(state.slug),
+        subdomain: state.slug,
+        branding: {
+          name: state.name,
+          tagline: state.tagline,
+          logoUrl: state.logoUrl || undefined,
+          initials: state.initials.toUpperCase(),
+          primaryColor: state.primaryColor,
+          accentColor: state.accentColor,
+          surfaceColor: state.surfaceColor,
+          radius: state.radius,
+        },
+        locale: state.locale,
+        timezone: state.timezone,
+        currency: state.currency,
+        enabledModules: state.enabledModules,
+        enabledFeatures,
+        terminology: {},
+        plan: state.plan,
+        owner,
+        ownerEmail,
+        moduleRollout,
+        // P2-7 — entitlement envelope prefilled from the plan catalog so
+        // the detail page shows real ceilings instead of blanks.
+        entitlements: planDef
+          ? {
+              seats: planDef.limits.traders,
+              quotas: {
+                apiCallsPerDay: planDef.limits.apiCallsPerDay,
+                storageGb: planDef.limits.storageGb,
+                eventsPerDay: planDef.limits.eventsPerDay,
+              },
+              supportTier: SUPPORT_TIER_BY_PLAN[state.plan],
+            }
+          : undefined,
+        status: "provisioning",
+        createdAt,
+        // First billing cycle starts with the tenant (proration source).
+        billingCycleAnchor: createdAt,
+        // TM-09 — residency pin (data residency region).
+        region: state.region,
+        // P2-4 — commercial overrides, written only when actually set.
+        ...(state.priceOverride && state.priceOverride > 0
+          ? { priceOverride: state.priceOverride }
+          : {}),
+        ...(state.discountPct && state.discountPct > 0
+          ? { discountPct: state.discountPct }
+          : {}),
+      };
 
-    // UC-P3 — close the time-to-value run ("Tenant created" stamped);
-    // days-to-live for this firm will be measured from goLive()'s liveAt.
-    finishRun("create-tenant", { tenantId: id, tenantName: newTenant.name });
+      // Register the tenant in the platform roster WITHOUT hijacking the
+      // operator's context — the super-admin stays in the Platform shell and
+      // is taken to the live saga view the wizard now feeds (CON-03). The
+      // tenant starts `provisioning` (03 §3.5 step 2) and the saga runner
+      // drives it to `onboarding` on completion.
+      registerTenant(newTenant);
 
-    // Kick off the provisioning saga (CON-03 ← 03 §3.5). Sub-step 3a runs
-    // only when the tenant contracted SSO.
-    const job = startProvisioning({
-      tenantId: id,
-      tenantName: state.name,
-      slug: state.slug,
-      plan: state.plan,
-      sso: state.contractSso,
-      adminName: state.adminName,
-      adminEmail: state.adminEmail,
-      owner: state.owner,
-      ownerEmail: state.ownerEmail,
-      createdBy: user?.name ?? "Console operator",
-    });
+      // P1-4 — creation is the highest-consequence action on this screen;
+      // record it in the Platform Audit Log, not just in a toast.
+      if (!auditLoggedRef.current) {
+        auditLoggedRef.current = true;
+        recordAudit({
+          actor,
+          action: "tenant.create",
+          target: id,
+          tenantId: id,
+          severity: "info",
+          detail: `${newTenant.name} (${state.slug}) created via the provisioning wizard — plan ${state.plan}, ${state.enabledModules.length} modules, region ${state.region ?? "unpinned"}, SSO ${state.contractSso ? "contracted" : "off"}, owner ${owner}.`,
+        });
+      }
 
-    pushNotification({
-      title: "Provisioning started",
-      message: `${state.name} — saga ${job.id} is running. Follow progress on the live view.`,
-      severity: "info",
-      module: "super-admin",
-    });
-    toast({
-      title: "Provisioning started",
-      description: `${state.name} — follow the 9-step saga on the live view.`,
-    });
-    setState(INITIAL_STATE);
-    setStep(0);
-    navigate("provisioning-saga", { job: job.id, tenant: id });
+      // UC-P3 — close the time-to-value run ("Tenant created" stamped);
+      // days-to-live for this firm will be measured from goLive()'s liveAt.
+      // Guarded: a retry must not open and finish a second run.
+      if (!runClosedRef.current) {
+        runClosedRef.current = true;
+        finishRun("create-tenant", { tenantId: id, tenantName: newTenant.name });
+      }
+
+      // Kick off the provisioning saga (CON-03 ← 03 §3.5). Sub-step 3a runs
+      // only when the tenant contracted SSO.
+      const job = startProvisioning({
+        tenantId: id,
+        tenantName: state.name,
+        slug: state.slug,
+        plan: state.plan,
+        sso: state.contractSso,
+        adminName: state.adminName,
+        adminEmail: state.adminEmail,
+        owner,
+        ownerEmail,
+        createdBy: actor,
+      });
+
+      // P2-8 — one notification + one toast with deliberately different
+      // copy: the notification is the durable center entry, the toast the
+      // transient confirmation under the cursor.
+      pushNotification({
+        title: "Tenant created",
+        message: `${newTenant.name} is provisioning — saga ${job.id} is running.`,
+        severity: "success",
+        module: "super-admin",
+      });
+      toast({
+        title: "Tenant created",
+        description: `${state.slug} — follow the 9-step saga on the live view.`,
+      });
+
+      // The configuration now belongs to the tenant, not to a draft.
+      clearDraft();
+      setDraftSavedAt(null);
+      setPendingDraft(null);
+      pendingIdRef.current = null;
+      runClosedRef.current = false;
+      auditLoggedRef.current = false;
+      setState(INITIAL_STATE);
+      setStep(0);
+      setActiveTemplate(null);
+      navigate("provisioning-saga", { job: job.id, tenant: id });
+    } catch (err) {
+      // Saga start failed. The tenant may already be registered — Retry
+      // re-enters this handler with the SAME id, so nothing duplicates.
+      const message = err instanceof Error ? err.message : "Provisioning could not be started.";
+      setSubmitError(message);
+      pushNotification({
+        title: "Tenant creation failed",
+        message: `${state.name || state.slug} — ${message}`,
+        severity: "critical",
+        module: "super-admin",
+      });
+      toast({
+        title: "Creation failed",
+        description: "Retry create resumes with the same tenant id — nothing is duplicated.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   /* ---- Step content renderer ---- */
@@ -677,6 +916,7 @@ export function CreateTenantPage() {
             activeTemplate={activeTemplate}
             onApplyTemplate={applyTemplate}
             onClearTemplate={() => setActiveTemplate(null)}
+            existingSlugs={existingSlugs}
           />
         );
       case 1:
@@ -686,17 +926,63 @@ export function CreateTenantPage() {
       case 3:
         return <AdminStep state={state} setState={setState} />;
       case 4:
-        return (
-          <ReviewStep
-            state={state}
-            allModules={allModules}
-            onCreate={createTenant}
-          />
-        );
+        return <ReviewStep state={state} setState={setState} allModules={allModules} />;
       default:
         return null;
     }
   };
+
+  /**
+   * Draft status bar (P1-3) — either the unanswered Resume / Discard
+   * prompt or the autosave chip. Sits directly under the header so a
+   * refresh can never be mistaken for a fresh form (§17 state-first).
+   */
+  const draftBar = pendingDraft ? (
+    <div
+      role="status"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3"
+    >
+      <div className="flex items-start gap-2 text-sm">
+        <History
+          className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400"
+          aria-hidden
+        />
+        <p>
+          <span className="font-medium">Unsaved draft found</span> —{" "}
+          {pendingDraft.state.name || "Untitled tenant"}, step{" "}
+          {Math.min(pendingDraft.step + 1, STEPS.length)} of {STEPS.length}, saved{" "}
+          {new Date(pendingDraft.savedAt).toLocaleString()}.
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={resumeDraft} className="gap-1">
+          <History className="h-3.5 w-3.5" aria-hidden /> Resume draft
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setConfirming("discard-draft")}>
+          Discard
+        </Button>
+      </div>
+    </div>
+  ) : draftSavedAt ? (
+    <div
+      role="status"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-2.5"
+    >
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <History className="h-3.5 w-3.5" aria-hidden />
+        Draft saved · step {step + 1} of {STEPS.length} · last edited{" "}
+        {new Date(draftSavedAt).toLocaleTimeString()}
+      </p>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-7 text-xs"
+        onClick={() => setConfirming("discard-draft")}
+      >
+        Discard draft
+      </Button>
+    </div>
+  ) : null;
 
   return (
     <Page>
@@ -705,12 +991,22 @@ export function CreateTenantPage() {
         description="Guided wizard to provision a new tenant on the platform."
         icon={Sparkles}
         actions={
-          <Button variant="ghost" size="sm" onClick={() => navigate("tenants")}>
-            Cancel
-          </Button>
+          // §17 state-first — a dirty form confirms before it throws work
+          // away; the draft itself survives so Resume can bring it back.
+          isDirty ? (
+            <Button variant="ghost" size="sm" onClick={() => setConfirming("cancel")}>
+              Cancel
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => navigate("tenants")}>
+              Cancel
+            </Button>
+          )
         }
       />
       <PageContent>
+        {draftBar}
+
         {/* Step indicator */}
         <div className="rounded-lg border bg-card p-4">
           <div className="flex items-center justify-between">
@@ -786,7 +1082,13 @@ export function CreateTenantPage() {
           <Separator className="my-4" />
 
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="sm" disabled={!canBack} onClick={back} className="gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!canBack || isSubmitting}
+              onClick={back}
+              className="gap-1"
+            >
               <ChevronLeft className="h-4 w-4" />Back
             </Button>
             <div className="flex flex-col items-center gap-0.5">
@@ -800,18 +1102,65 @@ export function CreateTenantPage() {
                   {stepValidationMessage(step, state, existingSlugs)}
                 </span>
               ) : null}
+              {/* Create failure (P2-3) — announce it and say why the
+                  button now reads "Retry create". */}
+              {submitError && step === STEPS.length - 1 ? (
+                <span role="alert" className="max-w-[300px] text-[11px] text-destructive">
+                  {submitError} — retrying keeps the same tenant id.
+                </span>
+              ) : null}
             </div>
             {step < STEPS.length - 1 ? (
               <Button size="sm" disabled={!canNext} onClick={next} className="gap-1">
                 Next <ChevronRight className="h-4 w-4" />
               </Button>
             ) : (
-              <Button size="sm" onClick={createTenant} className="gap-1.5">
-                <Check className="h-4 w-4" /> Create tenant
+              /* §23 — one primary action per step: this footer button is
+                 the ONLY Create CTA on Review (the card's duplicate was
+                 removed). */
+              <Button
+                size="sm"
+                onClick={createTenant}
+                disabled={isSubmitting}
+                aria-busy={isSubmitting}
+                className="gap-1.5"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <Check className="h-4 w-4" aria-hidden />
+                )}
+                {submitError ? "Retry create" : "Create tenant"}
               </Button>
             )}
           </div>
         </div>
+
+        {/* Work-destroying confirmations (§17 state-first) */}
+        <ConfirmAction
+          open={confirming === "cancel"}
+          onOpenChange={(open) => setConfirming(open ? "cancel" : null)}
+          title="Leave without creating the tenant?"
+          description={
+            state.name || state.slug
+              ? `Your configuration for ${state.name || state.slug} is autosaved as a draft on this browser — resume it any time by reopening this wizard. Leave now?`
+              : "Your unsaved configuration is autosaved as a draft on this browser. Leave now?"
+          }
+          confirmLabel="Leave"
+          onConfirm={() => {
+            setConfirming(null);
+            navigate("tenants");
+          }}
+        />
+        <ConfirmAction
+          open={confirming === "discard-draft"}
+          onOpenChange={(open) => setConfirming(open ? "discard-draft" : null)}
+          title="Discard the saved draft?"
+          description="The saved wizard configuration is removed from this browser. This cannot be undone."
+          confirmLabel="Discard draft"
+          destructive
+          onConfirm={discardDraft}
+        />
       </PageContent>
     </Page>
   );
@@ -828,6 +1177,7 @@ function BasicsStep({
   activeTemplate,
   onApplyTemplate,
   onClearTemplate,
+  existingSlugs,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
@@ -835,16 +1185,29 @@ function BasicsStep({
   activeTemplate: string | null;
   onApplyTemplate: (t: TenantTemplate) => void;
   onClearTemplate: () => void;
+  /** Roster slugs — drives the inline "already taken" error (P1 target). */
+  existingSlugs: Set<string>;
 }) {
   const update = (patch: Partial<WizardState>) =>
     setState((s) => ({ ...s, ...patch }));
   // Canonical validation timing (audit U #8): real-time once a field has
   // been blurred — before that, stay quiet so the wizard isn't noisy.
   const [touched, setTouched] = useState({ name: false, slug: false });
+  // Plan costs come from the operator-editable catalog (P1-5) — the
+  // hardcoded PLAN_COST record went stale the moment a price changed.
+  const plans = usePlans();
   const nameError =
     touched.name && !state.name.trim() ? "Tenant name is required." : undefined;
-  const slugError =
-    touched.slug && !state.slug.trim() ? "Slug is required." : undefined;
+  const slugTaken = touched.slug && state.slug.length > 0 && existingSlugs.has(state.slug);
+  const slugError = !state.slug.trim() && touched.slug
+    ? "Slug is required."
+    : slugTaken
+      ? "Slug already taken — choose a different one."
+      : undefined;
+
+  // SSO is a contracted entitlement (P2-2): below Scale the checkbox is
+  // disabled with the reason inline instead of only flagging it at Review.
+  const ssoAllowed = state.plan === "scale" || state.plan === "enterprise";
 
   const active = templates.find((t) => t.id === activeTemplate);
 
@@ -956,6 +1319,18 @@ function BasicsStep({
             aria-describedby={slugError ? "slug-error" : undefined}
             placeholder="acme-trading"
           />
+          {/* Resolved domain preview — assigned by the saga at its DNS
+              step, so the operator sees the URL before committing. */}
+          <p className="text-[10px] text-muted-foreground">
+            {state.slug ? (
+              <>
+                <span className="font-mono text-foreground/80">{domainFor(state.slug)}</span> —
+                assigned at provisioning
+              </>
+            ) : (
+              "The domain preview appears once a slug is set."
+            )}
+          </p>
         </FieldRow>
         <FieldRow label="Tagline" hint="Short marketing descriptor shown in the shell.">
           <Input
@@ -967,18 +1342,32 @@ function BasicsStep({
         <FieldRow label="Plan" required hint="Determines monthly cost and feature ceilings.">
           <Select
             value={state.plan}
-            onValueChange={(v) => update({ plan: v as TenantContext["plan"] })}
+            onValueChange={(v) => {
+              const plan = v as TenantContext["plan"];
+              update({
+                plan,
+                // P2-2 — SSO is not entitled below Scale: drop the flag
+                // rather than carry a box the saga would try to provision.
+                contractSso:
+                  plan === "scale" || plan === "enterprise" ? state.contractSso : false,
+              });
+            }}
           >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="starter">Starter — {PLAN_COST.starter}</SelectItem>
-              <SelectItem value="growth">Growth — {PLAN_COST.growth}</SelectItem>
-              <SelectItem value="scale">Scale — {PLAN_COST.scale}</SelectItem>
-              <SelectItem value="enterprise">Enterprise — {PLAN_COST.enterprise}</SelectItem>
+              {plans.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name} — {formatCurrency(p.priceMonthly, state.currency)}/mo
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
+          <p className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+            <span>Live plan-catalog price — edit it on the plans page.</span>
+            <SeePlanLimitsLink />
+          </p>
         </FieldRow>
         <FieldRow label="Currency" required hint="Default reporting currency for this tenant.">
           <Select
@@ -989,10 +1378,11 @@ function BasicsStep({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="USD">USD — US Dollar</SelectItem>
-              <SelectItem value="GBP">GBP — British Pound</SelectItem>
-              <SelectItem value="EUR">EUR — Euro</SelectItem>
-              <SelectItem value="AED">AED — UAE Dirham</SelectItem>
+              {CURRENCIES.map((c) => (
+                <SelectItem key={c.code} value={c.code}>
+                  {c.code} — {c.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </FieldRow>
@@ -1011,7 +1401,25 @@ function BasicsStep({
             </SelectContent>
           </Select>
         </FieldRow>
-        {/* TM-09 — residency pin (data residency region). */}
+        {/* P2-9 — locale used to be hardcoded to `en-US` at create. */}
+        <FieldRow label="Locale" required hint="Shell language/region for the tenant's admin and trader UI.">
+          <Select
+            value={state.locale}
+            onValueChange={(v) => update({ locale: v })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {LOCALES.map((l) => (
+                <SelectItem key={l.id} value={l.id}>{l.id} — {l.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FieldRow>
+        {/* TM-09 — residency pin. Options come from the canonical
+            vocabulary (lib/platform/regions.ts) so wizard-created tenants
+            group with the seeded roster in the Residency report. */}
         <FieldRow label="Data Residency Region" hint="Pin this tenant's payments/KYC data to a specific region. Leave unpinned for global.">
           <Select
             value={state.region ?? ""}
@@ -1022,39 +1430,57 @@ function BasicsStep({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Unpinned (global)</SelectItem>
-              <SelectItem value="us-east">US East (N. Virginia)</SelectItem>
-              <SelectItem value="us-west">US West (Oregon)</SelectItem>
-              <SelectItem value="eu-west">EU West (Ireland)</SelectItem>
-              <SelectItem value="eu-central">EU Central (Frankfurt)</SelectItem>
-              <SelectItem value="ap-southeast">AP Southeast (Singapore)</SelectItem>
-              <SelectItem value="ap-northeast">AP Northeast (Tokyo)</SelectItem>
-              <SelectItem value="me-south">ME South (Bahrain)</SelectItem>
+              {TENANT_REGIONS.map((r) => (
+                <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </FieldRow>
       </div>
 
-      {/* SSO contract → provisioning sub-step 3a (AUTH-24/25) */}
+      {/* SSO contract → provisioning sub-step 3a (AUTH-24/25) — gated at
+          step 1 (P2-2) instead of only flagged on the Review checklist. */}
       <div className="rounded-lg border bg-muted/30 p-3">
-        <label className="flex cursor-pointer items-start gap-2.5">
+        <label
+          className={cn(
+            "flex items-start gap-2.5",
+            ssoAllowed ? "cursor-pointer" : "cursor-not-allowed opacity-70",
+          )}
+        >
           <Checkbox
             checked={state.contractSso}
+            disabled={!ssoAllowed}
             onCheckedChange={(v) => update({ contractSso: v === true })}
             className="mt-0.5"
+            aria-describedby="contract-sso-hint"
           />
           <span className="space-y-0.5">
             <span className="text-sm font-medium leading-none">
               Tenant contracted SSO (SAML / OIDC)
             </span>
-            <span className="block text-xs text-muted-foreground">
-              Runs provisioning sub-step 3a (AUTH-24/25): registers the org&apos;s external IdP,
-              assigns SSO roles, and issues the SCIM token. Leave unchecked if the tenant signs in
-              with local credentials only.
+            <span id="contract-sso-hint" className="block text-xs text-muted-foreground">
+              {ssoAllowed
+                ? "Runs provisioning sub-step 3a (AUTH-24/25): registers the org's external IdP, assigns SSO roles, and issues the SCIM token. Leave unchecked if the tenant signs in with local credentials only."
+                : "Requires a Scale or Enterprise plan — switch the plan above to contract SSO."}
             </span>
           </span>
         </label>
       </div>
     </div>
+  );
+}
+
+/** Small link out to the plan catalog (§22 contextual actions). */
+function SeePlanLimitsLink() {
+  const { navigate } = usePlatform();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate("plans")}
+      className="shrink-0 text-primary underline-offset-2 hover:underline"
+    >
+      See plan limits
+    </button>
   );
 }
 
@@ -1265,6 +1691,11 @@ function ModulesStep({
   allModules: ReturnType<typeof moduleRegistry.getAll>;
 }) {
   const toggle = (moduleId: string) => {
+    // P2-1 — core modules are locked. The guidance text and the Review
+    // pre-flight both say core modules are required, so the cards are
+    // inert rather than toggleable: an unoperable tenant is not a valid
+    // configuration.
+    if (CORE_MODULE_IDS.includes(moduleId)) return;
     setState((s) => {
       const set = new Set(s.enabledModules);
       if (set.has(moduleId)) set.delete(moduleId);
@@ -1279,7 +1710,7 @@ function ModulesStep({
         <div>
           <RequiredLabel>Module selection</RequiredLabel>
           <p className="text-xs text-muted-foreground">
-            Pick which modules this tenant can access. Core modules are pre-selected.
+            Pick which modules this tenant can access. Core modules are required and locked.
           </p>
         </div>
         <Badge variant="secondary">
@@ -1297,6 +1728,7 @@ function ModulesStep({
               key={m.manifest.id}
               role="button"
               tabIndex={0}
+              aria-disabled={isCore || undefined}
               onClick={() => toggle(m.manifest.id)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -1309,6 +1741,7 @@ function ModulesStep({
                 selected
                   ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                   : "border-border hover:border-primary/40",
+                isCore && "cursor-not-allowed",
               )}
               aria-pressed={selected}
             >
@@ -1330,7 +1763,9 @@ function ModulesStep({
                 {m.manifest.description ?? "No description available."}
               </p>
               {isCore ? (
-                <Badge variant="secondary" className="text-[9px]">Core</Badge>
+                <Badge variant="secondary" className="gap-1 text-[9px]">
+                  <Lock className="h-2.5 w-2.5" aria-hidden /> Core · required
+                </Badge>
               ) : null}
             </div>
           );
@@ -1353,6 +1788,31 @@ function AdminStep({
 }) {
   const update = (patch: Partial<WizardState>) =>
     setState((s) => ({ ...s, ...patch }));
+
+  /**
+   * P0-1 — `owner` / `ownerEmail` had no inputs anywhere in the wizard, so
+   * every created tenant was written with `owner: ""` (and the Tenants
+   * screen's Owner column showed a blank). They now follow the admin
+   * until the operator explicitly overrides them below.
+   */
+  const updateAdmin = (patch: Partial<WizardState>) =>
+    setState((s) => {
+      const next = { ...s, ...patch };
+      if (patch.adminName !== undefined && !next.owner?.trim()) next.owner = patch.adminName;
+      if (patch.adminEmail !== undefined && !next.ownerEmail?.trim()) {
+        next.ownerEmail = patch.adminEmail;
+      }
+      return next;
+    });
+
+  // Progressive disclosure — the extra fields stay out of the way until
+  // the owner really is someone other than the first admin.
+  const [showOwner, setShowOwner] = useState(false);
+  const ownerDiffers =
+    !!state.owner?.trim() &&
+    (state.owner.trim() !== state.adminName.trim() ||
+      (state.ownerEmail?.trim() ?? "") !== state.adminEmail.trim());
+
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.adminEmail);
   // Canonical validation timing (audit U #8): real-time after blur, and
   // the moment a partial email stops being valid as the user types.
@@ -1367,6 +1827,9 @@ function AdminStep({
       : "Admin email is required."
     : undefined;
 
+  const effectiveOwner = state.owner?.trim() || state.adminName.trim();
+  const effectiveOwnerEmail = state.ownerEmail?.trim() || state.adminEmail.trim();
+
   return (
     <div className="space-y-4">
       <div>
@@ -1380,7 +1843,7 @@ function AdminStep({
         <FieldRow label="Admin name" required error={nameError}>
           <Input
             value={state.adminName}
-            onChange={(e) => update({ adminName: e.target.value })}
+            onChange={(e) => updateAdmin({ adminName: e.target.value })}
             onBlur={() => setTouched((t) => ({ ...t, adminName: true }))}
             aria-invalid={nameError ? true : undefined}
             aria-describedby={nameError ? "admin-name-error" : undefined}
@@ -1395,7 +1858,7 @@ function AdminStep({
           <Input
             type="email"
             value={state.adminEmail}
-            onChange={(e) => update({ adminEmail: e.target.value })}
+            onChange={(e) => updateAdmin({ adminEmail: e.target.value })}
             onBlur={() => setTouched((t) => ({ ...t, adminEmail: true }))}
             aria-invalid={emailError ? true : undefined}
             aria-describedby={emailError ? "admin-email-error" : undefined}
@@ -1403,6 +1866,60 @@ function AdminStep({
           />
         </FieldRow>
       </div>
+
+      {/* P0-1 — owner derivation, visible + overridable. */}
+      <div className="rounded-lg border bg-muted/30 p-3">
+        <button
+          type="button"
+          onClick={() => setShowOwner((v) => !v)}
+          aria-expanded={showOwner}
+          className="flex w-full items-center gap-1.5 text-xs font-medium text-foreground"
+        >
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 transition-transform", showOwner && "rotate-180")}
+            aria-hidden
+          />
+          Owner differs from admin?
+          {ownerDiffers ? (
+            <Badge variant="secondary" className="ml-auto text-[9px]">Custom owner</Badge>
+          ) : (
+            <span className="ml-auto text-[10px] font-normal text-muted-foreground">
+              defaults to the admin
+            </span>
+          )}
+        </button>
+        <p className="mt-1.5 text-[11px] text-muted-foreground">
+          Owner on record:{" "}
+          <span className="font-medium text-foreground">{effectiveOwner || "—"}</span>
+          {effectiveOwnerEmail ? (
+            <>
+              {" · "}
+              <span className="font-mono">{effectiveOwnerEmail}</span>
+            </>
+          ) : null}
+          {" — "}used for billing notices, invites and breach alerts.
+        </p>
+        {showOwner ? (
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <FieldRow label="Owner name" hint="Primary contact of the firm. Leave as-is to keep the admin.">
+              <Input
+                value={state.owner ?? ""}
+                onChange={(e) => update({ owner: e.target.value })}
+                placeholder="Firm owner"
+              />
+            </FieldRow>
+            <FieldRow label="Owner email" hint="Leave blank to reuse the admin email.">
+              <Input
+                type="email"
+                value={state.ownerEmail ?? ""}
+                onChange={(e) => update({ ownerEmail: e.target.value })}
+                placeholder="owner@acme.io"
+              />
+            </FieldRow>
+          </div>
+        ) : null}
+      </div>
+
       <Card className="bg-muted/20">
         <CardContent className="space-y-2 pt-6 text-xs text-muted-foreground">
           <p>
@@ -1427,21 +1944,42 @@ function AdminStep({
 
 function ReviewStep({
   state,
+  setState,
   allModules,
-  onCreate,
 }: {
   state: WizardState;
+  setState: React.Dispatch<React.SetStateAction<WizardState>>;
   allModules: ReturnType<typeof moduleRegistry.getAll>;
-  onCreate: () => void;
 }) {
+  const update = (patch: Partial<WizardState>) =>
+    setState((s) => ({ ...s, ...patch }));
+  // Live plan catalog — the Review must show what the operator would be
+  // billed, not a hardcoded string that went stale (P1-5).
+  const plans = usePlans();
+  const planDef = plans.find((p) => p.id === state.plan) ?? plans[0];
   const selectedModules = useMemo(
     () => allModules.filter((m) => state.enabledModules.includes(m.manifest.id)),
     [allModules, state.enabledModules],
+  );
+  // P1-2 — what actually lands on the tenant, shown so the operator can
+  // see the derived flag set instead of discovering it on the detail page.
+  const derivedFeatures = useMemo(
+    () => deriveEnabledFeatures(state.enabledModules),
+    [state.enabledModules],
   );
   // Pre-flight checklist (audit #3 fix #4) — flags common misconfigurations
   // before the provisioning saga starts, when they are still cheap to fix.
   const checks = useMemo(() => preflightChecks(state), [state]);
   const flagged = checks.filter((c) => !c.ok);
+
+  // P2-4 — effective commercial terms: plan price (or override), less the
+  // discount. `0` on either field means "plan price / no discount".
+  const basePrice =
+    state.priceOverride && state.priceOverride > 0
+      ? state.priceOverride
+      : planDef?.priceMonthly ?? 0;
+  const discountPct = Math.min(Math.max(state.discountPct ?? 0, 0), 100);
+  const effectivePrice = Math.round(basePrice * (1 - discountPct / 100));
 
   return (
     <div className="space-y-4">
@@ -1486,6 +2024,7 @@ function ReviewStep({
           <ReviewRow label="Plan" value={<Badge variant="outline" className="text-[10px] capitalize">{state.plan}</Badge>} />
           <ReviewRow label="Currency" value={state.currency} />
           <ReviewRow label="Timezone" value={state.timezone} />
+          <ReviewRow label="Locale" value={state.locale} />
         </ReviewCard>
         <ReviewCard title="Branding">
           <ReviewRow
@@ -1523,6 +2062,15 @@ function ReviewStep({
           <ReviewRow label="Name" value={state.adminName} />
           <ReviewRow label="Email" value={state.adminEmail} mono />
           <ReviewRow
+            label="Owner"
+            value={state.owner?.trim() || state.adminName || "—"}
+          />
+          <ReviewRow
+            label="Owner email"
+            value={state.ownerEmail?.trim() || state.adminEmail || "—"}
+            mono
+          />
+          <ReviewRow
             label="SSO"
             value={
               <Badge variant="outline" className="text-[10px]">
@@ -1539,19 +2087,99 @@ function ReviewStep({
               </Badge>
             ))}
           </div>
+          <p className="pt-1 text-[11px] text-muted-foreground">
+            {derivedFeatures.length} feature{derivedFeatures.length === 1 ? "" : "s"} derived at
+            create: {derivedFeatures.join(", ") || "none"}.
+          </p>
         </ReviewCard>
       </div>
-      <Separator />
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          Provisioning starts in <Badge variant="outline" className="text-[9px]">provisioning</Badge>{" "}
-          status and moves to <Badge variant="outline" className="text-[9px]">onboarding</Badge> once
-          the saga completes.
+
+      {/* P1-5 — residency and commercial terms were collected on step 1
+          but never shown before create; Review is the full contract. */}
+      <ReviewCard title="Deployment & commercial">
+        <div className="grid gap-x-6 gap-y-1.5 md:grid-cols-2">
+          <ReviewRow
+            label="Region"
+            value={
+              state.region ? (
+                <Badge variant="outline" className="text-[10px]">
+                  {regionLabel(state.region)}
+                </Badge>
+              ) : (
+                "Unpinned (global)"
+              )
+            }
+          />
+          <ReviewRow label="Domain" value={<span className="font-mono text-xs">{domainFor(state.slug)}</span>} />
+          <ReviewRow
+            label="Plan price"
+            value={`${formatCurrency(planDef?.priceMonthly ?? 0, state.currency)}/mo`}
+          />
+          <ReviewRow
+            label="Effective price"
+            value={
+              <span className={cn(discountPct > 0 || (state.priceOverride ?? 0) > 0 ? "text-primary" : undefined)}>
+                {formatCurrency(effectivePrice, state.currency)}/mo
+                {discountPct > 0 ? ` (−${discountPct}%)` : ""}
+                {(state.priceOverride ?? 0) > 0 ? " (override)" : ""}
+              </span>
+            }
+          />
+          <ReviewRow
+            label="Entitlements"
+            value={
+              planDef
+                ? `${planDef.limits.traders.toLocaleString()} seats · ${planDef.limits.apiCallsPerDay.toLocaleString()} API/day`
+                : "—"
+            }
+          />
+          <ReviewRow
+            label="Support tier"
+            value={<span className="capitalize">{SUPPORT_TIER_BY_PLAN[state.plan]}</span>}
+          />
+        </div>
+        {/* P2-4 — these two fields existed in state (and were persisted by
+            no one); they are now real, optional, and wired through. */}
+        <div className="mt-3 grid gap-3 border-t pt-3 md:grid-cols-2">
+          <FieldRow label="Price override" hint="0 = plan price. Per-tenant custom price.">
+            <Input
+              type="number"
+              min={0}
+              step={50}
+              value={state.priceOverride ?? 0}
+              onChange={(e) =>
+                update({ priceOverride: Math.max(0, Number(e.target.value) || 0) })
+              }
+            />
+          </FieldRow>
+          <FieldRow label="Discount %" hint="0–100 — applied on top of the price above.">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={state.discountPct ?? 0}
+              onChange={(e) =>
+                update({
+                  discountPct: Math.min(100, Math.max(0, Number(e.target.value) || 0)),
+                })
+              }
+            />
+          </FieldRow>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Entitlements are prefilled from the {planDef?.name ?? "selected"} plan and stay editable
+          on the tenant detail page.
         </p>
-        <Button size="sm" onClick={onCreate} className="gap-1.5">
-          <Check className="h-4 w-4" /> Create tenant
-        </Button>
-      </div>
+      </ReviewCard>
+
+      <Separator />
+      {/* §23 — one primary action per step: the Create button lives in the
+          footer nav only; the duplicate that used to sit here is gone. */}
+      <p className="text-xs text-muted-foreground">
+        Provisioning starts in <Badge variant="outline" className="text-[9px]">provisioning</Badge>{" "}
+        status and moves to <Badge variant="outline" className="text-[9px]">onboarding</Badge> once
+        the saga completes.
+      </p>
     </div>
   );
 }

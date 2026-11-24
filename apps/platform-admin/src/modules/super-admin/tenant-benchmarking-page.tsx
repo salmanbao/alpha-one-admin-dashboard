@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AreaSeries, BarSeries } from "@/components/platform/charts";
 import { usePlatform } from "@/lib/platform/platform-context";
+import { TENANT_REGIONS } from "@/lib/platform/regions";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { cn } from "@/lib/utils";
@@ -218,10 +219,9 @@ export function TenantBenchmarkingPage() {
               className="block w-full rounded-md border-0 py-1.5 pt-2 pl-1 text-sm font-medium placeholder-gray-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-50"
             >
               <option value="">All Regions</option>
-              <option value="us-east">US East</option>
-              <option value="eu-west">EU West</option>
-              <option value="ap-southeast">AP Southeast</option>
-              <option value="sa-east">SA East</option>
+              {TENANT_REGIONS.map((r) => (
+                <option key={r.id} value={r.id}>{r.label}</option>
+              ))}
             </select>
           </div>
         </div>

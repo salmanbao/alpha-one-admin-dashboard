@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { TenantContext } from "./types";
 import { tenants as SEED_TENANTS } from "./mock-data";
+import { UNPINNED_DEFAULT_EU_REGION, UNPINNED_DEFAULT_REGION } from "./regions";
 
 /* ------------------------------------------------------------------ */
 /* Store — single source of truth for the tenant roster                 */
@@ -216,14 +217,17 @@ export const DATA_CLASS_MAP: Record<DataClass, { label: string; description: str
 
 export function dataLocationFor(tenant: TenantContext, cls: DataClass): { location: string; pinned: boolean } {
   const pin = tenant.region?.toLowerCase();
+  // Canonical vocabulary (lib/platform/regions.ts) — an unpinned default
+  // must be spelled exactly like a pin so grouping never splits one
+  // physical region into two buckets.
   const defaults: Record<DataClass, string> = {
-    core: "us-east",
-    billing: "us-east",
-    kyc: "eu-west",
-    payouts: "us-east",
-    analytics: "us-east",
-    audit: "us-east",
-    backups: "eu-west",
+    core: UNPINNED_DEFAULT_REGION,
+    billing: UNPINNED_DEFAULT_REGION,
+    kyc: UNPINNED_DEFAULT_EU_REGION,
+    payouts: UNPINNED_DEFAULT_REGION,
+    analytics: UNPINNED_DEFAULT_REGION,
+    audit: UNPINNED_DEFAULT_REGION,
+    backups: UNPINNED_DEFAULT_EU_REGION,
   };
-  return { location: pin || defaults[cls] || "us-east", pinned: !!pin };
+  return { location: pin || defaults[cls] || UNPINNED_DEFAULT_REGION, pinned: !!pin };
 }
