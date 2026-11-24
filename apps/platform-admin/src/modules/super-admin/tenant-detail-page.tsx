@@ -167,6 +167,7 @@ import {
   ScrollText,
   Wallet,
   ChevronRight,
+  Rocket,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -535,6 +536,18 @@ export function TenantDetailPage() {
         }
         actions={
           <>
+            {/* P1-d (go-live report) — the decision to take this firm
+                live is made HERE; jump to the wizard with the tenant
+                preselected. Active firms already went through it. */}
+            {localTenant.status !== "active" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate("go-live-wizard", { tenant: tenantId })}
+              >
+                <Rocket className="mr-1 h-4 w-4" />Go live
+              </Button>
+            )}
             {/* Quick jump to this tenant's API usage analytics (audit #1) */}
             <Button size="sm" variant="outline" onClick={() => navigate("tenant-api-usage")}>
               <Server className="mr-1 h-4 w-4" />API usage

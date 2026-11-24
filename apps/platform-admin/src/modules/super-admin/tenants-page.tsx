@@ -659,6 +659,14 @@ export function TenantsPage() {
           <DropdownMenuItem onClick={() => navigate("tenant-detail", { id: t.id })}>
             Open detail
           </DropdownMenuItem>
+          {/* P1-d (go-live report) — the natural moment to go live is
+              a non-active firm sitting on the roster; lands on the
+              wizard with `?tenant=<id>` preselecting this tenant. */}
+          {t.status !== "active" && (
+            <DropdownMenuItem onClick={() => navigate("go-live-wizard", { tenant: t.id })}>
+              Go live…
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => navigate("tenant-view-as", { tenantId: t.id })}>
             View-As…
           </DropdownMenuItem>

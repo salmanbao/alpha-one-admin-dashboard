@@ -53,6 +53,9 @@ import {
   ShieldAlert,
   DollarSign,
   HardDrive,
+  Rocket,
+  Plug,
+  Gauge,
 } from "lucide-react";
 
 // Demo audit events
@@ -90,6 +93,15 @@ const actionIcons: Record<string, React.ComponentType<{ className?: string }>> =
   "auth.login": Key,
   "auth.logout": Lock,
   "auth.failed": AlertTriangle,
+  // Go-live wizard (go-live report, P2-b) — each step's write gets its
+  // own glyph so the run's trail is scannable in the list.
+  "go_live.run_started": Rocket,
+  "go_live.tenant_registered": Building2,
+  "go_live.plan_set": DollarSign,
+  "go_live.kyc_selected": ShieldCheck,
+  "go_live.connectors_set": Plug,
+  "go_live.risk_defaults_set": Gauge,
+  "go_live.completed": Rocket,
 };
 
 const actionColors: Record<string, string> = {
@@ -111,6 +123,16 @@ const actionColors: Record<string, string> = {
   "auth.login": "#4a7c59",
   "auth.logout": "#6b6358",
   "auth.failed": "#b83230",
+  // Go-live trail — intermediate steps read as in-flight/planning; the
+  // completed flip is amber (business-significant, distinct from the
+  // routine greens and the danger reds).
+  "go_live.run_started": "#74796e",
+  "go_live.tenant_registered": "#4a7c59",
+  "go_live.plan_set": "#705c30",
+  "go_live.kyc_selected": "#4a4e4a",
+  "go_live.connectors_set": "#6b6358",
+  "go_live.risk_defaults_set": "#74796e",
+  "go_live.completed": "#d97706",
 };
 
 const severityTones: Record<string, "success" | "info" | "warning" | "danger"> = {

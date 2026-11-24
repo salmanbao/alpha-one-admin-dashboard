@@ -42,6 +42,11 @@ import {
   Clock,
   Download,
   Building2,
+  Rocket,
+  CreditCard,
+  Shield,
+  Plug,
+  Gauge,
 } from "lucide-react";
 import { getPlatformAudit } from "@/lib/platform/mock-data";
 import { exportToCsv } from "@/lib/platform/export-utils";
@@ -57,6 +62,34 @@ const severityTone = (sev: string): "danger" | "warning" | "info" =>
 
 const severityIcon = (sev: string) =>
   sev === "critical" ? ShieldAlert : sev === "warning" ? ShieldQuestion : Activity;
+
+/* Go-live wizard trail (go-live report, P2-b) — the seven `go_live.*`
+ * actions get a per-step glyph and a tint so a firm's run reads as one
+ * story in a mixed audit stream instead of seven identical strings. */
+const goLiveActionIcon = (action: string) => {
+  switch (action) {
+    case "go_live.tenant_registered":
+      return Building2;
+    case "go_live.plan_set":
+      return CreditCard;
+    case "go_live.kyc_selected":
+      return Shield;
+    case "go_live.connectors_set":
+      return Plug;
+    case "go_live.risk_defaults_set":
+      return Gauge;
+    default:
+      // run_started + completed — the run's bookends.
+      return Rocket;
+  }
+};
+
+/** Completed is business-significant (amber); the in-between steps read
+ *  as the same teal used for informational platform events. */
+const goLiveActionClass = (action: string) =>
+  action === "go_live.completed"
+    ? "text-amber-700 dark:text-amber-400"
+    : "text-teal-700 dark:text-teal-400";
 
 /** Resolve a tenant id to a display name, including runtime-created tenants. */
 const makeTenantName = (roster: { id: string; name: string }[]) => {
@@ -195,7 +228,21 @@ export function PlatformAuditPage() {
     {
       key: "action",
       header: "Action",
-      cell: (e) => <span className="text-sm">{e.action}</span>,
+      cell: (e) => {
+        // go_live.* rows carry a per-step glyph + tint (P2-b).
+        if (e.action.startsWith("go_live.")) {
+          const Icon = goLiveActionIcon(e.action);
+          return (
+            <span
+              className={`inline-flex items-center gap-1.5 text-sm ${goLiveActionClass(e.action)}`}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="font-mono">{e.action}</span>
+            </span>
+          );
+        }
+        return <span className="text-sm">{e.action}</span>;
+      },
       sortValue: (e) => e.action,
     },
     {

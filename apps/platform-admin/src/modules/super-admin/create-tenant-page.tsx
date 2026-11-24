@@ -40,6 +40,9 @@ import { readPlans, usePlans } from "@/lib/platform/plan-catalog-store";
 import { recordAudit } from "@/lib/platform/console-store";
 import { formatCurrency } from "@/components/platform/status";
 import { CURRENCIES } from "@/lib/platform/currency";
+// P2-a (go-live report) — one timezone/locale list for BOTH wizards, so
+// the vocabularies can never drift apart again.
+import { TIMEZONES, LOCALES } from "@/lib/platform/timezones";
 import { TENANT_REGIONS, regionLabel } from "@/lib/platform/regions";
 import { deriveEnabledFeatures, deriveModuleRollout } from "@/lib/platform/tenant-features";
 import {
@@ -114,49 +117,6 @@ const STEPS: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "modules", label: "Modules", icon: Package },
   { id: "admin", label: "Admin", icon: UserPlus },
   { id: "review", label: "Review", icon: ScrollText },
-];
-
-/**
- * Reporting timezones offered at create. The wizard previously shipped
- * nine; the list now covers the desks that actually run prop firms
- * across regions (create-tenant report, P2-9).
- */
-const TIMEZONES = [
-  "UTC",
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-  "America/Sao_Paulo",
-  "Europe/London",
-  "Europe/Paris",
-  "Europe/Berlin",
-  "Europe/Madrid",
-  "Europe/Istanbul",
-  "Africa/Cairo",
-  "Asia/Dubai",
-  "Asia/Karachi",
-  "Asia/Kolkata",
-  "Asia/Singapore",
-  "Asia/Tokyo",
-  "Australia/Sydney",
-];
-
-/**
- * Tenant shell locales (create-tenant report, P2-9) — `locale` used to be
- * hardcoded to `en-US` at create even though `TenantContext.locale`
- * exists and the seed roster ships `en-GB` too.
- */
-const LOCALES = [
-  { id: "en-US", label: "English (US)" },
-  { id: "en-GB", label: "English (UK)" },
-  { id: "de-DE", label: "German" },
-  { id: "fr-FR", label: "French" },
-  { id: "es-ES", label: "Spanish" },
-  { id: "pt-BR", label: "Portuguese (Brazil)" },
-  { id: "ar-AE", label: "Arabic" },
-  { id: "tr-TR", label: "Turkish" },
-  { id: "ja-JP", label: "Japanese" },
 ];
 
 /**
