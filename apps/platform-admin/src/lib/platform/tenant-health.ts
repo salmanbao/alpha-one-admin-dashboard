@@ -12,7 +12,10 @@
 
 import { supportTickets, breaches } from "./mock-data";
 import { utilizationOf } from "./usage-facts";
+import { ENGAGED_MODULE_THRESHOLD } from "./adoption-stages";
 import type { TenantContext } from "./types";
+
+export { ENGAGED_MODULE_THRESHOLD };
 
 export type Health = "healthy" | "watch" | "critical";
 
@@ -30,7 +33,7 @@ export function healthOf(t: TenantContext): Health {
   if (t.status === "trial" || t.status === "onboarding" || t.status === "invited" || t.status === "provisioning") {
     return "watch";
   }
-  return t.enabledModules.length >= 5 ? "healthy" : "watch";
+  return t.enabledModules.length >= ENGAGED_MODULE_THRESHOLD ? "healthy" : "watch";
 }
 
 /** Score ranges per band — the number stays inside the category. */
@@ -72,7 +75,7 @@ export function tenantHealthScore(t: TenantContext): TenantHealthScore {
     raw -= 25; // trial / onboarding / invited / provisioning
   }
   // Adoption depth — the strongest positive signal (≤ −30).
-  raw -= Math.max(0, 5 - t.enabledModules.length) * 6;
+  raw -= Math.max(0, ENGAGED_MODULE_THRESHOLD - t.enabledModules.length) * 6;
   // Support load — open and high-priority tickets (≤ −20).
   raw -= Math.min(20, openTickets.length * 3 + highTickets.length * 4);
   // Platform breaches — rule violations still open (≤ −20).
@@ -91,8 +94,8 @@ export function tenantHealthScore(t: TenantContext): TenantHealthScore {
           : `Resolve the ${t.status} status first — tenant access is blocked.`,
     );
   }
-  if (t.enabledModules.length < 5) {
-    const missing = 5 - t.enabledModules.length;
+  if (t.enabledModules.length < ENGAGED_MODULE_THRESHOLD) {
+    const missing = ENGAGED_MODULE_THRESHOLD - t.enabledModules.length;
     recommendations.push(
       `Enable ${missing} more module${missing === 1 ? "" : "s"} — adoption is the strongest health signal.`,
     );
@@ -169,8 +172,8 @@ export function tenantForecast(t: TenantContext): TenantForecast {
     churn += 30;
     drivers.push(`Still in ${t.status} — never converted to an active tenant.`);
   }
-  if (t.enabledModules.length < 5) {
-    const missing = 5 - t.enabledModules.length;
+  if (t.enabledModules.length < ENGAGED_MODULE_THRESHOLD) {
+    const missing = ENGAGED_MODULE_THRESHOLD - t.enabledModules.length;
     churn += Math.min(24, missing * 8);
     drivers.push(`Only ${t.enabledModules.length} module${t.enabledModules.length === 1 ? "" : "s"} enabled — shallow adoption.`);
   }
@@ -211,7 +214,7 @@ export function tenantForecast(t: TenantContext): TenantForecast {
     );
   }
   if (underutilized) {
-    const disabled = 5 - t.enabledModules.length;
+    const disabled = ENGAGED_MODULE_THRESHOLD - t.enabledModules.length;
     suggestions.push(
       disabled > 0
         ? `Usage is flat across every metric — run an adoption review and enable ${disabled} more module${disabled === 1 ? "" : "s"}.`

@@ -24,6 +24,7 @@ import {
   tenantHealthScore,
   tenantForecast,
   forecastSummary,
+  ENGAGED_MODULE_THRESHOLD,
   type Health,
 } from "@/lib/platform/tenant-health";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -215,7 +216,7 @@ const tenants = useTenants();
     }
 
     const lowAdoption = allRows.filter(
-      (r) => r.health === "watch" && r.tenant.enabledModules.length < 5,
+      (r) => r.health === "watch" && r.tenant.enabledModules.length < ENGAGED_MODULE_THRESHOLD,
     );
     if (lowAdoption.length > 0) {
       out.push({

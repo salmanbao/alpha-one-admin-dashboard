@@ -1154,6 +1154,11 @@ export function TenantLifecyclePage() {
         twoOperator={pending?.action === "suspend" || pending?.action === "terminate"}
         requireReason
         tenantId={pending?.tenant.id}
+        approvalPayload={
+          pending?.action === "suspend" || pending?.action === "terminate"
+            ? { tenantId: pending.tenant.id, targetStatus: pending.action === "suspend" ? "suspended" : "terminated" }
+            : undefined
+        }
         detail={
           pending?.action === "terminate"
             ? "Runbook TEN-09 · two-operator approval"
