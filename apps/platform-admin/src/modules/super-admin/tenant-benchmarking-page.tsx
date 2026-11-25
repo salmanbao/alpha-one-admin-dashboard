@@ -27,6 +27,12 @@
  * region filter never masks the plan filter. Shareable links, back
  * button, and refresh all restore the exact cohort.
  *
+ * Two tabs, also URL-driven (`?metric=`): **Comparison** (the table)
+ * and **Trend** — a cumulative area chart per metric, bucketed from
+ * the same seed dates the table derives from. A valid `?metric` param
+ * selects the trend tab, so chart links are shareable too; an
+ * unknown/stale metric falls back to the comparison tab.
+ *
  * Row click opens the benchmark drawer: the tenant's four values vs
  * both reference points, each with a "why this matters" hint, plus
  * jumps to the tenant detail and the fleet view.
@@ -43,6 +49,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, type Column } from "@/components/platform/data-table";
 import { PageAsyncBoundary, EmptyState } from "@/components/platform/guards";
+import { AreaSeries } from "@/components/platform/charts";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Sheet,
   SheetContent,
@@ -62,6 +70,7 @@ import { cn } from "@/lib/utils";
 import {
   BENCHMARK_METRICS,
   BENCHMARK_METRIC_KEYS,
+  benchmarkTrend,
   cohortMean,
   meetsPlanTarget,
   planTargetGap,
@@ -92,16 +101,23 @@ const METRIC_ICONS: Record<
   revenuePerTrader: DollarSign,
 };
 
-/** URL params → filter values; unknown/stale values fall back to "all". */
+/** URL params → view state; unknown/stale values fall back to defaults. */
 function parseParams(params: Record<string, string>): {
   plan: PlanTier | "all";
   region: string;
+  /** null = comparison tab; a valid `?metric` selects the trend tab. */
+  metric: BenchmarkMetricKey | null;
 } {
   const plan = params.plan;
   const region = params.region;
+  const metric = params.metric;
   return {
     plan: plan && (PLAN_TIERS as string[]).includes(plan) ? (plan as PlanTier) : "all",
     region: region && TENANT_REGION_IDS.includes(region) ? region : "all",
+    metric:
+      metric && (BENCHMARK_METRIC_KEYS as string[]).includes(metric)
+        ? (metric as BenchmarkMetricKey)
+        : null,
   };
 }
 
@@ -147,10 +163,26 @@ export function TenantBenchmarkingPage() {
   const tenants = useTenants();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const { plan: filterPlan, region: filterRegion } = useMemo(
+  const { plan: filterPlan, region: filterRegion, metric } = useMemo(
     () => parseParams(router.params),
     [router.params],
   );
+
+  /** Tab state derives from `?metric`: present ⇒ trend tab. */
+  const activeTab = metric ? "trend" : "comparison";
+
+  const setTab = (tab: string) => {
+    const next: Record<string, string> = { ...router.params };
+    if (tab === "trend") next.metric = metric ?? BENCHMARK_METRIC_KEYS[0];
+    else delete next.metric;
+    navigate("tenant-benchmarking", next, { replace: true });
+  };
+
+  const setMetric = (key: string) => {
+    const next: Record<string, string> = { ...router.params };
+    next.metric = key;
+    navigate("tenant-benchmarking", next, { replace: true });
+  };
 
   const setFilter = (key: "plan" | "region", value: string) => {
     const next: Record<string, string> = { ...router.params };
@@ -174,6 +206,18 @@ export function TenantBenchmarkingPage() {
   const selected = useMemo(
     () => rows.find((r) => r.tenantId === selectedId) ?? null,
     [rows, selectedId],
+  );
+
+  const trendDef = metric ? BENCHMARK_METRICS[metric] : null;
+  const trend = useMemo(
+    () =>
+      metric
+        ? benchmarkTrend(
+            filtered.map((r) => r.tenantId),
+            metric,
+          )
+        : [],
+    [filtered, metric],
   );
 
   const columns: Column<TenantBenchmarkRow>[] = [
@@ -313,9 +357,9 @@ export function TenantBenchmarkingPage() {
             })}
           </div>
 
-          {/* Comparison table — four metrics, each with its signed gap vs
-              the row's plan target (hover the gap for the target value).
-              Click a row for the benchmark drawer. */}
+          {/* Two tabs: the comparison table and the cumulative trend
+              chart. Tab state lives in the URL (`?metric=`), so a
+              chart view is shareable like the filters. */}
           {filtered.length === 0 ? (
             <EmptyState
               icon={hasFilter ? Building2 : Users}
@@ -346,25 +390,109 @@ export function TenantBenchmarkingPage() {
               }
             />
           ) : (
-            <Card>
-              <CardHeader className="pb-2">
-                <span className="text-sm font-medium">Tenant comparison</span>
-                <p className="text-xs text-muted-foreground">
-                  Each tenant against its plan-tier target — the signed gap sits under every
-                  value: green meets or beats the bar, red misses it. Sort by any column,
-                  or click a row for the full benchmark breakdown.
-                </p>
-              </CardHeader>
-              <CardContent>
-                <DataTable
-                  columns={columns}
-                  data={filtered}
-                  rowKey={(r) => r.tenantId}
-                  loading={loading}
-                  onRowClick={(r) => setSelectedId(r.tenantId)}
-                />
-              </CardContent>
-            </Card>
+            <Tabs value={activeTab} onValueChange={setTab}>
+              <TabsList>
+                <TabsTrigger value="comparison">Comparison</TabsTrigger>
+                <TabsTrigger value="trend">Trend</TabsTrigger>
+              </TabsList>
+
+              {/* Comparison table — four metrics, each with its signed
+                  gap vs the row's plan target (hover the gap for the
+                  target value). Click a row for the benchmark drawer. */}
+              <TabsContent value="comparison">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <span className="text-sm font-medium">Tenant comparison</span>
+                    <p className="text-xs text-muted-foreground">
+                      Each tenant against its plan-tier target — the signed gap sits under every
+                      value: green meets or beats the bar, red misses it. Sort or search the
+                      table, export it as CSV, or click a row for the full benchmark breakdown.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <DataTable
+                      columns={columns}
+                      data={filtered}
+                      rowKey={(r) => r.tenantId}
+                      loading={loading}
+                      onRowClick={(r) => setSelectedId(r.tenantId)}
+                      searchableText={(r) =>
+                        `${r.name} ${r.tenantId} ${r.plan} ${regionLabel(r.region)}`
+                      }
+                      searchPlaceholder="Search tenants by name, id, plan, or region…"
+                      exportCsv={{
+                        filename: "tenant-benchmarking",
+                        headers: [
+                          "Tenant",
+                          "Tenant ID",
+                          "Plan",
+                          "Region",
+                          ...BENCHMARK_METRIC_KEYS.map(
+                            (key) => BENCHMARK_METRICS[key].label,
+                          ),
+                        ],
+                        toRow: (r) => [
+                          r.name,
+                          r.tenantId,
+                          r.plan,
+                          regionLabel(r.region),
+                          ...BENCHMARK_METRIC_KEYS.map((key) => {
+                            const v = r[key];
+                            return v === null ? "" : BENCHMARK_METRICS[key].format(v);
+                          }),
+                        ],
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Trend — cumulative series per metric from the same
+                  seed dates; the last point equals the table value for
+                  this cohort. Empty cohorts render ChartEmpty. */}
+              <TabsContent value="trend">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-medium">
+                        {trendDef?.label} over time
+                      </span>
+                      <Select
+                        value={metric ?? BENCHMARK_METRIC_KEYS[0]}
+                        onValueChange={setMetric}
+                      >
+                        <SelectTrigger
+                          className="h-8 w-56 text-xs"
+                          aria-label="Trend metric"
+                        >
+                          <SelectValue placeholder="Metric" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BENCHMARK_METRIC_KEYS.map((key) => (
+                            <SelectItem key={key} value={key}>
+                              {BENCHMARK_METRICS[key].label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {trendDef?.trendNote}
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <AreaSeries
+                      data={trend}
+                      xKey="period"
+                      yKey="value"
+                      height={240}
+                      formatValue={trendDef?.format}
+                      label={`Cumulative ${trendDef?.label ?? "metric"} for the current cohort`}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           )}
         </PageAsyncBoundary>
 

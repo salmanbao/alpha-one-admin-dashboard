@@ -5,8 +5,9 @@
  * Why this file: the screen's docstring promised four metrics but the
  * page never computed any of them (the overview card always rendered
  * "—"). Every number now derives here from the platform seed, so the
- * comparison table, the cohort-mean cards, and future consumers (CSV
- * export, the trend tab) agree.
+ * comparison table, the cohort-mean cards, the CSV export, and the
+ * trend tab all agree — the last point of a trend series equals the
+ * table value for the same cohort.
  *
  * Metric definitions — labels, industry benchmarks, plan-tier targets —
  * are deterministic fixtures: a fixed table, no `Math.random()`, so
@@ -63,6 +64,8 @@ export interface BenchmarkMetricDef {
   gap: (v: number) => string;
   /** Operator-facing "why this matters" hint shown in the row drawer. */
   why: string;
+  /** How the trend series is bucketed (shown as the chart caption). */
+  trendNote: string;
 }
 
 /** Render / iteration order for the four metrics. */
@@ -90,6 +93,7 @@ export const BENCHMARK_METRICS: Record<BenchmarkMetricKey, BenchmarkMetricDef> =
     format: (v) => `${v.toFixed(1)}%`,
     gap: (v) => signed(v, 1, " pts"),
     why: "Share of traders who reach funded. Below the industry line usually means evaluation gates filter out more participants than peers do.",
+    trendNote: "Cumulative funded ÷ traders, bucketed by the month traders joined.",
   },
   evalDays: {
     key: "evalDays",
@@ -101,6 +105,7 @@ export const BENCHMARK_METRICS: Record<BenchmarkMetricKey, BenchmarkMetricDef> =
     format: (v) => v.toFixed(1),
     gap: (v) => signed(v, 1),
     why: "Mean days elapsed on in-progress evaluations. Faster is not automatically better — very short runs can mean thin evaluation, very long runs mean capital sits locked up.",
+    trendNote: "Cumulative mean elapsed days of in-progress evaluations, bucketed by the month they started.",
   },
   payoutFreq: {
     key: "payoutFreq",
@@ -112,6 +117,7 @@ export const BENCHMARK_METRICS: Record<BenchmarkMetricKey, BenchmarkMetricDef> =
     format: (v) => v.toFixed(2),
     gap: (v) => signed(v, 2),
     why: "Paid payouts per funded trader. Below the plan target points at a payout-review backlog or funded traders who rarely request withdrawals.",
+    trendNote: "Cumulative paid payouts per funded trader, bucketed by week of payout.",
   },
   revenuePerTrader: {
     key: "revenuePerTrader",
@@ -123,6 +129,7 @@ export const BENCHMARK_METRICS: Record<BenchmarkMetricKey, BenchmarkMetricDef> =
     format: (v) => formatCurrencyValue(v, "USD", { decimals: 0 }),
     gap: (v) => signed(v, 0, " USD"),
     why: "Income per trader, FX-normalised. Under the plan target means the roster is thinly monetised — check challenge pricing, subscription mix, and refund rate.",
+    trendNote: "Cumulative FX-normalised income per trader, bucketed by week (30-day transaction window).",
   },
 };
 
@@ -217,4 +224,197 @@ export function meetsPlanTarget(
 ): boolean {
   const diff = planTargetGap(def, value, plan);
   return def.higherIsBetter ? diff >= 0 : diff <= 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Trend series — one deterministic series per metric for the trend
+ * tab. Buckets come from the same seed dates the table derives from
+ * (trader joins, challenge starts, payout processing, transaction
+ * dates) — no `Math.random()`. Each series is cumulative, so the last
+ * point equals the tenant row / cohort value for the same cohort.
+ * Buckets with no events carry the previous value forward (the chart
+ * stays continuous), and a cohort with no data returns `[]` so the
+ * chart renders its empty state instead of a fake 0.
+ * ------------------------------------------------------------------ */
+
+/** Type alias (not an interface) so it stays assignable to the charts'
+ *  `SeriesPoint` index signature. */
+export type BenchmarkTrendPoint = {
+  /** Bucket label shown on the chart's x-axis ("Jun", "Nov 24"). */
+  period: string;
+  value: number;
+};
+
+const MS_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+/** UTC month index (year × 12 + month) so months expand by a step of 1. */
+function monthKey(iso: string): number {
+  const d = new Date(iso);
+  return d.getUTCFullYear() * 12 + d.getUTCMonth();
+}
+
+function monthLabel(key: number): string {
+  return new Date(Math.floor(key / 12), key % 12, 1).toLocaleDateString(
+    "en-US",
+    { month: "short", timeZone: "UTC" },
+  );
+}
+
+/** UTC Monday 00:00 of the week containing `iso`, as a timestamp. */
+function weekKey(iso: string): number {
+  const d = new Date(iso);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+function weekLabel(key: number): string {
+  return new Date(key).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** Sorted keys with gaps expanded (months step 1, weeks step MS_WEEK). */
+function expandKeys(keys: number[], step: number): number[] {
+  const sorted = [...new Set(keys)].sort((a, b) => a - b);
+  const out: number[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0) {
+      for (let k = sorted[i - 1] + step; k < sorted[i]; k += step) out.push(k);
+    }
+    out.push(sorted[i]);
+  }
+  return out;
+}
+
+/**
+ * Fold per-bucket locals into a cumulative series. `merge` receives
+ * `undefined` for gap buckets (carry the state forward); `read` maps
+ * the running state to the charted value.
+ */
+function cumulativeFromMap<T, S>(
+  locals: Map<number, T>,
+  step: number,
+  init: S,
+  merge: (state: S, local: T | undefined) => S,
+  read: (state: S) => number,
+  label: (key: number) => string,
+): BenchmarkTrendPoint[] {
+  if (locals.size === 0) return [];
+  let state = init;
+  return expandKeys([...locals.keys()], step).map((key) => {
+    state = merge(state, locals.get(key));
+    return { period: label(key), value: read(state) };
+  });
+}
+
+/**
+ * Cumulative trend for one metric across a cohort of tenants.
+ * Returns `[]` when the cohort has no data for the metric — the
+ * caller renders the chart's empty state, never a fake 0.
+ */
+export function benchmarkTrend(
+  tenantIds: string[],
+  key: BenchmarkMetricKey,
+): BenchmarkTrendPoint[] {
+  switch (key) {
+    case "passRate": {
+      const traders = tenantIds.flatMap((id) => getTenantTraders(id));
+      if (traders.length === 0) return [];
+      const locals = new Map<number, { funded: number; total: number }>();
+      for (const t of traders) {
+        const k = monthKey(t.joinedAt);
+        const cur = locals.get(k) ?? { funded: 0, total: 0 };
+        cur.total += 1;
+        if (t.challengePhase === "funded") cur.funded += 1;
+        locals.set(k, cur);
+      }
+      return cumulativeFromMap(
+        locals,
+        1,
+        { funded: 0, total: 0 },
+        (s, l) =>
+          l ? { funded: s.funded + l.funded, total: s.total + l.total } : s,
+        (s) => (s.total > 0 ? (s.funded / s.total) * 100 : 0),
+        monthLabel,
+      );
+    }
+
+    case "evalDays": {
+      const inProgress = tenantIds
+        .flatMap((id) => getTenantChallenges(id))
+        .filter((c) => c.status === "in-progress");
+      if (inProgress.length === 0) return [];
+      const locals = new Map<number, { sum: number; count: number }>();
+      for (const c of inProgress) {
+        const k = monthKey(c.createdAt);
+        const cur = locals.get(k) ?? { sum: 0, count: 0 };
+        cur.sum += Math.max(0, EVAL_WINDOW_DAYS - c.daysLeft);
+        cur.count += 1;
+        locals.set(k, cur);
+      }
+      return cumulativeFromMap(
+        locals,
+        1,
+        { sum: 0, count: 0 },
+        (s, l) => (l ? { sum: s.sum + l.sum, count: s.count + l.count } : s),
+        (s) => (s.count > 0 ? s.sum / s.count : 0),
+        monthLabel,
+      );
+    }
+
+    case "payoutFreq": {
+      const funded = tenantIds
+        .flatMap((id) => getTenantTraders(id))
+        .filter((t) => t.challengePhase === "funded").length;
+      if (funded === 0) return [];
+      const locals = new Map<number, number>();
+      for (const id of tenantIds) {
+        for (const p of getTenantPayouts(id)) {
+          if (p.status !== "paid" || !p.processedAt) continue;
+          const k = weekKey(p.processedAt);
+          locals.set(k, (locals.get(k) ?? 0) + 1);
+        }
+      }
+      return cumulativeFromMap(
+        locals,
+        MS_WEEK,
+        0,
+        (s, l) => s + (l ?? 0),
+        (s) => s / funded,
+        weekLabel,
+      );
+    }
+
+    case "revenuePerTrader": {
+      const traderCount = tenantIds.flatMap((id) => getTenantTraders(id))
+        .length;
+      if (traderCount === 0) return [];
+      const locals = new Map<number, number>();
+      for (const id of tenantIds) {
+        for (const t of getTenantTransactions(id)) {
+          if (
+            t.type !== "challenge-fee" &&
+            t.type !== "subscription" &&
+            t.type !== "refund"
+          ) {
+            continue;
+          }
+          const usd = convertCurrency(t.amount, t.currency, "USD");
+          const signed = t.type === "refund" ? -usd : usd;
+          const k = weekKey(t.date);
+          locals.set(k, (locals.get(k) ?? 0) + signed);
+        }
+      }
+      return cumulativeFromMap(
+        locals,
+        MS_WEEK,
+        0,
+        (s, l) => s + (l ?? 0),
+        (s) => s / traderCount,
+        weekLabel,
+      );
+    }
+  }
 }
