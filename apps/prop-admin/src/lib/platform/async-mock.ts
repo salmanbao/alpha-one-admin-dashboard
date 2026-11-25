@@ -144,7 +144,6 @@ export function useAsyncMock<T>(
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, attempt]);
 
   const retry = useCallback(() => setAttempt((a) => a + 1), []);

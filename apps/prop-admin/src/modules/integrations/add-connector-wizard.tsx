@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { EmptyState } from "@/components/platform/guards";
+import { usePlatform } from "@/lib/platform/platform-context";
 import {
   AUTH_KIND_LABEL,
   type ConnectorDefinition,
@@ -164,6 +165,7 @@ export function AddConnectorWizard({
   const [eventLogging, setEventLogging] = useState(true);
   const [audience, setAudience] = useState("");
   const [finishing, setFinishing] = useState(false);
+  const { navigate } = usePlatform();
 
   /* Reset every time the wizard opens. */
   useEffect(() => {
@@ -350,7 +352,7 @@ export function AddConnectorWizard({
                                   e.stopPropagation();
                                   if (d.origin === "community") {
                                     // Deep-link to the Custom Connector Builder with the definition pre-selected.
-                                    window.location.href = `?view=connector-custom-new&def=${d.id}`;
+                                    navigate("connector-custom-new", { def: d.id });
                                   } else {
                                     pickDefinition(d);
                                   }

@@ -31,6 +31,12 @@ const VIEWS = {
 
   // Overview page (default view)
   "overview": dynamic(() => import("@/modules/overview/overview-page").then(m => ({ default: m.OverviewPage }))),
+
+  // Challenge catalog editor chain (P0-3) — the challenges manifest
+  // declares these nav/route entries; without a resolution here they
+  // rendered "View not found". Wired to the existing stitch editors.
+  "challenge-config": dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then(m => ({ default: m.ChallengeConfigStitchPage }))),
+  "phase-management": dynamic(() => import("@/modules/challenges/pages/challenges-stitch-pages").then(m => ({ default: m.PhaseManagementStitchPage }))),
 };
 
 export function resolveView(viewId: string) {

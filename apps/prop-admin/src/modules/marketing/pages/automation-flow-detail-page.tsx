@@ -123,7 +123,9 @@ export function AutomationFlowDetailPage() {
   const flow: Flow = flowOrNull;
 
   const refresh = () => setTick(getFlow(flow.id) ?? null);
-  const funnel = useMemo(() => flowFunnel(flow), [flow]);
+  // Plain derived value (not a hook) — this line sits after an early
+  // return, where useMemo would violate rules-of-hooks.
+  const funnel = flowFunnel(flow);
   const rangeMultiplier = range === "7d" ? 0.3 : range === "90d" ? 1.8 : 1;
   const active = flow.status === "active";
 

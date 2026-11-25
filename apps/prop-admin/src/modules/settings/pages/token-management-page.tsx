@@ -44,7 +44,7 @@ const CIDR_RE = /^(\d{1,3}\.){3}\d{1,3}\/(\d|[12]\d|3[0-2])$/;
 const ago=(d:number)=>new Date(Date.now()-d*86400000).toISOString();
 const spark=(seed:number)=>Array.from({length:30},(_,i)=>Math.max(0,Math.round((Math.sin(i*0.6+seed)*20+30)*(1+(seed%3)*0.2))));
 
-let TOKENS: Token[] = [
+const TOKENS: Token[] = [
   {id:"tok-1",name:"Marketing read-only bot",preview:"pfaas_mr9f…k2a1",full:"pfaas_mr9f8a11bb22cc33dd44k2a1",scopes:["marketing.read","segments.read","analytics.read"],expiresAt:ago(-60),never:false,lastUsed:ago(0),usage:spark(1),calls:[
     {id:"c1",ts:ago(0),endpoint:"GET /marketing/campaigns",status:200},
     {id:"c2",ts:ago(0),endpoint:"POST /marketing/segments",status:403,note:"missing scope segments.write"},
@@ -70,7 +70,7 @@ export function TokenManagementPage() {
   const [cName,setCName]=useState(""); const [cScopes,setCScopes]=useState<string[]>(SCOPE_GROUPS.flatMap(g=>g.scopes.filter(s=>!s.write).map(s=>s.id)));
   const [cExpiry,setCExpiry]=useState<"30"|"90"|"365"|"never">("90"); const [cIps,setCIps]=useState(""); const [cIpErr,setCIpErr]=useState("");
 
-  const commit=(n:Token[])=>{ TOKENS=n; setRows(n); };
+  const commit=(n:Token[])=>{ setRows(n); };
   const patch=(id:string,p:Partial<Token>)=>commit(rows.map(t=>t.id===id?{...t,...p}:t));
   const tok=(id:string)=>rows.find(t=>t.id===id);
 

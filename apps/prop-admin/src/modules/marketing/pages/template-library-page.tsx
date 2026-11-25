@@ -76,7 +76,7 @@ export function TemplateLibraryPage() {
     return out;
   }, [search, category, sort]);
 
-  function useTemplate(t: StudioTemplate) {
+  function applyTemplate(t: StudioTemplate) {
     if (t.kind === "flow") {
       // Independent draft — cloning fresh state each time (8.5 acceptance).
       const flow = createFlow(`${t.name} (draft)`, "trigger.challenge_passed");
@@ -235,7 +235,7 @@ export function TemplateLibraryPage() {
                     <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={() => setPreview(t)}>
                       Preview
                     </Button>
-                    <Button size="sm" className="flex-1 h-7 text-xs" onClick={() => useTemplate(t)}>
+                    <Button size="sm" className="flex-1 h-7 text-xs" onClick={() => applyTemplate(t)}>
                       Use template <ArrowRight className="ml-1 h-3 w-3" />
                     </Button>
                   </div>
@@ -312,7 +312,7 @@ export function TemplateLibraryPage() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button className="flex-1" onClick={() => useTemplate(preview)}>
+                  <Button className="flex-1" onClick={() => applyTemplate(preview)}>
                     <Rocket className="mr-1 h-4 w-4" /> Use template
                   </Button>
                   <Button variant="outline" onClick={() => setPreview(null)}>

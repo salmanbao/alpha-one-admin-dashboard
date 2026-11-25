@@ -100,7 +100,6 @@ export function StrFilingRegisterPage() {
         actionHref: "str-filings",
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filings = listFilings();

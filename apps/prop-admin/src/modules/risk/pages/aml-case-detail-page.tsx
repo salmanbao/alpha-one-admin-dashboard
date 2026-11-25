@@ -38,11 +38,14 @@ function hopTone(type: string): string {
 }
 
 function TransactionHops({ c }: { c: AmlCase }) {
-  let running = 0;
+  // Cumulative running total per hop — pure derivation, no render-time mutation.
+  const running = c.movements.reduce<number[]>(
+    (acc, m) => [...acc, (acc[acc.length - 1] ?? 0) + m.amount],
+    [],
+  );
   return (
     <div className="flex gap-1.5 overflow-x-auto pb-1">
       {c.movements.map((m, i) => {
-        running += m.amount;
         return (
           <Fragment key={i}>
             {i > 0 && <ArrowRight className="h-4 w-4 shrink-0 self-center text-muted-foreground" />}
@@ -56,7 +59,7 @@ function TransactionHops({ c }: { c: AmlCase }) {
                 {m.note ? ` · ${m.note}` : ""}
               </p>
               <p className="text-[10px] text-muted-foreground">
-                Σ {c.currency} {running.toLocaleString()}
+                Σ {c.currency} {running[i].toLocaleString()}
               </p>
               <p className="text-[10px] text-muted-foreground">{new Date(m.at).toLocaleString()}</p>
             </div>

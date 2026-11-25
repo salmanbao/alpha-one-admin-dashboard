@@ -139,6 +139,23 @@ const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
 const NODE_W = 184;
 const NODE_H = 62;
 
+/** Ordered execution path for a test run — plain helper (no hooks). */
+function computeTestPath(flow: Flow): FlowNode[] {
+  if (flow.nodes.length === 0) return [];
+  const trigger = flow.nodes.find((n) => isTrigger(n.type)) ?? flow.nodes[0];
+  const order: FlowNode[] = [];
+  const seen = new Set<string>();
+  let cursor: string | undefined = trigger.id;
+  while (cursor && !seen.has(cursor) && order.length < 12) {
+    seen.add(cursor);
+    const node = flow.nodes.find((n) => n.id === cursor);
+    if (!node) break;
+    order.push(node);
+    cursor = flow.edges.find((e) => e.from === cursor)?.to;
+  }
+  return order;
+}
+
 export function AutomationFlowBuilderPage() {
   const { router, navigate } = usePlatform();
   const paramFlow = router.params.flow;
@@ -166,7 +183,7 @@ export function AutomationFlowBuilderPage() {
 
   useEffect(() => {
     if (flowOrNull) setStatus(flowOrNull.status);
-  }, [flowOrNull?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [flowOrNull?.id]);
 
   /* ── Flow picker ── */
   if (!flowOrNull) {
@@ -336,21 +353,7 @@ export function AutomationFlowBuilderPage() {
   }
 
   /* ── Test run ── */
-  const testPath = useMemo(() => {
-    if (flow.nodes.length === 0) return [];
-    const trigger = flow.nodes.find((n) => isTrigger(n.type)) ?? flow.nodes[0];
-    const order: FlowNode[] = [];
-    const seen = new Set<string>();
-    let cursor: string | undefined = trigger.id;
-    while (cursor && !seen.has(cursor) && order.length < 12) {
-      seen.add(cursor);
-      const node = flow.nodes.find((n) => n.id === cursor);
-      if (!node) break;
-      order.push(node);
-      cursor = flow.edges.find((e) => e.from === cursor)?.to;
-    }
-    return order;
-  }, [flow]);
+  const testPath = computeTestPath(flow);
 
   function startRun() {
     setTestOpen(true);
