@@ -266,7 +266,19 @@ export function TenantBenchmarkingPage() {
 
   return (
     <Page>
-      <PageHeader title="Tenant Performance Benchmarking" />
+      <PageHeader
+        title="Tenant Performance Benchmarking"
+        description="Compares every tenant to industry benchmarks and the bar its plan tier is sold on."
+        actions={
+          <Badge
+            variant="outline"
+            className="text-muted-foreground"
+            title="Deterministic fixture benchmarks — swap for the benchmark feed at integration"
+          >
+            (Demo benchmarks)
+          </Badge>
+        }
+      />
       <PageContent>
         <PageAsyncBoundary
           loading={loading}

@@ -10086,3 +10086,27 @@ Stage Summary:
   Payout History → Purchase History → Documents → Terms & Policies → Account Breach → Support
 - All new files pass lint
 - Server healthy at HTTP 200 with 1536MB variant
+
+## Task: tenant-benchmarking provenance (screen report P2-4) + Phase 3 polish
+
+Provenance for the citation `audit finding #2 (LOW)` carried in the docstring of
+`apps/platform-admin/src/modules/super-admin/tenant-benchmarking-page.tsx`:
+
+- **Origin:** the screen was created by commit `1f06be0e` (2026-11-04) —
+  "feat(ui): audit finding #2 (LOW) — add tenant performance benchmarking
+  sub-screen to platform-admin". Finding #2 was one item of a numbered
+  console UI/UX audit delivered out-of-band (pasted into the session) and
+  never committed to `docs/`, which is why the citation had no trail here.
+  Sibling fixes from the same audit series on main: #1 shared form
+  validation (`a4c51cc3`), #3 unified chart palette (`e6f2725d`), #4
+  ErrorAlert (`c2bdc45b`), #5 risk-case breach explanations (`5c3d8757`),
+  #7 dialog focus restore (`b13f3055`), #9 DataTable sort indicators
+  (`c3e37611`), #10 SLA monitoring sub-screen (`a70286c2`).
+- **Follow-up:** "Tenant Benchmarking View (`?view=tenant-benchmarking`) —
+  Screen Analysis & Improvement Report" (analyzed at `5b31621`; verdict
+  3 P0 / 7 P1 / 8 P2) rebuilt the screen in three commits — `48696f89`
+  (seed-derived metrics, comparison table, cohort-mean cards),
+  `c6c6b689` (URL state, PageAsyncBoundary, empty states, benchmark
+  drawer), `289b7d78` (trend tab, CSV export/search) — plus Phase 3
+  polish (PageHeader description + "(Demo benchmarks)" chip, all-or-none
+  fleet-view registration in global search, this entry).

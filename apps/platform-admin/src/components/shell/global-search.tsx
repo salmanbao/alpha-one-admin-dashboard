@@ -16,6 +16,10 @@
  *                          (entities are observable, but the console has
  *                          no tenant-realm pages, so hits land on the
  *                          closest console workspace)
+ *   - Fleet              → benchmarking, lifecycle, health, view-as,
+ *                          offboarding, tenant-sessions — the six fleet
+ *                          views linked from the Tenants screen,
+ *                          registered all-or-none (never just one)
  *   - Settings           → global-defaults, reference-data, challenge-programs, feature-flags…
  *   - Audit              → platform-audit → audit-log → model-audit-log
  */
@@ -67,6 +71,10 @@ import {
   Flag,
   Building2,
   Brain,
+  BarChart3,
+  HeartPulse,
+  Eye,
+  Package,
 } from "lucide-react";
 
 interface SearchHit {
@@ -106,9 +114,29 @@ const SETTINGS_ENTRIES: Array<{
   { id: "operators", label: "Operator Directory", description: "Console operators and their role assignments", icon: UsersRound, viewId: "operator-directory" },
   { id: "roles", label: "Role Management", description: "platform:* role definitions and permissions", icon: KeyRound, viewId: "role-management" },
   { id: "sessions", label: "My Sessions", description: "Active console sessions and revocation", icon: Fingerprint, viewId: "my-sessions" },
-  { id: "tenant-sessions", label: "Tenant Sessions", description: "Per-tenant user sessions with activity indicators", icon: Fingerprint, viewId: "tenant-sessions" },
   { id: "announcements", label: "Announcements", description: "Operator-facing platform announcements", icon: Bell, viewId: "announcements" },
   { id: "plans", label: "Plans & Subscriptions", description: "Pricing tiers, feature entitlements, limits, and trials", icon: CreditCard, viewId: "plans" },
+];
+
+/**
+ * Tenant-fleet views — the cross-tenant workspace family linked from
+ * the Tenants screen's "Fleet views" row (`tenants-page.tsx`). Registered
+ * all-or-none (audit P2-6): every fleet view is searchable, never just
+ * one of them.
+ */
+const FLEET_ENTRIES: Array<{
+  id: string;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  viewId: string;
+}> = [
+  { id: "benchmarking", label: "Tenant Benchmarking", description: "Cohort metrics vs industry benchmarks and plan-tier targets", icon: BarChart3, viewId: "tenant-benchmarking" },
+  { id: "lifecycle", label: "Tenant Lifecycle", description: "Provisioning stage pipeline across the fleet", icon: GitBranch, viewId: "tenant-lifecycle" },
+  { id: "health", label: "Tenant Health", description: "Health scores and risk signals for every tenant", icon: HeartPulse, viewId: "tenant-health" },
+  { id: "view-as", label: "Tenant View-As", description: "Impersonate a tenant user to reproduce what they see", icon: Eye, viewId: "tenant-view-as" },
+  { id: "offboarding", label: "Tenant Offboarding", description: "Offboarding runs and data-retention steps", icon: Package, viewId: "tenant-offboarding" },
+  { id: "tenant-sessions", label: "Tenant Sessions", description: "Per-tenant user sessions with activity indicators", icon: Fingerprint, viewId: "tenant-sessions" },
 ];
 
 const AUDIT_ENTRIES: Array<{
@@ -270,6 +298,21 @@ export function GlobalSearchDialog() {
           icon: s.icon,
           group: "Settings",
           navigateTo: s.viewId,
+        });
+      }
+    }
+
+    // Fleet views — the cross-tenant workspace family from the Tenants
+    // screen's "Fleet views" row (registered all-or-none, P2-6).
+    for (const f of FLEET_ENTRIES) {
+      if (`${f.label} ${f.description} fleet`.toLowerCase().includes(q)) {
+        out.push({
+          id: `fleet-${f.id}`,
+          label: f.label,
+          description: `${f.description} · Fleet`,
+          icon: f.icon,
+          group: "Fleet",
+          navigateTo: f.viewId,
         });
       }
     }
