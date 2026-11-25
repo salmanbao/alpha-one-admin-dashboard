@@ -61,6 +61,8 @@ export interface BenchmarkMetricDef {
   format: (v: number) => string;
   /** Signed formatter for a difference against a reference. */
   gap: (v: number) => string;
+  /** Operator-facing "why this matters" hint shown in the row drawer. */
+  why: string;
 }
 
 /** Render / iteration order for the four metrics. */
@@ -87,6 +89,7 @@ export const BENCHMARK_METRICS: Record<BenchmarkMetricKey, BenchmarkMetricDef> =
     planTargets: { starter: 16, growth: 20, scale: 24, enterprise: 28 },
     format: (v) => `${v.toFixed(1)}%`,
     gap: (v) => signed(v, 1, " pts"),
+    why: "Share of traders who reach funded. Below the industry line usually means evaluation gates filter out more participants than peers do.",
   },
   evalDays: {
     key: "evalDays",
@@ -97,6 +100,7 @@ export const BENCHMARK_METRICS: Record<BenchmarkMetricKey, BenchmarkMetricDef> =
     planTargets: { starter: 60, growth: 45, scale: 30, enterprise: 20 },
     format: (v) => v.toFixed(1),
     gap: (v) => signed(v, 1),
+    why: "Mean days elapsed on in-progress evaluations. Faster is not automatically better — very short runs can mean thin evaluation, very long runs mean capital sits locked up.",
   },
   payoutFreq: {
     key: "payoutFreq",
@@ -107,6 +111,7 @@ export const BENCHMARK_METRICS: Record<BenchmarkMetricKey, BenchmarkMetricDef> =
     planTargets: { starter: 1, growth: 2, scale: 3, enterprise: 4 },
     format: (v) => v.toFixed(2),
     gap: (v) => signed(v, 2),
+    why: "Paid payouts per funded trader. Below the plan target points at a payout-review backlog or funded traders who rarely request withdrawals.",
   },
   revenuePerTrader: {
     key: "revenuePerTrader",
@@ -117,6 +122,7 @@ export const BENCHMARK_METRICS: Record<BenchmarkMetricKey, BenchmarkMetricDef> =
     planTargets: { starter: 3000, growth: 5000, scale: 8000, enterprise: 12000 },
     format: (v) => formatCurrencyValue(v, "USD", { decimals: 0 }),
     gap: (v) => signed(v, 0, " USD"),
+    why: "Income per trader, FX-normalised. Under the plan target means the roster is thinly monetised — check challenge pricing, subscription mix, and refund rate.",
   },
 };
 
