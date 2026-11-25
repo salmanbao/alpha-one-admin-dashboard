@@ -20,33 +20,37 @@
  * fixtures — a fixed table, no `Math.random()` — so screenshots and
  * tests stay stable; swap them for the benchmark feed at integration.
  *
- * Drill-down filters: plan tier (segment), region (derived from the
- * tenant's IANA timezone) and the metric the charts/insights follow.
+ * Drill-down filters: plan tier (segment) and region (the tenant's
+ * data-residency pin — canonical ids from `lib/platform/regions.ts`,
+ * matched by equality). Both default to an explicit `"all"` sentinel
+ * and intersect (AND) — a region filter never masks the plan filter.
+ *
+ * All derivations live in `lib/platform/benchmarking.ts`: null-safe
+ * (a metric with no cohort data renders "—", never a fake 0) and
+ * seed-derived — no per-screen metric maps.
  */
 
 import { useMemo, useState } from "react";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AreaSeries, BarSeries } from "@/components/platform/charts";
-import { usePlatform } from "@/lib/platform/platform-context";
-import { TENANT_REGIONS } from "@/lib/platform/regions";
+import { DataTable, type Column } from "@/components/platform/data-table";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
-import { PageAsyncBoundary } from "@/components/platform/guards";
+import { useTenants } from "@/lib/platform/tenant-store";
+import { TENANT_REGIONS, regionLabel } from "@/lib/platform/regions";
 import { cn } from "@/lib/utils";
 import {
-  BarChart3,
-  Gauge,
-  Lightbulb,
-  Target,
-  TrendingDown,
-  TrendingUp,
-  Users,
-} from "lucide-react";
-import { formatCurrency } from "@/components/platform/status";
-import { useTenants } from "@/lib/platform/tenant-store";
-import type { TenantContext } from "@/lib/platform/types";
+  BENCHMARK_METRICS,
+  BENCHMARK_METRIC_KEYS,
+  cohortMean,
+  meetsPlanTarget,
+  planTargetGap,
+  tenantBenchmarkRow,
+  type BenchmarkMetricDef,
+  type BenchmarkMetricKey,
+  type PlanTier,
+  type TenantBenchmarkRow,
+} from "@/lib/platform/benchmarking";
 import {
   Select,
   SelectContent,
@@ -54,208 +58,230 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DollarSign, Timer, Users, Wallet } from "lucide-react";
 
-/* ------------------------------------------------------------------ */
-/* Metric dictionary                                                    */
-/* ------------------------------------------------------------------ */
+const PLAN_TIERS: PlanTier[] = ["starter", "growth", "scale", "enterprise"];
 
-type PlanTier = TenantContext["plan"];
-type MetricKey = "passRate" | "evalDays" | "payoutFreq" | "revenuePerTrader";
-
-interface MetricDef {
-  key: MetricKey;
-  label: string;
-  /** Short unit note shown under charts / table headers. */
-  unit: string;
-  /** True when a higher number is the good outcome. */
-  higherIsBetter: boolean;
-  /** Illustrative industry benchmark (fixed fixture). */
-  industry: number;
-  /** Plan-tier targets — enterprise is held to a stricter bar. */
-  planTargets: Record<PlanTier, number>;
-  format: (v: number) => string;
-  /** Signed formatter for a difference against a reference. */
-  gap: (v: number) => string;
-}
-
-const METRICS: Record<MetricKey, MetricDef> = {
-  passRate: {
-    key: "passRate",
-    label: "Trader pass rate",
-    unit: "funded ÷ traders",
-    higherIsBetter: true,
-    industry: 22,
-    planTargets: { starter: 16, growth: 20, scale: 24, enterprise: 28 },
-    format: (v) => `${v.toFixed(0)}%`,
-    gap: (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)} pts`,
-  },
-  evalDays: {
-    key: "evalDays",
-    label: "Avg evaluation duration",
-    unit: "days",
-    higherIsBetter: false,
-    industry: 45,
-    planTargets: { starter: 60, growth: 45, scale: 30, enterprise: 20 },
-    format: (v) => `${v.toFixed(1)}`,
-    gap: (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}`,
-  },
-  payoutFreq: {
-    key: "payoutFreq",
-    label: "Payout frequency",
-    unit: "paid payouts per funded trader",
-    higherIsBetter: true,
-    industry: 2,
-    planTargets: { starter: 1, growth: 2, scale: 3, enterprise: 4 },
-    format: (v) => `${v}`,
-    gap: (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v)}`,
-  },
-  revenuePerTrader: {
-    key: "revenuePerTrader",
-    label: "Revenue per trader",
-    unit: "USD",
-    higherIsBetter: true,
-    industry: 5000,
-    planTargets: { starter: 3000, growth: 5000, scale: 8000, enterprise: 12000 },
-    format: (v) => formatCurrency(v),
-    gap: (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(0)} USD`,
-  },
+const METRIC_ICONS: Record<
+  BenchmarkMetricKey,
+  React.ComponentType<{ className?: string; style?: React.CSSProperties }>
+> = {
+  passRate: Users,
+  evalDays: Timer,
+  payoutFreq: Wallet,
+  revenuePerTrader: DollarSign,
 };
 
-const metricDefs: Record<MetricKey, MetricDef> = METRICS;
+/** Value + signed gap vs the row's plan target (null-safe, P0). */
+function MetricCell({ row, def }: { row: TenantBenchmarkRow; def: BenchmarkMetricDef }) {
+  const value = row[def.key];
+  if (value === null) {
+    return (
+      <span
+        className="text-sm text-muted-foreground"
+        title="No data for this cohort"
+      >
+        —
+      </span>
+    );
+  }
+  const gap = planTargetGap(def, value, row.plan);
+  const good = meetsPlanTarget(def, value, row.plan);
+  return (
+    <div className="flex flex-col items-end gap-0.5">
+      <span className="font-mono tabular-nums text-sm">{def.format(value)}</span>
+      <span
+        title={`Plan target: ${def.format(def.planTargets[row.plan])}`}
+        className={cn(
+          "text-[10px] font-medium",
+          good
+            ? "text-emerald-600 dark:text-emerald-400"
+            : "text-rose-600 dark:text-rose-400",
+        )}
+      >
+        {def.gap(gap)}
+      </span>
+    </div>
+  );
+}
 
 export function TenantBenchmarkingPage() {
-  const {
-    data: hydrated,
-    loading,
-    error,
-    retry,
-  } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const { navigate } = usePlatform();
+  const { loading } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
   const tenants = useTenants();
 
-  const [metricKey, setMetricKey] = useState<MetricKey>("passRate");
-  const [filterPlan, setFilterPlan] = useState<PlanTier>("starter");
-  const [filterRegion, setFilterRegion] = useState<string>("");
+  // Explicit "all" sentinels — "starter" is a real tier, never a default
+  // mask (the old page used it as one, which hid the plan filter).
+  const [filterPlan, setFilterPlan] = useState<PlanTier | "all">("all");
+  const [filterRegion, setFilterRegion] = useState<string>("all");
 
-  const filteredTenants = useMemo(() => {
-    if (filterRegion) {
-      return tenants.filter((t) => t.region?.toLowerCase().includes(filterRegion.toLowerCase()));
-    }
-    return filterPlan !== "starter"
-      ? tenants.filter((t) => t.plan === filterPlan)
-      : tenants;
-  }, [tenants, filterPlan, filterRegion]);
+  const rows = useMemo(() => tenants.map(tenantBenchmarkRow), [tenants]);
 
-  const selectedTenant = useMemo(() => {
-    if (filterPlan !== "starter") {
-      const match = filteredTenants.find((t) => t.id === filterPlan);
-      return match || null;
-    }
-    return null;
-  }, [filterPlan, filteredTenants]);
+  const filtered = useMemo(
+    () =>
+      rows.filter(
+        (r) =>
+          (filterPlan === "all" || r.plan === filterPlan) &&
+          (filterRegion === "all" || r.region === filterRegion),
+      ),
+    [rows, filterPlan, filterRegion],
+  );
 
-  const [activeTab, setActiveTab] = useState<"metrics" | "trend" | "detail">("metrics");
-  const [expandedTenant, setExpandedTenant] = useState<TenantContext | null>(null);
+  const columns: Column<TenantBenchmarkRow>[] = [
+    {
+      key: "tenant",
+      header: "Tenant",
+      cell: (r) => (
+        <div className="flex flex-col">
+          <span className="font-medium text-sm">{r.name}</span>
+          <span className="text-xs text-muted-foreground">{r.tenantId}</span>
+        </div>
+      ),
+      sortValue: (r) => r.name,
+    },
+    {
+      key: "plan",
+      header: "Plan",
+      cell: (r) => (
+        <Badge variant="outline" className="text-[10px] capitalize">
+          {r.plan}
+        </Badge>
+      ),
+      sortValue: (r) => PLAN_TIERS.indexOf(r.plan),
+    },
+    {
+      key: "region",
+      header: "Region",
+      cell: (r) => (
+        <span className="text-sm text-muted-foreground">{regionLabel(r.region)}</span>
+      ),
+      sortValue: (r) => regionLabel(r.region),
+    },
+    ...BENCHMARK_METRIC_KEYS.map((key) => {
+      const def = BENCHMARK_METRICS[key];
+      return {
+        key,
+        header: def.label,
+        numeric: true,
+        cell: (r: TenantBenchmarkRow) => <MetricCell row={r} def={def} />,
+        sortValue: (r: TenantBenchmarkRow) => r[key] ?? -Infinity,
+      } satisfies Column<TenantBenchmarkRow>;
+    }),
+  ];
 
-  const handleSelectTenant = (t: TenantContext) => {
-    setExpandedTenant(t);
-    setActiveTab("detail");
-  };
-
-  const handleCloseDetail = () => {
-    setExpandedTenant(null);
-    setActiveTab("metrics");
-  };
-
-  const handleSelectMetric = (key: MetricKey) => setMetricKey(key);
-  const handleSelectPlan = (plan: PlanTier) => setFilterPlan(plan);
-  const handleSelectRegion = (region: string) => setFilterRegion(region);
-
-  const metricDef = METRICS[metricKey];
-  const planTarget = metricDef.planTargets[filterPlan] || 0;
-
-  const handleEditRow = (t: TenantContext) => {
-    // This would be for a real edit page, but for now we'll just log
-    console.log("Editing tenant:", t);
-  };
+  const hasFilter = filterPlan !== "all" || filterRegion !== "all";
 
   return (
     <Page>
       <PageHeader title="Tenant Performance Benchmarking" />
       <PageContent>
-        <div className="flex gap-4 mb-6">
-          <div className="flex-1">
-            <label className="sr-only">Metric</label>
-            <select
-              value={metricKey}
-              onChange={(e) => setMetricKey(e.target.value as MetricKey)}
-              className="block w-full rounded-md border-0 py-1.5 pt-2 pl-1 text-sm font-medium placeholder-gray-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-50"
-            >
-              {Object.entries(METRICS).map(([key, def]) => (
-                <option key={key} value={key}>
-                  {def.label}
-                </option>
+        {/* Drill-down filters — plan and region intersect (AND), both
+            defaulting to an explicit "all" sentinel. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={filterPlan}
+            onValueChange={(v) => setFilterPlan(v as PlanTier | "all")}
+          >
+            <SelectTrigger className="h-9 w-44 text-xs" aria-label="Filter by plan tier">
+              <SelectValue placeholder="Plan tier" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All plans</SelectItem>
+              {PLAN_TIERS.map((p) => (
+                <SelectItem key={p} value={p}>
+                  <span className="capitalize">{p}</span>
+                </SelectItem>
               ))}
-            </select>
-          </div>
-          <div className="flex-1">
-            <label className="sr-only">Plan tier</label>
-            <select
-              value={filterPlan}
-              onChange={(e) => setFilterPlan(e.target.value as PlanTier)}
-              className="block w-full rounded-md border-0 py-1.5 pt-2 pl-1 text-sm font-medium placeholder-gray-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-50"
-            >
-              <option value="starter">Starter</option>
-              <option value="growth">Growth</option>
-              <option value="scale">Scale</option>
-              <option value="enterprise">Enterprise</option>
-            </select>
-          </div>
-          <div className="flex-1">
-            <label className="sr-only">Region</label>
-            <select
-              value={filterRegion}
-              onChange={(e) => setFilterRegion(e.target.value)}
-              className="block w-full rounded-md border-0 py-1.5 pt-2 pl-1 text-sm font-medium placeholder-gray-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-50"
-            >
-              <option value="">All Regions</option>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filterRegion}
+            onValueChange={(v) => setFilterRegion(v)}
+          >
+            <SelectTrigger className="h-9 w-56 text-xs" aria-label="Filter by region">
+              <SelectValue placeholder="Region" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All regions</SelectItem>
               {TENANT_REGIONS.map((r) => (
-                <option key={r.id} value={r.id}>{r.label}</option>
+                <SelectItem key={r.id} value={r.id}>
+                  {r.label}
+                </SelectItem>
               ))}
-            </select>
-          </div>
+            </SelectContent>
+          </Select>
+
+          <span className="text-xs text-muted-foreground">
+            {filtered.length} of {rows.length} tenant{rows.length === 1 ? "" : "s"} in view
+          </span>
         </div>
 
-        <MetricCard
-          label={metricDef.label}
-          value={hydrated ? (selectedTenant ? metricDef.format(metricDef.planTargets[filterPlan]) : "—") : "—"}
-          tone={metricDef.higherIsBetter ? "positive" : "negative"}
-        />
+        {/* Cohort-mean overview — one card per metric, each carrying its
+            delta vs the industry benchmark and a sentiment tone. */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {BENCHMARK_METRIC_KEYS.map((key) => {
+            const def = BENCHMARK_METRICS[key];
+            const mean = cohortMean(filtered, key);
+            const beats =
+              mean !== null &&
+              (def.higherIsBetter ? mean >= def.industry : mean <= def.industry);
+            const delta =
+              mean === null || def.industry === 0
+                ? undefined
+                : Math.round(
+                    ((def.higherIsBetter
+                      ? mean - def.industry
+                      : def.industry - mean) /
+                      def.industry) *
+                      100,
+                  );
+            return (
+              <MetricCard
+                key={key}
+                label={`Cohort · ${def.label}`}
+                icon={METRIC_ICONS[key]}
+                value={mean !== null ? def.format(mean) : "—"}
+                delta={delta}
+                deltaLabel={
+                  mean !== null
+                    ? `industry ${def.format(def.industry)}`
+                    : key === "evalDays"
+                      ? "no in-progress evaluations"
+                      : "no data for this cohort"
+                }
+                tone={mean === null ? "default" : beats ? "positive" : "negative"}
+              />
+            );
+          })}
+        </div>
 
-        {activeTab === "detail" && expandedTenant && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-lg font-medium mb-3">Tenant Detail</h3>
-            <dl className="grid grid-cols-2 gap-3">
-              <dt className="text-sm text-gray-600">Name</dt>
-              <dd className="font-medium">{expandedTenant.name}</dd>
-
-              <dt className="text-sm text-gray-600">Plan</dt>
-              <dd className="font-medium">{expandedTenant.plan}</dd>
-
-              <dt className="text-sm text-gray-600">Region</dt>
-              <dd className="font-medium">{expandedTenant.region}</dd>
-
-              <dt className="text-sm text-gray-600">Created</dt>
-              <dd className="font-medium">{new Date(expandedTenant.createdAt).toLocaleDateString()}</dd>
-
-              <dt className="text-sm text-gray-600">Live At</dt>
-              <dd className="font-medium">{expandedTenant.liveAt ? new Date(expandedTenant.liveAt).toLocaleDateString() : "—"}</dd>
-
-              <dt className="text-sm text-gray-600">Status</dt>
-              <dd className="font-medium">{expandedTenant.status}</dd>
-            </dl>
-          </div>
-        )}
+        {/* Comparison table — four metrics, each with its signed gap vs
+            the row's plan target (hover the gap for the target value). */}
+        <Card>
+          <CardHeader className="pb-2">
+            <span className="text-sm font-medium">Tenant comparison</span>
+            <p className="text-xs text-muted-foreground">
+              Each tenant against its plan-tier target — the signed gap sits under every
+              value: green meets or beats the bar, red misses it. Sort by any column.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <DataTable
+              columns={columns}
+              data={filtered}
+              rowKey={(r) => r.tenantId}
+              loading={loading}
+              emptyTitle={
+                hasFilter ? "No tenants match these filters" : "No tenants yet"
+              }
+              emptyDescription={
+                hasFilter
+                  ? "Clear the plan or region filter to widen the cohort."
+                  : "The tenant roster will appear here once tenants are provisioned."
+              }
+            />
+          </CardContent>
+        </Card>
       </PageContent>
     </Page>
   );
