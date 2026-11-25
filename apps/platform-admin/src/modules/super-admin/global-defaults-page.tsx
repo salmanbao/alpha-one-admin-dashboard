@@ -18,7 +18,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { recordAudit } from "@/lib/platform/console-store";
-import { Save, RotateCcw } from "lucide-react";
+import { Save, RotateCcw, Target } from "lucide-react";
 import { Settings2, Building2, DollarSign, Clock, ShieldCheck } from "lucide-react";
 
 interface DefaultSetting {
@@ -58,7 +58,7 @@ const initialValues: SettingValues = Object.fromEntries(
 );
 
 export function GlobalDefaultsPage() {
-  const { user, pushNotification } = usePlatform();
+  const { user, pushNotification, navigate } = usePlatform();
   const [values, setValues] = useState<SettingValues>(initialValues);
   const [saved, setSaved] = useState<SettingValues>(initialValues);
 
@@ -124,6 +124,10 @@ export function GlobalDefaultsPage() {
         icon={Settings2}
         actions={
           <>
+            {/* P2-5 IA cross-link — breadcrumb parent of Challenge Programs. */}
+            <Button variant="outline" size="sm" onClick={() => navigate("challenge-programs")}>
+              <Target className="mr-1 h-4 w-4" /> Challenge Programs
+            </Button>
             {dirty ? (
               <Button variant="outline" size="sm" onClick={handleReset}>
                 <RotateCcw className="mr-1 h-4 w-4" /> Discard changes

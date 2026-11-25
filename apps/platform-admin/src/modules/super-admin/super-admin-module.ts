@@ -84,7 +84,6 @@ const navigation: NavigationItem[] = [
       { id: "super.lifecycle", label: "Lifecycle", href: "tenant-lifecycle", icon: GitBranch, application: ["super-admin"], group: "Tenant Management" },
   { id: "super.adoption", label: "Adoption Funnel", href: "adoption-funnel", icon: Funnel, application: ["super-admin"], group: "Tenant Management" },
   { id: "super.tenant-offboarding", label: "Tenant Offboarding", href: "tenant-offboarding", icon: Package, application: ["super-admin"], group: "Tenant Management" },
-      { id: "super.challenge-programs", label: "Challenge Programs", href: "challenge-programs", icon: Target, application: ["super-admin"], group: "Tenant Management", permission: "platform.modules.manage" },
       { id: "super.tenant-health", label: "Tenant Health", href: "tenant-health", icon: HeartPulse, application: ["super-admin"], group: "Tenant Management" },
   { id: "super.benchmarking", label: "Benchmarking", href: "tenant-benchmarking", icon: BarChart3, application: ["super-admin"], group: "Tenant Management" },
 
@@ -118,6 +117,7 @@ const navigation: NavigationItem[] = [
       { id: "super.dashboard-manager", label: "Dashboard Manager", href: "dashboard-manager", icon: LayoutDashboard, application: ["super-admin"], group: "Platform Config" },
       { id: "super.feature-flags", label: "Feature Flags", href: "feature-flags", icon: Flag, application: ["super-admin"], group: "Platform Config" },
       { id: "super.global-defaults", label: "Global Defaults", href: "global-defaults", icon: Settings2, application: ["super-admin"], group: "Platform Config" },
+      { id: "super.challenge-programs", label: "Challenge Programs", href: "challenge-programs", icon: Target, application: ["super-admin"], group: "Platform Config", permission: "platform.modules.manage" },
       { id: "super.reference-data", label: "Reference Data", href: "reference-data", icon: BookOpen, application: ["super-admin"], group: "Platform Config" },
       { id: "super.risk-engine", label: "Risk Engine", href: "risk-engine", icon: Gauge, application: ["super-admin"], group: "Platform Config" },
       { id: "super.announcements", label: "Announcements", href: "announcements", icon: Bell, application: ["super-admin"], group: "Platform Config" },
@@ -308,6 +308,11 @@ const routes: RouteDefinition[] = [
   // SF-28 — these three views were registered in the view-router but had no
   // route definition, so the dashboard router never attached a permission
   // guard and they rendered for any authenticated operator.
+  // P1-7 note: the catalog reuses `platform.modules.manage` ("Manage module
+  // catalog") because no challenge-catalog-specific permission exists in the
+  // catalog yet; route-level enforcement happens in dashboard-router.tsx via
+  // this route definition. A dedicated `platform.challenge.manage` id is a
+  // permission-catalog change, tracked separately.
   { path: "challenge-programs", viewId: "challenge-programs", label: "Challenge Programs", application: ["super-admin"], permission: "platform.modules.manage" },
   { path: "tenant-channel-entitlements", viewId: "tenant-channel-entitlements", label: "Tenant Channel Entitlements", application: ["super-admin"], permission: ["platform.marketing.manage", "platform.marketing.read"] },
   { path: "churn-prevention", viewId: "churn-prevention", label: "Churn Prevention", application: ["super-admin"] },

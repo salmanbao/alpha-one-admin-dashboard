@@ -528,6 +528,8 @@ export interface TradingAccount {
   currency: string;
   status: "active" | "breached" | "passed" | "pending";
   createdAt: string;
+  /** P1-6 — join key into challengePhaseConfigs for usage counts. */
+  phaseConfigId?: string;
 }
 
 export interface Position {
@@ -792,6 +794,8 @@ function seedAccounts(): TradingAccount[] {
         currency: t.tenantId === "tenant-beta" ? "GBP" : "USD",
         status: t.status === "breached" ? "breached" : isFunded ? "active" : "pending",
         createdAt: t.joinedAt,
+        // Join key for Challenge Programs usage counts (P1-6).
+        phaseConfigId: isFunded ? "pc-3" : phase === "phase-2" ? "pc-2" : "pc-1",
       });
     }
   }
@@ -1435,6 +1439,9 @@ export interface ChallengePhaseConfig {
   maxDays: number;
   profitSplit: number;
   isFunded: boolean;
+  /** P1-5 auditability — who/what/when on configuration rows. */
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 export interface Offer {
@@ -1548,12 +1555,21 @@ export const challengeTypes: ChallengeType[] = [
 ];
 
 export const challengePhaseConfigs: ChallengePhaseConfig[] = [
-  { id: "pc-1", challengeTypeId: "ct-3", phaseName: "Phase 1", phaseOrder: 1, accountSize: 10000, profitTargetPct: 8, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 30, profitSplit: 0, isFunded: false },
-  { id: "pc-2", challengeTypeId: "ct-3", phaseName: "Phase 2", phaseOrder: 2, accountSize: 10000, profitTargetPct: 5, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 60, profitSplit: 0, isFunded: false },
-  { id: "pc-3", challengeTypeId: "ct-3", phaseName: "Funded", phaseOrder: 3, accountSize: 10000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 80, isFunded: true },
-  { id: "pc-4", challengeTypeId: "ct-2", phaseName: "Phase 1", phaseOrder: 1, accountSize: 25000, profitTargetPct: 8, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 3, maxDays: 30, profitSplit: 0, isFunded: false },
-  { id: "pc-5", challengeTypeId: "ct-2", phaseName: "Funded", phaseOrder: 2, accountSize: 25000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 80, isFunded: true },
-  { id: "pc-6", challengeTypeId: "ct-1", phaseName: "Funded", phaseOrder: 1, accountSize: 50000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 90, isFunded: true },
+  { id: "pc-1", challengeTypeId: "ct-3", phaseName: "Phase 1", phaseOrder: 1, accountSize: 10000, profitTargetPct: 8, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 30, profitSplit: 0, isFunded: false, updatedAt: daysAgo(42), updatedBy: "Sarah Chen" },
+  { id: "pc-2", challengeTypeId: "ct-3", phaseName: "Phase 2", phaseOrder: 2, accountSize: 10000, profitTargetPct: 5, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 60, profitSplit: 0, isFunded: false, updatedAt: daysAgo(42), updatedBy: "Sarah Chen" },
+  { id: "pc-3", challengeTypeId: "ct-3", phaseName: "Funded", phaseOrder: 3, accountSize: 10000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 80, isFunded: true, updatedAt: daysAgo(18), updatedBy: "Marcus Webb" },
+  { id: "pc-4", challengeTypeId: "ct-2", phaseName: "Phase 1", phaseOrder: 1, accountSize: 25000, profitTargetPct: 8, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 3, maxDays: 30, profitSplit: 0, isFunded: false, updatedAt: daysAgo(9), updatedBy: "Priya Nair" },
+  { id: "pc-5", challengeTypeId: "ct-2", phaseName: "Funded", phaseOrder: 2, accountSize: 25000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 80, isFunded: true, updatedAt: daysAgo(18), updatedBy: "Marcus Webb" },
+  { id: "pc-6", challengeTypeId: "ct-1", phaseName: "Funded", phaseOrder: 1, accountSize: 50000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 90, isFunded: true, updatedAt: daysAgo(30), updatedBy: "Sarah Chen" },
+  // ct-4 3-Step Evaluation — was 0/4 configured (P0-2 coverage hole).
+  { id: "pc-7", challengeTypeId: "ct-4", phaseName: "Phase 1", phaseOrder: 1, accountSize: 10000, profitTargetPct: 8, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 5, maxDays: 30, profitSplit: 0, isFunded: false, updatedAt: daysAgo(14), updatedBy: "Sarah Chen" },
+  { id: "pc-8", challengeTypeId: "ct-4", phaseName: "Phase 2", phaseOrder: 2, accountSize: 10000, profitTargetPct: 5, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 5, maxDays: 60, profitSplit: 0, isFunded: false, updatedAt: daysAgo(14), updatedBy: "Sarah Chen" },
+  { id: "pc-9", challengeTypeId: "ct-4", phaseName: "Phase 3", phaseOrder: 3, accountSize: 10000, profitTargetPct: 5, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 3, maxDays: 90, profitSplit: 0, isFunded: false, updatedAt: daysAgo(14), updatedBy: "Sarah Chen" },
+  { id: "pc-10", challengeTypeId: "ct-4", phaseName: "Funded", phaseOrder: 4, accountSize: 10000, profitTargetPct: 0, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 0, profitSplit: 80, isFunded: true, updatedAt: daysAgo(14), updatedBy: "Marcus Webb" },
+  // ct-5 Free Trial — was 0/1 configured.
+  { id: "pc-11", challengeTypeId: "ct-5", phaseName: "Trial", phaseOrder: 1, accountSize: 5000, profitTargetPct: 5, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 14, profitSplit: 0, isFunded: false, updatedAt: daysAgo(6), updatedBy: "Priya Nair" },
+  // ct-6 Competition — was 0/1 configured.
+  { id: "pc-12", challengeTypeId: "ct-6", phaseName: "Competition", phaseOrder: 1, accountSize: 100000, profitTargetPct: 10, maxDrawdownPct: 10, dailyDrawdownPct: 5, minTradingDays: 0, maxDays: 30, profitSplit: 0, isFunded: false, updatedAt: daysAgo(3), updatedBy: "Sarah Chen" },
 ];
 
 export const offers: Offer[] = [
@@ -1644,12 +1660,18 @@ export const changeHistory: ChangeHistoryEntry[] = (() => {
     // 3 tenants (or "platform" for super-admin) using `hashStr`.
     const h = hashStr(id) % 4;
     const tid = h === 0 ? "tenant-alpha" : h === 1 ? "tenant-beta" : h === 2 ? "tenant-gamma" : "platform";
+    // Phase/Challenge entries point at real config ids (pc-*) so the
+    // Challenge Programs drawer can link history to a row (P1-5).
+    const entityId =
+      c.entity === "Phase" || c.entity === "Challenge"
+        ? challengePhaseConfigs[i % challengePhaseConfigs.length].id
+        : `${c.entity}-${1000 + i}`;
     out.push({
       id,
       timestamp: hoursAgo(i * 6),
       actor: actors[i % actors.length],
       entityType: c.entity,
-      entityId: `${c.entity}-${1000 + i}`,
+      entityId,
       field: c.field,
       oldValue: c.old,
       newValue: c.new,
