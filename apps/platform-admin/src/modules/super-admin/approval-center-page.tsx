@@ -14,7 +14,7 @@
  * safety screens (Phase C) land here.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
@@ -71,10 +71,24 @@ export function ApprovalCenterPage() {
     error,
     retry,
   } = useAsyncMock(() => mockAsync(() => true, { delayMs: 400 }), []);
-  const { user } = usePlatform();
+  const { user, navigate } = usePlatform();
   const store = useConsoleStore();
   const approvals = useApprovalRequests();
   const [demoIdx, setDemoIdx] = useState(0);
+  // Deep-link support: ?request=<id> focuses a pending approval
+  const urlParams = new URLSearchParams(window.location.search);
+  const deepLinkRequestId = urlParams.get("request");
+  useEffect(() => {
+    if (deepLinkRequestId) {
+      // Focus the specific request by scrolling to it
+      const request = approvals.find((a) => a.id === deepLinkRequestId);
+      if (request) {
+        // The card will auto-focus via the URL fragment
+        const element = document.getElementById(`approval-${deepLinkRequestId}`);
+        element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [deepLinkRequestId, approvals]);
 
   const pending = approvals.filter((a) => a.status === "pending_approval");
   const closed = approvals.filter((a) => a.status !== "pending_approval");
@@ -133,6 +147,7 @@ export function ApprovalCenterPage() {
             {pending.map((req) => (
               <ApprovalRequestCard
                 key={req.id}
+                id={`approval-${req.id}`}
                 request={req}
                 onDecided={(r, decision) => {
                   if (decision === "reject") {

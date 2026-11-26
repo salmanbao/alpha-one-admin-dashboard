@@ -114,6 +114,7 @@ const SETTINGS_ENTRIES: Array<{
   { id: "modules", label: "Module Catalog", description: "Platform service catalog and entitlements", icon: Plug, viewId: "module-catalog" },
   { id: "feature-flags", label: "Feature Flags", description: "Global kill switches and gradual rollouts", icon: Flag, viewId: "feature-flags" },
   { id: "providers", label: "Provider Registry", description: "Payment, KYC, and broker provider connections", icon: Plug, viewId: "provider-registry" },
+   { id: "provider-incident-runbook", label: "Provider Incident Runbook", description: "Rapid response workflow for provider outages affecting payouts", icon: AlertTriangle, viewId: "provider-incident-runbook" },
   { id: "dashboards", label: "Dashboard Manager", description: "Operator dashboard layouts and widgets", icon: SettingsIcon, viewId: "dashboard-manager" },
   { id: "operators", label: "Operator Directory", description: "Console operators and their role assignments", icon: UsersRound, viewId: "operator-directory" },
   { id: "roles", label: "Role Management", description: "platform:* role definitions and permissions", icon: KeyRound, viewId: "role-management" },

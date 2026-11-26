@@ -83,6 +83,15 @@ export function SuperAdminOverviewPage() {
   // Pending Approvals - bind to approval-center store (D02)
   const pendingApprovals = consoleStore.approvals?.filter((a: any) => a.status === "pending_approval").length ?? 0;
 
+  // Emergency controls engagement counts
+  const engagedCount = Object.values(consoleStore.controls || {}).filter((c: any) => c === "engaged").length;
+  const pendingCount = Object.values(consoleStore.controls || {}).filter((c: any) => c === "pending_approval").length;
+  // Tenant Halt repoint: header now shows both engaged and pending counts for transparency
+  // Release asymmetry rationale: "Release" returns a control to normal; it does NOT
+  // undo audit state or restore what was stopped — it only re-enables new operations.
+  // This asymmetry (engage = stop + audit, release = re-enable + audit) is intentional
+  // per CON-15 §4.2 to preserve incident integrity.
+
   // Failed Jobs 24h - count only failed jobs in 24h window (D03)
   const failedJobs24h = Object.values(data.jobs || {}).filter((job: any) => 
     job.status === "failed" && 
@@ -242,6 +251,22 @@ export function SuperAdminOverviewPage() {
             </div>
           )}
         </div>
+
+          {/* Z1b: Emergency Controls Banner */}
+          <div className="rounded-lg border bg-amber-50 p-3 mb-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Emergency controls engagement</p>
+                <p className="text-xs text-amber-700">
+                  {engagedCount} engaged · {pendingCount} pending approval
+                </p>
+              </div>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Engaging controls takes effect immediately after 2FA approval. Platform Halt requires type-to-confirm and second operator approval.
+          </p>
 
         {/* Z2: KPI Band with semantic tones (D14) and delta chips + sparklines (D13) */}
         {tenants.length === 0 ? (

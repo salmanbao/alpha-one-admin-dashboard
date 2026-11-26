@@ -97,9 +97,11 @@ interface ApprovalRequestCardProps {
   request: ApprovalRequest;
   /** Called after a successful approve/reject (parent shows its own toast). */
   onDecided?: (request: ApprovalRequest, decision: "approve" | "reject") => void;
+  /** Optional ID for deep-link targeting. */
+  id?: string;
 }
 
-export function ApprovalRequestCard({ request, onDecided }: ApprovalRequestCardProps) {
+export function ApprovalRequestCard({ request, onDecided, id }: ApprovalRequestCardProps) {
   const { user } = usePlatform();
   const [otpOpen, setOtpOpen] = useState(false);
   const [decisionError, setDecisionError] = useState<string | null>(null);
@@ -140,7 +142,7 @@ export function ApprovalRequestCard({ request, onDecided }: ApprovalRequestCardP
   };
 
   return (
-    <Card className={isPending ? "border-amber-500/40" : undefined}>
+    <Card className={isPending ? "border-amber-500/40" : undefined} id={id ?? request.id}>
       <CardContent className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">

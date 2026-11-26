@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { usePayouts } from "@/lib/platform/payout-store";
 import { Provider, PROVIDERS } from "@/lib/platform/provider-catalog";
+import { recordAudit } from "@/lib/platform/console-store";
 import { ArrowRight } from "lucide-react";
 
 const FAILURE_LABELS: Record<string, string> = {
@@ -69,9 +70,18 @@ export function ProviderIncidentRunbookPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (confirmed && selectedProvider) {
+      const p = PROVIDERS.find((x) => x.id === selectedProvider);
+      recordAudit({
+        actor: user.name,
+        action: "console.incident_created",
+        target: `provider-incident-${selectedProvider}`,
+        severity: "critical",
+        detail: `Provider incident ${incidentType}: ${description}. Provider: ${p?.name ?? selectedProvider}`,
+        tenantId: undefined,
+      });
       toast({
         title: "Incident initiated",
-        description: `Provider ${selectedProvider} incident (${incidentType}) reported for ${description}`,
+        description: `Provider ${selectedProvider} incident (${incidentType}) reported for ${description}. Recorded in audit trail.`,
         variant: "default",
       });
       setConfirmed(false);

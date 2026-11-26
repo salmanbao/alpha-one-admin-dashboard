@@ -43,6 +43,7 @@ import {
 } from "@/lib/platform/operations-signals";
 import { useJobOverrides, effectiveJobs } from "@/lib/platform/jobs-store";
 import { readIncidents } from "@/lib/platform/incident-center-store";
+import { useConsoleStore, type ControlKey } from "@/lib/platform/console-store";
 import { useApprovalRequests, pendingApprovals } from "@/components/platform/approval-flow";
 import {
   Activity,
@@ -149,6 +150,13 @@ export function PlatformOperationsPage() {
     support: openTicketsAll,
   };
 
+  const consoleStore = useConsoleStore();
+  const emergencyControls: ControlKey[] = ['platform_halt', 'relay_pause', 'maintenance_mode', 'flag_kill_switches'];
+  const activeEmergencyControlKeys = emergencyControls.filter(controlKey => {
+    const state = consoleStore.controls[controlKey];
+    return state === 'pending_approval' || state === 'engaged';
+  });
+
   const attentionItems: AttentionItem[] = useMemo(() => {
     const derived = deriveAttention({
       services: PLATFORM_SERVICES,
@@ -170,10 +178,26 @@ export function PlatformOperationsPage() {
         navigateParams: {},
       });
     }
+    // Emergency controls attention items (R0 attention rule)
+    activeEmergencyControlKeys.forEach(controlKey => {
+      const controlState = consoleStore.controls[controlKey];
+      const controlName = controlKey.replace('_', ' ');
+      
+      derived.unshift({
+        id: `emergency-${controlKey}`,
+        severity: controlState === "pending_approval" ? "warning" : "critical",
+        title: `${controlName} ${controlState === "pending_approval" ? "pending approval" : "engaged"}`,
+        detail: `Control "${controlKey}" is ${controlState === "pending_approval" ? "pending" : "active"}`,
+        cta: "View details",
+        navigateTo: "emergency-controls",
+        navigateParams: {},
+      });
+    });
+    
     // Re-sort after the unshift — severity order is the policy (§4.3).
     const rank = { critical: 0, warning: 1, info: 2 } as const;
     return derived.sort((a, b) => rank[a.severity] - rank[b.severity]);
-  }, [incidents, jobs, pendingPayoutsAll, pendingKycAll, openBreachesAll, openTicketsAll, pendingApprovalCount]);
+  }, [incidents, jobs, pendingPayoutsAll, pendingKycAll, openBreachesAll, openTicketsAll, pendingApprovalCount, consoleStore.controls, activeEmergencyControlKeys]);
 
   // Operational signals — each row declares its owning store; no row
   // without a data source + threshold may exist here (AGENTS §67).

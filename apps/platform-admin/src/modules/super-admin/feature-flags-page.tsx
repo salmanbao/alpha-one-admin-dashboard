@@ -63,6 +63,7 @@ import {
   ROLLOUT_STAGES,
   type RolloutStage,
 } from "@/lib/platform/feature-flags-store";
+import { useConsoleStore } from "@/lib/platform/console-store";
 
 const scopeTone = (s: string) =>
   s === "global" ? "info" : s === "tenant-override" ? "warning" : "muted";
@@ -150,6 +151,8 @@ export function FeatureFlagsPage() {
   const events = useLifecycleLog();
   const { user } = usePlatform();
   const actor = user?.name ?? "Platform operator";
+  const consoleControls = useConsoleStore().controls;
+  const killSwitchControl = consoleControls.flag_kill_switches;
 
   const [pendingKillSwitchId, setPendingKillSwitchId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
@@ -267,6 +270,17 @@ export function FeatureFlagsPage() {
             <p className="flex items-center gap-2 text-sm font-medium text-rose-700 dark:text-rose-400">
               <AlertTriangle className="h-4 w-4" />
               {activeKillSwitches} kill switch{activeKillSwitches === 1 ? "" : "es"} active — platform-wide impact.
+            </p>
+          </div>
+        )}
+        {killSwitchControl !== "normal" && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-50/50 p-3 dark:bg-amber-950/20">
+            <p className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-4 w-4" />
+              Emergency control <strong>Feature / Kill Switches</strong> is{" "}
+              {killSwitchControl === "engaged"
+                ? "ENGAGED"
+                : "pending approval"} — feature flags are force-disabled fleet-wide.
             </p>
           </div>
         )}

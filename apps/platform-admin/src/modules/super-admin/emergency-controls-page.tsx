@@ -22,7 +22,7 @@
  * greyed-out button.
  */
 
-import { useState } from "react";
+import { useState, Fragment, useEffect } from "react";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { usePlatform } from "@/lib/platform/platform-context";
@@ -39,6 +39,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   AlertOctagon,
+  AlertTriangle,
   Power,
   Wrench,
   Zap,
@@ -155,6 +156,28 @@ export function EmergencyControlsPage() {
   const { user } = usePlatform();
   const { controls } = useConsoleStore();
   const [pending, setPending] = useState<PendingAction | null>(null);
+  // Deep-link support: ?control=<key> focuses a specific control card;
+  // ?request=<id> focuses a pending approval in the approval center
+  const navigate = usePlatform().navigate;
+  const urlParams = new URLSearchParams(window.location.search);
+  const deepLinkControlKey = urlParams.get("control");
+  const deepLinkRequestId = urlParams.get("request");
+  useEffect(() => {
+    if (deepLinkControlKey) {
+      // Find the control spec and focus it
+      const spec = CONTROLS.find((s) => s.key === deepLinkControlKey);
+      if (spec) {
+        const state = controls[spec.key];
+        if (state === "pending_approval" || state === "engaged") {
+          // Already in a terminal state; navigate to approval center
+          navigate("approval-center");
+        }
+      }
+    }
+    if (deepLinkRequestId) {
+      navigate("approval-center");
+    }
+  }, [deepLinkControlKey, deepLinkRequestId, controls, navigate]);
 
   const operator = { id: user.id, name: user.name };
 
@@ -181,7 +204,9 @@ export function EmergencyControlsPage() {
     setPending({ spec, operation: "release" });
   };
 
-  const activeCount = Object.values(controls).filter((c) => c !== "normal").length;
+  const engagedCount = Object.values(controls).filter((c) => c === "engaged").length;
+  const pendingCount = Object.values(controls).filter((c) => c === "pending_approval").length;
+  const activeCount = engagedCount + pendingCount;
 
   return (
     <Page>
@@ -190,9 +215,21 @@ export function EmergencyControlsPage() {
         description="Platform-wide break-glass controls. Every action states what stops, what continues, the runbook, and requires 2FA; the nuclear set additionally needs a second operator's approval within 10 minutes."
         icon={AlertOctagon}
         actions={
-          <Badge variant={activeCount > 0 ? "destructive" : "outline"}>
-            {activeCount > 0 ? `${activeCount} engaged` : "All normal"}
-          </Badge>
+          <Fragment>
+            <Badge variant={activeCount > 0 ? "destructive" : "outline"}>
+              {activeCount > 0 ? `${activeCount} active` : "All normal"}
+            </Badge>
+            {engagedCount > 0 && (
+              <Badge variant="default" className="mx-2">
+                {engagedCount} engaged
+              </Badge>
+            )}
+            {pendingCount > 0 && (
+              <Badge variant="default" className="mx-2">
+                {pendingCount} pending
+              </Badge>
+            )}
+          </Fragment>
         }
       />
       <PageContent>
@@ -266,6 +303,20 @@ export function EmergencyControlsPage() {
                 </CardHeader>
 
                 <CardContent className="space-y-3">
+                  {/* In-flight strip: visible when a control has a pending approval request */}
+                  {pendingApproval && (
+                    <div className="flex items-center gap-2 border-l-4 border-amber-500 bg-amber-50/50 p-2 mb-3 rounded-r-md">
+                      <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-amber-700">
+                          Approval in flight
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Pending second-operator approval · expires in 10 min
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive">
@@ -317,6 +368,53 @@ export function EmergencyControlsPage() {
             );
           })}
         </div>
+
+        {/* ── Recent control activity list (§61) ── */}
+        <Card className="mt-4">
+          <CardHeader>
+            <h3 className="text-sm font-medium">Recent control activity</h3>
+          </CardHeader>
+          <CardContent className="space-y-2 p-3">
+            <div className="grid gap-2 md:grid-cols-2">
+              {CONTROLS.map((spec) => {
+                const state = controls[spec.key];
+                const engaged = state === "engaged";
+                const pendingApproval = state === "pending_approval";
+                return (
+                  <div
+                    key={`activity-${spec.key}`}
+                    className="flex items-center justify-between p-2 rounded-md border bg-muted/30"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-foreground truncate">
+                        {spec.title}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {spec.summary}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={
+                        engaged
+                          ? "destructive"
+                          : pendingApproval
+                            ? "default"
+                            : "secondary"
+                      }
+                      className="text-[9px]"
+                    >
+                      {engaged
+                        ? "ENGAGED"
+                        : pendingApproval
+                          ? "pending approval"
+                          : "normal"}
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
           <p className="font-medium text-foreground">Incident ladder (CON-15)</p>
