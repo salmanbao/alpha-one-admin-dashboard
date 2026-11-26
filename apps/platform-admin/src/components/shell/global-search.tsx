@@ -75,6 +75,10 @@ import {
   HeartPulse,
   Eye,
   Package,
+  Activity,
+  ShieldAlert,
+  AlertTriangle,
+  Zap,
 } from "lucide-react";
 
 interface SearchHit {
@@ -116,6 +120,22 @@ const SETTINGS_ENTRIES: Array<{
   { id: "sessions", label: "My Sessions", description: "Active console sessions and revocation", icon: Fingerprint, viewId: "my-sessions" },
   { id: "announcements", label: "Announcements", description: "Operator-facing platform announcements", icon: Bell, viewId: "announcements" },
   { id: "plans", label: "Plans & Subscriptions", description: "Pricing tiers, feature entitlements, limits, and trials", icon: CreditCard, viewId: "plans" },
+];
+interface OperationEntry {
+  id: string;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  viewId: string;
+}
+const OPERATION_ENTRIES: OperationEntry[] = [
+  { id: "operations", label: "Operations Home", description: "Platform operations console — service health, operational signals, and attention items", icon: Activity, viewId: "platform-operations" },
+  { id: "emergency-controls", label: "Emergency Controls", description: "Tenant halt, maintenance mode, relay pause, kill switches", icon: ShieldAlert, viewId: "emergency-controls" },
+  { id: "incidents", label: "Incidents", description: "Cross-tenant incident lifecycle and audit trail", icon: AlertTriangle, viewId: "incident-center" },
+  { id: "jobs-dashboard", label: "Jobs Dashboard", description: "Background job runs, failures, retries, and lock state", icon: Zap, viewId: "jobs-dashboard" },
+  { id: "approval-center", label: "Approval Center", description: "Two-operator pending approvals and blast-radius review", icon: ShieldCheck, viewId: "approval-center" },
+  { id: "support-assist", label: "Support Assist", description: "Cross-tenant support ticket management", icon: LifeBuoy, viewId: "support-assist" },
+  { id: "provider-registry", label: "Provider Registry", description: "Payment, KYC, and broker provider connections", icon: Plug, viewId: "provider-registry" },
 ];
 
 /**
