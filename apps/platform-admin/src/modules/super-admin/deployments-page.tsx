@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/platform/status";
+import { PLATFORM_FACTS } from "@/lib/platform/operations-signals";
 import { SensitiveActionDialog } from "@/components/platform/sensitive-action-dialog";
 import { GitBranch, CheckCircle2, Clock, ArrowDownCircle, Container, GitCommit } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -123,13 +124,13 @@ export function DeploymentsPage() {
           <CardHeader className="pb-2"><span className="text-sm font-medium">Service-level breakdown (current)</span></CardHeader>
           <CardContent className="space-y-2 text-xs">
             {[
-              { name: "Account Sync (MT5)", version: "v1.8.0", health: "healthy" as const },
-              { name: "Payout Reconciliation", version: "v1.8.0", health: "healthy" as const },
-              { name: "Notification Batch", version: "v1.8.0", health: "healthy" as const },
-              { name: "Document Generation", version: "v1.8.0", health: "healthy" as const },
-              { name: "Provider Health Check", version: "v1.8.0", health: "running" as const },
-              { name: "Audit Archive", version: "v1.8.0", health: "paused" as const },
-              { name: "Risk Engine", version: "v1.8.0", health: "healthy" as const },
+              { name: "Account Sync (MT5)", version: PLATFORM_FACTS.platformVersion, health: "healthy" as const },
+              { name: "Payout Reconciliation", version: PLATFORM_FACTS.platformVersion, health: "healthy" as const },
+              { name: "Notification Batch", version: PLATFORM_FACTS.platformVersion, health: "healthy" as const },
+              { name: "Document Generation", version: PLATFORM_FACTS.platformVersion, health: "healthy" as const },
+              { name: "Provider Health Check", version: PLATFORM_FACTS.platformVersion, health: "running" as const },
+              { name: "Audit Archive", version: PLATFORM_FACTS.platformVersion, health: "paused" as const },
+              { name: "Risk Engine", version: PLATFORM_FACTS.platformVersion, health: "healthy" as const },
             ].map((svc) => (
               <div key={svc.name} className="flex items-center gap-2 rounded-md border p-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />

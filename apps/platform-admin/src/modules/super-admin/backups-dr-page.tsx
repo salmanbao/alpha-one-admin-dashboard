@@ -23,6 +23,7 @@ import { StatusBadge } from "@/components/platform/status";
 import { useBackupsDr, verifyBackup, startDrill, restorePITR, type BackupState } from "@/lib/platform/backups-dr-store";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { toast } from "@/hooks/use-toast";
+import { PLATFORM_FACTS } from "@/lib/platform/operations-signals";
 
 const DEFAULT_BACKUP_STATE: BackupState = {
   lastVerify: undefined,
@@ -137,9 +138,9 @@ export function BackupsDrPage() {
             <div className="flex items-center gap-3 rounded-md border p-2">
               <div className="flex-1">
                 <p className="text-sm font-medium">RPO compliance</p>
-                <p className="text-xs text-muted-foreground">Max data loss window: 18h (target: 24h)</p>
+                <p className="text-xs text-muted-foreground">Max data loss window: {Math.floor((Date.now() - Date.parse(PLATFORM_FACTS.lastBackupAt)) / 3_600_000)}h (target: {PLATFORM_FACTS.rpoWindowHours}h)</p>
               </div>
-              <StatusBadge tone="success">Within target</StatusBadge>
+              <StatusBadge tone={Math.floor((Date.now() - Date.parse(PLATFORM_FACTS.lastBackupAt)) / 3_600_000) <= PLATFORM_FACTS.rpoWindowHours ? "success" : "warning"}>Within target</StatusBadge>
             </div>
             <div className="flex items-center gap-3 rounded-md border p-2">
               <div className="flex-1">

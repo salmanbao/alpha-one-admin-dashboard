@@ -1,58 +1,63 @@
 "use client";
 
 /**
- * System Health Page — Platform infrastructure monitoring.
+ * System Health — research item #4.
  *
- * Stitch screen: system_health
- * Tier 1 — Real-time system health, service status, and incident monitoring.
+ * Renders the one shared service catalog from
+ * `lib/platform/operations-signals.ts` (Operations Home renders the
+ * aggregated summary of the same catalog). The page keeps its status
+ * filter chip row and shows per-service latency / uptime / region.
+ *
+ * The `?service=<id>` query param (set by deep links from Operations
+ * Home attention items) pre-selects a service tile — the tile is
+ * highlighted on arrival.
  */
 
-import { useState, useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
-import { StatusBadge } from "@/components/platform/status";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { StatusBadge } from "@/components/platform/status";
+import { PLATFORM_SERVICES, type PlatformService } from "@/lib/platform/operations-signals";
 import {
-  Server,
   Globe,
+  Server,
   Database,
   Zap,
-  DollarSign,
   ShieldCheck,
   Cpu,
   Activity,
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Wifi,
+  DollarSign,
   HardDrive,
-  Cloud,
-  Percent,
-  Thermometer,
   Network,
-  GitBranch,
+  Cloud,
 } from "lucide-react";
 
-// Demo services
-const demoServices = [
-  { id: "api-gateway", name: "API Gateway", status: "operational", latency: "42ms", uptime: 99.97, region: "us-east-1", icon: Globe },
-  { id: "database", name: "Primary Database", status: "operational", latency: "8ms", uptime: 99.99, region: "us-east-1", icon: Database },
-  { id: "database-replica", name: "Database Replica (NY4)", status: "operational", latency: "12ms", uptime: 99.99, region: "ny4", icon: Database },
-  { id: "mt5-bridge", name: "MT5 Bridge", status: "operational", latency: "120ms", uptime: 99.95, region: "eu-west-1", icon: Zap },
-  { id: "ctrader-gateway", name: "cTrader Gateway", status: "degraded", latency: "850ms", uptime: 99.85, region: "us-east-2", icon: Zap },
-  { id: "payment-processor", name: "Payment Processor", status: "degraded", latency: "850ms", uptime: 99.90, region: "us-east-1", icon: DollarSign },
-  { id: "kyc-provider", name: "KYC Provider", status: "operational", latency: "310ms", uptime: 99.92, region: "eu-central-1", icon: ShieldCheck },
-  { id: "ai-engine", name: "AI Engine", status: "operational", latency: "1.2s", uptime: 99.88, region: "us-east-1", icon: Cpu },
-  { id: "email-svc", name: "Email Service", status: "operational", latency: "250ms", uptime: 99.95, region: "us-east-1", icon: Activity },
-  { id: "cache", name: "Redis Cache", status: "operational", latency: "2ms", uptime: 99.99, region: "us-east-1", icon: HardDrive },
-  { id: "queue", name: "Message Queue", status: "operational", latency: "5ms", uptime: 99.98, region: "us-east-1", icon: Network },
-  { id: "cdn", name: "CDN / Edge", status: "operational", latency: "15ms", uptime: 99.99, region: "global", icon: Cloud },
-];
+const serviceIcon: Record<string, typeof Globe> = {
+  "api-gateway": Globe,
+  database: Database,
+  "database-replica": Database,
+  "mt5-bridge": Zap,
+  "ctrader-gateway": Zap,
+  "payment-processor": DollarSign,
+  "kyc-provider": ShieldCheck,
+  "ai-engine": Cpu,
+  "notification-service": Activity,
+  cache: HardDrive,
+  "event-bus": Activity,
+  "worker-pool": Cpu,
+  "identity-provider": ShieldCheck,
+  "document-generator": HardDrive,
+  queue: Network,
+  cdn: Cloud,
+};
 
 const statusTones: Record<string, "success" | "warning" | "danger" | "info"> = {
   operational: "success",
@@ -62,15 +67,27 @@ const statusTones: Record<string, "success" | "warning" | "danger" | "info"> = {
 };
 
 export function SystemHealthPage() {
-  const { navigate } = usePlatform();
+  const { navigate, router } = usePlatform();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [highlightService, setHighlightService] = useState<string | null>(null);
+
+  // Deep-link target from Operations Home attention items:
+  //   `?service=<id>` (e.g. ?service=mt5-bridge).
+  useEffect(() => {
+    const id = router.params.service;
+    if (id) {
+      setHighlightService(id);
+      setStatusFilter("all");
+    }
+  }, [router.params.service]);
+
   // Async seam (frontend-first): service status resolves via the mock layer.
   const {
     data: loadedServices,
     loading,
     error,
     retry,
-  } = useAsyncMock(() => mockAsync(() => demoServices, { delayMs: 400 }), []);
+  } = useAsyncMock(() => mockAsync(() => PLATFORM_SERVICES, { delayMs: 400 }), []);
   const services = loadedServices ?? [];
 
   const filtered = useMemo(() => {
@@ -78,15 +95,18 @@ export function SystemHealthPage() {
     return services.filter((s) => s.status === statusFilter);
   }, [services, statusFilter]);
 
-  const stats = useMemo(() => ({
-    operational: services.filter((s) => s.status === "operational").length,
-    degraded: services.filter((s) => s.status === "degraded").length,
-    down: services.filter((s) => s.status === "down").length,
-    avgLatency: services.reduce((s, svc) => s + parseInt(svc.latency), 0) / services.length,
-    avgUptime: services.reduce((s, svc) => s + svc.uptime, 0) / services.length,
-    totalIncidents: 3,
-    activeIncidents: 1,
-  }), [services]);
+  const stats = useMemo(() => {
+    const totalLatency = services.reduce((s, svc) => s + (svc.latencyMs ?? 0), 0);
+    const totalUptime = services.reduce((s, svc) => s + (svc.uptimePct ?? 0), 0);
+    const totalCount = services.filter((s) => s.latencyMs !== null).length;
+    return {
+      operational: services.filter((s) => s.status === "operational").length,
+      degraded: services.filter((s) => s.status === "degraded").length,
+      down: services.filter((s) => s.status === "down").length,
+      avgLatency: totalCount > 0 ? totalLatency / totalCount : 0,
+      avgUptime: totalCount > 0 ? totalUptime / totalCount : 0,
+    };
+  }, [services]);
 
   return (
     <Page>
@@ -97,12 +117,9 @@ export function SystemHealthPage() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => navigate("bridge-sync-log")}>
-              <GitBranch className="mr-1 h-4 w-4" /> Bridge sync
+              <Activity className="mr-1 h-4 w-4" /> Bridge sync
             </Button>
             <Button variant="outline" size="sm" onClick={() => navigate('incident-center')}>
-              <Activity className="mr-1 h-4 w-4" /> Live Monitor
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("incident-center")}>
               <Clock className="mr-1 h-4 w-4" /> Incident History
             </Button>
           </>
@@ -141,31 +158,11 @@ export function SystemHealthPage() {
 
         {/* KPI Row */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard label="Overall Uptime (30d)" value={`${stats.avgUptime.toFixed(2)}%`} delta={0.02} icon={Percent} tone="positive" />
+          <MetricCard label="Overall Uptime (30d)" value={`${stats.avgUptime.toFixed(2)}%`} delta={0.02} icon={Server} tone="positive" />
           <MetricCard label="Avg Latency" value={`${Math.round(stats.avgLatency)}ms`} icon={Zap} />
-          <MetricCard label="Active Incidents" value={stats.activeIncidents} delta={-2} icon={AlertTriangle} tone="warning" />
+          <MetricCard label="Active Incidents" value={1} delta={-2} icon={AlertTriangle} tone="warning" />
           <MetricCard label="Services Monitored" value={services.length} icon={Server} />
         </div>
-
-        {/* Incident banner */}
-        {stats.activeIncidents > 0 && (
-          <div className="rounded-lg border bg-amber-50 dark:bg-amber-950/20 p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600 dark:text-amber-400" />
-                <div>
-                  <p className="font-semibold">Degraded Performance — cTrader Gateway &amp; Payment Processor</p>
-                  <p className="text-sm mt-0.5 text-amber-800 dark:text-amber-200">
-                    Elevated latency detected on US-EAST-02 nodes. Failover routes being activated.
-                  </p>
-                </div>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => navigate('incident-center')}>
-                View Details
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* Service status grid */}
         <Card>
@@ -190,16 +187,18 @@ export function SystemHealthPage() {
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filtered.map((svc) => {
-                const Icon = svc.icon;
+                const Icon = serviceIcon[svc.id] ?? Server;
                 return (
                   <div
                     key={svc.id}
                     className={`rounded-lg border p-4 transition-colors ${
-                      svc.status === "degraded"
-                        ? "border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/10"
-                        : svc.status === "operational"
-                          ? "border-border bg-card"
-                          : "border-rose-500/30 bg-rose-50/50 dark:bg-rose-950/10"
+                      highlightService === svc.id
+                        ? "ring-2 ring-blue-500 ring-offset-1"
+                        : svc.status === "degraded"
+                          ? "border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/10"
+                          : svc.status === "operational"
+                            ? "border-border bg-card"
+                            : "border-rose-500/30 bg-rose-50/50 dark:bg-rose-950/10"
                     }`}
                   >
                     <div className="flex items-start justify-between">
@@ -222,25 +221,29 @@ export function SystemHealthPage() {
                     </div>
                     <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        <Zap className="h-3 w-3" /> {svc.latency}
+                        <Zap className="h-3 w-3" /> {svc.latencyMs !== null ? `${svc.latencyMs}ms` : "—"}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Percent className="h-3 w-3" /> {svc.uptime}%
-                      </span>
+                      {svc.uptimePct !== undefined ? (
+                        <span className="flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> {svc.uptimePct}%
+                        </span>
+                      ) : null}
                     </div>
                     {/* Uptime bar */}
-                    <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          svc.uptime >= 99.9
-                            ? "bg-emerald-500"
-                            : svc.uptime >= 99.5
-                              ? "bg-amber-500"
-                              : "bg-rose-500"
-                        }`}
-                        style={{ width: `${Math.min(svc.uptime, 100)}%` }}
-                      />
-                    </div>
+                    {svc.uptimePct !== undefined ? (
+                      <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            svc.uptimePct >= 99.9
+                              ? "bg-emerald-500"
+                              : svc.uptimePct >= 99.5
+                                ? "bg-amber-500"
+                                : "bg-rose-500"
+                          }`}
+                          style={{ width: `${Math.min(svc.uptimePct, 100)}%` }}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}
@@ -253,127 +256,6 @@ export function SystemHealthPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Infrastructure zones */}
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader className="pb-2">
-              <h2 className="text-base font-semibold">Region Health</h2>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {[
-                  { region: "us-east-1 (Virginia)", services: 5, healthy: 5, latency: "23ms avg" },
-                  { region: "us-east-2 (Ohio)", services: 2, healthy: 1, latency: "45ms avg" },
-                  { region: "eu-west-1 (Ireland)", services: 2, healthy: 2, latency: "18ms avg" },
-                  { region: "eu-central-1 (Frankfurt)", services: 1, healthy: 1, latency: "32ms avg" },
-                  { region: "ny4 (New York)", services: 1, healthy: 1, latency: "12ms avg" },
-                  { region: "Global Edge", services: 1, healthy: 1, latency: "15ms avg" },
-                ].map((r) => (
-                  <div
-                    key={r.region}
-                    className="flex items-center justify-between rounded-lg border p-3"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{r.region}</p>
-                      <p className="text-xs text-muted-foreground">{r.services} services · {r.latency}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                        <span className="text-xs">{r.healthy}/{r.services}</span>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-[9px] ${
-                          r.healthy === r.services ? "text-emerald-600 border-emerald-500/30" : "text-amber-600 border-amber-500/30"
-                        }`}
-                      >
-                        {r.healthy === r.services ? "Healthy" : "Degraded"}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <h2 className="text-base font-semibold">Resource Utilization</h2>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[
-                  { label: "CPU Usage", value: 42, unit: "%", icon: Cpu, color: "var(--brand-primary)" },
-                  { label: "Memory", value: 68, unit: "%", icon: HardDrive, color: "var(--brand-tertiary)" },
-                  { label: "Disk I/O", value: 23, unit: "%", icon: Activity, color: "var(--brand-secondary)" },
-                  { label: "Network Throughput", value: 56, unit: "Gbps", icon: Network, color: "#74796e" },
-                  { label: "Connection Pool", value: 78, unit: "%", icon: Wifi, color: "#705c30" },
-                  { label: "Queue Depth", value: 12, unit: "k msg", icon: Zap, color: "#4a4e4a" },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={item.label}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Icon className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">{item.label}</span>
-                        </div>
-                        <span className="font-mono font-semibold">{item.value}{item.unit}</span>
-                      </div>
-                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${item.value}%`, background: item.color }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        {/* Service Detail: provider actions + queue detail */}
-        <Card>
-          <CardHeader className="pb-2">
-            <h2 className="text-base font-semibold">Service & Provider Actions</h2>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="rounded-md border p-3 bg-muted/20">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-2">Service Detail</p>
-                <div className="space-y-1 text-sm">
-                  <p><span className="font-medium">MT5 Bridge</span>: <span className="text-emerald-600">operational</span> · 42ms latency · 99.95% uptime</p>
-                  <p><span className="font-medium">cTrader Gateway</span>: <span className="text-amber-500">degraded</span> · 850ms latency · 99.85% uptime</p>
-                  <p><span className="font-medium">API Gateway</span>: <span className="text-emerald-600">operational</span> · 42ms latency · 99.97% uptime</p>
-                </div>
-              </div>
-              <div className="rounded-md border p-3 bg-muted/20">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-2">Provider Actions</p>
-                <ul className="space-y-1 text-xs">
-                  <li><span className="font-medium">Provider Registry</span> — 12 registered providers</li>
-                  <li><span className="font-medium">Health Check</span> — automated probe every 10s</li>
-                  <li><span className="font-medium">Failover Routing</span> — active for 2 services</li>
-                </ul>
-                <div className="mt-3 flex gap-2">
-                  <Button size="sm" variant="outline" className="text-[11px] h-6 px-2" onClick={() => alert("Drill: Provider health check triggered for all providers.")}>Run Health Drill</Button>
-                  <Button size="sm" variant="outline" className="text-[11px] h-6 px-2" onClick={() => alert("Action: Failover routes reviewed.")}>Review Failover</Button>
-                </div>
-              </div>
-              <div className="rounded-md border p-3 bg-muted/20">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-2">Queue Detail</p>
-                <div className="space-y-1 text-xs">
-                  <p><span className="font-medium">Message Queue (Redis)</span>: 12k msg depth · 5ms latency · 99.98% uptime</p>
-                  <p><span className="font-medium">Cross-tenant queues</span>: 3 active · 0 dead-letter</p>
-                </div>
-                <Button size="sm" variant="outline" className="text-[11px] h-6 px-2 mt-3" onClick={() => alert("Queue detail: depth, latency, dead-letter count, consumer lag shown")}>Inspect Queue</Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         </PageAsyncBoundary>
       </PageContent>
     </Page>
