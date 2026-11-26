@@ -17,7 +17,7 @@
  * Every attention item links directly to the workspace that can resolve it.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-context";
 import { useAsyncMock, mockAsync } from "@/lib/platform/async-mock";
 import { PageAsyncBoundary } from "@/components/platform/guards";
@@ -167,6 +167,7 @@ export function PlatformOperationsPage() {
         detail: "Two-operator actions expire after the 10-minute window.",
         cta: "Open approval center",
         navigateTo: "approval-center",
+        navigateParams: {},
       });
     }
     // Re-sort after the unshift — severity order is the policy (§4.3).
@@ -203,6 +204,9 @@ export function PlatformOperationsPage() {
   const backupAgeH = Math.floor((Date.now() - Date.parse(PLATFORM_FACTS.lastBackupAt)) / HOUR_MS);
   const rpoOk = backupAgeH <= PLATFORM_FACTS.rpoWindowHours;
 
+  // Current time for the Live badge
+  const [platformTime, setPlatformTime] = useState(new Date());
+
   return (
     <Page>
       <PageHeader
@@ -212,8 +216,14 @@ export function PlatformOperationsPage() {
         actions={
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="gap-1 text-xs">
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              Live
+              <span className="text-sm text-slate-600">
+                {platformTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+              <Button size="sm" variant="outline" onClick={() => setPlatformTime(new Date())}>
+                Refresh
+              </Button>
             </Badge>
             <Button size="sm" variant="outline" onClick={() => navigate("bridge-sync-log")}>
               <GitBranch className="mr-1 h-4 w-4" /> Bridge sync
@@ -290,8 +300,8 @@ export function PlatformOperationsPage() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard label="Services Operational" value={`${operationalCount}/${PLATFORM_SERVICES.length}`} icon={CheckCircle2} tone={downCount > 0 ? "negative" : degradedCount > 0 ? "warning" : "positive"} />
           <MetricCard label="Degraded Services" value={degradedCount} icon={AlertTriangle} tone={degradedCount > 0 ? "warning" : "positive"} />
-          <MetricCard label="Active Tenants" value={activeTenants} icon={Activity} tone="positive" />
-          <MetricCard label="Suspended" value={suspendedTenants} icon={XCircle} tone={suspendedTenants > 0 ? "negative" : "positive"} />
+          <MetricCard label="Active Tenants" value={activeTenants} icon={Activity} tone="positive" onClick={() => navigate("tenants", { status: "active" })} />
+          <MetricCard label="Suspended" value={suspendedTenants} icon={XCircle} tone={suspendedTenants > 0 ? "negative" : "positive"} onClick={() => navigate("tenants", { status: "suspended" })} />
         </div>
 
         {/* Service health grid */}

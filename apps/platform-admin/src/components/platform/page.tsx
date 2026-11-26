@@ -102,6 +102,8 @@ export function MetricCard({
   deltaLabel,
   icon: Icon,
   tone = "default",
+  onClick,
+  href,
 }: {
   label: string;
   value: string | number;
@@ -109,12 +111,24 @@ export function MetricCard({
   deltaLabel?: string;
   icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   tone?: "default" | "positive" | "negative" | "warning";
+  onClick?: () => void;
+  href?: string;
 }) {
   const toneColor =
     tone === "positive" ? "#059669" : tone === "negative" ? "#e11d48" : tone === "warning" ? "#d97706" : "var(--brand-primary)";
   const deltaClass = delta === undefined ? "" : delta >= 0 ? "text-emerald-600" : "text-rose-600";
+  const isInteractive = onClick || href;
+  const Tag = href ? "a" : "div";
+  const className = cn(
+    "group relative overflow-hidden rounded-lg border bg-card p-4 transition-shadow",
+    isInteractive ? "cursor-pointer hover:shadow-sm" : "hover:shadow-sm",
+  );
   return (
-    <div className="group relative overflow-hidden rounded-lg border bg-card p-4 transition-shadow hover:shadow-sm">
+    <Tag
+      className={className}
+      href={href}
+      onClick={onClick}
+    >
       {/* Accent strip on the left */}
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: toneColor }} />
       <div className="flex items-start justify-between pl-2">
@@ -144,7 +158,7 @@ export function MetricCard({
           </div>
         ) : null}
       </div>
-    </div>
+    </Tag>
   );
 }
 
