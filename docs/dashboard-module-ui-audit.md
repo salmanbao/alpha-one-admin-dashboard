@@ -361,7 +361,7 @@ Two distinct surfaces:
 | ID | Group (items) | Class | Contents |
 |---|---|---|---|
 | PL-016 | Tenant Management (6) | **M** | `super-overview`, `tenants`, `create-tenant`, `tenant-lifecycle`, `tenant-health`, `sla-monitoring` |
-| PL-017 | Operations (6) | **M** | `platform-operations`, `emergency-controls`, `incident-center`, `jobs-dashboard`, `approval-center`, `support-assist` |
+| PL-017 | Operations (7) | **M** | `platform-operations`, `emergency-controls`, `incident-center`, `jobs-dashboard`, `approval-center`, `support-assist`, `provider-registry` |
 | PL-018 | Observability (7) | **M** | `platform-health`, `system-health`, `provider-registry`, `cross-tenant-queues`, `platform-audit`, `usage-metering`, `tenant-api-usage` |
 | PL-019 | Infrastructure (3) | **M** | `deployments`, `backups-dr`, `backup-policies` |
 | PL-020 | Platform Config (9) | **M** | `module-catalog`, `dashboard-manager`, `feature-flags`, `global-defaults`, `reference-data`, `risk-engine`, `announcements`, `notifications`, `notification-templates` |
