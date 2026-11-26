@@ -19,33 +19,8 @@ import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { useJobOverrides, markJobStatus } from "@/lib/platform/jobs-store";
+import { useJobOverrides, markJobStatus, effectiveJobs, type Job } from "@/lib/platform/jobs-store";
 import { usePlatform } from "@/lib/platform/platform-context";
-
-interface Job {
-  id: string;
-  name: string;
-  lastRun: string;
-  duration: string;
-  nextRun: string;
-  status: "succeeded" | "running" | "failed" | "paused";
-  lockHolder: string;
-  failureCount: number;
-  lastFailure: string;
-}
-
-const jobs: Job[] = [
-  { id: "metering-rollup", name: "Metering Rollup", lastRun: "5m ago", duration: "2.3s", nextRun: "in 25m", status: "succeeded", lockHolder: "—", failureCount: 0, lastFailure: "—" },
-  { id: "reconciliation", name: "Payout Reconciliation", lastRun: "1h ago", duration: "8.7s", nextRun: "in 2h", status: "succeeded", lockHolder: "—", failureCount: 0, lastFailure: "—" },
-  { id: "notification-batch", name: "Notification Batch", lastRun: "3m ago", duration: "1.1s", nextRun: "in 2m", status: "succeeded", lockHolder: "—", failureCount: 0, lastFailure: "—" },
-  { id: "doc-generation", name: "Document Generation", lastRun: "12m ago", duration: "4.2s", nextRun: "in 18m", status: "succeeded", lockHolder: "—", failureCount: 0, lastFailure: "—" },
-  { id: "data-cleanup", name: "Data Cleanup", lastRun: "6h ago", duration: "15.3s", nextRun: "in 18h", status: "succeeded", lockHolder: "—", failureCount: 0, lastFailure: "—" },
-  { id: "backup-wal", name: "WAL Backup", lastRun: "18h ago", duration: "42.1s", nextRun: "in 6h", status: "succeeded", lockHolder: "—", failureCount: 0, lastFailure: "—" },
-  { id: "provider-health", name: "Provider Health Check", lastRun: "30s ago", duration: "0.8s", nextRun: "in 30s", status: "running", lockHolder: "worker-3", failureCount: 0, lastFailure: "—" },
-  { id: "sync-accounts", name: "Account Sync (MT5)", lastRun: "2m ago", duration: "3.5s", nextRun: "in 1m", status: "failed", lockHolder: "—", failureCount: 3, lastFailure: "2m ago" },
-  { id: "eval-engine", name: "Evaluation Engine Sweep", lastRun: "8m ago", duration: "5.6s", nextRun: "in 2m", status: "succeeded", lockHolder: "—", failureCount: 0, lastFailure: "—" },
-  { id: "audit-archive", name: "Audit Archive", lastRun: "—", duration: "—", nextRun: "in 12h", status: "paused", lockHolder: "—", failureCount: 0, lastFailure: "—" },
-];
 
 const statusTone = (s: Job["status"]) =>
   s === "succeeded" ? "success" : s === "running" ? "info" : s === "failed" ? "danger" : "muted";
@@ -64,7 +39,7 @@ const columns: Column<Job>[] = [
 export function JobsDashboardPage() {
   const { user } = usePlatform();
   const overrides = useJobOverrides();
-  const rows = useMemo(() => jobs.map((j) => ({ ...j, ...(overrides[j.id] ?? {}) })), [overrides]);
+  const rows = useMemo(() => effectiveJobs(overrides), [overrides]);
   const succeeded = rows.filter((j) => j.status === "succeeded").length;
   const running = rows.filter((j) => j.status === "running").length;
   const failed = rows.filter((j) => j.status === "failed").length;

@@ -6,8 +6,9 @@
  * Research item #3. This is NOT a generic analytics dashboard — it's an
  * operational console with:
  *   - Platform health signals (API / DB / Redis / event bus / workers / bridges)
- *   - Real-time operational signals (relay lag, DLQ depth, failed jobs, queue depth)
- *   - Tenant overview (active / suspended / provisioning counts)
+ *   - Operational signals derived from the owning stores (failed jobs from
+ *     the jobs store, provider degradation from the provider catalog)
+ *   - Tenant overview (active / suspended counts)
  *   - Infrastructure (deployment version, backup status, RPO)
  *   - Attention Center (operational alerts that need operator action)
  *
@@ -22,7 +23,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/platform/status";
-import { tenants as allTenants, getTenantTraders, getTenantPayouts, getTenantKyc, getTenantTickets, getTenantBreaches, hashStr } from "@/lib/platform/mock-data";
+import { tenants as allTenants, getTenantPayouts, getTenantKyc, getTenantTickets, getTenantBreaches } from "@/lib/platform/mock-data";
+import { PROVIDERS } from "@/lib/platform/provider-catalog";
+import { useJobOverrides, effectiveJobs } from "@/lib/platform/jobs-store";
 import {
   Activity,
   Server,
@@ -75,7 +78,13 @@ interface AttentionItem {
   navigateTo: string;
 }
 
-const attentionItems: AttentionItem[] = [
+/**
+ * Static attention items still pending derivation (their sources are
+ * hardcoded service/fact rows until the shared operations-signals module
+ * lands). The payout SLA item is derived in the component — it must
+ * always equal the Queues card's pending-payout count on the same render.
+ */
+const staticAttentionItems: AttentionItem[] = [
   {
     id: "mt5-degraded",
     severity: "warning",
@@ -83,14 +92,6 @@ const attentionItems: AttentionItem[] = [
     detail: "Latency 320ms (normal: <100ms). 2 tenants affected.",
     cta: "Investigate",
     navigateTo: "provider-registry",
-  },
-  {
-    id: "payouts-stuck",
-    severity: "critical",
-    title: "3 payouts stuck >24h",
-    detail: "Beta Trading has 2 pending payouts waiting >24h. SLA breach imminent.",
-    cta: "Clear queue",
-    navigateTo: "cross-tenant-queues",
   },
   {
     id: "notification-delay",
@@ -136,7 +137,6 @@ export function PlatformOperationsPage() {
 
   const activeTenants = allTenants.filter((t) => t.status === "active").length;
   const suspendedTenants = allTenants.filter((t) => t.status === "suspended").length;
-  const totalTraders = allTenants.reduce((s, t) => s + getTenantTraders(t.id).length, 0);
   const pendingPayoutsAll = allTenants.reduce((s, t) => s + getTenantPayouts(t.id).filter((p) => p.status === "pending").length, 0);
   const pendingKycAll = allTenants.reduce((s, t) => s + getTenantKyc(t.id).filter((k) => k.status === "pending" || k.status === "review").length, 0);
   const openBreachesAll = allTenants.reduce((s, t) => s + getTenantBreaches(t.id).filter((b) => b.status === "open").length, 0);
@@ -146,20 +146,61 @@ export function PlatformOperationsPage() {
   const degradedCount = services.filter((s) => s.status === "degraded").length;
   const downCount = services.filter((s) => s.status === "down").length;
 
+  // Payout SLA backlog — same pending filter as the Queues card above, so
+  // the attention headline and the card count can never disagree.
+  const MS_HOUR = 3_600_000;
+  const pendingPayoutByTenant = allTenants
+    .map((t) => ({ name: t.name, count: getTenantPayouts(t.id).filter((p) => p.status === "pending").length }))
+    .filter((x) => x.count > 0);
+  const pendingPayoutAgesMs = allTenants.flatMap((t) =>
+    getTenantPayouts(t.id)
+      .filter((p) => p.status === "pending")
+      .map((p) => Date.now() - Date.parse(p.createdAt)),
+  );
+  const oldestPayoutDays = Math.floor(Math.max(...pendingPayoutAgesMs, 0) / 86_400_000);
+  const allPayoutsOver24h = pendingPayoutAgesMs.length > 0 && Math.min(...pendingPayoutAgesMs) > 24 * MS_HOUR;
+
+  // Attention Center — derived payout SLA item (critical) + the remaining
+  // static items pending their signals-module derivation (Phase 2).
+  const attentionItems: AttentionItem[] = [
+    ...(pendingPayoutsAll > 0
+      ? [{
+          id: "payouts-stuck",
+          severity: "critical" as const,
+          title: `${pendingPayoutsAll} payouts stuck >24h`,
+          detail: `${pendingPayoutByTenant.map((x) => `${x.name} ${x.count}`).join(" · ")} (oldest ${oldestPayoutDays}d${allPayoutsOver24h ? ", all >24h" : ""})`,
+          cta: "Clear queue",
+          navigateTo: "cross-tenant-queues",
+        }]
+      : []),
+    ...staticAttentionItems,
+  ];
+
+  // Operational signals — each row declares its owning store; no row
+  // without a data source + threshold may exist here (AGENTS §67).
+  const jobOverrides = useJobOverrides();
+  const failedJobs = effectiveJobs(jobOverrides).filter((j) => j.status === "failed");
+  const failedJobFailures = failedJobs.reduce((s, j) => s + j.failureCount, 0);
+  const degradedProviders = PROVIDERS.filter((p) => p.status !== "operational").length;
+
   const signals: { label: string; value: string; tone: "positive" | "warning" | "negative" }[] = [
-    { label: "Relay lag", value: "0.8s", tone: "positive" },
-    { label: "Event sync lag", value: "1.2s", tone: "positive" },
-    { label: "DLQ depth", value: "3", tone: "warning" },
-    { label: "Failed jobs (24h)", value: "7", tone: "warning" },
-    { label: "Queue depth", value: "142", tone: "positive" },
-    { label: "Provider degradation", value: "2 services", tone: "warning" },
+    {
+      label: "Failed jobs",
+      value: failedJobs.length > 0 ? `${failedJobs.length} job (${failedJobFailures} failures)` : "0 jobs",
+      tone: failedJobs.length > 0 ? "warning" : "positive",
+    },
+    {
+      label: "Provider degradation",
+      value: degradedProviders > 0 ? `${degradedProviders} providers` : "None",
+      tone: degradedProviders > 0 ? "warning" : "positive",
+    },
   ];
 
   return (
     <Page>
       <PageHeader
         title="Operations Home"
-        description="Real-time platform operations console — health, signals, and attention items."
+        description="Platform operations console — service health, operational signals, and attention items."
         icon={Activity}
         actions={
           <div className="flex items-center gap-2">
@@ -187,8 +228,8 @@ export function PlatformOperationsPage() {
           hasData={hydrated !== undefined}
           loadingLabel="Loading operations…"
         >
-        {/* Attention Center — "3 things need attention" */}
-        {attentionItems.length > 0 && (
+        {/* Attention Center — derived items, or an explicit all-clear */}
+        {attentionItems.length > 0 ? (
           <Card className="border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
             <CardHeader className="flex flex-row items-center gap-2 pb-2">
               <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -225,6 +266,20 @@ export function PlatformOperationsPage() {
               })}
             </CardContent>
           </Card>
+        ) : (
+          <Card className="border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20">
+            <CardHeader className="flex flex-row items-center gap-2 pb-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span className="text-sm font-semibold">All clear</span>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                No payouts, queues, services or backups need attention right now.
+                Attention items appear here when an SLA or health threshold is
+                crossed, and link straight to the workspace that can resolve them.
+              </p>
+            </CardContent>
+          </Card>
         )}
 
         {/* Platform health KPIs */}
@@ -239,8 +294,6 @@ export function PlatformOperationsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <span className="text-sm font-medium">Platform service health</span>
-            {/* 1262e6c1 renamed platform-health → system-health but left this
-                navigate on the old id: a dead link into the F1 fallback. */}
             <Button size="sm" variant="ghost" onClick={() => navigate("system-health")}>
               View details <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
@@ -270,7 +323,7 @@ export function PlatformOperationsPage() {
         {/* Real-time operational signals */}
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
-            <CardHeader className="pb-2"><span className="text-sm font-medium">Real-time signals</span></CardHeader>
+            <CardHeader className="pb-2"><span className="text-sm font-medium">Operational signals</span></CardHeader>
             <CardContent className="space-y-2">
               {signals.map((s) => (
                 <div key={s.label} className="flex items-center justify-between text-xs">
