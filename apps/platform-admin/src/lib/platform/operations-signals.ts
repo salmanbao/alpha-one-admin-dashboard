@@ -16,7 +16,8 @@
 //   - `deriveAttention`   — builds the attention-item list from the upstream
 //     stores the owning workspaces already own (incidents, jobs, queues, facts)
 //     and applies the severity-ranking policy. No rule may exist without a
-//     documented source + threshold.
+//     documented source + threshold. Deep links carry `navigateParams` for
+//     two-sided param passthrough (§51).
 // ──────────────────────────────────────────────────────────────────────
 
 import { PROVIDERS, type Provider } from "./provider-catalog";
@@ -57,18 +58,10 @@ export const SIGNAL_THRESHOLDS = {
   eventSyncLagPositiveMs: 1200,
 } as const;
 
+/** Attention-item severity rank — critical > warning > info. */
 export type AttentionSeverity = "critical" | "warning" | "info";
 
-export interface AttentionItem {
-  id: string;
-  severity: AttentionSeverity;
-  title: string;
-  detail: string;
-  cta: string;
-  /** Registered view id to navigate to (router accepts params via `?key=value`). */
-  navigateTo: string;
-}
-
+/** Queue-attention inputs derived from the owning stores' getters. */
 export interface QueueCounts {
   payouts: number;
   kyc: number;
@@ -76,16 +69,28 @@ export interface QueueCounts {
   support: number;
 }
 
-export const PLATFORM_FACTS: PlatformFacts = {
-  platformVersion: "v1.8.0",
-  lastDeploymentAt: new Date(Date.now() - 3 * 3_600_000).toISOString(),
-  lastBackupAt: new Date(Date.now() - 18 * 3_600_000).toISOString(),
-  rpoTargetHours: 24,
-  rpoWindowHours: 24,
-};
+/** An attention item with its deep-link routing information. */
+export interface AttentionItem {
+  id: string;
+  severity: AttentionSeverity;
+  title: string;
+  detail: string;
+  cta: string;
+  /** Registered view id to navigate to (router accepts params via params object). */
+  navigateTo: string;
+  /** Router params for deep linking (merged into URL as `?key=value`). */
+  navigateParams?: Record<string, string>;
+}
 
-/**
- * The one service inventory. `system-health` renders uptimePct/region; the
+/** Queue-attention inputs derived from the owning stores' getters. */
+export interface QueueCounts {
+  payouts: number;
+  kyc: number;
+  breaches: number;
+  support: number;
+}
+
+/** The one service inventory. `system-health` renders uptimePct/region; the
  * operations home renders a compact summary. Status must be derivable from a
  * real source — the vendor map below is the documented service→vendor split
  * that resolves the "MT5 Bridge vs MetaApi" identity confusion (P0-2).
@@ -115,9 +120,8 @@ export function severityRank(sev: AttentionSeverity): number {
 
 /**
  * Derive the attention list from the upstream stores, applying the
- * severity-ranking policy (critical → warning → info). Deep links carried
- * in `navigateTo` are resolved through the router's params support
- * (`?service=<id>`, `?queue=<queue>&tenant=<id>`).
+ * severity-ranking policy (critical → warning → info). Deep links carry
+ * `navigateParams` that the hub passes to `navigate(view, params)`.
  */
 export function deriveAttention(input: {
   services: PlatformService[];
@@ -125,7 +129,6 @@ export function deriveAttention(input: {
   jobs: Job[];
   queueCounts: QueueCounts;
   facts: PlatformFacts;
-  failedJobFailureCounts?: Record<string, number>;
 }): AttentionItem[] {
   const items: AttentionItem[] = [];
 
@@ -139,7 +142,8 @@ export function deriveAttention(input: {
       title: `${payoutsStuck} payouts stuck >24h`,
       detail: "Pending payouts older than the 24h payout SLA (oldest breach tracked in queue workspace).",
       cta: "Clear queue",
-      navigateTo: "cross-tenant-queues?queue=payouts",
+      navigateTo: "cross-tenant-queues",
+      navigateParams: { queue: "payouts" },
     });
   }
 
@@ -182,7 +186,8 @@ export function deriveAttention(input: {
       title: `${degradedServices.length} service${degradedServices.length > 1 ? "s" : ""} degraded`,
       detail: degradedServices.map((s) => `${s.name} (${s.latencyMs ?? "?"}ms)`).join(", ") + ".",
       cta: "View service health",
-      navigateTo: `system-health?service=${degradedServices[0].id}`,
+      navigateTo: `system-health`,
+      navigateParams: { service: degradedServices[0].id },
     });
   }
 
@@ -208,7 +213,8 @@ export function deriveAttention(input: {
       title: `${kycPending} KYC reviews pending`,
       detail: `Backlog above warning threshold (${SIGNAL_THRESHOLDS.kycBacklogWarn}).`,
       cta: "Review KYC queue",
-      navigateTo: "cross-tenant-queues?queue=kyc",
+      navigateTo: "cross-tenant-queues",
+      navigateParams: { queue: "kyc" },
     });
   }
 
@@ -221,7 +227,8 @@ export function deriveAttention(input: {
       title: `${breachesOpen} open risk breaches`,
       detail: `Breaches above warning threshold (${SIGNAL_THRESHOLDS.openBreachesWarn}).`,
       cta: "Review risk queue",
-      navigateTo: "cross-tenant-queues?queue=risk",
+      navigateTo: "cross-tenant-queues",
+      navigateParams: { queue: "risk" },
     });
   }
 
@@ -238,6 +245,28 @@ export function deriveAttention(input: {
     });
   }
 
+  // R9 — all clear (no rule fired)
+  const hasAny =
+    items.some((i) => i.id === "payouts-stuck") ||
+    items.some((i) => i.id.startsWith("incident-")) ||
+    items.some((i) => i.id.startsWith("failed-job-")) ||
+    items.some((i) => i.id === "service-degraded") ||
+    items.some((i) => i.id === "provider-degraded") ||
+    items.some((i) => i.id === "kyc-backlog") ||
+    items.some((i) => i.id === "open-breaches") ||
+    items.some((i) => i.id === "backup-overdue");
+  if (!hasAny) {
+    items.push({
+      id: "all-clear",
+      severity: "info",
+      title: "All clear — no payouts, queues, services or backups need attention right now.",
+      detail: "Attention items appear here when an SLA or health threshold is crossed.",
+      cta: "",
+      navigateTo: "",
+      navigateParams: undefined,
+    });
+  }
+
   const sorted = [...items].sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
   if (sorted.length === 0) {
     return [
@@ -248,10 +277,19 @@ export function deriveAttention(input: {
         detail: "Attention items appear here when an SLA or health threshold is crossed.",
         cta: "",
         navigateTo: "",
+        navigateParams: undefined,
       },
     ];
   }
   return sorted;
 }
+
+export const PLATFORM_FACTS: PlatformFacts = {
+  platformVersion: "v1.8.0",
+  lastDeploymentAt: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+  lastBackupAt: new Date(Date.now() - 18 * 3_600_000).toISOString(),
+  rpoTargetHours: 24,
+  rpoWindowHours: 24,
+};
 
 export type { Provider, Job };

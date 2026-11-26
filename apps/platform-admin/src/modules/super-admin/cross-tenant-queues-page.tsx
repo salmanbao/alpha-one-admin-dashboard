@@ -40,6 +40,12 @@ import {
 import { LineSeries } from "@/components/platform/charts";
 import { cn } from "@/lib/utils";
 
+function parseParams(params: Record<string, string>): { queue?: string } {
+  return {
+    queue: params.queue,
+  };
+}
+
 interface QueueRow {
   tenant: TenantContext;
   kyc: number;
@@ -51,8 +57,28 @@ interface QueueRow {
 }
 
 export function CrossTenantQueuesPage() {
-  const { navigate } = usePlatform();
+  const { navigate, router } = usePlatform();
   const tenants = useTenants();
+
+  // Deep-link params — hub queue buttons + attention items pass
+  // `?queue=<kyc|payouts|risk|support>` and optional `?tenant=<id>`.
+  const { queue: queueParam } = useMemo(
+    () => parseParams(router.params),
+    [router.params],
+  );
+  const queueFilter = (["kyc", "risk", "payouts", "support"] as const).includes(
+    queueParam as "kyc" | "risk" | "payouts" | "support",
+  )
+    ? queueParam
+    : undefined;
+
+  // Sync the filter back to the URL (§51) — clearing it drops the param.
+  const setQueueFilter = (value: string | undefined) => {
+    const next = { ...router.params };
+    if (value && value !== "all") next.queue = value;
+    else delete next.queue;
+    navigate("cross-tenant-queues", next, { replace: true });
+  };
 
   // Async seam (frontend-first): queue roll-up resolves via the mock layer.
   const {

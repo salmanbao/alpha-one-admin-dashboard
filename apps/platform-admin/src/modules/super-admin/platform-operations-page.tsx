@@ -246,7 +246,7 @@ export function PlatformOperationsPage() {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => navigate(item.navigateTo)}
+                    onClick={() => navigate(item.navigateTo, item.navigateParams)}
                     className="flex w-full items-center gap-3 rounded-lg border bg-card p-3 text-left transition hover:bg-accent/40"
                   >
                     <Icon className={cn(
