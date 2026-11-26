@@ -168,7 +168,7 @@ export function EmergencyControlsPage() {
     );
     toast({
       title: operation === "engage" ? `${spec.title} engaged` : `${spec.title} released`,
-      description: `2FA verified · recorded in the audit trail${spec.twoOperator ? " · two-operator approval satisfied" : ""}.`,
+      description: `2FA verified · recorded in the audit trail.`,
     });
   };
 

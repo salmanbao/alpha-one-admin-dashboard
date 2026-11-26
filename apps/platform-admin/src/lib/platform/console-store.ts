@@ -193,7 +193,7 @@ function seedState(): ConsoleState {
       },
       {
         id: "apr-seed-rejected",
-        actionKey: "control.flag_kill_switch",
+        actionKey: "control.flag_kill_switches",
         actionLabel: "Kill-switch: disable challenge_payouts flag fleet-wide",
         blastRadius: ["All tenants' payout automation halts"],
         initiator: { id: "op-marcus", name: "Marcus Webb" },
@@ -268,7 +268,7 @@ function seedState(): ConsoleState {
         at: t - 4.9 * 60 * 60 * 1000,
         actor: "Priya Shah",
         action: "console.escalation_rejected",
-        target: "control.flag_kill_switch",
+        target: "control.flag_kill_switches",
         severity: "warning",
         detail: "Rejected: insufficient blast-radius justification",
       },
@@ -347,24 +347,42 @@ function ensureSweeper() {
     let approvals = state.approvals;
     let impersonations = state.impersonations;
     let audit = state.audit;
+    let controls = state.controls;
 
     for (const a of approvals) {
       if (a.status === "pending_approval" && a.expiresAt <= t) {
         approvals = approvals.map((x) =>
           x.id === a.id ? { ...x, status: "expired" as const } : x,
         );
-        audit = [
-          {
-            id: uid("aud"),
-            at: t,
-            actor: "System",
-            action: "console.escalation_expired",
-            target: a.actionKey,
-            severity: "warning",
-            detail: `Approval window (10 min) elapsed for "${a.actionLabel}"`,
-          },
-          ...audit,
-        ];
+        const controlKey = parseControlAction(a.actionKey);
+        if (controlKey) {
+          controls = { ...controls, [controlKey]: "normal" as const };
+          audit = [
+            {
+              id: uid("aud"),
+              at: t,
+              actor: "System",
+              action: "console.escalation_expired",
+              target: a.actionKey,
+              severity: "warning",
+              detail: `Approval window (10 min) elapsed for "${a.actionLabel}"; control "${controlKey}" returned to normal`,
+            },
+            ...audit,
+          ];
+        } else {
+          audit = [
+            {
+              id: uid("aud"),
+              at: t,
+              actor: "System",
+              action: "console.escalation_expired",
+              target: a.actionKey,
+              severity: "warning",
+              detail: `Approval window (10 min) elapsed for "${a.actionLabel}"`,
+            },
+            ...audit,
+          ];
+        }
         changed = true;
       }
     }
@@ -425,6 +443,7 @@ export function initiateApproval(input: {
   /** Staged mutation applied by the approval bridge when approved. */
   payload?: unknown;
 }): ApprovalRequest {
+  const controlKey = parseControlAction(input.actionKey);
   const t = now();
   const request: ApprovalRequest = {
     id: uid("apr"),
@@ -439,9 +458,13 @@ export function initiateApproval(input: {
     payload: input.payload,
     detail: input.detail,
   };
+  const nextControls = controlKey
+    ? { ...state.controls, [controlKey]: "pending_approval" as const }
+    : state.controls;
   emit({
     ...state,
     approvals: [request, ...state.approvals],
+    controls: nextControls,
     audit: pushAudit({
       actor: input.initiator.name,
       action: "console.operator_action",
@@ -536,12 +559,9 @@ export function decideApproval(
 function parseControlAction(actionKey: string): ControlKey | null {
   if (!actionKey.startsWith("control.")) return null;
   const candidate = actionKey.split(".")[1];
-  return candidate === "platform_halt" ||
-    candidate === "relay_pause" ||
-    candidate === "maintenance_mode" ||
-    candidate === "flag_kill_switches"
-    ? candidate
-    : null;
+  const valid: ControlKey[] = ["platform_halt", "relay_pause", "maintenance_mode", "flag_kill_switches"];
+  if (valid.includes(candidate as ControlKey)) return candidate as ControlKey;
+  return null;
 }
 
 /** Mark an approved request as executed (called after the action runs). */

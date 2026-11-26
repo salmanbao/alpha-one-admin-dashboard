@@ -54,7 +54,7 @@ const DEMO_ACTIONS = [
     detail: "Incident ladder rung 3 · OPS-11",
   },
   {
-    actionKey: "control.flag_kill_switch",
+    actionKey: "control.flag_kill_switches",
     actionLabel: "Kill-switch: disable auto_payout flag fleet-wide",
     blastRadius: ["Payout automation halts for all tenants", "Manual payouts unaffected"],
     detail: "Flag rollback of v1.8.2",
