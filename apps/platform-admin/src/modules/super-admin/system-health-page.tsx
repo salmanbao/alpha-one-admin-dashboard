@@ -20,9 +20,11 @@ import { PageAsyncBoundary } from "@/components/platform/guards";
 import { Page, PageHeader, PageContent, MetricCard } from "@/components/platform/page";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Sheet } from "@/components/ui/sheet";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/platform/status";
-import { PLATFORM_SERVICES, type PlatformService } from "@/lib/platform/operations-signals";
+import { PLATFORM_SERVICES, type PlatformService, serviceIcon, statusTones } from "@/lib/platform/operations-signals";
 import { readIncidents, effectiveSeverity } from "@/lib/platform/incident-center-store";
 import {
   Globe,
@@ -39,38 +41,15 @@ import {
   HardDrive,
   Network,
   Cloud,
+  RefreshCw,
 } from "lucide-react";
-
-const serviceIcon: Record<string, typeof Globe> = {
-  "api-gateway": Globe,
-  database: Database,
-  "database-replica": Database,
-  "mt5-bridge": Zap,
-  "ctrader-gateway": Zap,
-  "payment-processor": DollarSign,
-  "kyc-provider": ShieldCheck,
-  "ai-engine": Cpu,
-  "notification-service": Activity,
-  cache: HardDrive,
-  "event-bus": Activity,
-  "worker-pool": Cpu,
-  "identity-provider": ShieldCheck,
-  "document-generator": HardDrive,
-  queue: Network,
-  cdn: Cloud,
-};
-
-const statusTones: Record<string, "success" | "warning" | "danger" | "info"> = {
-  operational: "success",
-  degraded: "warning",
-  down: "danger",
-  maintenance: "info",
-};
 
 export function SystemHealthPage() {
   const { navigate, router } = usePlatform();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [highlightService, setHighlightService] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [isFiltering, setIsFiltering] = useState(false);
 
   // Deep-link target from Operations Home attention items:
   //   `?service=<id>` (e.g. ?service=mt5-bridge).
@@ -98,6 +77,9 @@ export function SystemHealthPage() {
       setStatusFilter(params.status);
     }
   }, [router.params]);
+
+  // Escape key closes detail sheet
+  useEscapeKey(selectedService !== null, () => setSelectedService(null));
 
   // Async seam (frontend-first): service status resolves via the mock layer.
   const {

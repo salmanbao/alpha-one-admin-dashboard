@@ -20,6 +20,7 @@
 //     two-sided param passthrough (§51).
 // ──────────────────────────────────────────────────────────────────────
 
+import { Globe, Server, Zap, DollarSign, ShieldCheck, Activity, HardDrive, Network, Database, Cpu, Cloud } from "lucide-react";
 import { PROVIDERS, type Provider } from "./provider-catalog";
 import { effectiveJobs, type Job } from "./jobs-store";
 
@@ -113,6 +114,34 @@ export const PLATFORM_SERVICES: PlatformService[] = [
   { id: "queue", name: "Message Queue", status: "operational", latencyMs: 5, lastHeartbeatAt: "1s ago", uptimePct: 99.98, region: "us-east-1" },
   { id: "cdn", name: "CDN / Edge", status: "operational", latencyMs: 15, lastHeartbeatAt: "2s ago", uptimePct: 99.99, region: "global" },
 ];
+
+export const serviceIcon: Record<string, typeof Globe> = {
+  "api-gateway": Globe,
+  database: Database,
+  "database-replica": Database,
+  "mt5-bridge": Zap,
+  "ctrader-gateway": Zap,
+  "payment-processor": DollarSign,
+  "kyc-provider": ShieldCheck,
+  "ai-engine": Cpu,
+  "notification-service": Activity,
+  cache: HardDrive,
+  "event-bus": Activity,
+  "worker-pool": Cpu,
+  "identity-provider": ShieldCheck,
+  "document-generator": HardDrive,
+  queue: Network,
+  cdn: Cloud,
+  "service-degraded": Globe,
+  "provider-degraded": Globe,
+};
+
+export const statusTones: Record<string, "success" | "warning" | "danger" | "info"> = {
+  operational: "success",
+  degraded: "warning",
+  down: "danger",
+  // maintenance: "info",  // REMOVED - no maintenance status in PLATFORM_SERVICES
+};
 
 export function severityRank(sev: AttentionSeverity): number {
   return sev === "critical" ? 0 : sev === "warning" ? 1 : 2;
