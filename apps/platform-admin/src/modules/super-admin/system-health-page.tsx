@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/platform/status";
 import { PLATFORM_SERVICES, type PlatformService } from "@/lib/platform/operations-signals";
+import { readIncidents, effectiveSeverity } from "@/lib/platform/incident-center-store";
 import {
   Globe,
   Server,
@@ -80,6 +81,23 @@ export function SystemHealthPage() {
       setStatusFilter("all");
     }
   }, [router.params.service]);
+
+  // Sync status filter with URL state
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (statusFilter !== "all") {
+      params.status = statusFilter;
+    }
+    navigate("system-health", params, { replace: true });
+  }, [statusFilter, navigate]);
+
+  // Read URL params on mount
+  useEffect(() => {
+    const params = router.params;
+    if (params.status) {
+      setStatusFilter(params.status);
+    }
+  }, [router.params]);
 
   // Async seam (frontend-first): service status resolves via the mock layer.
   const {
@@ -158,9 +176,9 @@ export function SystemHealthPage() {
 
         {/* KPI Row */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard label="Overall Uptime (30d)" value={`${stats.avgUptime.toFixed(2)}%`} delta={0.02} icon={Server} tone="positive" />
+          <MetricCard label="Avg Uptime (snapshot)" value={`${stats.avgUptime.toFixed(2)}%`} delta={0} icon={Server} tone="positive" />
           <MetricCard label="Avg Latency" value={`${Math.round(stats.avgLatency)}ms`} icon={Zap} />
-          <MetricCard label="Active Incidents" value={1} delta={-2} icon={AlertTriangle} tone="warning" />
+          <MetricCard label="Active Incidents" value={readIncidents().filter((i) => effectiveSeverity(i, {}) !== "resolved").length} delta={0} icon={AlertTriangle} tone="warning" />
           <MetricCard label="Services Monitored" value={services.length} icon={Server} />
         </div>
 
