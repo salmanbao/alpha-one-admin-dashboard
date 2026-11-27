@@ -76,6 +76,7 @@ import {
   Eye,
   Package,
   Activity,
+  Server,
   ShieldAlert,
   AlertTriangle,
   Zap,
@@ -136,6 +137,7 @@ const OPERATION_ENTRIES: OperationEntry[] = [
   { id: "approval-center", label: "Approval Center", description: "Two-operator pending approvals and blast-radius review", icon: ShieldCheck, viewId: "approval-center" },
   { id: "support-assist", label: "Support Assist", description: "Cross-tenant support ticket management", icon: LifeBuoy, viewId: "support-assist" },
   { id: "provider-registry", label: "Provider Registry", description: "Payment, KYC, and broker provider connections", icon: Plug, viewId: "provider-registry" },
+  { id: "system-health", label: "System Health", description: "Per-service platform status: uptime, latency, heartbeat, incidents", icon: Server, viewId: "system-health" },
 ];
 
 /**

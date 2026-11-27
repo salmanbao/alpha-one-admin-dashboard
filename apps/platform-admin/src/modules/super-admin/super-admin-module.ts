@@ -100,7 +100,7 @@ const navigation: NavigationItem[] = [
       { id: "super.provider-incident-runbook", label: "Provider Incident Runbook", href: "provider-incident-runbook", icon: BookOpen, application: ["super-admin"], group: "Operations", permission: ["payout.read", "payout.*"] },
 
       // ───────── Observability ─────────
-      { id: "super.system-health", label: "System Health", href: "system-health", icon: Server, application: ["super-admin"], group: "Observability" },
+      { id: "super.system-health", label: "System Health", href: "system-health", icon: Server, application: ["super-admin"], group: "Observability", permission: "platform.system-health.read" },
       { id: "super.sla", label: "SLA Monitoring", href: "sla-monitoring", icon: Timer, application: ["super-admin"], group: "Observability" },
       { id: "super.queues", label: "Cross-Tenant Queues", href: "cross-tenant-queues", icon: Layers, application: ["super-admin"], group: "Observability" },
       { id: "super.bridge-sync", label: "Bridge Sync Log", href: "bridge-sync-log", icon: Webhook, application: ["super-admin"], group: "Observability" },
@@ -293,7 +293,7 @@ const routes: RouteDefinition[] = [
   { path: "provider-incident-runbook", viewId: "provider-incident-runbook", label: "Provider Incident Runbook", application: ["super-admin"], permission: ["payout.read", "payout.*"] },
   // R9 W6 UC-P6 — data-residency report (declare + register parity)
   { path: "residency-report", viewId: "residency-report", label: "Data Residency", application: ["super-admin"] },
-  { path: "system-health", viewId: "system-health", label: "System Health", application: ["super-admin"] },
+  { path: "system-health", viewId: "system-health", label: "System Health", application: ["super-admin"], permission: "platform.system-health.read" },
   { path: "audit-log", viewId: "audit-log", label: "Audit Log", application: ["super-admin"], permission: "platform.audit.read" },
   { path: "api-keys", viewId: "api-keys", label: "API Keys", application: ["super-admin"] },
   { path: "rate-limits", viewId: "rate-limits", label: "Rate Limits", application: ["super-admin"] },
