@@ -298,7 +298,7 @@ export function IncidentCenterPage() {
                             {providerById(effective.providerId)?.status}
                           </StatusBadge>
                         ) : null}
-                        <Button size="sm" variant="ghost" className="h-6 gap-1 px-1.5 text-[10px]" onClick={() => navigate("provider-registry")}>
+                        <Button size="sm" variant="ghost" className="h-6 gap-1 px-1.5 text-[10px]" onClick={() => navigate("provider-registry", { provider: effective.providerId! })}>
                           Registry <ArrowRight className="h-3 w-3" />
                         </Button>
                       </p>

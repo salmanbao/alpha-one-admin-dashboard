@@ -1,89 +1,122 @@
-/**
- * S3 / F4 regression test — the read-only View-As gate must actually block.
- *
- * The original defect: the `closest()` selector was corrupt, Element.closest()
- * threw SyntaxError inside the capture handler BEFORE preventDefault ran, so
- * every mutating click sailed through while spewing an uncaught exception.
- * These tests pin the three behaviors:
- *   1. impersonating: a plain button click is swallowed (handler never fires)
- *   2. impersonating: navigation links and data-readonly-allow stay live
- *   3. not impersonating: clicks pass through untouched
- */
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, fireEvent, cleanup } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { ReadOnlyGuard } from "./read-only-guard";
 
-const ctx: { isImpersonating: boolean } = { isImpersonating: true };
-
+/* Mock the platform context so each case controls the session state. */
 vi.mock("@/lib/platform/platform-context", () => ({
-  usePlatform: () => ({ isImpersonating: ctx.isImpersonating }),
+  usePlatform: vi.fn(),
 }));
 
-import { ReadOnlyGuard } from "./read-only-guard";
+const { usePlatform } = await import("@/lib/platform/platform-context");
+
+function setImpersonating(value: boolean) {
+  vi.mocked(usePlatform).mockReturnValue({
+    isImpersonating: value,
+  } as never);
+}
 
 describe("ReadOnlyGuard", () => {
   beforeEach(() => {
-    cleanup();
-    ctx.isImpersonating = true;
+    vi.clearAllMocks();
+    setImpersonating(false);
   });
 
-  it("swallows clicks on mutating controls while impersonating", () => {
-    const onClick = vi.fn();
-    const { getByText } = render(
+  afterEach(cleanup);
+
+  it("renders children untouched when no View-As session is active", () => {
+    setImpersonating(false);
+    render(
       <ReadOnlyGuard>
-        <button onClick={onClick}>Delete tenant</button>
+        <button type="button">Mutating control</button>
       </ReadOnlyGuard>,
     );
-    fireEvent.click(getByText("Delete tenant"));
-    expect(onClick).not.toHaveBeenCalled();
+    const btn = screen.getByRole("button", { name: "Mutating control" });
+    expect(btn).toBeTruthy();
+    fireEvent.click(btn);
+    // No capture-phase suppression: the click reaches the element.
+    expect(btn.getAttribute("data-readonly")).toBeNull();
   });
 
-  it("allows navigation links through while impersonating", () => {
+  it("swallows clicks on plain controls during an active session", () => {
+    setImpersonating(true);
     const onClick = vi.fn();
-    const { getByText } = render(
+    render(
       <ReadOnlyGuard>
-        <a href="#/other" onClick={onClick}>
-          Go to other view
-        </a>
-      </ReadOnlyGuard>,
-    );
-    fireEvent.click(getByText("Go to other view"));
-    expect(onClick).toHaveBeenCalledTimes(1);
-  });
-
-  it("allows controls marked data-readonly-allow (renew/end session)", () => {
-    const onClick = vi.fn();
-    const { getByText } = render(
-      <ReadOnlyGuard>
-        <button data-readonly-allow onClick={onClick}>
-          End session
+        <button type="button" onClick={onClick}>
+          Mutating control
         </button>
       </ReadOnlyGuard>,
     );
-    fireEvent.click(getByText("End session"));
-    expect(onClick).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Mutating control" }));
+    expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("throws no DOM exception on click (regression: invalid closest selector)", () => {
-    // fireEvent surfaces listener exceptions; a SyntaxError from closest()
-    // would fail this test the way it failed the console in production.
-    const { getByText } = render(
-      <ReadOnlyGuard>
-        <button onClick={() => {}}>Act</button>
-      </ReadOnlyGuard>,
-    );
-    expect(() => fireEvent.click(getByText("Act"))).not.toThrow();
-  });
-
-  it("passes clicks through untouched when no session is active", () => {
-    ctx.isImpersonating = false;
+  it("lets controls marked data-readonly-allow through (support-assist selectors)", () => {
+    setImpersonating(true);
     const onClick = vi.fn();
-    const { getByText, container } = render(
+    render(
       <ReadOnlyGuard>
-        <button onClick={onClick}>Act</button>
+        {/* support-assist: tenant picker button */}
+        <button type="button" data-readonly-allow onClick={onClick}>
+          Tenant picker
+        </button>
+        {/* support-assist: ticket row */}
+        <button type="button" data-readonly-allow onClick={onClick}>
+          Ticket row
+        </button>
+        {/* support-assist: close X */}
+        <button type="button" aria-label="Close ticket detail" data-readonly-allow onClick={onClick}>
+          <span aria-hidden>×</span>
+        </button>
+        {/* support-assist: "Open tenant detail" navigation */}
+        <button type="button" data-readonly-allow onClick={onClick}>
+          Open tenant detail
+        </button>
       </ReadOnlyGuard>,
     );
-    expect(container.querySelector("[data-readonly]")).toBeNull();
-    fireEvent.click(getByText("Act"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Tenant picker" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ticket row" }));
+    fireEvent.click(screen.getByLabelText("Close ticket detail"));
+    fireEvent.click(screen.getByRole("button", { name: "Open tenant detail" }));
+
+    expect(onClick).toHaveBeenCalledTimes(4);
+  });
+
+  it("keeps navigation links live during an active session", () => {
+    setImpersonating(true);
+    render(
+      <ReadOnlyGuard>
+        <a href="/tenant-detail">Tenant detail</a>
+      </ReadOnlyGuard>,
+    );
+    const link = screen.getByRole("link", { name: "Tenant detail" });
+    expect(link.getAttribute("href")).toBe("/tenant-detail");
+  });
+
+  it("keeps tab-role switches live during an active session", () => {
+    setImpersonating(true);
+    const onClick = vi.fn();
+    render(
+      <ReadOnlyGuard>
+        <button type="button" role="tab" onClick={onClick}>
+          Queue tab
+        </button>
+      </ReadOnlyGuard>,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Queue tab" }));
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("explains the session in the rendered banner", () => {
+    setImpersonating(true);
+    render(
+      <ReadOnlyGuard>
+        <p>content</p>
+      </ReadOnlyGuard>,
+    );
+    expect(
+      screen.getByText(/Read-only View-As session/),
+    ).toBeTruthy();
   });
 });

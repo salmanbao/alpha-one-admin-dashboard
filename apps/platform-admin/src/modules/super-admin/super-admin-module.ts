@@ -97,6 +97,7 @@ const navigation: NavigationItem[] = [
       { id: "super.approvals", label: "Approval Center", href: "approval-center", icon: ShieldCheck, application: ["super-admin"], group: "Operations", permission: "platform.approvals.read" },
       { id: "super.support-assist", label: "Support Assist", href: "support-assist", icon: LifeBuoy, application: ["super-admin"], group: "Operations", permission: "platform.support-assist.read" },
       { id: "super.provider-registry", label: "Provider Registry", href: "provider-registry", icon: Plug, application: ["super-admin"], group: "Operations", permission: "platform.provider-registry.read" },
+      { id: "super.provider-incident-runbook", label: "Provider Incident Runbook", href: "provider-incident-runbook", icon: BookOpen, application: ["super-admin"], group: "Operations", permission: ["payout.read", "payout.*"] },
 
       // ───────── Observability ─────────
       { id: "super.system-health", label: "System Health", href: "system-health", icon: Server, application: ["super-admin"], group: "Observability" },
@@ -348,6 +349,9 @@ export const superAdminModule: FrontendModule = {
       { id: "platform.emergency.manage", label: "Emergency Controls", description: "Tenant halt, maintenance mode, relay pause, kill switches" },
       { id: "platform.halt.manage", label: "Platform Halt Manage", description: "Emergency halt control per-control scoping for Platform Halt and Relay Pause" },
       { id: "platform.operations.read", label: "View Operations Home", description: "Platform operations console access and attention signals" },
+      { id: "platform.approve", label: "Approve Actions", description: "Two-operator approve decisions (2FA required)" },
+      { id: "platform.approvals.decide", label: "Decide Approval", description: "Approve or reject pending approvals" },
+      { id: "platform.jobs.manage", label: "Manage Jobs", description: "Run, pause, resume, and retry background jobs" },
       { id: "platform.marketing.read", label: "View Tenant Marketing Usage", description: "Cross-tenant send metering, quota meters and anomaly flags" },
       { id: "platform.marketing.manage", label: "Manage Marketing Console", description: "Quota approvals, shared template lifecycle, provider pool + quarantine" },
       { id: "platform.archive.read", label: "Read Cross-Tenant Archive", description: "e-Discovery search across tenant sent messages (R2-11)" },

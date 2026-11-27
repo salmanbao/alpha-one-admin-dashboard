@@ -200,13 +200,13 @@ export function ApprovalRequestCard({ request, onDecided, id }: ApprovalRequestC
               )}
             </p>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={reject} disabled={decisionError !== null}>
+              <Button size="sm" variant="outline" onClick={reject} disabled={decisionError !== null || !user?.permissions.includes('platform.approvals.decide')}>
                 <XCircle className="mr-1 h-3.5 w-3.5" /> Reject
               </Button>
               <Button
                 size="sm"
                 onClick={() => { setDecisionError(null); setOtpOpen(true); }}
-                disabled={isInitiator}
+                disabled={isInitiator || !user?.permissions.includes('platform.approvals.approve')}
                 title={isInitiator ? "Self-approval is structurally denied (403)" : undefined}
               >
                 <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Approve
@@ -219,6 +219,8 @@ export function ApprovalRequestCard({ request, onDecided, id }: ApprovalRequestC
               ? "Executed and recorded in the platform audit log."
               : request.status === "approved"
                 ? "Approved — executing."
+                : request.status === "unappliable"
+                ? "Approved — execution path missing"
                 : `Closed (${request.status})${decidedByYou ? " by you" : ""}.`}
           </p>
         )}

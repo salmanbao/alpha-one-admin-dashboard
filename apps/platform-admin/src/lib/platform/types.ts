@@ -84,6 +84,7 @@ export interface TenantContext {
     | "provisioning"
     | "provisioning_failed"
     | "onboarding"
+    | "offboarding"
     /**
      * R13 TM-02: a provisioning saga that was compensated (rolled back
      * in reverse order) no longer reuses `invited` — no invitation was
@@ -97,6 +98,8 @@ export interface TenantContext {
    * until configured.
    */
   kycProvider?: string;
+  /** Quota history for marketing approvals */
+  quotaHistory?: Array<{ at: string; change: string; by: string; state: "pending" | "scheduled" | "applied"; justification?: string }>;
   createdAt: string;
   /**
    * When the firm went live — set the first time the go-live wizard

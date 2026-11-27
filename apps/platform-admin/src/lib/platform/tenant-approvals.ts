@@ -112,6 +112,36 @@ export function applyTenantApproval(request: any): AppliedOutcome | void {
       };
     }
 
+    case "tenant.offboard": {
+      const { retention, gracePeriodDays, scheduledFor, reason } = payload as {
+        tenantId: string;
+        retention: string;
+        gracePeriodDays: number;
+        scheduledFor: string;
+        reason: string;
+      };
+      if (!retention || !scheduledFor) return;
+
+      const offboardStatus = retention === "preserve" ? "offboarding" as const : "terminated" as const;
+
+      updateTenant(tenantId, {
+        status: offboardStatus,
+        statusHistory: [
+          ...(tenant.statusHistory ?? []),
+          {
+            status: offboardStatus,
+            at: new Date().toISOString(),
+            by: "approval",
+            reason: detail ?? `Offboarded (retention=${retention}, gracePeriod=${gracePeriodDays}d, reason="${reason}")`,
+          },
+        ],
+      });
+      return {
+        title: offboardStatus === "offboarding" ? "Tenant offboarded" : "Tenant terminated",
+        description: `${actionLabel} — scheduled ${scheduledFor}, retention=${retention}, grace=${gracePeriodDays}d`,
+      };
+    }
+
     default:
       return;
   }

@@ -73,6 +73,7 @@ export function stageLabel(stage: AllLifecycleStatus): string {
     rolled_back: "Rolled Back",
     suspended: "Suspended",
     terminated: "Terminated",
+    offboarding: "Offboarding",
   };
   return labels[stage] ?? stage;
 }
@@ -90,6 +91,7 @@ export function stageDescription(stage: AllLifecycleStatus): string {
     rolled_back: "Creation rolled back",
     suspended: "Access suspended",
     terminated: "Contract terminated",
+    offboarding: "Tenant offboarding in progress",
   };
   return descriptions[stage] ?? "";
 }

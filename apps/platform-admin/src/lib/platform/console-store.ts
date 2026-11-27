@@ -40,7 +40,8 @@ export type ApprovalStatus =
   | "approved"
   | "rejected"
   | "expired"
-  | "executed";
+  | "executed"
+  | "unappliable";
 
 export interface ApprovalRequest {
   id: string;
@@ -61,6 +62,12 @@ export interface ApprovalRequest {
   decidedAt?: number;
   executedAt?: number;
   /**
+   * Provenance: "production" means a real operator action; "demo" means a
+   * simulated request from the Approval Center demo button. Demo requests
+   * must never engage controls or mutate tenant state.
+   */
+  origin: "production" | "demo";
+  /**
    * Staged mutation payload (S-09 / P0-2): the exact change the initiator
    * asked for (role create/update/clone/delete, API-key create/rotate/
    * revoke, staff invite…). Persisted with the request, so the approval
@@ -76,7 +83,7 @@ export type ApprovalDecisionResult =
   | { ok: true; request: ApprovalRequest }
   | {
       ok: false;
-      code: "self_approval" | "expired" | "not_found" | "already_decided";
+      code: "self_approval" | "expired" | "not_found" | "already_decided" | "demo_request";
       message: string;
     };
 
@@ -176,6 +183,7 @@ function seedState(): ConsoleState {
         createdAt: t - 3 * 60 * 1000,
         expiresAt: t - 3 * 60 * 1000 + APPROVAL_TTL_MS,
         status: "pending_approval",
+        origin: "production",
         detail: "Runbook TEN-04 · abuse investigation AB-118",
       },
       {
@@ -187,6 +195,7 @@ function seedState(): ConsoleState {
         createdAt: t - 95 * 60 * 1000,
         expiresAt: t - 85 * 60 * 1000,
         status: "executed",
+        origin: "production",
         approver: { id: "op-priya", name: "Priya Shah" },
         decidedAt: t - 92 * 60 * 1000,
         executedAt: t - 92 * 60 * 1000,
@@ -200,6 +209,7 @@ function seedState(): ConsoleState {
         createdAt: t - 5 * 60 * 60 * 1000,
         expiresAt: t - 5 * 60 * 60 * 1000 + APPROVAL_TTL_MS,
         status: "rejected",
+        origin: "production",
         approver: { id: "op-priya", name: "Priya Shah" },
         decidedAt: t - 4.9 * 60 * 60 * 1000,
         detail: "Rejected — insufficient blast-radius justification",
@@ -442,9 +452,13 @@ export function initiateApproval(input: {
   detail?: string;
   /** Staged mutation applied by the approval bridge when approved. */
   payload?: unknown;
+  /** Provenance: "production" (default) or "demo". Demo requests never
+   *  engage controls or mutate tenant state when approved. */
+  origin?: "production" | "demo";
 }): ApprovalRequest {
   const controlKey = parseControlAction(input.actionKey);
   const t = now();
+  const origin = input.origin ?? "production";
   const request: ApprovalRequest = {
     id: uid("apr"),
     actionKey: input.actionKey,
@@ -455,12 +469,14 @@ export function initiateApproval(input: {
     createdAt: t,
     expiresAt: t + APPROVAL_TTL_MS,
     status: "pending_approval",
+    origin,
     payload: input.payload,
     detail: input.detail,
   };
-  const nextControls = controlKey
+  const nextControls = controlKey && origin === "production"
     ? { ...state.controls, [controlKey]: "pending_approval" as const }
     : state.controls;
+  const verifiedClause = input.origin === "demo" ? "" : " (2FA verified)";
   emit({
     ...state,
     approvals: [request, ...state.approvals],
@@ -470,7 +486,7 @@ export function initiateApproval(input: {
       action: "console.operator_action",
       target: input.actionKey,
       severity: "warning",
-      detail: `Initiated two-operator approval for "${input.actionLabel}" (2FA verified)`,
+      detail: `Initiated two-operator approval for "${input.actionLabel}"${verifiedClause}`,
     }),
   });
   return request;
@@ -481,6 +497,10 @@ export function initiateApproval(input: {
  * layer. Structural CON-32 rule: B must not be A — the approval token
  * names A, so a self-approval returns `self_approval` (403 semantics),
  * never a warning-then-proceed.
+ *
+ * Additional safety: demo requests (`origin === "demo"`) are refused
+ * from engaging controls or writing executed state; the approver must
+ * re-initiate a real (production) request instead.
  */
 export function decideApproval(
   id: string,
@@ -514,6 +534,14 @@ export function decideApproval(
         "Self-approval denied — the approval token names you as the initiator. A different platform operator must approve (403).",
     };
   }
+  // Demo requests cannot engage controls or mutate tenant state.
+  if (request.origin === "demo") {
+    return {
+      ok: false,
+      code: "demo_request",
+      message: `This is a demo request — it cannot engage platform controls or mutate tenant state. Re-initiate a production request instead.`,
+    };
+  }
 
   const t = now();
   const decided: ApprovalRequest = {
@@ -521,6 +549,7 @@ export function decideApproval(
     status: decision === "approve" ? "approved" : "rejected",
     approver,
     decidedAt: t,
+    origin: request.origin, // preserve provenance
   };
   // Approved control actions execute immediately (the approval *is* the
   // execution gate for the two-operator set — see emergency-controls).
@@ -572,6 +601,19 @@ export function markApprovalExecuted(id: string) {
     approvals: state.approvals.map((a) =>
       a.id === id && a.status === "approved"
         ? { ...a, status: "executed" as const, executedAt: t }
+        : a,
+    ),
+  });
+}
+
+/** Mark an approved request as unappliable (no execution path registered). */
+export function markApprovalUnappliable(id: string) {
+  const t = now();
+  emit({
+    ...state,
+    approvals: state.approvals.map((a) =>
+      a.id === id && a.status === "approved"
+        ? { ...a, status: "unappliable" as const, decidedAt: t }
         : a,
     ),
   });

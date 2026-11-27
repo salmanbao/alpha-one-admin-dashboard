@@ -24,16 +24,38 @@ export interface Provider {
   type: string;
   icon: ComponentType<{ className?: string }>;
   status: "operational" | "degraded" | "down";
-  latency: string;
-  errorRate: string;
+  latencyMs: number | null;
+  errorRatePct: number | null;
   tenantsUsing: number;
   credentialFingerprint: string;
-  lastRotated: string;
-  lastSuccess: string;
-  config: string;
-  /** Payout capability this provider supports (R10 PF-04) */
+  lastRotatedAt: number;
+  lastSuccessAt: number;
+  checkedAt: number;
+  config: "Configured" | "Not configured" | "Pending";
   payoutCapability: "bank-transfer" | "crypto" | "paypal" | "skrill" | "none";
+  /** Payout slice fields promised by the payout health board (R10 PF-04) */
+  payoutsInFlight?: number;
+  lastFailure?: { at: number; code: string };
 }
+
+/** Helper to parse latency strings like "320ms" or "1.2s" to milliseconds */
+function parseLatency(s: string): number {
+  if (s.endsWith("ms")) return parseInt(s.slice(0, -2), 10);
+  if (s.endsWith("s")) return Math.round(parseFloat(s.slice(0, -1)) * 1000);
+  return 0;
+}
+
+/** Helper to parse error rate strings like "2.1%" to percentage number */
+function parseErrorRate(s: string): number {
+  return parseFloat(s.replace("%", ""));
+}
+
+/** Fixed demo timestamps for reproducible demo data (anchored to a base time) */
+const BASE_TIME = new Date("2026-01-15T10:00:00Z").getTime();
+const daysAgo = (n: number) => BASE_TIME - n * 24 * 60 * 60 * 1000;
+const hoursAgo = (n: number) => BASE_TIME - n * 60 * 60 * 1000;
+const minutesAgo = (n: number) => BASE_TIME - n * 60 * 1000;
+const secondsAgo = (n: number) => BASE_TIME - n * 1000;
 
 export const PROVIDERS: Provider[] = [
   {
@@ -42,14 +64,16 @@ export const PROVIDERS: Provider[] = [
     type: "Trading Bridge",
     icon: Zap,
     status: "degraded",
-    latency: "320ms",
-    errorRate: "2.1%",
+    latencyMs: parseLatency("320ms"),
+    errorRatePct: parseErrorRate("2.1%"),
     tenantsUsing: 3,
     credentialFingerprint: "••••8A42",
-    lastRotated: "12 days ago",
-    lastSuccess: "30s ago",
+    lastRotatedAt: daysAgo(12),
+    lastSuccessAt: secondsAgo(30),
+    checkedAt: BASE_TIME,
     config: "Configured",
     payoutCapability: "none",
+    payoutsInFlight: 0,
   },
   {
     id: "veriff",
@@ -57,14 +81,16 @@ export const PROVIDERS: Provider[] = [
     type: "KYC Provider",
     icon: ShieldCheck,
     status: "operational",
-    latency: "310ms",
-    errorRate: "0.1%",
+    latencyMs: parseLatency("310ms"),
+    errorRatePct: parseErrorRate("0.1%"),
     tenantsUsing: 2,
     credentialFingerprint: "••••F19C",
-    lastRotated: "45 days ago",
-    lastSuccess: "2m ago",
+    lastRotatedAt: daysAgo(45),
+    lastSuccessAt: minutesAgo(2),
+    checkedAt: BASE_TIME,
     config: "Configured",
     payoutCapability: "none",
+    payoutsInFlight: 0,
   },
   {
     id: "nowpayments",
@@ -72,14 +98,16 @@ export const PROVIDERS: Provider[] = [
     type: "Payment Provider",
     icon: DollarSign,
     status: "operational",
-    latency: "210ms",
-    errorRate: "0.3%",
+    latencyMs: parseLatency("210ms"),
+    errorRatePct: parseErrorRate("0.3%"),
     tenantsUsing: 2,
     credentialFingerprint: "••••3B7E",
-    lastRotated: "8 days ago",
-    lastSuccess: "1m ago",
+    lastRotatedAt: daysAgo(8),
+    lastSuccessAt: minutesAgo(1),
+    checkedAt: BASE_TIME,
     config: "Configured",
     payoutCapability: "crypto",
+    payoutsInFlight: 0,
   },
   {
     id: "postmark",
@@ -87,14 +115,16 @@ export const PROVIDERS: Provider[] = [
     type: "Notification Service",
     icon: Bell,
     status: "degraded",
-    latency: "680ms",
-    errorRate: "1.4%",
+    latencyMs: parseLatency("680ms"),
+    errorRatePct: parseErrorRate("1.4%"),
     tenantsUsing: 3,
     credentialFingerprint: "••••C2D5",
-    lastRotated: "30 days ago",
-    lastSuccess: "5m ago",
+    lastRotatedAt: daysAgo(30),
+    lastSuccessAt: minutesAgo(5),
+    checkedAt: BASE_TIME,
     config: "Configured",
     payoutCapability: "none",
+    payoutsInFlight: 0,
   },
   {
     id: "match2pay",
@@ -102,29 +132,33 @@ export const PROVIDERS: Provider[] = [
     type: "Payment Provider",
     icon: DollarSign,
     status: "operational",
-    latency: "180ms",
-    errorRate: "0.2%",
+    latencyMs: parseLatency("180ms"),
+    errorRatePct: parseErrorRate("0.2%"),
     tenantsUsing: 1,
     credentialFingerprint: "••••E9A1",
-    lastRotated: "20 days ago",
-    lastSuccess: "3m ago",
+    lastRotatedAt: daysAgo(20),
+    lastSuccessAt: minutesAgo(3),
+    checkedAt: BASE_TIME,
     config: "Configured",
     payoutCapability: "crypto",
+    payoutsInFlight: 0,
   },
   {
     id: "twilio",
     name: "Twilio",
     type: "SMS Provider",
     icon: Bell,
-    status: "operational",
-    latency: "150ms",
-    errorRate: "0.0%",
+    status: "down",
+    latencyMs: parseLatency("150ms"),
+    errorRatePct: parseErrorRate("0.0%"),
     tenantsUsing: 1,
     credentialFingerprint: "••••7F3B",
-    lastRotated: "60 days ago",
-    lastSuccess: "1h ago",
+    lastRotatedAt: daysAgo(60),
+    lastSuccessAt: hoursAgo(1),
+    checkedAt: BASE_TIME,
     config: "Not configured",
     payoutCapability: "none",
+    payoutsInFlight: 0,
   },
   {
     id: "paypal-payouts",
@@ -132,14 +166,17 @@ export const PROVIDERS: Provider[] = [
     type: "Payout Provider",
     icon: DollarSign,
     status: "operational",
-    latency: "1.2s",
-    errorRate: "0.8%",
+    latencyMs: parseLatency("1.2s"),
+    errorRatePct: parseErrorRate("0.8%"),
     tenantsUsing: 4,
     credentialFingerprint: "••••G7H2",
-    lastRotated: "5 days ago",
-    lastSuccess: "45s ago",
+    lastRotatedAt: daysAgo(5),
+    lastSuccessAt: secondsAgo(45),
+    checkedAt: BASE_TIME,
     config: "Configured",
     payoutCapability: "paypal",
+    payoutsInFlight: 12,
+    lastFailure: { at: daysAgo(2), code: "PAYER_ACTION_REQUIRED" },
   },
   {
     id: "skrill-payouts",
@@ -147,14 +184,34 @@ export const PROVIDERS: Provider[] = [
     type: "Payout Provider",
     icon: DollarSign,
     status: "degraded",
-    latency: "1.5s",
-    errorRate: "3.4%",
+    latencyMs: parseLatency("1.5s"),
+    errorRatePct: parseErrorRate("3.4%"),
     tenantsUsing: 2,
     credentialFingerprint: "••••K9L4",
-    lastRotated: "14 days ago",
-    lastSuccess: "12m ago",
+    lastRotatedAt: daysAgo(14),
+    lastSuccessAt: minutesAgo(12),
+    checkedAt: BASE_TIME,
     config: "Configured",
     payoutCapability: "skrill",
+    payoutsInFlight: 3,
+    lastFailure: { at: daysAgo(1), code: "INSUFFICIENT_BALANCE" },
+  },
+  {
+    id: "broker-bridge",
+    name: "Broker Bridge",
+    type: "Broker Integration",
+    icon: Zap,
+    status: "operational",
+    latencyMs: parseLatency("400ms"),
+    errorRatePct: parseErrorRate("0.5%"),
+    tenantsUsing: 1,
+    credentialFingerprint: "••••M7N8",
+    lastRotatedAt: daysAgo(7),
+    lastSuccessAt: secondsAgo(20),
+    checkedAt: BASE_TIME,
+    config: "Configured",
+    payoutCapability: "none",
+    payoutsInFlight: 0,
   },
 ];
 
@@ -165,4 +222,13 @@ export function providerName(providerId: string): string {
 
 export function providerById(providerId: string): Provider | undefined {
   return PROVIDERS.find((p) => p.id === providerId);
+}
+
+/**
+ * Single source of truth for provider status tone (P2-7) — used by the
+ * registry card dot, the registry detail badge, and the payout board badge
+ * so all three surfaces render a provider's status identically.
+ */
+export function providerStatusTone(s: Provider["status"]): "success" | "warning" | "danger" {
+  return s === "operational" ? "success" : s === "degraded" ? "warning" : "danger";
 }

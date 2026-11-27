@@ -17,6 +17,7 @@ import { applyStaffApproval } from "@/lib/platform/staff-store";
 import { applyOperatorApproval } from "@/lib/platform/platform-context";
 import { applyPlatformApproval } from "@/lib/platform/deployments-store";
 import { applyTenantApproval } from "@/lib/platform/tenant-approvals";
+import { applyMarketingApproval } from "@/lib/platform/marketing-approvals";
 
 registerApprovalHandler("role.", applyRoleApproval);
 registerApprovalHandler("apikey.", applyApiKeyApproval);
@@ -27,6 +28,8 @@ registerApprovalHandler("operator.", applyOperatorApproval);
 registerApprovalHandler("platform.", applyPlatformApproval);
 // P0-2 (offboarding): tenant-domain two-operator mutations
 registerApprovalHandler("tenant.", applyTenantApproval);
+// P0-1: marketing quota adjustments (tenant-scoped).
+registerApprovalHandler("marketing.", applyMarketingApproval);
 
 export function ApprovalBridge() {
   useApprovalApplier();

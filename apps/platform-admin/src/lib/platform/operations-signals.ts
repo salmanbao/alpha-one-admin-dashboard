@@ -174,6 +174,7 @@ export function deriveAttention(input: {
       detail: `Last failure ${failedJobs[0].lastFailure}.`,
       cta: "Open jobs dashboard",
       navigateTo: "jobs-dashboard",
+      navigateParams: { job: failedJobs[0].id },
     });
   }
 
@@ -201,6 +202,7 @@ export function deriveAttention(input: {
       detail: degradedProviders.map((p) => p.name).join(", ") + ".",
       cta: "Open provider registry",
       navigateTo: "provider-registry",
+      navigateParams: { provider: degradedProviders[0].id },
     });
   }
 

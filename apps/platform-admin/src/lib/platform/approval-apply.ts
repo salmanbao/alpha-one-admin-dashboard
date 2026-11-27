@@ -20,7 +20,7 @@
 
 import { useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
-import { markApprovalExecuted, useConsoleStore, type ApprovalRequest } from "./console-store";
+import { markApprovalExecuted, markApprovalUnappliable, recordAudit, useConsoleStore, type ApprovalRequest } from "./console-store";
 
 /** What the operator sees once the staged change has landed. */
 export interface AppliedOutcome {
@@ -62,6 +62,10 @@ export function requestReason(request: ApprovalRequest): string | undefined {
  * Apply every approved-but-unapplied request that has a registered
  * handler. Mount once (AppShell) so approvals execute no matter which
  * screen operator B happens to be on.
+ *
+ * If no handler is found for an approved request, mark it `unappliable`
+ * (a new terminal state) so the card shows a destructive, visible failure
+ * instead of lingering in "Approved — executing." limbo forever.
  */
 export function useApprovalApplier(): void {
   const store = useConsoleStore();
@@ -69,10 +73,30 @@ export function useApprovalApplier(): void {
     for (const request of store.approvals) {
       if (request.status !== "approved") continue;
       const handler = findHandler(request.actionKey);
-      if (!handler) continue;
+      if (!handler) {
+        markApprovalUnappliable(request.id);
+        toast({
+          title: "Approval unappliable",
+          description: `${request.actionLabel} — no execution path registered for "${request.actionKey}". Engineering action required.`,
+          variant: "destructive",
+        });
+        recordAuditRequestUnapplied(request);
+        continue;
+      }
       const outcome = handler(request);
       markApprovalExecuted(request.id);
       if (outcome) toast(outcome);
     }
   }, [store.approvals]);
+}
+
+/** Audit row for a request that was approved but has no execution path. */
+function recordAuditRequestUnapplied(request: ApprovalRequest): void {
+  recordAudit({
+    actor: "System",
+    action: "console.escalation_unapplied",
+    target: request.id,
+    severity: "critical",
+    detail: `Approved request "${request.actionLabel}" (${request.actionKey}) has no registered execution path. Staged payload not applied.`,
+  });
 }

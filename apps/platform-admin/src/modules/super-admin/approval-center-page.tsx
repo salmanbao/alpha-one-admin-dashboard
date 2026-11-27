@@ -99,6 +99,7 @@ export function ApprovalCenterPage() {
     const request = initiateApproval({
       ...spec,
       initiator: { id: user.id, name: user.name },
+      origin: "demo",
     });
     setDemoIdx((i) => i + 1);
     toast({
