@@ -2,13 +2,13 @@
 
 /**
  * PFaaS Platform — Global Search Dialog
- *
+ * 
  * Spec section 38 + docs/21 CON-29 (console shell). The console is a
  * different realm from the tenant admin: what an operator can open from
  * search is *console* views — tenants, platform config screens, audit
  * screens, cross-tenant queues. The previous revision was copied from
  * prop-admin and indexed tenant-realm destinations (29 of 29 hits dead).
- *
+ * 
  * Search groups now:
  *   - Tenants            → tenant-detail
  *   - Cross-tenant data  → tenant-detail / cross-tenant-queues /
@@ -22,10 +22,10 @@
  *                          registered all-or-none (never just one)
  *   - Settings           → global-defaults, reference-data, challenge-programs, feature-flags…
  *   - Audit              → platform-audit → audit-log → model-audit-log
- */
-
+ */ 
+ 
 import { useMemo, useState } from "react";
-import { Target as TargetIcon } from "lucide-react";
+import { Target as TargetIcon, ChevronRight } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -50,37 +50,6 @@ import {
   tenants as allTenants,
 } from "@/lib/platform/mock-data";
 import { viewRegistry } from "@/lib/platform/view-router";
-import {
-  Users,
-  CreditCard,
-  Target,
-  Wallet,
-  Megaphone,
-  Receipt,
-  LifeBuoy,
-  ShieldCheck,
-  ChevronRight,
-  Settings as SettingsIcon,
-  Plug,
-  UsersRound,
-  KeyRound,
-  Fingerprint,
-  Bell,
-  History,
-  GitBranch,
-  Flag,
-  Building2,
-  Brain,
-  BarChart3,
-  HeartPulse,
-  Eye,
-  Package,
-  Activity,
-  Server,
-  ShieldAlert,
-  AlertTriangle,
-  Zap,
-} from "lucide-react";
 
 interface SearchHit {
   id: string;
@@ -92,14 +61,7 @@ interface SearchHit {
   navigateParams?: Record<string, string>;
 }
 
-/** Console-safe tenant deep-link: the platform pseudo-tenant has no detail page. */
-function tenantTarget(tenantId: string): { navigateTo: string; navigateParams?: Record<string, string> } {
-  if (!tenantId || tenantId === "platform") return { navigateTo: "tenants" };
-  return { navigateTo: "tenant-detail", navigateParams: { id: tenantId } };
-}
-
-/**
- * Static settings entries — the console's configuration surfaces. When a
+/* Static settings entries — the console's configuration surfaces. When a
  * config screen is added or removed, update this list to match.
  */
 const SETTINGS_ENTRIES: Array<{
@@ -122,14 +84,18 @@ const SETTINGS_ENTRIES: Array<{
   { id: "announcements", label: "Announcements", description: "Operator-facing platform announcements", icon: Bell, viewId: "announcements" },
   { id: "plans", label: "Plans & Subscriptions", description: "Pricing tiers, feature entitlements, limits, and trials", icon: CreditCard, viewId: "plans" },
 ];
-interface OperationEntry {
+
+/* Operation entries — Cmd+K reachable console workspace views.
+ * In R26 P1-3, system-health was added as the first new entry;
+ * this round adds the cross-tenant-queues entry.
+ */
+const OPERATION_ENTRIES: Array<{
   id: string;
   label: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   viewId: string;
-}
-const OPERATION_ENTRIES: OperationEntry[] = [
+}> = [
   { id: "operations", label: "Operations Home", description: "Platform operations console — service health, operational signals, and attention items", icon: Activity, viewId: "platform-operations" },
   { id: "emergency-controls", label: "Emergency Controls", description: "Tenant halt, maintenance mode, relay pause, kill switches", icon: ShieldAlert, viewId: "emergency-controls" },
   { id: "incidents", label: "Incidents", description: "Cross-tenant incident lifecycle and audit trail", icon: AlertTriangle, viewId: "incident-center" },
@@ -138,13 +104,11 @@ const OPERATION_ENTRIES: OperationEntry[] = [
   { id: "support-assist", label: "Support Assist", description: "Cross-tenant support ticket management", icon: LifeBuoy, viewId: "support-assist" },
   { id: "provider-registry", label: "Provider Registry", description: "Payment, KYC, and broker provider connections", icon: Plug, viewId: "provider-registry" },
   { id: "system-health", label: "System Health", description: "Per-service platform status: uptime, latency, heartbeat, incidents", icon: Server, viewId: "system-health" },
+  { id: "queues", label: "Cross-Tenant Queues", description: "Per-tenant KYC, risk, payout and support backlog with aging", icon: Building2, viewId: "cross-tenant-queues" },
 ];
 
-/**
- * Tenant-fleet views — the cross-tenant workspace family linked from
- * the Tenants screen's "Fleet views" row (`tenants-page.tsx`). Registered
- * all-or-none (audit P2-6): every fleet view is searchable, never just
- * one of them.
+/* Fleet views — the cross-tenant workspace family linked from
+ * the Tenants screen's \"Fleet views\" row (registered all-or-none, P2-6).
  */
 const FLEET_ENTRIES: Array<{
   id: string;
@@ -161,6 +125,7 @@ const FLEET_ENTRIES: Array<{
   { id: "tenant-sessions", label: "Tenant Sessions", description: "Per-tenant user sessions with activity indicators", icon: Fingerprint, viewId: "tenant-sessions" },
 ];
 
+/* Audit entries */
 const AUDIT_ENTRIES: Array<{
   id: string;
   label: string;
@@ -324,8 +289,8 @@ export function GlobalSearchDialog() {
       }
     }
 
-    // Fleet views — the cross-tenant workspace family from the Tenants
-    // screen's "Fleet views" row (registered all-or-none, P2-6).
+    // Fleet views — the cross-tenant workspace family linked from
+    // the Tenants screen's \"Fleet views\" row (registered all-or-none, P2-6).
     for (const f of FLEET_ENTRIES) {
       if (`${f.label} ${f.description} fleet`.toLowerCase().includes(q)) {
         out.push({
@@ -398,7 +363,10 @@ export function GlobalSearchDialog() {
   };
 
   return (
-    <CommandDialog open={searchOpen} onOpenChange={(o) => { setSearchOpen(o); if (!o) setQuery(""); }}>
+    <CommandDialog open={searchOpen} onOpenChange={(o) => {
+      setSearchOpen(o);
+      if (!o) setQuery("");
+    }}>
       <CommandInput
         placeholder={resolveTermsInString("Search tenants, settings, audit…", tenant)}
         value={query}
@@ -434,7 +402,7 @@ export function GlobalSearchDialog() {
           <CommandGroup heading="Summary">
             <CommandItem disabled>
               <span className="text-xs text-muted-foreground">
-                {hits.length} result{hits.length !== 1 ? "s" : ""} across {grouped.length} categor{grouped.length !== 1 ? "ies" : "y"}
+                {hits.length} result{hits.length !== 1 ? "s" : ""} across {grouped.length} categories
               </span>
             </CommandItem>
           </CommandGroup>

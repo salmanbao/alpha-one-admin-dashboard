@@ -101,8 +101,8 @@ const navigation: NavigationItem[] = [
 
       // ───────── Observability ─────────
       { id: "super.system-health", label: "System Health", href: "system-health", icon: Server, application: ["super-admin"], group: "Observability", permission: "platform.system-health.read" },
-      { id: "super.sla", label: "SLA Monitoring", href: "sla-monitoring", icon: Timer, application: ["super-admin"], group: "Observability" },
-      { id: "super.queues", label: "Cross-Tenant Queues", href: "cross-tenant-queues", icon: Layers, application: ["super-admin"], group: "Observability" },
+      { id: "super.sla", label: "SLA Monitoring", href: "sla-monitoring", icon: Timer, application: ["super-admin"], group: "Observability", permission: "platform.sla.read" },
+      { id: "super.queues", label: "Cross-Tenant Queues", href: "cross-tenant-queues", icon: Layers, application: ["super-admin"], group: "Observability", permission: "platform.queues.read" },
       { id: "super.bridge-sync", label: "Bridge Sync Log", href: "bridge-sync-log", icon: Webhook, application: ["super-admin"], group: "Observability" },
       { id: "super.platform-audit", label: "Platform Audit", href: "platform-audit", icon: ScrollText, application: ["super-admin"], permission: "platform.audit.read", order: 65, group: "Observability" },
       { id: "super.usage-metering", label: "Tenant Usage & Overage", href: "usage-metering", icon: Gauge, application: ["super-admin"], group: "Observability" },
@@ -212,7 +212,7 @@ const routes: RouteDefinition[] = [
   { path: "tenant-detail", viewId: "tenant-detail", label: "Tenant Detail", application: ["super-admin"] },
   { path: "tenant-lifecycle", viewId: "tenant-lifecycle", label: "Tenant Lifecycle", application: ["super-admin"] },
   { path: "tenant-health", viewId: "tenant-health", label: "Tenant Health", application: ["super-admin"] },
-  { path: "sla-monitoring", viewId: "sla-monitoring", label: "SLA Monitoring", application: ["super-admin"] },
+  { path: "sla-monitoring", viewId: "sla-monitoring", label: "SLA Monitoring", application: ["super-admin"], permission: "platform.sla.read" },
   { path: "provisioning-saga", viewId: "provisioning-saga", label: "Provisioning Saga", application: ["super-admin"] },
   { path: "usage-metering", viewId: "usage-metering", label: "Tenant Usage & Overage", application: ["super-admin"] },
   { path: "tenant-api-usage", viewId: "tenant-api-usage", label: "Tenant API Usage", application: ["super-admin"] },
@@ -224,7 +224,7 @@ const routes: RouteDefinition[] = [
   { path: "jobs-dashboard", viewId: "jobs-dashboard", label: "Jobs Dashboard", application: ["super-admin"], permission: "platform.jobs.read" },
   { path: "approval-center", viewId: "approval-center", label: "Approval Center", application: ["super-admin"], permission: "platform.approvals.read" },
   { path: "provider-registry", viewId: "provider-registry", label: "Provider Registry", application: ["super-admin"], permission: "platform.provider-registry.read" },
-  { path: "cross-tenant-queues", viewId: "cross-tenant-queues", label: "Cross-Tenant Queues", application: ["super-admin"] },
+  { path: "cross-tenant-queues", viewId: "cross-tenant-queues", label: "Cross-Tenant Queues", application: ["super-admin"], permission: "platform.queues.read" },
   { path: "deployments", viewId: "deployments", label: "Deployments", application: ["super-admin"] },
   { path: "backups-dr", viewId: "backups-dr", label: "Backups & DR", application: ["super-admin"] },
   { path: "module-catalog", viewId: "module-catalog", label: "Service Catalog", application: ["super-admin"] },

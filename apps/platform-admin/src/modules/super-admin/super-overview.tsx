@@ -346,7 +346,7 @@ export function SuperAdminOverviewPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate("cross-tenant-queues", { type: "kyc" })}>
+                <div className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate("cross-tenant-queues", { queue: "kyc" })}>
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className="h-5 w-5"><Users className="h-4 w-4" /></Badge>
                     <span className="text-sm font-medium">KYC Queue</span>
@@ -358,7 +358,7 @@ export function SuperAdminOverviewPage() {
                     <Badge variant="outline" className="text-emerald-600 border-emerald-200">SLA OK</Badge>
                   </div>
                 </div>
-                <div className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate("cross-tenant-queues", { type: "risk" })}>
+                <div className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate("cross-tenant-queues", { queue: "risk" })}>
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className="h-5 w-5"><AlertTriangle className="h-4 w-4" /></Badge>
                     <span className="text-sm font-medium">Risk Queue</span>
@@ -370,7 +370,7 @@ export function SuperAdminOverviewPage() {
                     <Badge variant="destructive">SLA Breach</Badge>
                   </div>
                 </div>
-                <div className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate("cross-tenant-queues", { type: "payouts" })}>
+                <div className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate("cross-tenant-queues", { queue: "payouts" })}>
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className="h-5 w-5"><DollarSign className="h-4 w-4" /></Badge>
                     <span className="text-sm font-medium">Payouts Queue</span>
@@ -382,7 +382,7 @@ export function SuperAdminOverviewPage() {
                     <Badge variant="outline" className="text-emerald-600 border-emerald-200">SLA OK</Badge>
                   </div>
                 </div>
-                <div className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate("cross-tenant-queues", { type: "tickets" })}>
+                <div className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate("cross-tenant-queues", { queue: "support" })}>
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className="h-5 w-5"><Package className="h-4 w-4" /></Badge>
                     <span className="text-sm font-medium">Tickets Queue</span>
