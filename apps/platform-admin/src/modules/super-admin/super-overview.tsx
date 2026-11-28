@@ -12,7 +12,8 @@ import { AreaSeries, DonutSeries, Sparkline, ChartEmpty } from "@/components/pla
 import { StatusBadge } from "@/components/platform/status";
 import { traderStatusTone } from "@/components/platform/status";
 import { healthOf, tenantHealthScore, tenantForecast } from "@/lib/platform/tenant-health";
-import { readIncidents, effectiveSeverity, correlationsFor } from "@/lib/platform/incident-center-store";
+import { readIncidents, effectiveSeverity } from "@/lib/platform/incident-center-store";
+import { timeAgo } from "@/hooks/use-countdown";
 import { listOpenTasks, startTask } from "@/lib/platform/pending-tasks-store";
 import { listAnnouncements } from "@/lib/platform/announcements-store";
 import { readJobOverrides, useJobOverrides } from "@/lib/platform/jobs-store";
@@ -147,17 +148,6 @@ export function SuperAdminOverviewPage() {
   }, [tenants]);
 
   // --- Z6: Governance --
-  const correlations = correlationsFor(
-    data.incidents || [],
-    data.incidentState || { overrides: {}, acks: {} }
-  );
-  const auditRows = correlations.slice(0, 8).map((c: any) => ({
-    provider: c.providerName,
-    action: `Correlation: ${c.providerName}`,
-    tenantsAffected: c.tenantIds.length,
-    time: new Date().toISOString(),
-  }));
-
   const visibleAnnouncements = (data.announcements || listAnnouncements())
     .filter((a: any) => a.status === "visible")
     .slice(0, 5);
@@ -580,13 +570,16 @@ export function SuperAdminOverviewPage() {
               <span className="text-sm font-medium">Platform Audit</span>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {auditRows.length > 0 ? (
+              {consoleStore.audit.length > 0 ? (
                 <div className="space-y-2">
-                  {auditRows.map((row: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 p-1 rounded bg-muted hover:bg-primary/5 transition">
-                      <span className="text-[10px] font-medium">{row.provider}</span>
-                      <span className="text-[10px] text-muted-foreground ml-2">
-                        {row.action} · {row.tenantsAffected} tenants affected
+                  {consoleStore.audit.slice(0, 8).map((audit) => (
+                    <div key={audit.id} className="flex items-center gap-2 p-1 rounded bg-muted hover:bg-primary/5 transition">
+                      <span className="text-[10px] font-medium">{audit.actor}</span>
+                      <span className="text-[10px] text-muted-foreground ml-2 flex-1 truncate">
+                        {audit.action}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        {timeAgo(audit.at)}
                       </span>
                     </div>
                   ))}

@@ -400,11 +400,18 @@ export function AuditLogPage() {
         >
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard label="Total Events (24h)" value={stats.total} icon={ScrollText} />
+          <MetricCard label="Total Events" value={stats.total} icon={ScrollText} />
           <MetricCard label="Critical Events" value={stats.critical} icon={AlertTriangle} tone="negative" />
           <MetricCard label="Warnings" value={stats.warning} icon={ShieldAlert} tone="warning" />
           <MetricCard label="Unique Actors" value={stats.actors} icon={UserCog} />
         </div>
+
+        {/* Stream date range (truthful framing: demo fixture stream covers Oct 8, 2026 window) */}
+        <p className="text-xs text-muted-foreground mb-4">
+          Stream window: {auditEvents.length
+            ? `${auditEvents[0].timestamp.slice(0, 10)} · ${auditEvents[0].timestamp.slice(11, 19)} UTC`
+            : "no events"}
+        </p>
 
         {/* Compliance badges */}
         <div className="flex flex-wrap items-center gap-2">

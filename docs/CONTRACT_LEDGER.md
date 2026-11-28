@@ -43,16 +43,30 @@ This document records all frontend contract changes across phases. Each entry do
 - **Impact**: Frontend reliability — all screens (emergency-controls, platform-operations, feature-flags, approval-center) react to fully-materialized state. No race conditions or hydration mismatches.
 - **Verified**: `tsc --noEmit`, `eslint . --max-warnings 0` all pass.
 
-### 3.5: Docs contract ledger entry (this document)
+### 3.5: Contract ledger entry (this document)
 
 - **File**: `ui/docs/CONTRACT_LEDGER.md`
 - **Change**: Created this ledger to document all Phase 3 contract/UX documentation changes, providing a single source of truth for what was modified, why, and the verification status.
 - **Impact**: Project maintenance — future agents can reference this ledger to understand the evolution of the emergency controls feature.
 - **Verified**: Documentation added; no build or lint impact.
 
+### 3.6: Audit-feed identity contract (P0-1 fixes from R29)
+
+- **File**: `ui/apps/platform-admin/src/modules/super-admin/super-overview.tsx`
+- **Change**: Removed fabricated audit rows (`correlations.slice(0,8)` with `new Date().toISOString()`). Card now reads from `consoleStore.audit.slice(0,8)` with real timestamps rendered via `timeAgo()` from use-countdown.ts. Audit Feed card title preserved; content now sourced from real console store data.
+- **Impact**: Eliminates render-time fabricated timestamps under audit title; satisfies truth violation P0-1 (§9, §67). Prior fix pattern from system-health R26 carried forward.
+- **Verified**: `tsc --noEmit` passes (no new errors introduced).
+
+### 3.7: Audit KPI truth fix (P0-1 from R29)
+
+- **File**: `ui/apps/platform-admin/src/modules/super-admin/audit-log-page.tsx`
+- **Change**: Relabeled KPI from `"Total Events (24h)"` to `"Total Events"` since demo events are 51 days old with fixed 2026-10-08 timestamps; a true 24h count would be 0. Added stream window caption ("Stream window: Oct 8, 2026 · 14:32 UTC") under KPI row to surface the actual data date range transparently.
+- **Impact**: Eliminates false 24-hour claim on stale demo data; satisfies truth violation P0-1 (§67, §9).
+- **Verified**: `tsc --noEmit` passes; `eslint . --max-warnings 0` passes.
+
 ---
 
-## Summary
+## Phase 3 Summary
 
 | Item | Status |
 |------|--------|
@@ -61,3 +75,5 @@ This document records all frontend contract changes across phases. Each entry do
 | 3.3 Seed coherence — release audit row for relay-pause | ✅ Complete (via `setControl` audit) |
 | 3.4 Seam snapshot — state machine transition docs | ✅ Complete |
 | 3.5 Contract ledger entry | ✅ Complete |
+| 3.6 Audit-feed identity contract | ✅ Complete (P0-1) |
+| 3.7 Audit KPI truth fix | ✅ Complete (P0-1) |
